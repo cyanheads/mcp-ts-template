@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/cyanheads-mcp-ts-template-badge.png)](https://mseep.ai/app/cyanheads-mcp-ts-template)
+
 # MCP TypeScript Template 🚀
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
