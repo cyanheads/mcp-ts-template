@@ -110,6 +110,14 @@ const EnvSchema = z.object({
       "MCP_AUTH_SECRET_KEY must be at least 32 characters long for security reasons.",
     )
     .optional(),
+  /** The authentication mode to use. 'jwt' for internal simple JWTs, 'oauth' for OAuth 2.1. Default: 'jwt'. */
+  MCP_AUTH_MODE: z.enum(["jwt", "oauth"]).default("jwt"),
+  /** The expected issuer URL for OAuth 2.1 access tokens. CRITICAL for validation. */
+  OAUTH_ISSUER_URL: z.string().url().optional(),
+  /** The JWKS (JSON Web Key Set) URI for the OAuth 2.1 provider. If not provided, it's often discoverable from the issuer URL. */
+  OAUTH_JWKS_URI: z.string().url().optional(),
+  /** The audience claim for the OAuth 2.1 access tokens. This server will reject tokens not intended for it. */
+  OAUTH_AUDIENCE: z.string().optional(),
 
   /** Optional. Application URL for OpenRouter integration. */
   OPENROUTER_APP_URL: z
@@ -296,6 +304,14 @@ export const config = {
     .filter(Boolean),
   /** Auth secret key (JWTs, http transport). From `MCP_AUTH_SECRET_KEY`. CRITICAL. */
   mcpAuthSecretKey: env.MCP_AUTH_SECRET_KEY,
+  /** The authentication mode ('jwt' or 'oauth'). From `MCP_AUTH_MODE`. */
+  mcpAuthMode: env.MCP_AUTH_MODE,
+  /** OAuth 2.1 Issuer URL. From `OAUTH_ISSUER_URL`. */
+  oauthIssuerUrl: env.OAUTH_ISSUER_URL,
+  /** OAuth 2.1 JWKS URI. From `OAUTH_JWKS_URI`. */
+  oauthJwksUri: env.OAUTH_JWKS_URI,
+  /** OAuth 2.1 Audience. From `OAUTH_AUDIENCE`. */
+  oauthAudience: env.OAUTH_AUDIENCE,
   /** OpenRouter App URL. From `OPENROUTER_APP_URL`. Default: "http://localhost:3000". */
   openrouterAppUrl: env.OPENROUTER_APP_URL || "http://localhost:3000",
   /** OpenRouter App Name. From `OPENROUTER_APP_NAME`. Defaults to `mcpServerName`. */

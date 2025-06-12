@@ -14,6 +14,7 @@ import {
   RequestContext,
   requestContextService,
 } from "../../../utils/index.js";
+import { withRequiredScopes } from "../../transports/authentication/authUtils.js";
 import type { CatFactFetcherInput } from "./logic.js";
 import { CatFactFetcherInputSchema, processCatFactFetcher } from "./logic.js";
 
@@ -59,6 +60,14 @@ export const registerCatFactFetcherTool = async (
             });
 
           logger.debug(`Handling '${toolName}' tool request.`, handlerContext);
+
+          // --- EXAMPLE: Scope-Based Authorization ---
+          // To protect this tool with OAuth 2.1 scopes, uncomment the following line.
+          // This requires the MCP_AUTH_MODE to be 'oauth' and the client's access token
+          // to contain the specified scope(s).
+          //
+          // withRequiredScopes(['facts:read']);
+          //
 
           return await ErrorHandler.tryCatch(
             async () => {

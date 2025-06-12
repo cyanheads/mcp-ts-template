@@ -17,21 +17,12 @@
  */
 
 import { HttpBindings } from "@hono/node-server";
-import { type AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { Context, Next } from "hono";
-import http from "http";
 import jwt from "jsonwebtoken";
 import { config, environment } from "../../../config/index.js";
 import { logger, requestContextService } from "../../../utils/index.js";
-export type { AuthInfo };
-
-// Extend the Node.js IncomingMessage type to include an optional 'auth' property.
-// This is necessary for type-safe access when attaching the AuthInfo.
-declare module "http" {
-  interface IncomingMessage {
-    auth?: AuthInfo;
-  }
-}
+import { authContext } from "./authContext.js";
+import type { AuthInfo } from "./types.js";
 
 // Startup Validation: Validate secret key presence on module load.
 if (environment === "production" && !config.mcpAuthSecretKey) {
@@ -79,11 +70,12 @@ export async function mcpAuthMiddleware(
         clientId: "dev-client-id",
         scopes: ["dev-scope"],
       };
+      const authInfo = reqWithAuth.auth;
       logger.debug("Dev mode auth object created.", {
         ...context,
-        authDetails: reqWithAuth.auth,
+        authDetails: authInfo,
       });
-      return await next();
+      return await authContext.run({ authInfo }, next);
     } else {
       logger.error(
         "FATAL: MCP_AUTH_SECRET_KEY is missing in production. Cannot bypass auth.",
@@ -186,13 +178,14 @@ export async function mcpAuthMiddleware(
 
     const subClaimForLogging =
       typeof decoded.sub === "string" ? decoded.sub : undefined;
+    const authInfo = reqWithAuth.auth;
     logger.debug("JWT verified successfully. AuthInfo attached to request.", {
       ...context,
       mcpSessionIdContext: subClaimForLogging,
-      clientId: reqWithAuth.auth.clientId,
-      scopes: reqWithAuth.auth.scopes,
+      clientId: authInfo.clientId,
+      scopes: authInfo.scopes,
     });
-    await next();
+    await authContext.run({ authInfo }, next);
   } catch (error: unknown) {
     let errorMessage = "Invalid token";
     if (error instanceof jwt.TokenExpiredError) {

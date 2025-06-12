@@ -27,10 +27,9 @@ import {
   RequestContext,
   requestContextService,
 } from "../../utils/index.js";
-import {
-  AuthInfo,
-  mcpAuthMiddleware,
-} from "./authentication/authMiddleware.js";
+import { mcpAuthMiddleware } from "./authentication/authMiddleware.js";
+import { oauthMiddleware } from "./authentication/oauthMiddleware.js";
+import type { AuthInfo } from "./authentication/types.js";
 
 /**
  * The port number for the HTTP transport, configured via `MCP_HTTP_PORT` environment variable.
@@ -81,6 +80,31 @@ const MAX_PORT_RETRIES = 15;
  * @private
  */
 const httpTransports: Record<string, StreamableHTTPServerTransport> = {};
+
+/**
+ * Stores the last activity timestamp for each session, keyed by session ID.
+ * Used for garbage collecting stale/abandoned sessions.
+ * @type {Record<string, number>}
+ * @private
+ */
+const sessionActivity: Record<string, number> = {};
+
+/**
+ * The timeout period in milliseconds for inactive sessions. If a session has no
+ * activity for this duration, it will be considered stale and garbage collected.
+ * Defaults to 30 minutes.
+ * @constant {number} SESSION_TIMEOUT_MS
+ * @private
+ */
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
+/**
+ * The interval in milliseconds at which the session garbage collector runs to
+ * clean up stale sessions. Defaults to 1 minute.
+ * @constant {number} SESSION_GC_INTERVAL_MS
+ * @private
+ */
+const SESSION_GC_INTERVAL_MS = 60 * 1000; // 1 minute
 
 /**
  * Proactively checks if a specific network port is already in use.
@@ -263,6 +287,28 @@ export async function startHttpTransport(
   });
   logger.debug("Setting up Hono app for HTTP transport...", transportContext);
 
+  // Start the session garbage collector
+  setInterval(() => {
+    const now = Date.now();
+    const gcContext = requestContextService.createRequestContext({
+      operation: "SessionGarbageCollector",
+    });
+    logger.debug("Running session garbage collector...", gcContext);
+    for (const sessionId in sessionActivity) {
+      if (now - sessionActivity[sessionId] > SESSION_TIMEOUT_MS) {
+        logger.info(
+          `Session ${sessionId} timed out due to inactivity. Cleaning up.`,
+          { ...gcContext, sessionId },
+        );
+        const transport = httpTransports[sessionId];
+        if (transport) {
+          transport.close(); // This will trigger the onclose handler to delete it from httpTransports
+        }
+        delete sessionActivity[sessionId];
+      }
+    }
+  }, SESSION_GC_INTERVAL_MS);
+
   app.use(
     "*",
     cors({
@@ -298,10 +344,11 @@ export async function startHttpTransport(
   });
 
   app.use(MCP_ENDPOINT_PATH, async (c, next) => {
+    const xff = c.req.header("x-forwarded-for");
+    const clientIp = xff ? xff.split(",")[0].trim() : "unknown_ip";
     const rateLimitKey =
-      c.req.header("x-forwarded-for") ||
-      c.req.header("host") ||
-      "unknown_ip_for_rate_limit";
+      clientIp || c.req.header("host") || "unknown_ip_for_rate_limit";
+
     const context = requestContextService.createRequestContext({
       operation: "httpRateLimitCheck",
       ipAddress: rateLimitKey,
@@ -341,7 +388,12 @@ export async function startHttpTransport(
     }
   });
 
-  app.use(MCP_ENDPOINT_PATH, mcpAuthMiddleware);
+  // Use the appropriate authentication middleware based on config
+  if (config.mcpAuthMode === "oauth") {
+    app.use(MCP_ENDPOINT_PATH, oauthMiddleware);
+  } else {
+    app.use(MCP_ENDPOINT_PATH, mcpAuthMiddleware);
+  }
 
   app.post(MCP_ENDPOINT_PATH, async (c) => {
     const basePostContext = requestContextService.createRequestContext({
@@ -365,6 +417,9 @@ export async function startHttpTransport(
     });
 
     let transport = sessionId ? httpTransports[sessionId] : undefined;
+    if (transport && sessionId) {
+      sessionActivity[sessionId] = Date.now(); // Update activity timestamp
+    }
     logger.debug(`Found existing transport for session ID: ${!!transport}`, {
       ...basePostContext,
       sessionId,
@@ -385,7 +440,7 @@ export async function startHttpTransport(
             { ...basePostContext, sessionId },
           );
           await transport.close();
-          delete httpTransports[sessionId!];
+          // onclose handler will delete from httpTransports and sessionActivity
         }
         logger.info("Handling Initialize Request: Creating new session...", {
           ...basePostContext,
@@ -404,6 +459,7 @@ export async function startHttpTransport(
               { ...basePostContext, newSessionId: newId },
             );
             httpTransports[newId] = transport!;
+            sessionActivity[newId] = Date.now(); // Initialize activity timestamp
             logger.info(`HTTP Session created: ${newId}`, {
               ...basePostContext,
               newSessionId: newId,
@@ -419,6 +475,7 @@ export async function startHttpTransport(
               { ...basePostContext, closedSessionId },
             );
             delete httpTransports[closedSessionId];
+            delete sessionActivity[closedSessionId]; // Clean up activity tracker
             logger.info(`HTTP Session closed: ${closedSessionId}`, {
               ...basePostContext,
               closedSessionId,
@@ -529,6 +586,9 @@ export async function startHttpTransport(
     });
 
     const transport = sessionId ? httpTransports[sessionId] : undefined;
+    if (transport && sessionId) {
+      sessionActivity[sessionId] = Date.now(); // Update activity timestamp
+    }
     logger.debug(`Found existing transport for session ID: ${!!transport}`, {
       ...baseSessionReqContext,
       sessionId,
