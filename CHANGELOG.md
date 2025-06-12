@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2025-06-12
+
+### Added
+
+- **Authentication**: Implemented a robust **OAuth 2.1 authentication** system for the HTTP transport (`oauthMiddleware.ts`), configurable via `MCP_AUTH_MODE=oauth`. This includes:
+  - JWT validation against a remote JWKS.
+  - Issuer and audience claim verification.
+  - An `authContext` using `AsyncLocalStorage` to securely pass `AuthInfo` to downstream handlers.
+  - A `withRequiredScopes` utility (`authUtils.ts`) for enforcing scope-based access control within tools and resources.
+- **Session Management**: Added session timeout and garbage collection for the HTTP transport to automatically clean up stale connections.
+
+### Changed
+
+- **Dependencies**:
+  - Updated numerous dependencies, including `hono`, `@supabase/supabase-js`, `@types/node`, `openai`, and `zod`.
+  - Added `jose` for robust JWT and JWS handling in the new OAuth middleware.
+- **Authentication**:
+  - Refactored the existing JWT middleware (`authMiddleware.ts`) to use the new `authContext`, ensuring a consistent authentication pattern across both `jwt` and `oauth` modes.
+- **Configuration**:
+  - Added new environment variables to `src/config/index.ts` to support OAuth 2.1: `MCP_AUTH_MODE`, `OAUTH_ISSUER_URL`, `OAUTH_JWKS_URI`, and `OAUTH_AUDIENCE`.
+- **Documentation**:
+  - Updated `src/mcp-server/README.md` to document the new authentication modes and the `withRequiredScopes` utility.
+  - Updated `.gitignore` to exclude `.wrangler` and `worker-configuration.d.ts`.
+  - Updated `docs/tree.md` to reflect new authentication-related files.
+
 ## [1.4.9] - 2025-06-05
 
 ### Changed

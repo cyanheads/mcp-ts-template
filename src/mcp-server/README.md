@@ -4,6 +4,32 @@ This document provides guidance on adding custom Tools and Resources to the MCP 
 
 ---
 
+## 🔐 Authentication
+
+The HTTP transport supports two authentication modes, configurable via the `MCP_AUTH_MODE` environment variable:
+
+- **`jwt` (default):** A simple, self-contained JWT mode for development or internal use. It uses the `MCP_AUTH_SECRET_KEY` to sign and verify tokens.
+- **`oauth`:** A production-ready OAuth 2.1 mode where the server acts as a Resource Server. It validates Bearer tokens issued by an external Authorization Server. This mode requires the following environment variables to be set:
+  - `OAUTH_ISSUER_URL`: The issuer URL of your authorization server (e.g., `https://your-auth-server.com/`).
+  - `OAUTH_AUDIENCE`: The audience identifier for this MCP server.
+  - `OAUTH_JWKS_URI` (optional): The JWKS endpoint URL. If not provided, it will be discovered from the issuer URL.
+
+When using `oauth` mode, you can protect tools and resources by checking for specific scopes in the access token. Use the `withRequiredScopes` utility within your tool/resource handlers:
+
+```typescript
+import { withRequiredScopes } from "../../transports/authentication/authUtils.js";
+
+// Inside a tool handler...
+async (params: ToolInput): Promise<CallToolResult> => {
+  // This will throw a FORBIDDEN error if the token lacks the 'facts:read' scope.
+  withRequiredScopes(["facts:read"]);
+
+  // ... rest of the tool logic
+};
+```
+
+---
+
 ## Adding Your Own Tools & Resources
 
 The core of extending this MCP server involves defining your custom logic and then registering it with the main server instance. This process is streamlined by the MCP SDK's helper functions.

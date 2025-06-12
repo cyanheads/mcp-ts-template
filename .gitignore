@@ -169,6 +169,8 @@ sample.*
 !sample.template.*
 mcp-servers.json
 mcp-config.json
+.wrangler
+worker-configuration.d.ts
 
 # =============================================================================
 # DEMO & EXAMPLE DIRECTORIES

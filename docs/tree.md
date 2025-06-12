@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-06-06 00:26:45
+Generated on: 2025-06-12 04:53:16
 
 ```
 mcp-ts-template
@@ -9,7 +9,6 @@ mcp-ts-template
 │   │   └── publish.yml
 │   └── FUNDING.yml
 ├── docs
-│   ├── api
 │   ├── api-references
 │   │   ├── duckDB.md
 │   │   ├── jsdoc-standard-tags.md
@@ -60,7 +59,11 @@ mcp-ts-template
 │   │   │       └── registration.ts
 │   │   ├── transports
 │   │   │   ├── authentication
-│   │   │   │   └── authMiddleware.ts
+│   │   │   │   ├── authContext.ts
+│   │   │   │   ├── authMiddleware.ts
+│   │   │   │   ├── authUtils.ts
+│   │   │   │   ├── oauthMiddleware.ts
+│   │   │   │   └── types.ts
 │   │   │   ├── httpTransport.ts
 │   │   │   └── stdioTransport.ts
 │   │   ├── README.md

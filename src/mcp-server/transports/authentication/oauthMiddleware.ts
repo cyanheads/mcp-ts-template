@@ -27,9 +27,7 @@ if (config.mcpAuthMode === "oauth") {
     );
   }
   if (!config.oauthAudience) {
-    throw new Error(
-      "OAUTH_AUDIENCE must be set when MCP_AUTH_MODE is 'oauth'",
-    );
+    throw new Error("OAUTH_AUDIENCE must be set when MCP_AUTH_MODE is 'oauth'");
   }
   logger.info(
     "OAuth 2.1 mode enabled. Verifying tokens against issuer.",

@@ -3,7 +3,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-1.12.1-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--03--26-lightgrey.svg)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.4.8-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.5.0-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
@@ -91,7 +91,8 @@ Get the example server running in minutes:
 
 5.  **Run the Example Server:**
 
-    - **Via Stdio (Default):** Many MCP host applications will run this automatically using `stdio`. To run manually for testing:
+    - **Via Stdio (Default):** Many MCP host applications will run this automatically using `stdio`.
+      To run manually for testing:
       ```bash
       npm start
       # or 'npm run start:stdio'
@@ -120,13 +121,22 @@ Configure the MCP server's behavior using these environment variables:
 | `LOGS_DIR`                | Directory for log files.                                                                            | `logs/` (in project root)               |
 | `NODE_ENV`                | Runtime environment (`development`, `production`).                                                  | `development`                           |
 | `MCP_AUTH_SECRET_KEY`     | **Required for HTTP transport.** Secret key (min 32 chars) for signing/verifying auth tokens (JWT). | (none - **MUST be set in production**)  |
+| `MCP_AUTH_MODE`           | Authentication mode: `jwt` (default) or `oauth`.                                                    | `jwt`                                   |
+| `OAUTH_ISSUER_URL`        | **Required for `oauth` mode.** The issuer URL of your authorization server.                         | (none)                                  |
+| `OAUTH_AUDIENCE`          | **Required for `oauth` mode.** The audience identifier for this MCP server.                         | (none)                                  |
+| `OAUTH_JWKS_URI`          | **Optional for `oauth` mode.** The JWKS endpoint URL. If omitted, it's discovered from the issuer.  | (none)                                  |
 | `OPENROUTER_API_KEY`      | API key for OpenRouter.ai service. Optional, but service will be unconfigured without it.           | (none)                                  |
 | `LLM_DEFAULT_MODEL`       | Default model to use for LLM calls via OpenRouter.                                                  | `google/gemini-2.5-flash-preview-05-20` |
 | `LLM_DEFAULT_TEMPERATURE` | Default temperature for LLM calls (0-2). Optional.                                                  | (none)                                  |
 
 **Note on HTTP Port Retries:** If the `MCP_HTTP_PORT` is busy, the server automatically tries the next port (up to 15 times).
 
-**Security Note for HTTP Transport:** When using `MCP_TRANSPORT_TYPE=http`, authentication is **mandatory** as per the MCP specification. This template includes JWT-based authentication middleware (`src/mcp-server/transports/authentication/authMiddleware.ts`). You **MUST** set a strong, unique `MCP_AUTH_SECRET_KEY` in your production environment for this security mechanism to function correctly. Failure to do so will result in bypassed authentication checks in development and fatal errors in production.
+**Security Note for HTTP Transport:** When using `MCP_TRANSPORT_TYPE=http`, authentication is **mandatory** as per the MCP specification. This template supports two modes via `MCP_AUTH_MODE`:
+
+- **`jwt` (default):** A simple, self-contained JWT mode ideal for development. It requires the `MCP_AUTH_SECRET_KEY` to be set for signing and verifying tokens.
+- **`oauth`:** A production-ready OAuth 2.1 mode where the server validates Bearer tokens from an external Authorization Server. This requires `OAUTH_ISSUER_URL` and `OAUTH_AUDIENCE` to be configured.
+
+You **MUST** configure one of these modes for the security mechanism to function correctly when using the HTTP transport.
 
 ### 🔌 Client Configuration
 
