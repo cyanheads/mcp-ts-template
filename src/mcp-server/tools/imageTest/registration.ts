@@ -4,12 +4,13 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { BaseErrorCode } from "../../../types-global/errors.js";
+import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
+  RequestContext,
   requestContextService,
-  // RequestContext, // No longer needed directly in this function signature
 } from "../../../utils/index.js";
 import {
   FetchImageTestInput,
@@ -23,49 +24,85 @@ import {
  */
 export function registerFetchImageTestTool(server: McpServer): void {
   const operation = "registerFetchImageTestTool";
+  const toolName = "fetch_image_test";
+  const toolDescription =
+    "Fetches a random cat image from an external API (cataas.com) and returns it as a blob. Useful for testing image handling capabilities.";
   const registrationContext = requestContextService.createRequestContext({
     operation,
   });
 
   ErrorHandler.tryCatch(
-    () => {
+    async () => {
       server.tool(
-        "fetch_image_test",
-        "Fetches a random cat image from an external API (cataas.com) and returns it as a blob. Useful for testing image handling capabilities.",
-        FetchImageTestInputSchema.shape, // CRITICAL: Pass the .shape
+        toolName,
+        toolDescription,
+        FetchImageTestInputSchema.shape,
         async (
-          validatedInput: FetchImageTestInput,
+          input: FetchImageTestInput,
           mcpProvidedContext: any,
-        ) => {
-          // Create a new context for each tool invocation.
-          // Link to an initial request ID if available from mcpProvidedContext or use registration context's ID as a fallback.
-          const parentRequestId =
-            mcpProvidedContext?.requestId || registrationContext.requestId;
-
-          const handlerRequestContext =
+        ): Promise<CallToolResult> => {
+          const handlerContext: RequestContext =
             requestContextService.createRequestContext({
-              parentRequestId,
+              parentRequestId:
+                mcpProvidedContext?.requestId || registrationContext.requestId,
               operation: "fetchImageTestToolHandler",
-              toolName: "fetch_image_test",
-              // Include any other relevant details from mcpProvidedContext if needed
-              // For example, if mcpProvidedContext itself is a RequestContext or has useful fields:
-              // ...(typeof mcpProvidedContext === 'object' && mcpProvidedContext !== null ? mcpProvidedContext : {}),
+              toolName: toolName,
+              input,
             });
-          return fetchImageTestLogic(validatedInput, handlerRequestContext);
+
+          try {
+            const result = await fetchImageTestLogic(input, handlerContext);
+            return {
+              content: [
+                {
+                  type: "image",
+                  data: result.data,
+                  mimeType: result.mimeType,
+                },
+              ],
+              isError: false,
+            };
+          } catch (error) {
+            const handledError = ErrorHandler.handleError(error, {
+              operation: "fetchImageTestToolHandler",
+              context: handlerContext,
+              input,
+            });
+
+            const mcpError =
+              handledError instanceof McpError
+                ? handledError
+                : new McpError(
+                    BaseErrorCode.INTERNAL_ERROR,
+                    "An unexpected error occurred while fetching the image.",
+                    { originalErrorName: handledError.name },
+                  );
+
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    error: {
+                      code: mcpError.code,
+                      message: mcpError.message,
+                      details: mcpError.details,
+                    },
+                  }),
+                },
+              ],
+              isError: true,
+            };
+          }
         },
       );
-      logger.notice(`Tool 'fetch_image_test' registered.`, registrationContext);
+      logger.notice(`Tool '${toolName}' registered.`, registrationContext);
     },
     {
-      operation, // Operation name for error handling
-      context: registrationContext, // Context for error handling
-      errorCode: BaseErrorCode.INITIALIZATION_FAILED, // Default error code if registration fails
-      critical: true, // Registration failures are typically critical
-      // Note: `rethrow` is not an option for `ErrorHandler.tryCatch`.
-      // `tryCatch` internally calls `ErrorHandler.handleError` with `rethrow: true`.
-      // If non-rethrowing behavior is essential for a specific registration,
-      // a manual try/catch block calling `ErrorHandler.handleError` with `rethrow: false` would be needed.
-      // For consistency with the typical use of `tryCatch`, this assumes rethrowing is acceptable.
+      operation,
+      context: registrationContext,
+      errorCode: BaseErrorCode.INITIALIZATION_FAILED,
+      critical: true,
     },
   );
 }

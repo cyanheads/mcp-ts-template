@@ -2,7 +2,7 @@
  * @fileoverview Defines the core logic, schemas, and types for the `echo_message` tool.
  * This module includes input validation using Zod, type definitions for input and output,
  * and the main processing function that handles message formatting and repetition.
- * @module src/mcp-server/tools/echoTool/echoToolLogic
+ * @module src/mcp-server/tools/echoTool/logic
  */
 
 import { z } from "zod";
@@ -10,19 +10,12 @@ import { logger, type RequestContext } from "../../../utils/index.js";
 
 /**
  * Defines the valid formatting modes for the echo tool operation.
- * - `standard`: Echo the message as is.
- * - `uppercase`: Convert the message to uppercase.
- * - `lowercase`: Convert the message to lowercase.
  */
 export const ECHO_MODES = ["standard", "uppercase", "lowercase"] as const;
 
 /**
  * Zod schema defining the input parameters for the `echo_message` tool.
  * This schema is used by the MCP SDK to validate the arguments provided when the tool is called.
- * It specifies constraints such as message length, formatting mode, repetition count,
- * and whether a timestamp should be included in the response.
- * The `.describe()` calls on each field provide human-readable explanations that
- * can be used by documentation generators or for context by LLMs.
  */
 export const EchoToolInputSchema = z
   .object({
@@ -38,8 +31,7 @@ export const EchoToolInputSchema = z
       .optional()
       .default("standard")
       .describe(
-        "Specifies how the message should be formatted. " +
-          "Options: 'standard' (as-is), 'uppercase', 'lowercase'. Defaults to 'standard'.",
+        "Specifies how the message should be formatted. Options: 'standard' (as-is), 'uppercase', 'lowercase'. Defaults to 'standard'.",
       ),
     repeat: z
       .number()
@@ -70,16 +62,7 @@ export const EchoToolInputSchema = z
 export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;
 
 /**
- * Defines the structure of the JSON payload returned by the `echo_message` tool handler.
- * This object is typically JSON-stringified and placed within the `text` field of a
- * `CallToolResult`'s `content` array when the tool is invoked successfully.
- *
- * @property originalMessage - The original message as provided in the input.
- * @property formattedMessage - The message after the specified formatting mode (e.g., uppercase) has been applied.
- * @property repeatedMessage - The `formattedMessage` repeated the specified number of times, with repetitions joined by a single space.
- * @property mode - The formatting mode that was actually applied to the message.
- * @property repeatCount - The number of times the `formattedMessage` was repeated to create the `repeatedMessage`.
- * @property timestamp - An optional ISO 8601 timestamp indicating when the response was generated. This is included if the `timestamp` input parameter was true.
+ * Defines the structure of the JSON payload returned by the `echo_message` tool.
  */
 export interface EchoToolResponse {
   /** The original message provided in the input. */
@@ -103,35 +86,15 @@ export interface EchoToolResponse {
  *
  * @param params - The validated input parameters for the echo tool.
  * @param context - The request context, used for logging and tracing the operation.
- * @returns An object containing the processed response data.
- * @example
- * ```typescript
- * const input = { message: "Hello", mode: "uppercase", repeat: 2, timestamp: true };
- * const context = requestContextService.createRequestContext({ operation: "EchoToolCall" });
- * const response = processEchoMessage(input, context);
- * // response might be:
- * // {
- * //   originalMessage: "Hello",
- * //   formattedMessage: "HELLO",
- * //   repeatedMessage: "HELLO HELLO",
- * //   mode: "uppercase",
- * //   repeatCount: 2,
- * //   timestamp: "2023-10-27T10:00:00.000Z"
- * // }
- * ```
+ * @returns A promise that resolves with an object containing the processed response data.
  */
-export const processEchoMessage = (
+export async function echoToolLogic(
   params: EchoToolInput,
   context: RequestContext,
-): EchoToolResponse => {
+): Promise<EchoToolResponse> {
   logger.debug("Processing echo message logic with input parameters.", {
     ...context,
-    toolInput: {
-      messageLength: params.message.length,
-      mode: params.mode,
-      repeat: params.repeat,
-      timestampRequested: params.timestamp,
-    },
+    toolInput: params,
   });
 
   let formattedMessage = params.message;
@@ -160,14 +123,11 @@ export const processEchoMessage = (
 
   logger.debug("Echo message processed successfully.", {
     ...context,
-    toolResponseSummary: {
-      formattedMessageLength: response.formattedMessage.length,
+    responseSummary: {
       repeatedMessageLength: response.repeatedMessage.length,
-      modeUsed: response.mode,
-      timesRepeated: response.repeatCount,
       timestampGenerated: !!response.timestamp,
     },
   });
 
   return response;
-};
+}
