@@ -18,8 +18,8 @@ startCommand:
         description: "Minimum logging level."
   commandFunction: |
     (config) => ({
-      "command": "node",
-      "args": ["dist/index.js"],
+      "command": "npx",
+      "args": ["mcp-ts-template"],
       "env": {
         "MCP_TRANSPORT_TYPE": config.MCP_TRANSPORT_TYPE,
         "MCP_HTTP_PORT": config.MCP_HTTP_PORT,

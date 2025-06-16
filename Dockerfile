@@ -45,4 +45,5 @@ ENV MCP_TRANSPORT_TYPE=http
 EXPOSE 3010
 
 # Command to run the application
-CMD ["node", "dist/index.js"]
+# This will execute the binary defined in package.json
+CMD ["npx", "mcp-ts-template"]

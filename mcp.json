@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "mcp-ts-template": {
-      "command": "node",
-      "args": ["dist/index.js"],
+      "command": "npx",
+      "args": ["mcp-ts-template"],
       "env": {
         "MCP_LOG_LEVEL": "debug",
         "MCP_TRANSPORT_TYPE": "http",
