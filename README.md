@@ -59,9 +59,9 @@ _Note: [**toolkit-mcp-server**](https://github.com/cyanheads/toolkit-mcp-server)
 
 You can also **see my [GitHub profile](https://github.com/cyanheads/)** for additional MCP servers I've created, many of which are planned to be migrated to or built upon this template in the future.
 
-## 🏁 Quick Start
+## 📦 Installation
 
-Get the example server running in minutes:
+This project is a template, but can also directly be run as an MCP server. To get started, follow these steps:
 
 1.  **Clone the repository:**
 
@@ -77,31 +77,44 @@ Get the example server running in minutes:
     ```
 
 3.  **Build the project:**
-
     ```bash
     npm run build
-    # Or use 'npm run rebuild' for a clean install (deletes node_modules, logs, dist)
+    # Or use 'npm run rebuild' for a clean install
     ```
 
-4.  **Format the code (Optional but Recommended):**
+## 🚀 Usage
 
+Once built, you can run the server. If you intend to publish your project as a package, you can test the `npx` command by linking it locally.
+
+### Using NPX
+To run the MCP server directly using `npx`, you can use the following command:
+
+```bash
+
+Now you can run it via `npx`:
+
+```bash
+# Run with default stdio transport
+npx mcp-ts-template
+
+# Run with HTTP transport
+MCP_TRANSPORT_TYPE=http npx mcp-ts-template
+```
+
+### From Source (for Development)
+
+You can also use the npm scripts to run the server directly from your cloned repository:
+
+-   **Via Stdio (Default):**
     ```bash
-    npm run format
+    npm start
+    # or 'npm run start:stdio'
     ```
-
-5.  **Run the Example Server:**
-
-    - **Via Stdio (Default):** Many MCP host applications will run this automatically using `stdio`.
-      To run manually for testing:
-      ```bash
-      npm start
-      # or 'npm run start:stdio'
-      ```
-    - **Via Streamable HTTP:**
-      ```bash
-      npm run start:http
-      ```
-      This starts a **Streamable HTTP** server (default: `http://127.0.0.1:3010`) which uses Server-Sent Events for the server-to-client streaming component. The port, host, and allowed origins are configurable via environment variables (see [Configuration](#configuration)).
+-   **Via Streamable HTTP:**
+    ```bash
+    npm run start:http
+    ```
+This starts a **Streamable HTTP** server (default: `http://127.0.0.1:3010`) which uses Server-Sent Events for the server-to-client streaming component. The port, host, and allowed origins are configurable via environment variables (see [Configuration](#configuration)).
 
 ## ⚙️ Configuration
 
@@ -141,6 +154,28 @@ You **MUST** configure one of these modes for the security mechanism to function
 ### 🔌 Client Configuration
 
 For detailed information on configuring the built-in **MCP client**, including how to set up connections to external MCP servers using `mcp-config.json`, please see the [Client Configuration Guide](src/mcp-client/client-config/README.md).
+
+#### Example: Adding to an MCP Client
+
+To add this server to an MCP client application (like [Claude Desktop](https://github.com/cyanheads/claude-desktop)), you would update the client's configuration file. This example assumes you have published your package or have used `npm link` to make it available locally.
+
+```json
+{
+  "mcpServers": {
+    "mcp-ts-template": {
+      "command": "npx",
+      "args": ["mcp-ts-template"],
+      "env": {
+        "MCP_LOG_LEVEL": "debug",
+        "MCP_TRANSPORT_TYPE": "http",
+        "MCP_HTTP_PORT": "3010"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
 
 ## 🏗️ Project Structure
 

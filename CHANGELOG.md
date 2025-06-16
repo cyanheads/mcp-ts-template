@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1] - 2025-06-15
+
+### Added
+
+- **Architectural Documentation**: Added `docs/best-practices.md` to formally document the "Logic Throws, Handlers Catch" pattern, contextual logging requirements, and standardized module structure.
+- **Developer Tooling**: Added `depcheck` and a corresponding `npm run depcheck` script to identify and report unused dependencies.
+
+### Changed
+
+- **Architectural Refactor**:
+  - **"Logic Throws, Handlers Catch" Pattern**: Refactored all tools (`echoTool`, `catFactFetcher`, `imageTest`) and resources (`echoResource`) to strictly separate core business logic from transport-level handling.
+    - **`logic.ts` files** now contain only the core functionality and `throw McpError` on failure.
+    - **`registration.ts` files** now act as handlers, wrapping logic calls in `try...catch` blocks and formatting the final `CallToolResult` for both success and error cases.
+  - **Error Handling**: Centralized error processing in registration handlers using `ErrorHandler.handleError` to ensure consistent logging and response formatting.
+  - **Request Context**: Enforced rigorous use of `RequestContext` throughout the application, ensuring all operations are traceable via `requestId` and `parentRequestId`.
+- **Packaging & Execution**:
+  - Modified `package.json`, `mcp.json`, and `Dockerfile` to make the project executable via `npx mcp-ts-template`, improving usability as a standalone server.
+- **Dependencies**:
+  - Updated `@modelcontextprotocol/sdk` to `^1.12.3` and `zod` to `^3.25.64`.
+  - Removed several unused dependencies identified by `depcheck`, including `bcryptjs`, `chalk`, `cli-table3`, `pg`, and `winston-daily-rotate-file`.
+- **Documentation**:
+  - **`.clinerules`**: Overhauled the developer guide to reflect the new mandatory architectural patterns, replacing the previous cheatsheet format with a formal standards document.
+  - **`README.md`**: Updated installation and usage instructions to prioritize `npx` execution. Added a new section for adding the server to an MCP client configuration.
+  - **`docs/tree.md`**: Regenerated to reflect the latest project structure.
+
 ## [1.5.0] - 2025-06-12
 
 ### Added

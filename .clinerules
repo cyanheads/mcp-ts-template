@@ -1,1010 +1,140 @@
-You are an intelligent Software Engineer who is an expert in TypeScript and the Model Context Protocol (MCP). Below is a cheatsheet for our current project `mcp-ts-template`.
+# mcp-ts-template: Developer Guide & Architectural Standards
 
-# mcp-ts-template Developer Cheatsheet
+**Effective Date:** 2025-06-15
 
-This cheatsheet provides quick references for common patterns, utilities, and server configuration within the `mcp-ts-template` codebase, updated for MCP Spec 2025-03-26.
+This document mandates the development practices, architectural patterns, and operational procedures for projects based on the `mcp-ts-template`. It is the authoritative guide for ensuring code quality, consistency, and maintainability. All development must adhere to these standards.
 
-## Server Transports & Configuration
+## I. Core Architectural Principles
 
-The server can run using different communication transports, configured via environment variables.
+Our architecture is built on a clear separation of concerns, ensuring that code is modular, testable, and easy to understand.
 
-- **`MCP_TRANSPORT_TYPE`**: Specifies the transport.
-  - `"stdio"` (Default): Uses standard input/output for communication. Suitable for direct integration with parent processes.
-  - `"http"`: Uses Streamable HTTP for communication. Runs a Hono server.
-- **`MCP_HTTP_PORT`**: Port for the HTTP server (Default: `3010`). Used only if `MCP_TRANSPORT_TYPE=http`.
-- **`MCP_HTTP_HOST`**: Host address for the HTTP server (Default: `127.0.0.1`). Used only if `MCP_TRANSPORT_TYPE=http`.
-- **`MCP_ALLOWED_ORIGINS`**: Comma-separated list of allowed origins for HTTP requests (e.g., `http://localhost:8080,https://my-frontend.com`). Used only if `MCP_TRANSPORT_TYPE=http`.
-- **`MCP_LOG_LEVEL`**: Minimum logging level for the server (e.g., "debug", "info", "warning", "error", "notice", "crit", "alert", "emerg"). Defaults to "debug". Affects both file logging and MCP notifications.
-- **`LOGS_DIR`**: Directory for log files. Defaults to "`logs/`" in the project root. Configured via `src/config/index.ts`.
-- **`MCP_AUTH_SECRET_KEY`**: **Required for HTTP transport.** Secret key (min 32 chars) for signing/verifying auth tokens (JWT). Defaults to `undefined`. **MUST be set in production.**
-- **LLM Provider Configuration**: Environment variables for configuring Large Language Model (LLM) providers, primarily OpenRouter.
-  - **`OPENROUTER_API_KEY`**: API key for OpenRouter.
-  - **`LLM_DEFAULT_MODEL`**: Default LLM model to use (e.g., `google/gemini-2.5-flash-preview-05-20`).
-  - **`LLM_DEFAULT_TEMPERATURE`**: Default temperature for LLM responses.
+### 1. Logic Throws, Handlers Catch
 
-### HTTP Transport Details (`MCP_TRANSPORT_TYPE=http`)
+This is the cornerstone of our error-handling strategy.
 
-- **Endpoint**: A single endpoint `/mcp` handles all communication.
-  - `POST /mcp`: Client sends requests/notifications to the server. Requires `mcp-session-id` header for subsequent requests after initialization. Server responds with JSON or initiates SSE stream.
-  - `GET /mcp`: Client initiates SSE stream for server-sent messages. Requires `mcp-session-id` header.
-  - `DELETE /mcp`: Client signals session termination. Requires `mcp-session-id` header.
-- **Session Management**: Each client connection establishes a session identified by the `mcp-session-id` header. The server maintains state per session.
-- **Security Middleware Order (CRITICAL)**:
-  1.  **Origin Check/CORS**: Apply `originCheckMiddleware` first. Configure `MCP_ALLOWED_ORIGINS`.
-  2.  **MCP Authentication**: Apply JWT authentication middleware (`authMiddleware.ts`) next. Requires `MCP_AUTH_SECRET_KEY`.
-- **Graceful Shutdown**: For HTTP servers, especially those with session-specific state or resources, ensure `server.close()` is called during application termination (e.g., on `SIGINT`, `SIGTERM`) to release resources properly.
+-   **Core Logic (`logic.ts`)**: This layer is responsible for business logic only. It should be pure and self-contained. If an error occurs (e.g., failed validation, API error), it **must `throw` a structured `McpError`**. Logic files **must not** contain `try...catch` blocks for formatting final responses.
+-   **Handlers (`registration.ts`, Transports)**: This layer is responsible for invoking core logic and managing communication protocols. It **must** wrap all calls to the logic layer in a `try...catch` block. This is the only place where errors are caught, processed by the `ErrorHandler`, and formatted into a final `CallToolResult` or HTTP response.
 
-### Running the Server
+### 2. Structured, Traceable Operations
 
-- **Format Code**: `npm run format`
-- **Stdio**: `npm run start:stdio`
-- **HTTP**: `npm run start:http` (optionally set `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_ALLOWED_ORIGINS`, `MCP_LOG_LEVEL`, `MCP_AUTH_SECRET_KEY`).
+Every operation must be traceable from start to finish through structured logging and context propagation.
 
-### Using the MCP Client (Example)
+-   **`RequestContext`**: Every significant operation must begin by creating a `RequestContext` using `requestContextService.createRequestContext()`. This context, containing a unique `requestId`, must be passed down through all subsequent function calls.
+-   **`Logger`**: All logging must be done through the centralized `logger` singleton, and every log call must include the current `RequestContext`.
 
-This template includes a fully functional MCP client. Here's how you can use it to connect to a server defined in `mcp-config.json` and call a tool.
+## II. Tool Development Workflow
 
-```typescript
-// src/mcp-client/exampleUsage.ts
-import { connectMcpClient, disconnectMcpClient } from "./core/clientManager.js";
-import { requestContextService, logger } from "../utils/index.js";
+This section defines the mandatory workflow for creating and modifying tools.
 
-async function runClientExample() {
-  const context = requestContextService.createRequestContext({
-    operation: "ClientExample",
-  });
-  const serverName = "echo-server"; // Assuming you have an 'echo-server' defined in mcp-config.json
+### A. File and Directory Structure
 
-  try {
-    // 1. Connect to the server
-    logger.info(`Connecting to ${serverName}...`, context);
-    const client = await connectMcpClient(serverName, context);
-    logger.info(`Successfully connected to ${serverName}.`, context);
+Each tool must reside in its own directory within `src/mcp-server/tools/` and follow this structure:
 
-    // 2. Call a tool
-    const toolParams = {
-      message: "Hello from the client!",
-      mode: "uppercase",
-      repeat: 2,
-    };
-    logger.info(`Calling 'echo_message' tool with params:`, {
-      ...context,
-      toolParams,
-    });
+-   **`toolName/`**
+    -   **`index.ts`**: A barrel file that exports only the `register...` function from `registration.ts`.
+    -   **`logic.ts`**: Contains the core business logic. It **must** define and export the tool's Zod input schema, all inferred TypeScript types (input and output), and the main logic function.
+    -   **`registration.ts`**: Registers the tool with the MCP server. It imports from `logic.ts` and implements the "Handler" role described in our core principles.
 
-    const result = await client.tools.call("echo_message", toolParams);
+### B. The Authoritative Pattern: `echoTool`
 
-    // 3. Process the result
-    if (result.isError) {
-      logger.error("Tool call failed.", {
-        ...context,
-        errorResult: result.content,
-      });
-    } else {
-      const responseText =
-        result.content[0].type === "text"
-          ? result.content[0].text
-          : "Non-text response";
-      logger.info("Tool call successful. Response:", {
-        ...context,
-        response: JSON.parse(responseText),
-      });
-    }
-  } catch (error) {
-    logger.error(
-      "An error occurred during the client example.",
-      error,
-      context
-    );
-  } finally {
-    // 4. Disconnect the client
-    logger.info(`Disconnecting from ${serverName}...`, context);
-    await disconnectMcpClient(serverName, context);
-    logger.info("Disconnected.", context);
-  }
-}
+The refactored `echoTool` serves as the canonical example for all tool development.
 
-runClientExample();
-```
+**Step 1: Define Schema and Logic (`logic.ts`)**
 
-## Model Context Protocol (MCP) Overview (Spec: 2025-03-26)
-
-MCP provides a standardized way for LLMs (via host applications) to interact with external capabilities (tools, data) exposed by dedicated servers.
-
-### Core Concepts & Architecture
-
-- **Host:** Manages clients, LLM integration, security, and user consent (e.g., Claude Desktop, VS Code).
-- **Client:** Resides in the host, connects 1:1 to a server, handles protocol.
-- **Server:** Standalone process exposing capabilities (Resources, Tools, Prompts). Focuses on its domain, isolated from LLM/other servers.
-
-```mermaid
-graph LR
-    subgraph "Host Application Process"
-        H[Host]
-        C1[Client 1]
-        C2[Client 2]
-        H --> C1
-        H --> C2
-    end
-    subgraph "Server Process 1"
-        S1["MCP Server A<br>(e.g., Filesystem)"]
-        R1["Local Resource<br>e.g., Files"]
-        S1 <--> R1
-    end
-    subgraph "Server Process 2"
-        S2["MCP Server B<br>(e.g., API Wrapper)"]
-        R2["Remote Resource<br>e.g., Web API"]
-        S2 <--> R2
-    end
-    C1 <-->|MCP Protocol| S1
-    C2 <-->|MCP Protocol| S2
-```
-
-- **Key Principles:** Simplicity, Composability, Isolation, Progressive Features.
-
-### Protocol Basics
-
-- **Communication:** JSON-RPC 2.0 over a transport (Stdio, Streamable HTTP).
-- **Messages:** Requests (with `id`), Responses (`id` + `result`/`error`), Notifications (no `id`). Batches MUST be supported for receiving.
-- **Lifecycle:**
-  1.  **Initialization:** Client sends `initialize` (version, capabilities, clientInfo). Server responds (`initialize` response: agreed version, capabilities, serverInfo, optional `instructions` for the client/LLM). Client sends `initialized` notification.
-  2.  **Operation:** Message exchange based on negotiated capabilities.
-  3.  **Shutdown:** Transport disconnect.
-
-### Server Capabilities
-
-Servers expose functionality via:
-
-1.  **Resources:**
-
-    - **Purpose:** Expose data/content (files, DB records) as context.
-    - **Control:** Application-controlled.
-    - **ID:** Unique URI (e.g., `file:///path/to/doc.txt`).
-    - **Discovery:** `resources/list` (paginated), `resources/templates/list` (paginated).
-    - **Reading:** `resources/read` -> `ResourceContent` array (`text` or `blob`). Blob content should be Base64 encoded.
-    - **Updates (Optional):** `listChanged: true` -> `notifications/resources/list_changed`. `subscribe: true` -> `resources/subscribe`, `notifications/resources/updated`. If `subscribe: true` is supported, the server **MUST** also handle the `resources/unsubscribe` request.
-
-2.  **Tools:**
-
-    - **Purpose:** Expose executable functions for LLM invocation (via client).
-    - **Control:** Model-controlled.
-    - **Definition:** `Tool` object (`name`, `description`, `inputSchema` (JSON Schema), `annotations?`).
-    - **Annotations (Untrusted Hints):** Provide hints about tool behavior. Standard annotations include:
-      - `title`: (string) Human-readable title.
-      - `readOnlyHint`: (boolean) Suggests no state modification.
-      - `destructiveHint`: (boolean) Suggests significant, potentially irreversible changes.
-      - `idempotentHint`: (boolean) Suggests multiple identical calls have the same effect as one.
-      - `openWorldHint`: (boolean) Suggests interaction with external systems that can change unpredictably.
-    - **Trust Model for Annotations (CRITICAL):** Clients **MUST** treat annotations purely as **untrusted hints** unless the server is explicitly trusted. Servers **SHOULD NOT** rely on clients strictly adhering to hints for security or correctness. Hints primarily inform client/LLM strategy or UI.
-    - **Custom Annotations:** Permitted, but not guaranteed to be understood by clients. Same trust model applies. Prefer standard annotations.
-    - **Discovery:** `tools/list` (paginated).
-    - **Invocation:** `tools/call` (`name`, `arguments`) -> `CallToolResult` (`content` array, `isError: boolean`). Execution errors reported via `isError: true`. **Rich schemas are crucial.**
-    - **Updates (Optional):** `listChanged: true` -> `notifications/tools/list_changed` (MUST send after dynamic changes).
-
-3.  **Prompts:**
-    - **Purpose:** Reusable prompt templates/workflows (e.g., slash commands).
-    - **Control:** User-controlled.
-    - **Definition:** `Prompt` object (`name`, `description?`, `arguments?`).
-    - **Discovery:** `prompts/list` (paginated).
-    - **Usage:** `prompts/get` (`name`, `arguments`) -> `GetPromptResult` (`messages` array).
-    - **Updates (Optional):** `listChanged: true` -> `notifications/prompts/list_changed`.
-
-### Interacting with Client Capabilities
-
-- **Roots:** Client may provide filesystem roots (`file://`). Server receives list on init, updates via `notifications/roots/list_changed` (if supported). Servers SHOULD respect roots.
-- **Sampling:** Server can request LLM completion via client using `sampling/createMessage`. Client SHOULD implement human-in-the-loop.
-
-### Server Utilities
-
-- **Logging:** `logging` capability -> `notifications/message` (RFC 5424 levels: `debug`, `info`, `notice`, `warning`, `error`, `critical`, `alert`, `emergency`). Client can send `logging/setLevel`.
-- **Pagination:** List operations use `cursor`/`nextCursor`.
-- **Completion:** `completions` capability -> `completion/complete`.
-- **Cancellation:** `notifications/cancelled` (best-effort).
-- **Ping:** `ping` request -> `{}` response.
-- **Progress:** `notifications/progress` (requires `_meta.progressToken` in original request).
-- **Configuration:** `configuration/get`, `configuration/set`.
-- **Back-pressure:** Clients debounce rapid notifications. Servers should aim for idempotency.
-
-### SDK Usage (TypeScript) - IMPORTANT
-
-- **High-Level SDK Abstractions (Strongly Recommended):**
-
-  - **Use `server.tool(name, description, zodSchemaShape, handler)`:** This is the **preferred and strongly recommended** way to define tools. It automatically handles:
-    - Registering the tool for `tools/list`.
-    - Generating the JSON Schema from the Zod shape.
-    - Validating incoming `tools/call` arguments against the schema.
-    - Routing the call to your handler with validated arguments.
-    - Formatting the `CallToolResult`.
-  - **Use `server.resource(regName, templateOrUri, [metadataOrHandler], [handlerIfMetadataProvided])`:** Similarly recommended for resources.
-  - **Benefits:** Significantly reduces boilerplate, enforces type safety, simplifies protocol adherence.
-
-- **Low-Level SDK Handlers (AVOID unless absolutely necessary):**
-
-  - Manually using `server.setRequestHandler(SchemaObject, handler)` requires you to handle schema generation, argument validation, request routing, and response formatting yourself.
-  - **CRITICAL WARNING:** **Do NOT mix high-level (`server.tool`, `server.resource`) and low-level (`server.setRequestHandler`) approaches for the _same capability type_ (e.g., tools).** The SDK's internal state management and type handling can become confused, leading to unexpected errors or incorrect behavior. Stick to one approach per capability type, **strongly preferring the high-level abstractions.**
-
-- **Modular Capability Structure (Recommended Practice):**
-
-  - For better organization, separate capability logic from registration.
-    - **Logic File (e.g., `myTool/logic.ts`):** Contains Zod schema definition and the core handler function.
-    - **Registration File (e.g., `myTool/registration.ts`):** Imports logic and schema, registers the capability with the `McpServer` instance using high-level methods (`server.tool()`, `server.resource()`).
-  - The main server file (`src/mcp-server/server.ts`) then imports and calls these registration functions.
-  - **Benefits:** Improves maintainability, testability, and separation of concerns.
-
-- **Dynamic Capabilities:**
-  - The `McpServer` allows adding, removing, enabling, disabling, or updating tools, resources, and prompts _after_ the server is connected.
-  - **Example:**
-    ```typescript
-    // const myTool = server.tool(...);
-    // myTool.disable(); // Tool is registered but not available to clients
-    // // ... later ...
-    // myTool.enable();  // Tool becomes available, SDK sends tools/listChanged
-    // myTool.update({ description: "New description" }); // Updates definition, SDK sends tools/listChanged
-    // myTool.remove(); // Removes tool, SDK sends tools/listChanged
-    ```
-  - This is powerful for capabilities that depend on runtime state (e.g., authentication levels, available external services).
-
-### Security Considerations
-
-- **Input Validation:** Use schemas (Zod), sanitize inputs (paths, HTML, SQL).
-- **Access Control:** Least privilege, respect roots.
-- **Transport Security:**
-  - **HTTP:** Mandatory JWT authentication (`src/mcp-server/transports/authentication/authMiddleware.ts`). **Requires `MCP_AUTH_SECRET_KEY` to be set.** Validate `Origin` header (via `isOriginAllowed` in `httpTransport.ts`). Use HTTPS in production. Bind to `127.0.0.1` for local servers.
-  - **Stdio:** Authentication typically handled by the host process. Best practice is to not apply authentication to MCP Server stdio processes.
-- **Secrets Management:** Use env vars (`MCP_AUTH_SECRET_KEY`) or secrets managers, avoid hardcoding/logging.
-- **Dependency Security:** Keep dependencies updated (`npm audit`).
-- **Rate Limiting:** Protect against abuse.
-
-## JSDoc and Code Documentation
-
-Comprehensive code documentation is crucial for maintainability and collaboration. This project utilizes JSDoc for documenting JavaScript and TypeScript code.
-
-- **Purpose**: JSDoc comments are used to describe the purpose, high-level behavior, and important considerations of functions, classes, methods, and variables. While detailed parameter and return type annotations are supported, the primary goal is to complement TypeScript's strong typing.
-- **Standard Tags**: A consistent set of JSDoc tags should be used. Key tags like `@fileoverview`, `@module`, `@type`, `@typedef`, `@function`, `@template`, `@property`, `@class`, `@static`, `@private`, and `@constant` are defined in `tsdoc.json` for TypeDoc compatibility.
-- **File-Level Documentation**: Each file should begin with a JSDoc block providing an overview of its contents, using `@fileoverview` and `@module`.
-- **Detailed Reference**: For standard JSDoc tags, see [JSDoc Standard Tags Reference](./docs/api-references/jsdoc-standard-tags.md) and the [TypeDoc documentation](https://typedoc.org/guides/doccomments/).
-- **Code Formatting**: This project uses Prettier. Run `npm run format`.
-- **Best Practices**:
-  - Document all public APIs.
-  - **Focus on "why" and "how"**: Explain the purpose, algorithm, or important context that isn't obvious from the code or types.
-  - **Leverage TypeDoc & TypeScript**: Rely on TypeDoc's ability to infer types from TypeScript. Explicit `@param` and `@returns` JSDoc tags are often unnecessary if TypeScript signatures are clear and descriptive. Use them primarily to add detail beyond what the type conveys (e.g., constraints, specific meanings of parameters).
-  - **Conciseness**: Keep comments brief and to the point. Avoid restating what is obvious from the code or type signatures. The goal is to reduce verbosity and improve readability.
-  - Document any thrown exceptions using `@throws`.
-  - Use `@example` to provide clear usage scenarios.
-  - Keep documentation synchronized with code changes.
-
-## Core Utilities Integration
-
-This section provides detailed guidance on using the core utilities for logging, error handling, request context management, and other common tasks. Proper use of these utilities is crucial for building robust and maintainable MCP servers.
-
-### 1. Logging (`src/utils/internal/logger.ts`)
-
-- **Purpose**: Provides a structured, singleton logger compliant with MCP specifications (RFC 5424 levels). It supports logging to files (with rotation) in the `logs/` directory and can send `notifications/message` to connected MCP clients that support the `logging` capability.
-- **Levels**: `debug`(7), `info`(6), `notice`(5), `warning`(4), `error`(3), `crit`(2), `alert`(1), `emerg`(0). Lower numeric values indicate higher severity.
-- **Initialization**: The logger is initialized in `src/config/index.ts` using the `MCP_LOG_LEVEL` environment variable. The `McpServer` instance in `src/mcp-server/server.ts` sets the MCP notification sender.
-- **Usage**:
-  - Import the singleton `logger` instance from the main utils barrel file (`src/utils/index.ts`).
-  - Always pass a `RequestContext` object for correlation and detailed logging.
-  - For error logging, pass the `Error` object as the second argument to `logger.error()`, `logger.crit()`, etc., followed by the `RequestContext`.
-
-**Concrete Example:**
+The `logic.ts` file defines the "what" and "how" of the tool. It is self-contained and throws errors when it cannot fulfill its contract.
 
 ```typescript
-// src/mcp-server/tools/myTool/logic.ts
+// In: src/mcp-server/tools/echoTool/logic.ts
+
 import { z } from "zod";
-import {
-  logger,
-  requestContextService,
-  RequestContext,
-} from "../../../../utils/index.js"; // Adjust path as needed
-import { ErrorHandler } from "../../../../utils/internal/errorHandler.js"; // Adjust path
-import { McpError, BaseErrorCode } from "../../../../types-global/errors.js"; // Adjust path
+// ... other imports
 
-export const MyToolInputSchema = z.object({
-  userId: z.string().min(1),
-  dataToProcess: z.string(),
+// 1. Define and export the Zod schema
+export const EchoToolInputSchema = z.object({
+  // ... schema definition with .describe() for every field
 });
-export type MyToolInput = z.infer<typeof MyToolInputSchema>;
 
-export async function myToolHandler(
-  input: MyToolInput,
-  parentContext: RequestContext // Often passed from the server.ts tool registration
-): Promise<{ success: boolean; message: string; processedData?: string }> {
-  // Create a more specific context for this operation
-  const operationContext = requestContextService.createRequestContext({
-    ...parentContext, // Inherit parent context (like original requestId)
-    operation: "myToolHandler",
-    toolName: "myTool",
-    userId: input.userId,
-  });
+// 2. Define and export TypeScript types
+export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;
+export interface EchoToolResponse { /* ... */ };
 
-  logger.info(
-    `Starting myToolHandler for user ${input.userId}`,
-    operationContext
-  );
-
-  try {
-    if (input.dataToProcess === "fail_validation") {
-      logger.warning("Validation will fail for myToolHandler", {
-        ...operationContext,
-        data: input.dataToProcess,
-      });
-      throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
-        "Simulated validation error: dataToProcess cannot be 'fail_validation'",
-        operationContext // Pass context to McpError
-      );
-    }
-
-    logger.debug("Processing data...", {
-      ...operationContext,
-      dataLength: input.dataToProcess.length,
-    });
-
-    // Simulate some processing
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    const processedData = `Processed: ${input.dataToProcess.toUpperCase()}`;
-
-    if (input.dataToProcess === "trigger_critical") {
-      logger.crit(
-        "Simulating a critical failure scenario in myToolHandler",
-        new Error("Simulated critical event"),
-        {
-          ...operationContext,
-          criticalDataPoint: "important_value",
-        }
-      );
-      // In a real scenario, this might lead to more drastic actions
-    }
-
-    logger.notice("myToolHandler completed successfully", operationContext);
-    return {
-      success: true,
-      message: "Tool executed successfully",
-      processedData,
-    };
-  } catch (error) {
-    // ErrorHandler.handleError will log the error using the logger internally
-    // It's good practice to use ErrorHandler for consistent error processing
-    const handledError = ErrorHandler.handleError(error, {
-      operation: "myToolHandlerExecution",
-      context: operationContext, // Pass the detailed operationContext
-      input: input, // Sanitized by ErrorHandler
-      critical:
-        error instanceof McpError &&
-        error.code === BaseErrorCode.INTERNAL_ERROR, // Example: mark internal errors as critical
-    });
-    // The error is already logged by ErrorHandler.handleError
-    // We re-throw if we want the caller (e.g., MCP server's tool invoker) to handle it as an MCP error response
-    // For tools, this usually means returning an error to the client.
-    // If ErrorHandler.handleError is configured with rethrow: true (default for tryCatch), it will rethrow.
-    // If not, you might need to throw handledError here or return an error structure.
-    // For this example, assume the tool invoker expects an McpError or similar.
-    if (handledError instanceof McpError) {
-      throw handledError;
-    }
-    throw new McpError(
-      BaseErrorCode.INTERNAL_ERROR,
-      `Unhandled error in myToolHandler: ${handledError.message}`,
-      operationContext
-    );
-  }
-}
-
-// Example of how this might be called (simplified from server.ts)
-async function simulateToolCall() {
-  const initialContext = requestContextService.createRequestContext({
-    appLayer: "ToolSimulation",
-  });
-  try {
-    const result = await myToolHandler(
-      { userId: "user123", dataToProcess: "some data" },
-      initialContext
-    );
-    console.log("Tool call successful:", result);
-  } catch (e) {
-    // Error already logged by ErrorHandler within myToolHandler
-    console.error(
-      "Tool call failed at simulation level:",
-      e instanceof Error ? e.message : String(e)
-    );
-  }
+// 3. Implement and export the core logic
+export async function echoToolLogic(
+  params: EchoToolInput,
+  context: RequestContext,
+): Promise<EchoToolResponse> {
+  // ... business logic ...
+  // On success, RETURN a structured output object
+  return { /* ... success data ... */ };
 }
 ```
 
-- **Key Files**:
-  - `src/utils/internal/logger.ts`: Core `Logger` class implementation.
-  - `src/config/index.ts`: Initializes logger instance and sets initial level.
-  - `logs/`: Directory where JSON log files are stored (e.g., `combined.log`, `error.log`, `warn.log`, `info.log`, `debug.log`), managed with rotation.
+**Step 2: Register the Tool and Handle Errors (`registration.ts`)**
 
-### 2. Error Handling (`src/types-global/errors.ts`, `src/utils/internal/errorHandler.ts`)
-
-- **Purpose**: Provides standardized error objects (`McpError` from `src/types-global/errors.ts`) and a centralized `ErrorHandler` class (`src/utils/internal/errorHandler.ts`) for consistent error processing. `ErrorHandler` can automatically determine `BaseErrorCode` based on error type or message patterns, log errors with context (using the `logger`), and sanitize input for logging.
-- **Usage**:
-  - **Throwing Errors**: Throw `McpError` instances for specific, categorized errors using `BaseErrorCode` enum values. Include `RequestContext` in the `details` parameter of `McpError` if available, or pass it as the third argument.
-  - **Catching and Handling Errors**: Use `ErrorHandler.tryCatch(fn, options)` to wrap operations that might fail. This utility automatically catches errors, processes them via `ErrorHandler.handleError`, and re-throws them.
-  - **Manual Handling**: If not using `tryCatch`, call `ErrorHandler.handleError(error, options)` directly in a catch block.
-- **`McpError`**:
-  - `code: BaseErrorCode`: Standardized code.
-  - `message: string`: Human-readable message.
-  - `details?: Record<string, unknown>`: Optional structured context. **Crucially, pass your `RequestContext` here if available, or as the third constructor argument.**
-
-**Concrete Example:**
+The `registration.ts` file wires the logic into the MCP server and handles all outcomes.
 
 ```typescript
-// src/services/dataFetcher.ts
-import {
-  logger,
-  requestContextService,
-  RequestContext,
-  sanitizeInputForLogging,
-} from "../utils/index.js"; // Adjust path
-import { ErrorHandler } from "../utils/internal/errorHandler.js"; // Adjust path
-import { McpError, BaseErrorCode } from "../types-global/errors.js"; // Adjust path
+// In: src/mcp-server/tools/echoTool/registration.ts
 
-interface FetchDataOptions {
-  endpoint: string;
-  retries?: number;
-}
-
-export async function fetchData(
-  options: FetchDataOptions,
-  parentContext: RequestContext
-): Promise<unknown> {
-  const operationContext = requestContextService.createRequestContext({
-    ...parentContext,
-    operation: "fetchData",
-    endpoint: options.endpoint,
-  });
-
-  // Using ErrorHandler.tryCatch for robust error handling
-  return await ErrorHandler.tryCatch(
-    async () => {
-      logger.info(`Fetching data from ${options.endpoint}`, operationContext);
-
-      if (!options.endpoint.startsWith("https://")) {
-        // Throw a specific McpError for validation issues
-        throw new McpError(
-          BaseErrorCode.VALIDATION_ERROR,
-          "Endpoint must be HTTPS",
-          {
-            // Pass context and other details here
-            ...operationContext,
-            invalidEndpoint: options.endpoint,
-            suggestion: "Ensure the endpoint URL starts with https://",
-          }
-        );
-      }
-
-      // Simulate a network request
-      const response = await mockNetworkRequest(
-        options.endpoint,
-        operationContext
-      );
-
-      if (response.status === 404) {
-        throw new McpError(
-          BaseErrorCode.NOT_FOUND,
-          `Resource not found at ${options.endpoint}`,
-          { ...operationContext, statusCode: response.status }
-        );
-      } else if (response.status === 401) {
-        throw new McpError(
-          BaseErrorCode.UNAUTHORIZED,
-          `Unauthorized access to ${options.endpoint}`,
-          { ...operationContext, statusCode: response.status }
-        );
-      } else if (response.status >= 500) {
-        // For generic server errors from external services, map to SERVICE_UNAVAILABLE or INTERNAL_ERROR
-        throw new Error(`External service error: ${response.status}`); // This will be caught by tryCatch
-      } else if (response.status !== 200) {
-        throw new McpError(
-          BaseErrorCode.UNKNOWN_ERROR,
-          `Unexpected response status ${response.status} from ${options.endpoint}`,
-          {
-            ...operationContext,
-            statusCode: response.status,
-            responseBodyPreview: response.data.substring(0, 100),
-          }
-        );
-      }
-
-      logger.debug("Data fetched successfully", {
-        ...operationContext,
-        responseSize: response.data.length,
-      });
-      return JSON.parse(response.data); // Potential PARSING_ERROR, caught by tryCatch
-    },
-    {
-      // Options for ErrorHandler.tryCatch / ErrorHandler.handleError
-      operation: "fetchDataAttempt", // Name of the specific operation wrapped by tryCatch
-      context: operationContext, // The detailed context for this operation
-      input: sanitizeInputForLogging(options), // Input is automatically sanitized by ErrorHandler if passed directly
-      // but explicit sanitization is also fine.
-      // errorCode: BaseErrorCode.INTERNAL_ERROR, // Default if error is not McpError or unclassifiable
-      critical: false, // Set to true if this operation's failure is highly critical
-    }
-  );
-}
-
-// Mock network request
-async function mockNetworkRequest(
-  endpoint: string,
-  context: RequestContext
-): Promise<{ status: number; data: string }> {
-  await new Promise((resolve) => setTimeout(resolve, 100)); // Simulate delay
-  if (endpoint.includes("notfound")) return { status: 404, data: "Not Found" };
-  if (endpoint.includes("unauth")) return { status: 401, data: "Unauthorized" };
-  if (endpoint.includes("servererror"))
-    return { status: 500, data: "Internal Server Error" };
-  if (endpoint.includes("baddata"))
-    return { status: 200, data: "{invalid_json" };
-  return {
-    status: 200,
-    data: JSON.stringify({
-      message: "Success from " + endpoint,
-      timestamp: context.timestamp,
-    }),
-  };
-}
-
-// Example usage:
-async function main() {
-  const baseContext = requestContextService.createRequestContext({
-    mainOperation: "ExampleRun",
-  });
-  try {
-    const data = await fetchData(
-      { endpoint: "https://api.example.com/data" },
-      baseContext
-    );
-    console.log("Fetched data:", data);
-  } catch (e) {
-    // Error is already logged by ErrorHandler.
-    // console.error("Main function caught error:", e instanceof Error ? e.message : String(e));
-    // If e is an McpError, you can access e.code and e.details
-    if (e instanceof McpError) {
-      // console.error(`McpError Code: ${e.code}, Details:`, e.details);
-    }
-  }
-  try {
-    await fetchData(
-      { endpoint: "http://api.example.com/insecure" },
-      baseContext
-    );
-  } catch (e) {
-    /* Already logged */
-  }
-  try {
-    await fetchData(
-      { endpoint: "https://api.example.com/notfound" },
-      baseContext
-    );
-  } catch (e) {
-    /* Already logged */
-  }
-}
-```
-
-- **Key Files**:
-  - `src/types-global/errors.ts`: Defines `McpError` class and `BaseErrorCode` enum.
-  - `src/utils/internal/errorHandler.ts`: Provides `ErrorHandler.tryCatch`, `ErrorHandler.handleError`, and `ErrorHandler.determineErrorCode`.
-
-### 3. Request Context (`src/utils/internal/requestContext.ts`)
-
-- **Purpose**: Provides a mechanism to create and manage `RequestContext` objects. A `RequestContext` carries a unique `requestId` (UUID), a `timestamp`, and can hold other arbitrary key-value pairs relevant to a specific request or operation. This is essential for logging, tracing, and passing operational data through your application.
-- **Usage**:
-  - **Creation**: Use `requestContextService.createRequestContext(additionalContext?)` to generate a new context. `additionalContext` is an optional record of key-value pairs.
-  - **Propagation**: Pass the `RequestContext` object down through function calls.
-  - **Extension**: When entering a sub-operation, you can create a new context that inherits properties from a parent context: `const subContext = requestContextService.createRequestContext({ ...parentContext, subOperation: "MySubTask", newDetail: "xyz" });`. This creates a _new_ `requestId` and `timestamp`. If you want to maintain the same `requestId` but add/override details, simply spread the parent context and add/modify properties: `const augmentedContext = { ...parentContext, subOperation: "MySubTask", specificInfo: "detail" };`. Choose the approach based on whether the sub-task is a distinct traceable unit or part of the same overarching request.
-  - **Logging/Errors**: Include the `RequestContext` object when calling `logger` methods or creating `McpError` instances.
-
-**Concrete Example:**
-
-```typescript
-// src/mcp-server/transports/httpTransport.ts (Simplified example of request handling)
-import {
-  logger,
-  requestContextService,
-  RequestContext,
-} from "../../utils/index.js"; // Adjust path
-import { ErrorHandler } from "../../utils/internal/errorHandler.js"; // Adjust path
-// import { processIncomingMcpMessage } from "../server"; // Assuming this function exists
-
-// Simulating an Express.js-like request handler
-interface HttpRequest {
-  id: string; // e.g., from a header or generated
-  body: any;
-  ip: string;
-}
-interface HttpResponse {
-  send: (data: any) => void;
-  status: (code: number) => HttpResponse;
-}
-
-export async function handleHttpRequest(req: HttpRequest, res: HttpResponse) {
-  // 1. Create initial RequestContext for this HTTP request
-  const initialContext: RequestContext =
-    requestContextService.createRequestContext({
-      transport: "http",
-      clientIp: req.ip,
-      httpRequestId: req.id, // If an ID is available from HTTP layer
-      entryPoint: "handleHttpRequest",
-    });
-
-  logger.info("Received HTTP request", initialContext);
-
-  try {
-    // 2. Pass context to business logic
-    // const mcpResponse = await processIncomingMcpMessage(req.body, initialContext);
-
-    // Simulate processing
-    const mcpResponse = await simulateMcpProcessing(req.body, initialContext);
-
-    logger.debug("MCP processing successful, sending HTTP response", {
-      ...initialContext, // Maintain original requestId for this log entry
-      responseStatus: 200,
-    });
-    res.status(200).send(mcpResponse);
-  } catch (error) {
-    // ErrorHandler.handleError will log the error with context
-    const handledError = ErrorHandler.handleError(error, {
-      operation: "handleHttpRequestProcessing",
-      context: initialContext, // Pass the initial context
-      input: { body: req.body, ip: req.ip }, // Sanitized by ErrorHandler
-    });
-
-    // Determine HTTP status code based on McpError code
-    let httpStatusCode = 500;
-    if (handledError instanceof McpError) {
-      switch (handledError.code) {
-        case BaseErrorCode.VALIDATION_ERROR:
-          httpStatusCode = 400;
-          break;
-        case BaseErrorCode.UNAUTHORIZED:
-          httpStatusCode = 401;
-          break;
-        case BaseErrorCode.FORBIDDEN:
-          httpStatusCode = 403;
-          break;
-        case BaseErrorCode.NOT_FOUND:
-          httpStatusCode = 404;
-          break;
-        // ... other mappings
-      }
-    }
-    logger.info(`Sending HTTP error response: ${httpStatusCode}`, {
-      ...initialContext,
-      errorName: handledError.name,
-      errorMessage: handledError.message,
-    });
-    res.status(httpStatusCode).send({
-      error: handledError.name,
-      message: handledError.message,
-      // Optionally include code and details if appropriate for your API
-      ...(handledError instanceof McpError && {
-        code: handledError.code,
-        details: handledError.details,
-      }),
-    });
-  }
-}
-
-async function simulateMcpProcessing(
-  payload: any,
-  parentContext: RequestContext
-): Promise<any> {
-  // 3. Augment context for a sub-operation (maintaining original requestId)
-  const processingContext: RequestContext = {
-    ...parentContext, // Inherit requestId, timestamp, and other parent details
-    subOperation: "simulateMcpProcessing",
-    payloadType: typeof payload,
-  };
-
-  logger.info("Starting MCP message processing simulation", processingContext);
-
-  if (!payload || typeof payload.action !== "string") {
-    throw new McpError(
-      BaseErrorCode.VALIDATION_ERROR,
-      "Invalid MCP payload: 'action' is required.",
-      processingContext
-    );
-  }
-
-  // Simulate work
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  logger.debug("Simulation complete", processingContext);
-  return {
-    success: true,
-    action: payload.action,
-    processedAt: new Date().toISOString(),
-  };
-}
-
-// Example of calling the HTTP handler
-// const mockReq = { id: "req-123", body: { action: "doSomething" }, ip: "127.0.0.1" };
-// const mockRes = { status: function(s) { this._status = s; return this; }, send: function(d) { console.log(`HTTP ${this._status || 200}:`, d)} };
-// handleHttpRequest(mockReq, mockRes);
-```
-
-- **Key Files**:
-  - `src/utils/internal/requestContext.ts`: Defines `RequestContext` interface and `requestContextService` for creating contexts.
-  - `src/utils/security/idGenerator.ts`: Used by `requestContextService` to generate `requestId` via `generateUUID`.
-
-### 4. ID Generation (`src/utils/security/idGenerator.ts`)
-
-- **Purpose**: Generate unique, prefixed IDs for different entity types and standard UUIDs.
-- **Usage**: Configure prefixes (if needed) and use `idGenerator.generateForEntity` or `generateUUID` from the main utils barrel file.
-
-```typescript
-// Example assuming import from a file within src/
-import { idGenerator, generateUUID } from "./utils/index.js"; // Import generator instance and UUID function
-
-idGenerator.setEntityPrefixes({ project: "PROJ", task: "TASK" });
-
-const projectId = idGenerator.generateForEntity("project"); // e.g., "PROJ_A6B3J0"
-const taskId = idGenerator.generateForEntity("task", { length: 8 }); // e.g., "TASK_C9D4E1F2"
-const standardUuid = generateUUID(); // e.g., "123e4567-e89b-12d3-a456-426614174000"
-
-const isValid = idGenerator.isValid(projectId, "project"); // true
-const entityType = idGenerator.getEntityType(taskId); // "task"
-```
-
-- **Key Files**:
-  - `src/utils/security/idGenerator.ts`: `IdGenerator` class, `idGenerator` instance, `generateUUID`.
-
-### 5. Sanitization (`src/utils/security/sanitization.ts`)
-
-- **Purpose**: Clean and validate input data (HTML, paths, numbers, URLs, JSON) to prevent security issues. Also sanitizes objects for logging.
-- **Usage**: Import the singleton `sanitization` instance or `sanitizeInputForLogging` from the main utils barrel file.
-
-```typescript
-// Example assuming import from a file within src/
-import { sanitization, sanitizeInputForLogging } from "./utils/index.js"; // Import sanitization instance and helper
-
-const unsafeHtml = '<script>alert("xss")</script><p>Safe content</p>';
-const safeHtml = sanitization.sanitizeHtml(unsafeHtml); // "<p>Safe content</p>"
-
-const unsafePath = "../../etc/passwd";
-try {
-  const safePath = sanitization.sanitizePath(unsafePath, {
-    rootDir: "/app/data",
-  });
-} catch (error) {
-  /* Handle McpError */
-}
-
-const userInput = " 123.45 ";
-const num = sanitization.sanitizeNumber(userInput, 0, 1000); // 123.45
-
-const unsafeUrl = 'javascript:alert("bad")';
-try {
-  const safeUrl = sanitization.sanitizeUrl(unsafeUrl);
-} catch (error) {
-  /* Handle McpError */
-}
-
-const sensitiveData = { user: "admin", password: "pwd", token: "abc" };
-const safeLogData = sanitizeInputForLogging(sensitiveData);
-// safeLogData = { user: 'admin', password: '[REDACTED]', token: '[REDACTED]' }
-```
-
-- **Key Files**:
-  - `src/utils/security/sanitization.ts`: `Sanitization` class, `sanitization` instance, `sanitizeInputForLogging`.
-
-### 6. JSON Parsing (`src/utils/parsing/jsonParser.ts`)
-
-- **Purpose**: Parse potentially partial/incomplete JSON strings. Handles optional `<think>` blocks.
-- **Usage**: Import `jsonParser` from the main utils barrel file. Use `Allow` constants for options.
-
-```typescript
-// Example assuming import from a file within src/
-import { jsonParser, Allow, RequestContext } from './utils/index.js'; // Import parser, Allow enum, and context type
-
-const partialJson = '<think>Parsing...</think>{"key": "value", "incomplete": ';
-const context: RequestContext = /* ... */;
-
-try {
-  const parsed = jsonParser.parse(partialJson, Allow.ALL, context);
-  // parsed = { key: 'value', incomplete: undefined }
-} catch (error) { /* Handle McpError */ }
-```
-
-- **Key Files**:
-  - `src/utils/parsing/jsonParser.ts`: `JsonParser` class, `jsonParser` instance, `Allow` enum.
-
-### 7. Rate Limiting (`src/utils/security/rateLimiter.ts`)
-
-- **Purpose**: Implement rate limiting based on a key.
-- **Usage**: Import `rateLimiter` from the main utils barrel file. Use `check`.
-
-```typescript
-// Example assuming import from a file within src/
-import { rateLimiter, RequestContext } from './utils/index.js'; // Import limiter instance and context type
-
-const userId = 'user123';
-const context: RequestContext = /* ... */;
-
-try {
-  rateLimiter.check(userId, context);
-  // ... proceed ...
-} catch (error) { /* Handle McpError (RATE_LIMITED) */ }
-
-rateLimiter.configure({ windowMs: 60 * 1000, maxRequests: 10 });
-```
-
-- **Key Files**:
-  - `src/utils/security/rateLimiter.ts`: `RateLimiter` class, `rateLimiter` instance.
-
-### 8. Token Counting (`src/utils/metrics/tokenCounter.ts`)
-
-- **Purpose**: Estimate tokens using `tiktoken` (`gpt-4o` model).
-- **Usage**: Import `countTokens` or `countChatTokens` from the main utils barrel file.
-
-```typescript
-// Example assuming import from a file within src/
-import { countTokens, countChatTokens, RequestContext } from './utils/index.js'; // Import counting functions and context type
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-
-const text = "Sample text.";
-const context: RequestContext = /* ... */;
-
-async function calculateTokens() {
-  try {
-    const textTokens = await countTokens(text, context);
-    const messages: ChatCompletionMessageParam[] = [/* ... */];
-    const chatTokens = await countChatTokens(messages, context);
-  } catch (error) { /* Handle McpError */ }
-}
-```
-
-- **Key Files**:
-  - `src/utils/metrics/tokenCounter.ts`: Provides `countTokens` and `countChatTokens`.
-
-## Utility Scripts (`scripts/`)
-
-This project includes several utility scripts located in the `scripts/` directory to aid development:
-
-### 1. Clean (`scripts/clean.ts`)
-
-- **Purpose**: Removes build artifacts and temporary directories.
-- **Usage**: `npm run rebuild` (cleans then builds) or `ts-node --esm scripts/clean.ts [dir1] [dir2]...` (for direct/custom cleaning).
-- **Default Targets**: `dist`, `logs`.
-
-### 2. Make Executable (`scripts/make-executable.ts`)
-
-- **Purpose**: Sets executable permissions (`chmod +x`) on specified files (Unix-like systems only). Useful for CLI entry points after building.
-- **Usage**: Typically run via `npm run build`. For direct use: `ts-node --esm scripts/make-executable.ts [file1] [file2]...`
-- **Default Target**: `dist/index.js`.
-
-### 3. Generate Tree (`scripts/tree.ts`)
-
-- **Purpose**: Creates a visual directory tree markdown file (`docs/tree.md` by default), respecting `.gitignore`.
-- **Usage**: `npm run tree` or `npm run tree -- [output-path] [--depth=<number>]`
-
-### 4. Fetch OpenAPI Spec (`scripts/fetch-openapi-spec.ts`)
-
-- **Purpose**: Fetches an OpenAPI specification (YAML/JSON) from a URL, attempts fallbacks (`/openapi.yaml`, `/openapi.json`), parses it, and saves both YAML and JSON versions locally.
-- **Usage**: `npm run fetch-spec -- <url> <output-base-path>`
-- **Example**: `npm run fetch-spec -- https://petstore3.swagger.io/api/v3 docs/api/petstore_v3`
-- **Dependencies**: `axios`, `js-yaml`.
-
-## Adding New Features
-
-**Recommended Modular Structure:** For maintainability, separate capability logic from its registration.
-
-- **Logic File (`yourCapabilityName/logic.ts`):** Define Zod schemas, core handler function.
-- **Registration File (`yourCapabilityName/registration.ts`):** Import logic/schema, use `server.tool()` or `server.resource()` to register with `McpServer`.
-- **Index File (`yourCapabilityName/index.ts`):** Export the registration function.
-- Your main server file (`src/mcp-server/server.ts`) then imports and calls these registration functions.
-
-### Adding a Tool
-
-1.  **Directory**: `src/mcp-server/tools/yourToolName/` (Follow modular structure above).
-2.  **Logic (`logic.ts`)**: Define input Zod schema and the core async handler function.
-3.  **Registration (`registration.ts`)**: Import logic, schema, `McpServer`, `ErrorHandler`. Use the high-level `server.tool(name, description, zodSchemaShape, handler)`. Ensure handler returns `CallToolResult` (`{ content: [...], isError?: boolean }`). Wrap handler logic and registration in `ErrorHandler.tryCatch`.
-    - **Crucially, ensure the tool's `description` and parameter descriptions (within `zodSchemaShape`) are concise yet highly descriptive. Clearly state purpose, parameter expectations (e.g., format, range), requirements, and provide examples if they aid clarity. This is vital for LLM usability and developer understanding.**
-    - **Annotations** (e.g., `readOnlyHint`, `destructiveHint`) are not passed as a direct argument to this `server.tool` overload. They are defined when using a more detailed `Tool` object for registration. For simplicity, focus on clear descriptions.
-4.  **Index (`index.ts`)**: Export registration function.
-5.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function within `createMcpServerInstance`.
-
-**Concrete Tool Registration Example (`registration.ts`):**
-
-```typescript
-// src/mcp-server/tools/echoTool/registration.ts
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { ErrorHandler, logger, requestContextService } from "../../../utils/index.js";
+// 1. Import everything from the logic file
 import {
-  ErrorHandler,
-  logger,
-  requestContextService,
-} from "../../../utils/index.js";
-import {
-  EchoToolInputSchema,
-  processEchoMessage,
   EchoToolInput,
+  EchoToolInputSchema,
+  echoToolLogic,
 } from "./logic.js";
 
 export const registerEchoTool = async (server: McpServer): Promise<void> => {
-  const toolName = "echo_message";
-  const registrationContext = requestContextService.createRequestContext({
-    operation: "RegisterTool",
+  // ...
+  server.tool(
     toolName,
-  });
+    toolDescription,
+    EchoToolInputSchema.shape,
+    async (params: EchoToolInput, mcpContext: any): Promise<CallToolResult> => {
+      const handlerContext = requestContextService.createRequestContext({ /* ... */ });
 
-  await ErrorHandler.tryCatch(
-    async () => {
-      server.tool(
-        toolName,
-        "Echoes a message back with optional formatting and repetition.",
-        EchoToolInputSchema.shape, // Zod shape for validation
-        async (params: EchoToolInput): Promise<CallToolResult> => {
-          const handlerContext = requestContextService.createRequestContext({
-            parentContext: registrationContext,
-            operation: "HandleToolRequest",
-            toolName,
-          });
+      try {
+        // 2. Invoke the core logic
+        const result = await echoToolLogic(params, handlerContext);
 
-          // The core logic is wrapped in its own tryCatch for granular error reporting
-          return await ErrorHandler.tryCatch(
-            async () => {
-              const responsePayload = processEchoMessage(
-                params,
-                handlerContext
-              );
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(responsePayload, null, 2),
-                  },
-                ],
-                isError: false,
-              };
-            },
-            {
-              operation: `ExecutingCoreLogicFor_${toolName}`,
-              context: handlerContext,
-            }
-          );
-        }
-      );
-      logger.info(
-        `Tool '${toolName}' registered successfully.`,
-        registrationContext
-      );
+        // 3. Format the SUCCESS response
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          isError: false,
+        };
+      } catch (error) {
+        // 4. CATCH any error thrown by the logic
+        const handledError = ErrorHandler.handleError(error, { /* ... */ });
+
+        // 5. Format the ERROR response
+        const mcpError = handledError instanceof McpError ? handledError : new McpError(/* ... */);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ error: { code: mcpError.code, message: mcpError.message, details: mcpError.details } }),
+          }],
+          isError: true,
+        };
+      }
     },
-    {
-      operation: `RegisteringTool_${toolName}`,
-      context: registrationContext,
-      critical: true,
-    }
   );
+  // ...
 };
 ```
 
-### Adding a Resource
+## III. Code Quality and Documentation
 
-1.  **Directory**: `src/mcp-server/resources/yourResourceName/` (Follow modular structure above).
-2.  **Logic (`logic.ts`)**: Define params type (if using `ResourceTemplate`), and core async processing function (takes `uri: URL`, `params`).
-3.  **Registration (`registration.ts`)**: Import logic, `McpServer`, `ResourceTemplate`, `ErrorHandler`. Define `ResourceTemplate` if needed. Use the high-level `server.resource(regName, templateOrUri, [metadataOrHandler], async handler => { ... }`). Handler should return `{ contents: [{ uri, textOrBlob, mimeType }] }`. `textOrBlob` should be the actual text or Base64 encoded string for blobs. Wrap handler logic and registration in `ErrorHandler.tryCatch`.
-4.  **Subscription Handling**: If your resource supports subscriptions (`subscribe: true` in capabilities and metadata), you **MUST** also implement logic to handle the `resources/unsubscribe` request for that resource URI/template.
-5.  **Index (`index.ts`)**: Export registration function.
-6.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function within `createMcpServerInstance`.
+-   **JSDoc**: Every file must start with a `@fileoverview` and `@module` block. All exported functions and types must have clear, concise JSDoc comments explaining their purpose.
+-   **Clarity Over Brevity**: Write self-documenting code with meaningful variable and function names.
+-   **Immutability**: Prefer functional approaches and immutable data structures where possible to avoid side effects.
+-   **Formatting**: All code must be formatted using Prettier (`npm run format`) before committing.
 
-## Key File Locations
+## IV. Security Mandates
 
-- **Main Entry**: `src/index.ts` (Initializes server, handles startup/shutdown)
-- **Server Setup**: `src/mcp-server/server.ts` (Handles transport logic (stdio/http), session management (http), registers tools/resources)
-- **HTTP Auth Middleware**: `src/mcp-server/transports/authentication/authMiddleware.ts`
-- **Configuration**: `src/config/index.ts` (Loads env vars, package info, initializes logger)
-- **Global Types**: `src/types-global/`
-- **Utilities**: `src/utils/` (Main barrel file `index.ts` exporting from subdirs: `internal`, `metrics`, `network`, `parsing`, `security`)
-- **Tools**: `src/mcp-server/tools/` (e.g., `echoTool`, `catFactFetcher`, `imageTest`)
-- **Resources**: `src/mcp-server/resources/` (e.g., `echoResource`)
-- **Services**: `src/services/` (Reusable modules for LLM and data storage integration)
-- **DuckDB Example**: `src/storage/duckdbExample.ts` (Example usage of DuckDB service)
-- **MCP Client**: `src/mcp-client/` (Contains all client-side logic, entirely self-contained, but utilizes shared utilities from `src/utils/`)
-- **Client Configuration**: `src/mcp-client/client-config/mcp-config.json` (Used for client connections, separate from the root config/ which is focused on the MCP Server side. Zod validated)
+-   **Input Sanitization**: All inputs from external sources (tool arguments, API responses) must be treated as untrusted. Use the `sanitization` utilities where appropriate.
+-   **Secrets Management**: All secrets (API keys, auth keys) **must** be loaded from environment variables via the `config` module. Never hardcode secrets.
+-   **Rate Limiting**: Protect against abuse by using the centralized `rateLimiter`.
 
-Remember to keep this cheatsheet updated as the codebase evolves!
+This guide is the single source of truth for development standards. All code reviews will be conducted against these principles.
