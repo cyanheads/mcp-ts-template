@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2] - 2025-06-16
+
+### Changed
+
+- **Architectural Refactor**:
+  - **`OpenRouterProvider`**: Overhauled `src/services/llm-providers/openRouterProvider.ts` to strictly implement the "Logic Throws, Handlers Catch" pattern. Core API interactions are now in private `_logic` functions that throw structured `McpError`s, while the main class acts as a handler, managing state, rate limiting, and `try...catch` blocks.
+  - **MCP Client**: Refactored `src/mcp-client/core/clientManager.ts` and `src/mcp-client/transports/transportFactory.ts` for improved clarity, error handling, and maintainability. The transport factory now uses a `switch` statement for better code flow.
+- **Dependencies**:
+  - Updated several dependencies to their latest versions, including `@duckdb/node-api`, `@types/jsonwebtoken`, `@types/node`, `openai`, and `zod`.
+- **Documentation**:
+  - **`src/mcp-server/README.md`**: Added a new section on "Integrating External Services," providing guidance on encapsulating external API logic into service provider classes.
+  - **`docs/tree.md`**: Regenerated to reflect the latest project structure.
+
 ## [1.5.1] - 2025-06-15
 
 ### Added

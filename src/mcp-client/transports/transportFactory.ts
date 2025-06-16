@@ -33,9 +33,8 @@ export function getClientTransport(
   serverName: string,
   parentContext?: RequestContext | null,
 ): StdioClientTransport | StreamableHTTPClientTransport {
-  const baseContext = parentContext ? { ...parentContext } : {};
   const context = requestContextService.createRequestContext({
-    ...baseContext,
+    ...(parentContext ?? {}),
     operation: "getClientTransport",
     targetServer: serverName,
   });
@@ -44,82 +43,66 @@ export function getClientTransport(
 
   try {
     const serverConfig = getMcpServerConfig(serverName, context);
-    const transportType = serverConfig.transportType;
+    const { transportType, command, args, env } = serverConfig;
+
     logger.info(
       `Selected transport type "${transportType}" for server: ${serverName}`,
       { ...context, transportType },
     );
 
-    if (transportType === "stdio") {
-      logger.info(`Creating stdio transport for server: ${serverName}`, {
-        ...context,
-        command: serverConfig.command,
-        args: serverConfig.args,
-        envProvided: !!serverConfig.env,
-      });
-      return createStdioClientTransport(
-        {
-          command: serverConfig.command,
-          args: serverConfig.args,
-          env: serverConfig.env,
-        },
-        context,
-      );
-    } else if (transportType === "http") {
-      const baseUrl = serverConfig.command; // In HTTP config, 'command' holds the baseUrl
-      // Validate baseUrl for HTTP transport
-      if (
-        !baseUrl ||
-        typeof baseUrl !== "string" ||
-        !baseUrl.startsWith("http")
-      ) {
-        const httpConfigError = `Invalid configuration for HTTP transport server "${serverName}": The 'command' field (used as baseUrl for HTTP) must be a valid URL string starting with http(s). Found: "${baseUrl}"`;
-        logger.error(httpConfigError, context);
-        throw new McpError(
-          BaseErrorCode.CONFIGURATION_ERROR,
-          httpConfigError,
+    switch (transportType) {
+      case "stdio":
+        logger.info(`Creating stdio transport for server: ${serverName}`, {
+          ...context,
+          command,
+          args,
+          envProvided: !!env,
+        });
+        return createStdioClientTransport({ command, args, env }, context);
+
+      case "http": {
+        const baseUrl = command;
+        if (
+          !baseUrl ||
+          typeof baseUrl !== "string" ||
+          !baseUrl.startsWith("http")
+        ) {
+          throw new McpError(
+            BaseErrorCode.CONFIGURATION_ERROR,
+            `Invalid 'command' for HTTP transport (must be a valid URL): "${baseUrl}"`,
+            context,
+          );
+        }
+        logger.info(
+          `Creating HTTP transport for server: ${serverName} with base URL: ${baseUrl}`,
           context,
         );
+        return createHttpClientTransport({ baseUrl }, context);
       }
-      logger.info(
-        `Creating HTTP transport for server: ${serverName} with base URL: ${baseUrl}`,
-        context,
-      );
-      return createHttpClientTransport(
-        {
-          baseUrl: baseUrl,
-        },
-        context,
-      );
-    } else {
-      const unsupportedErrorMessage = `Unsupported transportType "${serverConfig.transportType}" configured for server "${serverName}".`;
-      logger.error(unsupportedErrorMessage, context);
-      throw new McpError(
-        BaseErrorCode.CONFIGURATION_ERROR,
-        unsupportedErrorMessage,
-        context,
-      );
+
+      default:
+        throw new McpError(
+          BaseErrorCode.CONFIGURATION_ERROR,
+          `Unsupported transportType "${transportType}" for server "${serverName}".`,
+          context,
+        );
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(
       `Failed to get or create transport for server "${serverName}"`,
       {
         ...context,
-        error: errorMessage,
+        error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       },
     );
     if (error instanceof McpError) {
-      throw error; // Re-throw McpError instances directly as they should have context.
-    } else {
-      // For unexpected errors not already McpError, wrap them.
-      // These are likely programming errors or unexpected system issues.
-      throw new McpError(
-        BaseErrorCode.INTERNAL_ERROR, // Use INTERNAL_ERROR for unexpected issues
-        `Unexpected error while getting transport for ${serverName}: ${errorMessage}`,
-        { originalError: error, ...context },
-      );
+      throw error;
     }
+    throw new McpError(
+      BaseErrorCode.INTERNAL_ERROR,
+      `Unexpected error while getting transport for ${serverName}: ${error instanceof Error ? error.message : String(error)}`,
+      { originalError: error, ...context },
+    );
   }
 }

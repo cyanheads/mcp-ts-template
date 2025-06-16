@@ -22,14 +22,14 @@ import {
   requestContextService,
 } from "../../utils/index.js";
 import {
+  clearAllClientCache,
+  getAllCachedServerNames,
   getCachedClient,
   getPendingConnection,
   removeClientFromCache,
   removePendingConnection,
   setCachedClient,
   setPendingConnection,
-  clearAllClientCache,
-  getAllCachedServerNames, // Import the new function
   type ConnectedMcpClient as CachedConnectedMcpClient,
 } from "./clientCache.js";
 import { establishNewMcpConnection } from "./clientConnectionLogic.js";
@@ -44,16 +44,6 @@ const SHUTDOWN_TIMEOUT_MS = 5000; // 5 seconds for client.close() timeout
 
 /**
  * Creates, connects, or returns an existing/pending MCP client instance for a specified server.
- *
- * This function orchestrates the client connection lifecycle:
- * 1.  **Cache Check**: Uses `clientCache.getCachedClient` to check for an active connection.
- * 2.  **Pending Connection Check**: Uses `clientCache.getPendingConnection` to check for an in-flight connection attempt.
- * 3.  **New Connection**: If no cached or pending connection exists:
- *     a.  A new connection promise is initiated by calling `establishNewMcpConnection`.
- *     b.  This promise is stored using `clientCache.setPendingConnection`.
- *     c.  Upon successful connection, the client is cached using `clientCache.setCachedClient`.
- *     d.  The pending promise is removed using `clientCache.removePendingConnection`.
- * 4.  **Error Handling**: The entire process is wrapped in `ErrorHandler.tryCatch` for robust error management.
  *
  * @param serverName - The unique name of the MCP server to connect to.
  * @param parentContext - Optional parent `RequestContext` for logging and tracing.
@@ -95,11 +85,10 @@ export async function connectMcpClient(
 
   const connectionPromise = ErrorHandler.tryCatch(
     async () => {
-      // Pass the local disconnectMcpClient function to break the circular dependency
       const client = await establishNewMcpConnection(
         serverName,
         operationContext,
-        disconnectMcpClient, // Pass the function itself
+        disconnectMcpClient,
       );
       setCachedClient(serverName, client);
       return client;
@@ -119,7 +108,6 @@ export async function connectMcpClient(
 
 /**
  * Disconnects a specific MCP client, closes its transport with a timeout, and removes it from the cache.
- * Idempotent: multiple calls for an already disconnected client will not cause errors.
  *
  * @param serverName - The name of the server whose client connection should be terminated.
  * @param parentContext - Optional parent `RequestContext` for logging.
@@ -137,7 +125,7 @@ export async function disconnectMcpClient(
     targetServer: serverName,
     triggerReason: error
       ? `Error: ${error.message}`
-      : "Explicit disconnect call or transport close event",
+      : "Explicit disconnect call",
   });
 
   const client = getCachedClient(serverName);
@@ -145,7 +133,7 @@ export async function disconnectMcpClient(
   if (!client) {
     if (!error) {
       logger.warning(
-        `Client for server ${serverName} not found in cache or already disconnected. No action taken.`,
+        `Client for ${serverName} not found in cache or already disconnected.`,
         context,
       );
     }
@@ -154,43 +142,39 @@ export async function disconnectMcpClient(
   }
 
   logger.info(`Disconnecting client for server: ${serverName}...`, context);
-  try {
-    const closePromise = client.close();
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(
-        () =>
-          reject(
-            new Error(
-              `Timeout: client.close() for ${serverName} exceeded ${SHUTDOWN_TIMEOUT_MS}ms`,
-            ),
-          ),
-        SHUTDOWN_TIMEOUT_MS,
-      ),
-    );
 
-    await Promise.race([closePromise, timeoutPromise]);
-    logger.info(
-      `Client for ${serverName} and its transport closed successfully.`,
+  await ErrorHandler.tryCatch(
+    async () => {
+      const closePromise = client.close();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                `Timeout: client.close() for ${serverName} exceeded ${SHUTDOWN_TIMEOUT_MS}ms`,
+              ),
+            ),
+          SHUTDOWN_TIMEOUT_MS,
+        ),
+      );
+      await Promise.race([closePromise, timeoutPromise]);
+      logger.info(
+        `Client for ${serverName} and its transport closed successfully.`,
+        context,
+      );
+    },
+    {
+      operation: `disconnectMcpClient.close (server: ${serverName})`,
       context,
-    );
-  } catch (closeError) {
-    logger.error(
-      `Error during client.close() for server ${serverName} (or timeout)`,
-      {
-        ...context,
-        error:
-          closeError instanceof Error ? closeError.message : String(closeError),
-        stack: closeError instanceof Error ? closeError.stack : undefined,
-      },
-    );
-  } finally {
+      errorCode: BaseErrorCode.SHUTDOWN_ERROR,
+    },
+  ).finally(() => {
     removeClientFromCache(serverName, "After close attempt");
-  }
+  });
 }
 
 /**
  * Disconnects all currently active MCP client connections.
- * Typically used during application shutdown.
  *
  * @param parentContext - Optional parent `RequestContext` for logging.
  * @returns A promise that resolves when all disconnection attempts are processed.
@@ -208,12 +192,7 @@ export async function disconnectAllMcpClients(
 
   if (serverNamesToDisconnect.length === 0) {
     logger.info("No active MCP clients to disconnect.", context);
-    // Still call clearAllClientCache in case pending connections exist or for consistency
     clearAllClientCache();
-    logger.info(
-      "Finished processing all client disconnections (no active clients found, cache cleared).",
-      context,
-    );
     return;
   }
 
@@ -222,44 +201,17 @@ export async function disconnectAllMcpClients(
     context,
   );
 
-  const disconnectionPromises: Promise<void>[] = serverNamesToDisconnect.map(
-    (serverName) => disconnectMcpClient(serverName, context),
+  const disconnectionPromises = serverNamesToDisconnect.map((serverName) =>
+    disconnectMcpClient(serverName, context),
   );
 
-  const results = await Promise.allSettled(disconnectionPromises);
+  await Promise.allSettled(disconnectionPromises);
 
   logger.info(
-    "All MCP client disconnection attempts completed. Reviewing results...",
+    "All MCP client disconnection attempts have been processed.",
     context,
   );
-  results.forEach((result, index) => {
-    const serverName = serverNamesToDisconnect[index];
-    if (result.status === "rejected") {
-      logger.error(
-        `Failed to cleanly disconnect client for server: ${serverName}`,
-        {
-          ...context,
-          targetServer: serverName,
-          error:
-            result.reason instanceof Error
-              ? result.reason.message
-              : String(result.reason),
-          stack:
-            result.reason instanceof Error ? result.reason.stack : undefined,
-        },
-      );
-    } else {
-      logger.debug(
-        `Successfully processed disconnection for server: ${serverName}.`,
-        { ...context, targetServer: serverName },
-      );
-    }
-  });
 
-  // Ensure all caches are cleared regardless of individual disconnections.
   clearAllClientCache();
-  logger.info(
-    "Finished processing all client disconnections and cleared caches.",
-    context,
-  );
+  logger.info("All client caches have been cleared.", context);
 }

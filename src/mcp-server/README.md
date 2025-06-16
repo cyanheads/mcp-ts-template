@@ -97,4 +97,23 @@ When you register your tools and resources in `createMcpServerInstance`, they be
 - **Security**: Sanitize any inputs, especially if they are used in file paths, database queries, or external API calls. Refer to `src/utils/security/sanitization.ts`.
 - **Contextual Logging**: Use the `logger` utility with appropriate `RequestContext` to provide traceable logs.
 
+### 🔌 Integrating External Services
+
+In addition to creating self-contained Tools and Resources, you will often need to interact with external APIs or services (e.g., databases, third-party LLMs). The recommended pattern is to encapsulate the logic for each external service into its own provider class.
+
+**Key Principles:**
+
+1.  **Encapsulation**: Each service provider should be responsible for its own configuration, client initialization, and API interaction logic.
+2.  **Singleton Pattern**: For services that maintain a persistent connection or state (like a database client), use a singleton pattern to ensure a single instance is shared across the application.
+3.  **Clear Error Handling**: Service providers should implement the "Logic Throws, Handlers Catch" pattern internally. The core API-calling logic should throw structured `McpError`s, and the public-facing methods should wrap these calls in `ErrorHandler.tryCatch` blocks.
+
+**Example Service Providers:**
+
+-   **OpenRouter Provider (`src/services/llm-providers/openRouterProvider.ts`)**: Demonstrates how to create a handler class that manages an API client, including state, rate limiting, and wrapping core logic that throws structured errors.
+-   **Supabase Client (`src/services/supabase/supabaseClient.ts`)**: Shows a straightforward singleton initialization pattern for a database client. It throws an error if the client is accessed before it has been properly configured and initialized.
+
+When building a new Tool that needs to interact with an external service, you should import the service's singleton instance and call its methods from within your tool's `logic.ts` file.
+
+---
+
 By following these patterns, you can effectively extend the MCP server with new capabilities while maintaining a robust and well-structured codebase. For more detailed patterns and advanced examples, refer to the [.clinerules](../../../.clinerules) developer cheatsheet.
