@@ -1,7 +1,7 @@
 {
   "name": "mcp-ts-template",
   "version": "1.5.2",
-  "description": "TypeScript template for building Model Context Protocol (MCP) Servers & Clients. Features extensive utilities (logger, requestContext, etc.), STDIO & Streamable HTTP (with authMiddleware), examples, and type safety. Ideal starting point for creating production-ready MCP Servers & Clients.",
+  "description": "Production-ready TypeScript template for building robust Model Context Protocol (MCP) Servers & Clients. Features extensive utilities, service integrations (OpenRouter, DuckDB), advanced authentication (OAuth 2.1, JWT), and both STDIO & Hono-based HTTP transports.",
   "main": "dist/index.js",
   "files": [
     "dist"
@@ -64,16 +64,23 @@
   "keywords": [
     "typescript",
     "template",
-    "MCP",
+    "mcp",
     "model-context-protocol",
-    "LLM",
-    "AI-integration",
+    "architecture",
+    "error-handling",
+    "llm",
+    "ai-integration",
     "mcp-server",
     "mcp-client",
-    "mcp-template",
+    "hono",
     "stdio",
-    "streamable-http",
-    "authentication"
+    "http",
+    "authentication",
+    "oauth",
+    "jwt",
+    "openrouter",
+    "duckdb",
+    "zod"
   ],
   "author": "cyanheads <casey@caseyjhand.com> (https://github.com/cyanheads/mcp-ts-template#readme)",
   "license": "Apache-2.0",
