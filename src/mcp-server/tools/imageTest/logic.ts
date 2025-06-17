@@ -2,10 +2,10 @@
  * @fileoverview Core logic for the fetch_image_test tool. Fetches a random cat image.
  * @module src/mcp-server/tools/imageTest/logic
  */
-import fetch from "node-fetch";
 import { z } from "zod";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
+  fetchWithTimeout,
   logger,
   RequestContext,
   requestContextService,
@@ -44,7 +44,8 @@ export async function fetchImageTestLogic(
     operationContext,
   );
 
-  const response = await fetch(CAT_API_URL);
+  const response = await fetchWithTimeout(CAT_API_URL, 5000, operationContext);
+
   if (!response.ok) {
     throw new McpError(
       BaseErrorCode.SERVICE_UNAVAILABLE,

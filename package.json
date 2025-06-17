@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "Production-ready TypeScript template for building robust Model Context Protocol (MCP) Servers & Clients. Features extensive utilities, service integrations (OpenRouter, DuckDB), advanced authentication (OAuth 2.1, JWT), and both STDIO & Hono-based HTTP transports.",
   "main": "dist/index.js",
   "files": [
@@ -59,7 +59,7 @@
     "validator": "13.15.15",
     "winston": "^3.17.0",
     "winston-transport": "^4.9.0",
-    "zod": "^3.25.65"
+    "zod": "^3.25.67"
   },
   "keywords": [
     "typescript",
