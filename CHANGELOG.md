@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.3] - 2025-06-17
+
+### Changed
+
+- **Dependencies**:
+  - Updated `zod` from `^3.25.65` to `^3.25.67`.
+- **Tooling**:
+  - **`imageTest`**: Refactored the `fetchImageTestLogic` in `src/mcp-server/tools/imageTest/logic.ts` to use the more resilient `fetchWithTimeout` utility, improving error handling for network requests.
+- **Documentation**:
+  - **`.clinerules`**: Enhanced the developer guide with more detailed code examples for the "Logic Throws, Handlers Catch" pattern. Added new sections covering the resource development workflow, integration of external services via singletons, and expanded security mandates for authentication and authorization.
+
 ## [1.5.2] - 2025-06-16
 
 ### Changed

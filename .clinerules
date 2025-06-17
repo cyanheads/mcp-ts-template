@@ -44,25 +44,43 @@ The refactored `echoTool` serves as the canonical example for all tool developme
 The `logic.ts` file defines the "what" and "how" of the tool. It is self-contained and throws errors when it cannot fulfill its contract.
 
 ```typescript
-// In: src/mcp-server/tools/echoTool/logic.ts
-
+/**
+ * @fileoverview Defines the core logic, schemas, and types for the `echo_message` tool.
+ * @module src/mcp-server/tools/echoTool/logic
+ */
 import { z } from "zod";
-// ... other imports
+import { logger, type RequestContext } from "../../../utils/index.js";
 
 // 1. Define and export the Zod schema
 export const EchoToolInputSchema = z.object({
-  // ... schema definition with .describe() for every field
+  message: z
+    .string()
+    .min(1, "Message cannot be empty.")
+    .max(1000, "Message cannot exceed 1000 characters.")
+    .describe("The message to echo back."),
+  // ... other fields with .describe()
 });
 
 // 2. Define and export TypeScript types
 export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;
-export interface EchoToolResponse { /* ... */ };
+export interface EchoToolResponse {
+  originalMessage: string;
+  formattedMessage: string;
+  repeatedMessage: string;
+  // ... other fields
+}
 
-// 3. Implement and export the core logic
+/**
+ * 3. Implement and export the core logic
+ * @param params - The validated input parameters for the echo tool.
+ * @param context - The request context, used for logging and tracing the operation.
+ * @returns A promise that resolves with an object containing the processed response data.
+ */
 export async function echoToolLogic(
   params: EchoToolInput,
   context: RequestContext,
 ): Promise<EchoToolResponse> {
+  logger.debug("Processing echo message logic...", { ...context });
   // ... business logic ...
   // On success, RETURN a structured output object
   return { /* ... success data ... */ };
@@ -74,8 +92,10 @@ export async function echoToolLogic(
 The `registration.ts` file wires the logic into the MCP server and handles all outcomes.
 
 ```typescript
-// In: src/mcp-server/tools/echoTool/registration.ts
-
+/**
+ * @fileoverview Handles the registration of the `echo_message` tool.
+ * @module src/mcp-server/tools/echoTool/registration
+ */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { ErrorHandler, logger, requestContextService } from "../../../utils/index.js";
@@ -86,8 +106,14 @@ import {
   echoToolLogic,
 } from "./logic.js";
 
+/**
+ * Registers the 'echo_message' tool with the provided MCP server instance.
+ * @param server - The MCP server instance to register the tool with.
+ */
 export const registerEchoTool = async (server: McpServer): Promise<void> => {
-  // ...
+  const toolName = "echo_message";
+  const toolDescription = "Echoes a message back with optional formatting and repetition.";
+
   server.tool(
     toolName,
     toolDescription,
@@ -120,21 +146,38 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
       }
     },
   );
-  // ...
 };
 ```
 
-## III. Code Quality and Documentation
+## III. Resource Development Workflow
+
+The process for creating Resources is similar to Tools, focusing on data retrieval.
+
+-   **File Structure**: Same as tools, but under `src/mcp-server/resources/`.
+-   **Registration**: Use `server.resource(registrationName, template, metadata, handler)`. The handler receives URI parameters and must return a `{ contents: [{ uri, blob, mimeType }] }` object.
+
+## IV. Integrating External Services
+
+For interacting with external APIs (databases, etc.), use singleton provider classes.
+
+-   **Encapsulation**: Each service provider (e.g., `src/services/llm-providers/openRouterProvider.ts`) should manage its own client, configuration, and API logic.
+-   **Singleton Pattern**: Use a singleton to share one instance across the application (e.g., `src/services/supabase/supabaseClient.ts`).
+-   **Usage**: Import the singleton instance into your tool's `logic.ts` file to use it.
+
+## V. Code Quality and Documentation
 
 -   **JSDoc**: Every file must start with a `@fileoverview` and `@module` block. All exported functions and types must have clear, concise JSDoc comments explaining their purpose.
 -   **Clarity Over Brevity**: Write self-documenting code with meaningful variable and function names.
 -   **Immutability**: Prefer functional approaches and immutable data structures where possible to avoid side effects.
 -   **Formatting**: All code must be formatted using Prettier (`npm run format`) before committing.
 
-## IV. Security Mandates
+## VI. Security Mandates
 
 -   **Input Sanitization**: All inputs from external sources (tool arguments, API responses) must be treated as untrusted. Use the `sanitization` utilities where appropriate.
 -   **Secrets Management**: All secrets (API keys, auth keys) **must** be loaded from environment variables via the `config` module. Never hardcode secrets.
+-   **Authentication & Authorization**:
+    -   The server supports `jwt` (dev) and `oauth` (prod) modes via `MCP_AUTH_MODE`.
+    -   Protect tools by checking scopes. Use the `withRequiredScopes(["scope:read"])` utility inside your tool handler.
 -   **Rate Limiting**: Protect against abuse by using the centralized `rateLimiter`.
 
 This guide is the single source of truth for development standards. All code reviews will be conducted against these principles.
