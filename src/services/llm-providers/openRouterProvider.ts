@@ -68,8 +68,7 @@ function _prepareApiParameters(
   const effectiveModelId = params.model || config.llmDefaultModel;
 
   const standardParams: Partial<
-    | ChatCompletionCreateParamsStreaming
-    | ChatCompletionCreateParamsNonStreaming
+    ChatCompletionCreateParamsStreaming | ChatCompletionCreateParamsNonStreaming
   > = {
     model: effectiveModelId,
     messages: params.messages,
@@ -309,7 +308,10 @@ class OpenRouterProvider {
   private checkReady(operation: string, context: RequestContext): void {
     if (this.status !== "ready" || !this.client) {
       const message = `OpenRouter service is not available (status: ${this.status}).`;
-      logger.error(`[${operation}] ${message}`, { ...context, status: this.status });
+      logger.error(`[${operation}] ${message}`, {
+        ...context,
+        status: this.status,
+      });
       throw new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, message, {
         cause: this.initializationError,
       });

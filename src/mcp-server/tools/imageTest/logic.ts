@@ -54,7 +54,9 @@ export async function fetchImageTestLogic(
         ...operationContext,
         statusCode: response.status,
         statusText: response.statusText,
-        responseBody: await response.text().catch(() => "Could not read response body"),
+        responseBody: await response
+          .text()
+          .catch(() => "Could not read response body"),
       },
     );
   }

@@ -43,7 +43,7 @@ The `ErrorHandler` is used within the `catch` block of a handler to ensure all e
 export class ErrorHandler {
   public static handleError(
     error: unknown,
-    options: ErrorHandlerOptions
+    options: ErrorHandlerOptions,
   ): Error {
     // ... implementation
   }
@@ -105,7 +105,7 @@ server.tool(
         isError: true,
       };
     }
-  }
+  },
 );
 ```
 

@@ -21,10 +21,7 @@ import { HttpBindings } from "@hono/node-server";
 import { Context, Next } from "hono";
 import { jwtVerify } from "jose";
 import { config, environment } from "../../../../../config/index.js";
-import {
-  logger,
-  requestContextService,
-} from "../../../../../utils/index.js";
+import { logger, requestContextService } from "../../../../../utils/index.js";
 import { BaseErrorCode, McpError } from "../../../../../types-global/errors.js";
 import { authContext } from "../../core/authContext.js";
 

@@ -110,8 +110,8 @@ In addition to creating self-contained Tools and Resources, you will often need 
 
 **Example Service Providers:**
 
--   **OpenRouter Provider (`src/services/llm-providers/openRouterProvider.ts`)**: Demonstrates how to create a handler class that manages an API client, including state, rate limiting, and wrapping core logic that throws structured errors.
--   **Supabase Client (`src/services/supabase/supabaseClient.ts`)**: Shows a straightforward singleton initialization pattern for a database client. It throws an error if the client is accessed before it has been properly configured and initialized.
+- **OpenRouter Provider (`src/services/llm-providers/openRouterProvider.ts`)**: Demonstrates how to create a handler class that manages an API client, including state, rate limiting, and wrapping core logic that throws structured errors.
+- **Supabase Client (`src/services/supabase/supabaseClient.ts`)**: Shows a straightforward singleton initialization pattern for a database client. It throws an error if the client is accessed before it has been properly configured and initialized.
 
 When building a new Tool that needs to interact with an external service, you should import the service's singleton instance and call its methods from within your tool's `logic.ts` file.
 

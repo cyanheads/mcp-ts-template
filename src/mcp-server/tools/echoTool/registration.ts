@@ -14,11 +14,7 @@ import {
   RequestContext,
   requestContextService,
 } from "../../../utils/index.js";
-import {
-  EchoToolInput,
-  EchoToolInputSchema,
-  echoToolLogic,
-} from "./logic.js";
+import { EchoToolInput, EchoToolInputSchema, echoToolLogic } from "./logic.js";
 
 /**
  * Registers the 'echo_message' tool and its handler with the provided MCP server instance.
@@ -61,7 +57,9 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
           try {
             const result = await echoToolLogic(params, handlerContext);
             return {
-              content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+              content: [
+                { type: "text", text: JSON.stringify(result, null, 2) },
+              ],
               isError: false,
             };
           } catch (error) {
@@ -99,7 +97,10 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
         },
       );
 
-      logger.info(`Tool '${toolName}' registered successfully.`, registrationContext);
+      logger.info(
+        `Tool '${toolName}' registered successfully.`,
+        registrationContext,
+      );
     },
     {
       operation: `RegisteringTool_${toolName}`,

@@ -63,7 +63,9 @@ export const registerCatFactFetcherTool = async (
           try {
             const result = await catFactFetcherLogic(params, handlerContext);
             return {
-              content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+              content: [
+                { type: "text", text: JSON.stringify(result, null, 2) },
+              ],
               isError: false,
             };
           } catch (error) {
@@ -101,7 +103,10 @@ export const registerCatFactFetcherTool = async (
         },
       );
 
-      logger.info(`Tool '${toolName}' registered successfully.`, registrationContext);
+      logger.info(
+        `Tool '${toolName}' registered successfully.`,
+        registrationContext,
+      );
     },
     {
       operation: `RegisteringTool_${toolName}`,

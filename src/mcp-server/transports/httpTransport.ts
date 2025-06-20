@@ -90,10 +90,17 @@ function startHttpServerWithRetry(
   return new Promise(async (resolve, reject) => {
     for (let i = 0; i <= maxRetries; i++) {
       const currentPort = initialPort + i;
-      const attemptContext = { ...startContext, port: currentPort, attempt: i + 1 };
+      const attemptContext = {
+        ...startContext,
+        port: currentPort,
+        attempt: i + 1,
+      };
 
       if (await isPortInUse(currentPort, host, attemptContext)) {
-        logger.warning(`Port ${currentPort} is in use, retrying...`, attemptContext);
+        logger.warning(
+          `Port ${currentPort} is in use, retrying...`,
+          attemptContext,
+        );
         continue;
       }
 
@@ -102,7 +109,10 @@ function startHttpServerWithRetry(
           { fetch: app.fetch, port: currentPort, hostname: host },
           (info) => {
             const serverAddress = `http://${info.address}:${info.port}${MCP_ENDPOINT_PATH}`;
-            logger.info(`HTTP transport listening at ${serverAddress}`, { ...attemptContext, address: serverAddress });
+            logger.info(`HTTP transport listening at ${serverAddress}`, {
+              ...attemptContext,
+              address: serverAddress,
+            });
             if (process.stdout.isTTY) {
               console.log(`\n🚀 MCP Server running at: ${serverAddress}\n`);
             }
@@ -131,12 +141,20 @@ export async function startHttpTransport(
     component: "HttpTransportSetup",
   });
 
-  app.use("*", cors({
-    origin: config.mcpAllowedOrigins || [],
-    allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Mcp-Session-Id", "Last-Event-ID", "Authorization"],
-    credentials: true,
-  }));
+  app.use(
+    "*",
+    cors({
+      origin: config.mcpAllowedOrigins || [],
+      allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+      allowHeaders: [
+        "Content-Type",
+        "Mcp-Session-Id",
+        "Last-Event-ID",
+        "Authorization",
+      ],
+      credentials: true,
+    }),
+  );
 
   app.use("*", async (c, next) => {
     c.res.headers.set("X-Content-Type-Options", "nosniff");
@@ -147,7 +165,8 @@ export async function startHttpTransport(
     // NOTE (Security): The 'x-forwarded-for' header is used for rate limiting.
     // This is only secure if the server is run behind a trusted proxy that
     // correctly sets or validates this header.
-    const clientIp = c.req.header("x-forwarded-for")?.split(",")[0].trim() || "unknown_ip";
+    const clientIp =
+      c.req.header("x-forwarded-for")?.split(",")[0].trim() || "unknown_ip";
     const context = requestContextService.createRequestContext({
       operation: "httpRateLimitCheck",
       ipAddress: clientIp,

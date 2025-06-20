@@ -49,7 +49,8 @@ export async function echoResourceLogic(
   // The message can come from a query parameter or the path itself.
   // For a URI like `echo://my-message?param=1`, `hostname` is `my-message`.
   const messageFromPath = uri.hostname || uri.pathname.replace(/^\/+/g, "");
-  const messageToEcho = params.message || messageFromPath || "Default echo message";
+  const messageToEcho =
+    params.message || messageFromPath || "Default echo message";
 
   logger.debug("Processing echo resource logic.", {
     ...context,

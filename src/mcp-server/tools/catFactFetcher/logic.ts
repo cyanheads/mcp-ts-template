@@ -57,7 +57,10 @@ export async function catFactFetcherLogic(
   params: CatFactFetcherInput,
   context: RequestContext,
 ): Promise<CatFactFetcherResponse> {
-  logger.debug("Processing get_random_cat_fact logic.", { ...context, toolInput: params });
+  logger.debug("Processing get_random_cat_fact logic.", {
+    ...context,
+    toolInput: params,
+  });
 
   let apiUrl = "https://catfact.ninja/fact";
   if (params.maxLength !== undefined) {

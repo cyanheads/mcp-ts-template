@@ -20,10 +20,7 @@ import {
   RequestContext,
   requestContextService,
 } from "../../../utils/index.js";
-import {
-  EchoResourceParams,
-  echoResourceLogic,
-} from "./echoResourceLogic.js";
+import { EchoResourceParams, echoResourceLogic } from "./echoResourceLogic.js";
 
 /**
  * Registers the 'echo' resource and its handlers with the provided MCP server instance.
@@ -90,7 +87,9 @@ export const registerEchoResource = async (
               contents: [
                 {
                   uri: uri.href,
-                  blob: Buffer.from(JSON.stringify(responseData)).toString("base64"),
+                  blob: Buffer.from(JSON.stringify(responseData)).toString(
+                    "base64",
+                  ),
                   mimeType: "application/json",
                 },
               ],
@@ -107,7 +106,10 @@ export const registerEchoResource = async (
         },
       );
 
-      logger.info(`Resource '${resourceName}' registered successfully.`, registrationContext);
+      logger.info(
+        `Resource '${resourceName}' registered successfully.`,
+        registrationContext,
+      );
     },
     {
       operation: `RegisteringResource_${resourceName}`,

@@ -29,17 +29,17 @@ Whether you're creating a new MCP server to extend an AI's capabilities or integ
 
 ## ✨ Key Features
 
-| Feature Area                | Description                                                                                                                                                                   | Key Components / Location                                                      |
-| :-------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
-| **🔌 MCP Server**           | Functional server with example tools (`EchoTool`, `CatFactFetcher` for async/Promise API example) and an `EchoResource`. Supports `stdio` and **Streamable HTTP** transports. | `src/mcp-server/`                                                              |
-| **💻 MCP Client**           | Working client aligned with **MCP 2025-03-26 spec**. Connects via `mcp-config.json`. Includes detailed comments.                                                              | `src/mcp-client/`                                                              |
-| **🚀 Production Utilities** | Logging, Error Handling, ID Generation, Rate Limiting, Request Context tracking, Input Sanitization.                                                                          | `src/utils/`                                                                   |
-| **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware for HTTP).                                              | Throughout, `src/utils/security/`, `src/mcp-server/transports/auth/`           |
-| **⚙️ Error Handling**       | Consistent error categorization (`BaseErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                                                                   | `src/utils/internal/errorHandler.ts`, `src/types-global/`                      |
-| **📚 Documentation**        | Comprehensive `README.md`, structured JSDoc comments, API references                                                                                                          | `README.md`, Codebase, `tsdoc.json`, `docs/api-references/`                    |
-| **🤖 Agent Ready**          | Includes a [.clinerules](.clinerules) developer cheatsheet tailored for LLM coding agents.                                                                                    | `.clinerules`                                                                  |
-| **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                                                          | `scripts/`                                                                     |
-| **🧩 Services**             | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                                                   | `src/services/`, `src/storage/duckdbExample.ts`                                |
+| Feature Area                | Description                                                                                                                                                                   | Key Components / Location                                            |
+| :-------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
+| **🔌 MCP Server**           | Functional server with example tools (`EchoTool`, `CatFactFetcher` for async/Promise API example) and an `EchoResource`. Supports `stdio` and **Streamable HTTP** transports. | `src/mcp-server/`                                                    |
+| **💻 MCP Client**           | Working client aligned with **MCP 2025-03-26 spec**. Connects via `mcp-config.json`. Includes detailed comments.                                                              | `src/mcp-client/`                                                    |
+| **🚀 Production Utilities** | Logging, Error Handling, ID Generation, Rate Limiting, Request Context tracking, Input Sanitization.                                                                          | `src/utils/`                                                         |
+| **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware for HTTP).                                                   | Throughout, `src/utils/security/`, `src/mcp-server/transports/auth/` |
+| **⚙️ Error Handling**       | Consistent error categorization (`BaseErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                                                                   | `src/utils/internal/errorHandler.ts`, `src/types-global/`            |
+| **📚 Documentation**        | Comprehensive `README.md`, structured JSDoc comments, API references                                                                                                          | `README.md`, Codebase, `tsdoc.json`, `docs/api-references/`          |
+| **🤖 Agent Ready**          | Includes a [.clinerules](.clinerules) developer cheatsheet tailored for LLM coding agents.                                                                                    | `.clinerules`                                                        |
+| **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                                                          | `scripts/`                                                           |
+| **🧩 Services**             | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                                                   | `src/services/`, `src/storage/duckdbExample.ts`                      |
 
 _For a more granular breakdown, see the [Detailed Features Table](#detailed-features-table) below._
 
@@ -47,14 +47,14 @@ _For a more granular breakdown, see the [Detailed Features Table](#detailed-feat
 
 This template is already powering several MCP servers, demonstrating its flexibility and robustness:
 
-| Project                                                                                                   | Description                                                                                                                                                                                                                  | Status / Notes                                                                                                                           |
-| :-------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
-| [**clinicaltrialsgov-mcp-server**](https://github.com/cyanheads/clinicaltrialsgov-mcp-server)            | An MCP (Model Context Protocol) server providing a robust, developer-friendly interface to the official ClinicalTrials.gov v2 API. Enables LLMs and AI agents to search, retrieve, and analyze clinical study data programmatically. | Actively using this template.                                                                                                            |
-| [**pubmed-mcp-server**](https://github.com/cyanheads/pubmed-mcp-server)                                   | MCP server for PubMed, enabling AI agents to search, retrieve, analyze, and visualize biomedical literature via NCBI E-utilities. Features advanced research workflow capabilities.                                          | Actively using this template.                                                                                                            |
-| [**git-mcp-server**](https://github.com/cyanheads/git-mcp-server)                                         | Provides an enterprise-ready MCP interface for Git operations. Allows LLM agents to initialize, clone, branch, commit, and manage repositories via STDIO & Streamable HTTP.                                                  | Actively using this template.                                                                                                            |
-| [**obsidian-mcp-server**](https://github.com/cyanheads/obsidian-mcp-server)                               | MCP server for Obsidian, enabling AI agents to read, write, search, and manage notes via the Local REST API plugin.                                                                                                     | Actively using this template.                                                                                                            |
-| [**atlas-mcp-server**](https://github.com/cyanheads/atlas-mcp-server)                                     | Advanced task and knowledge management system with Neo4j backend, enabling structured data organization and complex querying for AI agents.                                                                                  | Aligned with this template (as of v2.8.8).                                                                                               |
-| [**filesystem-mcp-server**](https://github.com/cyanheads/filesystem-mcp-server)                           | Offers platform-agnostic file system capabilities for AI agents via MCP. Enables reading, writing, updating, and managing files/directories, featuring advanced search/replace and directory traversal.                      | Actively using this template.                                                                                                            |
+| Project                                                                                       | Description                                                                                                                                                                                                                          | Status / Notes                             |
+| :-------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------- |
+| [**clinicaltrialsgov-mcp-server**](https://github.com/cyanheads/clinicaltrialsgov-mcp-server) | An MCP (Model Context Protocol) server providing a robust, developer-friendly interface to the official ClinicalTrials.gov v2 API. Enables LLMs and AI agents to search, retrieve, and analyze clinical study data programmatically. | Actively using this template.              |
+| [**pubmed-mcp-server**](https://github.com/cyanheads/pubmed-mcp-server)                       | MCP server for PubMed, enabling AI agents to search, retrieve, analyze, and visualize biomedical literature via NCBI E-utilities. Features advanced research workflow capabilities.                                                  | Actively using this template.              |
+| [**git-mcp-server**](https://github.com/cyanheads/git-mcp-server)                             | Provides an enterprise-ready MCP interface for Git operations. Allows LLM agents to initialize, clone, branch, commit, and manage repositories via STDIO & Streamable HTTP.                                                          | Actively using this template.              |
+| [**obsidian-mcp-server**](https://github.com/cyanheads/obsidian-mcp-server)                   | MCP server for Obsidian, enabling AI agents to read, write, search, and manage notes via the Local REST API plugin.                                                                                                                  | Actively using this template.              |
+| [**atlas-mcp-server**](https://github.com/cyanheads/atlas-mcp-server)                         | Advanced task and knowledge management system with Neo4j backend, enabling structured data organization and complex querying for AI agents.                                                                                          | Aligned with this template (as of v2.8.8). |
+| [**filesystem-mcp-server**](https://github.com/cyanheads/filesystem-mcp-server)               | Offers platform-agnostic file system capabilities for AI agents via MCP. Enables reading, writing, updating, and managing files/directories, featuring advanced search/replace and directory traversal.                              | Actively using this template.              |
 
 _Note: [**toolkit-mcp-server**](https://github.com/cyanheads/toolkit-mcp-server) was initially built using an older version of this template and is pending updates to the latest structure._
 
@@ -88,9 +88,10 @@ This project is a template, but can also directly be run as an MCP server. To ge
 Once built, you can run the server. If you intend to publish your project as a package, you can test the `npx` command by linking it locally.
 
 ### Using NPX
+
 To run the MCP server directly using `npx`, you can use the following command:
 
-```bash
+````bash
 
 Now you can run it via `npx`:
 
@@ -100,22 +101,22 @@ npx mcp-ts-template
 
 # Run with HTTP transport
 MCP_TRANSPORT_TYPE=http npx mcp-ts-template
-```
+````
 
 ### From Source (for Development)
 
 You can also use the npm scripts to run the server directly from your cloned repository:
 
--   **Via Stdio (Default):**
-    ```bash
-    npm start
-    # or 'npm run start:stdio'
-    ```
--   **Via Streamable HTTP:**
-    ```bash
-    npm run start:http
-    ```
-This starts a **Streamable HTTP** server (default: `http://127.0.0.1:3010`) which uses Server-Sent Events for the server-to-client streaming component. The port, host, and allowed origins are configurable via environment variables (see [Configuration](#configuration)).
+- **Via Stdio (Default):**
+  ```bash
+  npm start
+  # or 'npm run start:stdio'
+  ```
+- **Via Streamable HTTP:**
+  `bash
+npm run start:http
+`
+  This starts a **Streamable HTTP** server (default: `http://127.0.0.1:3010`) which uses Server-Sent Events for the server-to-client streaming component. The port, host, and allowed origins are configurable via environment variables (see [Configuration](#configuration)).
 
 ## ⚙️ Configuration
 
