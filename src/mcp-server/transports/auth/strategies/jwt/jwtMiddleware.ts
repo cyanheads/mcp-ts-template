@@ -26,17 +26,19 @@ import { BaseErrorCode, McpError } from "../../../../../types-global/errors.js";
 import { authContext } from "../../core/authContext.js";
 
 // Startup Validation: Validate secret key presence on module load.
-if (environment === "production" && !config.mcpAuthSecretKey) {
-  logger.fatal(
-    "CRITICAL: MCP_AUTH_SECRET_KEY is not set in production environment. Authentication cannot proceed securely.",
-  );
-  throw new Error(
-    "MCP_AUTH_SECRET_KEY must be set in production environment for JWT authentication.",
-  );
-} else if (!config.mcpAuthSecretKey) {
-  logger.warning(
-    "MCP_AUTH_SECRET_KEY is not set. Authentication middleware will bypass checks (DEVELOPMENT ONLY). This is insecure for production.",
-  );
+if (config.mcpAuthMode === "jwt") {
+  if (environment === "production" && !config.mcpAuthSecretKey) {
+    logger.fatal(
+      "CRITICAL: MCP_AUTH_SECRET_KEY is not set in production environment for JWT auth. Authentication cannot proceed securely.",
+    );
+    throw new Error(
+      "MCP_AUTH_SECRET_KEY must be set in production environment for JWT authentication.",
+    );
+  } else if (!config.mcpAuthSecretKey) {
+    logger.warning(
+      "MCP_AUTH_SECRET_KEY is not set. JWT auth middleware will bypass checks (DEVELOPMENT ONLY). This is insecure for production.",
+    );
+  }
 }
 
 /**
@@ -58,6 +60,11 @@ export async function mcpAuthMiddleware(
   );
 
   const reqWithAuth = c.env.incoming;
+
+  // If JWT auth is not enabled, skip the middleware.
+  if (config.mcpAuthMode !== "jwt") {
+    return await next();
+  }
 
   // Development Mode Bypass
   if (!config.mcpAuthSecretKey) {

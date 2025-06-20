@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-06-20 22:33:43
+Generated on: 2025-06-20 23:25:16
 
 ```
 mcp-ts-template
@@ -111,7 +111,8 @@ mcp-ts-template
 │   │   │   ├── rateLimiter.ts
 │   │   │   └── sanitization.ts
 │   │   └── index.ts
-│   └── index.ts
+│   ├── index.ts
+│   └── README.md
 ├── .clinerules
 ├── .dockerignore
 ├── .env.example

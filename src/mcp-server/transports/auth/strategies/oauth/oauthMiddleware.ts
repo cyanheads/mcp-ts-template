@@ -13,8 +13,8 @@ import { Context, Next } from "hono";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { config } from "../../../../../config/index.js";
 import { BaseErrorCode, McpError } from "../../../../../types-global/errors.js";
-import { ErrorHandler } from "../../../../../utils/internal/errorHandler.js";
 import { logger, requestContextService } from "../../../../../utils/index.js";
+import { ErrorHandler } from "../../../../../utils/internal/errorHandler.js";
 import { authContext } from "../../core/authContext.js";
 import type { AuthInfo } from "../../core/authTypes.js";
 
@@ -80,6 +80,11 @@ export async function oauthMiddleware(
   c: Context<{ Bindings: HttpBindings }>,
   next: Next,
 ) {
+  // If OAuth is not the configured auth mode, skip this middleware.
+  if (config.mcpAuthMode !== "oauth") {
+    return await next();
+  }
+
   const context = requestContextService.createRequestContext({
     operation: "oauthMiddleware",
     httpMethod: c.req.method,

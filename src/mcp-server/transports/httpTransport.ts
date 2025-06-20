@@ -20,7 +20,7 @@ import { HttpBindings, serve, ServerType } from "@hono/node-server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import { Context, Hono } from "hono";
+import { Context, Hono, Next } from "hono";
 import { cors } from "hono/cors";
 import http from "http";
 import { randomUUID } from "node:crypto";
@@ -107,7 +107,7 @@ function startHttpServerWithRetry(
       try {
         const serverInstance = serve(
           { fetch: app.fetch, port: currentPort, hostname: host },
-          (info) => {
+          (info: { address: string; port: number }) => {
             const serverAddress = `http://${info.address}:${info.port}${MCP_ENDPOINT_PATH}`;
             logger.info(`HTTP transport listening at ${serverAddress}`, {
               ...attemptContext,
@@ -156,12 +156,12 @@ export async function startHttpTransport(
     }),
   );
 
-  app.use("*", async (c, next) => {
+  app.use("*", async (c: Context, next: Next) => {
     c.res.headers.set("X-Content-Type-Options", "nosniff");
     await next();
   });
 
-  app.use(MCP_ENDPOINT_PATH, async (c, next) => {
+  app.use(MCP_ENDPOINT_PATH, async (c: Context, next: Next) => {
     // NOTE (Security): The 'x-forwarded-for' header is used for rate limiting.
     // This is only secure if the server is run behind a trusted proxy that
     // correctly sets or validates this header.
@@ -185,7 +185,7 @@ export async function startHttpTransport(
   // Centralized Error Handling
   app.onError(httpErrorHandler);
 
-  app.post(MCP_ENDPOINT_PATH, async (c) => {
+  app.post(MCP_ENDPOINT_PATH, async (c: Context) => {
     const postContext = requestContextService.createRequestContext({
       ...transportContext,
       operation: "handlePost",

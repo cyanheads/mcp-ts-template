@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.5] - 2025-06-20
+
+### Changed
+
+- **Authentication Middleware**:
+  - In `jwtMiddleware.ts` and `oauthMiddleware.ts`, added checks to ensure the middleware only runs if the corresponding `MCP_AUTH_MODE` is enabled. This prevents unnecessary processing when a different authentication strategy is active.
+- **HTTP Transport**:
+  - Improved type safety in `httpTransport.ts` by explicitly typing the `c` (Context) and `next` (Next) parameters in Hono middleware functions.
+  - Corrected the type for the `info` parameter in the `serve` callback to `{ address: string; port: number }`.
+- **Documentation**:
+  - Updated `docs/tree.md` to reflect the latest project structure.
+  - Updated version to `1.5.5` in `package.json` and `README.md`.
+
 ## [1.5.4] - 2025-06-20
 
 ### Changed
