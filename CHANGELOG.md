@@ -15,6 +15,8 @@ All notable changes to this project will be documented in this file.
 - **Dependencies**:
   - Updated `package.json` and `package-lock.json` to reflect the refactoring.
 - **Documentation**:
+  - Created a new `src/README.md` to provide a detailed technical overview of the source code, its architecture, and development patterns.
+  - Updated `src/mcp-server/README.md`, `src/mcp-client/client-config/README.md`, and `scripts/README.md` to include cross-references, creating a more cohesive and navigable documentation experience.
   - Updated `.clinerules` to reflect the new auth structure.
   - Regenerated `docs/tree.md` to show the new file organization.
 - **Code Quality**:

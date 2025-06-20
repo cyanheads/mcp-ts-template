@@ -1,6 +1,8 @@
 # 🧩 Extending the MCP Server
 
-This document provides guidance on adding custom Tools and Resources to the MCP Server, enabling you to expand its capabilities. The server is designed for extensibility, leveraging the high-level abstractions provided by the Model Context Protocol (MCP) SDK.
+This document provides guidance on adding custom Tools and Resources to the MCP Server. For a broader overview of the entire `src` directory and its architectural principles, please see the [Source Code Overview](../README.md).
+
+The server is designed for extensibility, leveraging the high-level abstractions provided by the Model Context Protocol (MCP) SDK.
 
 ---
 

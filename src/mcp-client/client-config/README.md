@@ -1,6 +1,8 @@
 # 🔌 MCP Client Configuration
 
-This document details the configuration for the built-in **MCP client**, managed via the `mcp-config.json` file located in this directory.
+This document details the configuration for the built-in **MCP client**. For a broader overview of the `src` directory and the client-server architecture, please see the [Source Code Overview](../../README.md).
+
+The client's behavior is managed via the `mcp-config.json` file located in this directory.
 
 ---
 

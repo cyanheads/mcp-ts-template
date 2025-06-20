@@ -1,6 +1,8 @@
 # 🛠️ Project Scripts
 
-This directory contains various utility scripts designed to assist in the development, maintenance, and operational tasks of this project. Each script is crafted to be run from the command line and provides specific functionalities as detailed below.
+This directory contains various utility scripts to assist in development. For a high-level overview of the entire project, please see the [root README.md](../README.md).
+
+Each script is crafted to be run from the command line and provides specific functionalities as detailed below.
 
 ## 📜 Available Scripts
 
