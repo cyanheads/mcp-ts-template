@@ -5,18 +5,18 @@
  * On success, it populates an AuthInfo object and stores it in an AsyncLocalStorage
  * context for use in downstream handlers.
  *
- * @module src/mcp-server/transports/authentication/oauthMiddleware
+ * @module src/mcp-server/transports/auth/strategies/oauth/oauthMiddleware
  */
 
 import { HttpBindings } from "@hono/node-server";
 import { Context, Next } from "hono";
 import { createRemoteJWKSet, jwtVerify } from "jose";
-import { config } from "../../../config/index.js";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
-import { ErrorHandler } from "../../../utils/internal/errorHandler.js";
-import { logger, requestContextService } from "../../../utils/index.js";
-import { authContext } from "./authContext.js";
-import type { AuthInfo } from "./types.js";
+import { config } from "../../../../../config/index.js";
+import { BaseErrorCode, McpError } from "../../../../../types-global/errors.js";
+import { ErrorHandler } from "../../../../../utils/internal/errorHandler.js";
+import { logger, requestContextService } from "../../../../../utils/index.js";
+import { authContext } from "../../core/authContext.js";
+import type { AuthInfo } from "../../core/authTypes.js";
 
 // --- Startup Validation ---
 // Ensures that necessary OAuth configuration is present when the mode is 'oauth'.
@@ -88,20 +88,19 @@ export async function oauthMiddleware(
 
   if (!jwks) {
     // This should not happen if startup validation is correct, but it's a safeguard.
-    const error = new McpError(
+    // This should not happen if startup validation is correct, but it's a safeguard.
+    throw new McpError(
       BaseErrorCode.CONFIGURATION_ERROR,
       "OAuth middleware is active, but JWKS client is not initialized.",
       context,
     );
-    ErrorHandler.handleError(error, { operation: "oauthMiddleware", context });
-    return c.json({ error: "Server configuration error." }, 500);
   }
 
   const authHeader = c.req.header("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return c.json(
-      { error: "Unauthorized: Missing or invalid token format." },
-      401,
+    throw new McpError(
+      BaseErrorCode.UNAUTHORIZED,
+      "Missing or invalid token format.",
     );
   }
 
@@ -117,6 +116,17 @@ export async function oauthMiddleware(
     const scopes =
       typeof payload.scope === "string" ? payload.scope.split(" ") : [];
 
+    if (scopes.length === 0) {
+      logger.warning(
+        "Authentication failed: Token contains no scopes, but scopes are required.",
+        { ...context, jwtPayloadKeys: Object.keys(payload) },
+      );
+      throw new McpError(
+        BaseErrorCode.UNAUTHORIZED,
+        "Token must contain valid, non-empty scopes.",
+      );
+    }
+
     const clientId =
       typeof payload.client_id === "string" ? payload.client_id : undefined;
 
@@ -125,9 +135,9 @@ export async function oauthMiddleware(
         "Authentication failed: OAuth token 'client_id' claim is missing or not a string.",
         { ...context, jwtPayloadKeys: Object.keys(payload) },
       );
-      return c.json(
-        { error: "Unauthorized: Invalid token, missing client identifier." },
-        401,
+      throw new McpError(
+        BaseErrorCode.UNAUTHORIZED,
+        "Invalid token, missing client identifier.",
       );
     }
 
@@ -142,14 +152,27 @@ export async function oauthMiddleware(
     // store in AsyncLocalStorage for modern, safe access in handlers.
     c.env.incoming.auth = authInfo;
     await authContext.run({ authInfo }, next);
-  } catch (error: any) {
-    logger.warning("OAuth token validation failed", {
-      ...context,
-      errorName: error.name,
-      errorMessage: error.message,
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === "JWTExpired") {
+      logger.warning("Authentication failed: OAuth token expired.", context);
+      throw new McpError(BaseErrorCode.UNAUTHORIZED, "Token expired.");
+    }
+
+    const handledError = ErrorHandler.handleError(error, {
+      operation: "oauthMiddleware",
+      context,
+      rethrow: false, // We will throw a new McpError below
     });
-    // The `jose` library provides specific error codes like 'ERR_JWT_EXPIRED' or 'ERR_JWS_INVALID'
-    const message = `Unauthorized: ${error.message || "Invalid token"}`;
-    return c.json({ error: message }, 401);
+
+    // Ensure we always throw an McpError for consistency
+    if (handledError instanceof McpError) {
+      throw handledError;
+    } else {
+      throw new McpError(
+        BaseErrorCode.UNAUTHORIZED,
+        `Unauthorized: ${handledError.message || "Invalid token"}`,
+        { originalError: handledError.name },
+      );
+    }
   }
 }

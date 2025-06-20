@@ -10,19 +10,23 @@
  * is attached to `c.env.incoming.auth`. This direct attachment to the raw Node.js
  * request object is for compatibility with the underlying SDK transport, which is
  * not Hono-context-aware.
- * If the token is missing, invalid, or expired, it returns an HTTP 401 Unauthorized response.
+ * If the token is missing, invalid, or expired, it throws an `McpError`, which is
+ * then handled by the centralized `httpErrorHandler`.
  *
  * @see {@link https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/authorization.mdx | MCP Authorization Specification}
- * @module src/mcp-server/transports/authentication/authMiddleware
+ * @module src/mcp-server/transports/auth/strategies/jwt/jwtMiddleware
  */
 
 import { HttpBindings } from "@hono/node-server";
 import { Context, Next } from "hono";
-import jwt from "jsonwebtoken";
-import { config, environment } from "../../../config/index.js";
-import { logger, requestContextService } from "../../../utils/index.js";
-import { authContext } from "./authContext.js";
-import type { AuthInfo } from "./types.js";
+import { jwtVerify } from "jose";
+import { config, environment } from "../../../../../config/index.js";
+import {
+  logger,
+  requestContextService,
+} from "../../../../../utils/index.js";
+import { BaseErrorCode, McpError } from "../../../../../types-global/errors.js";
+import { authContext } from "../../core/authContext.js";
 
 // Startup Validation: Validate secret key presence on module load.
 if (environment === "production" && !config.mcpAuthSecretKey) {
@@ -81,50 +85,38 @@ export async function mcpAuthMiddleware(
         "FATAL: MCP_AUTH_SECRET_KEY is missing in production. Cannot bypass auth.",
         context,
       );
-      return c.json(
-        { error: "Server configuration error: Authentication key missing." },
-        500,
+      throw new McpError(
+        BaseErrorCode.INTERNAL_ERROR,
+        "Server configuration error: Authentication key missing.",
       );
     }
   }
 
+  const secretKey = new TextEncoder().encode(config.mcpAuthSecretKey);
   const authHeader = c.req.header("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     logger.warning(
       "Authentication failed: Missing or malformed Authorization header (Bearer scheme required).",
       context,
     );
-    return c.json(
-      {
-        error: "Unauthorized: Missing or invalid authentication token format.",
-      },
-      401,
+    throw new McpError(
+      BaseErrorCode.UNAUTHORIZED,
+      "Missing or invalid authentication token format.",
     );
   }
 
   const tokenParts = authHeader.split(" ");
   if (tokenParts.length !== 2 || tokenParts[0] !== "Bearer" || !tokenParts[1]) {
     logger.warning("Authentication failed: Malformed Bearer token.", context);
-    return c.json(
-      { error: "Unauthorized: Malformed authentication token." },
-      401,
+    throw new McpError(
+      BaseErrorCode.UNAUTHORIZED,
+      "Malformed authentication token.",
     );
   }
   const rawToken = tokenParts[1];
 
   try {
-    const decoded = jwt.verify(rawToken, config.mcpAuthSecretKey);
-
-    if (typeof decoded === "string") {
-      logger.warning(
-        "Authentication failed: JWT decoded to a string, expected an object payload.",
-        context,
-      );
-      return c.json(
-        { error: "Unauthorized: Invalid token payload format." },
-        401,
-      );
-    }
+    const { payload: decoded } = await jwtVerify(rawToken, secretKey);
 
     const clientIdFromToken =
       typeof decoded.cid === "string"
@@ -137,9 +129,9 @@ export async function mcpAuthMiddleware(
         "Authentication failed: JWT 'cid' or 'client_id' claim is missing or not a string.",
         { ...context, jwtPayloadKeys: Object.keys(decoded) },
       );
-      return c.json(
-        { error: "Unauthorized: Invalid token, missing client identifier." },
-        401,
+      throw new McpError(
+        BaseErrorCode.UNAUTHORIZED,
+        "Invalid token, missing client identifier.",
       );
     }
 
@@ -164,9 +156,9 @@ export async function mcpAuthMiddleware(
         "Authentication failed: Token resulted in an empty scope array, and scopes are required.",
         { ...context, jwtPayloadKeys: Object.keys(decoded) },
       );
-      return c.json(
-        { error: "Unauthorized: Token must contain valid, non-empty scopes." },
-        401,
+      throw new McpError(
+        BaseErrorCode.UNAUTHORIZED,
+        "Token must contain valid, non-empty scopes.",
       );
     }
 
@@ -187,29 +179,29 @@ export async function mcpAuthMiddleware(
     });
     await authContext.run({ authInfo }, next);
   } catch (error: unknown) {
-    let errorMessage = "Invalid token";
-    if (error instanceof jwt.TokenExpiredError) {
-      errorMessage = "Token expired";
+    let errorMessage = "Invalid token.";
+    let errorCode = BaseErrorCode.UNAUTHORIZED;
+
+    if (error instanceof Error && error.name === "JWTExpired") {
+      errorMessage = "Token expired.";
       logger.warning("Authentication failed: Token expired.", {
         ...context,
-        expiredAt: error.expiredAt,
+        errorName: error.name,
       });
-    } else if (error instanceof jwt.JsonWebTokenError) {
-      errorMessage = `Invalid token: ${error.message}`;
-      logger.warning(`Authentication failed: ${errorMessage}`, { ...context });
     } else if (error instanceof Error) {
-      errorMessage = `Verification error: ${error.message}`;
-      logger.error(
-        "Authentication failed: Unexpected error during token verification.",
-        { ...context, error: error.message },
-      );
+      errorMessage = `Invalid token: ${error.message}`;
+      logger.warning(`Authentication failed: ${errorMessage}`, {
+        ...context,
+        errorName: error.name,
+      });
     } else {
-      errorMessage = "Unknown verification error";
+      errorMessage = "Unknown verification error.";
+      errorCode = BaseErrorCode.INTERNAL_ERROR;
       logger.error(
         "Authentication failed: Unexpected non-error exception during token verification.",
         { ...context, error },
       );
     }
-    return c.json({ error: `Unauthorized: ${errorMessage}.` }, 401);
+    throw new McpError(errorCode, errorMessage);
   }
 }

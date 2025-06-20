@@ -12,15 +12,15 @@ Our architecture is built on a clear separation of concerns, ensuring that code 
 
 This is the cornerstone of our error-handling strategy.
 
--   **Core Logic (`logic.ts`)**: This layer is responsible for business logic only. It should be pure and self-contained. If an error occurs (e.g., failed validation, API error), it **must `throw` a structured `McpError`**. Logic files **must not** contain `try...catch` blocks for formatting final responses.
--   **Handlers (`registration.ts`, Transports)**: This layer is responsible for invoking core logic and managing communication protocols. It **must** wrap all calls to the logic layer in a `try...catch` block. This is the only place where errors are caught, processed by the `ErrorHandler`, and formatted into a final `CallToolResult` or HTTP response.
+- **Core Logic (`logic.ts`)**: This layer is responsible for business logic only. It should be pure and self-contained. If an error occurs (e.g., failed validation, API error), it **must `throw` a structured `McpError`**. Logic files **must not** contain `try...catch` blocks for formatting final responses.
+- **Handlers (`registration.ts`, Transports)**: This layer is responsible for invoking core logic and managing communication protocols. It **must** wrap all calls to the logic layer in a `try...catch` block. This is the only place where errors are caught, processed by the `ErrorHandler`, and formatted into a final `CallToolResult` or HTTP response.
 
 ### 2. Structured, Traceable Operations
 
 Every operation must be traceable from start to finish through structured logging and context propagation.
 
--   **`RequestContext`**: Every significant operation must begin by creating a `RequestContext` using `requestContextService.createRequestContext()`. This context, containing a unique `requestId`, must be passed down through all subsequent function calls.
--   **`Logger`**: All logging must be done through the centralized `logger` singleton, and every log call must include the current `RequestContext`.
+- **`RequestContext`**: Every significant operation must begin by creating a `RequestContext` using `requestContextService.createRequestContext()`. This context, containing a unique `requestId`, must be passed down through all subsequent function calls.
+- **`Logger`**: All logging must be done through the centralized `logger` singleton, and every log call must include the current `RequestContext`.
 
 ## II. Tool Development Workflow
 
@@ -30,10 +30,10 @@ This section defines the mandatory workflow for creating and modifying tools.
 
 Each tool must reside in its own directory within `src/mcp-server/tools/` and follow this structure:
 
--   **`toolName/`**
-    -   **`index.ts`**: A barrel file that exports only the `register...` function from `registration.ts`.
-    -   **`logic.ts`**: Contains the core business logic. It **must** define and export the tool's Zod input schema, all inferred TypeScript types (input and output), and the main logic function.
-    -   **`registration.ts`**: Registers the tool with the MCP server. It imports from `logic.ts` and implements the "Handler" role described in our core principles.
+- **`toolName/`**
+  - **`index.ts`**: A barrel file that exports only the `register...` function from `registration.ts`.
+  - **`logic.ts`**: Contains the core business logic. It **must** define and export the tool's Zod input schema, all inferred TypeScript types (input and output), and the main logic function.
+  - **`registration.ts`**: Registers the tool with the MCP server. It imports from `logic.ts` and implements the "Handler" role described in our core principles.
 
 ### B. The Authoritative Pattern: `echoTool`
 
@@ -78,12 +78,14 @@ export interface EchoToolResponse {
  */
 export async function echoToolLogic(
   params: EchoToolInput,
-  context: RequestContext,
+  context: RequestContext
 ): Promise<EchoToolResponse> {
   logger.debug("Processing echo message logic...", { ...context });
   // ... business logic ...
   // On success, RETURN a structured output object
-  return { /* ... success data ... */ };
+  return {
+    /* ... success data ... */
+  };
 }
 ```
 
@@ -98,13 +100,13 @@ The `registration.ts` file wires the logic into the MCP server and handles all o
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { ErrorHandler, logger, requestContextService } from "../../../utils/index.js";
-// 1. Import everything from the logic file
 import {
-  EchoToolInput,
-  EchoToolInputSchema,
-  echoToolLogic,
-} from "./logic.js";
+  ErrorHandler,
+  logger,
+  requestContextService,
+} from "../../../utils/index.js";
+// 1. Import everything from the logic file
+import { EchoToolInput, EchoToolInputSchema, echoToolLogic } from "./logic.js";
 
 /**
  * Registers the 'echo_message' tool with the provided MCP server instance.
@@ -112,14 +114,17 @@ import {
  */
 export const registerEchoTool = async (server: McpServer): Promise<void> => {
   const toolName = "echo_message";
-  const toolDescription = "Echoes a message back with optional formatting and repetition.";
+  const toolDescription =
+    "Echoes a message back with optional formatting and repetition.";
 
   server.tool(
     toolName,
     toolDescription,
     EchoToolInputSchema.shape,
     async (params: EchoToolInput, mcpContext: any): Promise<CallToolResult> => {
-      const handlerContext = requestContextService.createRequestContext({ /* ... */ });
+      const handlerContext = requestContextService.createRequestContext({
+        /* ... */
+      });
 
       try {
         // 2. Invoke the core logic
@@ -132,19 +137,32 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
         };
       } catch (error) {
         // 4. CATCH any error thrown by the logic
-        const handledError = ErrorHandler.handleError(error, { /* ... */ });
+        const handledError = ErrorHandler.handleError(error, {
+          /* ... */
+        });
 
         // 5. Format the ERROR response
-        const mcpError = handledError instanceof McpError ? handledError : new McpError(/* ... */);
+        const mcpError =
+          handledError instanceof McpError
+            ? handledError
+            : new McpError(/* ... */);
         return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ error: { code: mcpError.code, message: mcpError.message, details: mcpError.details } }),
-          }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                error: {
+                  code: mcpError.code,
+                  message: mcpError.message,
+                  details: mcpError.details,
+                },
+              }),
+            },
+          ],
           isError: true,
         };
       }
-    },
+    }
   );
 };
 ```
@@ -153,31 +171,31 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
 
 The process for creating Resources is similar to Tools, focusing on data retrieval.
 
--   **File Structure**: Same as tools, but under `src/mcp-server/resources/`.
--   **Registration**: Use `server.resource(registrationName, template, metadata, handler)`. The handler receives URI parameters and must return a `{ contents: [{ uri, blob, mimeType }] }` object.
+- **File Structure**: Same as tools, but under `src/mcp-server/resources/`.
+- **Registration**: Use `server.resource(registrationName, template, metadata, handler)`. The handler receives URI parameters and must return a `{ contents: [{ uri, blob, mimeType }] }` object.
 
 ## IV. Integrating External Services
 
 For interacting with external APIs (databases, etc.), use singleton provider classes.
 
--   **Encapsulation**: Each service provider (e.g., `src/services/llm-providers/openRouterProvider.ts`) should manage its own client, configuration, and API logic.
--   **Singleton Pattern**: Use a singleton to share one instance across the application (e.g., `src/services/supabase/supabaseClient.ts`).
--   **Usage**: Import the singleton instance into your tool's `logic.ts` file to use it.
+- **Encapsulation**: Each service provider (e.g., `src/services/llm-providers/openRouterProvider.ts`) should manage its own client, configuration, and API logic.
+- **Singleton Pattern**: Use a singleton to share one instance across the application (e.g., `src/services/supabase/supabaseClient.ts`).
+- **Usage**: Import the singleton instance into your tool's `logic.ts` file to use it.
 
 ## V. Code Quality and Documentation
 
--   **JSDoc**: Every file must start with a `@fileoverview` and `@module` block. All exported functions and types must have clear, concise JSDoc comments explaining their purpose.
--   **Clarity Over Brevity**: Write self-documenting code with meaningful variable and function names.
--   **Immutability**: Prefer functional approaches and immutable data structures where possible to avoid side effects.
--   **Formatting**: All code must be formatted using Prettier (`npm run format`) before committing.
+- **JSDoc**: Every file must start with a `@fileoverview` and `@module` block. All exported functions and types must have clear, concise JSDoc comments explaining their purpose.
+- **Clarity Over Brevity**: Write self-documenting code with meaningful variable and function names.
+- **Immutability**: Prefer functional approaches and immutable data structures where possible to avoid side effects.
+- **Formatting**: All code must be formatted using Prettier (`npm run format`) before committing.
 
 ## VI. Security Mandates
 
--   **Input Sanitization**: All inputs from external sources (tool arguments, API responses) must be treated as untrusted. Use the `sanitization` utilities where appropriate.
--   **Secrets Management**: All secrets (API keys, auth keys) **must** be loaded from environment variables via the `config` module. Never hardcode secrets.
--   **Authentication & Authorization**:
-    -   The server supports `jwt` (dev) and `oauth` (prod) modes via `MCP_AUTH_MODE`.
-    -   Protect tools by checking scopes. Use the `withRequiredScopes(["scope:read"])` utility inside your tool handler.
--   **Rate Limiting**: Protect against abuse by using the centralized `rateLimiter`.
+- **Input Sanitization**: All inputs from external sources (tool arguments, API responses) must be treated as untrusted. Use the `sanitization` utilities where appropriate.
+- **Secrets Management**: All secrets (API keys, auth keys) **must** be loaded from environment variables via the `config` module. Never hardcode secrets.
+- **Authentication & Authorization**:
+  - The server supports `jwt` (dev) and `oauth` (prod) modes via `MCP_AUTH_MODE`.
+  - Protect tools by checking scopes. Use the `withRequiredScopes(["scope:read"])` utility inside your tool handler.
+- **Rate Limiting**: Protect against abuse by using the centralized `rateLimiter`.
 
 This guide is the single source of truth for development standards. All code reviews will be conducted against these principles.

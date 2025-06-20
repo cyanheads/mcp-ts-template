@@ -17,7 +17,7 @@ The HTTP transport supports two authentication modes, configurable via the `MCP_
 When using `oauth` mode, you can protect tools and resources by checking for specific scopes in the access token. Use the `withRequiredScopes` utility within your tool/resource handlers:
 
 ```typescript
-import { withRequiredScopes } from "../../transports/authentication/authUtils.js";
+import { withRequiredScopes } from "../../transports/auth/index.js";
 
 // Inside a tool handler...
 async (params: ToolInput): Promise<CallToolResult> => {
@@ -81,12 +81,13 @@ The core of extending this MCP server involves defining your custom logic and th
 
 ### 🚀 Server Initialization and Transports
 
-The main server logic in `src/mcp-server/server.ts` handles the creation of the `McpServer` instance. This instance is then connected to a transport layer:
+The main server logic in `src/mcp-server/server.ts` orchestrates the creation of the `McpServer` instance. This instance is then connected to a transport layer, which is determined by the application's configuration.
 
-- **Stdio Transport (`src/mcp-server/transports/stdioTransport.ts`)**: Used for direct communication when the server is a child process. It leverages `StdioServerTransport` from the SDK.
-- **Streamable HTTP Transport (`src/mcp-server/transports/httpTransport.ts`)**: Provides an HTTP interface using Hono and Server-Sent Events (SSE) for streaming, managed by `StreamableHTTPServerTransport` from the SDK. This transport handles session management, authentication (via `authMiddleware.ts`), and CORS.
+- **Stdio Transport (`src/mcp-server/transports/stdioTransport.ts`)**: This module provides a straightforward wrapper for the SDK's `StdioServerTransport`. It's used for direct communication when the server is launched as a child process by a host application.
 
-When you register your tools and resources in `createMcpServerInstance`, they become available regardless of the chosen transport, as the core `McpServer` instance handles the protocol logic.
+- **Streamable HTTP Transport (`src/mcp-server/transports/httpTransport.ts`)**: This module integrates the SDK's `StreamableHTTPServerTransport` with a **Hono** web server. It is responsible for setting up the HTTP interface, including routing and middleware for CORS, rate limiting, and authentication. The underlying complexities of session management and Server-Sent Events (SSE) for streaming are handled by the SDK's transport class.
+
+When you register your tools and resources in `createMcpServerInstance`, they become available regardless of the chosen transport, as the core `McpServer` instance is transport-agnostic.
 
 ### 💡 Best Practices
 

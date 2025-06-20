@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-06-16 21:42:01
+Generated on: 2025-06-20 22:33:43
 
 ```
 mcp-ts-template
@@ -59,12 +59,18 @@ mcp-ts-template
 │   │   │       ├── logic.ts
 │   │   │       └── registration.ts
 │   │   ├── transports
-│   │   │   ├── authentication
-│   │   │   │   ├── authContext.ts
-│   │   │   │   ├── authMiddleware.ts
-│   │   │   │   ├── authUtils.ts
-│   │   │   │   ├── oauthMiddleware.ts
-│   │   │   │   └── types.ts
+│   │   │   ├── auth
+│   │   │   │   ├── core
+│   │   │   │   │   ├── authContext.ts
+│   │   │   │   │   ├── authTypes.ts
+│   │   │   │   │   └── authUtils.ts
+│   │   │   │   ├── strategies
+│   │   │   │   │   ├── jwt
+│   │   │   │   │   │   └── jwtMiddleware.ts
+│   │   │   │   │   └── oauth
+│   │   │   │   │       └── oauthMiddleware.ts
+│   │   │   │   └── index.ts
+│   │   │   ├── httpErrorHandler.ts
 │   │   │   ├── httpTransport.ts
 │   │   │   └── stdioTransport.ts
 │   │   ├── README.md

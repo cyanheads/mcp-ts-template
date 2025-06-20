@@ -1,11 +1,11 @@
 /**
  * @fileoverview Provides utility functions for authorization, specifically for
  * checking token scopes against required permissions for a given operation.
- * @module src/mcp-server/transports/authentication/authUtils
+ * @module src/mcp-server/transports/auth/core/authUtils
  */
 
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
-import { logger, requestContextService } from "../../../utils/index.js";
+import { BaseErrorCode, McpError } from "../../../../types-global/errors.js";
+import { logger, requestContextService } from "../../../../utils/index.js";
 import { authContext } from "./authContext.js";
 
 /**

@@ -1,10 +1,15 @@
 /**
- * @fileoverview Handles the setup and management of the Streamable HTTP MCP transport using Hono.
- * Implements the MCP Specification 2025-03-26 for Streamable HTTP.
- * This includes creating a Hono server, configuring middleware (CORS, Authentication),
- * defining request routing for the single MCP endpoint (POST/GET/DELETE),
- * managing server-side sessions, handling Server-Sent Events (SSE) for streaming,
- * and binding to a network port with retry logic for port conflicts.
+ * @fileoverview Configures and starts the Streamable HTTP MCP transport using Hono.
+ * This module integrates the `@modelcontextprotocol/sdk`'s `StreamableHTTPServerTransport`
+ * into a Hono web server. Its responsibilities include:
+ * - Creating a Hono server instance.
+ * - Applying and configuring middleware for CORS, rate limiting, and authentication (JWT/OAuth).
+ * - Defining the routes (`/mcp` endpoint for POST, GET, DELETE) to handle the MCP lifecycle.
+ * - Orchestrating session management by mapping session IDs to SDK transport instances.
+ * - Implementing port-binding logic with automatic retry on conflicts.
+ *
+ * The underlying implementation of the MCP Streamable HTTP specification, including
+ * Server-Sent Events (SSE) for streaming, is handled by the SDK's transport class.
  *
  * Specification Reference:
  * https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx#streamable-http
@@ -22,29 +27,29 @@ import { randomUUID } from "node:crypto";
 import { config } from "../../config/index.js";
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 import {
-  ErrorHandler,
   logger,
   rateLimiter,
   RequestContext,
   requestContextService,
 } from "../../utils/index.js";
-import { mcpAuthMiddleware } from "./authentication/authMiddleware.js";
-import { oauthMiddleware } from "./authentication/oauthMiddleware.js";
-import type { AuthInfo } from "./authentication/types.js";
+import {
+  jwtAuthMiddleware,
+  oauthMiddleware,
+  type AuthInfo,
+} from "./auth/index.js";
+import { httpErrorHandler } from "./httpErrorHandler.js";
 
 const HTTP_PORT = config.mcpHttpPort;
 const HTTP_HOST = config.mcpHttpHost;
 const MCP_ENDPOINT_PATH = "/mcp";
 const MAX_PORT_RETRIES = 15;
-const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
-const SESSION_GC_INTERVAL_MS = 60 * 1000;
 
-type HonoBindings = HttpBindings & {
-  auth?: AuthInfo;
-};
-
-const httpTransports: Record<string, StreamableHTTPServerTransport> = {};
-const sessionActivity: Record<string, number> = {};
+// The transports map will store active sessions, keyed by session ID.
+// NOTE: This is an in-memory session store, which is a known limitation for scalability.
+// It will not work in a multi-process (clustered) or serverless environment.
+// For a scalable deployment, this would need to be replaced with a distributed
+// store like Redis or Memcached.
+const transports: Record<string, StreamableHTTPServerTransport> = {};
 
 async function isPortInUse(
   port: number,
@@ -71,7 +76,7 @@ async function isPortInUse(
 }
 
 function startHttpServerWithRetry(
-  app: Hono<{ Bindings: HonoBindings }>,
+  app: Hono<{ Bindings: HttpBindings }>,
   initialPort: number,
   host: string,
   maxRetries: number,
@@ -120,23 +125,11 @@ export async function startHttpTransport(
   createServerInstanceFn: () => Promise<McpServer>,
   parentContext: RequestContext,
 ): Promise<ServerType> {
-  const app = new Hono<{ Bindings: HonoBindings }>();
+  const app = new Hono<{ Bindings: HttpBindings }>();
   const transportContext = requestContextService.createRequestContext({
     ...parentContext,
     component: "HttpTransportSetup",
   });
-
-  setInterval(() => {
-    const now = Date.now();
-    const gcContext = requestContextService.createRequestContext({ operation: "SessionGarbageCollector" });
-    for (const sessionId in sessionActivity) {
-      if (now - sessionActivity[sessionId] > SESSION_TIMEOUT_MS) {
-        logger.info(`Session ${sessionId} timed out. Cleaning up.`, { ...gcContext, sessionId });
-        httpTransports[sessionId]?.close();
-        delete sessionActivity[sessionId];
-      }
-    }
-  }, SESSION_GC_INTERVAL_MS);
 
   app.use("*", cors({
     origin: config.mcpAllowedOrigins || [],
@@ -151,98 +144,115 @@ export async function startHttpTransport(
   });
 
   app.use(MCP_ENDPOINT_PATH, async (c, next) => {
+    // NOTE (Security): The 'x-forwarded-for' header is used for rate limiting.
+    // This is only secure if the server is run behind a trusted proxy that
+    // correctly sets or validates this header.
     const clientIp = c.req.header("x-forwarded-for")?.split(",")[0].trim() || "unknown_ip";
-    const context = requestContextService.createRequestContext({ operation: "httpRateLimitCheck", ipAddress: clientIp });
-    try {
-      rateLimiter.check(clientIp, context);
-      await next();
-    } catch (error) {
-      const handledError = ErrorHandler.handleError(error, { operation: "rateLimitMiddleware", context });
-      return c.json({
-        jsonrpc: "2.0",
-        error: { code: -32000, message: handledError.message },
-        id: (await c.req.json().catch(() => ({})))?.id || null,
-      }, 429);
-    }
+    const context = requestContextService.createRequestContext({
+      operation: "httpRateLimitCheck",
+      ipAddress: clientIp,
+    });
+    // Let the centralized error handler catch rate limit errors
+    rateLimiter.check(clientIp, context);
+    await next();
   });
 
   if (config.mcpAuthMode === "oauth") {
     app.use(MCP_ENDPOINT_PATH, oauthMiddleware);
   } else {
-    app.use(MCP_ENDPOINT_PATH, mcpAuthMiddleware);
+    app.use(MCP_ENDPOINT_PATH, jwtAuthMiddleware);
   }
 
-  app.post(MCP_ENDPOINT_PATH, async (c) => {
-    const postContext = requestContextService.createRequestContext({ ...transportContext, operation: "handlePost" });
-    let transport: StreamableHTTPServerTransport | undefined;
-    try {
-      const body = await c.req.json();
-      const sessionId = c.req.header("mcp-session-id");
-      transport = sessionId ? httpTransports[sessionId] : undefined;
-      if (transport && sessionId) sessionActivity[sessionId] = Date.now();
+  // Centralized Error Handling
+  app.onError(httpErrorHandler);
 
-      if (isInitializeRequest(body)) {
-        if (transport) {
-          logger.warning("Re-initializing existing session.", { ...postContext, sessionId });
-          await transport.close();
-        }
-        transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: () => randomUUID(),
-          onsessioninitialized: (newId) => {
-            httpTransports[newId] = transport!;
-            sessionActivity[newId] = Date.now();
-            logger.info(`HTTP Session created: ${newId}`, { ...postContext, newSessionId: newId });
-          },
+  app.post(MCP_ENDPOINT_PATH, async (c) => {
+    const postContext = requestContextService.createRequestContext({
+      ...transportContext,
+      operation: "handlePost",
+    });
+    const body = await c.req.json();
+    const sessionId = c.req.header("mcp-session-id");
+    let transport: StreamableHTTPServerTransport | undefined = sessionId
+      ? transports[sessionId]
+      : undefined;
+
+    if (isInitializeRequest(body)) {
+      // If a transport already exists for a session, it's a re-initialization.
+      if (transport) {
+        logger.warning("Re-initializing existing session.", {
+          ...postContext,
+          sessionId,
         });
-        transport.onclose = () => {
-          const closedSessionId = transport!.sessionId;
-          if (closedSessionId) {
-            delete httpTransports[closedSessionId];
-            delete sessionActivity[closedSessionId];
-            logger.info(`HTTP Session closed: ${closedSessionId}`, { ...postContext, closedSessionId });
-          }
-        };
-        const server = await createServerInstanceFn();
-        await server.connect(transport);
-      } else if (!transport) {
-        throw new McpError(BaseErrorCode.NOT_FOUND, "Invalid or expired session ID.");
+        await transport.close(); // This will trigger the onclose handler.
       }
 
-      return await transport.handleRequest(c.env.incoming, c.env.outgoing, body);
-    } catch (err) {
-      const handledError = ErrorHandler.handleError(err, { operation: "handlePost", context: postContext });
-      const requestId = (await c.req.json().catch(() => ({})))?.id || null;
-      return c.json({
-        jsonrpc: "2.0",
-        error: { code: -32603, message: handledError.message },
-        id: requestId,
-      }, handledError instanceof McpError && handledError.code === BaseErrorCode.NOT_FOUND ? 404 : 500);
+      // Create a new transport for a new session.
+      const newTransport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (newId) => {
+          transports[newId] = newTransport;
+          logger.info(`HTTP Session created: ${newId}`, {
+            ...postContext,
+            newSessionId: newId,
+          });
+        },
+      });
+
+      // Set up cleanup logic for when the transport is closed.
+      newTransport.onclose = () => {
+        const closedSessionId = newTransport.sessionId;
+        if (closedSessionId && transports[closedSessionId]) {
+          delete transports[closedSessionId];
+          logger.info(`HTTP Session closed: ${closedSessionId}`, {
+            ...postContext,
+            closedSessionId,
+          });
+        }
+      };
+
+      // Connect the new transport to a new server instance.
+      const server = await createServerInstanceFn();
+      await server.connect(newTransport);
+      transport = newTransport;
+    } else if (!transport) {
+      // If it's not an initialization request and no transport was found, it's an error.
+      throw new McpError(
+        BaseErrorCode.NOT_FOUND,
+        "Invalid or expired session ID.",
+      );
     }
+
+    // Pass the request to the transport to handle.
+    return await transport.handleRequest(c.env.incoming, c.env.outgoing, body);
   });
 
-  const handleSessionReq = async (c: Context<{ Bindings: HonoBindings }>) => {
-    const method = c.req.method;
-    const sessionReqContext = requestContextService.createRequestContext({ ...transportContext, operation: `handle${method}` });
-    try {
-      const sessionId = c.req.header("mcp-session-id");
-      const transport = sessionId ? httpTransports[sessionId] : undefined;
-      if (!transport) {
-        throw new McpError(BaseErrorCode.NOT_FOUND, "Session not found or expired.");
-      }
-      if (sessionId) sessionActivity[sessionId] = Date.now();
-      return await transport.handleRequest(c.env.incoming, c.env.outgoing);
-    } catch (err) {
-      const handledError = ErrorHandler.handleError(err, { operation: `handle${method}`, context: sessionReqContext });
-      return c.json({
-        jsonrpc: "2.0",
-        error: { code: -32603, message: handledError.message },
-        id: null,
-      }, handledError instanceof McpError && handledError.code === BaseErrorCode.NOT_FOUND ? 404 : 500);
+  // A reusable handler for GET and DELETE requests which operate on existing sessions.
+  const handleSessionRequest = async (
+    c: Context<{ Bindings: HttpBindings }>,
+  ) => {
+    const sessionId = c.req.header("mcp-session-id");
+    const transport = sessionId ? transports[sessionId] : undefined;
+
+    if (!transport) {
+      throw new McpError(
+        BaseErrorCode.NOT_FOUND,
+        "Session not found or expired.",
+      );
     }
+
+    // Let the transport handle the streaming (GET) or termination (DELETE) request.
+    return await transport.handleRequest(c.env.incoming, c.env.outgoing);
   };
 
-  app.get(MCP_ENDPOINT_PATH, handleSessionReq);
-  app.delete(MCP_ENDPOINT_PATH, handleSessionReq);
+  app.get(MCP_ENDPOINT_PATH, handleSessionRequest);
+  app.delete(MCP_ENDPOINT_PATH, handleSessionRequest);
 
-  return startHttpServerWithRetry(app, HTTP_PORT, HTTP_HOST, MAX_PORT_RETRIES, transportContext);
+  return startHttpServerWithRetry(
+    app,
+    HTTP_PORT,
+    HTTP_HOST,
+    MAX_PORT_RETRIES,
+    transportContext,
+  );
 }

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.4] - 2025-06-20
+
+### Changed
+
+- **Architectural Refactor**:
+  - **Authentication Module**: Overhauled the authentication and authorization system for improved modularity, clarity, and security.
+    - Relocated all authentication-related files from `src/mcp-server/transports/authentication/` to a new, structured directory at `src/mcp-server/transports/auth/`.
+    - Organized the new module into `core/` for shared logic (`authContext.ts`, `authTypes.ts`, `authUtils.ts`) and `strategies/` for specific implementations (`jwt/`, `oauth/`).
+    - Introduced a new centralized `httpErrorHandler.ts` to standardize error responses from the HTTP transport layer, ensuring consistent and secure error reporting.
+    - Added a barrel file (`src/mcp-server/transports/auth/index.ts`) to simplify imports of auth components across the application.
+- **Dependencies**:
+  - Updated `package.json` and `package-lock.json` to reflect the refactoring.
+- **Documentation**:
+  - Updated `.clinerules` to reflect the new auth structure.
+  - Regenerated `docs/tree.md` to show the new file organization.
+- **Code Quality**:
+  - Modified `src/mcp-server/transports/httpTransport.ts` to use the new `httpErrorHandler`.
+
 ## [1.5.3] - 2025-06-17
 
 ### Changed

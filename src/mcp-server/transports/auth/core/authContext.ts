@@ -5,11 +5,11 @@
  * from the middleware layer down to the tool and resource handlers without
  * drilling props.
  *
- * @module src/mcp-server/transports/authentication/authContext
+ * @module src/mcp-server/transports/auth/core/authContext
  */
 
 import { AsyncLocalStorage } from "async_hooks";
-import type { AuthInfo } from "./types.js";
+import type { AuthInfo } from "./authTypes.js";
 
 /**
  * Defines the structure of the store used within the AsyncLocalStorage.
