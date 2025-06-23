@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.5.6] - 2025-06-23
+## [1.5.7] - 2025-06-23
 
 ### Added
 
@@ -12,6 +12,12 @@ All notable changes to this project will be documented in this file.
 
 - **Documentation**: Updated `CLAUDE.md` with a more detailed project overview, architectural patterns, and development guidelines.
 - **Dependencies**: Added `node-cron` and `@types/node-cron` to support the new scheduler service.
+
+## [1.5.6] - 2025-06-23
+
+### Changed
+
+- **Formatting**: Fixed formatting issues in documentation files.
 
 ## [1.5.5] - 2025-06-20
 

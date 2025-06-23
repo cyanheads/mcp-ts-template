@@ -3,7 +3,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.13.0-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--03--26-lightgrey.svg)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.5.6-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.5.7-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
@@ -55,7 +55,7 @@ This template is already powering several MCP servers, demonstrating its flexibi
 | [**obsidian-mcp-server**](https://github.com/cyanheads/obsidian-mcp-server)                   | MCP server for Obsidian, enabling AI agents to read, write, search, and manage notes via the Local REST API plugin.                                                                                                                  | Actively using this template.              |
 | [**atlas-mcp-server**](https://github.com/cyanheads/atlas-mcp-server)                         | Advanced task and knowledge management system with Neo4j backend, enabling structured data organization and complex querying for AI agents.                                                                                          | Aligned with this template (as of v2.8.8). |
 | [**filesystem-mcp-server**](https://github.com/cyanheads/filesystem-mcp-server)               | Offers platform-agnostic file system capabilities for AI agents via MCP. Enables reading, writing, updating, and managing files/directories, featuring advanced search/replace and directory traversal.                              | Actively using this template.              |
-| [**workflows-mcp-server**](https://github.com/cyanheads/workflows-mcp-server)                 | Empowers AI agents with a powerful, declarative workflow engine to discover, understand, and execute complex, multi-step workflows defined in simple YAML files.                                                                  | Actively using this template.              |
+| [**workflows-mcp-server**](https://github.com/cyanheads/workflows-mcp-server)                 | Empowers AI agents with a powerful, declarative workflow engine to discover, understand, and execute complex, multi-step workflows defined in simple YAML files.                                                                     | Actively using this template.              |
 
 _Note: [**toolkit-mcp-server**](https://github.com/cyanheads/toolkit-mcp-server) was initially built using an older version of this template and is pending updates to the latest structure._
 
