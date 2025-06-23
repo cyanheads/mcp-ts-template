@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.6] - 2025-06-23
+
+### Added
+
+- **Scheduler Service**: Introduced a new `SchedulerService` in `src/utils/scheduling` for managing cron-like scheduled jobs. This service wraps the `node-cron` library to provide a simple, platform-agnostic way to define, schedule, and manage recurring tasks within the application.
+
+### Changed
+
+- **Documentation**: Updated `CLAUDE.md` with a more detailed project overview, architectural patterns, and development guidelines.
+- **Dependencies**: Added `node-cron` and `@types/node-cron` to support the new scheduler service.
+
 ## [1.5.5] - 2025-06-20
 
 ### Changed

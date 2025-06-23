@@ -11,6 +11,7 @@ export * from "./metrics/index.js";
 export * from "./parsing/index.js";
 export * from "./security/index.js";
 export * from "./network/index.js";
+export * from "./scheduling/index.js";
 
 // It's good practice to have index.ts files in each subdirectory
 // that export the contents of that directory.
