@@ -68,26 +68,26 @@ export class Agent {
     try {
       await this.connectToMcpServers(runContext);
 
-      const availableTools = this.mcpClientManager.getAllTools();
+      const availableTools = await this.mcpClientManager.getAllTools(runContext);
       const toolList = JSON.stringify(
         Array.from(availableTools.values()),
         null,
         2,
       );
       const systemPrompt = `You are a helpful assistant with access to a set of tools.
-To use a tool, respond with a properly formatted XML block like this:
-<tool_call>
-  <tool_name>the_tool_name</tool_name>
-  <arguments>
-    <param_name>value</param_name>
-    <param_name>value</param_name>
-  </arguments>
-</tool_call>
+        To use a tool, respond with a properly formatted XML block like this:
+        <tool_call>
+          <tool_name>the_tool_name</tool_name>
+          <arguments>
+            <param_name>value</param_name>
+            <param_name>value</param_name>
+          </arguments>
+        </tool_call>
 
-Here are the available tools:
-${toolList}
+        Here are the available tools:
+        ${toolList}
 
-You must use the tools to answer questions and perform tasks. When you have a final answer, provide it directly without the <tool_call> block.`;
+        You must use the tools to answer questions and perform tasks. When you have a final answer, provide it directly without the <tool_call> block.`;
 
       const messages: ChatCompletionMessageParam[] = [
         { role: "system", content: systemPrompt },
@@ -169,53 +169,62 @@ You must use the tools to answer questions and perform tasks. When you have a fi
     );
 
     logger.info(
-      `Sequentially connecting to ${enabledServers.length} enabled servers.`,
+      `Connecting to ${enabledServers.length} enabled servers in parallel.`,
       context,
     );
 
-    for (const serverName of enabledServers) {
-      try {
-        await this.mcpClientManager.connectMcpClient(serverName, context);
-        logger.info(`Successfully initiated connection to ${serverName}.`, {
+    const connectionPromises = enabledServers.map((serverName) =>
+      this.mcpClientManager.connectMcpClient(serverName, context),
+    );
+
+    const results = await Promise.allSettled(connectionPromises);
+
+    results.forEach((result, index) => {
+      const serverName = enabledServers[index];
+      if (result.status === "fulfilled") {
+        logger.info(`Successfully connected to MCP server: ${serverName}`, {
           ...context,
           serverName,
         });
-      } catch (error) {
-        const err =
-          error instanceof Error
-            ? error
-            : new Error(`Unknown connection error: ${String(error)}`);
-        logger.error(
-          `Failed to connect to server '${serverName}'. Continuing...`,
-          err,
-          context,
-        );
+      } else {
+        logger.error(`Failed to connect to MCP server: ${serverName}`, {
+          ...context,
+          serverName,
+          error: result.reason?.message,
+        });
       }
-    }
+    });
 
+    const successfulConnections = results.filter(
+      (r) => r.status === "fulfilled",
+    ).length;
     logger.info(
-      "All server connection attempts initiated. Now waiting for tools to become available...",
+      `Finished connection attempts. Successfully connected to ${successfulConnections} out of ${enabledServers.length} servers.`,
       context,
     );
 
-    const startTime = Date.now();
-    const timeout = 10000; // 10 seconds
-    let toolsFound = 0;
+    if (successfulConnections > 0) {
+      logger.info("Now waiting for tools to become available...", context);
+      const startTime = Date.now();
+      const timeout = 10000; // 10 seconds
+      let toolsFound = 0;
 
-    while (Date.now() - startTime < timeout) {
-      toolsFound = this.mcpClientManager.getAllTools().size;
-      if (toolsFound > 0) {
-        logger.info(`Confirmed ${toolsFound} tools are available.`, context);
-        return;
+      while (Date.now() - startTime < timeout) {
+        const tools = await this.mcpClientManager.getAllTools(context);
+        toolsFound = tools.size;
+        if (toolsFound > 0) {
+          logger.info(`Confirmed ${toolsFound} tools are available.`, context);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Poll every 500ms
       }
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Poll every 500ms
-    }
 
-    if (toolsFound === 0) {
-      logger.warning(
-        "Timed out waiting for tools to become available. Proceeding with an empty tool list.",
-        context,
-      );
+      if (toolsFound === 0) {
+        logger.warning(
+          "Timed out waiting for tools to become available. Proceeding with an empty tool list.",
+          context,
+        );
+      }
     }
   }
 
@@ -255,7 +264,7 @@ You must use the tools to answer questions and perform tasks. When you have a fi
       }
       const toolName = toolNameMatch[1].trim();
 
-      const serverName = this.mcpClientManager.findServerForTool(toolName);
+      const serverName = await this.mcpClientManager.findServerForTool(toolName);
       if (!serverName) {
         throw new McpError(
           BaseErrorCode.NOT_FOUND,

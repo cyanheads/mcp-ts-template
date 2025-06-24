@@ -78,8 +78,8 @@ export class McpClientManager {
       operationContext,
     );
 
-    const connectionPromise = ErrorHandler.tryCatch(
-      async () => {
+    const connectionPromise = (async () => {
+      try {
         const client = await establishNewMcpConnection(
           serverName,
           operationContext,
@@ -88,15 +88,18 @@ export class McpClientManager {
         );
         this.connectedClients.set(serverName, client);
         return client;
-      },
-      {
-        operation: `connectMcpClient (server: ${serverName})`,
-        context: operationContext,
-        errorCode: BaseErrorCode.INITIALIZATION_FAILED,
-      },
-    ).finally(() => {
-      this.pendingConnections.delete(serverName);
-    });
+      } catch (error) {
+        const handledError = ErrorHandler.handleError(error, {
+          operation: `connectMcpClient (server: ${serverName})`,
+          context: operationContext,
+          errorCode: BaseErrorCode.INITIALIZATION_FAILED,
+        });
+        // Re-throw the handled error to be caught by the caller
+        throw handledError;
+      } finally {
+        this.pendingConnections.delete(serverName);
+      }
+    })();
 
     this.pendingConnections.set(serverName, connectionPromise);
     return connectionPromise;
@@ -239,55 +242,78 @@ export class McpClientManager {
   }
 
   /**
-   * Retrieves a map of all available tools from all connected MCP servers.
-   * @returns A map where keys are tool names and values are their definitions.
+   * Asynchronously retrieves a map of all available tools from all connected MCP servers by actively fetching them.
+   * @param parentContext - The context of the calling operation.
+   * @returns A promise that resolves to a map where keys are tool names and values are their definitions.
    */
-  public getAllTools(): Map<string, any> {
-    const allTools = new Map<string, any>();
+  public async getAllTools(
+    parentContext?: RequestContext | null,
+  ): Promise<Map<string, any>> {
     const context = requestContextService.createRequestContext({
+      ...(parentContext ?? {}),
       operation: "McpClientManager.getAllTools",
     });
+    const allTools = new Map<string, any>();
     logger.debug(
-      `Getting tools from ${this.connectedClients.size} connected clients.`,
+      `Fetching tools from ${this.connectedClients.size} connected clients.`,
       context,
     );
 
-    for (const [serverName, client] of this.connectedClients.entries()) {
-      const capabilities = client.getServerCapabilities();
-      if (capabilities && Array.isArray(capabilities.tools)) {
-        logger.debug(
-          `Found ${capabilities.tools.length} tools for server: ${serverName}`,
-          { ...context, serverName },
-        );
-        for (const tool of capabilities.tools) {
-          allTools.set(tool.name, tool);
+    const toolPromises = Array.from(this.connectedClients.entries()).map(
+      async ([serverName, client]) => {
+        try {
+          const result = await client.listTools();
+          const tools = (result as any)?.tools;
+          if (Array.isArray(tools)) {
+            logger.debug(
+              `Successfully fetched ${tools.length} tools from server: ${serverName}`,
+              { ...context, serverName },
+            );
+            for (const tool of tools) {
+              allTools.set(tool.name, tool);
+            }
+          } else {
+            logger.warning(
+              `No 'tools' array found in listTools response from server: ${serverName}`,
+              { ...context, serverName, response: result },
+            );
+          }
+        } catch (error) {
+          logger.error(`Failed to fetch tools from server: ${serverName}`, {
+            ...context,
+            serverName,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
-      } else {
-        logger.debug(`No tools found for server: ${serverName}`, {
-          ...context,
-          serverName,
-          capabilities,
-        });
-      }
-    }
-    logger.debug(`Total tools found: ${allTools.size}`, context);
+      },
+    );
+
+    await Promise.all(toolPromises);
+
+    logger.debug(`Total tools fetched: ${allTools.size}`, context);
     return allTools;
   }
 
   /**
    * Finds the name of the server that hosts a given tool.
+   * This method relies on the tools being fetched and cached, which is not the case.
+   * It needs to be updated or used in a context where tools are known.
+   * For now, it will check the connected clients, but this is not reliable without fetching.
    * @param toolName - The name of the tool to find.
    * @returns The server name, or null if the tool is not found on any connected server.
    */
-  public findServerForTool(toolName: string): string | null {
+  public async findServerForTool(toolName: string): Promise<string | null> {
+    // This is inefficient and should be optimized in a real implementation,
+    // perhaps by caching the tool list after getAllTools is called.
     for (const [serverName, client] of this.connectedClients.entries()) {
-      const capabilities = client.getServerCapabilities();
-      if (
-        capabilities &&
-        Array.isArray(capabilities.tools) &&
-        capabilities.tools.some((tool) => tool.name === toolName)
-      ) {
-        return serverName;
+      try {
+        const result = await client.listTools();
+        const tools = (result as any)?.tools;
+        if (Array.isArray(tools) && tools.some((tool: any) => tool.name === toolName)) {
+          return serverName;
+        }
+      } catch (error) {
+        // Ignore servers that fail to list tools
       }
     }
     return null;
