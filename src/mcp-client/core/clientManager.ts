@@ -244,14 +244,52 @@ export class McpClientManager {
    */
   public getAllTools(): Map<string, any> {
     const allTools = new Map<string, any>();
-    for (const client of this.connectedClients.values()) {
+    const context = requestContextService.createRequestContext({
+      operation: "McpClientManager.getAllTools",
+    });
+    logger.debug(
+      `Getting tools from ${this.connectedClients.size} connected clients.`,
+      context,
+    );
+
+    for (const [serverName, client] of this.connectedClients.entries()) {
       const capabilities = client.getServerCapabilities();
       if (capabilities && Array.isArray(capabilities.tools)) {
+        logger.debug(
+          `Found ${capabilities.tools.length} tools for server: ${serverName}`,
+          { ...context, serverName },
+        );
         for (const tool of capabilities.tools) {
           allTools.set(tool.name, tool);
         }
+      } else {
+        logger.debug(`No tools found for server: ${serverName}`, {
+          ...context,
+          serverName,
+          capabilities,
+        });
       }
     }
+    logger.debug(`Total tools found: ${allTools.size}`, context);
     return allTools;
+  }
+
+  /**
+   * Finds the name of the server that hosts a given tool.
+   * @param toolName - The name of the tool to find.
+   * @returns The server name, or null if the tool is not found on any connected server.
+   */
+  public findServerForTool(toolName: string): string | null {
+    for (const [serverName, client] of this.connectedClients.entries()) {
+      const capabilities = client.getServerCapabilities();
+      if (
+        capabilities &&
+        Array.isArray(capabilities.tools) &&
+        capabilities.tools.some((tool) => tool.name === toolName)
+      ) {
+        return serverName;
+      }
+    }
+    return null;
   }
 }
