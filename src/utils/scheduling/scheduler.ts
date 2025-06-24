@@ -112,7 +112,7 @@ export class SchedulerService {
       },
       {
         scheduled: false, // Do not start immediately
-      } as CronScheduleOptions,
+      } as any,
     );
 
     const newJob: Job = {
