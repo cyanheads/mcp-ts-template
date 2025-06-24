@@ -9,7 +9,6 @@ This document provides a comprehensive reference for JSDoc tags utilized in this
 These tags form the fundamental building blocks for documenting functions and methods.
 
 - **`@param`** (Synonyms: `@arg`, `@argument`)
-
   - **Purpose**: Describes a parameter accepted by a function or method. It is crucial to specify the parameter's type, name, and a clear description of its role.
   - **Syntax**: `@param {type} parameterName - Description of the parameter.`
   - **Example**:
@@ -24,7 +23,6 @@ These tags form the fundamental building blocks for documenting functions and me
     ```
 
 - **`@returns`** (Synonym: `@return`)
-
   - **Purpose**: Specifies the type and a description of the value returned by a function or method.
   - **Syntax**: `@returns {type} Description of the return value.`
   - **Example**:
@@ -49,7 +47,6 @@ These tags form the fundamental building blocks for documenting functions and me
 These tags are essential for defining and referencing data types within the documentation, enhancing code understanding and maintainability, especially in dynamically typed languages or when working with complex data structures.
 
 - **`@type`**
-
   - **Purpose**: Specifies the data type of a variable, property, or expression.
   - **Syntax**: `@type {typeName}`
   - **Example**:
@@ -59,7 +56,6 @@ These tags are essential for defining and referencing data types within the docu
     ```
 
 - **`@typedef`**
-
   - **Purpose**: Defines a custom type alias, which can be referenced elsewhere in the documentation. This is particularly useful for complex object structures or union types.
   - **Syntax**: `@typedef {typeDefinition} TypeName - Optional description.`
   - **Example**:
@@ -77,7 +73,6 @@ These tags are essential for defining and referencing data types within the docu
     ```
 
 - **`@template`**
-
   - **Purpose**: Documents generic type parameters, commonly used in functions or classes that operate on a variety of types (prevalent in TypeScript).
   - **Syntax**: `@template T`
   - **Example**:
@@ -93,7 +88,6 @@ These tags are essential for defining and referencing data types within the docu
     ```
 
 - **`@satisfies`**
-
   - **Purpose**: (TypeScript specific) Asserts that an expression conforms to a certain type without altering its inferred type. This is useful for ensuring type compatibility while retaining a more specific type.
   - **Syntax**: `// @ts-check \n /** @type {const} */ \n const config = { url: "https://example.com" } \n /** @satisfies {{url: string}} */ (config)`
 
@@ -106,7 +100,6 @@ These tags are essential for defining and referencing data types within the docu
 These tags are used at the beginning of a file to provide an overview and metadata for the entire file.
 
 - **`@file`** (Synonym: `@fileoverview`)
-
   - **Purpose**: Provides a description or overview for the entire file. It is typically placed in a JSDoc block at the very beginning of the file. While some tools infer the filename, `@file` can explicitly state it. `@fileoverview` is a common synonym used to mark the comment block that describes the file's purpose and content.
   - **Syntax**: `@file [optional/path/to/filename.js] - Optional description following the dash.` or `@fileoverview Description of the file.`
   - **Example**:
@@ -142,12 +135,10 @@ These tags are used at the beginning of a file to provide an overview and metada
 These tags are used to document object-oriented constructs such as classes, interfaces, and their members, as well as module organization.
 
 - **`@constructor`**
-
   - **Purpose**: Explicitly marks a function as a class constructor.
   - **Syntax**: `@constructor` (typically used within the JSDoc block of the constructor function).
 
 - **`@class`** (Synonym: `@constructor`)
-
   - **Purpose**: Documents a class definition or a constructor function.
   - **Syntax**: `@class ClassName - Optional description.`
   - **Example**:
@@ -162,7 +153,6 @@ These tags are used to document object-oriented constructs such as classes, inte
     ```
 
 - **`@extends`** (Synonym: `@augments`)
-
   - **Purpose**: Indicates that a class inherits from another class, specifying the superclass.
   - **Syntax**: `@extends {SuperClassName}`
   - **Example**:
@@ -176,7 +166,6 @@ These tags are used to document object-oriented constructs such as classes, inte
     ```
 
 - **`@implements`**
-
   - **Purpose**: Specifies one or more interfaces that a class implements.
   - **Syntax**: `@implements {InterfaceName}`
   - **Example**:
@@ -191,7 +180,6 @@ These tags are used to document object-oriented constructs such as classes, inte
     ```
 
 - **`@public`**, **`@private`**, **`@protected`**
-
   - **Purpose**: Define the visibility (access level) of class members (properties or methods).
     - `@public`: Member is accessible from anywhere (default if no modifier is specified).
     - `@private`: Member is accessible only within the class that defines it.
@@ -212,7 +200,6 @@ These tags are used to document object-oriented constructs such as classes, inte
     ```
 
 - **`@readonly`**
-
   - **Purpose**: Marks a property as read-only, indicating that its value should not be modified after initialization.
   - **Syntax**: `@readonly`
   - **Example**:
@@ -253,25 +240,21 @@ This tag is crucial for documenting potential errors that a function might throw
 These tags provide supplementary information about the documented code, such as authorship, versioning, and relationships to other parts of the codebase or external resources.
 
 - **`@author`**
-
   - **Purpose**: Specifies the author(s) of the code.
   - **Syntax**: `@author Name <email@example.com>`
   - **Example**: `@author John Doe <john.doe@example.com>`
 
 - **`@version`**
-
   - **Purpose**: Indicates the version of the documented code element.
   - **Syntax**: `@version versionNumber`
   - **Example**: `@version 1.2.3`
 
 - **`@see`**
-
   - **Purpose**: Provides a reference to related documentation or resources. This can be another symbol in the codebase or an external URL.
   - **Syntax**: `@see {@link OtherSymbol}` or `@see http://example.com/related-doc`
   - **Example**: `@see {@link module:utils/formatter} for formatting options.`
 
 - **`@todo`**
-
   - **Purpose**: Marks a section of code or documentation that requires further work or attention.
   - **Syntax**: `@todo Description of the pending task.`
   - **Example**: `@todo Refactor this method to improve performance.`
@@ -286,7 +269,6 @@ These tags provide supplementary information about the documented code, such as 
 These tags are used within descriptions to create links or provide additional context.
 
 - **`@link`** (Synonyms: `@linkcode`, `@linkplain`)
-
   - **Purpose**: Creates a hyperlink to another documented symbol or an external URL within the descriptive text.
     - `@link`: Renders as the symbol name or URL.
     - `@linkcode`: Renders the symbol name or URL in a code font.
@@ -304,12 +286,10 @@ These tags are used within descriptions to create links or provide additional co
 These tags provide overall context or examples for the documented element.
 
 - **`@description`**
-
   - **Purpose**: Provides a detailed description of the documented element. Often, the main JSDoc block comment itself serves as the description, making this tag explicit usage less common unless needed for specific structuring.
   - **Syntax**: `@description Detailed explanation.`
 
 - **`@example`**
-
   - **Purpose**: Provides one or more examples of how to use the documented code element.
   - **Syntax**: `@example <caption>Optional caption</caption> \n code_example_here`
   - **Example**:
@@ -329,7 +309,6 @@ These tags provide overall context or examples for the documented element.
     ```
 
 - **`@since`**
-
   - **Purpose**: Specifies the version or date since which a feature or code element has been available.
   - **Syntax**: `@since versionOrDate`
   - **Example**: `@since 2.1.0`

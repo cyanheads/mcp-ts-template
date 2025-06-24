@@ -40,19 +40,16 @@ The core of extending this MCP server involves defining your custom logic and th
 
 1.  **Create Directories**:
     Organize your new features by creating dedicated directories:
-
     - For Tools: `src/mcp-server/tools/yourToolName/`
     - For Resources: `src/mcp-server/resources/yourResourceName/`
 
 2.  **Implement Logic (`logic.ts`)**:
     Within your new directory, create a `logic.ts` file. This is where you'll define:
-
     - **Input/Output Schemas**: Use Zod to define clear and validated schemas for the inputs your tool will accept and the outputs it will produce. This is crucial for type safety and for the MCP host to understand how to interact with your tool.
     - **Core Processing Function**: Write the main function that performs the action of your tool or retrieves the data for your resource. This function will receive validated arguments (for tools) or parameters (for resources).
 
 3.  **Register with the Server (`registration.ts`)**:
     Create a `registration.ts` file in your new directory. This file will:
-
     - Import your logic and schemas.
     - Import the `McpServer` type from the SDK and the `ErrorHandler` utility.
     - **Use High-Level SDK Abstractions (Strongly Recommended)**:
