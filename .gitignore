@@ -101,7 +101,6 @@ target/
 /InstalledFiles
 /pkg/
 /spec/reports/
-/spec/examples.txt
 /test/tmp/
 /test/version_tmp/
 /tmp/
@@ -175,11 +174,6 @@ worker-configuration.d.ts
 # =============================================================================
 # DEMO & EXAMPLE DIRECTORIES
 # =============================================================================
-demo/
-demos/
-example/
-examples/
-samples/
 
 # =============================================================================
 # GENERATED DOCUMENTATION

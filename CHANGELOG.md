@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.8] - 2025-06-24
+
+### BREAKING CHANGE
+
+- **MCP Client Architecture**: The MCP client has been significantly refactored to support multi-agent and swarm scenarios.
+  - Introduced `McpClientManager` (`src/mcp-client/core/clientManager.ts`), a class that provides an isolated connection pool. Each instance manages its own set of client connections, preventing cross-agent interference.
+  - The global, singleton-based connection functions (`connectMcpClient`, `disconnectMcpClient`) have been removed in favor of instance methods on `McpClientManager`.
+  - The global client cache (`src/mcp-client/core/clientCache.ts`) has been removed. Caching is now handled internally by each `McpClientManager` instance.
+  - A new factory function, `createMcpClientManager`, is now the primary entry point for creating a client connection manager.
+
+### Added
+
+- **Core Agent Framework**: Introduced a new `agent` module (`src/agent/`) to provide a foundational framework for building and running AI agents.
+  - **`Agent` Class (`src/agent/agent-core/agent.ts`)**: A core class that encapsulates agent lifecycle management, including connecting to MCP servers via its own `McpClientManager`, interacting with LLM services, and executing tasks based on a given prompt.
+  - **CLI Entrypoint (`src/agent/cli/`)**: Added a command-line interface to bootstrap and run the agent. This includes a `boot.ts` for service initialization and a `main.ts` for parsing arguments and executing the agent's main run loop.
+  - **NPM Script**: Added a `start:agent` script to `package.json` for easily running the agent from the command line.
+
+### Changed
+
+- **Dependencies**: Updated `@modelcontextprotocol/sdk` to `^1.13.1` and `openai` to `^5.7.0`.
+- **Documentation**:
+  - Updated `src/mcp-client/README.md` to reflect the new `McpClientManager`-based architecture and its benefits for agent swarm scenarios.
+  - Regenerated `docs/tree.md` to include the new `src/agent/` directory and other structural changes.
+- **`.gitignore`**: Removed `examples/` and related directories from the ignore list to allow example code to be version-controlled.
+
 ## [1.5.7] - 2025-06-23
 
 ### Added
