@@ -270,7 +270,7 @@ export class McpClientManager {
               { ...context, serverName },
             );
             for (const tool of tools) {
-              allTools.set(tool.name, tool);
+              allTools.set(tool.name, { ...tool, server: serverName });
             }
           } else {
             logger.warning(
@@ -295,27 +295,14 @@ export class McpClientManager {
   }
 
   /**
-   * Finds the name of the server that hosts a given tool.
-   * This method relies on the tools being fetched and cached, which is not the case.
-   * It needs to be updated or used in a context where tools are known.
-   * For now, it will check the connected clients, but this is not reliable without fetching.
+   * Finds the server name for a given tool from the cached tool map.
+   * This is a synchronous method and relies on `getAllTools` having been called first.
    * @param toolName - The name of the tool to find.
-   * @returns The server name, or null if the tool is not found on any connected server.
+   * @param allTools - The map of all available tools.
+   * @returns The server name, or null if the tool is not found.
    */
-  public async findServerForTool(toolName: string): Promise<string | null> {
-    // This is inefficient and should be optimized in a real implementation,
-    // perhaps by caching the tool list after getAllTools is called.
-    for (const [serverName, client] of this.connectedClients.entries()) {
-      try {
-        const result = await client.listTools();
-        const tools = (result as any)?.tools;
-        if (Array.isArray(tools) && tools.some((tool: any) => tool.name === toolName)) {
-          return serverName;
-        }
-      } catch (error) {
-        // Ignore servers that fail to list tools
-      }
-    }
-    return null;
+  public getServerForTool(toolName: string, allTools: Map<string, any>): string | null {
+    const tool = allTools.get(toolName);
+    return tool?.server || null;
   }
 }

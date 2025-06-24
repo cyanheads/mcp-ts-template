@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2025-06-24
+
+### BREAKING CHANGE
+
+- **Agent Architecture**: The agent's core logic has been fundamentally refactored to use a structured, JSON-based command-and-control protocol instead of open-ended conversational responses.
+  - The agent's system prompt (`src/agent/agent-core/agent.ts`) has been completely overhauled to instruct the LLM to respond with a strict JSON object containing a `command` (`mcp_tool_call`, `display_message_to_user`, `terminate_loop`) and `arguments`.
+  - The agent's main run loop now parses these JSON commands and dispatches actions accordingly, enforcing a more predictable and robust execution flow.
+  - The previous XML-based `<tool_call>` format has been entirely removed.
+  - The `findServerForTool` method in `McpClientManager` has been replaced with a more efficient, synchronous `getServerForTool` method that uses a cached tool map.
+
+### Changed
+
+- **Dependencies**: Updated `openai` to `^5.7.0`.
+- **Agent Model**: Switched the default LLM for the agent from `google/gemini-2.5-flash-lite-preview-06-17` to the more powerful `google/gemini-2.5-flash` and adjusted the temperature for more creative responses.
+
 ## [1.5.9] - 2025-06-24
 
 ### Fixed

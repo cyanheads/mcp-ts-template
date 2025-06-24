@@ -5,14 +5,13 @@
  * @module src/agent/agent-core/agent
  */
 
-import { randomUUID } from "crypto";
 import {
   ChatCompletionMessageParam,
   ChatCompletionToolMessageParam,
 } from "openai/resources/index.mjs";
+import { loadMcpClientConfig } from "../../mcp-client/client-config/configLoader.js";
 import {
   createMcpClientManager,
-  loadMcpClientConfig,
   McpClientManager,
 } from "../../mcp-client/index.js";
 import {
@@ -22,6 +21,7 @@ import {
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 import {
   ErrorHandler,
+  jsonParser,
   logger,
   RequestContext,
   requestContextService,
@@ -35,6 +35,7 @@ export class Agent {
   private config: AgentConfig;
   private mcpClientManager: McpClientManager;
   private context: RequestContext;
+  private availableTools: Map<string, any> = new Map();
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -46,12 +47,6 @@ export class Agent {
     logger.info(`Agent ${this.config.agentId} initialized.`, this.context);
   }
 
-  /**
-   * Runs the main loop of the agent.
-   * @param initialPrompt - The initial prompt or task for the agent to execute.
-   * @param onStreamChunk - Optional callback to handle streamed response chunks.
-   * @returns The final, complete response from the LLM.
-   */
   public async run(
     initialPrompt: string,
     onStreamChunk?: (chunk: string) => void,
@@ -67,27 +62,156 @@ export class Agent {
 
     try {
       await this.connectToMcpServers(runContext);
-
-      const availableTools = await this.mcpClientManager.getAllTools(runContext);
+      this.availableTools = await this.mcpClientManager.getAllTools(runContext);
       const toolList = JSON.stringify(
-        Array.from(availableTools.values()),
+        Array.from(this.availableTools.values()),
         null,
         2,
       );
-      const systemPrompt = `You are a helpful assistant with access to a set of tools.
-        To use a tool, respond with a properly formatted XML block like this:
-        <tool_call>
-          <tool_name>the_tool_name</tool_name>
-          <arguments>
-            <param_name>value</param_name>
-            <param_name>value</param_name>
-          </arguments>
-        </tool_call>
 
-        Here are the available tools:
-        ${toolList}
+      const systemPrompt = `You are an autonomous agent. Your entire response MUST be a single JSON object.
+This object must have a "command" field and an "arguments" field.
 
-        You must use the tools to answer questions and perform tasks. When you have a final answer, provide it directly without the <tool_call> block.`;
+The "command" field must be one of the following strings:
+1. "mcp_tool_call": To execute a tool.
+2. "display_message_to_user": To show a message to the user.
+3. "terminate_loop": To end the mission.
+
+The "arguments" field must be an object containing the parameters for the command.
+
+- For "mcp_tool_call", arguments are: { "name": "<tool_name>", "arguments": { ... } }
+- For "display_message_to_user", arguments are: { "message": "<text_to_display>" }
+- For "terminate_loop", arguments are: { "reason": "<final_answer_and_reason>" }
+
+<BEGIN_EXAMPLE_LOOP>
+Example of a tool call:
+{
+  "command": "mcp_tool_call",
+  "arguments": {
+    "name": "example_tool_name",
+    "arguments": { "param1": "value1" }
+  }
+}
+
+Example of displaying a message:
+{
+  "command": "display_message_to_user",
+  "arguments": {
+    "message": "I am now starting the research phase to look into <specific topic>."
+  }
+}
+
+Example of terminating the loop:
+{
+  "command": "terminate_loop",
+  "arguments": {
+    "reason": "I have completed the task. Your final answer is <xyz>; or the file was saved to <path>."
+  }
+}
+
+Example conversation loop:
+Initial User Prompt: "Review the latest research on quantum computing."
+You: 
+{
+  "command": "display_message_to_user",
+  "arguments": {
+    "message": "I will now start the research phase to look into the latest research on quantum computing."
+  }
+}
+You: 
+{
+  "command": "mcp_tool_call",
+  "arguments": {
+    "name": "research_tool",
+    "arguments": {
+      "query": "latest research on quantum computing"
+    }
+  }
+}
+You: 
+{
+  "command": "display_message_to_user",
+  "arguments": {
+    "message": "I have found some interesting papers. Here's a summary: ..."
+  }
+}
+You: 
+{
+  "command": "terminate_loop",
+  "arguments": {
+    "reason": "I have completed the task. Your final answer is <concise summary of results>."
+  }
+}
+<END_EXAMPLE_LOOP>
+
+Here is the list of available tools for the "mcp_tool_call" command:
+<AVAILABLE_TOOLS>
+${toolList}
+</AVAILABLE_TOOLS>
+
+As a reminder:
+<BEGIN_EXAMPLE_LOOP>
+Example of a tool call:
+{
+  "command": "mcp_tool_call",
+  "arguments": {
+    "name": "example_tool_name",
+    "arguments": { "param1": "value1" }
+  }
+}
+
+Example of displaying a message:
+{
+  "command": "display_message_to_user",
+  "arguments": {
+    "message": "I am now starting the research phase to look into <specific topic>."
+  }
+}
+
+Example of terminating the loop:
+{
+  "command": "terminate_loop",
+  "arguments": {
+    "reason": "I have completed the task. Your final answer is <xyz>; or the file was saved to <path>."
+  }
+}
+
+Example conversation loop:
+Initial User Prompt: "Review the latest research on quantum computing."
+You: 
+{
+  "command": "display_message_to_user",
+  "arguments": {
+    "message": "I will now start the research phase to look into the latest research on quantum computing."
+  }
+}
+You: 
+{
+  "command": "mcp_tool_call",
+  "arguments": {
+    "name": "research_tool",
+    "arguments": {
+      "query": "latest research on quantum computing"
+    }
+  }
+}
+You: 
+{
+  "command": "display_message_to_user",
+  "arguments": {
+    "message": "I have found some interesting papers. Here's a summary: ..."
+  }
+}
+You: 
+{
+  "command": "terminate_loop",
+  "arguments": {
+    "reason": "I have completed the task. Your final answer is <concise summary of results>."
+  }
+}
+<END_EXAMPLE_LOOP>
+
+Begin the task. Your response must be only the JSON object.`;
 
       const messages: ChatCompletionMessageParam[] = [
         { role: "system", content: systemPrompt },
@@ -98,9 +222,9 @@ export class Agent {
       while (true) {
         const llmParams: OpenRouterChatParams = {
           messages,
-          model: "google/gemini-2.5-flash-lite-preview-06-17",
+          model: "google/gemini-2.5-flash",
           stream: true,
-          temperature: 0.2,
+          temperature: 0.4,
         };
 
         const llmResponse = await this.think(
@@ -110,25 +234,51 @@ export class Agent {
         );
         messages.push({ role: "assistant", content: llmResponse });
 
-        if (llmResponse.includes("<tool_call>")) {
-          const toolCallId = `tool_call_${randomUUID()}`;
-          const toolResult = await this._executeToolCall(
-            llmResponse,
-            toolCallId,
-            runContext,
-          );
+        let commandJson;
+        try {
+          commandJson = jsonParser.parse(llmResponse);
+        } catch (e) {
+          logger.warning("LLM response was not valid JSON. Treating as a conversational message.", { ...runContext, llmResponse });
+          if (onStreamChunk) {
+            onStreamChunk(`\n[AGENT_NOTE]: The AI responded with conversational text instead of a command. I will remind it of the protocol.\n[AI]: ${llmResponse}\n`);
+          }
+          messages.push({
+            role: "user",
+            content: "Your previous response was not a valid JSON object. Please remember to respond with only a single JSON object with a 'command' and 'arguments' field.",
+          });
+          continue; // Continue to the next loop iteration to get a new response
+        }
+
+        const { command, arguments: args } = commandJson;
+
+        if (command === "mcp_tool_call") {
+          const toolResult = await this._executeToolCall(args, runContext);
           const toolMessage: ChatCompletionToolMessageParam = {
             role: "tool",
-            tool_call_id: toolCallId,
+            tool_call_id: args.name,
             content: JSON.stringify(toolResult),
           };
           messages.push(toolMessage);
-        } else {
-          logger.info("Final answer received from LLM.", {
-            ...runContext,
-            finalAnswer: llmResponse,
+        } else if (command === "display_message_to_user") {
+          if (onStreamChunk && args.message) {
+            onStreamChunk(`\n[AGENT]: ${args.message}\n`);
+          }
+          messages.push({
+            role: "user",
+            content: "Message displayed to user. Continue.",
           });
-          return llmResponse;
+        } else if (command === "terminate_loop") {
+          logger.info("LLM terminated loop.", {
+            ...runContext,
+            reason: args.reason,
+          });
+          return `Loop terminated by LLM. Reason: ${args.reason}`;
+        } else {
+          throw new McpError(
+            BaseErrorCode.VALIDATION_ERROR,
+            `Unknown command received from LLM: ${command}`,
+            runContext,
+          );
         }
       }
     } catch (error) {
@@ -148,12 +298,6 @@ export class Agent {
     }
   }
 
-  /**
-   * Connects to all enabled MCP servers and waits until tools are available.
-   * This method connects sequentially and then polls until tools are registered
-   * to prevent race conditions.
-   * @param parentContext - The context of the calling operation.
-   */
   private async connectToMcpServers(
     parentContext: RequestContext,
   ): Promise<void> {
@@ -228,59 +372,38 @@ export class Agent {
     }
   }
 
-  /**
-   * Executes a tool call parsed from the LLM's response.
-   * @param llmResponse - The full XML response from the LLM containing the tool call.
-   * @param toolCallId - A unique ID for this specific tool call.
-   * @param parentContext - The context of the calling operation.
-   * @returns The result of the tool call.
-   * @private
-   */
   private async _executeToolCall(
-    llmResponse: string,
-    toolCallId: string,
+    params: { name: string; arguments: any },
     parentContext: RequestContext,
   ) {
     const context = requestContextService.createRequestContext({
       ...parentContext,
       operation: "Agent._executeToolCall",
-      toolCallId,
+      toolCallId: params.name,
     });
 
     try {
-      const toolNameMatch = llmResponse.match(
-        /<tool_name>([\s\S]*?)<\/tool_name>/,
-      );
-      const argsMatch = llmResponse.match(
-        /<arguments>([\s\S]*?)<\/arguments>/,
-      );
+      const { name: toolName, arguments: args } = params;
 
-      if (!toolNameMatch) {
+      if (!toolName || typeof toolName !== 'string') {
         throw new McpError(
           BaseErrorCode.VALIDATION_ERROR,
-          "Malformed tool call: <tool_name> tag is missing.",
+          "Malformed tool call: 'name' field is missing or not a string.",
           context,
         );
       }
-      const toolName = toolNameMatch[1].trim();
 
-      const serverName = await this.mcpClientManager.findServerForTool(toolName);
+      const serverName = this.mcpClientManager.getServerForTool(
+        toolName,
+        this.availableTools,
+      );
+
       if (!serverName) {
         throw new McpError(
           BaseErrorCode.NOT_FOUND,
           `Tool '${toolName}' not found on any connected server.`,
           context,
         );
-      }
-
-      const args: { [key: string]: any } = {};
-      if (argsMatch) {
-        const argsXml = argsMatch[1];
-        const argRegex = /<([^>]+)>([^<]+)<\/\1>/g;
-        let match;
-        while ((match = argRegex.exec(argsXml)) !== null) {
-          args[match[1].trim()] = match[2].trim();
-        }
       }
 
       logger.info(`Executing tool '${toolName}' on server '${serverName}'`, {
@@ -292,7 +415,16 @@ export class Agent {
         serverName,
         context,
       );
-      return await client.callTool({ name: toolName, arguments: args });
+      const toolResult = await client.callTool({ name: toolName, arguments: args });
+
+      logger.logInteraction("McpToolResponse", {
+        context,
+        toolName,
+        serverName,
+        result: toolResult,
+      });
+
+      return toolResult;
     } catch (error) {
       const handledError = ErrorHandler.handleError(error, {
         operation: context.operation as string,
@@ -317,12 +449,6 @@ export class Agent {
     }
   }
 
-  /**
-   * Interacts with the LLM provider to get a response for a given prompt.
-   * @param params - The parameters for the chat completion request.
-   * @param parentContext - The context of the calling operation.
-   * @returns The content of the LLM's response message.
-   */
   private async think(
     params: OpenRouterChatParams,
     parentContext: RequestContext,
@@ -344,11 +470,15 @@ export class Agent {
           const content = chunk.choices[0]?.delta?.content || "";
           if (content) {
             fullResponse += content;
-            onStreamChunk?.(content);
+            // Do not call onStreamChunk here, as we need the full JSON object first
           }
         }
 
         if (fullResponse) {
+          // The full response is the complete JSON object (or conversational text)
+          if (onStreamChunk) {
+            onStreamChunk(fullResponse);
+          }
           return fullResponse;
         } else {
           throw new McpError(
