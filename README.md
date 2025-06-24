@@ -3,7 +3,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.13.0-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--03--26-lightgrey.svg)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.5.9-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.6.0-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
@@ -16,7 +16,7 @@ This template provides a solid, beginner-friendly foundation for building all co
 
 This template is organized into three primary, interconnected components:
 
-1.  **🤖 Agent (`src/agent/`)**: A powerful, autonomous agent framework. The agent can connect to multiple MCP servers, discover their tools, and use them to accomplish complex tasks based on a user's prompt.
+1.  **🤖 Agent (`src/agent/`)**: An autonomous agent framework. The agent can connect to multiple MCP servers, discover their tools, and use them to accomplish complex tasks based on a user's prompt. Use this as a starting point for your agents.
 2.  **🔌 MCP Server (`src/mcp-server/`)**: An extensible MCP server that can host custom tools and resources, making them available to agents and other clients.
 3.  **💻 MCP Client (`src/mcp-client/`)**: A robust client for connecting to and interacting with any MCP-compliant server. The agent uses this client to communicate with the outside world.
 
