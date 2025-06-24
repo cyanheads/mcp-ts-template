@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-06-21 00:40:26
+Generated on: 2025-06-24 10:57:42
 
 ```
 mcp-ts-template
@@ -22,6 +22,12 @@ mcp-ts-template
 │   ├── README.md
 │   └── tree.ts
 ├── src
+│   ├── agent
+│   │   ├── agent-core
+│   │   │   └── agent.ts
+│   │   └── cli
+│   │       ├── boot.ts
+│   │       └── main.ts
 │   ├── config
 │   │   └── index.ts
 │   ├── mcp-client
@@ -30,7 +36,6 @@ mcp-ts-template
 │   │   │   ├── mcp-config.json.example
 │   │   │   └── README.md
 │   │   ├── core
-│   │   │   ├── clientCache.ts
 │   │   │   ├── clientConnectionLogic.ts
 │   │   │   └── clientManager.ts
 │   │   ├── transports
@@ -38,7 +43,8 @@ mcp-ts-template
 │   │   │   ├── index.ts
 │   │   │   ├── stdioClientTransport.ts
 │   │   │   └── transportFactory.ts
-│   │   └── index.ts
+│   │   ├── index.ts
+│   │   └── README.md
 │   ├── mcp-server
 │   │   ├── resources
 │   │   │   └── echoResource
@@ -105,6 +111,9 @@ mcp-ts-template
 │   │   │   ├── dateParser.ts
 │   │   │   ├── index.ts
 │   │   │   └── jsonParser.ts
+│   │   ├── scheduling
+│   │   │   ├── index.ts
+│   │   │   └── scheduler.ts
 │   │   ├── security
 │   │   │   ├── idGenerator.ts
 │   │   │   ├── index.ts

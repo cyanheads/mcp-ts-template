@@ -49,6 +49,8 @@ export enum BaseErrorCode {
   EXTENSION_ERROR = "EXTENSION_ERROR",
   /** An error occurred during the shutdown phase of a service or module. */
   SHUTDOWN_ERROR = "SHUTDOWN_ERROR",
+  /** A generic error occurred during the execution of an agent's task. */
+  AGENT_EXECUTION_ERROR = "AGENT_EXECUTION_ERROR",
 }
 
 /**

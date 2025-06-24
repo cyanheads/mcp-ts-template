@@ -27,19 +27,16 @@ The `src` directory is organized by function to maintain a clear separation of c
 - **`config/`**: Handles the loading and validation of all application configuration from environment variables and `package.json`. It uses Zod for schema validation to ensure type safety.
 
 - **`mcp-client/`**: Contains the full implementation of an MCP client, capable of connecting to and interacting with external MCP servers. This client is designed to be reusable and can be integrated into other applications or services.
-
   - `client-config/`: Manages the `mcp-config.json` file, which defines the servers the client can connect to.
   - `core/`: Core client logic for connection management, caching, and session handling.
   - `transports/`: Implements the transport layers (`stdio`, `http`) for communicating with servers.
 
 - **`mcp-server/`**: The core of the MCP server provided by this template. **This is where you will add your custom functionality.**
-
   - `tools/`: Contains individual tool implementations. Each tool has its own directory with `logic.ts` (business logic, Zod schema) and `registration.ts` (handler logic, server registration).
   - `resources/`: Contains resource implementations, following the same structure as tools.
   - `transports/`: Manages the server-side communication protocols (`stdio`, `http`), including authentication middleware for the HTTP transport.
 
 - **`services/`**: Reusable modules for integrating with external services. This template includes examples for:
-
   - `duck-db/`: An in-process analytical database.
   - `llm-providers/`: An OpenRouter client for interacting with various LLMs.
   - `supabase/`: A singleton client for Supabase.
@@ -49,7 +46,6 @@ The `src` directory is organized by function to maintain a clear separation of c
 - **`types-global/`**: Defines globally-used TypeScript types and interfaces, most notably the structured `McpError` and `BaseErrorCode` enum in `errors.ts`.
 
 - **`utils/`**: A collection of robust, production-ready utilities.
-
   - `internal/`: Core internal utilities: `logger`, `errorHandler`, and `requestContext`.
   - `metrics/`: Utilities for metrics, like `tokenCounter`.
   - `network/`: Network-related helpers, like `fetchWithTimeout`.

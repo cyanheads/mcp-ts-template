@@ -6,13 +6,25 @@
  * @module src/mcp-client/index
  */
 
-// Export core client connection management functions and the connected client type alias.
+import { McpClientManager } from "./core/clientManager.js";
+
+// Export the McpClientManager class, the factory function, and the connected client type alias.
 export {
-  connectMcpClient,
-  disconnectAllMcpClients,
-  disconnectMcpClient,
+  McpClientManager,
   type ConnectedMcpClient,
 } from "./core/clientManager.js";
+
+/**
+ * Creates and returns a new instance of the McpClientManager.
+ * Each manager instance provides an isolated environment for managing MCP client connections,
+ * making it suitable for use in agent swarms or other scenarios requiring
+ * separate connection pools.
+ *
+ * @returns A new `McpClientManager` instance.
+ */
+export function createMcpClientManager(): McpClientManager {
+  return new McpClientManager();
+}
 
 // Export configuration loading functions and related types.
 // These handle reading and validating server connection details from `mcp-config.json`.

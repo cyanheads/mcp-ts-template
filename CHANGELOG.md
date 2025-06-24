@@ -2,6 +2,61 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2025-06-24
+
+### BREAKING CHANGE
+
+- **Agent Architecture**: The agent's core logic has been fundamentally refactored to use a structured, JSON-based command-and-control protocol instead of open-ended conversational responses.
+  - The agent's system prompt (`src/agent/agent-core/agent.ts`) has been completely overhauled to instruct the LLM to respond with a strict JSON object containing a `command` (`mcp_tool_call`, `display_message_to_user`, `terminate_loop`) and `arguments`.
+  - The agent's main run loop now parses these JSON commands and dispatches actions accordingly, enforcing a more predictable and robust execution flow.
+  - The previous XML-based `<tool_call>` format has been entirely removed.
+  - The `findServerForTool` method in `McpClientManager` has been replaced with a more efficient, synchronous `getServerForTool` method that uses a cached tool map.
+
+### Changed
+
+- **Dependencies**: Updated `openai` to `^5.7.0`.
+- **Agent Model**: Switched the default LLM for the agent from `google/gemini-2.5-flash-lite-preview-06-17` to the more powerful `google/gemini-2.5-flash` and adjusted the temperature for more creative responses.
+
+## [1.5.9] - 2025-06-24
+
+### Fixed
+
+- **Agent Tool Discovery**: Fixed a critical race condition in the agent's startup sequence that prevented it from discovering available tools from connected MCP servers. The agent now correctly waits for all server connections to be fully established before fetching the tool list, ensuring the LLM is always aware of its full capabilities.
+- **MCP Client Manager**: Corrected the asynchronous logic in `McpClientManager` to ensure the internal list of connected clients is populated reliably before any subsequent operations attempt to use it.
+
+### Added
+
+- **Interaction Logging**: Implemented detailed interaction logging for the `OpenRouterProvider`. All raw requests to and responses from the OpenRouter API (including streaming responses and errors) are now logged to a dedicated `logs/interactions.log` file for enhanced traceability and debugging.
+
+### Changed
+
+- **Refactoring**: Refactored `agent.ts` and `mcp-client/core/clientManager.ts` to correctly handle the asynchronous nature of MCP client connections and tool fetching, resolving the root cause of the tool discovery failure.
+
+## [1.5.8] - 2025-06-24
+
+### BREAKING CHANGE
+
+- **MCP Client Architecture**: The MCP client has been significantly refactored to support multi-agent and swarm scenarios.
+  - Introduced `McpClientManager` (`src/mcp-client/core/clientManager.ts`), a class that provides an isolated connection pool. Each instance manages its own set of client connections, preventing cross-agent interference.
+  - The global, singleton-based connection functions (`connectMcpClient`, `disconnectMcpClient`) have been removed in favor of instance methods on `McpClientManager`.
+  - The global client cache (`src/mcp-client/core/clientCache.ts`) has been removed. Caching is now handled internally by each `McpClientManager` instance.
+  - A new factory function, `createMcpClientManager`, is now the primary entry point for creating a client connection manager.
+
+### Added
+
+- **Core Agent Framework**: Introduced a new `agent` module (`src/agent/`) to provide a foundational framework for building and running AI agents.
+  - **`Agent` Class (`src/agent/agent-core/agent.ts`)**: A core class that encapsulates agent lifecycle management, including connecting to MCP servers via its own `McpClientManager`, interacting with LLM services, and executing tasks based on a given prompt.
+  - **CLI Entrypoint (`src/agent/cli/`)**: Added a command-line interface to bootstrap and run the agent. This includes a `boot.ts` for service initialization and a `main.ts` for parsing arguments and executing the agent's main run loop.
+  - **NPM Script**: Added a `start:agent` script to `package.json` for easily running the agent from the command line.
+
+### Changed
+
+- **Dependencies**: Updated `@modelcontextprotocol/sdk` to `^1.13.1` and `openai` to `^5.7.0`.
+- **Documentation**:
+  - Updated `src/mcp-client/README.md` to reflect the new `McpClientManager`-based architecture and its benefits for agent swarm scenarios.
+  - Regenerated `docs/tree.md` to include the new `src/agent/` directory and other structural changes.
+- **`.gitignore`**: Removed `examples/` and related directories from the ignore list to allow example code to be version-controlled.
+
 ## [1.5.7] - 2025-06-23
 
 ### Added

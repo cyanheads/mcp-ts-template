@@ -18,7 +18,6 @@ import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 import { ErrorHandler } from "../../utils/internal/errorHandler.js";
 import { logger } from "../../utils/internal/logger.js";
 import {
-  OperationContext,
   RequestContext,
   requestContextService,
 } from "../../utils/internal/requestContext.js";
@@ -60,11 +59,7 @@ export type OpenRouterChatParams = (
  * and extra parameters and applying defaults.
  * @internal
  */
-function _prepareApiParameters(
-  params: OpenRouterChatParams,
-  context: RequestContext,
-) {
-  const operation = "openRouterLogic.prepareApiParameters";
+function _prepareApiParameters(params: OpenRouterChatParams) {
   const effectiveModelId = params.model || config.llmDefaultModel;
 
   const standardParams: Partial<
@@ -134,40 +129,32 @@ function _prepareApiParameters(
   if (effectiveMaxTokensValue !== undefined) {
     if (needsMaxCompletionTokens) {
       extraBody.max_completion_tokens = effectiveMaxTokensValue;
-      logger.info(
-        `[${operation}] Using 'max_completion_tokens: ${effectiveMaxTokensValue}' for model ${effectiveModelId}.`,
-        context,
-      );
     } else {
       standardParams.max_tokens = effectiveMaxTokensValue;
-      logger.info(
-        `[${operation}] Using 'max_tokens: ${effectiveMaxTokensValue}' for model ${effectiveModelId}.`,
-        context,
-      );
     }
   }
 
   return { standardParams, extraBody };
 }
 
-/**
- * Core logic for making a chat completion request. Throws McpError on failure.
- * @internal
- */
 async function _openRouterChatCompletionLogic(
   client: OpenAI,
   params: OpenRouterChatParams,
   context: RequestContext,
 ): Promise<ChatCompletion | Stream<ChatCompletionChunk>> {
-  const operation = "openRouterLogic.chatCompletion";
   const isStreaming = params.stream === true;
 
-  const { standardParams, extraBody } = _prepareApiParameters(params, context);
+  const { standardParams, extraBody } = _prepareApiParameters(params);
 
   const apiParams: any = { ...standardParams };
   if (Object.keys(extraBody).length > 0) {
     apiParams.extra_body = extraBody;
   }
+
+  logger.logInteraction("OpenRouterRequest", {
+    context,
+    request: apiParams,
+  });
 
   try {
     if (isStreaming) {
@@ -175,14 +162,26 @@ async function _openRouterChatCompletionLogic(
         apiParams as ChatCompletionCreateParamsStreaming,
       );
     }
-    return await client.chat.completions.create(
+    const response = await client.chat.completions.create(
       apiParams as ChatCompletionCreateParamsNonStreaming,
     );
+
+    logger.logInteraction("OpenRouterResponse", {
+      context,
+      response,
+      streaming: false,
+    });
+
+    return response;
   } catch (error: any) {
-    logger.error(`[${operation}] API call failed`, {
-      ...context,
-      error: error.message,
-      status: error.status,
+    logger.logInteraction("OpenRouterError", {
+      context,
+      error: {
+        message: error.message,
+        stack: error.stack,
+        status: error.status,
+        cause: error.cause,
+      },
     });
     const errorDetails = {
       providerStatus: error.status,
@@ -216,60 +215,18 @@ async function _openRouterChatCompletionLogic(
   }
 }
 
-/**
- * Core logic for fetching the list of available models. Throws McpError on failure.
- * @internal
- */
-async function _listModelsLogic(context: RequestContext): Promise<any> {
-  const operation = "openRouterLogic.listModels";
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/models", {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new McpError(
-        BaseErrorCode.INTERNAL_ERROR,
-        `OpenRouter list models API request failed with status ${response.status}.`,
-        { providerStatus: response.status, providerMessage: errorBody },
-      );
-    }
-    return await response.json();
-  } catch (error: any) {
-    logger.error(`[${operation}] Error listing models`, {
-      ...context,
-      error: error.message,
-    });
-    if (error instanceof McpError) throw error;
-    throw new McpError(
-      BaseErrorCode.SERVICE_UNAVAILABLE,
-      `Network or unexpected error listing OpenRouter models: ${error.message}`,
-      { cause: error },
-    );
-  }
-}
-
-// #endregion
-
-/**
- * Service class for interacting with the OpenRouter API.
- * Acts as a "handler" that manages state, configuration, and error handling,
- * wrapping calls to the internal core logic functions.
- */
 class OpenRouterProvider {
   private client?: OpenAI;
   public status: "unconfigured" | "initializing" | "ready" | "error";
   private initializationError: Error | null = null;
 
-  constructor(
-    options?: OpenRouterClientOptions,
-    parentOpContext?: OperationContext,
-  ) {
+  constructor() {
+    this.status = "unconfigured";
+  }
+
+  public initialize(options?: OpenRouterClientOptions): void {
     const opContext = requestContextService.createRequestContext({
-      operation: "OpenRouterProvider.constructor",
-      parentRequestId: parentOpContext?.requestId,
+      operation: "OpenRouterProvider.initialize",
     });
     this.status = "initializing";
 
@@ -318,7 +275,7 @@ class OpenRouterProvider {
     }
   }
 
-  async chatCompletion(
+  public async chatCompletion(
     params: OpenRouterChatParams,
     context: RequestContext,
   ): Promise<ChatCompletion | Stream<ChatCompletionChunk>> {
@@ -328,38 +285,43 @@ class OpenRouterProvider {
     return await ErrorHandler.tryCatch(
       async () => {
         this.checkReady(operation, context);
-
         const rateLimitKey = context.requestId || "openrouter_default_key";
         rateLimiter.check(rateLimitKey, context);
-
-        const result = await _openRouterChatCompletionLogic(
+        return await _openRouterChatCompletionLogic(
           this.client!,
           params,
           context,
         );
-
-        logger.info(`[${operation}] Request successful`, {
-          ...context,
-          model: params.model,
-          streaming: params.stream,
-        });
-        return result;
       },
       { operation, context, input: sanitizedParams },
     );
   }
 
-  async listModels(context: RequestContext): Promise<any> {
-    const operation = "OpenRouterProvider.listModels";
-    return await ErrorHandler.tryCatch(
-      async () => {
-        this.checkReady(operation, context);
-        const models = await _listModelsLogic(context);
-        logger.info(`[${operation}] Successfully listed models`, context);
-        return models;
-      },
-      { operation, context },
-    );
+  public async chatCompletionStream(
+    params: OpenRouterChatParams,
+    context: RequestContext,
+  ): Promise<AsyncIterable<ChatCompletionChunk>> {
+    const streamParams = { ...params, stream: true };
+    const response = await this.chatCompletion(streamParams, context);
+    const responseStream = response as Stream<ChatCompletionChunk>;
+
+    async function* loggingStream(): AsyncGenerator<ChatCompletionChunk> {
+      const chunks: ChatCompletionChunk[] = [];
+      try {
+        for await (const chunk of responseStream) {
+          chunks.push(chunk);
+          yield chunk;
+        }
+      } finally {
+        logger.logInteraction("OpenRouterResponse", {
+          context,
+          response: chunks,
+          streaming: true,
+        });
+      }
+    }
+
+    return loggingStream();
   }
 }
 
