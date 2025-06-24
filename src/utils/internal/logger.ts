@@ -154,6 +154,7 @@ function createWinstonConsoleFormat(): winston.Logform.Format {
 export class Logger {
   private static instance: Logger;
   private winstonLogger?: winston.Logger;
+  private interactionLogger?: winston.Logger;
   private initialized = false;
   private mcpNotificationSender?: McpNotificationSender;
   private currentMcpLevel: McpLogLevel = "info";
@@ -246,6 +247,22 @@ export class Logger {
       transports,
       exitOnError: false,
     });
+
+    // Initialize a separate logger for structured interactions
+    if (isLogsDirSafe) {
+      this.interactionLogger = winston.createLogger({
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.json({ space: 2 }),
+        ),
+        transports: [
+          new winston.transports.File({
+            filename: path.join(resolvedLogsDir, "interactions.log"),
+            ...fileTransportOptions,
+          }),
+        ],
+      });
+    }
 
     // Configure console transport after Winston logger is created
     const consoleStatus = this._configureConsoleTransport();
@@ -567,6 +584,25 @@ export class Logger {
     const errorObj = err instanceof Error ? err : undefined;
     const actualContext = err instanceof Error ? context : err;
     this.log("emerg", msg, actualContext, errorObj);
+  }
+
+  /**
+   * Logs a structured interaction object to a dedicated file.
+   * @param interactionName - A name for the interaction type (e.g., 'OpenRouterIO').
+   * @param data - The structured data to log.
+   */
+  public logInteraction(
+    interactionName: string,
+    data: Record<string, any>,
+  ): void {
+    if (!this.interactionLogger) {
+      this.warning(
+        "Interaction logger not available. File logging may be disabled.",
+        data.context,
+      );
+      return;
+    }
+    this.interactionLogger.info({ interactionName, ...data });
   }
 }
 

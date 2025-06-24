@@ -61,9 +61,7 @@ export type OpenRouterChatParams = (
  */
 function _prepareApiParameters(
   params: OpenRouterChatParams,
-  context: RequestContext,
 ) {
-  const operation = "openRouterLogic.prepareApiParameters";
   const effectiveModelId = params.model || config.llmDefaultModel;
 
   const standardParams: Partial<
@@ -146,15 +144,19 @@ async function _openRouterChatCompletionLogic(
   params: OpenRouterChatParams,
   context: RequestContext,
 ): Promise<ChatCompletion | Stream<ChatCompletionChunk>> {
-  const operation = "openRouterLogic.chatCompletion";
   const isStreaming = params.stream === true;
 
-  const { standardParams, extraBody } = _prepareApiParameters(params, context);
+  const { standardParams, extraBody } = _prepareApiParameters(params);
 
   const apiParams: any = { ...standardParams };
   if (Object.keys(extraBody).length > 0) {
     apiParams.extra_body = extraBody;
   }
+
+  logger.logInteraction("OpenRouterRequest", {
+    context,
+    request: apiParams,
+  });
 
   try {
     if (isStreaming) {
@@ -162,10 +164,27 @@ async function _openRouterChatCompletionLogic(
         apiParams as ChatCompletionCreateParamsStreaming,
       );
     }
-    return await client.chat.completions.create(
+    const response = await client.chat.completions.create(
       apiParams as ChatCompletionCreateParamsNonStreaming,
     );
+
+    logger.logInteraction("OpenRouterResponse", {
+      context,
+      response,
+      streaming: false,
+    });
+
+    return response;
   } catch (error: any) {
+    logger.logInteraction("OpenRouterError", {
+      context,
+      error: {
+        message: error.message,
+        stack: error.stack,
+        status: error.status,
+        cause: error.cause,
+      },
+    });
     const errorDetails = {
       providerStatus: error.status,
       providerMessage: error.message,
@@ -282,7 +301,25 @@ class OpenRouterProvider {
   ): Promise<AsyncIterable<ChatCompletionChunk>> {
     const streamParams = { ...params, stream: true };
     const response = await this.chatCompletion(streamParams, context);
-    return response as Stream<ChatCompletionChunk>;
+    const responseStream = response as Stream<ChatCompletionChunk>;
+
+    async function* loggingStream(): AsyncGenerator<ChatCompletionChunk> {
+      const chunks: ChatCompletionChunk[] = [];
+      try {
+        for await (const chunk of responseStream) {
+          chunks.push(chunk);
+          yield chunk;
+        }
+      } finally {
+        logger.logInteraction("OpenRouterResponse", {
+          context,
+          response: chunks,
+          streaming: true,
+        });
+      }
+    }
+
+    return loggingStream();
   }
 }
 
