@@ -16,8 +16,6 @@ import {
 } from "../../utils/index.js";
 import { getClientTransport } from "../transports/index.js";
 import { getMcpServerConfig } from "../client-config/configLoader.js";
-import type { ConnectedMcpClient } from "./clientCache.js"; // Import for type usage
-// Removed: import { disconnectMcpClient } from "./clientManager.js";
 
 // Client version remains hard-coded as per user instruction.
 const CLIENT_VERSION = "1.0.0";
@@ -52,7 +50,7 @@ export async function establishNewMcpConnection(
   serverName: string,
   operationContext: RequestContext,
   disconnectFn: DisconnectFunction,
-): Promise<ConnectedMcpClient> {
+): Promise<Client> {
   // --- Step 1: Validate Server Configuration ---
   logger.debug(
     `Validating configuration for server: ${serverName}`,

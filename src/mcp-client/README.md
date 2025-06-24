@@ -20,68 +20,89 @@ This directory contains a robust, production-grade client for connecting to and 
 
 ## Overview
 
-The MCP client module provides a centralized and standardized way to manage communications with external MCP servers. Its primary responsibilities are:
+The MCP client module provides a robust, production-grade system for connecting to and interacting with Model Context Protocol (MCP) servers. It is designed for reliability and flexibility, supporting scenarios from single-server connections to complex, multi-agent swarms.
 
--   **Connection Management**: Establishing, caching, and terminating connections to one or more MCP servers.
--   **Configuration Driven**: Loading server definitions from a central `mcp-config.json` file.
+Its primary responsibilities are:
+-   **Isolated Connection Management**: Providing `McpClientManager` instances, each with its own isolated connection pool.
+-   **Configuration Driven**: Loading all server definitions from a central `mcp-config.json` file.
 -   **Transport Agnostic**: Supporting different communication protocols, primarily `stdio` (for local processes) and `http` (for network services).
--   **Resilience**: Automatically handling connection errors, timeouts, and graceful shutdowns.
+-   **Resilience**: Automatically handling connection errors, timeouts, and graceful shutdowns within each manager instance.
 
-The main entry point for all client operations is `connectMcpClient` from `src/mcp-client/core/clientManager.ts`.
+The main entry point for creating a connection manager is the `createMcpClientManager` factory function.
 
 ## Core Concepts
 
--   **Client Manager (`clientManager.ts`)**: The public-facing API for the client module. It orchestrates the entire connection lifecycle.
+-   **`McpClientManager` (`clientManager.ts`)**: The core of the client module. Each instance of this class manages a distinct, isolated set of client connections. It contains its own connection cache and lifecycle methods (`connectMcpClient`, `disconnectAllMcpClients`).
 -   **Configuration (`client-config/`)**: All server connections are defined in `mcp-config.json`. The `configLoader.ts` is responsible for loading, validating (with Zod), and providing these configurations.
--   **Transports (`transports/`)**: These modules are responsible for the underlying communication protocol. The `transportFactory.ts` reads a server's configuration and instantiates the correct transport (`stdio` or `http`).
+-   **Transports (`transports/`)**: These modules are responsible for the underlying communication protocol. The `transportFactory.ts` reads a server's configuration and instantiates the correct transport (`stdio` or `http`). For `stdio` transports, a new server process is spawned for each connection.
 -   **Connection Logic (`clientConnectionLogic.ts`)**: This internal module contains the step-by-step process of establishing a connection: fetching config, creating a transport, setting up event listeners, and performing the MCP handshake.
--   **Caching (`clientCache.ts`)**: To prevent redundant connections, active client instances and pending connection promises are cached in memory. Subsequent requests for the same server will return the cached instance or promise.
+
+## Agent Swarm Support
+
+This client architecture is specifically designed to support "agent swarm" scenarios, where multiple independent agents need to interact with the same set of configured MCP servers without interfering with each other.
+
+This is achieved by instantiating a new `McpClientManager` for each agent.
+
+-   **Isolation**: Each `McpClientManager` has its own private connection cache. Agent A's connection to `server-1` is completely separate from Agent B's connection to the same server.
+-   **Process Spawning (`stdio`)**: When an agent connects to a `stdio`-based server, its manager spawns a **new, dedicated server process**. This provides maximum isolation, as each agent communicates with its own private server instance.
+-   **Shared Connections (`http`)**: When an agent connects to an `http`-based server, it connects to the **same, pre-existing HTTP endpoint** as all other agents. This is ideal for shared services designed for concurrent connections.
 
 ## Getting Started: How to Use the Client
 
-To connect to an MCP server, you need to:
-1.  Ensure the server is correctly defined in `src/mcp-client/client-config/mcp-config.json`.
-2.  Import and call `connectMcpClient` with the server's name.
+To connect to MCP servers, you first create a manager, then use that manager to connect to the servers defined in your configuration.
 
-### Example: Connecting to a Server
+### Example: Creating a Client Manager and Connecting
+
+This example demonstrates creating a manager and using it to connect to all enabled servers in the configuration.
 
 ```typescript
-import { connectMcpClient, ConnectedMcpClient } from './src/mcp-client';
+import { createMcpClientManager, loadMcpClientConfig } from './src/mcp-client';
 import { logger } from './src/utils';
 
 async function main() {
-  const serverName = 'git-mcp-server'; // As defined in mcp-config.json
-  let client: ConnectedMcpClient | null = null;
+  // 1. Create a new, isolated manager.
+  const manager = createMcpClientManager();
+  logger.info('MCP Client Manager created.');
 
   try {
-    logger.info(`Attempting to connect to ${serverName}...`);
-    
-    // Establish the connection
-    client = await connectMcpClient(serverName);
+    // 2. Load the configuration to find all servers.
+    const config = loadMcpClientConfig();
+    const serverNames = Object.keys(config.mcpServers);
+    const enabledServers = serverNames.filter(
+      (name) => !config.mcpServers[name].disabled,
+    );
 
-    logger.info(`Successfully connected to ${serverName}.`);
-    logger.info('Server Info:', client.serverInfo);
-    logger.info('Available Tools:', client.tools.map(t => t.name));
+    logger.info(`Found ${enabledServers.length} enabled servers to connect to.`);
 
-    // Example: Calling a tool
-    // const result = await client.callTool('git_status', {});
-    // logger.info('Tool Result:', result);
+    // 3. Use the manager to connect to all enabled servers.
+    const connectionPromises = enabledServers.map(async (serverName) => {
+      try {
+        const client = await manager.connectMcpClient(serverName);
+        logger.info(`Successfully connected to ${serverName}.`);
+        return { serverName, client };
+      } catch (error) {
+        logger.error(`Failed to connect to ${serverName}`, { error });
+        return null;
+      }
+    });
+
+    await Promise.all(connectionPromises);
+
+    // ... your application logic would go here ...
 
   } catch (error) {
-    logger.error(`Failed to connect or interact with ${serverName}`, { error });
+    logger.error('An unexpected error occurred in the main process.', { error });
   } finally {
-    if (client) {
-      logger.info(`Disconnecting from ${serverName}...`);
-      // The disconnect function is available from the clientManager,
-      // but for a single client, client.close() is sufficient.
-      await client.close();
-      logger.info('Disconnected.');
-    }
+    // 4. Disconnect all clients managed by this manager on shutdown.
+    logger.info('Shutting down: disconnecting all clients...');
+    await manager.disconnectAllMcpClients();
+    logger.info('All clients disconnected.');
   }
 }
 
 main();
 ```
+For a more detailed example showing a multi-agent swarm, see `src/mcp-client/examples/agentSwarmExample.ts`.
 
 ## Configuration (`mcp-config.json`)
 
@@ -146,17 +167,18 @@ The client is designed with a clear separation of concerns to make it maintainab
 
 ### Connection Flow
 
-1.  **`connectMcpClient(serverName)` is called.**
-2.  **Cache Check (`clientCache.ts`)**: It first checks if a client for `serverName` is already connected or if a connection is pending. If so, it returns the existing client/promise.
-3.  **Initiate Connection**: If no client is found, it creates a new connection promise and stores it in the pending cache.
-4.  **`establishNewMcpConnection` (`clientConnectionLogic.ts`)**: This function is called to perform the core connection logic.
+1.  **`createMcpClientManager()` is called** to get a new manager instance.
+2.  **`manager.connectMcpClient(serverName)` is called.**
+3.  **Cache Check**: The manager checks its **own internal cache** to see if a client for `serverName` is already connected or pending. If so, it returns the existing client/promise.
+4.  **Initiate Connection**: If no client is found, the manager creates a new connection promise and stores it in its pending cache.
+5.  **`establishNewMcpConnection` (`clientConnectionLogic.ts`)**: This function is called to perform the core connection logic.
     a. **Load Config (`configLoader.ts`)**: Fetches and validates the configuration for `serverName`.
-    b. **Get Transport (`transportFactory.ts`)**: Based on `transportType`, it instantiates either a `StdioClientTransport` or a `StreamableHTTPClientTransport`.
+    b. **Get Transport (`transportFactory.ts`)**: Based on `transportType`, it instantiates a transport. For `stdio`, this **spawns a new process**.
     c. **Instantiate Client**: Creates a new `Client` instance from the `@modelcontextprotocol/sdk`.
-    d. **Set Event Handlers**: Attaches `onerror` and `onclose` listeners to the client and transport. These handlers will trigger `disconnectMcpClient` to ensure proper cleanup.
+    d. **Set Event Handlers**: Attaches `onerror` and `onclose` listeners. These handlers call the manager's `disconnectMcpClient` method to ensure proper cleanup within that manager's scope.
     e. **Connect & Handshake**: Calls `client.connect(transport)`, which performs the MCP initialization handshake.
-5.  **Cache Update**: Once the connection is successful, the new client is stored in the active cache (`connectedClients`) and the pending promise is removed.
-6.  **Return Client**: The fully connected and initialized client is returned.
+6.  **Cache Update**: Once successful, the new client is stored in the manager's active cache, and the pending promise is removed.
+7.  **Return Client**: The fully connected and initialized client is returned.
 
 ### Error Handling
 
@@ -167,10 +189,12 @@ The client is designed with a clear separation of concerns to make it maintainab
 
 ## API Reference
 
-The primary functions are exported from `src/mcp-client/index.ts`:
+The primary exports are from `src/mcp-client/index.ts`:
 
--   `connectMcpClient(serverName: string, parentContext?: RequestContext): Promise<ConnectedMcpClient>`: The main function to get a client instance.
--   `disconnectMcpClient(serverName: string, parentContext?: RequestContext): Promise<void>`: Forcibly disconnects a specific client.
--   `disconnectAllMcpClients(parentContext?: RequestContext): Promise<void>`: Disconnects all active clients, typically used during application shutdown.
+-   `createMcpClientManager(): McpClientManager`: Factory function to create a new, isolated client manager.
+-   `McpClientManager`: The class for managing a set of connections.
+    -   `connectMcpClient(serverName)`: Connects to a server.
+    -   `disconnectMcpClient(serverName)`: Disconnects a specific client.
+    -   `disconnectAllMcpClients()`: Disconnects all clients managed by the instance.
 -   `loadMcpClientConfig()`: Loads and validates the `mcp-config.json` file.
--   `getMcpServerConfig(serverName: string)`: Retrieves the configuration for a single server.
+-   `getMcpServerConfig(serverName)`: Retrieves the configuration for a single server.
