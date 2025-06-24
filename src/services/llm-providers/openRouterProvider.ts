@@ -59,9 +59,7 @@ export type OpenRouterChatParams = (
  * and extra parameters and applying defaults.
  * @internal
  */
-function _prepareApiParameters(
-  params: OpenRouterChatParams,
-) {
+function _prepareApiParameters(params: OpenRouterChatParams) {
   const effectiveModelId = params.model || config.llmDefaultModel;
 
   const standardParams: Partial<
@@ -289,7 +287,11 @@ class OpenRouterProvider {
         this.checkReady(operation, context);
         const rateLimitKey = context.requestId || "openrouter_default_key";
         rateLimiter.check(rateLimitKey, context);
-        return await _openRouterChatCompletionLogic(this.client!, params, context);
+        return await _openRouterChatCompletionLogic(
+          this.client!,
+          params,
+          context,
+        );
       },
       { operation, context, input: sanitizedParams },
     );

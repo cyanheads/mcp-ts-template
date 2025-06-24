@@ -39,7 +39,9 @@ async function main() {
     // The agent's internal error handling should catch most things,
     // but this is a final safeguard.
     const finalError =
-      error instanceof Error ? error.message : "An unknown fatal error occurred.";
+      error instanceof Error
+        ? error.message
+        : "An unknown fatal error occurred.";
     console.error(`Fatal Error: ${finalError}`);
     if (error instanceof Error && error.stack) {
       console.error(error.stack);

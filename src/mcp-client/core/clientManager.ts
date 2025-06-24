@@ -197,7 +197,10 @@ export class McpClientManager {
     const serverNamesToDisconnect = Array.from(this.connectedClients.keys());
 
     if (serverNamesToDisconnect.length === 0) {
-      logger.info("No active MCP clients in this manager to disconnect.", context);
+      logger.info(
+        "No active MCP clients in this manager to disconnect.",
+        context,
+      );
       this.clearAllCache();
       return;
     }
@@ -219,7 +222,10 @@ export class McpClientManager {
     );
 
     this.clearAllCache();
-    logger.info("All client caches for this manager have been cleared.", context);
+    logger.info(
+      "All client caches for this manager have been cleared.",
+      context,
+    );
   }
 
   /**
@@ -301,7 +307,10 @@ export class McpClientManager {
    * @param allTools - The map of all available tools.
    * @returns The server name, or null if the tool is not found.
    */
-  public getServerForTool(toolName: string, allTools: Map<string, any>): string | null {
+  public getServerForTool(
+    toolName: string,
+    allTools: Map<string, any>,
+  ): string | null {
     const tool = allTools.get(toolName);
     return tool?.server || null;
   }

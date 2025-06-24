@@ -238,13 +238,19 @@ Begin the task. Your response must be only the JSON object.`;
         try {
           commandJson = jsonParser.parse(llmResponse);
         } catch (e) {
-          logger.warning("LLM response was not valid JSON. Treating as a conversational message.", { ...runContext, llmResponse });
+          logger.warning(
+            "LLM response was not valid JSON. Treating as a conversational message.",
+            { ...runContext, llmResponse },
+          );
           if (onStreamChunk) {
-            onStreamChunk(`\n[AGENT_NOTE]: The AI responded with conversational text instead of a command. I will remind it of the protocol.\n[AI]: ${llmResponse}\n`);
+            onStreamChunk(
+              `\n[AGENT_NOTE]: The AI responded with conversational text instead of a command. I will remind it of the protocol.\n[AI]: ${llmResponse}\n`,
+            );
           }
           messages.push({
             role: "user",
-            content: "Your previous response was not a valid JSON object. Please remember to respond with only a single JSON object with a 'command' and 'arguments' field.",
+            content:
+              "Your previous response was not a valid JSON object. Please remember to respond with only a single JSON object with a 'command' and 'arguments' field.",
           });
           continue; // Continue to the next loop iteration to get a new response
         }
@@ -385,7 +391,7 @@ Begin the task. Your response must be only the JSON object.`;
     try {
       const { name: toolName, arguments: args } = params;
 
-      if (!toolName || typeof toolName !== 'string') {
+      if (!toolName || typeof toolName !== "string") {
         throw new McpError(
           BaseErrorCode.VALIDATION_ERROR,
           "Malformed tool call: 'name' field is missing or not a string.",
@@ -415,7 +421,10 @@ Begin the task. Your response must be only the JSON object.`;
         serverName,
         context,
       );
-      const toolResult = await client.callTool({ name: toolName, arguments: args });
+      const toolResult = await client.callTool({
+        name: toolName,
+        arguments: args,
+      });
 
       logger.logInteraction("McpToolResponse", {
         context,
