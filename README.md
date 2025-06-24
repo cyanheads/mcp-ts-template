@@ -3,7 +3,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.13.0-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--03--26-lightgrey.svg)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.5.7-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.5.9-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
@@ -37,9 +37,11 @@ Whether you're creating a new MCP server to extend an AI's capabilities or integ
 | **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware for HTTP).                                                   | Throughout, `src/utils/security/`, `src/mcp-server/transports/auth/` |
 | **⚙️ Error Handling**       | Consistent error categorization (`BaseErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                                                                   | `src/utils/internal/errorHandler.ts`, `src/types-global/`            |
 | **📚 Documentation**        | Comprehensive `README.md`, structured JSDoc comments, API references                                                                                                          | `README.md`, Codebase, `tsdoc.json`, `docs/api-references/`          |
+| **🤖 Agent Framework**      | Includes a core `Agent` class and CLI for running autonomous agents that can connect to MCP servers and use their tools.                                                      | `src/agent/`                                                         |
+| **🕵️ Interaction Logging**  | Captures raw requests and responses for all external LLM provider interactions to a dedicated `interactions.log` file for full traceability.                                  | `src/utils/internal/logger.ts`                                       |
 | **🤖 Agent Ready**          | Includes a [.clinerules](.clinerules) developer cheatsheet tailored for LLM coding agents.                                                                                    | `.clinerules`                                                        |
 | **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                                                          | `scripts/`                                                           |
-| **🧩 Services**             | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                                                   | `src/services/`, `src/storage/duckdbExample.ts`                      |
+| ** Services**               | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                                                   | `src/services/`, `src/storage/duckdbExample.ts`                      |
 
 _For a more granular breakdown, see the [Detailed Features Table](#detailed-features-table) below._
 
@@ -188,6 +190,7 @@ This project follows a standard TypeScript project layout. Here's an overview of
 - **`docs/`**: Contains project documentation, including API references and the auto-generated `tree.md` file.
 - **`scripts/`**: Utility scripts for development tasks like cleaning builds, generating directory trees, and fetching OpenAPI specs.
 - **`src/`**: The heart of the application, containing all TypeScript source code.
+  - `src/agent/`: Contains the core agent framework, including the `Agent` class and a CLI for running the agent.
   - `src/config/`: Handles loading and validation of environment variables and application configuration.
   - `src/mcp-client/`: Implements the MCP client logic for connecting to and interacting with external MCP servers. This includes client configuration, core connection management, and transport handlers.
   - `src/mcp-server/`: Contains the MCP server implementation provided by this template, including example tools, resources, and transport handlers (Stdio, HTTP).
