@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.9] - 2025-06-24
+
+### Fixed
+
+- **Agent Tool Discovery**: Fixed a critical race condition in the agent's startup sequence that prevented it from discovering available tools from connected MCP servers. The agent now correctly waits for all server connections to be fully established before fetching the tool list, ensuring the LLM is always aware of its full capabilities.
+- **MCP Client Manager**: Corrected the asynchronous logic in `McpClientManager` to ensure the internal list of connected clients is populated reliably before any subsequent operations attempt to use it.
+
+### Added
+
+- **Interaction Logging**: Implemented detailed interaction logging for the `OpenRouterProvider`. All raw requests to and responses from the OpenRouter API (including streaming responses and errors) are now logged to a dedicated `logs/interactions.log` file for enhanced traceability and debugging.
+
+### Changed
+
+- **Refactoring**: Refactored `agent.ts` and `mcp-client/core/clientManager.ts` to correctly handle the asynchronous nature of MCP client connections and tool fetching, resolving the root cause of the tool discovery failure.
+
 ## [1.5.8] - 2025-06-24
 
 ### BREAKING CHANGE

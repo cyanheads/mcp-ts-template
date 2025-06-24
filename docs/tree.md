@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-06-24 10:20:08
+Generated on: 2025-06-24 10:57:42
 
 ```
 mcp-ts-template
@@ -38,8 +38,6 @@ mcp-ts-template
 │   │   ├── core
 │   │   │   ├── clientConnectionLogic.ts
 │   │   │   └── clientManager.ts
-│   │   ├── examples
-│   │   │   └── agentSwarmExample.ts
 │   │   ├── transports
 │   │   │   ├── httpClientTransport.ts
 │   │   │   ├── index.ts
