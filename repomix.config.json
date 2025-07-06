@@ -12,7 +12,7 @@
   "ignore": {
     "useGitignore": true,
     "useDefaultPatterns": true,
-    "customPatterns": [".clinerules"]
+    "customPatterns": [".clinerules", "repomix.config.json", "docs/api-references/"]
   },
   "security": {
     "enableSecurityCheck": true

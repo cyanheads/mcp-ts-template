@@ -101,9 +101,8 @@ export type McpNotificationSender = (
   loggerName?: string,
 ) => void;
 
-// The logsPath from config is already resolved and validated by src/config/index.ts
-const resolvedLogsDir = config.logsPath;
-const isLogsDirSafe = !!resolvedLogsDir; // If logsPath is set, it's considered safe by config logic.
+// The logsPath from config is resolved and validated by src/config/index.ts.
+// It can be null if the directory is invalid or inaccessible, in which case file logging will be disabled.
 
 /**
  * Creates the Winston console log format.
@@ -188,10 +187,7 @@ export class Logger {
     this.currentMcpLevel = level;
     this.currentWinstonLevel = mcpToWinstonLevel[level];
 
-    // The logs directory (config.logsPath / resolvedLogsDir) is expected to be created and validated
-    // by the configuration module (src/config/index.ts) before logger initialization.
-    // If isLogsDirSafe is true, we assume resolvedLogsDir exists and is usable.
-    // No redundant directory creation logic here.
+    const resolvedLogsDir = config.logsPath;
 
     const fileFormat = winston.format.combine(
       winston.format.timestamp(),
@@ -207,7 +203,7 @@ export class Logger {
       tailable: true,
     };
 
-    if (isLogsDirSafe) {
+    if (resolvedLogsDir) {
       transports.push(
         new winston.transports.File({
           filename: path.join(resolvedLogsDir, "error.log"),
@@ -249,7 +245,7 @@ export class Logger {
     });
 
     // Initialize a separate logger for structured interactions
-    if (isLogsDirSafe) {
+    if (resolvedLogsDir) {
       this.interactionLogger = winston.createLogger({
         format: winston.format.combine(
           winston.format.timestamp(),
@@ -284,7 +280,7 @@ export class Logger {
         loggerSetup: true,
         requestId: "logger-post-init",
         timestamp: new Date().toISOString(),
-        logsPathUsed: resolvedLogsDir,
+        logsPathUsed: resolvedLogsDir ?? "none",
       },
     );
   }

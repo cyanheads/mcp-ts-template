@@ -164,7 +164,6 @@ coverage/
 .env.test.local
 .env.production.local
 .sample-env
-sample.*
 !sample.template.*
 mcp-servers.json
 mcp-config.json
@@ -186,3 +185,4 @@ docs/api/
 repomix-output*
 duckdata/
 .claude
+data/

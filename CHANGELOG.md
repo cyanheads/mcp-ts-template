@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.1] - 2025-07-05
+
+### Changed
+
+- **Dependencies**: Updated several key dependencies to their latest versions, including `@modelcontextprotocol/sdk`, `hono`, `zod`, and `openai`, to incorporate the latest features and security patches.
+- **Configuration**: Refactored the configuration loader (`src/config/index.ts`) to be more resilient. It now gracefully handles invalid or inaccessible custom log directories by falling back to the default `logs/` directory, preventing application startup failures.
+- **Logging**: Improved the `Logger` utility (`src/utils/internal/logger.ts`) to correctly handle cases where a log directory cannot be created. File-based logging is now disabled in such scenarios, but console logging remains active, ensuring the application can still run.
+- **Documentation**:
+  - Updated `docs/best-practices.md` to align with the latest architectural standards and provide clearer guidance on tool development workflows.
+  - Regenerated `docs/tree.md` to reflect the current project structure.
+- **Housekeeping**:
+  - Updated `.gitignore` to include the `data/` directory.
+  - Updated `repomix.config.json` to ignore the `docs/api-references/` directory during analysis.
+
 ## [1.6.0] - 2025-06-24
 
 ### BREAKING CHANGE
