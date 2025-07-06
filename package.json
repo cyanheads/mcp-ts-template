@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Jumpstart Model Context Protocol (MCP) development with this production-ready TypeScript template. Build robust MCP servers and clients with built-in utilities, authentication, and service integrations. Agent framework utilizing MCP Client included.",
   "main": "dist/index.js",
   "files": [
@@ -44,7 +44,7 @@
     "@types/sanitize-html": "^2.16.0",
     "@types/validator": "13.15.2",
     "chrono-node": "^2.8.0",
-    "dotenv": "^16.5.0",
+    "dotenv": "^16.6.1",
     "hono": "^4.8.4",
     "ignore": "^7.0.5",
     "jose": "^6.0.11",

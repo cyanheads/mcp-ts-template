@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.2] - 2025-07-05
+
+### Changed
+
+- **Dependencies**: Updated `dotenv` to `^16.6.1`.
+
 ## [1.6.1] - 2025-07-05
 
 ### Changed
