@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Jumpstart Model Context Protocol (MCP) development with this production-ready TypeScript template. Build robust MCP servers and clients with built-in utilities, authentication, and service integrations. Agent framework utilizing MCP Client included.",
   "main": "dist/index.js",
   "files": [
@@ -29,6 +29,8 @@
     "rebuild": "ts-node --esm scripts/clean.ts && npm run build",
     "docs:generate": "typedoc --tsconfig ./tsconfig.typedoc.json",
     "depcheck": "npx depcheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "tree": "ts-node --esm scripts/tree.ts",
     "fetch-spec": "ts-node --esm scripts/fetch-openapi-spec.ts",
     "format": "prettier --write \"**/*.{ts,js,json,md,html,css}\"",
@@ -45,21 +47,23 @@
     "@types/validator": "13.15.2",
     "chrono-node": "^2.8.0",
     "dotenv": "^16.6.1",
+    "eslint": "^9.30.1",
     "hono": "^4.8.4",
     "ignore": "^7.0.5",
     "jose": "^6.0.11",
+    "js-yaml": "^4.1.0",
+    "node-cron": "^4.2.0",
     "openai": "^5.8.2",
     "partial-json": "^0.1.7",
     "sanitize-html": "^2.17.0",
     "tiktoken": "^1.0.21",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
+    "typescript-eslint": "^8.35.1",
     "validator": "13.15.15",
     "winston": "^3.17.0",
     "winston-transport": "^4.9.0",
-    "node-cron": "^4.2.0",
-    "zod": "^3.25.74",
-    "js-yaml": "^4.1.0"
+    "zod": "^3.25.74"
   },
   "keywords": [
     "typescript",
@@ -101,10 +105,12 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.30.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node-cron": "^3.0.11",
     "axios": "^1.10.0",
     "depcheck": "^1.4.7",
+    "globals": "^16.3.0",
     "prettier": "^3.6.2",
     "typedoc": "^0.28.7"
   }
