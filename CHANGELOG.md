@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.3] - 2025-07-07
+
+### Added
+
+- **Linting**: Integrated ESLint with TypeScript support (`@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser`) to enforce code quality and consistency. Added a new `eslint.config.js` and `lint`/`lint:fix` scripts to `package.json`.
+
+### Changed
+
+- **Type Safety**: Significantly improved type safety across the codebase by replacing `any` with `unknown` or more specific types, particularly in the agent core, MCP client/server components, and utility functions. This enhances robustness and reduces potential runtime errors.
+- **Error Handling**: Refined error handling logic in several modules (`fetch-openapi-spec.ts`, `tree.ts`, `config/index.ts`) to provide more specific and useful error messages.
+- **Dependencies**: Updated `package.json` and `package-lock.json` with new ESLint-related dependencies and bumped the project version to `1.6.3`.
+- **DuckDB Service**: The DuckDB service (`duckDBService.ts`, `duckDBQueryExecutor.ts`) now exclusively supports array-style parameters for SQL queries, removing support for named-object parameters to simplify the implementation and align with the underlying driver's capabilities.
+- **Scheduler**: Refactored the `SchedulerService` to use `cron.createTask` for more reliable task instantiation.
+- **Code Quality**: Various other minor code quality improvements and refactorings throughout the project.
+
 ## [1.6.2] - 2025-07-05
 
 ### Changed

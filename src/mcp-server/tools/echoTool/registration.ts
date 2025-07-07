@@ -43,7 +43,7 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
         EchoToolInputSchema.shape,
         async (
           params: EchoToolInput,
-          mcpContext: any,
+          mcpContext: unknown,
         ): Promise<CallToolResult> => {
           const handlerContext: RequestContext =
             requestContextService.createRequestContext({

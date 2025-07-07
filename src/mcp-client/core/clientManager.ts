@@ -254,12 +254,12 @@ export class McpClientManager {
    */
   public async getAllTools(
     parentContext?: RequestContext | null,
-  ): Promise<Map<string, any>> {
+  ): Promise<Map<string, unknown>> {
     const context = requestContextService.createRequestContext({
       ...(parentContext ?? {}),
       operation: "McpClientManager.getAllTools",
     });
-    const allTools = new Map<string, any>();
+    const allTools = new Map<string, unknown>();
     logger.debug(
       `Fetching tools from ${this.connectedClients.size} connected clients.`,
       context,
@@ -269,14 +269,22 @@ export class McpClientManager {
       async ([serverName, client]) => {
         try {
           const result = await client.listTools();
-          const tools = (result as any)?.tools;
+          const tools =
+            result && typeof result === "object" && "tools" in result
+              ? (result as { tools: unknown[] }).tools
+              : [];
           if (Array.isArray(tools)) {
             logger.debug(
               `Successfully fetched ${tools.length} tools from server: ${serverName}`,
               { ...context, serverName },
             );
             for (const tool of tools) {
-              allTools.set(tool.name, { ...tool, server: serverName });
+              if (tool && typeof tool === "object" && "name" in tool) {
+                allTools.set(tool.name as string, {
+                  ...tool,
+                  server: serverName,
+                });
+              }
             }
           } else {
             logger.warning(
@@ -309,9 +317,12 @@ export class McpClientManager {
    */
   public getServerForTool(
     toolName: string,
-    allTools: Map<string, any>,
+    allTools: Map<string, unknown>,
   ): string | null {
     const tool = allTools.get(toolName);
-    return tool?.server || null;
+    if (tool && typeof tool === "object" && "server" in tool) {
+      return (tool as { server: string }).server;
+    }
+    return null;
   }
 }

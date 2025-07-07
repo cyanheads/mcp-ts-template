@@ -78,7 +78,7 @@ export interface EchoToolResponse {
  */
 export async function echoToolLogic(
   params: EchoToolInput,
-  context: RequestContext
+  context: RequestContext,
 ): Promise<EchoToolResponse> {
   logger.debug("Processing echo message logic...", { ...context });
   // ... business logic ...
@@ -162,7 +162,7 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
           isError: true,
         };
       }
-    }
+    },
   );
 };
 ```

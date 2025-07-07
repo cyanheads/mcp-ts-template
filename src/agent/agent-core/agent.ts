@@ -31,11 +31,21 @@ export interface AgentConfig {
   agentId: string;
 }
 
+interface LlmCommand {
+  command: "mcp_tool_call" | "display_message_to_user" | "terminate_loop";
+  arguments: {
+    name?: string;
+    arguments?: unknown;
+    message?: string;
+    reason?: string;
+  };
+}
+
 export class Agent {
   private config: AgentConfig;
   private mcpClientManager: McpClientManager;
   private context: RequestContext;
-  private availableTools: Map<string, any> = new Map();
+  private availableTools: Map<string, unknown> = new Map();
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -218,7 +228,6 @@ Begin the task. Your response must be only the JSON object.`;
         { role: "user", content: initialPrompt },
       ];
 
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const llmParams: OpenRouterChatParams = {
           messages,
@@ -237,7 +246,7 @@ Begin the task. Your response must be only the JSON object.`;
         let commandJson;
         try {
           commandJson = jsonParser.parse(llmResponse);
-        } catch (e) {
+        } catch (_e) {
           logger.warning(
             "LLM response was not valid JSON. Treating as a conversational message.",
             { ...runContext, llmResponse },
@@ -255,10 +264,20 @@ Begin the task. Your response must be only the JSON object.`;
           continue; // Continue to the next loop iteration to get a new response
         }
 
-        const { command, arguments: args } = commandJson;
+        const { command, arguments: args } = commandJson as LlmCommand;
 
         if (command === "mcp_tool_call") {
-          const toolResult = await this._executeToolCall(args, runContext);
+          const toolResult = await this._executeToolCall(
+            args as { name: string; arguments: unknown },
+            runContext,
+          );
+          if (typeof args.name !== "string") {
+            throw new McpError(
+              BaseErrorCode.VALIDATION_ERROR,
+              "Tool call name is missing or not a string.",
+              runContext,
+            );
+          }
           const toolMessage: ChatCompletionToolMessageParam = {
             role: "tool",
             tool_call_id: args.name,
@@ -379,7 +398,7 @@ Begin the task. Your response must be only the JSON object.`;
   }
 
   private async _executeToolCall(
-    params: { name: string; arguments: any },
+    params: { name: string; arguments: unknown },
     parentContext: RequestContext,
   ) {
     const context = requestContextService.createRequestContext({
@@ -421,9 +440,21 @@ Begin the task. Your response must be only the JSON object.`;
         serverName,
         context,
       );
+
+      if (
+        args !== undefined &&
+        (typeof args !== "object" || args === null || Array.isArray(args))
+      ) {
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          `Tool arguments for '${toolName}' must be a plain object or undefined.`,
+          context,
+        );
+      }
+
       const toolResult = await client.callTool({
         name: toolName,
-        arguments: args,
+        arguments: args as { [key: string]: unknown } | undefined,
       });
 
       logger.logInteraction("McpToolResponse", {

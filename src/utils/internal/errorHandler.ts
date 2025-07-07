@@ -259,7 +259,7 @@ function getErrorMessage(error: unknown): string {
     if (str === "[object Object]" && error !== null) {
       try {
         return `Non-Error object encountered: ${JSON.stringify(error)}`;
-      } catch (stringifyError) {
+      } catch {
         return `Unstringifyable non-Error object encountered (constructor: ${error.constructor?.name || "Unknown"})`;
       }
     }

@@ -86,13 +86,20 @@ async function loadIgnoreHandler(): Promise<Ignore> {
     }
     const gitignoreContent = await fs.readFile(gitignorePath, "utf-8");
     ig.add(gitignoreContent); // Add patterns from .gitignore file
-  } catch (error: any) {
-    if (error.code === "ENOENT") {
+  } catch (error: unknown) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
       console.warn(
         "Info: No .gitignore file found at project root. Using default ignore patterns only.",
       );
     } else {
-      console.error(`Error reading .gitignore: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(`Error reading .gitignore: ${errorMessage}`);
     }
   }
   return ig;
@@ -143,8 +150,9 @@ async function generateTree(
   let entries;
   try {
     entries = await fs.readdir(resolvedDir, { withFileTypes: true });
-  } catch (error: any) {
-    console.error(`Error reading directory ${resolvedDir}: ${error.message}`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Error reading directory ${resolvedDir}: ${errorMessage}`);
     return "";
   }
 
@@ -242,11 +250,18 @@ const writeTreeToFile = async (): Promise<void> => {
       if (match && typeof match[1] === "string") {
         existingRawTreeContent = match[1];
       }
-    } catch (error: any) {
-      if (error.code !== "ENOENT") {
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code !== "ENOENT"
+      ) {
         // ENOENT (file not found) is expected if the file hasn't been created yet.
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         console.warn(
-          `Warning: Could not read existing output file ("${resolvedOutputFile}") for comparison: ${error.message}`,
+          `Warning: Could not read existing output file ("${resolvedOutputFile}") for comparison: ${errorMessage}`,
         );
       }
       // If file doesn't exist or is unreadable, existingRawTreeContent remains null,

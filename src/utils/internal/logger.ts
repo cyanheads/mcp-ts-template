@@ -66,7 +66,7 @@ const mcpToWinstonLevel: Record<
 interface ErrorWithMessageAndStack {
   message?: string;
   stack?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -80,7 +80,7 @@ export interface McpLogPayload {
     message: string;
     stack?: string;
   };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -589,12 +589,12 @@ export class Logger {
    */
   public logInteraction(
     interactionName: string,
-    data: Record<string, any>,
+    data: Record<string, unknown>,
   ): void {
     if (!this.interactionLogger) {
       this.warning(
         "Interaction logger not available. File logging may be disabled.",
-        data.context,
+        data.context as RequestContext,
       );
       return;
     }

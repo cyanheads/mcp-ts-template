@@ -49,7 +49,7 @@ export const registerCatFactFetcherTool = async (
         CatFactFetcherInputSchema.shape,
         async (
           params: CatFactFetcherInput,
-          mcpContext: any,
+          mcpContext: unknown,
         ): Promise<CallToolResult> => {
           const handlerContext: RequestContext =
             requestContextService.createRequestContext({

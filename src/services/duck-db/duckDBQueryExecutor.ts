@@ -21,7 +21,7 @@ export class DuckDBQueryExecutor {
 
   public async run(
     sql: string,
-    params?: duckdb.DuckDBValue[] | Record<string, duckdb.DuckDBValue>,
+    params?: duckdb.DuckDBValue[],
   ): Promise<void> {
     const context = requestContextService.createRequestContext({
       operation: "DuckDBQueryExecutor.run",
@@ -33,10 +33,8 @@ export class DuckDBQueryExecutor {
         logger.debug(`Executing SQL (run): ${sql}`, { ...context, params });
         if (params === undefined) {
           await this.dbConnection.run(sql);
-        } else if (Array.isArray(params)) {
-          await this.dbConnection.run(sql, params); // Pass array directly
         } else {
-          await this.dbConnection.run(sql, params as any); // Cast to any for object
+          await this.dbConnection.run(sql, params);
         }
       },
       {
@@ -50,7 +48,7 @@ export class DuckDBQueryExecutor {
 
   public async query<T = Record<string, unknown>>(
     sql: string,
-    params?: duckdb.DuckDBValue[] | Record<string, duckdb.DuckDBValue>,
+    params?: duckdb.DuckDBValue[],
   ): Promise<DuckDBQueryResult<T>> {
     const context = requestContextService.createRequestContext({
       operation: "DuckDBQueryExecutor.query",
@@ -60,33 +58,15 @@ export class DuckDBQueryExecutor {
     return ErrorHandler.tryCatch(
       async () => {
         logger.debug(`Executing SQL (query): ${sql}`, { ...context, params });
-        let resultObject: any; // Corresponds to 'result' in docs after connection.stream()
-        if (params === undefined) {
-          resultObject = await this.dbConnection.stream(sql);
-        } else if (Array.isArray(params)) {
-          resultObject = await this.dbConnection.stream(
-            sql,
-            // According to docs, params for stream are passed as subsequent arguments
-            // However, the DuckDBConnection type definition might expect a single array/object.
-            // The original code passed `params` directly, which is typical for many drivers
-            // if the method signature is `stream(sql: string, params?: any[])`
-            // Let's stick to the original way params were passed to stream, as the docs
-            // show `connection.stream(sql, values, types)` where values could be an array/object.
-            // The most robust way for array params is often `stream(sql, ...params_array)`.
-            // Let's assume the type defs are `stream(sql: string, ...args: any[])` for array params.
-            // Or `stream(sql: string, namedParams: object)` for named.
-            // The previous code `params` directly for array, and `params as any` for object.
-            // This seems reasonable.
-            params, // Pass array directly
-          );
-        } else {
-          resultObject = await this.dbConnection.stream(sql, params as any); // Cast to any for object
-        }
+        const resultObject: duckdb.DuckDBResult = await this.stream(
+          sql,
+          params,
+        );
 
-        const rows = (await resultObject.getRows()) as T[]; // Use getRows() as per docs, and it's async
-        const columnNames = resultObject.columnNames(); // Sync as per docs
+        const rows = (await resultObject.getRows()) as T[];
+        const columnNames = resultObject.columnNames();
         const columnTypes = resultObject
-          .columnTypes() // Sync as per docs
+          .columnTypes()
           .map((ct: duckdb.DuckDBType) => ct.typeId);
 
         return {
@@ -107,30 +87,20 @@ export class DuckDBQueryExecutor {
 
   public async stream(
     sql: string,
-    params?: duckdb.DuckDBValue[] | Record<string, duckdb.DuckDBValue>,
-  ): Promise<duckdb.DuckDBPendingResult> {
+    params?: duckdb.DuckDBValue[],
+  ): Promise<duckdb.DuckDBResult> {
     const context = requestContextService.createRequestContext({
       operation: "DuckDBQueryExecutor.stream",
       initialData: { sql, params },
     });
 
-    return ErrorHandler.tryCatch<Promise<duckdb.DuckDBPendingResult>>(
+    return ErrorHandler.tryCatch(
       async () => {
         logger.debug(`Executing SQL (stream): ${sql}`, { ...context, params });
         if (params === undefined) {
-          return this.dbConnection.stream(
-            sql,
-          ) as unknown as Promise<duckdb.DuckDBPendingResult>;
-        } else if (Array.isArray(params)) {
-          return this.dbConnection.stream(
-            sql,
-            params, // Pass array directly
-          ) as unknown as Promise<duckdb.DuckDBPendingResult>;
+          return this.dbConnection.stream(sql);
         } else {
-          return this.dbConnection.stream(
-            sql,
-            params as any,
-          ) as unknown as Promise<duckdb.DuckDBPendingResult>;
+          return this.dbConnection.stream(sql, params);
         }
       },
       {

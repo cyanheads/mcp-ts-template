@@ -13,9 +13,8 @@ import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 import { logger, requestContextService } from "../../utils/index.js";
 
 // Define a type for our database schema if we have one.
-// For now, we'll use `any` but this should be replaced with generated types.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Database = any;
+// For now, we'll use `Record<string, unknown>` but this should be replaced with generated types.
+type Database = Record<string, unknown>;
 
 let supabase: SupabaseClient<Database> | null = null;
 let supabaseAdmin: SupabaseClient<Database> | null = null;

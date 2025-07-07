@@ -7,7 +7,7 @@
  */
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { encoding_for_model, Tiktoken, TiktokenModel } from "tiktoken";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
+import { BaseErrorCode } from "../../types-global/errors.js";
 import { ErrorHandler, logger, RequestContext } from "../index.js";
 
 /**

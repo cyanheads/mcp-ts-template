@@ -49,7 +49,7 @@ export type OpenRouterChatParams = (
   transforms?: string[];
   models?: string[];
   route?: "fallback";
-  provider?: Record<string, any>;
+  provider?: Record<string, unknown>;
 };
 
 // #region Internal Logic Functions (Throwing Errors)
@@ -93,7 +93,7 @@ function _prepareApiParameters(params: OpenRouterChatParams) {
     ...(params.logit_bias !== undefined && { logit_bias: params.logit_bias }),
   };
 
-  const extraBody: Record<string, any> = {};
+  const extraBody: Record<string, unknown> = {};
   const standardKeys = new Set(Object.keys(standardParams));
   standardKeys.add("messages");
 
@@ -103,7 +103,7 @@ function _prepareApiParameters(params: OpenRouterChatParams) {
       !standardKeys.has(key) &&
       key !== "max_tokens"
     ) {
-      extraBody[key] = (params as any)[key];
+      extraBody[key] = (params as unknown as Record<string, unknown>)[key];
     }
   }
 
@@ -113,8 +113,15 @@ function _prepareApiParameters(params: OpenRouterChatParams) {
   if (extraBody.min_p === undefined && config.llmDefaultMinP !== undefined) {
     extraBody.min_p = config.llmDefaultMinP;
   }
-  if (extraBody.provider && typeof extraBody.provider === "object") {
-    if (!extraBody.provider.sort) extraBody.provider.sort = "throughput";
+  if (
+    extraBody.provider &&
+    typeof extraBody.provider === "object" &&
+    extraBody.provider !== null
+  ) {
+    const provider = extraBody.provider as Record<string, unknown>;
+    if (!provider.sort) {
+      provider.sort = "throughput";
+    }
   } else if (extraBody.provider === undefined) {
     extraBody.provider = { sort: "throughput" };
   }
@@ -146,9 +153,9 @@ async function _openRouterChatCompletionLogic(
 
   const { standardParams, extraBody } = _prepareApiParameters(params);
 
-  const apiParams: any = { ...standardParams };
+  const apiParams = { ...standardParams };
   if (Object.keys(extraBody).length > 0) {
-    apiParams.extra_body = extraBody;
+    (apiParams as Record<string, unknown>).extra_body = extraBody;
   }
 
   logger.logInteraction("OpenRouterRequest", {
@@ -159,11 +166,11 @@ async function _openRouterChatCompletionLogic(
   try {
     if (isStreaming) {
       return await client.chat.completions.create(
-        apiParams as ChatCompletionCreateParamsStreaming,
+        apiParams as unknown as ChatCompletionCreateParamsStreaming,
       );
     }
     const response = await client.chat.completions.create(
-      apiParams as ChatCompletionCreateParamsNonStreaming,
+      apiParams as unknown as ChatCompletionCreateParamsNonStreaming,
     );
 
     logger.logInteraction("OpenRouterResponse", {
@@ -173,7 +180,8 @@ async function _openRouterChatCompletionLogic(
     });
 
     return response;
-  } catch (error: any) {
+  } catch (e: unknown) {
+    const error = e as Error & { status?: number; cause?: unknown };
     logger.logInteraction("OpenRouterError", {
       context,
       error: {
@@ -209,7 +217,9 @@ async function _openRouterChatCompletionLogic(
     }
     throw new McpError(
       BaseErrorCode.INTERNAL_ERROR,
-      `OpenRouter API error (${error.status || "unknown status"}): ${error.message}`,
+      `OpenRouter API error (${error.status || "unknown status"}): ${
+        error.message
+      }`,
       errorDetails,
     );
   }
@@ -252,7 +262,8 @@ class OpenRouterProvider {
       });
       this.status = "ready";
       logger.info("OpenRouter Service Initialized and Ready", opContext);
-    } catch (error: any) {
+    } catch (e: unknown) {
+      const error = e as Error;
       this.status = "error";
       this.initializationError = error;
       logger.error("Failed to initialize OpenRouter client", {

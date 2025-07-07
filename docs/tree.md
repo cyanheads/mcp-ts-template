@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-06 02:53:43
+Generated on: 2025-07-07 15:06:40
 
 ```
 mcp-ts-template
@@ -130,6 +130,7 @@ mcp-ts-template
 ├── CHANGELOG.md
 ├── CLAUDE.md
 ├── Dockerfile
+├── eslint.config.js
 ├── LICENSE
 ├── mcp.json
 ├── package-lock.json

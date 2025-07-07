@@ -334,7 +334,6 @@ export class Sanitization {
     };
 
     let wasAbsoluteInitially = false;
-    let convertedToRelative = false;
 
     try {
       if (!input || typeof input !== "string")
@@ -379,7 +378,6 @@ export class Sanitization {
               /^(?:[A-Za-z]:)?[/\\]+/,
               "",
             );
-            convertedToRelative = true;
           } else {
             finalSanitizedPath = normalized;
           }
@@ -506,7 +504,7 @@ export class Sanitization {
     }
 
     let clamped = false;
-    let originalValueForLog = value;
+    const originalValueForLog = value;
     if (min !== undefined && value < min) {
       value = min;
       clamped = true;
@@ -555,8 +553,8 @@ export class Sanitization {
       if (!input || typeof input !== "object") return input;
 
       const clonedInput =
-        typeof structuredClone === "function"
-          ? structuredClone(input)
+        typeof globalThis.structuredClone === "function"
+          ? globalThis.structuredClone(input)
           : JSON.parse(JSON.stringify(input));
       this.redactSensitiveFields(clonedInput);
       return clonedInput;

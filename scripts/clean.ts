@@ -70,19 +70,14 @@ const clean = async (): Promise<void> => {
       dirsToClean.map(async (dir): Promise<CleanResult> => {
         const dirPath = join(process.cwd(), dir);
 
-        try {
-          const exists = await directoryExists(dirPath);
+        const exists = await directoryExists(dirPath);
 
-          if (!exists) {
-            return { dir, status: "skipped", reason: "does not exist" };
-          }
-
-          await rm(dirPath, { recursive: true, force: true });
-          return { dir, status: "success" };
-        } catch (error) {
-          // Rethrow to be caught by Promise.allSettled's rejection case
-          throw error;
+        if (!exists) {
+          return { dir, status: "skipped", reason: "does not exist" };
         }
+
+        await rm(dirPath, { recursive: true, force: true });
+        return { dir, status: "success" };
       }),
     );
 

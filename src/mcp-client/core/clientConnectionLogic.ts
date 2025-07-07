@@ -110,8 +110,18 @@ export async function establishNewMcpConnection(
   // These handlers are crucial for reacting to errors and closures.
   // They will call the main disconnectMcpClient from clientManager.ts for cleanup.
   client.onerror = (clientError: Error) => {
-    const errorCode = (clientError as any).code;
-    const errorData = (clientError as any).data;
+    const errorCode =
+      typeof clientError === "object" &&
+      clientError !== null &&
+      "code" in clientError
+        ? (clientError as { code: unknown }).code
+        : "UNKNOWN";
+    const errorData =
+      typeof clientError === "object" &&
+      clientError !== null &&
+      "data" in clientError
+        ? (clientError as { data: unknown }).data
+        : undefined;
     logger.error(`MCP SDK Client error for server ${serverName}`, {
       ...operationContext,
       error: clientError.message,

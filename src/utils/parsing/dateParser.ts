@@ -4,7 +4,7 @@
  * @module src/utils/parsing/dateParser
  */
 import * as chrono from "chrono-node";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
+import { BaseErrorCode } from "../../types-global/errors.js";
 import { ErrorHandler, logger, RequestContext } from "../index.js";
 
 /**
@@ -18,7 +18,7 @@ import { ErrorHandler, logger, RequestContext } from "../index.js";
  * @throws {McpError} If an unexpected error occurs during parsing.
  * @private
  */
-async function parseDateString(
+export async function parseDateString(
   text: string,
   context: RequestContext,
   refDate?: Date,
@@ -61,7 +61,7 @@ async function parseDateString(
  * @throws {McpError} If an unexpected error occurs during parsing.
  * @private
  */
-async function parseDateStringDetailed(
+export async function parseDateStringDetailed(
   text: string,
   context: RequestContext,
   refDate?: Date,

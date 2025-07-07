@@ -5,7 +5,7 @@
  * @module src/utils/scheduling/scheduler
  */
 
-import cron, { ScheduledTask } from "node-cron";
+import cron, { ScheduledTask, createTask } from "node-cron";
 import { logger, RequestContext } from "../internal/index.js";
 import { requestContextService } from "../internal/requestContext.js";
 
@@ -74,46 +74,40 @@ export class SchedulerService {
       throw new Error(`Invalid cron schedule: ${schedule}`);
     }
 
-    const task = cron.schedule(
-      schedule,
-      async () => {
-        const job = this.jobs.get(id);
-        if (job && job.isRunning) {
-          logger.warning(
-            `Job '${id}' is already running. Skipping this execution.`,
-            {
-              requestId: `job-skip-${id}`,
-              timestamp: new Date().toISOString(),
-            },
-          );
-          return;
-        }
+    const task = createTask(schedule, async () => {
+      const job = this.jobs.get(id);
+      if (job && job.isRunning) {
+        logger.warning(
+          `Job '${id}' is already running. Skipping this execution.`,
+          {
+            requestId: `job-skip-${id}`,
+            timestamp: new Date().toISOString(),
+          },
+        );
+        return;
+      }
 
+      if (job) {
+        job.isRunning = true;
+      }
+
+      const context = requestContextService.createRequestContext({
+        jobId: id,
+        schedule,
+      });
+
+      logger.info(`Starting job '${id}'...`, context);
+      try {
+        await Promise.resolve(taskFunction(context));
+        logger.info(`Job '${id}' completed successfully.`, context);
+      } catch (error) {
+        logger.error(`Job '${id}' failed.`, error as Error, context);
+      } finally {
         if (job) {
-          job.isRunning = true;
+          job.isRunning = false;
         }
-
-        const context = requestContextService.createRequestContext({
-          jobId: id,
-          schedule,
-        });
-
-        logger.info(`Starting job '${id}'...`, context);
-        try {
-          await Promise.resolve(taskFunction(context));
-          logger.info(`Job '${id}' completed successfully.`, context);
-        } catch (error) {
-          logger.error(`Job '${id}' failed.`, error as Error, context);
-        } finally {
-          if (job) {
-            job.isRunning = false;
-          }
-        }
-      },
-      {
-        scheduled: false, // Do not start immediately
-      } as any,
-    );
+      }
+    });
 
     const newJob: Job = {
       id,

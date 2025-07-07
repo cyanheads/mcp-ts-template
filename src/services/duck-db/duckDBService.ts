@@ -72,50 +72,60 @@ export class DuckDBService implements IDuckDBService {
     }
   }
 
+  private validateParams(
+    params: unknown,
+    context: RequestContext,
+  ): duckdb.DuckDBValue[] | undefined {
+    if (params === undefined) {
+      return undefined;
+    }
+    if (Array.isArray(params)) {
+      return params as duckdb.DuckDBValue[];
+    }
+    throw new McpError(
+      BaseErrorCode.INVALID_INPUT,
+      "DuckDB service only supports array-style parameters, not named objects.",
+      context,
+    );
+  }
+
   async run(
     sql: string,
-    params?: unknown[] | Record<string, unknown>,
+    params?: unknown[],
   ): Promise<void> {
     const context = requestContextService.createRequestContext({
       operation: "DuckDBService.run",
       initialData: { sql, params },
     });
     this.ensureInitialized(context);
-    // Type assertion for params needed due to DuckDBQueryExecutor's specific type
-    return this.queryExecutor!.run(
-      sql,
-      params as duckdb.DuckDBValue[] | Record<string, duckdb.DuckDBValue>,
-    );
+    const validatedParams = this.validateParams(params, context);
+    return this.queryExecutor!.run(sql, validatedParams);
   }
 
   async query<T = Record<string, unknown>>(
     sql: string,
-    params?: unknown[] | Record<string, unknown>,
+    params?: unknown[],
   ): Promise<DuckDBQueryResult<T>> {
     const context = requestContextService.createRequestContext({
       operation: "DuckDBService.query",
       initialData: { sql, params },
     });
     this.ensureInitialized(context);
-    return this.queryExecutor!.query<T>(
-      sql,
-      params as duckdb.DuckDBValue[] | Record<string, duckdb.DuckDBValue>,
-    );
+    const validatedParams = this.validateParams(params, context);
+    return this.queryExecutor!.query<T>(sql, validatedParams);
   }
 
   async stream(
     sql: string,
-    params?: unknown[] | Record<string, unknown>,
-  ): Promise<duckdb.DuckDBPendingResult> {
+    params?: unknown[],
+  ): Promise<duckdb.DuckDBResult> {
     const context = requestContextService.createRequestContext({
       operation: "DuckDBService.stream",
       initialData: { sql, params },
     });
     this.ensureInitialized(context);
-    return this.queryExecutor!.stream(
-      sql,
-      params as duckdb.DuckDBValue[] | Record<string, duckdb.DuckDBValue>,
-    );
+    const validatedParams = this.validateParams(params, context);
+    return this.queryExecutor!.stream(sql, validatedParams);
   }
 
   async prepare(sql: string): Promise<duckdb.DuckDBPreparedStatement> {

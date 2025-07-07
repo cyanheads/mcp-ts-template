@@ -25,6 +25,8 @@ export enum BaseErrorCode {
   CONFLICT = "CONFLICT",
   /** The request failed due to invalid input parameters or data. */
   VALIDATION_ERROR = "VALIDATION_ERROR",
+  /** The provided input is invalid for the operation. */
+  INVALID_INPUT = "INVALID_INPUT",
   /** An error occurred while parsing input data (e.g., date string, JSON). */
   PARSING_ERROR = "PARSING_ERROR",
   /** The request was rejected because the client has exceeded rate limits. */

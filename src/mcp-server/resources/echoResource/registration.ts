@@ -13,7 +13,7 @@ import type {
   ListResourcesResult,
   ReadResourceResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { BaseErrorCode } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,

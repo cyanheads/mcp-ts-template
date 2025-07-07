@@ -39,12 +39,18 @@ export function registerFetchImageTestTool(server: McpServer): void {
         FetchImageTestInputSchema.shape,
         async (
           input: FetchImageTestInput,
-          mcpProvidedContext: any,
+          mcpProvidedContext: unknown,
         ): Promise<CallToolResult> => {
+          const parentRequestId =
+            mcpProvidedContext &&
+            typeof mcpProvidedContext === "object" &&
+            "requestId" in mcpProvidedContext
+              ? (mcpProvidedContext as { requestId: string }).requestId
+              : registrationContext.requestId;
+
           const handlerContext: RequestContext =
             requestContextService.createRequestContext({
-              parentRequestId:
-                mcpProvidedContext?.requestId || registrationContext.requestId,
+              parentRequestId,
               operation: "fetchImageTestToolHandler",
               toolName: toolName,
               input,

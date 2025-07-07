@@ -53,8 +53,9 @@ try {
   // import.meta.url gives the URL of the current module.
   const currentModuleDir = dirname(fileURLToPath(import.meta.url));
   projectRoot = findProjectRoot(currentModuleDir);
-} catch (error: any) {
-  console.error(`FATAL: Error determining project root: ${error.message}`);
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(`FATAL: Error determining project root: ${errorMessage}`);
   // Fallback to process.cwd() if project root cannot be determined.
   // This might happen in unusual execution environments.
   projectRoot = process.cwd();
@@ -249,10 +250,12 @@ const ensureDirectory = (
         }
         return null;
       }
-    } catch (statError: any) {
+    } catch (statError: unknown) {
       if (process.stdout.isTTY) {
+        const statErrorMessage =
+          statError instanceof Error ? statError.message : String(statError);
         console.error(
-          `Error accessing ${dirName} path ${resolvedDirPath}: ${statError.message}`,
+          `Error accessing ${dirName} path ${resolvedDirPath}: ${statErrorMessage}`,
         );
       }
       return null;

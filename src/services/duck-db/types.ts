@@ -35,7 +35,7 @@ export interface DuckDBServiceConfig {
  */
 export interface DuckDBQuery {
   sql: string;
-  params?: unknown[] | Record<string, unknown>;
+  params?: unknown[];
 }
 
 /**
@@ -64,24 +64,24 @@ export interface IDuckDBService {
   /**
    * Executes a SQL query that does not return a large result set (e.g., CREATE, INSERT, UPDATE, DELETE).
    * @param {string} sql - The SQL query string.
-   * @param {unknown[] | Record<string, unknown>} [params] - Optional parameters for the query.
+   * @param {unknown[]} [params] - Optional parameters for the query.
    * @returns {Promise<void>}
    * @throws {McpError} If the query fails or the service is not initialized.
    */
-  run(sql: string, params?: unknown[] | Record<string, unknown>): Promise<void>;
+  run(sql: string, params?: unknown[]): Promise<void>;
 
   /**
    * Executes a SQL query and returns all resulting rows.
    * Suitable for queries that return a manageable number of rows.
    * @template T - The expected type of the row objects.
    * @param {string} sql - The SQL query string.
-   * @param {unknown[] | Record<string, unknown>} [params] - Optional parameters for the query.
+   * @param {unknown[]} [params] - Optional parameters for the query.
    * @returns {Promise<DuckDBQueryResult<T>>} The query result.
    * @throws {McpError} If the query fails or the service is not initialized.
    */
   query<T = Record<string, unknown>>(
     sql: string,
-    params?: unknown[] | Record<string, unknown>,
+    params?: unknown[],
   ): Promise<DuckDBQueryResult<T>>;
 
   /**
@@ -89,14 +89,14 @@ export interface IDuckDBService {
    * Suitable for queries that return very large result sets.
    * The caller is responsible for closing the stream.
    * @param {string} sql - The SQL query string.
-   * @param {unknown[] | Record<string, unknown>} [params] - Optional parameters for the query.
+   * @param {unknown[]} [params] - Optional parameters for the query.
    * @returns {Promise<duckdb.DuckDBStreamingResult>} A streaming result object.
    * @throws {McpError} If the query fails or the service is not initialized.
    */
   stream(
     sql: string,
-    params?: unknown[] | Record<string, unknown>,
-  ): Promise<duckdb.DuckDBPendingResult>;
+    params?: unknown[],
+  ): Promise<duckdb.DuckDBResult>;
 
   /**
    * Creates a prepared statement.

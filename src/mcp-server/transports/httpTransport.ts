@@ -32,11 +32,7 @@ import {
   RequestContext,
   requestContextService,
 } from "../../utils/index.js";
-import {
-  jwtAuthMiddleware,
-  oauthMiddleware,
-  type AuthInfo,
-} from "./auth/index.js";
+import { jwtAuthMiddleware, oauthMiddleware } from "./auth/index.js";
 import { httpErrorHandler } from "./httpErrorHandler.js";
 
 const HTTP_PORT = config.mcpHttpPort;
@@ -54,14 +50,8 @@ const transports: Record<string, StreamableHTTPServerTransport> = {};
 async function isPortInUse(
   port: number,
   host: string,
-  parentContext: RequestContext,
+  _parentContext: RequestContext,
 ): Promise<boolean> {
-  const checkContext = requestContextService.createRequestContext({
-    ...parentContext,
-    operation: "isPortInUse",
-    port,
-    host,
-  });
   return new Promise((resolve) => {
     const tempServer = http.createServer();
     tempServer
@@ -87,47 +77,58 @@ function startHttpServerWithRetry(
     operation: "startHttpServerWithRetry",
   });
 
-  return new Promise(async (resolve, reject) => {
-    for (let i = 0; i <= maxRetries; i++) {
-      const currentPort = initialPort + i;
-      const attemptContext = {
-        ...startContext,
-        port: currentPort,
-        attempt: i + 1,
-      };
-
-      if (await isPortInUse(currentPort, host, attemptContext)) {
-        logger.warning(
-          `Port ${currentPort} is in use, retrying...`,
-          attemptContext,
-        );
-        continue;
-      }
-
-      try {
-        const serverInstance = serve(
-          { fetch: app.fetch, port: currentPort, hostname: host },
-          (info: { address: string; port: number }) => {
-            const serverAddress = `http://${info.address}:${info.port}${MCP_ENDPOINT_PATH}`;
-            logger.info(`HTTP transport listening at ${serverAddress}`, {
-              ...attemptContext,
-              address: serverAddress,
-            });
-            if (process.stdout.isTTY) {
-              console.log(`\n🚀 MCP Server running at: ${serverAddress}\n`);
-            }
-          },
-        );
-        resolve(serverInstance);
+  return new Promise((resolve, reject) => {
+    const tryBind = (port: number, attempt: number) => {
+      if (attempt > maxRetries + 1) {
+        reject(new Error("Failed to bind to any port after multiple retries."));
         return;
-      } catch (err: any) {
-        if (err.code !== "EADDRINUSE") {
-          reject(err);
-          return;
-        }
       }
-    }
-    reject(new Error("Failed to bind to any port after multiple retries."));
+
+      const attemptContext = { ...startContext, port, attempt };
+
+      isPortInUse(port, host, attemptContext)
+        .then((inUse) => {
+          if (inUse) {
+            logger.warning(
+              `Port ${port} is in use, retrying...`,
+              attemptContext,
+            );
+            setTimeout(() => tryBind(port + 1, attempt + 1), 50); // Small delay
+            return;
+          }
+
+          try {
+            const serverInstance = serve(
+              { fetch: app.fetch, port, hostname: host },
+              (info: { address: string; port: number }) => {
+                const serverAddress = `http://${info.address}:${info.port}${MCP_ENDPOINT_PATH}`;
+                logger.info(`HTTP transport listening at ${serverAddress}`, {
+                  ...attemptContext,
+                  address: serverAddress,
+                });
+                if (process.stdout.isTTY) {
+                  console.log(`\n🚀 MCP Server running at: ${serverAddress}\n`);
+                }
+              },
+            );
+            resolve(serverInstance);
+          } catch (err: unknown) {
+            if (
+              err &&
+              typeof err === "object" &&
+              "code" in err &&
+              (err as { code: string }).code !== "EADDRINUSE"
+            ) {
+              reject(err);
+            } else {
+              setTimeout(() => tryBind(port + 1, attempt + 1), 50);
+            }
+          }
+        })
+        .catch((err) => reject(err));
+    };
+
+    tryBind(initialPort, 1);
   });
 }
 

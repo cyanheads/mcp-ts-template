@@ -125,7 +125,7 @@ function parseSpec(data: string, contentType: string | null): object | null {
           console.log("Successfully parsed as YAML.");
           return parsedYaml;
         }
-      } catch (yamlError) {
+      } catch (_yamlError) {
         console.log("YAML parsing failed. Attempting to parse as JSON...");
         try {
           const parsedJson = JSON.parse(data);
@@ -133,7 +133,7 @@ function parseSpec(data: string, contentType: string | null): object | null {
             console.log("Successfully parsed as JSON.");
             return parsedJson;
           }
-        } catch (jsonError) {
+        } catch (_jsonError) {
           console.warn(
             "Could not parse content as YAML or JSON after attempting both.",
           );
@@ -152,7 +152,7 @@ function parseSpec(data: string, contentType: string | null): object | null {
           );
           return parsedJson;
         }
-      } catch (jsonError) {
+      } catch (_jsonError) {
         console.warn(
           "Could not parse content as YAML or JSON after attempting both.",
         );
@@ -210,13 +210,20 @@ async function fetchAndProcessSpec(): Promise<void> {
 
   try {
     await fs.access(outputDirAbsolute);
-  } catch (error: any) {
-    if (error.code === "ENOENT") {
+  } catch (error: unknown) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
       console.log(`Output directory not found. Creating: ${outputDirAbsolute}`);
       await fs.mkdir(outputDirAbsolute, { recursive: true });
     } else {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.error(
-        `Error accessing output directory ${outputDirAbsolute}: ${error.message}. Aborting.`,
+        `Error accessing output directory ${outputDirAbsolute}: ${errorMessage}. Aborting.`,
       );
       process.exit(1);
     }

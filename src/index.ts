@@ -241,7 +241,7 @@ const start = async (): Promise<void> => {
 
     process.on(
       "unhandledRejection",
-      async (reason: unknown, promise: Promise<unknown>) => {
+      async (reason: unknown, _promise: Promise<unknown>) => {
         const rejectionContext = {
           ...startupContext,
           triggerEvent: "unhandledRejection",
