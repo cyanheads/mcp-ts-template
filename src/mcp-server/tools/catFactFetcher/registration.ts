@@ -6,7 +6,6 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
@@ -18,6 +17,7 @@ import {
   CatFactFetcherInput,
   CatFactFetcherInputSchema,
   catFactFetcherLogic,
+  CatFactFetcherResponseSchema,
 } from "./logic.js";
 
 /**
@@ -43,30 +43,36 @@ export const registerCatFactFetcherTool = async (
 
   await ErrorHandler.tryCatch(
     async () => {
-      server.tool(
+      server.registerTool(
         toolName,
-        toolDescription,
-        CatFactFetcherInputSchema.shape,
-        async (
-          params: CatFactFetcherInput,
-          mcpContext: unknown,
-        ): Promise<CallToolResult> => {
+        {
+          title: "Get Random Cat Fact",
+          description: toolDescription,
+          inputSchema: CatFactFetcherInputSchema.shape,
+          outputSchema: CatFactFetcherResponseSchema.shape,
+          annotations: {
+            readOnlyHint: true,
+            openWorldHint: true,
+          },
+        },
+        async (params: CatFactFetcherInput) => {
           const handlerContext: RequestContext =
             requestContextService.createRequestContext({
               parentRequestId: registrationContext.requestId,
               operation: "HandleToolRequest",
               toolName: toolName,
-              mcpToolContext: mcpContext,
               input: params,
             });
 
           try {
             const result = await catFactFetcherLogic(params, handlerContext);
+            // Return both structuredContent for modern clients and
+            // stringified content for backward compatibility.
             return {
+              structuredContent: result,
               content: [
                 { type: "text", text: JSON.stringify(result, null, 2) },
               ],
-              isError: false,
             };
           } catch (error) {
             const handledError = ErrorHandler.handleError(error, {
@@ -85,19 +91,8 @@ export const registerCatFactFetcherTool = async (
                   );
 
             return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    error: {
-                      code: mcpError.code,
-                      message: mcpError.message,
-                      details: mcpError.details,
-                    },
-                  }),
-                },
-              ],
               isError: true,
+              content: [{ type: "text", text: `Error: ${mcpError.message}` }],
             };
           }
         },

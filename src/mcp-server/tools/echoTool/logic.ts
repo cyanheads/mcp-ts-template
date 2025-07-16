@@ -51,9 +51,6 @@ export const EchoToolInputSchema = z
         "Whether to include an ISO 8601 timestamp in the response. Defaults to true.",
       ),
   })
-  .describe(
-    "Zod schema for validating the input arguments for the echo_message tool.",
-  );
 
 /**
  * TypeScript type inferred from `EchoToolInputSchema`.
@@ -62,22 +59,39 @@ export const EchoToolInputSchema = z
 export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;
 
 /**
+ * Zod schema for the successful response of the `echo_message` tool.
+ */
+export const EchoToolResponseSchema = z.object({
+  originalMessage: z
+    .string()
+    .describe("The original message provided in the input."),
+  formattedMessage: z
+    .string()
+    .describe("The message after applying the specified formatting mode."),
+  repeatedMessage: z
+    .string()
+    .describe(
+      "The formatted message repeated the specified number of times, joined by spaces.",
+    ),
+  mode: z.enum(ECHO_MODES).describe("The formatting mode that was applied."),
+  repeatCount: z
+    .number()
+    .int()
+    .min(1)
+    .describe("The number of times the message was repeated."),
+  timestamp: z
+    .string()
+    .datetime()
+    .optional()
+    .describe(
+      "Optional ISO 8601 timestamp of when the response was generated.",
+    ),
+});
+
+/**
  * Defines the structure of the JSON payload returned by the `echo_message` tool.
  */
-export interface EchoToolResponse {
-  /** The original message provided in the input. */
-  originalMessage: string;
-  /** The message after applying the specified formatting mode. */
-  formattedMessage: string;
-  /** The formatted message repeated the specified number of times, joined by spaces. */
-  repeatedMessage: string;
-  /** The formatting mode that was applied. */
-  mode: (typeof ECHO_MODES)[number];
-  /** The number of times the message was repeated. */
-  repeatCount: number;
-  /** Optional ISO 8601 timestamp of when the response was generated. */
-  timestamp?: string;
-}
+export type EchoToolResponse = z.infer<typeof EchoToolResponseSchema>;
 
 /**
  * Processes the core logic for the `echo_message` tool.

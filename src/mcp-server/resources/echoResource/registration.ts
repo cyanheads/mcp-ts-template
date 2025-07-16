@@ -20,7 +20,7 @@ import {
   RequestContext,
   requestContextService,
 } from "../../../utils/index.js";
-import { EchoResourceParams, echoResourceLogic } from "./echoResourceLogic.js";
+import { echoResourceLogic, EchoResourceParams } from "./echoResourceLogic.js";
 
 /**
  * Registers the 'echo' resource and its handlers with the provided MCP server instance.

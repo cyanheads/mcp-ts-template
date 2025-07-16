@@ -6,7 +6,6 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
@@ -14,7 +13,12 @@ import {
   RequestContext,
   requestContextService,
 } from "../../../utils/index.js";
-import { EchoToolInput, EchoToolInputSchema, echoToolLogic } from "./logic.js";
+import {
+  EchoToolInput,
+  EchoToolInputSchema,
+  echoToolLogic,
+  EchoToolResponseSchema,
+} from "./logic.js";
 
 /**
  * Registers the 'echo_message' tool and its handler with the provided MCP server instance.
@@ -37,30 +41,36 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
 
   await ErrorHandler.tryCatch(
     async () => {
-      server.tool(
+      server.registerTool(
         toolName,
-        toolDescription,
-        EchoToolInputSchema.shape,
-        async (
-          params: EchoToolInput,
-          mcpContext: unknown,
-        ): Promise<CallToolResult> => {
+        {
+          title: "Echo Message",
+          description: toolDescription,
+          inputSchema: EchoToolInputSchema.shape,
+          outputSchema: EchoToolResponseSchema.shape,
+          annotations: {
+            readOnlyHint: true,
+            openWorldHint: false,
+          },
+        },
+        async (params: EchoToolInput) => {
           const handlerContext: RequestContext =
             requestContextService.createRequestContext({
               parentRequestId: registrationContext.requestId,
               operation: "HandleToolRequest",
               toolName: toolName,
-              mcpToolContext: mcpContext,
               input: params,
             });
 
           try {
             const result = await echoToolLogic(params, handlerContext);
+            // Return both structuredContent for modern clients and
+            // stringified content for backward compatibility.
             return {
+              structuredContent: result,
               content: [
                 { type: "text", text: JSON.stringify(result, null, 2) },
               ],
-              isError: false,
             };
           } catch (error) {
             const handledError = ErrorHandler.handleError(error, {
@@ -79,19 +89,8 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
                   );
 
             return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    error: {
-                      code: mcpError.code,
-                      message: mcpError.message,
-                      details: mcpError.details,
-                    },
-                  }),
-                },
-              ],
               isError: true,
+              content: [{ type: "text", text: `Error: ${mcpError.message}` }],
             };
           }
         },

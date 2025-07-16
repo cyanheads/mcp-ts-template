@@ -4,7 +4,6 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
@@ -16,6 +15,7 @@ import {
   FetchImageTestInput,
   FetchImageTestInputSchema,
   fetchImageTestLogic,
+  FetchImageTestResponseSchema,
 } from "./logic.js";
 
 /**
@@ -33,24 +33,22 @@ export function registerFetchImageTestTool(server: McpServer): void {
 
   ErrorHandler.tryCatch(
     async () => {
-      server.tool(
+      server.registerTool(
         toolName,
-        toolDescription,
-        FetchImageTestInputSchema.shape,
-        async (
-          input: FetchImageTestInput,
-          mcpProvidedContext: unknown,
-        ): Promise<CallToolResult> => {
-          const parentRequestId =
-            mcpProvidedContext &&
-            typeof mcpProvidedContext === "object" &&
-            "requestId" in mcpProvidedContext
-              ? (mcpProvidedContext as { requestId: string }).requestId
-              : registrationContext.requestId;
-
+        {
+          title: "Fetch Cat Image",
+          description: toolDescription,
+          inputSchema: FetchImageTestInputSchema.shape,
+          outputSchema: FetchImageTestResponseSchema.shape,
+          annotations: {
+            readOnlyHint: true,
+            openWorldHint: true,
+          },
+        },
+        async (input: FetchImageTestInput) => {
           const handlerContext: RequestContext =
             requestContextService.createRequestContext({
-              parentRequestId,
+              parentRequestId: registrationContext.requestId,
               operation: "fetchImageTestToolHandler",
               toolName: toolName,
               input,
@@ -59,6 +57,7 @@ export function registerFetchImageTestTool(server: McpServer): void {
           try {
             const result = await fetchImageTestLogic(input, handlerContext);
             return {
+              structuredContent: result,
               content: [
                 {
                   type: "image",
@@ -66,7 +65,6 @@ export function registerFetchImageTestTool(server: McpServer): void {
                   mimeType: result.mimeType,
                 },
               ],
-              isError: false,
             };
           } catch (error) {
             const handledError = ErrorHandler.handleError(error, {
@@ -85,19 +83,8 @@ export function registerFetchImageTestTool(server: McpServer): void {
                   );
 
             return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    error: {
-                      code: mcpError.code,
-                      message: mcpError.message,
-                      details: mcpError.details,
-                    },
-                  }),
-                },
-              ],
               isError: true,
+              content: [{ type: "text", text: `Error: ${mcpError.message}` }],
             };
           }
         },

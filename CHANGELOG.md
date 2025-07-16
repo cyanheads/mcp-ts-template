@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2025-07-15
+
+### Changed
+- **Tooling Refactor**: Aligned all tools (`echoTool`, `catFactFetcher`, `imageTest`) with the `@modelcontextprotocol/sdk` v1.15.1 specification. This includes:
+  - Migrating from the legacy `server.tool()` method to the new `server.registerTool()` method.
+  - Implementing structured output schemas (`outputSchema`) for predictable and type-safe tool responses.
+  - Adding tool annotations (`readOnlyHint`, `openWorldHint`) to provide clients with better metadata about tool behavior.
+- **Dependencies**: Upgraded core dependencies, including `@modelcontextprotocol/sdk` to `^1.15.1`, and updated various other packages to their latest versions.
+- **Error Handling**: Refined error handling in tool registrations to be more concise and align with the new SDK patterns.
+
+## [1.6.4] - 2025-07-15
+
+### Added
+
+- **Security**: Implemented a new IP-based rate-limiting feature for the HTTP transport to protect against resource abuse. This is configurable via `MCP_RATE_LIMIT_WINDOW_MS`, `MCP_RATE_LIMIT_MAX_REQUESTS` environment variables.
+
+### Changed
+
+- **Dependencies**: Updated various dependencies to their latest versions, including `@modelcontextprotocol/sdk`, `@hono/node-server`, `eslint`, and `typescript-eslint`.
+- **Configuration**: Added new configuration options in `src/config/index.ts` to support the rate-limiting feature.
+- **Documentation**: Updated `docs/best-practices.md` with a detailed section on the new IP-based rate limiting, including configuration and security considerations.
+
 ## [1.6.3] - 2025-07-07
 
 ### Added

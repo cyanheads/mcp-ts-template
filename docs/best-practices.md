@@ -198,4 +198,26 @@ For interacting with external APIs (databases, etc.), use singleton provider cla
   - Protect tools by checking scopes. Use the `withRequiredScopes(["scope:read"])` utility inside your tool handler.
 - **Rate Limiting**: Protect against abuse by using the centralized `rateLimiter`.
 
+### IP-Based Rate Limiting (HTTP Transport)
+
+When running in `http` mode, the server automatically applies IP-based rate limiting to protect against denial-of-service attacks and resource abuse. This is handled by the `ipRateLimitMiddleware`.
+
+#### How It Works
+
+1.  **IP Detection**: The middleware inspects the `x-forwarded-for` HTTP header to identify the client's IP address.
+2.  **In-Memory Store**: It uses the global `rateLimiter` instance, which tracks the number of requests per IP address in an in-memory store.
+3.  **Configuration**: The rate-limiting parameters are fully configurable via environment variables.
+
+#### Configuration
+
+You can control the rate limiter's behavior by setting the following variables in your `.env` file:
+
+-   `MCP_RATE_LIMIT_WINDOW_MS`: The time window in milliseconds. (Default: `900000` / 15 minutes)
+-   `MCP_RATE_LIMIT_MAX_REQUESTS`: The maximum number of requests allowed per IP within the window. (Default: `25`)
+-   `MCP_RATE_LIMIT_SKIP_IN_DEVELOPMENT`: Set to `true` to disable rate limiting when `NODE_ENV` is `development`. (Default: `false`)
+
+#### Security Requirement: Trusted Proxy
+
+**CRITICAL**: The security of IP-based rate limiting relies entirely on the server running behind a trusted reverse proxy (e.g., Nginx, Caddy, Cloudflare). The proxy **must** be configured to correctly and securely set the `x-forwarded-for` header. If this header can be spoofed by a client, the rate limit can be trivially bypassed. **Do not expose the MCP HTTP server directly to the internet without a properly configured proxy.**
+
 This guide is the single source of truth for development standards. All code reviews will be conducted against these principles.

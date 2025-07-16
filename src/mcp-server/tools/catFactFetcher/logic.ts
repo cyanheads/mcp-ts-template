@@ -36,14 +36,28 @@ export const CatFactFetcherInputSchema = z
 export type CatFactFetcherInput = z.infer<typeof CatFactFetcherInputSchema>;
 
 /**
+ * Zod schema for the successful response of the `get_random_cat_fact` tool.
+ */
+export const CatFactFetcherResponseSchema = z.object({
+  fact: z.string().describe("The retrieved cat fact."),
+  length: z.number().int().describe("The character length of the cat fact."),
+  requestedMaxLength: z
+    .number()
+    .int()
+    .optional()
+    .describe("The maximum length that was requested for the fact."),
+  timestamp: z
+    .string()
+    .datetime()
+    .describe("ISO 8601 timestamp of when the response was generated."),
+});
+
+/**
  * Defines the structure of the JSON payload returned by the `get_random_cat_fact` tool handler.
  */
-export interface CatFactFetcherResponse {
-  fact: string;
-  length: number;
-  requestedMaxLength?: number;
-  timestamp: string;
-}
+export type CatFactFetcherResponse = z.infer<
+  typeof CatFactFetcherResponseSchema
+>;
 
 /**
  * Processes the core logic for the `get_random_cat_fact` tool.
