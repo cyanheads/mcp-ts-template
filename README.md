@@ -1,16 +1,16 @@
 # 🚀 MCP TypeScript Template: Agent, Server & Client
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.13.0-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
-[![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--03--26-lightgrey.svg)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.6.2-blue.svg)](./CHANGELOG.md)
+[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.15.1-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
+[![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--06--18-lightgrey.svg)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
+[![Version](https://img.shields.io/badge/Version-1.7.0-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
 
 **Jumpstart your [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) development with this comprehensive TypeScript Template for building autonomous agents, servers, and clients.**
 
-This template provides a solid, beginner-friendly foundation for building all components of the MCP ecosystem, adhering to the **MCP 2025-03-26 specification**. It includes a powerful agent framework, a fully-featured server, a robust client, production-ready utilities, and clear documentation to get you up and running quickly.
+This template provides a solid, beginner-friendly foundation for building all components of the MCP ecosystem, adhering to the **MCP 2025-06-18 specification**. It includes a powerful agent framework, a fully-featured server, a robust client, production-ready utilities, and clear documentation to get you up and running quickly.
 
 ## 🏛️ Three-Part Architecture
 
