@@ -63,15 +63,16 @@ export const EchoToolInputSchema = z.object({
 
 // 2. Define and export TypeScript types
 export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;
-export interface EchoToolResponse {
-  originalMessage: string;
-  formattedMessage: string;
-  repeatedMessage: string;
+
+// 3. Define and export the Zod response schema for structured output
+export const EchoToolResponseSchema = z.object({
+  originalMessage: z.string().describe("The original message provided."),
   // ... other fields
-}
+});
+export type EchoToolResponse = z.infer<typeof EchoToolResponseSchema>;
 
 /**
- * 3. Implement and export the core logic
+ * 4. Implement and export the core logic
  * @param params - The validated input parameters for the echo tool.
  * @param context - The request context, used for logging and tracing the operation.
  * @returns A promise that resolves with an object containing the processed response data.
@@ -99,14 +100,18 @@ The `registration.ts` file wires the logic into the MCP server and handles all o
  * @module src/mcp-server/tools/echoTool/registration
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import {
   ErrorHandler,
   logger,
   requestContextService,
 } from "../../../utils/index.js";
 // 1. Import everything from the logic file
-import { EchoToolInput, EchoToolInputSchema, echoToolLogic } from "./logic.js";
+import {
+  EchoToolInput,
+  EchoToolInputSchema,
+  echoToolLogic,
+  EchoToolResponseSchema,
+} from "./logic.js";
 
 /**
  * Registers the 'echo_message' tool with the provided MCP server instance.
@@ -114,14 +119,21 @@ import { EchoToolInput, EchoToolInputSchema, echoToolLogic } from "./logic.js";
  */
 export const registerEchoTool = async (server: McpServer): Promise<void> => {
   const toolName = "echo_message";
-  const toolDescription =
-    "Echoes a message back with optional formatting and repetition.";
 
-  server.tool(
+  server.registerTool(
     toolName,
-    toolDescription,
-    EchoToolInputSchema.shape,
-    async (params: EchoToolInput, mcpContext: any): Promise<CallToolResult> => {
+    {
+      title: "Echo Message",
+      description:
+        "Echoes a message back with optional formatting and repetition.",
+      inputSchema: EchoToolInputSchema.shape,
+      outputSchema: EchoToolResponseSchema.shape, // Use structured output schema
+      annotations: {
+        readOnlyHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (params: EchoToolInput) => {
       const handlerContext = requestContextService.createRequestContext({
         /* ... */
       });
@@ -130,39 +142,28 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
         // 2. Invoke the core logic
         const result = await echoToolLogic(params, handlerContext);
 
-        // 3. Format the SUCCESS response
+        // 3. Format the SUCCESS response with structured content & string content for backward compatibility with MCP Clients that do not support structured content
         return {
+          structuredContent: result,
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-          isError: false,
         };
       } catch (error) {
         // 4. CATCH any error thrown by the logic
         const handledError = ErrorHandler.handleError(error, {
           /* ... */
         });
-
-        // 5. Format the ERROR response
         const mcpError =
           handledError instanceof McpError
             ? handledError
             : new McpError(/* ... */);
+
+        // 5. Format the ERROR response
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                error: {
-                  code: mcpError.code,
-                  message: mcpError.message,
-                  details: mcpError.details,
-                },
-              }),
-            },
-          ],
           isError: true,
+          content: [{ type: "text", text: `Error: ${mcpError.message}` }],
         };
       }
-    },
+    }
   );
 };
 ```
