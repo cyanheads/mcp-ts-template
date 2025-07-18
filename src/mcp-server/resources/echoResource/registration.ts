@@ -95,13 +95,12 @@ export const registerEchoResource = async (
               ],
             };
           } catch (error) {
-            const handledError = ErrorHandler.handleError(error, {
+            // Re-throw to be caught by the SDK's top-level error handler
+            throw ErrorHandler.handleError(error, {
               operation: "echoResourceReadHandler",
               context: handlerContext,
               input: { uri: uri.href, params },
             });
-            // Re-throw to be caught by the SDK's top-level error handler
-            throw handledError;
           }
         },
       );

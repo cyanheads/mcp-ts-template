@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.1] - 2025-07-17
+
+### Changed
+- **Error Handling**: Overhauled the error handling mechanism across all tools (`echoTool`, `catFactFetcher`, `imageTest`) and resources (`echoResource`) to align with the latest `McpError` standards. Handlers now consistently return a structured error object (`isError: true`, `structuredContent: { code, message, details }`) on failure, providing more detailed and actionable error information to the client.
+- **Dependencies**: Upgraded core dependencies, including `@modelcontextprotocol/sdk` to `^1.16.0`, `@supabase/supabase-js` to `^2.52.0`, and `openai` to `^5.10.1`.
+- **Documentation**: Updated `.clinerules` and `docs/best-practices.md` to reflect the new error handling patterns and dependency versions.
+
 ## [1.7.0] - 2025-07-15
 
 ### Changed

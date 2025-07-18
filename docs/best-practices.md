@@ -1,8 +1,8 @@
 ````markdown
 # mcp-ts-template: Architectural Standard & Developer Mandate
 
-**Effective Date:** 2025-07-15
-**Version:** 2.1
+**Effective Date:** 2025-07-17
+**Version:** 2.2
 
 ## Preamble
 
@@ -55,7 +55,7 @@ The logic.ts file defines the tool's contract (schemas) and its core function. I
  */
 import { z } from "zod";
 import { logger, type RequestContext } from "../../../utils/index.js";
-import { McpError } from "@modelcontextprotocol/sdk"; // Ensure McpError is available for throwing
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 
 // 1. DEFINE the Zod input schema. This is the contract for the tool's input.
 // CRITICAL: The descriptions provided via .describe() for the object and each field
@@ -102,10 +102,10 @@ export async function echoToolLogic(
   // Example of a logic failure.
   if (params.message === "fail") {
     // CRITICAL: Logic layer MUST throw a structured error on failure.
-    throw new McpError({
-      code: "INVALID_ARGUMENT",
-      message: "The message was 'fail'.",
-    });
+    throw new McpError(
+      BaseErrorCode.VALIDATION_ERROR,
+      "The message was 'fail'.",
+    );
   }
 
   // On success, RETURN a structured output object adhering to the response schema.
@@ -125,7 +125,7 @@ The registration.ts file acts as the handler, connecting the pure logic to the M
  * @fileoverview Handles registration and error handling for the `echo_message` tool.
  * @module src/mcp-server/tools/echoTool/registration
  */
-import { McpServer, McpError } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   ErrorHandler,
   logger,
@@ -180,13 +180,21 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
           error,
           ...handlerContext,
         });
-        const mcpError = ErrorHandler.handleError(error, handlerContext);
+        const mcpError = ErrorHandler.handleError(error, {
+          operation: toolName,
+          context: handlerContext,
+          input: params,
+        }) as McpError;
 
         // 5. FORMAT the ERROR response. It must be an error object.
         return {
           isError: true,
           content: [{ type: "text", text: mcpError.message }],
-          structuredContent: mcpError.serialize(),
+          structuredContent: {
+            code: mcpError.code,
+            message: mcpError.message,
+            details: mcpError.details,
+          },
         };
       }
     }

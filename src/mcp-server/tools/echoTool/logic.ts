@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import { logger, type RequestContext } from "../../../utils/index.js";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 
 /**
  * Defines the valid formatting modes for the echo tool operation.
@@ -110,6 +111,13 @@ export async function echoToolLogic(
     ...context,
     toolInput: params,
   });
+
+  if (params.message === "fail") {
+    throw new McpError(
+      BaseErrorCode.VALIDATION_ERROR,
+      "The message was 'fail'.",
+    );
+  }
 
   let formattedMessage = params.message;
   switch (params.mode) {

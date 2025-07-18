@@ -73,24 +73,20 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
               ],
             };
           } catch (error) {
-            const handledError = ErrorHandler.handleError(error, {
+            const mcpError = ErrorHandler.handleError(error, {
               operation: "echoToolHandler",
               context: handlerContext,
               input: params,
-            });
-
-            const mcpError =
-              handledError instanceof McpError
-                ? handledError
-                : new McpError(
-                    BaseErrorCode.INTERNAL_ERROR,
-                    "An unexpected error occurred in the echo tool.",
-                    { originalErrorName: handledError.name },
-                  );
+            }) as McpError;
 
             return {
               isError: true,
               content: [{ type: "text", text: `Error: ${mcpError.message}` }],
+              structuredContent: {
+                code: mcpError.code,
+                message: mcpError.message,
+                details: mcpError.details,
+              },
             };
           }
         },
