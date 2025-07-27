@@ -2,14 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.3] - 2025-07-27
+
+### Removed
+
+- **Agent Framework**: Removed the entire `src/agent/` directory. The agent framework is now maintained in a separate project to decouple it from the server template.
+- **MCP Client**: Removed the `src/mcp-client/` directory. The client implementation is also being moved to a separate project.
+
+### Changed
+
+- **Focus**: This template now focuses exclusively on providing a robust, production-ready foundation for building MCP servers.
+
 ## [1.7.2] - 2025-07-27
 
 ### Added
+
 - **Testing Framework**: Integrated Vitest for unit testing. Added `vitest.config.ts`, `tsconfig.vitest.json`, and new test scripts (`test`, `test:watch`, `test:coverage`) to `package.json`.
 - **Unit Tests**: Added initial unit tests for `echoTool` and `catFactFetcher` logic to validate both success and failure paths.
 - **Dependencies**: Added `@vitest/coverage-v8`, `vitest`, `@anatine/zod-mock`, `@faker-js/faker`, and `vite-tsconfig-paths` to support the new testing setup.
 
 ### Changed
+
 - **Configuration**:
   - Updated `.clinerules` with a new "Testing Mandates" section outlining the testing strategy.
   - Updated `.gitignore` to no longer ignore the `.vscode/` directory.
@@ -20,6 +33,7 @@ All notable changes to this project will be documented in this file.
 ## [1.7.1] - 2025-07-17
 
 ### Changed
+
 - **Error Handling**: Overhauled the error handling mechanism across all tools (`echoTool`, `catFactFetcher`, `imageTest`) and resources (`echoResource`) to align with the latest `McpError` standards. Handlers now consistently return a structured error object (`isError: true`, `structuredContent: { code, message, details }`) on failure, providing more detailed and actionable error information to the client.
 - **Dependencies**: Upgraded core dependencies, including `@modelcontextprotocol/sdk` to `^1.16.0`, `@supabase/supabase-js` to `^2.52.0`, and `openai` to `^5.10.1`.
 - **Documentation**: Updated `.clinerules` and `docs/best-practices.md` to reflect the new error handling patterns and dependency versions.
@@ -27,6 +41,7 @@ All notable changes to this project will be documented in this file.
 ## [1.7.0] - 2025-07-15
 
 ### Changed
+
 - **Tooling Refactor**: Aligned all tools (`echoTool`, `catFactFetcher`, `imageTest`) with the `@modelcontextprotocol/sdk` v1.15.1 specification. This includes:
   - Migrating from the legacy `server.tool()` method to the new `server.registerTool()` method.
   - Implementing structured output schemas (`outputSchema`) for predictable and type-safe tool responses.
@@ -41,16 +56,6 @@ All notable changes to this project will be documented in this file.
 - **Security**: Implemented a new IP-based rate-limiting feature for the HTTP transport to protect against resource abuse. This is configurable via `MCP_RATE_LIMIT_WINDOW_MS`, `MCP_RATE_LIMIT_MAX_REQUESTS` environment variables.
 
 ### Changed
-
-- **Dependencies**: Updated various dependencies to their latest versions, including `@modelcontextprotocol/sdk`, `@hono/node-server`, `eslint`, and `typescript-eslint`.
-- **Configuration**: Added new configuration options in `src/config/index.ts` to support the rate-limiting feature.
-- **Documentation**: Updated `docs/best-practices.md` with a detailed section on the new IP-based rate limiting, including configuration and security considerations.
-
-## [1.6.3] - 2025-07-07
-
-### Added
-
-- **Linting**: Integrated ESLint with TypeScript support (`@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser`) to enforce code quality and consistency. Added a new `eslint.config.js` and `lint`/`lint:fix` scripts to `package.json`.
 
 ### Changed
 
