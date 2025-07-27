@@ -8,15 +8,18 @@ All notable changes to this project will be documented in this file.
 
 - **Test Infrastructure:** Integrated `msw` (Mock Service Worker) to enable robust API mocking for unit and integration tests. This includes a full setup with handlers for success and error states, and global server setup/teardown hooks.
 - **Test Coverage:** Added comprehensive tests for `OpenRouterProvider`, `ErrorHandler`, `RateLimiter`, and `Sanitization` utilities, ensuring greater code reliability.
+- **New Tests:** Added new registration and logic tests for `echoTool`, `catFactFetcher`, and `imageTest` tools. Added new tests for `fetchWithTimeout` utility.
 
 ### Changed
 
 - **OpenRouterProvider:** Disabled default retries on the OpenAI client to prevent test timeouts and ensure immediate failure on `429` and `500` error codes.
 - **Sanitization Logic:** Refined the `sanitizeHtml` and `sanitizePath` methods to improve accuracy and provide stricter validation. The `sanitizeForLogging` method now uses a more robust keyword-based detection for redacting sensitive data.
+- **.clinerules**: Added a new rule mandating that files must be read before writing tests for them.
 
 ### Fixed
 
 - **Test Timeouts:** Resolved persistent timeout failures in `openRouterProvider.test.ts` by disabling client-side retries, allowing mock API error responses to be handled correctly.
+- **echoTool Logic Test**: Corrected the `echoTool` logic test to properly assert `McpError` details.
 
 ### Removed
 

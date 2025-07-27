@@ -266,4 +266,7 @@ A `tests/` directory exists at the project root and mirrors the `src/` directory
     -   `npm test`: Run all tests once.
     -   `npm test:watch`: Run tests in watch mode for development.
     -   `npm test:coverage`: Run all tests and generate a coverage report.
+
+VERY IMPORTANT NOTE: Always read the file before trying to create a test for it. NEVER attempt to edit a file without reading the current contents first. In general, you should never edit a file without reading it first. This is a critical part of the workflow and ensures that you understand the existing code before making changes or writing tests.
+
 ```

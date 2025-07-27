@@ -1,6 +1,19 @@
 import { http, HttpResponse } from "msw";
 
+const mockCatImage = Buffer.from("mock-cat-image-data");
+
 export const handlers = [
+  // Mock for successful cat image fetch
+  http.get("https://cataas.com/cat", () => {
+    return new HttpResponse(mockCatImage, {
+      status: 200,
+      headers: {
+        "Content-Type": "image/jpeg",
+        "Content-Length": mockCatImage.length.toString(),
+      },
+    });
+  }),
+
   // Mock for successful chat completion
   http.post("https://openrouter.ai/api/v1/chat/completions", async () => {
     return HttpResponse.json({
@@ -64,4 +77,13 @@ export const errorHandlers = {
       );
     },
   ),
+};
+
+export const catImageErrorHandlers = {
+  internalError: http.get("https://cataas.com/cat", () => {
+    return new HttpResponse(null, {
+      status: 500,
+      statusText: "Internal Server Error",
+    });
+  }),
 };
