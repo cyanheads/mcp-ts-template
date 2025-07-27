@@ -1,41 +1,33 @@
-# 🚀 MCP TypeScript Template: Agent, Server & Client
+# 🚀 MCP TypeScript Template: Server Edition
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.0-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--06--18-lightgrey.svg)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.7.2-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.7.3-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
 
-**Jumpstart your [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) development with this comprehensive TypeScript Template for building autonomous agents, servers, and clients.**
+**Jumpstart your [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) development with this comprehensive TypeScript Template for building robust, production-ready MCP servers.**
 
-This template provides a solid, beginner-friendly foundation for building all components of the MCP ecosystem, adhering to the **MCP 2025-06-18 specification**. It includes a powerful agent framework, a fully-featured server, a robust client, production-ready utilities, and clear documentation to get you up and running quickly.
+This template provides a comprehensive foundation for building rich Model Context Protocol servers, adhering to the **MCP 2025-06-18 specification** & modern best practices. It includes a fully-featured server, production-ready utilities, and clear documentation to get you up and running quickly.
 
-## 🏛️ Three-Part Architecture
-
-This template is organized into three primary, interconnected components:
-
-1.  **🤖 Agent (`src/agent/`)**: An autonomous agent framework. The agent can connect to multiple MCP servers, discover their tools, and use them to accomplish complex tasks based on a user's prompt. Use this as a starting point for your agents.
-2.  **🔌 MCP Server (`src/mcp-server/`)**: An extensible MCP server that can host custom tools and resources, making them available to agents and other clients.
-3.  **💻 MCP Client (`src/mcp-client/`)**: A robust client for connecting to and interacting with any MCP-compliant server. The agent uses this client to communicate with the outside world.
+> **Note on src/mcp-client & src/agent:** The MCP client & Agent components have been enhanced and moved to the [**atlas-mcp-agent**](https://github.com/cyanheads/atlas-mcp-agent) repository. This template now focuses exclusively on providing a best-in-class server implementation and framework.
 
 ## ✨ Key Features
 
-| Feature Area                | Description                                                                                                                                         | Key Components / Location                                            |
-| :-------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
-| **🤖 Agent Framework**      | Core `Agent` class and CLI for running autonomous agents that connect to MCP servers and use their tools to achieve goals.                          | `src/agent/`                                                         |
-| **🔌 MCP Server**           | Functional server with example tools (`EchoTool`, `CatFactFetcher`) and an `EchoResource`. Supports `stdio` and **Streamable HTTP** transports.     | `src/mcp-server/`                                                    |
-| **💻 MCP Client**           | Working client aligned with **MCP 2025-03-26 spec**. Connects via `mcp-config.json`. Includes detailed comments and isolated connection management. | `src/mcp-client/`                                                    |
-| **🚀 Production Utilities** | Logging, Error Handling, ID Generation, Rate Limiting, Request Context tracking, Input Sanitization.                                                | `src/utils/`                                                         |
-| **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware for HTTP).                         | Throughout, `src/utils/security/`, `src/mcp-server/transports/auth/` |
-| **⚙️ Error Handling**       | Consistent error categorization (`BaseErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                                         | `src/utils/internal/errorHandler.ts`, `src/types-global/`            |
-| **📚 Documentation**        | Comprehensive `README.md`, structured JSDoc comments, API references.                                                                               | `README.md`, Codebase, `tsdoc.json`, `docs/api-references/`          |
-| **🕵️ Interaction Logging**  | Captures raw requests and responses for all external LLM provider interactions to a dedicated `interactions.log` file for full traceability.        | `src/utils/internal/logger.ts`                                       |
-| **🤖 Agent Ready**          | Includes a [.clinerules](.clinerules) developer cheatsheet tailored for LLM coding agents.                                                          | `.clinerules`                                                        |
-| **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                                | `scripts/`                                                           |
-| **Services**                | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                         | `src/services/`, `src/storage/duckdbExample.ts`                      |
-| **🧪 Unit Testing**         | Integrated with Vitest for fast and reliable unit testing. Includes example tests for core tool logic and a coverage reporter.                      | `vitest.config.ts`, `tests/`                                         |
+| Feature Area                | Description                                                                                                                                     | Key Components / Location                                            |
+| :-------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
+| **🔌 MCP Server**           | Functional server with example tools (`EchoTool`, `CatFactFetcher`) and an `EchoResource`. Supports `stdio` and **Streamable HTTP** transports. | `src/mcp-server/`                                                    |
+| **🚀 Production Utilities** | Logging, Error Handling, ID Generation, Rate Limiting, Request Context tracking, Input Sanitization.                                            | `src/utils/`                                                         |
+| **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware for HTTP).                     | Throughout, `src/utils/security/`, `src/mcp-server/transports/auth/` |
+| **⚙️ Error Handling**       | Consistent error categorization (`BaseErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                                     | `src/utils/internal/errorHandler.ts`, `src/types-global/`            |
+| **📚 Documentation**        | Comprehensive `README.md`, structured JSDoc comments, API references.                                                                           | `README.md`, Codebase, `tsdoc.json`, `docs/api-references/`          |
+| **🕵️ Interaction Logging**  | Captures raw requests and responses for all external LLM provider interactions to a dedicated `interactions.log` file for full traceability.    | `src/utils/internal/logger.ts`                                       |
+| **🤖 Agent Ready**          | Includes a [.clinerules](.clinerules) developer cheatsheet tailored for LLM coding agents.                                                      | `.clinerules`                                                        |
+| **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                            | `scripts/`                                                           |
+| **Services**                | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                     | `src/services/`, `src/storage/duckdbExample.ts`                      |
+| **🧪 Unit Testing**         | Integrated with Vitest for fast and reliable unit testing. Includes example tests for core tool logic and a coverage reporter.                  | `vitest.config.ts`, `tests/`                                         |
 
 ## 🌟 Projects Using This Template
 
@@ -74,11 +66,7 @@ npm run build
 # Or use 'npm run rebuild' for a clean install
 ```
 
-### 3. Running the Components
-
-#### Running the MCP Server
-
-You can run the included MCP server to make its tools available.
+### 3. Running the Server
 
 - **Via Stdio (Default):**
   ```bash
@@ -88,17 +76,6 @@ You can run the included MCP server to make its tools available.
   ```bash
   npm run start:server:http
   ```
-
-#### Running the Agent
-
-The agent can be run from the command line to perform tasks. It will automatically connect to the servers defined in `src/mcp-client/client-config/mcp-config.json`. If running the agent, you must have the MCP config set up correctly and your openrouter API key configured in .env.
-
-```bash
-npm run start:agent "Your prompt here"
-
-# Example:
-npm run start:agent "Use the echo tool to say hello world and then get a cat fact."
-```
 
 ### 4. Running Tests
 
@@ -133,18 +110,10 @@ Configure the MCP server's behavior using these environment variables:
 | `MCP_AUTH_SECRET_KEY` | **Required for `jwt` mode.** Secret key (min 32 chars) for signing/verifying auth tokens. | (none - **MUST be set in production**) |
 | `OAUTH_ISSUER_URL`    | **Required for `oauth` mode.** The issuer URL of your authorization server.               | (none)                                 |
 | `OAUTH_AUDIENCE`      | **Required for `oauth` mode.** The audience identifier for this MCP server.               | (none)                                 |
-| `OPENROUTER_API_KEY`  | API key for OpenRouter.ai service. Required for the agent to function.                    | (none)                                 |
-
-### Client & Agent Configuration
-
-The agent uses the MCP client to connect to servers. This is configured in `src/mcp-client/client-config/mcp-config.json`. You must list all MCP servers the agent should connect to in this file.
-
-For a detailed guide, see the [Client Configuration README](src/mcp-client/client-config/README.md).
+| `OPENROUTER_API_KEY`  | API key for OpenRouter.ai service.                                                        | (none)                                 |
 
 ## 🏗️ Project Structure
 
-- **`src/agent/`**: Contains the core agent framework, including the `Agent` class and a CLI for running the agent.
-- **`src/mcp-client/`**: Implements the MCP client logic for connecting to and interacting with external MCP servers.
 - **`src/mcp-server/`**: Contains the MCP server implementation, including example tools, resources, and transport handlers.
 - **`src/config/`**: Handles loading and validation of environment variables and application configuration.
 - **`src/services/`**: Provides reusable modules for integrating with external services (DuckDB, OpenRouter).
@@ -165,10 +134,6 @@ npm run tree
 ### Adding Tools to the Server
 
 For detailed guidance on how to add your own custom Tools and Resources to the MCP server, please see the [Server Extension Guide](src/mcp-server/README.md).
-
-### Modifying the Agent
-
-The agent's core logic is in `src/agent/agent-core/agent.ts`. You can modify its system prompt, the models it uses (`google/gemini-2.5-flash` by default), and its decision-making loop to change its behavior.
 
 ## 🌍 Explore More MCP Resources
 
