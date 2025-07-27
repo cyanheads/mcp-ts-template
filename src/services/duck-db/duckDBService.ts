@@ -89,10 +89,7 @@ export class DuckDBService implements IDuckDBService {
     );
   }
 
-  async run(
-    sql: string,
-    params?: unknown[],
-  ): Promise<void> {
+  async run(sql: string, params?: unknown[]): Promise<void> {
     const context = requestContextService.createRequestContext({
       operation: "DuckDBService.run",
       initialData: { sql, params },
@@ -115,10 +112,7 @@ export class DuckDBService implements IDuckDBService {
     return this.queryExecutor!.query<T>(sql, validatedParams);
   }
 
-  async stream(
-    sql: string,
-    params?: unknown[],
-  ): Promise<duckdb.DuckDBResult> {
+  async stream(sql: string, params?: unknown[]): Promise<duckdb.DuckDBResult> {
     const context = requestContextService.createRequestContext({
       operation: "DuckDBService.stream",
       initialData: { sql, params },

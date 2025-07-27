@@ -19,10 +19,7 @@ export class DuckDBQueryExecutor {
     this.dbConnection = connection;
   }
 
-  public async run(
-    sql: string,
-    params?: duckdb.DuckDBValue[],
-  ): Promise<void> {
+  public async run(sql: string, params?: duckdb.DuckDBValue[]): Promise<void> {
     const context = requestContextService.createRequestContext({
       operation: "DuckDBQueryExecutor.run",
       initialData: { sql, params },

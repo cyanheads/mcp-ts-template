@@ -24,7 +24,9 @@ export type FetchImageTestInput = z.infer<typeof FetchImageTestInputSchema>;
 
 export const FetchImageTestResponseSchema = z.object({
   data: z.string().describe("Base64 encoded image data."),
-  mimeType: z.string().describe("The MIME type of the image (e.g., 'image/jpeg')."),
+  mimeType: z
+    .string()
+    .describe("The MIME type of the image (e.g., 'image/jpeg')."),
 });
 
 export type FetchImageTestResponse = z.infer<

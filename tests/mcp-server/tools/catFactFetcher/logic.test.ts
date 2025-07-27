@@ -1,32 +1,32 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { generateMock } from '@anatine/zod-mock';
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { generateMock } from "@anatine/zod-mock";
 import {
   catFactFetcherLogic,
   CatFactFetcherInputSchema,
   CatFactFetcherResponseSchema,
-} from '../../../../src/mcp-server/tools/catFactFetcher/logic';
-import { McpError, BaseErrorCode } from '../../../../src/types-global/errors';
-import { requestContextService } from '../../../../src/utils';
-import * as networkUtils from '../../../../src/utils/network';
+} from "../../../../src/mcp-server/tools/catFactFetcher/logic";
+import { McpError, BaseErrorCode } from "../../../../src/types-global/errors";
+import { requestContextService } from "../../../../src/utils";
+import * as networkUtils from "../../../../src/utils/network";
 
 // Mock the fetchWithTimeout utility
-vi.mock('../../../../src/utils/network', () => ({
+vi.mock("../../../../src/utils/network", () => ({
   fetchWithTimeout: vi.fn(),
 }));
 
-describe('catFactFetcherLogic', () => {
+describe("catFactFetcherLogic", () => {
   const context = requestContextService.createRequestContext({
-    toolName: 'get_random_cat_fact',
+    toolName: "get_random_cat_fact",
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('should return a valid cat fact on successful API call', async () => {
+  it("should return a valid cat fact on successful API call", async () => {
     const mockInput = generateMock(CatFactFetcherInputSchema);
     const mockApiResponse = {
-      fact: 'Cats are cool.',
+      fact: "Cats are cool.",
       length: 14,
     };
 
@@ -45,29 +45,28 @@ describe('catFactFetcherLogic', () => {
     }
   });
 
-  it('should throw an McpError on failed API call', async () => {
+  it("should throw an McpError on failed API call", async () => {
     const mockInput = generateMock(CatFactFetcherInputSchema);
 
     (networkUtils.fetchWithTimeout as vi.Mock).mockResolvedValue({
       ok: false,
       status: 500,
-      statusText: 'Internal Server Error',
-      text: async () => 'Server error',
+      statusText: "Internal Server Error",
+      text: async () => "Server error",
     });
 
     await expect(catFactFetcherLogic(mockInput, context)).rejects.toThrow(
       McpError,
     );
-    await expect(catFactFetcherLogic(mockInput, context)).rejects.toHaveProperty(
-      'code',
-      BaseErrorCode.SERVICE_UNAVAILABLE,
-    );
+    await expect(
+      catFactFetcherLogic(mockInput, context),
+    ).rejects.toHaveProperty("code", BaseErrorCode.SERVICE_UNAVAILABLE);
   });
 
-  it('should construct the correct URL with maxLength parameter', async () => {
+  it("should construct the correct URL with maxLength parameter", async () => {
     const mockInput = { maxLength: 50 };
     const mockApiResponse = {
-      fact: 'Short fact.',
+      fact: "Short fact.",
       length: 11,
     };
 
@@ -79,7 +78,7 @@ describe('catFactFetcherLogic', () => {
     await catFactFetcherLogic(mockInput, context);
 
     expect(networkUtils.fetchWithTimeout).toHaveBeenCalledWith(
-      'https://catfact.ninja/fact?max_length=50',
+      "https://catfact.ninja/fact?max_length=50",
       expect.any(Number),
       context,
     );

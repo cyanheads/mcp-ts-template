@@ -240,7 +240,8 @@ class OpenRouterProvider {
     });
     this.status = "initializing";
 
-    const apiKey = options?.apiKey !== undefined ? options.apiKey : config.openrouterApiKey;
+    const apiKey =
+      options?.apiKey !== undefined ? options.apiKey : config.openrouterApiKey;
     if (!apiKey) {
       this.status = "unconfigured";
       this.initializationError = new McpError(

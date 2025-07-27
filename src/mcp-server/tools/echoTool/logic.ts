@@ -18,40 +18,39 @@ export const ECHO_MODES = ["standard", "uppercase", "lowercase"] as const;
  * Zod schema defining the input parameters for the `echo_message` tool.
  * This schema is used by the MCP SDK to validate the arguments provided when the tool is called.
  */
-export const EchoToolInputSchema = z
-  .object({
-    message: z
-      .string()
-      .min(1, "Message cannot be empty.")
-      .max(1000, "Message cannot exceed 1000 characters.")
-      .describe(
-        "The message to echo back. It must be between 1 and 1000 characters long.",
-      ),
-    mode: z
-      .enum(ECHO_MODES)
-      .optional()
-      .default("standard")
-      .describe(
-        "Specifies how the message should be formatted. Options: 'standard' (as-is), 'uppercase', 'lowercase'. Defaults to 'standard'.",
-      ),
-    repeat: z
-      .number()
-      .int("Repeat count must be an integer.")
-      .min(1, "Repeat count must be at least 1.")
-      .max(10, "Repeat count cannot exceed 10.")
-      .optional()
-      .default(1)
-      .describe(
-        "The number of times the formatted message should be repeated. Must be an integer between 1 and 10. Defaults to 1.",
-      ),
-    timestamp: z
-      .boolean()
-      .optional()
-      .default(true)
-      .describe(
-        "Whether to include an ISO 8601 timestamp in the response. Defaults to true.",
-      ),
-  })
+export const EchoToolInputSchema = z.object({
+  message: z
+    .string()
+    .min(1, "Message cannot be empty.")
+    .max(1000, "Message cannot exceed 1000 characters.")
+    .describe(
+      "The message to echo back. It must be between 1 and 1000 characters long.",
+    ),
+  mode: z
+    .enum(ECHO_MODES)
+    .optional()
+    .default("standard")
+    .describe(
+      "Specifies how the message should be formatted. Options: 'standard' (as-is), 'uppercase', 'lowercase'. Defaults to 'standard'.",
+    ),
+  repeat: z
+    .number()
+    .int("Repeat count must be an integer.")
+    .min(1, "Repeat count must be at least 1.")
+    .max(10, "Repeat count cannot exceed 10.")
+    .optional()
+    .default(1)
+    .describe(
+      "The number of times the formatted message should be repeated. Must be an integer between 1 and 10. Defaults to 1.",
+    ),
+  timestamp: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe(
+      "Whether to include an ISO 8601 timestamp in the response. Defaults to true.",
+    ),
+});
 
 /**
  * TypeScript type inferred from `EchoToolInputSchema`.

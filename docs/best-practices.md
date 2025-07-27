@@ -68,7 +68,7 @@ export const EchoToolInputSchema = z.object({
     .min(1, "Message cannot be empty.")
     .max(1000, "Message cannot exceed 1000 characters.")
     .describe(
-      "The message to echo back. Clearly state any expectations for the LLM here."
+      "The message to echo back. Clearly state any expectations for the LLM here.",
     ),
 });
 
@@ -95,7 +95,7 @@ export type EchoToolResponse = z.infer<typeof EchoToolResponseSchema>;
  */
 export async function echoToolLogic(
   params: EchoToolInput,
-  context: RequestContext
+  context: RequestContext,
 ): Promise<EchoToolResponse> {
   logger.debug("Executing echoToolLogic...", { ...context });
 
@@ -197,7 +197,7 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
           },
         };
       }
-    }
+    },
   );
   logger.info(`Tool '${toolName}' registered successfully.`);
 };

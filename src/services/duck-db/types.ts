@@ -93,10 +93,7 @@ export interface IDuckDBService {
    * @returns {Promise<duckdb.DuckDBStreamingResult>} A streaming result object.
    * @throws {McpError} If the query fails or the service is not initialized.
    */
-  stream(
-    sql: string,
-    params?: unknown[],
-  ): Promise<duckdb.DuckDBResult>;
+  stream(sql: string, params?: unknown[]): Promise<duckdb.DuckDBResult>;
 
   /**
    * Creates a prepared statement.

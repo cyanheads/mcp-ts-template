@@ -187,10 +187,15 @@ export class Sanitization {
   public sanitizeHtml(input: string, config?: HtmlSanitizeConfig): string {
     if (!input) return "";
     const effectiveConfig = {
-      allowedTags: config?.allowedTags ?? this.defaultHtmlSanitizeConfig.allowedTags,
-      allowedAttributes: config?.allowedAttributes ?? this.defaultHtmlSanitizeConfig.allowedAttributes,
+      allowedTags:
+        config?.allowedTags ?? this.defaultHtmlSanitizeConfig.allowedTags,
+      allowedAttributes:
+        config?.allowedAttributes ??
+        this.defaultHtmlSanitizeConfig.allowedAttributes,
       transformTags: config?.transformTags, // Can be undefined
-      preserveComments: config?.preserveComments ?? this.defaultHtmlSanitizeConfig.preserveComments,
+      preserveComments:
+        config?.preserveComments ??
+        this.defaultHtmlSanitizeConfig.preserveComments,
     };
 
     const options: sanitizeHtml.IOptions = {
@@ -201,7 +206,9 @@ export class Sanitization {
 
     if (effectiveConfig.preserveComments) {
       // Ensure allowedTags is an array before spreading
-      const baseTags = Array.isArray(options.allowedTags) ? options.allowedTags : [];
+      const baseTags = Array.isArray(options.allowedTags)
+        ? options.allowedTags
+        : [];
       options.allowedTags = [...baseTags, "!--"];
     }
     return sanitizeHtml(input, options);
@@ -222,7 +229,7 @@ export class Sanitization {
   ): string {
     if (!input) return "";
 
-    const context = options.context ?? 'text';
+    const context = options.context ?? "text";
 
     switch (context) {
       case "html": {
@@ -390,7 +397,9 @@ export class Sanitization {
       } else {
         if (path.isAbsolute(normalized)) {
           if (!effectiveOptions.allowAbsolute) {
-            throw new Error("Absolute paths are disallowed by current options.");
+            throw new Error(
+              "Absolute paths are disallowed by current options.",
+            );
           } else {
             finalSanitizedPath = normalized;
           }
@@ -599,14 +608,16 @@ export class Sanitization {
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const value = (obj as Record<string, unknown>)[key];
-        
+
         // Split camelCase and snake_case/kebab-case keys into words
         const keyWords = key
-          .replace(/([A-Z])/g, ' $1') // Add space before uppercase letters
+          .replace(/([A-Z])/g, " $1") // Add space before uppercase letters
           .toLowerCase()
           .split(/[\s_-]+/); // Split by space, underscore, or hyphen
 
-        const isSensitive = keyWords.some(word => this.sensitiveFields.includes(word));
+        const isSensitive = keyWords.some((word) =>
+          this.sensitiveFields.includes(word),
+        );
 
         if (isSensitive) {
           (obj as Record<string, unknown>)[key] = "[REDACTED]";

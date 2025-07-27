@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { RateLimiter } from '../../../src/utils/security/rateLimiter';
-import { McpError, BaseErrorCode } from '../../../src/types-global/errors';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { RateLimiter } from "../../../src/utils/security/rateLimiter";
+import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
 
-describe('RateLimiter', () => {
+describe("RateLimiter", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -11,17 +11,17 @@ describe('RateLimiter', () => {
     vi.useRealTimers();
   });
 
-  it('should allow requests under the configured limit', () => {
+  it("should allow requests under the configured limit", () => {
     const rateLimiter = new RateLimiter({ windowMs: 1000, maxRequests: 2 });
-    const key = 'test-user';
+    const key = "test-user";
 
     expect(() => rateLimiter.check(key)).not.toThrow();
     expect(() => rateLimiter.check(key)).not.toThrow();
   });
 
-  it('should throw an McpError when the rate limit is exceeded', () => {
+  it("should throw an McpError when the rate limit is exceeded", () => {
     const rateLimiter = new RateLimiter({ windowMs: 1000, maxRequests: 2 });
-    const key = 'test-user';
+    const key = "test-user";
 
     rateLimiter.check(key); // 1st request
     rateLimiter.check(key); // 2nd request
@@ -35,9 +35,9 @@ describe('RateLimiter', () => {
     }).toThrow(expect.objectContaining({ code: BaseErrorCode.RATE_LIMITED }));
   });
 
-  it('should reset the limit after the time window passes', () => {
+  it("should reset the limit after the time window passes", () => {
     const rateLimiter = new RateLimiter({ windowMs: 1000, maxRequests: 1 });
-    const key = 'test-user';
+    const key = "test-user";
 
     rateLimiter.check(key); // This one passes
 
@@ -53,9 +53,9 @@ describe('RateLimiter', () => {
     }).not.toThrow();
   });
 
-  it('should format the error message with the correct wait time', () => {
+  it("should format the error message with the correct wait time", () => {
     const rateLimiter = new RateLimiter({ windowMs: 5000, maxRequests: 1 });
-    const key = 'test-user';
+    const key = "test-user";
 
     rateLimiter.check(key);
 
@@ -63,14 +63,14 @@ describe('RateLimiter', () => {
       rateLimiter.check(key);
     } catch (error) {
       if (error instanceof McpError) {
-        expect(error.message).toContain('Please try again in 5 seconds');
+        expect(error.message).toContain("Please try again in 5 seconds");
       }
     }
   });
 
-  it('should correctly reset all limits when reset() is called', () => {
+  it("should correctly reset all limits when reset() is called", () => {
     const rateLimiter = new RateLimiter({ windowMs: 1000, maxRequests: 1 });
-    const key = 'test-user';
+    const key = "test-user";
 
     rateLimiter.check(key);
     expect(() => rateLimiter.check(key)).toThrow(McpError);
