@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [1.7.3] - 2025-07-27
 
+### Added
+
+-   **Test Infrastructure:** Integrated `msw` (Mock Service Worker) to enable robust API mocking for unit and integration tests. This includes a full setup with handlers for success and error states, and global server setup/teardown hooks.
+-   **Test Coverage:** Added comprehensive tests for `OpenRouterProvider`, `ErrorHandler`, `RateLimiter`, and `Sanitization` utilities, ensuring greater code reliability.
+
+### Changed
+
+-   **OpenRouterProvider:** Disabled default retries on the OpenAI client to prevent test timeouts and ensure immediate failure on `429` and `500` error codes.
+-   **Sanitization Logic:** Refined the `sanitizeHtml` and `sanitizePath` methods to improve accuracy and provide stricter validation. The `sanitizeForLogging` method now uses a more robust keyword-based detection for redacting sensitive data.
+
+### Fixed
+
+-   **Test Timeouts:** Resolved persistent timeout failures in `openRouterProvider.test.ts` by disabling client-side retries, allowing mock API error responses to be handled correctly.
+
 ### Removed
 
 - **Agent Framework**: Removed the entire `src/agent/` directory. The agent framework is now maintained in a separate project to decouple it from the server template.

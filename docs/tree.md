@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-27 12:21:23
+Generated on: 2025-07-27 13:32:17
 
 ```
 mcp-ts-template
@@ -10,7 +10,6 @@ mcp-ts-template
 │   └── FUNDING.yml
 ├── .vscode
 │   └── settings.json
-├── coverage
 ├── docs
 │   ├── api-references
 │   │   ├── duckDB.md
@@ -25,29 +24,8 @@ mcp-ts-template
 │   ├── README.md
 │   └── tree.ts
 ├── src
-│   ├── agent
-│   │   ├── agent-core
-│   │   │   └── agent.ts
-│   │   └── cli
-│   │       ├── boot.ts
-│   │       └── main.ts
 │   ├── config
 │   │   └── index.ts
-│   ├── mcp-client
-│   │   ├── client-config
-│   │   │   ├── configLoader.ts
-│   │   │   ├── mcp-config.json.example
-│   │   │   └── README.md
-│   │   ├── core
-│   │   │   ├── clientConnectionLogic.ts
-│   │   │   └── clientManager.ts
-│   │   ├── transports
-│   │   │   ├── httpClientTransport.ts
-│   │   │   ├── index.ts
-│   │   │   ├── stdioClientTransport.ts
-│   │   │   └── transportFactory.ts
-│   │   ├── index.ts
-│   │   └── README.md
 │   ├── mcp-server
 │   │   ├── resources
 │   │   │   └── echoResource
@@ -126,12 +104,27 @@ mcp-ts-template
 │   ├── index.ts
 │   └── README.md
 ├── tests
-│   └── mcp-server
-│       └── tools
-│           ├── catFactFetcher
-│           │   └── logic.test.ts
-│           └── echoTool
-│               └── logic.test.ts
+│   ├── mcp-server
+│   │   └── tools
+│   │       ├── catFactFetcher
+│   │       │   └── logic.test.ts
+│   │       ├── echoTool
+│   │       │   └── logic.test.ts
+│   │       └── imageTest
+│   │           └── registration.test.ts
+│   ├── mocks
+│   │   ├── handlers.ts
+│   │   └── server.ts
+│   ├── services
+│   │   └── llm-providers
+│   │       └── openRouterProvider.test.ts
+│   ├── utils
+│   │   ├── internal
+│   │   │   └── errorHandler.test.ts
+│   │   └── security
+│   │       ├── rateLimiter.test.ts
+│   │       └── sanitization.test.ts
+│   └── setup.ts
 ├── .clinerules
 ├── .dockerignore
 ├── .env.example
