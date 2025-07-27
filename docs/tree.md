@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-27 13:32:17
+Generated on: 2025-07-27 15:13:53
 
 ```
 mcp-ts-template
@@ -107,10 +107,13 @@ mcp-ts-template
 │   ├── mcp-server
 │   │   └── tools
 │   │       ├── catFactFetcher
-│   │       │   └── logic.test.ts
+│   │       │   ├── logic.test.ts
+│   │       │   └── registration.test.ts
 │   │       ├── echoTool
-│   │       │   └── logic.test.ts
+│   │       │   ├── logic.test.ts
+│   │       │   └── registration.test.ts
 │   │       └── imageTest
+│   │           ├── logic.test.ts
 │   │           └── registration.test.ts
 │   ├── mocks
 │   │   ├── handlers.ts
@@ -120,8 +123,18 @@ mcp-ts-template
 │   │       └── openRouterProvider.test.ts
 │   ├── utils
 │   │   ├── internal
-│   │   │   └── errorHandler.test.ts
+│   │   │   ├── errorHandler.test.ts
+│   │   │   ├── logger.test.ts
+│   │   │   └── requestContext.test.ts
+│   │   ├── metrics
+│   │   │   └── tokenCounter.test.ts
+│   │   ├── network
+│   │   │   └── fetchWithTimeout.test.ts
+│   │   ├── parsing
+│   │   │   ├── dateParser.test.ts
+│   │   │   └── jsonParser.test.ts
 │   │   └── security
+│   │       ├── idGenerator.test.ts
 │   │       ├── rateLimiter.test.ts
 │   │       └── sanitization.test.ts
 │   └── setup.ts

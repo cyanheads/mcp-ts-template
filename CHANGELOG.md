@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - **Test Infrastructure:** Integrated `msw` (Mock Service Worker) to enable robust API mocking for unit and integration tests. This includes a full setup with handlers for success and error states, and global server setup/teardown hooks.
 - **Test Coverage:** Added comprehensive tests for `OpenRouterProvider`, `ErrorHandler`, `RateLimiter`, and `Sanitization` utilities, ensuring greater code reliability.
 - **New Tests:** Added new registration and logic tests for `echoTool`, `catFactFetcher`, and `imageTest` tools. Added new tests for `fetchWithTimeout` utility.
+- **Core Utilities Tests:** Added new unit tests for core internal utilities including `logger`, `requestContext`, `tokenCounter`, `dateParser`, `jsonParser`, and `idGenerator`.
 
 ### Changed
 
