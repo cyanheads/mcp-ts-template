@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.2] - 2025-07-27
+
+### Added
+- **Testing Framework**: Integrated Vitest for unit testing. Added `vitest.config.ts`, `tsconfig.vitest.json`, and new test scripts (`test`, `test:watch`, `test:coverage`) to `package.json`.
+- **Unit Tests**: Added initial unit tests for `echoTool` and `catFactFetcher` logic to validate both success and failure paths.
+- **Dependencies**: Added `@vitest/coverage-v8`, `vitest`, `@anatine/zod-mock`, `@faker-js/faker`, and `vite-tsconfig-paths` to support the new testing setup.
+
+### Changed
+- **Configuration**:
+  - Updated `.clinerules` with a new "Testing Mandates" section outlining the testing strategy.
+  - Updated `.gitignore` to no longer ignore the `.vscode/` directory.
+  - Updated `tsconfig.json` to enable `resolveJsonModule`.
+- **Dependencies**: Upgraded numerous dependencies to their latest versions, including `@modelcontextprotocol/sdk` to `^1.17.0`, `hono` to `^4.8.9`, and `typescript-eslint` to `^8.38.0`.
+- **Documentation**: Updated `docs/tree.md` to reflect the new test files and configurations.
+
 ## [1.7.1] - 2025-07-17
 
 ### Changed

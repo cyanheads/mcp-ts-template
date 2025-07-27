@@ -1,9 +1,9 @@
 # 🚀 MCP TypeScript Template: Agent, Server & Client
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.15.1-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
+[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.0-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--06--18-lightgrey.svg)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.7.0-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.7.2-blue.svg)](./CHANGELOG.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
@@ -35,6 +35,7 @@ This template is organized into three primary, interconnected components:
 | **🤖 Agent Ready**          | Includes a [.clinerules](.clinerules) developer cheatsheet tailored for LLM coding agents.                                                          | `.clinerules`                                                        |
 | **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                                | `scripts/`                                                           |
 | **Services**                | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                         | `src/services/`, `src/storage/duckdbExample.ts`                      |
+| **🧪 Unit Testing**         | Integrated with Vitest for fast and reliable unit testing. Includes example tests for core tool logic and a coverage reporter.                      | `vitest.config.ts`, `tests/`                                         |
 
 ## 🌟 Projects Using This Template
 
@@ -98,6 +99,23 @@ npm run start:agent "Your prompt here"
 # Example:
 npm run start:agent "Use the echo tool to say hello world and then get a cat fact."
 ```
+
+### 4. Running Tests
+
+This template uses [Vitest](https://vitest.dev/) for unit testing. Tests are located in the `tests/` directory, mirroring the `src/` structure.
+
+- **Run all tests once:**
+  ```bash
+  npm test
+  ```
+- **Run tests in watch mode:**
+  ```bash
+  npm run test:watch
+  ```
+- **Run tests and generate a coverage report:**
+  ```bash
+  npm run test:coverage
+  ```
 
 ## ⚙️ Configuration
 

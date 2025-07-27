@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-16 04:44:33
+Generated on: 2025-07-27 12:21:23
 
 ```
 mcp-ts-template
@@ -8,6 +8,9 @@ mcp-ts-template
 │   ├── workflows
 │   │   └── publish.yml
 │   └── FUNDING.yml
+├── .vscode
+│   └── settings.json
+├── coverage
 ├── docs
 │   ├── api-references
 │   │   ├── duckDB.md
@@ -122,6 +125,13 @@ mcp-ts-template
 │   │   └── index.ts
 │   ├── index.ts
 │   └── README.md
+├── tests
+│   └── mcp-server
+│       └── tools
+│           ├── catFactFetcher
+│           │   └── logic.test.ts
+│           └── echoTool
+│               └── logic.test.ts
 ├── .clinerules
 ├── .dockerignore
 ├── .env.example
@@ -132,7 +142,6 @@ mcp-ts-template
 ├── Dockerfile
 ├── eslint.config.js
 ├── LICENSE
-├── mcp.json
 ├── package-lock.json
 ├── package.json
 ├── README.md
@@ -140,8 +149,10 @@ mcp-ts-template
 ├── smithery.yaml
 ├── tsconfig.json
 ├── tsconfig.typedoc.json
+├── tsconfig.vitest.json
 ├── tsdoc.json
-└── typedoc.json
+├── typedoc.json
+└── vitest.config.ts
 ```
 
 _Note: This tree excludes files and directories matched by .gitignore and default patterns._

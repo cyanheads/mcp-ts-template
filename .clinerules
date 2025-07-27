@@ -243,4 +243,27 @@ The server's authentication mode is configured via the MCP_AUTH_MODE environment
 Tools requiring specific permissions shall be protected by checking scopes. The withRequiredScopes(["scope:read"]) utility must be used inside the tool handler for this purpose.
 
 **Rate Limiting:** To prevent abuse, handlers for public-facing or resource-intensive tools shall be protected by the centralized rateLimiter.
+
+## VII. Testing Mandates
+
+A `tests/` directory exists at the project root and mirrors the `src/` directory structure. All tests shall be written using Vitest.
+
+**A. Unit Testing Core Logic**
+
+-   **Focus:** Tests must target the core logic within `logic.ts` files exclusively. The primary goal is to validate business logic in isolation, free from the concerns of handlers or transport layers.
+-   **Methodology:**
+    1.  **Data Mocking:** Use `@anatine/zod-mock` to generate mock data based on the tool's Zod input schema. This ensures that tests are run against realistic, schema-compliant data.
+    2.  **Success Path:** Write tests to verify that the logic function returns the expected output (adhering to the Zod response schema) when given valid input.
+    3.  **Failure Path:** Write tests to verify that the logic function throws a structured `McpError` when it encounters a state that should result in an error (e.g., invalid input that bypasses schema validation, or a specific condition designed to fail). Assert that the thrown error has the correct `code` and `message`.
+
+**B. Test File Location**
+
+-   Test files for a given module (e.g., `src/mcp-server/tools/toolName/logic.ts`) must be located at the corresponding path within the `tests/` directory (e.g., `tests/mcp-server/tools/toolName/logic.test.ts`).
+
+**C. Running Tests**
+
+-   Use the following npm scripts to run tests:
+    -   `npm test`: Run all tests once.
+    -   `npm test:watch`: Run tests in watch mode for development.
+    -   `npm test:coverage`: Run all tests and generate a coverage report.
 ```
