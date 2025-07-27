@@ -186,14 +186,23 @@ export class Sanitization {
    */
   public sanitizeHtml(input: string, config?: HtmlSanitizeConfig): string {
     if (!input) return "";
-    const effectiveConfig = { ...this.defaultHtmlSanitizeConfig, ...config };
+    const effectiveConfig = {
+      allowedTags: config?.allowedTags ?? this.defaultHtmlSanitizeConfig.allowedTags,
+      allowedAttributes: config?.allowedAttributes ?? this.defaultHtmlSanitizeConfig.allowedAttributes,
+      transformTags: config?.transformTags, // Can be undefined
+      preserveComments: config?.preserveComments ?? this.defaultHtmlSanitizeConfig.preserveComments,
+    };
+
     const options: sanitizeHtml.IOptions = {
       allowedTags: effectiveConfig.allowedTags,
       allowedAttributes: effectiveConfig.allowedAttributes,
       transformTags: effectiveConfig.transformTags,
     };
+
     if (effectiveConfig.preserveComments) {
-      options.allowedTags = [...(options.allowedTags || []), "!--"];
+      // Ensure allowedTags is an array before spreading
+      const baseTags = Array.isArray(options.allowedTags) ? options.allowedTags : [];
+      options.allowedTags = [...baseTags, "!--"];
     }
     return sanitizeHtml(input, options);
   }
@@ -213,14 +222,21 @@ export class Sanitization {
   ): string {
     if (!input) return "";
 
-    switch (options.context) {
-      case "html":
-        return this.sanitizeHtml(input, {
-          allowedTags: options.allowedTags,
-          allowedAttributes: options.allowedAttributes
-            ? this.convertAttributesFormat(options.allowedAttributes)
-            : undefined,
-        });
+    const context = options.context ?? 'text';
+
+    switch (context) {
+      case "html": {
+        const config: HtmlSanitizeConfig = {};
+        if (options.allowedTags) {
+          config.allowedTags = options.allowedTags;
+        }
+        if (options.allowedAttributes) {
+          config.allowedAttributes = this.convertAttributesFormat(
+            options.allowedAttributes,
+          );
+        }
+        return this.sanitizeHtml(input, config);
+      }
       case "attribute":
         return sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} });
       case "url":
@@ -374,10 +390,7 @@ export class Sanitization {
       } else {
         if (path.isAbsolute(normalized)) {
           if (!effectiveOptions.allowAbsolute) {
-            finalSanitizedPath = normalized.replace(
-              /^(?:[A-Za-z]:)?[/\\]+/,
-              "",
-            );
+            throw new Error("Absolute paths are disallowed by current options.");
           } else {
             finalSanitizedPath = normalized;
           }
@@ -586,10 +599,14 @@ export class Sanitization {
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const value = (obj as Record<string, unknown>)[key];
-        const lowerKey = key.toLowerCase();
-        const isSensitive = this.sensitiveFields.some((field) =>
-          lowerKey.includes(field),
-        );
+        
+        // Split camelCase and snake_case/kebab-case keys into words
+        const keyWords = key
+          .replace(/([A-Z])/g, ' $1') // Add space before uppercase letters
+          .toLowerCase()
+          .split(/[\s_-]+/); // Split by space, underscore, or hyphen
+
+        const isSensitive = keyWords.some(word => this.sensitiveFields.includes(word));
 
         if (isSensitive) {
           (obj as Record<string, unknown>)[key] = "[REDACTED]";

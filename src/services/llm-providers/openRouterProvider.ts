@@ -240,7 +240,7 @@ class OpenRouterProvider {
     });
     this.status = "initializing";
 
-    const apiKey = options?.apiKey || config.openrouterApiKey;
+    const apiKey = options?.apiKey !== undefined ? options.apiKey : config.openrouterApiKey;
     if (!apiKey) {
       this.status = "unconfigured";
       this.initializationError = new McpError(
@@ -259,6 +259,7 @@ class OpenRouterProvider {
           "HTTP-Referer": options?.siteUrl || config.openrouterAppUrl,
           "X-Title": options?.siteName || config.openrouterAppName,
         },
+        maxRetries: 0,
       });
       this.status = "ready";
       logger.info("OpenRouter Service Initialized and Ready", opContext);
@@ -338,5 +339,4 @@ class OpenRouterProvider {
 
 const openRouterProviderInstance = new OpenRouterProvider();
 
-export { openRouterProviderInstance as openRouterProvider };
-export type { OpenRouterProvider };
+export { openRouterProviderInstance as openRouterProvider, OpenRouterProvider };

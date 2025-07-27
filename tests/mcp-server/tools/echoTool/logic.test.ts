@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { generateMock } from '@anatine/zod-mock';
 import {
   echoToolLogic,
   EchoToolInputSchema,
@@ -14,7 +13,12 @@ describe('echoToolLogic', () => {
   });
 
   it('should return a valid response for valid input', async () => {
-    const mockInput = generateMock(EchoToolInputSchema);
+    const mockInput = {
+      message: 'hello world',
+      mode: 'uppercase' as const,
+      repeat: 2,
+      timestamp: true,
+    };
     const result = await echoToolLogic(mockInput, context);
 
     // Validate that the output matches the response schema
@@ -23,6 +27,8 @@ describe('echoToolLogic', () => {
 
     if (validation.success) {
       expect(result.originalMessage).toBe(mockInput.message);
+      expect(result.formattedMessage).toBe('HELLO WORLD');
+      expect(result.repeatedMessage).toBe('HELLO WORLD HELLO WORLD');
       expect(typeof result.timestamp).toBe('string');
     }
   });
