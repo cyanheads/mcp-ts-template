@@ -1,16 +1,30 @@
-# 🚀 MCP TypeScript Template: Server Edition
+<div align="center">
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
-[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.0-green.svg)](https://github.com/modelcontextprotocol/typescript-sdk)
-[![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--06--18-lightgrey.svg)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.7.3-blue.svg)](./CHANGELOG.md)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/mcp-ts-template/issues)
+# 🚀 Model Context Protocol (MCP) Server TypeScript Template
+
+**Build production-grade MCP servers with a powerful, type-safe, and extensible foundation.**
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue?style=flat-square)](https://www.typescriptlang.org/)
+[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.0-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
+[![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--06--18-lightgrey?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
+[![Version](https://img.shields.io/badge/Version-1.7.3-blue?style=flat-square)](./CHANGELOG.md)
+[![Coverage](https://img.shields.io/badge/Coverage-32.32%25-yellow?style=flat-square)](./vitest.config.ts)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
+[![Status](https://img.shields.io/badge/Status-Stable-green?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
 
-**Jumpstart your [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) development with this comprehensive TypeScript Template for building robust, production-ready MCP servers.**
+</div>
 
-This template provides a comprehensive foundation for building rich Model Context Protocol servers, adhering to the **MCP 2025-06-18 specification** & modern best practices. It includes a fully-featured server, production-ready utilities, and clear documentation to get you up and running quickly.
+This template provides a comprehensive foundation for building rich Model Context Protocol servers, adhering to the **MCP 2025-06-18 specification** and modern best practices. It includes a fully-featured server, production-ready utilities, and clear documentation to get you up and running quickly.
+
+## 🤔 Why Use This Template?
+
+Building a robust server for AI agents is more than just writing code. It requires a solid architecture, consistent error handling, and secure, type-safe practices from the ground up. This template solves these challenges by providing:
+
+- **Accelerated Development**: Skip the boilerplate and focus on your tool's core logic.
+- **Production-Ready Foundation**: Built-in logging, error handling, security, and testing.
+- **Best Practices by Default**: Enforces a clean, modular architecture that's easy to maintain and extend.
+- **AI-Ready**: Designed with LLM agents in mind, including detailed schemas and rich LLM developer-friendly resources (e.g. .clinerules).
 
 > **Note on src/mcp-client & src/agent:** The MCP client & Agent components have been enhanced and moved to the [**atlas-mcp-agent**](https://github.com/cyanheads/atlas-mcp-agent) repository. This template now focuses exclusively on providing a best-in-class server implementation and framework.
 
@@ -26,7 +40,7 @@ This template provides a comprehensive foundation for building rich Model Contex
 | **🕵️ Interaction Logging**  | Captures raw requests and responses for all external LLM provider interactions to a dedicated `interactions.log` file for full traceability.    | `src/utils/internal/logger.ts`                                       |
 | **🤖 Agent Ready**          | Includes a [.clinerules](.clinerules) developer cheatsheet tailored for LLM coding agents.                                                      | `.clinerules`                                                        |
 | **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                            | `scripts/`                                                           |
-| **Services**                | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                     | `src/services/`, `src/storage/duckdbExample.ts`                      |
+| **🧩 Services**                | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                     | `src/services/`, `src/storage/duckdbExample.ts`                      |
 | **🧪 Unit Testing**         | Integrated with Vitest for fast and reliable unit testing. Includes example tests for core tool logic and a coverage reporter.                  | `vitest.config.ts`, `tests/`                                         |
 
 ## 🌟 Projects Using This Template
