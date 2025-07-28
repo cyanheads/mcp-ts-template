@@ -107,7 +107,7 @@ describe("ErrorHandler", () => {
     it("should rethrow the error if rethrow is true", () => {
       const error = new Error("test");
       expect(() =>
-        ErrorHandler.handleError(error, { operation: "op", rethrow: true })
+        ErrorHandler.handleError(error, { operation: "op", rethrow: true }),
       ).toThrow(McpError);
     });
 
@@ -136,7 +136,8 @@ describe("ErrorHandler", () => {
       {
         pattern: /not found/i,
         errorCode: BaseErrorCode.NOT_FOUND,
-        factory: (e: unknown) => new McpError(BaseErrorCode.NOT_FOUND, (e as Error).message),
+        factory: (e: unknown) =>
+          new McpError(BaseErrorCode.NOT_FOUND, (e as Error).message),
       },
     ];
 
@@ -155,15 +156,22 @@ describe("ErrorHandler", () => {
 
     it("should use the default factory if no mapping matches", () => {
       const error = new Error("Some other error");
-      const defaultFactory = (e: unknown) => new McpError(BaseErrorCode.UNKNOWN_ERROR, (e as Error).message);
-      const mappedError = ErrorHandler.mapError(error, mappings, defaultFactory) as McpError;
+      const defaultFactory = (e: unknown) =>
+        new McpError(BaseErrorCode.UNKNOWN_ERROR, (e as Error).message);
+      const mappedError = ErrorHandler.mapError(
+        error,
+        mappings,
+        defaultFactory,
+      ) as McpError;
       expect(mappedError.code).toBe(BaseErrorCode.UNKNOWN_ERROR);
     });
   });
 
   describe("formatError", () => {
     it("should format an McpError correctly", () => {
-      const error = new McpError(BaseErrorCode.FORBIDDEN, "Access denied", { detail: "test" });
+      const error = new McpError(BaseErrorCode.FORBIDDEN, "Access denied", {
+        detail: "test",
+      });
       const formatted = ErrorHandler.formatError(error);
       expect(formatted).toEqual({
         code: BaseErrorCode.FORBIDDEN,

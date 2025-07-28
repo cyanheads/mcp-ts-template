@@ -2,7 +2,15 @@
  * @fileoverview Tests for the fetchWithTimeout utility.
  * @module tests/utils/network/fetchWithTimeout.test
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterEach,
+  afterAll,
+  vi,
+} from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "../../mocks/server";
 import { fetchWithTimeout } from "../../../src/utils/network/fetchWithTimeout";
@@ -24,10 +32,14 @@ describe("fetchWithTimeout", () => {
     server.use(
       http.get(MOCK_API_URL, () => {
         return HttpResponse.json({ message: "Success" });
-      })
+      }),
     );
 
-    const response = await fetchWithTimeout(MOCK_API_URL, 5000, parentRequestContext);
+    const response = await fetchWithTimeout(
+      MOCK_API_URL,
+      5000,
+      parentRequestContext,
+    );
     const data = await response.json();
 
     expect(response.ok).toBe(true);
@@ -37,13 +49,13 @@ describe("fetchWithTimeout", () => {
   it("should throw a timeout error if the request takes too long", async () => {
     server.use(
       http.get(MOCK_API_URL, async () => {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200));
         return HttpResponse.json({ message: "Delayed success" });
-      })
+      }),
     );
 
     await expect(
-      fetchWithTimeout(MOCK_API_URL, 100, parentRequestContext)
+      fetchWithTimeout(MOCK_API_URL, 100, parentRequestContext),
     ).rejects.toThrow(McpError);
 
     try {
@@ -59,10 +71,14 @@ describe("fetchWithTimeout", () => {
     server.use(
       http.get(MOCK_API_URL, () => {
         return new HttpResponse(null, { status: 500 });
-      })
+      }),
     );
 
-    const response = await fetchWithTimeout(MOCK_API_URL, 5000, parentRequestContext);
+    const response = await fetchWithTimeout(
+      MOCK_API_URL,
+      5000,
+      parentRequestContext,
+    );
     expect(response.ok).toBe(false);
     expect(response.status).toBe(500);
   });
@@ -105,14 +121,19 @@ describe("fetchWithTimeout", () => {
       http.post(MOCK_API_URL, async ({ request }) => {
         receivedBody = await request.json();
         return HttpResponse.json({ received: receivedBody });
-      })
+      }),
     );
 
-    const response = await fetchWithTimeout(MOCK_API_URL, 5000, parentRequestContext, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-    });
+    const response = await fetchWithTimeout(
+      MOCK_API_URL,
+      5000,
+      parentRequestContext,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      },
+    );
 
     const responseData = await response.json();
 

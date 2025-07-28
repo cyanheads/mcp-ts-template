@@ -26,7 +26,8 @@ describe("fetchImageTestLogic", () => {
     expect(result).toHaveProperty("mimeType", "image/jpeg");
     expect(typeof result.data).toBe("string");
     // Check if the data is a valid base64 string
-    const base64Regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+    const base64Regex =
+      /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
     expect(base64Regex.test(result.data)).toBe(true);
   });
 
@@ -36,7 +37,7 @@ describe("fetchImageTestLogic", () => {
     const input = { trigger: true };
 
     await expect(
-      fetchImageTestLogic(input, parentRequestContext)
+      fetchImageTestLogic(input, parentRequestContext),
     ).rejects.toThrow(McpError);
 
     try {

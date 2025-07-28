@@ -24,9 +24,8 @@ describe("registerEchoTool", () => {
     await registerEchoTool(mockMcpServer);
 
     expect(mockMcpServer.registerTool).toHaveBeenCalledOnce();
-    const [name, metadata, handler] = (
-      mockMcpServer.registerTool as Mock
-    ).mock.calls[0];
+    const [name, metadata, handler] = (mockMcpServer.registerTool as Mock).mock
+      .calls[0];
 
     expect(name).toBe("echo_message");
     expect(metadata.title).toBe("Echo Message");
@@ -42,9 +41,7 @@ describe("registerEchoTool", () => {
       repeatCount: 1,
       timestamp: new Date().toISOString(),
     };
-    vi.spyOn(logic, "echoToolLogic").mockResolvedValue(
-      mockLogicResponse
-    );
+    vi.spyOn(logic, "echoToolLogic").mockResolvedValue(mockLogicResponse);
 
     await registerEchoTool(mockMcpServer);
     const handler = (mockMcpServer.registerTool as Mock).mock.calls[0][2];
@@ -58,7 +55,7 @@ describe("registerEchoTool", () => {
   it("handler should return an error structure when the logic function throws", async () => {
     const errorMessage = "Failed to echo";
     vi.spyOn(logic, "echoToolLogic").mockRejectedValue(
-      new McpError(BaseErrorCode.VALIDATION_ERROR, errorMessage)
+      new McpError(BaseErrorCode.VALIDATION_ERROR, errorMessage),
     );
 
     await registerEchoTool(mockMcpServer);
@@ -67,6 +64,9 @@ describe("registerEchoTool", () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain(errorMessage);
-    expect(result.structuredContent).toHaveProperty("code", BaseErrorCode.VALIDATION_ERROR);
+    expect(result.structuredContent).toHaveProperty(
+      "code",
+      BaseErrorCode.VALIDATION_ERROR,
+    );
   });
 });

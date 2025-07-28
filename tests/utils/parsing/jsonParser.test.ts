@@ -33,18 +33,14 @@ describe("JsonParser", () => {
 
   it("should handle a <think> block and parse the remaining JSON", () => {
     const stringWithThinkBlock =
-      "<think>This is a thought.</think>  {\"key\": \"value\"}";
+      '<think>This is a thought.</think>  {"key": "value"}';
     const result = parser.parse(stringWithThinkBlock, Allow.ALL, context);
     expect(result).toEqual({ key: "value" });
   });
 
   it("should handle an empty <think> block", () => {
-    const stringWithEmptyThinkBlock = "<think></think>{\"key\": \"value\"}";
-    const result = parser.parse(
-      stringWithEmptyThinkBlock,
-      Allow.ALL,
-      context,
-    );
+    const stringWithEmptyThinkBlock = '<think></think>{"key": "value"}';
+    const result = parser.parse(stringWithEmptyThinkBlock, Allow.ALL, context);
     expect(result).toEqual({ key: "value" });
   });
 

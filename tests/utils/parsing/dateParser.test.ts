@@ -35,11 +35,7 @@ describe("dateParser", () => {
     it("should return null for an unparsable date string", async () => {
       vi.spyOn(chrono, "parseDate").mockReturnValue(null);
 
-      const result = await dateParser.parseDate(
-        "not a date",
-        context,
-        refDate,
-      );
+      const result = await dateParser.parseDate("not a date", context, refDate);
       expect(result).toBeNull();
     });
 
@@ -93,7 +89,7 @@ describe("dateParser", () => {
       await expect(
         dateParser.parse("any date", context, refDate),
       ).rejects.toThrow(McpError);
-      
+
       try {
         await dateParser.parse("any date", context, refDate);
       } catch (error) {

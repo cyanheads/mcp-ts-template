@@ -24,9 +24,8 @@ describe("registerCatFactFetcherTool", () => {
     await registerCatFactFetcherTool(mockMcpServer);
 
     expect(mockMcpServer.registerTool).toHaveBeenCalledOnce();
-    const [name, metadata, handler] = (
-      mockMcpServer.registerTool as Mock
-    ).mock.calls[0];
+    const [name, metadata, handler] = (mockMcpServer.registerTool as Mock).mock
+      .calls[0];
 
     expect(name).toBe("get_random_cat_fact");
     expect(metadata.title).toBe("Get Random Cat Fact");
@@ -39,9 +38,7 @@ describe("registerCatFactFetcherTool", () => {
       length: 17,
       timestamp: new Date().toISOString(),
     };
-    vi.spyOn(logic, "catFactFetcherLogic").mockResolvedValue(
-      mockLogicResponse
-    );
+    vi.spyOn(logic, "catFactFetcherLogic").mockResolvedValue(mockLogicResponse);
 
     await registerCatFactFetcherTool(mockMcpServer);
     const handler = (mockMcpServer.registerTool as Mock).mock.calls[0][2];
@@ -55,7 +52,7 @@ describe("registerCatFactFetcherTool", () => {
   it("handler should return an error structure when the logic function throws", async () => {
     const errorMessage = "API is down";
     vi.spyOn(logic, "catFactFetcherLogic").mockRejectedValue(
-      new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, errorMessage)
+      new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, errorMessage),
     );
 
     await registerCatFactFetcherTool(mockMcpServer);
@@ -64,6 +61,9 @@ describe("registerCatFactFetcherTool", () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain(errorMessage);
-    expect(result.structuredContent).toHaveProperty("code", BaseErrorCode.SERVICE_UNAVAILABLE);
+    expect(result.structuredContent).toHaveProperty(
+      "code",
+      BaseErrorCode.SERVICE_UNAVAILABLE,
+    );
   });
 });
