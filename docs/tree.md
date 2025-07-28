@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-27 15:13:53
+Generated on: 2025-07-28 05:30:39
 
 ```
 mcp-ts-template
@@ -10,6 +10,7 @@ mcp-ts-template
 │   └── FUNDING.yml
 ├── .vscode
 │   └── settings.json
+├── coverage
 ├── docs
 │   ├── api-references
 │   │   ├── duckDB.md
@@ -47,19 +48,28 @@ mcp-ts-template
 │   │   │       └── registration.ts
 │   │   ├── transports
 │   │   │   ├── auth
-│   │   │   │   ├── core
+│   │   │   │   ├── lib
 │   │   │   │   │   ├── authContext.ts
 │   │   │   │   │   ├── authTypes.ts
 │   │   │   │   │   └── authUtils.ts
 │   │   │   │   ├── strategies
-│   │   │   │   │   ├── jwt
-│   │   │   │   │   │   └── jwtMiddleware.ts
-│   │   │   │   │   └── oauth
-│   │   │   │   │       └── oauthMiddleware.ts
+│   │   │   │   │   ├── authStrategy.ts
+│   │   │   │   │   ├── jwtStrategy.ts
+│   │   │   │   │   └── oauthStrategy.ts
+│   │   │   │   ├── authFactory.ts
+│   │   │   │   ├── authMiddleware.ts
 │   │   │   │   └── index.ts
-│   │   │   ├── httpErrorHandler.ts
-│   │   │   ├── httpTransport.ts
-│   │   │   └── stdioTransport.ts
+│   │   │   ├── core
+│   │   │   │   ├── mcpTransportManager.ts
+│   │   │   │   └── transportTypes.ts
+│   │   │   ├── http
+│   │   │   │   ├── httpErrorHandler.ts
+│   │   │   │   ├── httpTransport.ts
+│   │   │   │   ├── httpTypes.ts
+│   │   │   │   └── index.ts
+│   │   │   └── stdio
+│   │   │       ├── index.ts
+│   │   │       └── stdioTransport.ts
 │   │   ├── README.md
 │   │   └── server.ts
 │   ├── services
@@ -105,16 +115,24 @@ mcp-ts-template
 │   └── README.md
 ├── tests
 │   ├── mcp-server
-│   │   └── tools
-│   │       ├── catFactFetcher
-│   │       │   ├── logic.test.ts
-│   │       │   └── registration.test.ts
-│   │       ├── echoTool
-│   │       │   ├── logic.test.ts
-│   │       │   └── registration.test.ts
-│   │       └── imageTest
-│   │           ├── logic.test.ts
-│   │           └── registration.test.ts
+│   │   ├── tools
+│   │   │   ├── catFactFetcher
+│   │   │   │   ├── logic.test.ts
+│   │   │   │   └── registration.test.ts
+│   │   │   ├── echoTool
+│   │   │   │   ├── logic.test.ts
+│   │   │   │   └── registration.test.ts
+│   │   │   └── imageTest
+│   │   │       ├── logic.test.ts
+│   │   │       └── registration.test.ts
+│   │   ├── transports
+│   │   │   ├── auth
+│   │   │   │   └── auth.test.ts
+│   │   │   ├── core
+│   │   │   │   └── mcpTransportManager.test.ts
+│   │   │   └── http
+│   │   │       └── http.test.ts
+│   │   └── server.test.ts
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts

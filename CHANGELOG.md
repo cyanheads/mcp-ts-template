@@ -4,32 +4,44 @@ All notable changes to this project will be documented in this file.
 
 ## [1.7.3] - UNRELEASED
 
+### BREAKING CHANGE
+
+- **Transport Layer Architecture**: The entire MCP transport layer has been refactored for improved modularity, testability, and separation of concerns. The previous monolithic `httpTransport.ts` and `stdioTransport.ts` have been replaced by a new architecture under `src/mcp-server/transports/`.
+  - **Core Logic**: Introduced a `McpTransportManager` (`src/mcp-server/transports/core/mcpTransportManager.ts`) to abstract away the MCP-SDK implementation details and session management from the HTTP server logic.
+  - **Modular Transports**: HTTP and Stdio logic are now cleanly separated into `src/mcp-server/transports/http/` and `src/mcp-server/transports/stdio/` respectively.
+  - **Hono Integration**: The Hono app creation (`createHttpApp`) is now a separate, testable function, and the transport manager is injected as a dependency.
+
+- **Authentication System Overhaul**: The authentication system has been completely redesigned to use a strategy pattern, making it more extensible and robust.
+  - **Auth Strategy Pattern**: Introduced a new `AuthStrategy` interface (`src/mcp-server/transports/auth/strategies/authStrategy.ts`) with concrete implementations for JWT (`jwtStrategy.ts`) and OAuth (`oauthStrategy.ts`).
+  - **Auth Factory**: A new `authFactory.ts` dynamically selects the appropriate authentication strategy based on the server configuration (`MCP_AUTH_MODE`).
+  - **Unified Middleware**: A single, unified `authMiddleware.ts` now handles token extraction and delegates verification to the selected strategy.
+  - **Configuration**: The `MCP_AUTH_MODE` now supports a value of `'none'` to completely disable authentication.
+
 ### Added
 
-- **Test Infrastructure:** Integrated `msw` (Mock Service Worker) to enable robust API mocking for unit and integration tests. This includes a full setup with handlers for success and error states, and global server setup/teardown hooks.
-- **Test Coverage:** Added comprehensive tests for `OpenRouterProvider`, `ErrorHandler`, `RateLimiter`, and `Sanitization` utilities, ensuring greater code reliability.
-- **New Tests:** Added new registration and logic tests for `echoTool`, `catFactFetcher`, and `imageTest` tools. Added new tests for `fetchWithTimeout` utility.
-- **Core Utilities Tests:** Added new unit tests for core internal utilities including `logger`, `requestContext`, `tokenCounter`, `dateParser`, `jsonParser`, and `idGenerator`.
+- **New Tests**: Added comprehensive unit tests for the new transport and authentication architecture.
+  - `tests/mcp-server/transports/http/http.test.ts`: Tests the Hono routing and integration with the transport manager.
+  - `tests/mcp-server/transports/auth/auth.test.ts`: Tests the auth factory, strategies, and middleware.
+  - `tests/mcp-server/transports/core/mcpTransportManager.test.ts`: Tests the core session management logic.
+  - `tests/mcp-server/server.test.ts`: Tests the main server initialization and transport selection logic.
+- **Logger Test Utility**: Added a `resetForTesting` method to the `Logger` class to ensure a clean state between test runs.
 
 ### Changed
 
-- **OpenRouterProvider:** Disabled default retries on the OpenAI client to prevent test timeouts and ensure immediate failure on `429` and `500` error codes.
-- **Sanitization Logic:** Refined the `sanitizeHtml` and `sanitizePath` methods to improve accuracy and provide stricter validation. The `sanitizeForLogging` method now uses a more robust keyword-based detection for redacting sensitive data.
-- **.clinerules**: Added a new rule mandating that files must be read before writing tests for them.
-
-### Fixed
-
-- **Test Timeouts:** Resolved persistent timeout failures in `openRouterProvider.test.ts` by disabling client-side retries, allowing mock API error responses to be handled correctly.
-- **echoTool Logic Test**: Corrected the `echoTool` logic test to properly assert `McpError` details.
+- **Dependencies**: Updated `package.json` version to `1.7.3`.
+- **Configuration**: The `MCP_AUTH_MODE` enum in `src/config/index.ts` now includes `'none'` as a valid option, defaulting to it.
+- **Testing**: Updated existing tests for `echoTool`, `catFactFetcher`, and others to align with the latest testing patterns and Vitest configurations.
+- **Focus**: MCP Client and Agent frameworks moved to new [atlas-mcp-agent](https://github.com/cyanheads/atlas-mcp-agent). This template now focuses exclusively on providing a robust, production-ready foundation for building MCP servers.
 
 ### Removed
 
+- **Legacy Transport Files**: Deleted `src/mcp-server/transports/httpTransport.ts`, `src/mcp-server/transports/stdioTransport.ts`, and `src/mcp-server/transports/httpErrorHandler.ts`.
+- **Legacy Auth Files**: Deleted all files from `src/mcp-server/transports/auth/core/` and `src/mcp-server/transports/auth/strategies/jwt/`, `src/mcp-server/transports/auth/strategies/oauth/`.
+
+### Moved
 - **Agent Framework**: Removed the entire `src/agent/` directory. The agent framework is now maintained in a separate project to decouple it from the server template.
 - **MCP Client**: Removed the `src/mcp-client/` directory. The client implementation is also being moved to a separate project.
 
-### Changed
-
-- **Focus**: This template now focuses exclusively on providing a robust, production-ready foundation for building MCP servers.
 
 ## [1.7.2] - 2025-07-27
 
@@ -349,8 +361,8 @@ All notable changes to this project will be documented in this file.
     - Streamlined initialization by removing redundant log directory creation logic, now handled by the central configuration module (`src/config/index.ts`).
     - Ensured the `initialized` flag is set only after the logger setup is fully complete.
   - `idGenerator.ts`:
-    - Enhanced the `isValid` method to use the `charset` provided in options (or the default charset) when building the validation regular expression. This makes ID validation more accurate, especially when custom character sets are used for generating IDs.
-    - Added a JSDoc note to `normalizeId` regarding the behavior of `toUpperCase()` on the random part of an ID when custom charsets are involved.
+    - Removed logging from `idGenerator.ts` to prevent circular dependencies with `requestContextService`.
+    - Updated JSDoc comments to reflect this change and its rationale.
   - `sanitization.ts`:
     - Updated JSDoc for `sanitizeInputForLogging` to detail the limitations of the `JSON.parse(JSON.stringify(input))` fallback method (used when `structuredClone` is unavailable), covering its impact on types like `Date`, `Map`, `Set`, `undefined` values, functions, `BigInt`, and circular references.
 - **Documentation**:

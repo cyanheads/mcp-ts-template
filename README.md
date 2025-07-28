@@ -40,7 +40,7 @@ Building a robust server for AI agents is more than just writing code. It requir
 | **🕵️ Interaction Logging**  | Captures raw requests and responses for all external LLM provider interactions to a dedicated `interactions.log` file for full traceability.    | `src/utils/internal/logger.ts`                                       |
 | **🤖 Agent Ready**          | Includes a [.clinerules](.clinerules) developer cheatsheet tailored for LLM coding agents.                                                      | `.clinerules`                                                        |
 | **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                            | `scripts/`                                                           |
-| **🧩 Services**                | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                     | `src/services/`, `src/storage/duckdbExample.ts`                      |
+| **🧩 Services**             | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                     | `src/services/`, `src/storage/duckdbExample.ts`                      |
 | **🧪 Unit Testing**         | Integrated with Vitest for fast and reliable unit testing. Includes example tests for core tool logic and a coverage reporter.                  | `vitest.config.ts`, `tests/`                                         |
 
 ## 🌟 Projects Using This Template
@@ -120,7 +120,7 @@ Configure the MCP server's behavior using these environment variables:
 | `MCP_HTTP_PORT`       | Port for the HTTP server (if `MCP_TRANSPORT_TYPE=http`).                                  | `3010`                                 |
 | `MCP_HTTP_HOST`       | Host address for the HTTP server (if `MCP_TRANSPORT_TYPE=http`).                          | `127.0.0.1`                            |
 | `MCP_ALLOWED_ORIGINS` | Comma-separated allowed origins for CORS (if `MCP_TRANSPORT_TYPE=http`).                  | (none)                                 |
-| `MCP_AUTH_MODE`       | Authentication mode for HTTP: `jwt` (default) or `oauth`.                                 | `jwt`                                  |
+| `MCP_AUTH_MODE`       | Authentication mode for HTTP: `jwt`, `oauth`, or `none`.                                  | `none`                                 |
 | `MCP_AUTH_SECRET_KEY` | **Required for `jwt` mode.** Secret key (min 32 chars) for signing/verifying auth tokens. | (none - **MUST be set in production**) |
 | `OAUTH_ISSUER_URL`    | **Required for `oauth` mode.** The issuer URL of your authorization server.               | (none)                                 |
 | `OAUTH_AUDIENCE`      | **Required for `oauth` mode.** The audience identifier for this MCP server.               | (none)                                 |

@@ -403,6 +403,23 @@ export class Logger {
   }
 
   /**
+   * Resets the singleton instance.
+   * This is intended for use in testing environments only.
+   */
+  public static resetForTesting(): void {
+    // This is a clear indication that this method is for testing purposes.
+    if (process.env.NODE_ENV !== "test") {
+      console.warn(
+        "Warning: `resetForTesting` should only be called in a test environment.",
+      );
+      return;
+    }
+    // De-reference the instance to allow garbage collection
+    // and force re-creation on next getInstance() call.
+    (Logger.instance as unknown) = undefined;
+  }
+
+  /**
    * Ensures the logger has been initialized.
    * @returns True if initialized, false otherwise.
    * @private
