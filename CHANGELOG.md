@@ -2,7 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.7.3] - UNRELEASED
+## [1.7.4] - UNRELEASED
+
+### Added
+
+- **Unit Tests**: Added comprehensive unit tests for authentication and database services:
+  - `tests/mcp-server/transports/auth/lib/authUtils.test.ts`: Tests for authorization utility functions and scope validation
+  - `tests/mcp-server/transports/auth/strategies/jwtStrategy.test.ts`: Tests for JWT authentication strategy including token validation and dev mode bypass
+  - `tests/mcp-server/transports/auth/strategies/oauthStrategy.test.ts`: Tests for OAuth 2.1 authentication strategy with JWKS endpoint integration
+  - `tests/services/duck-db/duckDBConnectionManager.test.ts`: Tests for DuckDB connection management, initialization, and extension loading
+  - `tests/services/duck-db/duckDBQueryExecutor.test.ts`: Tests for DuckDB query execution, transactions, and error handling
+  - `tests/services/duck-db/duckDBService.test.ts`: Tests for the main DuckDB service orchestrating connections and queries
+
+### Changed
+
+- **Configuration**: Updated default LLM model from `google/gemini-2.5-flash-preview-05-20` to `google/gemini-2.5-flash` for improved stability and performance
+- **Documentation**: Updated `docs/tree.md` to reflect the addition of new test directories and files
+
+## [1.7.3] - 2025-07-27
 
 ### BREAKING CHANGE
 
@@ -39,9 +56,9 @@ All notable changes to this project will be documented in this file.
 - **Legacy Auth Files**: Deleted all files from `src/mcp-server/transports/auth/core/` and `src/mcp-server/transports/auth/strategies/jwt/`, `src/mcp-server/transports/auth/strategies/oauth/`.
 
 ### Moved
+
 - **Agent Framework**: Removed the entire `src/agent/` directory. The agent framework is now maintained in a separate project to decouple it from the server template.
 - **MCP Client**: Removed the `src/mcp-client/` directory. The client implementation is also being moved to a separate project.
-
 
 ## [1.7.2] - 2025-07-27
 
