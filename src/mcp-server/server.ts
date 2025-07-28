@@ -23,8 +23,8 @@ import { registerEchoResource } from "./resources/echoResource/index.js";
 import { registerCatFactFetcherTool } from "./tools/catFactFetcher/index.js";
 import { registerEchoTool } from "./tools/echoTool/index.js";
 import { registerFetchImageTestTool } from "./tools/imageTest/index.js";
-import { startHttpTransport } from "./transports/httpTransport.js";
-import { connectStdioTransport } from "./transports/stdioTransport.js";
+import { startHttpTransport } from "./transports/http/index.js";
+import { startStdioTransport } from "./transports/stdio/index.js";
 
 /**
  * Creates and configures a new instance of the `McpServer`.
@@ -92,12 +92,16 @@ async function startTransport(): Promise<McpServer | ServerType | void> {
   logger.info(`Starting transport: ${transportType}`, context);
 
   if (transportType === "http") {
-    return startHttpTransport(createMcpServerInstance, context);
+    const { server } = await startHttpTransport(
+      createMcpServerInstance,
+      context,
+    );
+    return server;
   }
 
   if (transportType === "stdio") {
     const server = await createMcpServerInstance();
-    await connectStdioTransport(server, context);
+    await startStdioTransport(server, context);
     return server;
   }
 
