@@ -13,10 +13,16 @@ All notable changes to this project will be documented in this file.
   - `tests/services/duck-db/duckDBConnectionManager.test.ts`: Tests for DuckDB connection management, initialization, and extension loading
   - `tests/services/duck-db/duckDBQueryExecutor.test.ts`: Tests for DuckDB query execution, transactions, and error handling
   - `tests/services/duck-db/duckDBService.test.ts`: Tests for the main DuckDB service orchestrating connections and queries
+  - `tests/utils/scheduling/scheduler.test.ts`: Comprehensive unit tests for the SchedulerService singleton covering job management, cron validation, and lifecycle operations
 
 ### Changed
 
 - **Configuration**: Updated default LLM model from `google/gemini-2.5-flash-preview-05-20` to `google/gemini-2.5-flash` for improved stability and performance
+- **Testing Infrastructure**: Enhanced testing reliability and real-world accuracy:
+  - **Real API Testing**: Migrated from MSW mock server to real API endpoints for `fetchWithTimeout` and `imageTest` tools, using httpbin.org and cataas.com respectively for more accurate integration testing
+  - **Test Isolation**: Implemented dedicated MSW server instances per test suite (OAuth, OpenRouter) to prevent cross-test interference while maintaining isolation where needed
+  - **Global Test Setup**: Removed global MSW server configuration, allowing tests to use real APIs by default with selective mocking only where required
+  - **Enhanced Coverage**: Improved test coverage to **77.36%** with more comprehensive real-world scenarios and edge case handling
 - **Documentation**: Updated `docs/tree.md` to reflect the addition of new test directories and files
 
 ## [1.7.3] - 2025-07-27

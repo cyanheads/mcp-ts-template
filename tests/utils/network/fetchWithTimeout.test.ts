@@ -1,27 +1,14 @@
 /**
- * @fileoverview Tests for the fetchWithTimeout utility.
+ * @fileoverview Tests for the fetchWithTimeout utility using real HTTP endpoints.
  * @module tests/utils/network/fetchWithTimeout.test
  */
-import {
-  describe,
-  it,
-  expect,
-  beforeAll,
-  afterEach,
-  afterAll,
-  vi,
-} from "vitest";
-import { http, HttpResponse } from "msw";
-import { server } from "../../mocks/server";
+import { describe, it, expect } from "vitest";
 import { fetchWithTimeout } from "../../../src/utils/network/fetchWithTimeout";
 import { requestContextService } from "../../../src/utils";
 import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
 
-const MOCK_API_URL = "https://api.example.com/data";
-
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+// Using httpbin.org for real HTTP testing
+const HTTPBIN_BASE = "https://httpbin.org";
 
 describe("fetchWithTimeout", () => {
   const parentRequestContext = requestContextService.createRequestContext({
@@ -29,37 +16,25 @@ describe("fetchWithTimeout", () => {
   });
 
   it("should successfully fetch data within the timeout", async () => {
-    server.use(
-      http.get(MOCK_API_URL, () => {
-        return HttpResponse.json({ message: "Success" });
-      }),
-    );
-
     const response = await fetchWithTimeout(
-      MOCK_API_URL,
-      5000,
+      `${HTTPBIN_BASE}/json`,
+      10000,
       parentRequestContext,
     );
     const data = await response.json();
 
     expect(response.ok).toBe(true);
-    expect(data).toEqual({ message: "Success" });
+    expect(data).toHaveProperty("slideshow");
   });
 
   it("should throw a timeout error if the request takes too long", async () => {
-    server.use(
-      http.get(MOCK_API_URL, async () => {
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        return HttpResponse.json({ message: "Delayed success" });
-      }),
-    );
-
+    // httpbin.org/delay/2 takes 2 seconds, but we'll timeout after 1 second
     await expect(
-      fetchWithTimeout(MOCK_API_URL, 100, parentRequestContext),
+      fetchWithTimeout(`${HTTPBIN_BASE}/delay/2`, 1000, parentRequestContext),
     ).rejects.toThrow(McpError);
 
     try {
-      await fetchWithTimeout(MOCK_API_URL, 100, parentRequestContext);
+      await fetchWithTimeout(`${HTTPBIN_BASE}/delay/2`, 1000, parentRequestContext);
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.code).toBe(BaseErrorCode.TIMEOUT);
@@ -67,15 +42,9 @@ describe("fetchWithTimeout", () => {
     }
   });
 
-  it("should handle network errors gracefully", async () => {
-    server.use(
-      http.get(MOCK_API_URL, () => {
-        return new HttpResponse(null, { status: 500 });
-      }),
-    );
-
+  it("should handle HTTP error status codes gracefully", async () => {
     const response = await fetchWithTimeout(
-      MOCK_API_URL,
+      `${HTTPBIN_BASE}/status/500`,
       5000,
       parentRequestContext,
     );
@@ -83,50 +52,27 @@ describe("fetchWithTimeout", () => {
     expect(response.status).toBe(500);
   });
 
-  it("should throw an McpError for other fetch-related errors", async () => {
-    server.use(
-      http.get(MOCK_API_URL, () => {
-        // Simulate a network error by not returning a valid response
-        return new Response(null, { status: 0, statusText: "Network Error" });
-      }),
-    );
-
-    // This test is a bit tricky with MSW, as it doesn't easily simulate
-    // a full network failure. We'll check for the wrapping behavior.
-    // A real network error would be caught and wrapped.
-    // For the test, we'll mock the global fetch.
-    const originalFetch = global.fetch;
-    global.fetch = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
-
+  it("should throw an McpError for network errors", async () => {
+    // Use an invalid URL to trigger a network error
     await expect(
-      fetchWithTimeout(MOCK_API_URL, 100, parentRequestContext),
+      fetchWithTimeout("https://invalid-domain-that-does-not-exist.com", 5000, parentRequestContext),
     ).rejects.toThrow(McpError);
 
     try {
-      await fetchWithTimeout(MOCK_API_URL, 100, parentRequestContext);
+      await fetchWithTimeout("https://invalid-domain-that-does-not-exist.com", 5000, parentRequestContext);
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.code).toBe(BaseErrorCode.SERVICE_UNAVAILABLE);
       expect(mcpError.message).toContain("Network error");
     }
-
-    global.fetch = originalFetch; // Restore original fetch
   });
 
   it("should handle POST requests correctly", async () => {
-    const requestBody = { key: "value" };
-    let receivedBody;
-
-    server.use(
-      http.post(MOCK_API_URL, async ({ request }) => {
-        receivedBody = await request.json();
-        return HttpResponse.json({ received: receivedBody });
-      }),
-    );
+    const requestBody = { key: "value", test: true };
 
     const response = await fetchWithTimeout(
-      MOCK_API_URL,
-      5000,
+      `${HTTPBIN_BASE}/post`,
+      10000,
       parentRequestContext,
       {
         method: "POST",
@@ -138,7 +84,7 @@ describe("fetchWithTimeout", () => {
     const responseData = await response.json();
 
     expect(response.ok).toBe(true);
-    expect(receivedBody).toEqual(requestBody);
-    expect(responseData).toEqual({ received: requestBody });
+    expect(responseData.json).toEqual(requestBody);
+    expect(responseData.headers["Content-Type"]).toBe("application/json");
   });
 });

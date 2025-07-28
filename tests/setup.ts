@@ -1,12 +1,14 @@
 import { beforeAll, afterEach, afterAll } from "vitest";
-import { server } from "./mocks/server";
 
-// Establish API mocking before all tests.
-beforeAll(() => server.listen());
+// Global test setup without MSW - tests use real APIs or isolated MSW servers
+beforeAll(() => {
+  // Any global setup can go here
+});
 
-// Reset any request handlers that we may add during the tests,
-// so they don't affect other tests.
-afterEach(() => server.resetHandlers());
+afterEach(() => {
+  // Clean up between tests
+});
 
-// Clean up after the tests are finished.
-afterAll(() => server.close());
+afterAll(() => {
+  // Global cleanup
+});

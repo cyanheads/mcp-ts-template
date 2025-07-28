@@ -47,16 +47,21 @@ const mockConfig = (issuer: string, audience: string, jwksUri?: string) => {
 
 const alg = "RS256";
 let keyPair: { publicKey: CryptoKey; privateKey: CryptoKey };
-const mswServer = setupServer();
+
+// Create a separate MSW server for OAuth tests only
+const oauthTestServer = setupServer();
 
 describe("OauthStrategy", () => {
   beforeAll(async () => {
     keyPair = await generateKeyPair(alg);
-    mswServer.listen({ onUnhandledRequest: "error" });
+    // Start the OAuth-specific test server
+    oauthTestServer.listen({ 
+      onUnhandledRequest: 'bypass'  // Don't interfere with other requests
+    });
   });
 
-  afterEach(() => mswServer.resetHandlers());
-  afterAll(() => mswServer.close());
+  afterEach(() => oauthTestServer.resetHandlers());
+  afterAll(() => oauthTestServer.close());
 
   const createToken = async (
     payload: Record<string, unknown>,
@@ -74,7 +79,7 @@ describe("OauthStrategy", () => {
   };
 
   const setupJwksHandler = (jwksUri: string) => {
-    mswServer.use(
+    oauthTestServer.use(
       http.get(jwksUri, async () => {
         // Export the public key as JWK format
         const publicKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
@@ -113,7 +118,7 @@ describe("OauthStrategy", () => {
   });
 
   describe("Verification Logic", () => {
-    const issuer = "https://accounts.google.com";
+    const issuer = "https://test-oauth-issuer.example.com";
     const audience = "test-audience";
     const jwksUri = `${issuer}/.well-known/jwks.json`;
 
@@ -182,7 +187,7 @@ describe("OauthStrategy", () => {
     });
 
     it("should throw UNAUTHORIZED if JWKS endpoint is unreachable", async () => {
-      mswServer.use(http.get(jwksUri, () => new HttpResponse(null, { status: 500 })));
+      oauthTestServer.use(http.get(jwksUri, () => new HttpResponse(null, { status: 500 })));
       const strategy = new OauthStrategy();
       const token = await createToken({ scope: "read", client_id: "test-client" }, issuer, audience);
       await expect(strategy.verify(token)).rejects.toThrow("OAuth token verification failed.");

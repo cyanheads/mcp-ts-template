@@ -38,6 +38,11 @@ export const handlers = [
       },
     });
   }),
+
+  // Mock for fetchWithTimeout test
+  http.get("https://api.example.com/data", () => {
+    return HttpResponse.json({ data: "test" });
+  }),
 ];
 
 export const errorHandlers = {
