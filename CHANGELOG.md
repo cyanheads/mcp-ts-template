@@ -2,35 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.7.4] - UNRELEASED
+## [1.7.4] - 2025-07-27
 
 ### Changed
 
-- **Testing Overhaul**: Shifted testing methodology from unit testing to an **integration-first approach**. The `.clinerules` have been updated to mandate testing real component interactions over mocked units, ensuring that tests more accurately reflect production behavior. This includes new guidelines for testing MCP transport layers, tool registration, and service integrations.
-- **Transport Layer Refactoring**: Overhauled the `McpTransportManager` for more robust session management. The manager now handles the entire lifecycle of a session, including creation, tracking, and garbage collection of stale sessions to prevent memory leaks. The `initializeSession` method has been replaced with a unified `initializeAndHandle` method to streamline new session creation.
-- **Test Coverage**: Added new integration tests for the HTTP error handler (`httpErrorHandler.test.ts`) and the stdio transport (`stdioTransport.test.ts`), and deleted the obsolete `http.test.ts`. This brings the total test coverage to **77.45%**.
-- **Dependencies**: Added `supertest` and `@types/supertest` to support integration testing of the Hono HTTP server.
+- **Testing Architecture Overhaul**: Completed a comprehensive shift from unit testing to an **integration-first testing approach** that prioritizes real component interactions over mocked units. This fundamental change ensures tests more accurately reflect production behavior and catch real-world integration issues that pure unit tests with heavy mocking would miss.
+
+- **Transport Layer Refactoring**: Overhauled the `McpTransportManager` for more robust session management, handling the entire session lifecycle including creation, tracking, and garbage collection of stale sessions to prevent memory leaks. The `initializeSession` method has been replaced with a unified `initializeAndHandle` method to streamline new session creation.
+
+- **HTTP Transport Test Fixes**: Resolved critical test failures in the HTTP transport layer that were preventing reliable CI/CD:
+  - **Fixed Infinite Loop Timeout**: Resolved timeout issues caused by uncleaned `setInterval` in `McpTransportManager` that triggered Vitest's 10,000 timer abort protection
+  - **Proper Mock Sequencing**: Implemented sophisticated mocking strategy using `vi.spyOn(http, 'createServer')` to accurately simulate port retry logic and `isPortInUse` behavior
+  - **Error Code Handling**: Added correct error codes (`EACCES`) for non-EADDRINUSE error scenarios to test proper error propagation paths
+  - **Integration Testing Compliance**: Maintained the project's integration-first philosophy while creating new comprehensive HTTP transport tests (`tests/mcp-server/transports/http/httpTransport.test.ts`)
+
+- **Enhanced Test Coverage**: Significantly improved test coverage from **77.36%** to **83.2%** with the addition of comprehensive integration tests:
+  - HTTP transport layer with complete server startup, port conflict handling, and session management validation
+  - HTTP error handler with structured error response testing
+  - Stdio transport with MCP protocol compliance validation
+  - Authentication system tests covering JWT and OAuth 2.1 strategies with real JWKS endpoint integration
+  - Database services with DuckDB connection management, query execution, and transaction handling
+  - Scheduling service with cron job management and lifecycle operations
+
+- **Testing Infrastructure Improvements**: Enhanced testing reliability and real-world accuracy:
+  - **Real API Integration**: Migrated from MSW mock server to real API endpoints (httpbin.org, cataas.com) for `fetchWithTimeout` and `imageTest` tools
+  - **Selective Mocking**: Implemented dedicated MSW server instances only where needed (OAuth, OpenRouter) while allowing real API calls by default
+  - **Test Isolation**: Removed global MSW configuration to prevent cross-test interference and enable more realistic testing scenarios
+
+- **Configuration Updates**: Updated default LLM model from `google/gemini-2.5-flash-preview-05-20` to `google/gemini-2.5-flash` for improved stability and performance.
 
 ### Added
 
-- **Unit Tests**: Added comprehensive unit tests for authentication and database services:
-  - `tests/mcp-server/transports/auth/lib/authUtils.test.ts`: Tests for authorization utility functions and scope validation
-  - `tests/mcp-server/transports/auth/strategies/jwtStrategy.test.ts`: Tests for JWT authentication strategy including token validation and dev mode bypass
-  - `tests/mcp-server/transports/auth/strategies/oauthStrategy.test.ts`: Tests for OAuth 2.1 authentication strategy with JWKS endpoint integration
-  - `tests/services/duck-db/duckDBConnectionManager.test.ts`: Tests for DuckDB connection management, initialization, and extension loading
-  - `tests/services/duck-db/duckDBQueryExecutor.test.ts`: Tests for DuckDB query execution, transactions, and error handling
-  - `tests/services/duck-db/duckDBService.test.ts`: Tests for the main DuckDB service orchestrating connections and queries
-  - `tests/utils/scheduling/scheduler.test.ts`: Comprehensive unit tests for the SchedulerService singleton covering job management, cron validation, and lifecycle operations
+- **Comprehensive Test Suite**: Added extensive integration and unit tests across core systems:
+  - `tests/mcp-server/transports/http/httpTransport.test.ts`: Complete HTTP transport integration tests validating server startup, port retry logic, session management, and MCP protocol flows
+  - `tests/mcp-server/transports/auth/lib/authUtils.test.ts`: Authorization utility functions and scope validation tests
+  - `tests/mcp-server/transports/auth/strategies/jwtStrategy.test.ts`: JWT authentication strategy tests including token validation and dev mode bypass
+  - `tests/mcp-server/transports/auth/strategies/oauthStrategy.test.ts`: OAuth 2.1 authentication strategy tests with JWKS endpoint integration
+  - `tests/services/duck-db/duckDBConnectionManager.test.ts`: DuckDB connection management, initialization, and extension loading tests
+  - `tests/services/duck-db/duckDBQueryExecutor.test.ts`: DuckDB query execution, transactions, and error handling tests
+  - `tests/services/duck-db/duckDBService.test.ts`: Main DuckDB service orchestration tests
+  - `tests/utils/scheduling/scheduler.test.ts`: SchedulerService singleton tests covering job management and cron validation
 
-### Changed
+- **Development Dependencies**: Added `supertest` and `@types/supertest` to support integration testing of the Hono HTTP server.
 
-- **Configuration**: Updated default LLM model from `google/gemini-2.5-flash-preview-05-20` to `google/gemini-2.5-flash` for improved stability and performance
-- **Testing Infrastructure**: Enhanced testing reliability and real-world accuracy:
-  - **Real API Testing**: Migrated from MSW mock server to real API endpoints for `fetchWithTimeout` and `imageTest` tools, using httpbin.org and cataas.com respectively for more accurate integration testing
-  - **Test Isolation**: Implemented dedicated MSW server instances per test suite (OAuth, OpenRouter) to prevent cross-test interference while maintaining isolation where needed
-  - **Global Test Setup**: Removed global MSW server configuration, allowing tests to use real APIs by default with selective mocking only where required
-  - **Enhanced Coverage**: Improved test coverage to **77.36%** with more comprehensive real-world scenarios and edge case handling
-- **Documentation**: Updated `docs/tree.md` to reflect the addition of new test directories and files
+- **Documentation Updates**: Updated `.clinerules` with new integration-first testing mandates and `docs/tree.md` to reflect the expanded test directory structure.
 
 ## [1.7.3] - 2025-07-27
 
