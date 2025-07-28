@@ -129,10 +129,10 @@ const EnvSchema = z.object({
   OPENROUTER_APP_NAME: z.string().optional(),
   /** Optional. API key for OpenRouter services. */
   OPENROUTER_API_KEY: z.string().optional(),
-  /** Default LLM model. Default: "google/gemini-2.5-flash-preview-05-20". */
+  /** Default LLM model. Default: "google/gemini-2.5-flash". */
   LLM_DEFAULT_MODEL: z
     .string()
-    .default("google/gemini-2.5-flash-preview-05-20"),
+    .default("google/gemini-2.5-flash"),
   /** Optional. Default LLM temperature (0.0-2.0). */
   LLM_DEFAULT_TEMPERATURE: z.coerce.number().min(0).max(2).optional(),
   /** Optional. Default LLM top_p (0.0-1.0). */
