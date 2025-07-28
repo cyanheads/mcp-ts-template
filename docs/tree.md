@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-28 05:30:39
+Generated on: 2025-07-28 06:22:25
 
 ```
 mcp-ts-template
@@ -127,6 +127,11 @@ mcp-ts-template
 │   │   │       └── registration.test.ts
 │   │   ├── transports
 │   │   │   ├── auth
+│   │   │   │   ├── lib
+│   │   │   │   │   └── authUtils.test.ts
+│   │   │   │   ├── strategies
+│   │   │   │   │   ├── jwtStrategy.test.ts
+│   │   │   │   │   └── oauthStrategy.test.ts
 │   │   │   │   └── auth.test.ts
 │   │   │   ├── core
 │   │   │   │   └── mcpTransportManager.test.ts
@@ -137,6 +142,10 @@ mcp-ts-template
 │   │   ├── handlers.ts
 │   │   └── server.ts
 │   ├── services
+│   │   ├── duck-db
+│   │   │   ├── duckDBConnectionManager.test.ts
+│   │   │   ├── duckDBQueryExecutor.test.ts
+│   │   │   └── duckDBService.test.ts
 │   │   └── llm-providers
 │   │       └── openRouterProvider.test.ts
 │   ├── utils
