@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-28 20:15:27
+Generated on: 2025-07-28 21:47:12
 
 ```
 mcp-ts-template
@@ -136,7 +136,8 @@ mcp-ts-template
 │   │   │   ├── core
 │   │   │   │   └── mcpTransportManager.test.ts
 │   │   │   ├── http
-│   │   │   │   └── httpErrorHandler.test.ts
+│   │   │   │   ├── httpErrorHandler.test.ts
+│   │   │   │   └── httpTransport.test.ts
 │   │   │   └── stdio
 │   │   │       └── stdioTransport.test.ts
 │   │   └── server.test.ts

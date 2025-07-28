@@ -292,7 +292,11 @@ export function createHttpApp(
 export async function startHttpTransport(
   createServerInstanceFn: () => Promise<McpServer>,
   parentContext: RequestContext,
-): Promise<{ app: Hono<{ Bindings: HonoNodeBindings }>; server: ServerType }> {
+): Promise<{
+  app: Hono<{ Bindings: HonoNodeBindings }>;
+  server: ServerType;
+  transportManager: McpTransportManager;
+}> {
   const transportManager = new McpTransportManager(createServerInstanceFn);
   const app = createHttpApp(transportManager, parentContext);
   const transportContext = requestContextService.createRequestContext({
@@ -308,5 +312,5 @@ export async function startHttpTransport(
     transportContext,
   );
 
-  return { app, server };
+  return { app, server, transportManager };
 }

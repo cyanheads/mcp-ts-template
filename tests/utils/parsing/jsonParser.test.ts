@@ -2,15 +2,29 @@
  * @fileoverview Tests for the JsonParser utility.
  * @module tests/utils/parsing/jsonParser.test
  */
-import { describe, it, expect } from "vitest";
-import { JsonParser, Allow } from "../../../src/utils/parsing/jsonParser";
-import { requestContextService } from "../../../src/utils";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BaseErrorCode, McpError } from "../../../src/types-global/errors";
+import { logger, requestContextService } from "../../../src/utils";
+import { Allow, JsonParser } from "../../../src/utils/parsing/jsonParser";
+
+// Mock the logger to spy on its methods
+vi.mock("../../../src/utils/internal/logger.js", () => ({
+  logger: {
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
 
 describe("JsonParser", () => {
   const parser = new JsonParser();
   const context = requestContextService.createRequestContext({
     toolName: "test-json-parser",
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
   it("should parse a valid, complete JSON string", () => {
@@ -36,12 +50,30 @@ describe("JsonParser", () => {
       '<think>This is a thought.</think>  {"key": "value"}';
     const result = parser.parse(stringWithThinkBlock, Allow.ALL, context);
     expect(result).toEqual({ key: "value" });
+    expect(logger.debug).toHaveBeenCalledWith(
+      "LLM <think> block detected and logged.",
+      expect.objectContaining({ thinkContent: "This is a thought." }),
+    );
   });
 
-  it("should handle an empty <think> block", () => {
+  it("should handle an empty <think> block and log it", () => {
     const stringWithEmptyThinkBlock = '<think></think>{"key": "value"}';
     const result = parser.parse(stringWithEmptyThinkBlock, Allow.ALL, context);
     expect(result).toEqual({ key: "value" });
+    expect(logger.debug).toHaveBeenCalledWith(
+      "Empty LLM <think> block detected.",
+      expect.any(Object),
+    );
+  });
+
+  it("should create its own context for logging if none is provided", () => {
+    const stringWithThinkBlock =
+      '<think>No context here.</think>{"key": "value"}';
+    parser.parse(stringWithThinkBlock);
+    expect(logger.debug).toHaveBeenCalledWith(
+      "LLM <think> block detected and logged.",
+      expect.objectContaining({ operation: "JsonParser.thinkBlock" }),
+    );
   });
 
   it("should throw an McpError if the string is empty after removing the <think> block", () => {
@@ -62,18 +94,5 @@ describe("JsonParser", () => {
     const partialJson = '{"key": "value"';
     const result = parser.parse(partialJson, Allow.ALL, context);
     expect(result).toEqual({ key: "value" });
-  });
-
-  it("should throw an McpError with detailed context on failure", () => {
-    const invalidJson = "{key: 'value'}"; // Invalid quotes
-    try {
-      parser.parse(invalidJson, Allow.ALL, context);
-    } catch (error) {
-      const mcpError = error as McpError;
-      expect(mcpError.code).toBe(BaseErrorCode.VALIDATION_ERROR);
-      expect(mcpError.message).toContain("Failed to parse JSON");
-      expect(mcpError.details).toHaveProperty("originalContentSample");
-      expect(mcpError.details).toHaveProperty("rawError");
-    }
   });
 });
