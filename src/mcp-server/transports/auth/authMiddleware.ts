@@ -8,18 +8,9 @@
 import type { HttpBindings } from "@hono/node-server";
 import type { Context, Next } from "hono";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
-import type { AuthInfo } from "./lib/authTypes.js";
 import { logger, requestContextService } from "../../../utils/index.js";
 import { authContext } from "./lib/authContext.js";
 import type { AuthStrategy } from "./strategies/authStrategy.js";
-
-// Extend the Node.js IncomingMessage type to include an optional 'auth' property.
-// This is for type-safe access when attaching AuthInfo for logging or legacy compatibility.
-declare module "http" {
-  interface IncomingMessage {
-    auth?: AuthInfo;
-  }
-}
 
 /**
  * Creates a Hono middleware function that enforces authentication using a given strategy.
@@ -58,10 +49,6 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
 
     try {
       const authInfo = await strategy.verify(token);
-
-      // For logging and potential legacy use, attach to the raw request.
-      // The primary mechanism for access should be authContext.
-      c.env.incoming.auth = authInfo;
 
       logger.debug("Authentication successful. Auth context populated.", {
         ...context,

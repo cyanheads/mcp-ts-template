@@ -409,20 +409,17 @@ Same pattern as tools but in `src/mcp-server/resources/yourResource/`
 
 ## Testing Strategy
 
-**Current State**: No testing framework is currently configured.
+**Framework**: The project uses **Vitest** for all testing.
 
-**Before Adding Tests**:
+**Core Principle: Integration Testing First**
+The primary testing strategy is **integration testing**, not isolated unit testing with heavy mocking. Tests should validate the real interactions between components, including actual MCP protocol flows and service integrations. This approach is mandated in the project's `.clinerules`.
 
-1. Check existing documentation for testing preferences
-2. Search codebase for any existing test files
-3. Confirm with user their preferred testing approach
-4. Common options: Jest, Vitest, Node.js built-in test runner
+**Test Structure**:
+The `tests/` directory mirrors the `src/` directory structure. For a given module, you will find corresponding tests:
+- `tests/mcp-server/tools/echoTool/registration.test.ts` (Integration test)
+- `tests/mcp-server/tools/echoTool/logic.test.ts` (Focused logic test)
 
-**Recommended Test Structure**:
-
-```
-tests/
-├── unit/              # Unit tests for utilities and services
-├── integration/       # Integration tests for MCP operations
-└── e2e/              # End-to-end tests for full workflows
-```
+**Running Tests**:
+- `npm test`: Run all tests once.
+- `npm test:watch`: Run tests in watch mode.
+- `npm test:coverage`: Run tests and generate a coverage report.

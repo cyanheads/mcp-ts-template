@@ -21,7 +21,10 @@ export class JwtStrategy implements AuthStrategy {
         logger.fatal(
           "CRITICAL: MCP_AUTH_SECRET_KEY is not set in production for JWT auth.",
         );
-        throw new Error("MCP_AUTH_SECRET_KEY must be set for JWT auth.");
+        throw new McpError(
+          BaseErrorCode.CONFIGURATION_ERROR,
+          "MCP_AUTH_SECRET_KEY must be set for JWT auth in production.",
+        );
       } else if (!config.mcpAuthSecretKey) {
         logger.warning(
           "MCP_AUTH_SECRET_KEY is not set. JWT auth will be bypassed (DEV ONLY).",
@@ -46,9 +49,10 @@ export class JwtStrategy implements AuthStrategy {
           scopes: ["dev-scope"],
         };
       }
+      // This path is defensive. The constructor should prevent this state in production.
       throw new McpError(
         BaseErrorCode.CONFIGURATION_ERROR,
-        "Auth secret key is missing in production.",
+        "Auth secret key is missing in production. This indicates a server configuration error.",
       );
     }
 

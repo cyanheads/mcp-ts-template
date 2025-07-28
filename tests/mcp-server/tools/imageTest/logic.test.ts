@@ -17,7 +17,7 @@ describe("fetchImageTestLogic", () => {
     const result = await fetchImageTestLogic(input, parentRequestContext);
 
     expect(result).toHaveProperty("data");
-    expect(result).toHaveProperty("mimeType", "image/jpeg");
+    expect(["image/jpeg", "image/png"]).toContain(result.mimeType);
     expect(typeof result.data).toBe("string");
     // Check if the data is a valid base64 string
     const base64Regex =

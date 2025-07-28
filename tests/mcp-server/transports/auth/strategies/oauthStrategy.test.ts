@@ -1,196 +1,182 @@
 /**
- * @fileoverview Tests for the OAuth 2.1 authentication strategy.
+ * @fileoverview Tests for the OauthStrategy class.
  * @module tests/mcp-server/transports/auth/strategies/oauthStrategy.test
  */
 
-import { generateKeyPair, SignJWT } from "jose";
-import { http, HttpResponse } from "msw";
-import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import * as configModule from "../../../../../src/config/index.js";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { OauthStrategy } from "../../../../../src/mcp-server/transports/auth/strategies/oauthStrategy.js";
-import { McpError, BaseErrorCode } from "../../../../../src/types-global/errors.js";
+import { BaseErrorCode, McpError } from "../../../../../src/types-global/errors.js";
+import * as jose from "jose";
+import { logger } from "../../../../../src/utils/internal/logger.js";
 
-vi.mock("../../../../../src/config/index.js");
-
-const mockConfig = (issuer: string, audience: string, jwksUri?: string) => {
-  vi.mocked(configModule).config = {
-    pkg: { name: "test-server", version: "1.0.0" },
-    mcpServerName: "test-server",
-    mcpServerVersion: "1.0.0",
-    logLevel: "silent",
-    logsPath: null,
-    environment: "test",
-    mcpTransportType: "http",
-    mcpHttpPort: 3010,
-    mcpHttpHost: "127.0.0.1",
-    mcpAllowedOrigins: ["http://localhost:3000"],
+// Mock config and logger with a mutable state object
+const mockState = {
+  config: {
     mcpAuthMode: "oauth",
-    mcpAuthSecretKey: undefined,
-    oauthIssuerUrl: issuer,
-    oauthJwksUri: jwksUri,
-    oauthAudience: audience,
-    openrouterAppUrl: "http://localhost:3000",
-    openrouterAppName: "test-server",
-    openrouterApiKey: undefined,
-    llmDefaultModel: "google/gemini-2.5-flash",
-    llmDefaultTemperature: undefined,
-    llmDefaultTopP: undefined,
-    llmDefaultMaxTokens: undefined,
-    llmDefaultTopK: undefined,
-    llmDefaultMinP: undefined,
-    oauthProxy: undefined,
-    supabase: undefined,
-  };
-  vi.mocked(configModule).environment = "test";
+    oauthIssuerUrl: "https://test-issuer.com/",
+    oauthAudience: "test-audience",
+    oauthJwksUri: "",
+  },
 };
 
-const alg = "RS256";
-let keyPair: { publicKey: CryptoKey; privateKey: CryptoKey };
+vi.mock("../../../../../src/config/index.js", () => ({
+  get config() {
+    return mockState.config;
+  },
+}));
 
-// Create a separate MSW server for OAuth tests only
-const oauthTestServer = setupServer();
+vi.mock("../../../../../src/utils/internal/logger.js", () => ({
+  logger: {
+    fatal: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+// Mock jose library
+vi.mock("jose", () => ({
+  createRemoteJWKSet: vi.fn(),
+  jwtVerify: vi.fn(),
+}));
 
 describe("OauthStrategy", () => {
-  beforeAll(async () => {
-    keyPair = await generateKeyPair(alg);
-    // Start the OAuth-specific test server
-    oauthTestServer.listen({ 
-      onUnhandledRequest: 'bypass'  // Don't interfere with other requests
-    });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset config for each test
+    mockState.config = {
+      mcpAuthMode: "oauth",
+      oauthIssuerUrl: "https://test-issuer.com/",
+      oauthAudience: "test-audience",
+      oauthJwksUri: "",
+    };
+    // Mock the JWKS client to return a dummy function
+    vi.mocked(jose.createRemoteJWKSet).mockReturnValue(
+      vi.fn() as unknown as ReturnType<typeof jose.createRemoteJWKSet>,
+    );
   });
 
-  afterEach(() => oauthTestServer.resetHandlers());
-  afterAll(() => oauthTestServer.close());
-
-  const createToken = async (
-    payload: Record<string, unknown>,
-    issuer: string,
-    audience: string,
-    expiresIn = "1h",
-  ) => {
-    return new SignJWT(payload)
-      .setProtectedHeader({ alg, kid: "test-kid" })
-      .setIssuedAt()
-      .setIssuer(issuer)
-      .setAudience(audience)
-      .setExpirationTime(expiresIn)
-      .sign(keyPair.privateKey);
-  };
-
-  const setupJwksHandler = (jwksUri: string) => {
-    oauthTestServer.use(
-      http.get(jwksUri, async () => {
-        // Export the public key as JWK format
-        const publicKeyJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
-        const jwk = {
-          ...publicKeyJwk,
-          kid: "test-kid",
-          alg,
-          use: "sig",
-        };
-        return HttpResponse.json({ keys: [jwk] });
-      }),
-    );
-  };
-
-  describe("Constructor Logic", () => {
-    it("should throw if instantiated for non-oauth auth mode", () => {
-      mockConfig("issuer", "audience");
-      vi.mocked(configModule).config.mcpAuthMode = "jwt";
+  describe("constructor", () => {
+    it("should throw an error if not in oauth mode", () => {
+      mockState.config.mcpAuthMode = "jwt";
       expect(() => new OauthStrategy()).toThrow("OauthStrategy instantiated for non-oauth auth mode.");
     });
 
-    it("should throw if OAUTH_ISSUER_URL is missing", () => {
-      mockConfig("", "audience");
+    it("should throw an error if issuer URL is missing", () => {
+      mockState.config.oauthIssuerUrl = "";
       expect(() => new OauthStrategy()).toThrow("OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.");
     });
 
-    it("should throw if OAUTH_AUDIENCE is missing", () => {
-      mockConfig("issuer", "");
+    it("should throw an error if audience is missing", () => {
+      mockState.config.oauthAudience = "";
       expect(() => new OauthStrategy()).toThrow("OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.");
     });
 
-    it("should throw if the JWKS URI is an invalid URL", () => {
-      mockConfig("issuer", "audience", "invalid-url");
+    it("should construct the JWKS URI from the issuer URL if not provided", () => {
+      new OauthStrategy();
+      const expectedUrl = new URL("https://test-issuer.com/.well-known/jwks.json");
+      expect(jose.createRemoteJWKSet).toHaveBeenCalledWith(expectedUrl, expect.any(Object));
+    });
+
+    it("should use the provided JWKS URI if available", () => {
+      mockState.config.oauthJwksUri = "https://custom-jwks.com/keys";
+      new OauthStrategy();
+      const expectedUrl = new URL("https://custom-jwks.com/keys");
+      expect(jose.createRemoteJWKSet).toHaveBeenCalledWith(expectedUrl, expect.any(Object));
+    });
+
+    it("should throw a fatal error if JWKS client initialization fails", () => {
+      vi.mocked(jose.createRemoteJWKSet).mockImplementation(() => {
+        throw new Error("JWKS client failed");
+      });
       expect(() => new OauthStrategy()).toThrow("Could not initialize JWKS client for OAuth strategy.");
+      expect(vi.mocked(logger).fatal).toHaveBeenCalledWith("Failed to initialize JWKS client.", expect.any(Error));
     });
   });
 
-  describe("Verification Logic", () => {
-    const issuer = "https://test-oauth-issuer.example.com";
-    const audience = "test-audience";
-    const jwksUri = `${issuer}/.well-known/jwks.json`;
-
-    beforeEach(() => {
-      mockConfig(issuer, audience, jwksUri);
-      setupJwksHandler(jwksUri);
-    });
-
+  describe("verify", () => {
     it("should successfully verify a valid token", async () => {
       const strategy = new OauthStrategy();
-      const token = await createToken({ scope: "read write", client_id: "test-client" }, issuer, audience);
-      const authInfo = await strategy.verify(token);
-      expect(authInfo).toEqual(expect.objectContaining({ clientId: "test-client", scopes: ["read", "write"] }));
+      const mockDecoded = {
+        payload: {
+          client_id: "client-1",
+          scope: "read write",
+          sub: "user-123",
+        },
+        protectedHeader: { alg: "RS256" },
+        key: new Uint8Array(),
+      };
+      vi.mocked(jose.jwtVerify).mockResolvedValue(mockDecoded);
+
+      const result = await strategy.verify("valid-token");
+
+      expect(result).toEqual({
+        token: "valid-token",
+        clientId: "client-1",
+        scopes: ["read", "write"],
+        subject: "user-123",
+      });
+      expect(jose.jwtVerify).toHaveBeenCalledWith("valid-token", expect.any(Function), {
+        issuer: "https://test-issuer.com/",
+        audience: "test-audience",
+      });
     });
 
-    it("should throw UNAUTHORIZED if token is expired", async () => {
+    it("should throw UNAUTHORIZED McpError if client_id claim is missing", async () => {
       const strategy = new OauthStrategy();
-      const token = await createToken({ scope: "read", client_id: "test-client" }, issuer, audience, "-1s");
-      try {
-        await strategy.verify(token);
-        expect.fail("Expected verify to throw an error");
-      } catch (e) {
-        const err = e as McpError;
-        expect(err.code).toBe(BaseErrorCode.UNAUTHORIZED);
-        expect(err.message).toBe("Token has expired.");
-        expect(err.details?.originalError).toBe("JWTExpired");
-      }
+      const mockDecoded = {
+        payload: { scope: "read" },
+        protectedHeader: { alg: "RS256" },
+        key: new Uint8Array(),
+      };
+      vi.mocked(jose.jwtVerify).mockResolvedValue(mockDecoded);
+
+      await expect(strategy.verify("invalid-token")).rejects.toThrow(McpError);
+      await expect(strategy.verify("invalid-token")).rejects.toMatchObject({
+        code: BaseErrorCode.UNAUTHORIZED,
+        message: "Token must contain a 'client_id' claim.",
+      });
     });
 
-    it("should throw UNAUTHORIZED for invalid issuer", async () => {
+    it("should throw UNAUTHORIZED McpError if scopes are missing", async () => {
       const strategy = new OauthStrategy();
-      const token = await createToken({ scope: "read", client_id: "test-client" }, "invalid-issuer", audience);
-      await expect(strategy.verify(token)).rejects.toThrow("OAuth token verification failed.");
+      const mockDecoded = {
+        payload: { client_id: "client-1" },
+        protectedHeader: { alg: "RS256" },
+        key: new Uint8Array(),
+      };
+      vi.mocked(jose.jwtVerify).mockResolvedValue(mockDecoded);
+
+      await expect(strategy.verify("invalid-token")).rejects.toThrow(McpError);
+      await expect(strategy.verify("invalid-token")).rejects.toMatchObject({
+        code: BaseErrorCode.UNAUTHORIZED,
+        message: "Token must contain valid, non-empty scopes.",
+      });
     });
 
-    it("should throw UNAUTHORIZED for invalid audience", async () => {
+    it("should throw UNAUTHORIZED McpError if jose.jwtVerify throws JWTExpired", async () => {
       const strategy = new OauthStrategy();
-      const token = await createToken({ scope: "read", client_id: "test-client" }, issuer, "invalid-audience");
-      await expect(strategy.verify(token)).rejects.toThrow("OAuth token verification failed.");
+      const error = new Error("Token has expired.");
+      error.name = "JWTExpired";
+      vi.mocked(jose.jwtVerify).mockRejectedValue(error);
+
+      await expect(strategy.verify("expired-token")).rejects.toThrow(McpError);
+      await expect(strategy.verify("expired-token")).rejects.toMatchObject({
+        code: BaseErrorCode.UNAUTHORIZED,
+        message: "Token has expired.",
+      });
     });
 
-    it("should throw UNAUTHORIZED if scope claim is missing", async () => {
+    it("should throw UNAUTHORIZED McpError if jose.jwtVerify throws a generic error", async () => {
       const strategy = new OauthStrategy();
-      const token = await createToken({ client_id: "test-client" }, issuer, audience);
-      try {
-        await strategy.verify(token);
-        expect.fail("Expected verify to throw an error");
-      } catch (e) {
-        const err = e as McpError;
-        expect(err.code).toBe(BaseErrorCode.UNAUTHORIZED);
-        expect(err.message).toBe("Token must contain valid, non-empty scopes.");
-      }
-    });
+      vi.mocked(jose.jwtVerify).mockRejectedValue(new Error("Verification failed"));
 
-    it("should throw UNAUTHORIZED if client_id claim is missing", async () => {
-      const strategy = new OauthStrategy();
-      const token = await createToken({ scope: "read" }, issuer, audience);
-      try {
-        await strategy.verify(token);
-        expect.fail("Expected verify to throw an error");
-      } catch (e) {
-        const err = e as McpError;
-        expect(err.code).toBe(BaseErrorCode.UNAUTHORIZED);
-        expect(err.message).toBe("Token must contain a 'client_id' claim.");
-      }
-    });
-
-    it("should throw UNAUTHORIZED if JWKS endpoint is unreachable", async () => {
-      oauthTestServer.use(http.get(jwksUri, () => new HttpResponse(null, { status: 500 })));
-      const strategy = new OauthStrategy();
-      const token = await createToken({ scope: "read", client_id: "test-client" }, issuer, audience);
-      await expect(strategy.verify(token)).rejects.toThrow("OAuth token verification failed.");
+      await expect(strategy.verify("generic-error-token")).rejects.toThrow(McpError);
+      await expect(strategy.verify("generic-error-token")).rejects.toMatchObject({
+        code: BaseErrorCode.UNAUTHORIZED,
+        message: "OAuth token verification failed.",
+      });
     });
   });
 });

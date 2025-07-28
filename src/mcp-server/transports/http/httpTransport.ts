@@ -189,26 +189,22 @@ export function createHttpApp(
     const body = await c.req.json();
 
     if (isInitializeRequest(body)) {
-      // Handle initialization
-      const response = await transportManager.initializeSession(
+      return transportManager.initializeAndHandle(
+        c.env.incoming,
+        c.env.res,
         body,
         postContext,
       );
-      response.headers.forEach((value, key) => c.header(key, value));
-      c.status(response.statusCode);
-      return c.json(response.body as Record<string, unknown>);
     }
 
     const sessionId = c.req.header("mcp-session-id");
     if (!sessionId) {
       throw new McpError(
         BaseErrorCode.NOT_FOUND,
-        "Session ID header missing for POST request.",
+        "Session ID header missing for non-initialize POST request.",
       );
     }
 
-    // For session requests, delegate to the unified handler.
-    // The transport manager will now return a 204 No Content for streaming POSTs.
     await transportManager.handleRequest(
       sessionId,
       c.env.incoming,
@@ -216,7 +212,7 @@ export function createHttpApp(
       postContext,
       body,
     );
-    return c.body(null, 204);
+    return c.env.res;
   });
 
   const handleGetRequest = async (c: Context) => {

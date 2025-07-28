@@ -248,25 +248,105 @@ Tools requiring specific permissions shall be protected by checking scopes. The 
 
 A `tests/` directory exists at the project root and mirrors the `src/` directory structure. All tests shall be written using Vitest.
 
-**A. Unit Testing Core Logic**
+**INTEGRATION TESTING FIRST PRINCIPLE:**
+Tests shall prioritize **integration testing over mocked unit testing**. The goal is to test real interactions between components, actual MCP protocol flows, and complete system behavior. Heavy mocking that isolates components from their real dependencies is explicitly discouraged as it can miss critical integration issues.
 
--   **Focus:** Tests must target the core logic within `logic.ts` files exclusively. The primary goal is to validate business logic in isolation, free from the concerns of handlers or transport layers.
+**A. Integration Testing for Core Logic**
+
+-   **Focus:** Tests must validate the complete flow from input to output, including real dependencies and service interactions where feasible.
 -   **Methodology:**
-    1.  **Data Mocking:** Use `@anatine/zod-mock` to generate mock data based on the tool's Zod input schema. This ensures that tests are run against realistic, schema-compliant data.
-    2.  **Success Path:** Write tests to verify that the logic function returns the expected output (adhering to the Zod response schema) when given valid input.
-    3.  **Failure Path:** Write tests to verify that the logic function throws a structured `McpError` when it encounters a state that should result in an error (e.g., invalid input that bypasses schema validation, or a specific condition designed to fail). Assert that the thrown error has the correct `code` and `message`.
+    1.  **Real Dependencies:** Use actual service instances and real data flows instead of mocks wherever possible. For external services that cannot be controlled, use test doubles that simulate realistic behavior.
+    2.  **End-to-End Validation:** Test the complete execution path from tool invocation through to final response, including error scenarios.
+    3.  **Schema Compliance:** Use `@anatine/zod-mock` to generate test data, but validate that the complete system properly handles and transforms this data.
+    4.  **Error Flow Testing:** Test actual error conditions by triggering real failure states, not by mocking errors.
 
-**B. Test File Location**
+**B. MCP Transport Integration Testing**
 
--   Test files for a given module (e.g., `src/mcp-server/tools/toolName/logic.ts`) must be located at the corresponding path within the `tests/` directory (e.g., `tests/mcp-server/tools/toolName/logic.test.ts`).
+-   **HTTP Transport:** Test actual `StreamableHTTPServerTransport` instances with real MCP protocol flows, including:
+    1.  **Session Lifecycle:** Complete initialize → tool call → cleanup flows
+    2.  **Streaming Responses:** Server-Sent Events (SSE) functionality
+    3.  **JSON-RPC 2.0 Compliance:** Actual protocol message validation
+    4.  **Session Management:** Real session persistence and cleanup
+    5.  **Error Scenarios:** Invalid sessions, malformed requests, concurrent sessions
+-   **Stdio Transport:** Test actual stdio transport functionality with real process communication
+-   **Protocol Compliance:** Validate MCP specification adherence through real message flows
 
-**C. Running Tests**
+**C. Tool Registration Integration Testing**
+
+-   **Real Registration:** Test tools through the actual registration process with a real `McpServer` instance
+-   **Tool Execution:** Validate tool execution through the complete registration → invocation → response cycle
+-   **Handler Integration:** Test the "Logic Throws, Handler Catches" pattern through actual error scenarios, not mocked exceptions
+
+**D. Service Integration Testing**
+
+-   **Database Services:** Use test databases or in-memory instances for real query execution
+-   **External APIs:** Use test endpoints or controlled test environments when possible
+-   **Singleton Services:** Test actual singleton behavior and state management
+
+**E. Controlled Mocking Guidelines**
+
+When mocking is necessary, it must be **surgical and justified**:
+-   **External Services Only:** Mock only truly external, uncontrollable dependencies (third-party APIs without test environments)
+-   **Behavior Simulation:** Mocks must accurately simulate real service behavior, including realistic response times and error conditions
+-   **Test Data Integrity:** Mocked responses must use actual data structures and realistic content
+-   **Documentation Required:** All mocks must be documented with justification for why integration testing wasn't feasible
+
+**F. Test Architecture Patterns**
+
+**Preferred Pattern - Integration:**
+```typescript
+describe('Echo Tool Integration', () => {
+  let server: McpServer;
+  let transport: StreamableHTTPServerTransport;
+  
+  beforeEach(async () => {
+    server = new McpServer({ name: "test-server", version: "1.0.0" });
+    transport = new StreamableHTTPServerTransport({ /* real config */ });
+    await server.connect(transport);
+    // Register actual tools
+  });
+  
+  it('should execute complete tool flow', async () => {
+    // Test real MCP protocol message flow
+    const response = await transport.handleRequest(/* real request */);
+    // Validate actual response
+  });
+});
+```
+
+**Discouraged Pattern - Heavy Mocking:**
+```typescript
+// AVOID: This doesn't test real integration
+vi.mock('../logic.js', () => ({ echoToolLogic: vi.fn() }));
+```
+
+**G. Test File Organization**
+
+-   **Integration Tests:** Primary test files (e.g., `tests/mcp-server/tools/toolName/integration.test.ts`)
+-   **Logic Tests:** Focused tests for complex business logic (e.g., `tests/mcp-server/tools/toolName/logic.test.ts`)
+-   **Registration Tests:** End-to-end registration and execution tests (e.g., `tests/mcp-server/tools/toolName/registration.test.ts`)
+
+**H. Test Environment Setup**
+
+-   **Test Databases:** Use dedicated test instances or in-memory databases
+-   **Isolated Networking:** Use controlled test endpoints or local test servers
+-   **Clean State:** Ensure test isolation through proper setup/teardown without relying on mocks
+
+**I. Running Tests**
 
 -   Use the following npm scripts to run tests:
     -   `npm test`: Run all tests once.
     -   `npm test:watch`: Run tests in watch mode for development.
     -   `npm test:coverage`: Run all tests and generate a coverage report.
 
-VERY IMPORTANT NOTE: Always read the file before trying to create a test for it. NEVER attempt to edit a file without reading the current contents first. In general, you should never edit a file without reading it first. This is a critical part of the workflow and ensures that you understand the existing code before making changes or writing tests.
+**J. Critical Testing Requirements**
+
+1.  **Read Before Testing:** Always read the file before creating or modifying tests. Never edit without understanding current implementation.
+2.  **Real Error Conditions:** Test actual error scenarios by creating real failure conditions, not by mocking errors.
+3.  **Protocol Compliance:** All MCP transport tests must validate actual MCP protocol compliance.
+4.  **Performance Validation:** Integration tests should validate that real system performance meets requirements.
+5.  **Security Testing:** Test actual authentication, authorization, and input validation flows.
+
+This integration-first approach ensures that tests catch real-world issues that pure unit tests with heavy mocking would miss, providing confidence that the system works correctly in production scenarios.
 
 ```

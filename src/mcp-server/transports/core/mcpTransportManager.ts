@@ -5,9 +5,8 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "http";
+import { randomUUID } from "node:crypto";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import { logger, RequestContext } from "../../../utils/index.js";
 import {
@@ -25,35 +24,32 @@ export class McpTransportManager implements TransportManager {
     string,
     StreamableHTTPServerTransport
   >();
+  private readonly servers = new Map<string, McpServer>();
   private readonly sessions = new Map<string, TransportSession>();
   private readonly createServerInstanceFn: () => Promise<McpServer>;
+  private readonly garbageCollector: NodeJS.Timeout;
 
   constructor(createServerInstanceFn: () => Promise<McpServer>) {
     this.createServerInstanceFn = createServerInstanceFn;
+    // Start garbage collector for stale sessions
+    this.garbageCollector = setInterval(
+      () => this.cleanupStaleSessions(),
+      60 * 1000, // Run every minute
+    );
   }
 
-  async initializeSession(
+  async initializeAndHandle(
+    req: IncomingMessage,
+    res: ServerResponse,
     body: unknown,
     context: RequestContext,
-  ): Promise<TransportResponse> {
-    if (!isInitializeRequest(body)) {
-      throw new McpError(
-        BaseErrorCode.INVALID_INPUT,
-        "Request body is not a valid initialize request",
-      );
-    }
-
-    // Clean up any existing session for re-initialization
-    const existingSessionId = this.findExistingSessionForReinit();
-    if (existingSessionId) {
-      await this.closeSession(existingSessionId, context);
-    }
-
-    // Create new transport
+  ): Promise<ServerResponse> {
+    const server = await this.createServerInstanceFn();
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (sessionId) => {
         this.transports.set(sessionId, transport);
+        this.servers.set(sessionId, server);
         this.sessions.set(sessionId, {
           id: sessionId,
           createdAt: new Date(),
@@ -69,35 +65,21 @@ export class McpTransportManager implements TransportManager {
     transport.onclose = () => {
       const sessionId = transport.sessionId;
       if (sessionId) {
-        this.transports.delete(sessionId);
-        this.sessions.delete(sessionId);
-        logger.info(`MCP Session closed: ${sessionId}`, {
-          ...context,
-          sessionId,
-        });
+        this.closeSession(sessionId, {
+          requestId: `transport-close-${sessionId}`,
+          timestamp: new Date().toISOString(),
+        }).catch((err) =>
+          logger.error(
+            `Error during transport.onclose cleanup for session ${sessionId}`,
+            err,
+          ),
+        );
       }
     };
 
-    // Connect the MCP server to the transport
-    const server = await this.createServerInstanceFn();
     await server.connect(transport);
-
-    // Return initialization response
-    const headers = new Headers();
-    headers.set("Content-Type", "application/json");
-    if (transport.sessionId) {
-      headers.set(
-        "Set-Cookie",
-        `mcp-session-id=${transport.sessionId}; HttpOnly`,
-      );
-    }
-
-    return {
-      sessionId: transport.sessionId || undefined,
-      headers,
-      statusCode: 200 as HttpStatusCode,
-      body: { status: "initialized", sessionId: transport.sessionId },
-    };
+    await transport.handleRequest(req, res, body);
+    return res;
   }
 
   async handleRequest(
@@ -107,11 +89,13 @@ export class McpTransportManager implements TransportManager {
     context: RequestContext,
     body?: unknown,
   ): Promise<void> {
+    const sessionContext = { ...context, sessionId };
     const transport = this.transports.get(sessionId);
     if (!transport) {
-      logger.warning(`Request for non-existent session: ${sessionId}`, {
-        ...context,
-      });
+      logger.warning(
+        `Request for non-existent session: ${sessionId}`,
+        sessionContext,
+      );
       res.writeHead(404, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -128,7 +112,7 @@ export class McpTransportManager implements TransportManager {
     }
 
     logger.debug(`Handling request for session: ${sessionId}`, {
-      ...context,
+      ...sessionContext,
       method: req.method,
     });
 
@@ -140,15 +124,17 @@ export class McpTransportManager implements TransportManager {
     sessionId: string,
     context: RequestContext,
   ): Promise<TransportResponse> {
+    const sessionContext = { ...context, sessionId };
     const transport = this.transports.get(sessionId);
     if (!transport) {
       throw new McpError(
         BaseErrorCode.NOT_FOUND,
         "Session not found or expired.",
+        sessionContext,
       );
     }
 
-    await this.closeSession(sessionId, context);
+    await this.closeSession(sessionId, sessionContext);
 
     const headers = new Headers();
     headers.set("Content-Type", "application/json");
@@ -165,6 +151,7 @@ export class McpTransportManager implements TransportManager {
   }
 
   async shutdown(): Promise<void> {
+    clearInterval(this.garbageCollector); // Stop the garbage collector
     const closePromises = Array.from(this.transports.keys()).map((sessionId) =>
       this.closeSession(sessionId, {
         requestId: "shutdown",
@@ -175,6 +162,7 @@ export class McpTransportManager implements TransportManager {
     await Promise.all(closePromises);
     this.transports.clear();
     this.sessions.clear();
+    this.servers.clear();
   }
 
   /**
@@ -185,32 +173,49 @@ export class McpTransportManager implements TransportManager {
     context: RequestContext,
   ): Promise<void> {
     const transport = this.transports.get(sessionId);
+    const server = this.servers.get(sessionId); // Get the server instance
+
+    // Close transport and server if they exist
     if (transport) {
       await transport.close();
-      this.transports.delete(sessionId);
-      this.sessions.delete(sessionId);
-      logger.info(`MCP Session closed: ${sessionId}`, {
-        ...context,
-        sessionId,
-      });
     }
+    if (server) {
+      await server.close(); // Also close the McpServer instance
+    }
+
+    // Clean up all maps
+    this.transports.delete(sessionId);
+    this.servers.delete(sessionId);
+    this.sessions.delete(sessionId);
+
+    logger.info(`MCP Session closed: ${sessionId}`, {
+      ...context,
+      sessionId,
+    });
   }
 
   /**
-   * Find existing session that should be closed for re-initialization.
-   * This is a simplified implementation - in reality you might want more
-   * sophisticated session management.
+   * Periodically scans for and cleans up stale sessions to prevent memory leaks.
    */
-  private findExistingSessionForReinit(): string | undefined {
-    // For simplicity, we'll just close the most recent session
-    // In a more sophisticated implementation, you might track by client IP, auth, etc.
-    const sessions = Array.from(this.sessions.values());
-    if (sessions.length > 0) {
-      const mostRecent = sessions.reduce((latest, session) =>
-        session.lastAccessedAt > latest.lastAccessedAt ? session : latest,
-      );
-      return mostRecent.id;
+  private async cleanupStaleSessions() {
+    const now = Date.now();
+    const STALE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+    const context: RequestContext = {
+      requestId: `cleanup-${randomUUID()}`,
+      timestamp: new Date().toISOString(),
+    };
+
+    logger.debug("Running stale session cleanup...", { ...context });
+
+    for (const [sessionId, session] of this.sessions.entries()) {
+      if (now - session.lastAccessedAt.getTime() > STALE_TIMEOUT_MS) {
+        logger.info(`Closing stale session: ${sessionId}`, {
+          ...context,
+          sessionId,
+          lastAccessed: session.lastAccessedAt.toISOString(),
+        });
+        await this.closeSession(sessionId, context);
+      }
     }
-    return undefined;
   }
 }

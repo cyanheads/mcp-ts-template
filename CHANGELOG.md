@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [1.7.4] - UNRELEASED
 
+### Changed
+
+- **Testing Overhaul**: Shifted testing methodology from unit testing to an **integration-first approach**. The `.clinerules` have been updated to mandate testing real component interactions over mocked units, ensuring that tests more accurately reflect production behavior. This includes new guidelines for testing MCP transport layers, tool registration, and service integrations.
+- **Transport Layer Refactoring**: Overhauled the `McpTransportManager` for more robust session management. The manager now handles the entire lifecycle of a session, including creation, tracking, and garbage collection of stale sessions to prevent memory leaks. The `initializeSession` method has been replaced with a unified `initializeAndHandle` method to streamline new session creation.
+- **Test Coverage**: Added new integration tests for the HTTP error handler (`httpErrorHandler.test.ts`) and the stdio transport (`stdioTransport.test.ts`), and deleted the obsolete `http.test.ts`. This brings the total test coverage to **77.45%**.
+- **Dependencies**: Added `supertest` and `@types/supertest` to support integration testing of the Hono HTTP server.
+
 ### Added
 
 - **Unit Tests**: Added comprehensive unit tests for authentication and database services:

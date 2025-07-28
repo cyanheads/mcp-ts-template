@@ -47,15 +47,20 @@ export interface TransportSession {
  */
 export interface TransportManager {
   /**
-   * Initialize a new MCP session.
-   * @param body The MCP initialize request body.
+   * Initializes a new session and handles the request in a single operation.
+   * This is used for the initial `initialize` request.
+   * @param req The raw Node.js IncomingMessage object.
+   * @param res The raw Node.js ServerResponse object.
+   * @param body The parsed body of the request.
    * @param context Request context for logging and tracing.
-   * @returns Promise resolving to transport response with session details.
+   * @returns A promise that resolves with the ServerResponse after handling.
    */
-  initializeSession(
+  initializeAndHandle(
+    req: unknown,
+    res: unknown,
     body: unknown,
     context: RequestContext,
-  ): Promise<TransportResponse>;
+  ): Promise<unknown>;
 
   /**
    * Handles an incoming HTTP request for a given session by delegating it

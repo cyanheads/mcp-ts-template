@@ -3,71 +3,149 @@
  * @module tests/mcp-server/transports/core/mcpTransportManager.test
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { McpTransportManager } from "../../../../src/mcp-server/transports/core/mcpTransportManager.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { McpError } from "../../../../src/types-global/errors.js";
-import { RequestContext } from "../../../../src/utils/index.js";
-import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { BaseErrorCode, McpError } from "../../../../src/types-global/errors.js";
+import { requestContextService } from "../../../../src/utils/index.js";
+import type { IncomingMessage, ServerResponse } from "http";
 
+// Mock SDK classes
 vi.mock("@modelcontextprotocol/sdk/server/mcp.js");
-vi.mock("@modelcontextprotocol/sdk/server/streamableHttp.js");
-vi.mock("@modelcontextprotocol/sdk/types.js", () => ({
-  isInitializeRequest: vi.fn(),
-}));
+
+// Custom mock for StreamableHTTPServerTransport to handle session initialization
+const mockTransportInstance = {
+  handleRequest: vi.fn(),
+  close: vi.fn(),
+  connect: vi.fn(),
+  onclose: vi.fn(),
+  options: {},
+};
+vi.mock("@modelcontextprotocol/sdk/server/streamableHttp.js", () => {
+  return {
+    StreamableHTTPServerTransport: vi.fn().mockImplementation((options) => {
+      mockTransportInstance.options = options;
+      mockTransportInstance.handleRequest.mockImplementation(async () => {
+        if (options.onsessioninitialized) {
+          options.onsessioninitialized("test-session-id");
+        }
+      });
+      return mockTransportInstance;
+    }),
+  };
+});
 
 describe("McpTransportManager", () => {
-  let mockCreateServerInstance: () => Promise<McpServer>;
-  let transportManager: McpTransportManager;
-  let mockRequestContext: RequestContext;
+  let manager: McpTransportManager;
+  let mockCreateServer: () => Promise<McpServer>;
   let mockServer: McpServer;
 
   beforeEach(() => {
-    mockServer = new McpServer({ name: "test", version: "1.0.0" });
-    mockServer.connect = vi.fn();
-    mockCreateServerInstance = vi.fn().mockResolvedValue(mockServer);
-    transportManager = new McpTransportManager(mockCreateServerInstance);
-    mockRequestContext = { requestId: "test", timestamp: new Date().toISOString() };
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    mockServer = new (vi.mocked(McpServer))({ name: "test", version: "1" });
+    mockCreateServer = vi.fn().mockResolvedValue(mockServer);
+    manager = new McpTransportManager(mockCreateServer);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
-  describe("initializeSession", () => {
-    it("should initialize a new session successfully", async () => {
-      vi.mocked(isInitializeRequest).mockReturnValue(true);
-      
-      // Capture the onsessioninitialized callback
-      let onSessionInitializedCallback: (sessionId: string) => void = () => {};
-      vi.mocked(StreamableHTTPServerTransport).mockImplementation(opts => {
-        onSessionInitializedCallback = opts.onsessioninitialized!;
-        return {
-          sessionId: "mock-session-id",
-          handleRequest: vi.fn(),
-          close: vi.fn(),
-        } as unknown as StreamableHTTPServerTransport;
-      });
+  const mockReq = {} as IncomingMessage;
+  const mockRes = {
+    writeHead: vi.fn(),
+    end: vi.fn(),
+  } as unknown as ServerResponse;
+  const context = requestContextService.createRequestContext({ toolName: "test" });
 
-      const promise = transportManager.initializeSession(
-        { jsonrpc: "2.0", method: "initialize" },
-        mockRequestContext,
-      );
-      
-      // Manually trigger the callback to simulate session initialization
-      onSessionInitializedCallback("mock-session-id");
+  describe("initializeAndHandle", () => {
+    it("should create a new server and transport for a new session", async () => {
+      await manager.initializeAndHandle(mockReq, mockRes, {}, context);
+      expect(mockCreateServer).toHaveBeenCalledOnce();
+      expect(mockServer.connect).toHaveBeenCalledWith(mockTransportInstance);
+      expect(manager.getSession("test-session-id")).toBeDefined();
+    });
+  });
 
-      const response = await promise;
-
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toHaveProperty("status", "initialized");
-      expect(response.sessionId).toBe("mock-session-id");
-      expect(mockServer.connect).toHaveBeenCalled();
+  describe("handleRequest", () => {
+    it("should delegate to the correct transport for a valid session", async () => {
+      await manager.initializeAndHandle(mockReq, mockRes, {}, context);
+      await manager.handleRequest("test-session-id", mockReq, mockRes, context);
+      expect(mockTransportInstance.handleRequest).toHaveBeenCalledTimes(2);
     });
 
-    it("should throw an error for an invalid initialization request", async () => {
-      vi.mocked(isInitializeRequest).mockReturnValue(false);
-      await expect(
-        transportManager.initializeSession({ jsonrpc: "2.0", method: "invalid" }, mockRequestContext),
-      ).rejects.toThrow(McpError);
+    it("should update the lastAccessedAt timestamp for the session", async () => {
+      await manager.initializeAndHandle(mockReq, mockRes, {}, context);
+      const initialSession = manager.getSession("test-session-id");
+      const initialTime = initialSession?.lastAccessedAt.getTime();
+
+      vi.advanceTimersByTime(1000);
+      await manager.handleRequest("test-session-id", mockReq, mockRes, context);
+
+      const updatedSession = manager.getSession("test-session-id");
+      expect(updatedSession?.lastAccessedAt.getTime()).toBeGreaterThan(initialTime!);
+    });
+
+    it("should return a 404 JSON-RPC error for a non-existent session", async () => {
+      await manager.handleRequest("non-existent-id", mockReq, mockRes, context);
+      expect(mockRes.writeHead).toHaveBeenCalledWith(404, { "Content-Type": "application/json" });
+      expect(mockRes.end).toHaveBeenCalledWith(expect.stringContaining("Session not found"));
+    });
+  });
+
+  describe("handleDeleteRequest", () => {
+    it("should close the session and return a 200 response", async () => {
+      await manager.initializeAndHandle(mockReq, mockRes, {}, context);
+      const response = await manager.handleDeleteRequest("test-session-id", context);
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toEqual({ status: "session_closed", sessionId: "test-session-id" });
+      expect(manager.getSession("test-session-id")).toBeUndefined();
+    });
+
+    it("should throw NOT_FOUND McpError for a non-existent session", async () => {
+      await expect(manager.handleDeleteRequest("non-existent-id", context)).rejects.toThrow(McpError);
+      await expect(manager.handleDeleteRequest("non-existent-id", context)).rejects.toMatchObject({
+        code: BaseErrorCode.NOT_FOUND,
+      });
+    });
+  });
+
+  describe("cleanupStaleSessions", () => {
+    it("should identify and close a session that has timed out", async () => {
+      await manager.initializeAndHandle(mockReq, mockRes, {}, context);
+      expect(manager.getSession("test-session-id")).toBeDefined();
+
+      // Advance time past the stale timeout
+      vi.advanceTimersByTime(31 * 60 * 1000);
+      await vi.runOnlyPendingTimersAsync();
+
+      expect(manager.getSession("test-session-id")).toBeUndefined();
+      expect(mockServer.close).toHaveBeenCalled();
+    });
+
+    it("should not close an active session", async () => {
+      await manager.initializeAndHandle(mockReq, mockRes, {}, context);
+      expect(manager.getSession("test-session-id")).toBeDefined();
+
+      // Advance time, but not enough to be stale
+      vi.advanceTimersByTime(15 * 60 * 1000);
+      await vi.runOnlyPendingTimersAsync();
+
+      expect(manager.getSession("test-session-id")).toBeDefined();
+    });
+  });
+
+  describe("shutdown", () => {
+    it("should close all active sessions and clear the interval", async () => {
+      await manager.initializeAndHandle(mockReq, mockRes, {}, context);
+      const clearIntervalSpy = vi.spyOn(global, "clearInterval");
+
+      await manager.shutdown();
+
+      expect(manager.getSession("test-session-id")).toBeUndefined();
+      expect(clearIntervalSpy).toHaveBeenCalledWith(expect.any(Object)); // Timer
     });
   });
 });

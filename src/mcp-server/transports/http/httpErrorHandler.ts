@@ -60,11 +60,14 @@ export const httpErrorHandler = async (err: Error, c: Context) => {
 
   // Attempt to get the request ID from the body, but don't fail if it's not there or unreadable.
   let requestId: string | number | null = null;
-  try {
-    const body = await c.req.json();
-    requestId = body?.id || null;
-  } catch {
-    // Ignore parsing errors, requestId will remain null
+  // Only attempt to read the body if it hasn't been consumed already.
+  if (!c.req.raw.bodyUsed) {
+    try {
+      const body = await c.req.json();
+      requestId = body?.id || null;
+    } catch {
+      // Ignore parsing errors, requestId will remain null
+    }
   }
 
   const errorCode =
