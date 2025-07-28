@@ -111,8 +111,8 @@ const EnvSchema = z.object({
       "MCP_AUTH_SECRET_KEY must be at least 32 characters long for security reasons.",
     )
     .optional(),
-  /** The authentication mode to use. 'jwt' for internal simple JWTs, 'oauth' for OAuth 2.1. Default: 'jwt'. */
-  MCP_AUTH_MODE: z.enum(["jwt", "oauth"]).default("jwt"),
+  /** The authentication mode to use. 'jwt' for internal simple JWTs, 'oauth' for OAuth 2.1, or 'none'. Default: 'none'. */
+  MCP_AUTH_MODE: z.enum(["jwt", "oauth", "none"]).default("none"),
   /** The expected issuer URL for OAuth 2.1 access tokens. CRITICAL for validation. */
   OAUTH_ISSUER_URL: z.string().url().optional(),
   /** The JWKS (JSON Web Key Set) URI for the OAuth 2.1 provider. If not provided, it's often discoverable from the issuer URL. */
