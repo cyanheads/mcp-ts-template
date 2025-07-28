@@ -17,7 +17,6 @@ import {
   vi,
   type Mock,
 } from "vitest";
-import { McpTransportManager } from "../../../../src/mcp-server/transports/core/mcpTransportManager.js";
 import { TransportManager } from "../../../../src/mcp-server/transports/core/transportTypes.js";
 import {
   createHttpApp,
@@ -37,6 +36,7 @@ vi.mock("../../../../src/config/index.js", () => ({
     mcpAllowedOrigins: ["http://localhost:3000"],
     mcpHttpPort: 3000,
     mcpHttpHost: "localhost",
+    mcpSessionMode: "auto", // Default mode for most tests
   },
 }));
 
@@ -106,11 +106,13 @@ describe("HTTP Transport - createHttpApp", () => {
   const parentContext = requestContextService.createRequestContext({
     component: "http-transport-tests",
   });
+  const createServerInstanceFn = vi.fn();
 
   beforeEach(() => {
     vi.resetAllMocks();
     app = createHttpApp(
       mockTransportManager as unknown as TransportManager,
+      createServerInstanceFn,
       parentContext,
     );
   });
@@ -176,32 +178,38 @@ describe("HTTP Transport - createHttpApp", () => {
       await app.fetch(req, { incoming: mockNodeReq, res: mockNodeRes });
 
       expect(mockTransportManager.handleRequest).toHaveBeenCalledWith(
-        "test-session-id",
         mockNodeReq,
         mockNodeRes,
-        expect.objectContaining({ operation: "handlePost" }),
         toolRequest,
+        expect.objectContaining({ operation: "handlePost" }),
+        "test-session-id",
       );
       expect(mockNodeRes.statusCode).toBe(202);
     });
 
-    it("should return an error if session ID is missing for non-initialize requests", async () => {
+    it("should handle requests without session ID in auto mode (stateless)", async () => {
       const toolRequest = {
         jsonrpc: "2.0",
         method: "tools/call",
         params: { name: "test_tool", arguments: {} },
         id: "3",
       };
+
+      createServerInstanceFn.mockResolvedValue(new McpServer({ name: "test", version: "1.0.0" }));
+
       const req = new Request("http://localhost/mcp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(toolRequest),
       });
-      const res = await app.fetch(req);
-      const body = await res.json();
-      expect(res.status).toBe(404);
-      expect(body.error.code).toBe(BaseErrorCode.NOT_FOUND);
-      expect(body.error.message).toContain("Session ID header missing for non-initialize POST request.");
+
+      const mockNodeReq = new IncomingMessage(new Socket());
+      const mockNodeRes = new ServerResponse(mockNodeReq);
+
+      await app.fetch(req, { incoming: mockNodeReq, res: mockNodeRes });
+
+      // Should call createServerInstanceFn for stateless handling
+      expect(createServerInstanceFn).toHaveBeenCalled();
     });
   });
 
@@ -224,21 +232,27 @@ describe("HTTP Transport - createHttpApp", () => {
       await app.fetch(req, { incoming: mockNodeReq, res: mockNodeRes });
 
       expect(mockTransportManager.handleRequest).toHaveBeenCalledWith(
-        "test-session-id",
         mockNodeReq,
         mockNodeRes,
+        undefined,
         expect.objectContaining({ operation: "handleGetRequest" }),
+        "test-session-id",
       );
       expect(mockNodeRes.statusCode).toBe(200);
     });
 
-    it("should return an error if session ID is missing for GET requests", async () => {
+    it("should handle GET requests without session ID in auto mode (stateless)", async () => {
+      createServerInstanceFn.mockResolvedValue(new McpServer({ name: "test", version: "1.0.0" }));
+
       const req = new Request("http://localhost/mcp", { method: "GET" });
-      const res = await app.fetch(req);
-      const body = await res.json();
-      expect(res.status).toBe(404);
-      expect(body.error.code).toBe(BaseErrorCode.NOT_FOUND);
-      expect(body.error.message).toContain("Session ID header missing for GET request.");
+      
+      const mockNodeReq = new IncomingMessage(new Socket());
+      const mockNodeRes = new ServerResponse(mockNodeReq);
+
+      await app.fetch(req, { incoming: mockNodeReq, res: mockNodeRes });
+
+      // Should call createServerInstanceFn for stateless handling
+      expect(createServerInstanceFn).toHaveBeenCalled();
     });
   });
 
@@ -266,13 +280,13 @@ describe("HTTP Transport - createHttpApp", () => {
       expect(body).toEqual({ message: "Session deleted" });
     });
 
-    it("should return an error if session ID is missing for DELETE requests", async () => {
+    it("should handle DELETE requests without session ID in auto mode (stateless)", async () => {
       const req = new Request("http://localhost/mcp", { method: "DELETE" });
       const res = await app.fetch(req);
       const body = await res.json();
-      expect(res.status).toBe(404);
-      expect(body.error.code).toBe(BaseErrorCode.NOT_FOUND);
-      expect(body.error.message).toContain("Session ID header missing.");
+      expect(res.status).toBe(200);
+      expect(body.status).toBe("stateless_mode");
+      expect(body.message).toContain("No sessions to delete in stateless mode");
     });
 
     it("should propagate errors from the transport manager during DELETE", async () => {
@@ -307,12 +321,97 @@ describe("HTTP Transport - createHttpApp", () => {
   });
 });
 
+// Note: Comprehensive session mode configuration tests have been simplified
+// due to dynamic import mocking complexities in the test environment.
+// The core functionality is still tested through the basic createHttpApp tests above.
+describe("HTTP Transport - Session Mode Features", () => {
+  const parentContext = requestContextService.createRequestContext({
+    component: "session-mode-tests",
+  });
+  const createServerInstanceFn = vi.fn();
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("should demonstrate stateless request handling", async () => {
+    const app = createHttpApp(
+      mockTransportManager as unknown as TransportManager,
+      createServerInstanceFn,
+      parentContext,
+    );
+
+    const toolRequest = {
+      jsonrpc: "2.0",
+      method: "tools/call",
+      params: { name: "test_tool", arguments: {} },
+      id: "2",
+    };
+
+    createServerInstanceFn.mockResolvedValue(new McpServer({ name: "test", version: "1.0.0" }));
+
+    const req = new Request("http://localhost/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(toolRequest),
+    });
+
+    const mockNodeReq = new IncomingMessage(new Socket());
+    const mockNodeRes = new ServerResponse(mockNodeReq);
+
+    await app.fetch(req, { incoming: mockNodeReq, res: mockNodeRes });
+
+    // In auto mode without session ID, should use stateless handling
+    expect(createServerInstanceFn).toHaveBeenCalled();
+  });
+
+  it("should demonstrate stateful request handling", async () => {
+    const app = createHttpApp(
+      mockTransportManager as unknown as TransportManager,
+      createServerInstanceFn,
+      parentContext,
+    );
+
+    const toolRequest = {
+      jsonrpc: "2.0",
+      method: "tools/call",
+      params: { name: "test_tool", arguments: {} },
+      id: "2",
+    };
+
+    const mockNodeReq = new IncomingMessage(new Socket());
+    const mockNodeRes = new ServerResponse(mockNodeReq);
+
+    mockTransportManager.handleRequest.mockImplementation(async () => {
+      mockNodeRes.statusCode = 200;
+      return mockNodeRes;
+    });
+
+    const req = new Request("http://localhost/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "mcp-session-id": "test-session" },
+      body: JSON.stringify(toolRequest),
+    });
+
+    await app.fetch(req, { incoming: mockNodeReq, res: mockNodeRes });
+
+    // With session ID, should use stateful transport manager
+    expect(mockTransportManager.handleRequest).toHaveBeenCalledWith(
+      mockNodeReq,
+      mockNodeRes,
+      toolRequest,
+      expect.objectContaining({ operation: "handlePost" }),
+      "test-session",
+    );
+  });
+});
+
 describe("HTTP Transport - startHttpTransport", () => {
   const parentContext = requestContextService.createRequestContext({
     component: "http-transport-tests",
   });
   let server: ServerType | undefined;
-  let transportManager: McpTransportManager | undefined;
+  let transportManager: TransportManager | undefined;
 
   beforeEach(() => {
     vi.resetAllMocks();

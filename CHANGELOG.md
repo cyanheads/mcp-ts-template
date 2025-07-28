@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.5] - 2025-07-28
+
+### Changed
+
+- **Transport Layer Refactoring**: Overhauled the MCP transport architecture to introduce a clear separation between stateful and stateless session management. This provides greater flexibility and robustness in handling client connections.
+  - **Replaced `McpTransportManager`** with a new, more modular structure:
+    - `baseTransportManager.ts`: An abstract base class for common transport logic.
+    - `statefulTransportManager.ts`: Manages persistent, multi-request sessions, each with its own dedicated `McpServer` instance.
+    - `statelessTransportManager.ts`: Handles ephemeral, single-request operations by creating a temporary server instance that is immediately cleaned up.
+- **HTTP Transport Enhancement**: Updated the HTTP transport (`httpTransport.ts`) to be session-aware. It now dynamically handles requests based on the server's configured `MCP_SESSION_MODE` and the presence of the `mcp-session-id` header, seamlessly supporting stateful, stateless, and auto-detection modes.
+- **Configuration**: Added a new `MCP_SESSION_MODE` environment variable (`auto`, `stateful`, `stateless`) to allow explicit control over the server's session handling behavior.
+
+### Added
+
+- **New Tests**: Added comprehensive integration tests for the new transport managers (`statefulTransportManager.test.ts`, `statelessTransportManager.test.ts`, `baseTransportManager.test.ts`) to validate session lifecycle, request handling, and resource cleanup in both modes.
+
+### Removed
+
+- **Deleted `mcpTransportManager.ts`** and its corresponding test file, as its functionality has been superseded by the new stateful and stateless managers.
+- **Deleted `src/mcp-server/README.md`** to consolidate documentation into the main project README and `.clinerules`.
+
 ## [1.7.4] - 2025-07-27
 
 ### Changed

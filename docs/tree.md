@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-28 21:56:18
+Generated on: 2025-07-28 23:25:40
 
 ```
 mcp-ts-template
@@ -60,7 +60,9 @@ mcp-ts-template
 │   │   │   │   ├── authMiddleware.ts
 │   │   │   │   └── index.ts
 │   │   │   ├── core
-│   │   │   │   ├── mcpTransportManager.ts
+│   │   │   │   ├── baseTransportManager.ts
+│   │   │   │   ├── statefulTransportManager.ts
+│   │   │   │   ├── statelessTransportManager.ts
 │   │   │   │   └── transportTypes.ts
 │   │   │   ├── http
 │   │   │   │   ├── httpErrorHandler.ts
@@ -70,7 +72,6 @@ mcp-ts-template
 │   │   │   └── stdio
 │   │   │       ├── index.ts
 │   │   │       └── stdioTransport.ts
-│   │   ├── README.md
 │   │   └── server.ts
 │   ├── services
 │   │   ├── duck-db
@@ -134,7 +135,9 @@ mcp-ts-template
 │   │   │   │   │   └── oauthStrategy.test.ts
 │   │   │   │   └── auth.test.ts
 │   │   │   ├── core
-│   │   │   │   └── mcpTransportManager.test.ts
+│   │   │   │   ├── baseTransportManager.test.ts
+│   │   │   │   ├── statefulTransportManager.test.ts
+│   │   │   │   └── statelessTransportManager.test.ts
 │   │   │   ├── http
 │   │   │   │   ├── httpErrorHandler.test.ts
 │   │   │   │   └── httpTransport.test.ts
@@ -149,8 +152,10 @@ mcp-ts-template
 │   │   │   ├── duckDBConnectionManager.test.ts
 │   │   │   ├── duckDBQueryExecutor.test.ts
 │   │   │   └── duckDBService.test.ts
-│   │   └── llm-providers
-│   │       └── openRouterProvider.test.ts
+│   │   ├── llm-providers
+│   │   │   └── openRouterProvider.test.ts
+│   │   └── supabase
+│   │       └── supabaseClient.test.ts
 │   ├── utils
 │   │   ├── internal
 │   │   │   ├── errorHandler.test.ts

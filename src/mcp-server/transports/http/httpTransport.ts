@@ -4,11 +4,16 @@
  * - Clean separation between HTTP concerns and MCP transport logic
  * - Testable HTTP routes through dependency injection
  * - Configurable middleware for CORS, rate limiting, and authentication
- * - Session management abstraction
+ * - Session management abstraction with support for both stateless and stateful modes
  * - Port-binding logic with automatic retry on conflicts
  *
  * The MCP transport implementation is handled through the TransportManager interface,
- * allowing for different implementations (production vs testing).
+ * allowing for different implementations (stateless, stateful, or auto-detection).
+ *
+ * Session Mode Configuration:
+ * - 'stateless': All requests are handled without session persistence
+ * - 'stateful': All requests require session IDs and maintain state
+ * - 'auto': Client decides mode by including/omitting Mcp-Session-Id header
  *
  * Specification Reference:
  * https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx#streamable-http
@@ -30,7 +35,8 @@ import {
   requestContextService,
 } from "../../../utils/index.js";
 import { createAuthMiddleware, createAuthStrategy } from "../auth/index.js";
-import { McpTransportManager } from "../core/mcpTransportManager.js";
+import { StatefulTransportManager } from "../core/statefulTransportManager.js";
+import { StatelessTransportManager } from "../core/statelessTransportManager.js";
 import { TransportManager } from "../core/transportTypes.js";
 import { httpErrorHandler } from "./httpErrorHandler.js";
 import { HonoNodeBindings } from "./httpTypes.js";
@@ -98,9 +104,11 @@ function startHttpServerWithRetry(
                 logger.info(`HTTP transport listening at ${serverAddress}`, {
                   ...attemptContext,
                   address: serverAddress,
+                  sessionMode: config.mcpSessionMode,
                 });
                 if (process.stdout.isTTY) {
-                  console.log(`\n🚀 MCP Server running at: ${serverAddress}\n`);
+                  console.log(`\n🚀 MCP Server running at: ${serverAddress}`);
+                  console.log(`   Session Mode: ${config.mcpSessionMode}\n`);
                 }
               },
             );
@@ -126,14 +134,60 @@ function startHttpServerWithRetry(
 }
 
 /**
+ * Creates the appropriate transport manager based on configuration.
+ * @param createServerInstanceFn - Factory function for creating MCP server instances
+ * @param sessionMode - The session mode configuration
+ * @returns The appropriate transport manager instance
+ */
+function createTransportManager(
+  createServerInstanceFn: () => Promise<McpServer>,
+  sessionMode: string,
+): TransportManager {
+  switch (sessionMode) {
+    case "stateless":
+      logger.info("Creating stateless transport manager");
+      return new StatelessTransportManager(createServerInstanceFn);
+    case "stateful":
+      logger.info("Creating stateful transport manager");
+      return new StatefulTransportManager(createServerInstanceFn);
+    case "auto":
+    default:
+      logger.info("Creating auto-mode transport manager (stateful with stateless fallback)");
+      return new StatefulTransportManager(createServerInstanceFn);
+  }
+}
+
+/**
+ * Handles stateless requests by creating ephemeral server instances.
+ * @param createServerInstanceFn - Factory function for creating MCP server instances
+ * @param req - The HTTP request object
+ * @param res - The HTTP response object
+ * @param body - The parsed request body
+ * @param context - The request context
+ * @returns The response object after handling
+ */
+async function handleStatelessRequest(
+  createServerInstanceFn: () => Promise<McpServer>,
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  body: unknown,
+  context: RequestContext,
+): Promise<unknown> {
+  const statelessManager = new StatelessTransportManager(createServerInstanceFn);
+  return statelessManager.handleRequest(req, res, body, context);
+}
+
+/**
  * Creates and configures the Hono application instance with all necessary middleware and routes.
  * This function is separated to allow for testing the app's routing logic without starting a live server.
  * @param transportManager - The transport manager to handle MCP operations.
+ * @param createServerInstanceFn - Factory function for creating MCP server instances (used for auto mode).
  * @param parentContext - The parent request context for tracing.
  * @returns The configured Hono application instance.
  */
 export function createHttpApp(
   transportManager: TransportManager,
+  createServerInstanceFn: () => Promise<McpServer>,
   parentContext: RequestContext,
 ): Hono<{ Bindings: HonoNodeBindings }> {
   const app = new Hono<{ Bindings: HonoNodeBindings }>();
@@ -187,93 +241,176 @@ export function createHttpApp(
     });
 
     const body = await c.req.json();
+    const sessionId = c.req.header("mcp-session-id");
 
+    // Handle initialize requests
     if (isInitializeRequest(body)) {
-      return transportManager.initializeAndHandle(
+      if (config.mcpSessionMode === "stateless") {
+        // Force stateless mode - create ephemeral instance
+        return handleStatelessRequest(
+          createServerInstanceFn,
+          c.env.incoming,
+          c.env.res,
+          body,
+          postContext,
+        );
+      } else {
+        // Stateful or auto mode - use transport manager (creates session)
+        return (transportManager as StatefulTransportManager).initializeAndHandle(
+          c.env.incoming,
+          c.env.res,
+          body,
+          postContext,
+        );
+      }
+    }
+
+    // Handle non-initialize requests
+    if (sessionId) {
+      // Client wants stateful mode
+      if (config.mcpSessionMode === "stateless") {
+        throw new McpError(
+          BaseErrorCode.CONFLICT,
+          "Session ID provided but server is configured for stateless-only mode.",
+        );
+      }
+      // Use stateful transport manager
+      await transportManager.handleRequest(
+        c.env.incoming,
+        c.env.res,
+        body,
+        postContext,
+        sessionId,
+      );
+      return c.env.res;
+    } else {
+      // Client wants stateless mode
+      if (config.mcpSessionMode === "stateful") {
+        throw new McpError(
+          BaseErrorCode.NOT_FOUND,
+          "Session ID header missing for non-initialize POST request in stateful-only mode.",
+        );
+      }
+      // Handle as stateless request in auto or stateless mode
+      return handleStatelessRequest(
+        createServerInstanceFn,
         c.env.incoming,
         c.env.res,
         body,
         postContext,
       );
     }
-
-    const sessionId = c.req.header("mcp-session-id");
-    if (!sessionId) {
-      throw new McpError(
-        BaseErrorCode.NOT_FOUND,
-        "Session ID header missing for non-initialize POST request.",
-      );
-    }
-
-    await transportManager.handleRequest(
-      sessionId,
-      c.env.incoming,
-      c.env.res,
-      postContext,
-      body,
-    );
-    return c.env.res;
   });
 
   const handleGetRequest = async (c: Context) => {
     const sessionId = c.req.header("mcp-session-id");
-    if (!sessionId) {
-      throw new McpError(
-        BaseErrorCode.NOT_FOUND,
-        "Session ID header missing for GET request.",
+
+    if (sessionId) {
+      // Client wants stateful streaming
+      if (config.mcpSessionMode === "stateless") {
+        throw new McpError(
+          BaseErrorCode.CONFLICT,
+          "Session ID provided but server is configured for stateless-only mode.",
+        );
+      }
+
+      const requestContext = requestContextService.createRequestContext({
+        ...transportContext,
+        operation: "handleGetRequest",
+        sessionId,
+      });
+
+      // Delegate the raw req/res to the transport manager for direct stream handling.
+      await transportManager.handleRequest(
+        c.env.incoming,
+        c.env.res,
+        undefined,
+        requestContext,
+        sessionId,
+      );
+      return c.env.res;
+    } else {
+      // Client wants stateless streaming
+      if (config.mcpSessionMode === "stateful") {
+        throw new McpError(
+          BaseErrorCode.NOT_FOUND,
+          "Session ID header missing for GET request in stateful-only mode.",
+        );
+      }
+
+      const requestContext = requestContextService.createRequestContext({
+        ...transportContext,
+        operation: "handleStatelessGetRequest",
+      });
+
+      // Handle as stateless streaming request
+      return handleStatelessRequest(
+        createServerInstanceFn,
+        c.env.incoming,
+        c.env.res,
+        undefined, // No body for GET requests
+        requestContext,
       );
     }
-
-    const requestContext = requestContextService.createRequestContext({
-      ...transportContext,
-      operation: "handleGetRequest",
-      sessionId,
-    });
-
-    // Delegate the raw req/res to the transport manager for direct stream handling.
-    // Hono will not control the response after this point.
-    await transportManager.handleRequest(
-      sessionId,
-      c.env.incoming,
-      c.env.res,
-      requestContext,
-    );
-    // Return the raw response object to signal to Hono that the response is being handled elsewhere.
-    return c.env.res;
   };
 
   const handleDeleteRequest = async (c: Context) => {
     const sessionId = c.req.header("mcp-session-id");
-    if (!sessionId) {
-      throw new McpError(BaseErrorCode.NOT_FOUND, "Session ID header missing.");
-    }
 
-    const requestContext = requestContextService.createRequestContext({
-      ...transportContext,
-      operation: "handleDeleteRequest",
-      sessionId,
-    });
+    if (sessionId) {
+      // Client wants to delete a stateful session
+      if (config.mcpSessionMode === "stateless") {
+        throw new McpError(
+          BaseErrorCode.CONFLICT,
+          "Session ID provided but server is configured for stateless-only mode.",
+        );
+      }
 
-    try {
-      const response = await transportManager.handleDeleteRequest(
+      const requestContext = requestContextService.createRequestContext({
+        ...transportContext,
+        operation: "handleDeleteRequest",
         sessionId,
-        requestContext,
-      );
-
-      // Apply headers from transport response
-      response.headers.forEach((value, key) => {
-        c.header(key, value);
       });
 
-      c.status(response.statusCode);
+      try {
+        const response = await (
+          transportManager as StatefulTransportManager
+        ).handleDeleteRequest(sessionId, requestContext);
 
-      return c.json(response.body as Record<string, unknown>);
-    } catch (error) {
-      logger.error("Error in DELETE handler", {
-        error,
-        ...requestContext,
+        // Apply headers from transport response
+        response.headers.forEach((value: string, key: string) => {
+          c.header(key, value);
+        });
+
+        c.status(response.statusCode);
+        return c.json(response.body as Record<string, unknown>);
+      } catch (error) {
+        logger.error("Error in stateful DELETE handler", {
+          error,
+          ...requestContext,
+        });
+        throw error;
+      }
+    } else {
+      // Stateless mode - no sessions to delete
+      if (config.mcpSessionMode === "stateful") {
+        throw new McpError(
+          BaseErrorCode.NOT_FOUND,
+          "Session ID header missing for DELETE request in stateful-only mode.",
+        );
+      }
+
+      const _requestContext = requestContextService.createRequestContext({
+        ...transportContext,
+        operation: "handleStatelessDeleteRequest",
       });
-      throw error; // Let the error handler deal with it
+
+      // Return standard stateless response
+      c.header("Content-Type", "application/json");
+      return c.json({
+        status: "stateless_mode",
+        message: "No sessions to delete in stateless mode",
+      });
     }
   };
 
@@ -295,10 +432,14 @@ export async function startHttpTransport(
 ): Promise<{
   app: Hono<{ Bindings: HonoNodeBindings }>;
   server: ServerType;
-  transportManager: McpTransportManager;
+  transportManager: TransportManager;
 }> {
-  const transportManager = new McpTransportManager(createServerInstanceFn);
-  const app = createHttpApp(transportManager, parentContext);
+  const transportManager = createTransportManager(
+    createServerInstanceFn,
+    config.mcpSessionMode,
+  );
+  
+  const app = createHttpApp(transportManager, createServerInstanceFn, parentContext);
   const transportContext = requestContextService.createRequestContext({
     ...parentContext,
     component: "HttpTransportStart",

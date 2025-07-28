@@ -1,6 +1,8 @@
 /**
- * @fileoverview MCP Transport Manager implementation using the MCP SDK.
- * @module src/mcp-server/transports/core/mcpTransportManager
+ * @fileoverview Stateful Transport Manager implementation for MCP SDK.
+ * This manager handles multiple, persistent sessions, creating a dedicated
+ * McpServer and StreamableHTTPServerTransport instance for each one.
+ * @module src/mcp-server/transports/core/statefulTransportManager
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -9,32 +11,34 @@ import type { IncomingMessage, ServerResponse } from "http";
 import { randomUUID } from "node:crypto";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import { logger, RequestContext } from "../../../utils/index.js";
+import { BaseTransportManager } from "./baseTransportManager.js";
 import {
   HttpStatusCode,
-  TransportManager,
+  StatefulTransportManager as IStatefulTransportManager,
   TransportResponse,
   TransportSession,
 } from "./transportTypes.js";
 
 /**
- * MCP Transport Manager that handles MCP SDK integration and session management.
+ * Stateful Transport Manager that handles MCP SDK integration and session management.
  */
-export class McpTransportManager implements TransportManager {
+export class StatefulTransportManager
+  extends BaseTransportManager
+  implements IStatefulTransportManager
+{
   private readonly transports = new Map<
     string,
     StreamableHTTPServerTransport
   >();
   private readonly servers = new Map<string, McpServer>();
   private readonly sessions = new Map<string, TransportSession>();
-  private readonly createServerInstanceFn: () => Promise<McpServer>;
   private readonly garbageCollector: NodeJS.Timeout;
 
   constructor(createServerInstanceFn: () => Promise<McpServer>) {
-    this.createServerInstanceFn = createServerInstanceFn;
-    // Start garbage collector for stale sessions
+    super(createServerInstanceFn);
     this.garbageCollector = setInterval(
       () => this.cleanupStaleSessions(),
-      60 * 1000, // Run every minute
+      60 * 1000,
     );
   }
 
@@ -83,12 +87,19 @@ export class McpTransportManager implements TransportManager {
   }
 
   async handleRequest(
-    sessionId: string,
     req: IncomingMessage,
     res: ServerResponse,
+    body: unknown,
     context: RequestContext,
-    body?: unknown,
+    sessionId?: string,
   ): Promise<void> {
+    if (!sessionId) {
+      throw new McpError(
+        BaseErrorCode.INVALID_INPUT,
+        "Session ID is required for stateful requests.",
+        context,
+      );
+    }
     const sessionContext = { ...context, sessionId };
     const transport = this.transports.get(sessionId);
     if (!transport) {

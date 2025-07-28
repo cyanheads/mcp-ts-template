@@ -97,6 +97,8 @@ const EnvSchema = z.object({
   NODE_ENV: z.string().default("development"),
   /** MCP communication transport ("stdio" or "http"). Default: "stdio". */
   MCP_TRANSPORT_TYPE: z.enum(["stdio", "http"]).default("stdio"),
+  /** MCP session mode ('stateless', 'stateful', 'auto'). Default: 'auto'. */
+  MCP_SESSION_MODE: z.enum(["stateless", "stateful", "auto"]).default("auto"),
   /** HTTP server port (if MCP_TRANSPORT_TYPE is "http"). Default: 3010. */
   MCP_HTTP_PORT: z.coerce.number().int().positive().default(3010),
   /** HTTP server host (if MCP_TRANSPORT_TYPE is "http"). Default: "127.0.0.1". */
@@ -313,6 +315,8 @@ export const config = {
   environment: env.NODE_ENV,
   /** MCP transport type ('stdio' or 'http'). From `MCP_TRANSPORT_TYPE` env var. Default: "stdio". */
   mcpTransportType: env.MCP_TRANSPORT_TYPE,
+  /** MCP session mode ('stateless', 'stateful', 'auto'). From `MCP_SESSION_MODE` env var. Default: "auto". */
+  mcpSessionMode: env.MCP_SESSION_MODE,
   /** HTTP server port (if http transport). From `MCP_HTTP_PORT` env var. Default: 3010. */
   mcpHttpPort: env.MCP_HTTP_PORT,
   /** HTTP server host (if http transport). From `MCP_HTTP_HOST` env var. Default: "127.0.0.1". */

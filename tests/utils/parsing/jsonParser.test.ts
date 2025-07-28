@@ -95,4 +95,39 @@ describe("JsonParser", () => {
     const result = parser.parse(partialJson, Allow.ALL, context);
     expect(result).toEqual({ key: "value" });
   });
+
+  it("should throw an McpError if the string contains only whitespace after the <think> block", () => {
+    const stringWithWhitespace = "<think>thoughts</think>   ";
+    expect(() => parser.parse(stringWithWhitespace, Allow.ALL, context)).toThrow(
+      new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        "JSON string is empty after removing <think> block and trimming.",
+        context,
+      ),
+    );
+  });
+
+  it("should handle leading/trailing whitespace in the JSON string", () => {
+    const jsonWithWhitespace = '  {"key": "value"}  ';
+    const result = parser.parse(jsonWithWhitespace, Allow.ALL, context);
+    expect(result).toEqual({ key: "value" });
+  });
+
+  it("should wrap a parsing error in McpError and log it", () => {
+    const invalidJson = "this is not json"; // Unambiguously invalid JSON
+    expect(() => parser.parse(invalidJson, Allow.ALL, context)).toThrow(
+      McpError,
+    );
+    try {
+      parser.parse(invalidJson, Allow.ALL, context);
+    } catch (error) {
+      const mcpError = error as McpError;
+      expect(mcpError.code).toBe(BaseErrorCode.VALIDATION_ERROR);
+      expect(mcpError.message).toContain("Failed to parse JSON");
+      expect(logger.error).toHaveBeenCalledWith(
+        "Failed to parse JSON content.",
+        expect.any(Object),
+      );
+    }
+  });
 });

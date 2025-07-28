@@ -42,18 +42,39 @@ export interface TransportSession {
 }
 
 /**
- * Abstract interface for managing MCP transport sessions and operations.
+ * Abstract interface for managing MCP transport operations.
  * This interface separates transport logic from HTTP routing concerns.
  */
 export interface TransportManager {
   /**
-   * Initializes a new session and handles the request in a single operation.
-   * This is used for the initial `initialize` request.
-   * @param req The raw Node.js IncomingMessage object.
-   * @param res The raw Node.js ServerResponse object.
+   * Handles an incoming request.
+   * @param req The raw request object.
+   * @param res The raw response object.
    * @param body The parsed body of the request.
    * @param context Request context for logging and tracing.
-   * @returns A promise that resolves with the ServerResponse after handling.
+   * @param sessionId Optional session identifier for stateful operations.
+   * @returns A promise that resolves when the request has been handled.
+   */
+  handleRequest(
+    req: unknown,
+    res: unknown,
+    body: unknown,
+    context: RequestContext,
+    sessionId?: string,
+  ): Promise<unknown>;
+
+  /**
+   * Clean up resources.
+   */
+  shutdown(): Promise<void>;
+}
+
+/**
+ * Extends the base TransportManager with session-specific operations.
+ */
+export interface StatefulTransportManager extends TransportManager {
+  /**
+   * Initializes a new session and handles the request.
    */
   initializeAndHandle(
     req: unknown,
@@ -63,30 +84,7 @@ export interface TransportManager {
   ): Promise<unknown>;
 
   /**
-   * Handles an incoming HTTP request for a given session by delegating it
-   * to the underlying MCP SDK transport. This method is responsible for
-   * managing the entire lifecycle of a request, including streaming responses.
-   *
-   * @param sessionId The session identifier.
-   * @param req The raw Node.js IncomingMessage object.
-   * @param res The raw Node.js ServerResponse object.
-   * @param body The parsed body of the request (for POST). Can be undefined for GET.
-   * @param context Request context for logging and tracing.
-   * @returns A promise that resolves when the request has been handled.
-   */
-  handleRequest(
-    sessionId: string,
-    req: unknown, // Using 'unknown' for http agnosticism
-    res: unknown,
-    context: RequestContext,
-    body?: unknown,
-  ): Promise<void>;
-
-  /**
-   * Handle a DELETE request to close a session.
-   * @param sessionId The session identifier.
-   * @param context Request context for logging and tracing.
-   * @returns Promise resolving to transport response.
+   * Handles a DELETE request to close a session.
    */
   handleDeleteRequest(
     sessionId: string,
@@ -94,14 +92,7 @@ export interface TransportManager {
   ): Promise<TransportResponse>;
 
   /**
-   * Retrieve session information.
-   * @param sessionId The session identifier.
-   * @returns The session if it exists, undefined otherwise.
+   * Retrieves session information.
    */
   getSession(sessionId: string): TransportSession | undefined;
-
-  /**
-   * Clean up resources and close all sessions.
-   */
-  shutdown(): Promise<void>;
 }

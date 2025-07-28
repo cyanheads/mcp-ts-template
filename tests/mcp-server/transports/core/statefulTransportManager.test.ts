@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { McpTransportManager } from "../../../../src/mcp-server/transports/core/mcpTransportManager.js";
+import { StatefulTransportManager } from "../../../../src/mcp-server/transports/core/statefulTransportManager.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { BaseErrorCode, McpError } from "../../../../src/types-global/errors.js";
 import { requestContextService } from "../../../../src/utils/index.js";
@@ -35,8 +35,8 @@ vi.mock("@modelcontextprotocol/sdk/server/streamableHttp.js", () => {
   };
 });
 
-describe("McpTransportManager", () => {
-  let manager: McpTransportManager;
+describe("StatefulTransportManager", () => {
+  let manager: StatefulTransportManager;
   let mockCreateServer: () => Promise<McpServer>;
   let mockServer: McpServer;
 
@@ -45,7 +45,7 @@ describe("McpTransportManager", () => {
     vi.clearAllMocks();
     mockServer = new (vi.mocked(McpServer))({ name: "test", version: "1" });
     mockCreateServer = vi.fn().mockResolvedValue(mockServer);
-    manager = new McpTransportManager(mockCreateServer);
+    manager = new StatefulTransportManager(mockCreateServer);
   });
 
   afterEach(() => {
@@ -72,7 +72,7 @@ describe("McpTransportManager", () => {
   describe("handleRequest", () => {
     it("should delegate to the correct transport for a valid session", async () => {
       await manager.initializeAndHandle(mockReq, mockRes, {}, context);
-      await manager.handleRequest("test-session-id", mockReq, mockRes, context);
+      await manager.handleRequest(mockReq, mockRes, {}, context, "test-session-id");
       expect(mockTransportInstance.handleRequest).toHaveBeenCalledTimes(2);
     });
 
@@ -82,16 +82,22 @@ describe("McpTransportManager", () => {
       const initialTime = initialSession?.lastAccessedAt.getTime();
 
       vi.advanceTimersByTime(1000);
-      await manager.handleRequest("test-session-id", mockReq, mockRes, context);
+      await manager.handleRequest(mockReq, mockRes, {}, context, "test-session-id");
 
       const updatedSession = manager.getSession("test-session-id");
-      expect(updatedSession?.lastAccessedAt.getTime()).toBeGreaterThan(initialTime!);
+      expect(updatedSession?.lastAccessedAt.getTime()).toBeGreaterThan(
+        initialTime!,
+      );
     });
 
     it("should return a 404 JSON-RPC error for a non-existent session", async () => {
-      await manager.handleRequest("non-existent-id", mockReq, mockRes, context);
-      expect(mockRes.writeHead).toHaveBeenCalledWith(404, { "Content-Type": "application/json" });
-      expect(mockRes.end).toHaveBeenCalledWith(expect.stringContaining("Session not found"));
+      await manager.handleRequest(mockReq, mockRes, {}, context, "non-existent-id");
+      expect(mockRes.writeHead).toHaveBeenCalledWith(404, {
+        "Content-Type": "application/json",
+      });
+      expect(mockRes.end).toHaveBeenCalledWith(
+        expect.stringContaining("Session not found"),
+      );
     });
   });
 
