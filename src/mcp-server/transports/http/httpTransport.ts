@@ -7,11 +7,10 @@
 
 import { serve, ServerType } from "@hono/node-server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { Context, Hono, Next } from "hono";
 import { cors } from "hono/cors";
 import { stream } from "hono/streaming";
-import http, { IncomingHttpHeaders } from "http";
+import http from "http";
 import { config } from "../../../config/index.js";
 import {
   logger,
@@ -22,9 +21,10 @@ import {
 import { createAuthMiddleware, createAuthStrategy } from "../auth/index.js";
 import { StatefulTransportManager } from "../core/statefulTransportManager.js";
 import { StatelessTransportManager } from "../core/statelessTransportManager.js";
-import { TransportManager, TransportResponse } from "../core/transportTypes.js";
+import { TransportManager } from "../core/transportTypes.js";
 import { httpErrorHandler } from "./httpErrorHandler.js";
 import { HonoNodeBindings } from "./httpTypes.js";
+import { mcpTransportMiddleware } from "./mcpTransportMiddleware.js";
 
 const HTTP_PORT = config.mcpHttpPort;
 const HTTP_HOST = config.mcpHttpHost;
@@ -37,13 +37,6 @@ const MCP_ENDPOINT_PATH = config.mcpHttpEndpointPath;
  * @param headers - The Headers object to convert.
  * @returns An object compatible with IncomingHttpHeaders.
  */
-function toIncomingHttpHeaders(headers: Headers): IncomingHttpHeaders {
-  const result: IncomingHttpHeaders = {};
-  headers.forEach((value, key) => {
-    result[key] = value;
-  });
-  return result;
-}
 
 async function isPortInUse(
   port: number,
@@ -201,24 +194,6 @@ function createTransportManager(
   }
 }
 
-async function handleStatelessRequest(
-  createServerInstanceFn: () => Promise<McpServer>,
-  headers: Headers,
-  body: unknown,
-  context: RequestContext,
-): Promise<TransportResponse> {
-  const opContext = { ...context, operation: "handleStatelessRequest" };
-  logger.info("Handling request in stateless mode.", opContext);
-  const statelessManager = new StatelessTransportManager(
-    createServerInstanceFn,
-  );
-  return statelessManager.handleRequest(
-    toIncomingHttpHeaders(headers),
-    body,
-    opContext,
-  );
-}
-
 export function createHttpApp(
   transportManager: TransportManager,
   createServerInstanceFn: () => Promise<McpServer>,
@@ -296,6 +271,13 @@ export function createHttpApp(
 
   app.onError(httpErrorHandler);
 
+  app.get("/healthz", (c) => {
+    return c.json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   app.get(MCP_ENDPOINT_PATH, (c: Context<{ Bindings: HonoNodeBindings }>) => {
     const sessionId = c.req.header("mcp-session-id");
     if (sessionId) {
@@ -314,51 +296,9 @@ export function createHttpApp(
 
   app.post(
     MCP_ENDPOINT_PATH,
-    async (c: Context<{ Bindings: HonoNodeBindings }>) => {
-      const sessionId = c.req.header("mcp-session-id");
-      const context = requestContextService.createRequestContext({
-        ...transportContext,
-        operation: "handlePostRequest",
-        sessionId,
-      });
-
-      const body = await c.req.json();
-      let response: TransportResponse;
-
-      if (isInitializeRequest(body)) {
-        if (config.mcpSessionMode === "stateless") {
-          response = await handleStatelessRequest(
-            createServerInstanceFn,
-            c.req.raw.headers,
-            body,
-            context,
-          );
-        } else {
-          response = await (
-            transportManager as StatefulTransportManager
-          ).initializeAndHandle(
-            toIncomingHttpHeaders(c.req.raw.headers),
-            body,
-            context,
-          );
-        }
-      } else {
-        if (sessionId) {
-          response = await transportManager.handleRequest(
-            toIncomingHttpHeaders(c.req.raw.headers),
-            body,
-            context,
-            sessionId,
-          );
-        } else {
-          response = await handleStatelessRequest(
-            createServerInstanceFn,
-            c.req.raw.headers,
-            body,
-            context,
-          );
-        }
-      }
+    mcpTransportMiddleware(transportManager, createServerInstanceFn),
+    (c) => {
+      const response = c.get("mcpResponse");
 
       if (response.sessionId) {
         c.header("Mcp-Session-Id", response.sessionId);
@@ -370,9 +310,9 @@ export function createHttpApp(
       c.status(response.statusCode);
 
       if (response.stream) {
-        return stream(c, async (stream) => {
+        return stream(c, async (s) => {
           if (response.stream) {
-            await stream.pipe(response.stream);
+            await s.pipe(response.stream);
           }
         });
       } else {

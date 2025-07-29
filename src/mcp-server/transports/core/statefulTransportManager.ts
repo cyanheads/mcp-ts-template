@@ -11,7 +11,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { IncomingHttpHeaders, ServerResponse } from "http";
 import { randomUUID } from "node:crypto";
-import { PassThrough, Readable } from "stream";
+import { Readable } from "stream";
 import { config } from "../../../config/index.js";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
@@ -21,83 +21,13 @@ import {
   requestContextService,
 } from "../../../utils/index.js";
 import { BaseTransportManager } from "./baseTransportManager.js";
+import { HonoStreamResponse } from "./honoNodeBridge.js";
 import {
   HttpStatusCode,
   StatefulTransportManager as IStatefulTransportManager,
   TransportResponse,
   TransportSession,
 } from "./transportTypes.js";
-
-/**
- * A mock ServerResponse that pipes writes to a PassThrough stream.
- * This is the bridge between the SDK's Node.js-style response handling
- * and Hono's stream-based body. It captures status and headers.
- */
-class HonoStreamResponse extends PassThrough {
-  statusCode = 200;
-  headers: Record<string, string | number | string[]> = {};
-
-  constructor() {
-    super();
-  }
-
-  writeHead(
-    statusCode: number,
-    headers?: Record<string, string | number | string[]>,
-  ): this {
-    this.statusCode = statusCode;
-    if (headers) {
-      this.headers = { ...this.headers, ...headers };
-    }
-    return this;
-  }
-
-  setHeader(name: string, value: string | number | string[]): this {
-    this.headers[name.toLowerCase()] = value;
-    return this;
-  }
-
-  getHeader(name: string): string | number | string[] | undefined {
-    return this.headers[name.toLowerCase()];
-  }
-
-  getHeaders(): Record<string, string | number | string[]> {
-    return this.headers;
-  }
-
-  removeHeader(name: string): void {
-    delete this.headers[name.toLowerCase()];
-  }
-
-  write(
-    chunk: unknown,
-    encodingOrCallback?:
-      | BufferEncoding
-      | ((error: Error | null | undefined) => void),
-    callback?: (error: Error | null | undefined) => void,
-  ): boolean {
-    const encoding =
-      typeof encodingOrCallback === "string" ? encodingOrCallback : undefined;
-    const cb =
-      typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return super.write(chunk as any, encoding as any, cb);
-  }
-
-  end(
-    chunk?: unknown,
-    encodingOrCallback?: BufferEncoding | (() => void),
-    callback?: () => void,
-  ): this {
-    const encoding =
-      typeof encodingOrCallback === "string" ? encodingOrCallback : undefined;
-    const cb =
-      typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    super.end(chunk as any, encoding as any, cb);
-    return this;
-  }
-}
 
 /**
  * Stateful Transport Manager that handles MCP SDK integration and session management
@@ -255,7 +185,10 @@ export class StatefulTransportManager
       );
     }
 
-    const mockReq = { headers } as import("http").IncomingMessage;
+    const mockReq = {
+      headers,
+      method: "POST",
+    } as import("http").IncomingMessage;
     const mockRes = new HonoStreamResponse() as unknown as ServerResponse;
 
     await transport.handleRequest(mockReq, mockRes, body);
