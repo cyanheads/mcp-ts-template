@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-29 14:32:59
+Generated on: 2025-07-29 18:18:24
 
 ```
 mcp-ts-template
@@ -61,6 +61,7 @@ mcp-ts-template
 │   │   │   │   └── index.ts
 │   │   │   ├── core
 │   │   │   │   ├── baseTransportManager.ts
+│   │   │   │   ├── honoNodeBridge.ts
 │   │   │   │   ├── statefulTransportManager.ts
 │   │   │   │   ├── statelessTransportManager.ts
 │   │   │   │   └── transportTypes.ts
@@ -68,11 +69,11 @@ mcp-ts-template
 │   │   │   │   ├── httpErrorHandler.ts
 │   │   │   │   ├── httpTransport.ts
 │   │   │   │   ├── httpTypes.ts
-│   │   │   │   └── index.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   └── mcpTransportMiddleware.ts
 │   │   │   └── stdio
 │   │   │       ├── index.ts
 │   │   │       └── stdioTransport.ts
-│   │   ├── README.md
 │   │   └── server.ts
 │   ├── services
 │   │   ├── duck-db
@@ -135,13 +136,6 @@ mcp-ts-template
 │   │   │   │   │   ├── jwtStrategy.test.ts
 │   │   │   │   │   └── oauthStrategy.test.ts
 │   │   │   │   └── auth.test.ts
-│   │   │   ├── core
-│   │   │   │   ├── baseTransportManager.test.ts
-│   │   │   │   ├── statefulTransportManager.test.ts
-│   │   │   │   └── statelessTransportManager.test.ts
-│   │   │   ├── http
-│   │   │   │   ├── httpErrorHandler.test.ts
-│   │   │   │   └── httpTransport.test.ts
 │   │   │   └── stdio
 │   │   │       └── stdioTransport.test.ts
 │   │   └── server.test.ts

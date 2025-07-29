@@ -7,8 +7,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue?style=flat-square)](https://www.typescriptlang.org/)
 [![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.0-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--06--18-lightgrey?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.7.5-blue?style=flat-square)](./CHANGELOG.md)
-[![Coverage](https://img.shields.io/badge/Coverage-84.6%25-green?style=flat-square)](./vitest.config.ts)
+[![Version](https://img.shields.io/badge/Version-1.7.7-blue?style=flat-square)](./CHANGELOG.md)
+[![Coverage](https://img.shields.io/badge/Coverage-67.1%25-brightgreen?style=flat-square)](./vitest.config.ts)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
@@ -32,7 +32,7 @@ Building a robust server for AI agents is more than just writing code. It requir
 
 | Feature Area                | Description                                                                                                                                     | Key Components / Location                                            |
 | :-------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
-| **🔌 MCP Server**           | Functional server with example tools (`EchoTool`, `CatFactFetcher`) and an `EchoResource`. Supports `stdio` and **Streamable HTTP** transports. | `src/mcp-server/`                                                    |
+| **🔌 MCP Server**           | A functional server with example tools and resources. Supports `stdio` and a **Streamable HTTP** transport built with [**Hono**](https://hono.dev/). | `src/mcp-server/`, `src/mcp-server/transports/`                      |
 | **🚀 Production Utilities** | Logging, Error Handling, ID Generation, Rate Limiting, Request Context tracking, Input Sanitization.                                            | `src/utils/`                                                         |
 | **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware for HTTP).                     | Throughout, `src/utils/security/`, `src/mcp-server/transports/auth/` |
 | **⚙️ Error Handling**       | Consistent error categorization (`BaseErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                                     | `src/utils/internal/errorHandler.ts`, `src/types-global/`            |
@@ -41,25 +41,19 @@ Building a robust server for AI agents is more than just writing code. It requir
 | **🤖 Agent Ready**          | Includes a [.clinerules](.clinerules) developer cheatsheet tailored for LLM coding agents.                                                      | `.clinerules`                                                        |
 | **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                            | `scripts/`                                                           |
 | **🧩 Services**             | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                     | `src/services/`, `src/storage/duckdbExample.ts`                      |
-| **🧪 Unit Testing**         | Integrated with Vitest for fast and reliable unit testing. Includes example tests for core tool logic and a coverage reporter.                  | `vitest.config.ts`, `tests/`                                         |
+| **🧪 Integration Testing**  | Integrated with Vitest for fast and reliable integration testing. Includes example tests for core logic and a coverage reporter.                | `vitest.config.ts`, `tests/`                                         |
 
-## 🌟 Projects Using This Template
+## Architecture Overview
 
-This template is already powering several MCP servers, demonstrating its flexibility and robustness:
+This template employs a modular, transport-agnostic architecture to ensure a clean separation of concerns.
 
-| Project                                                                                       | Description                                                                                                                   |
-| :-------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
-| [**clinicaltrialsgov-mcp-server**](https://github.com/cyanheads/clinicaltrialsgov-mcp-server) | Provides an LLM-friendly interface to the official ClinicalTrials.gov v2 API, enabling agents to analyze clinical study data. |
-| [**pubmed-mcp-server**](https://github.com/cyanheads/pubmed-mcp-server)                       | Enables AI agents to search, retrieve, and visualize biomedical literature from PubMed via NCBI E-utilities.                  |
-| [**git-mcp-server**](https://github.com/cyanheads/git-mcp-server)                             | Provides an enterprise-ready MCP interface for Git operations, allowing agents to manage repositories programmatically.       |
-| [**obsidian-mcp-server**](https://github.com/cyanheads/obsidian-mcp-server)                   | Allows AI agents to read, write, search, and manage notes in Obsidian via the Local REST API plugin.                          |
-| [**atlas-mcp-server**](https://github.com/cyanheads/atlas-mcp-server)                         | An advanced task and knowledge management system with a Neo4j backend for structured data organization.                       |
-| [**filesystem-mcp-server**](https://github.com/cyanheads/filesystem-mcp-server)               | Offers platform-agnostic file system capabilities for AI agents, including advanced search and directory traversal.           |
-| [**workflows-mcp-server**](https://github.com/cyanheads/workflows-mcp-server)                 | A declarative workflow engine that allows agents to execute complex, multi-step automations from simple YAML files.           |
+- **Core Server (`src/mcp-server/server.ts`)**: The central point where tools and resources are registered. It remains independent of how the server is accessed.
+- **Transports (`src/mcp-server/transports/`)**: The transport layer connects the core server to the outside world.
+  - **StdioTransport**: For direct process-to-process communication.
+  - **HttpTransport**: A modern, streamable HTTP server built with **Hono**. It uses a middleware-based approach for handling CORS, rate limiting, authentication, and MCP request processing.
+- **Transport Managers (`src/mcp-server/transports/core/`)**: These managers bridge the gap between the transport layer (like Hono) and the MCP SDK, handling session management (stateful vs. stateless) and request lifecycle.
 
-_Note: [**toolkit-mcp-server**](https://github.com/cyanheads/toolkit-mcp-server) was built on an older version of this template and is pending updates._
-
-You can also **see my [GitHub profile](https://github.com/cyanheads/)** for additional MCP servers I've created.
+This design allows you to add new tools and logic to the core server without worrying about the underlying transport details.
 
 ## Quick Start
 
@@ -93,7 +87,7 @@ npm run build
 
 ### 4. Running Tests
 
-This template uses [Vitest](https://vitest.dev/) for unit testing. Tests are located in the `tests/` directory, mirroring the `src/` structure.
+This template uses [Vitest](https://vitest.dev/) for testing, with a strong emphasis on **integration testing** to ensure all components work together correctly.
 
 - **Run all tests once:**
   ```bash
@@ -110,17 +104,15 @@ This template uses [Vitest](https://vitest.dev/) for unit testing. Tests are loc
 
 ## ⚙️ Configuration
 
-### Server Configuration (Environment Variables)
-
-Configure the MCP server's behavior using these environment variables:
+Configure the server using these environment variables (or a `.env` file):
 
 | Variable              | Description                                                                               | Default                                |
 | :-------------------- | :---------------------------------------------------------------------------------------- | :------------------------------------- |
 | `MCP_TRANSPORT_TYPE`  | Server transport: `stdio` or `http`.                                                      | `stdio`                                |
 | `MCP_SESSION_MODE`    | Session mode for HTTP: `stateless`, `stateful`, or `auto`.                                | `auto`                                 |
-| `MCP_HTTP_PORT`       | Port for the HTTP server (if `MCP_TRANSPORT_TYPE=http`).                                  | `3010`                                 |
-| `MCP_HTTP_HOST`       | Host address for the HTTP server (if `MCP_TRANSPORT_TYPE=http`).                          | `127.0.0.1`                            |
-| `MCP_ALLOWED_ORIGINS` | Comma-separated allowed origins for CORS (if `MCP_TRANSPORT_TYPE=http`).                  | (none)                                 |
+| `MCP_HTTP_PORT`       | Port for the HTTP server.                                                                 | `3010`                                 |
+| `MCP_HTTP_HOST`       | Host address for the HTTP server.                                                         | `127.0.0.1`                            |
+| `MCP_ALLOWED_ORIGINS` | Comma-separated allowed origins for CORS.                                                 | (none)                                 |
 | `MCP_AUTH_MODE`       | Authentication mode for HTTP: `jwt`, `oauth`, or `none`.                                  | `none`                                 |
 | `MCP_AUTH_SECRET_KEY` | **Required for `jwt` mode.** Secret key (min 32 chars) for signing/verifying auth tokens. | (none - **MUST be set in production**) |
 | `OAUTH_ISSUER_URL`    | **Required for `oauth` mode.** The issuer URL of your authorization server.               | (none)                                 |
@@ -129,12 +121,12 @@ Configure the MCP server's behavior using these environment variables:
 
 ## 🏗️ Project Structure
 
-- **`src/mcp-server/`**: Contains the MCP server implementation, including example tools, resources, and transport handlers.
-- **`src/config/`**: Handles loading and validation of environment variables and application configuration.
-- **`src/services/`**: Provides reusable modules for integrating with external services (DuckDB, OpenRouter).
+- **`src/mcp-server/`**: Contains the core MCP server, tools, resources, and transport handlers.
+- **`src/config/`**: Handles loading and validation of environment variables.
+- **`src/services/`**: Reusable modules for integrating with external services (DuckDB, OpenRouter).
 - **`src/types-global/`**: Defines shared TypeScript interfaces and type definitions.
-- **`src/utils/`**: A collection of core utilities (logging, error handling, security, etc.).
-- **`src/index.ts`**: The main entry point for the application, responsible for initializing and starting the MCP server.
+- **`src/utils/`**: Core utilities (logging, error handling, security, etc.).
+- **`src/index.ts`**: The main entry point that initializes and starts the server.
 
 **Explore the full structure yourself:**
 
@@ -146,9 +138,12 @@ npm run tree
 
 ## 🧩 Extending the System
 
-### Adding Tools to the Server
+The canonical pattern for adding new tools and resources is defined in the [.clinerules](.clinerules) file. It mandates a strict separation of concerns:
 
-For detailed guidance on how to add your own custom Tools and Resources to the MCP server, please see the [Server Extension Guide](src/mcp-server/README.md).
+1.  **`logic.ts`**: Contains the pure business logic, Zod schemas, and type definitions. This file throws structured errors on failure.
+2.  **`registration.ts`**: Acts as the "handler." It registers the tool with the server, wraps the logic call in a `try...catch` block, and formats the final success or error response.
+
+This "Logic Throws, Handler Catches" pattern ensures that core logic remains pure and testable, while the registration layer handles all side effects and response formatting.
 
 ## 🌍 Explore More MCP Resources
 
