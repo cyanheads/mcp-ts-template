@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🚀 Model Context Protocol (MCP) Server TypeScript Template
+# mcp-ts-template
 
-**Build production-grade MCP servers with a powerful, type-safe, and extensible foundation.**
+**Build production-grade Model Context Protocol (MCP) servers with a powerful, type-safe, and extensible foundation.**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue?style=flat-square)](https://www.typescriptlang.org/)
 [![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.0-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)

@@ -19,6 +19,10 @@ All notable changes to this project will be documented in this file.
 
 - **Legacy Test Files**: Deleted obsolete and redundant test files for the old transport implementation, including `baseTransportManager.test.ts`, `statefulTransportManager.test.ts`, `statelessTransportManager.test.ts`, `httpErrorHandler.test.ts`, and `httpTransport.test.ts`. The new architecture is tested more effectively through integration tests.
 
+## [1.7.6] - 2025-07-28
+
+- **Oops**: Moving too fast and messed up versioning. This is a placeholder for uniformity in the changelog.
+
 ## [1.7.5] - 2025-07-28
 
 ### Changed
