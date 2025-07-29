@@ -416,10 +416,12 @@ The primary testing strategy is **integration testing**, not isolated unit testi
 
 **Test Structure**:
 The `tests/` directory mirrors the `src/` directory structure. For a given module, you will find corresponding tests:
+
 - `tests/mcp-server/tools/echoTool/registration.test.ts` (Integration test)
 - `tests/mcp-server/tools/echoTool/logic.test.ts` (Focused logic test)
 
 **Running Tests**:
+
 - `npm test`: Run all tests once.
 - `npm test:watch`: Run tests in watch mode.
 - `npm test:coverage`: Run tests and generate a coverage report.

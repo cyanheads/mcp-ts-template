@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-28 23:25:40
+Generated on: 2025-07-29 14:32:59
 
 ```
 mcp-ts-template
@@ -72,6 +72,7 @@ mcp-ts-template
 │   │   │   └── stdio
 │   │   │       ├── index.ts
 │   │   │       └── stdioTransport.ts
+│   │   ├── README.md
 │   │   └── server.ts
 │   ├── services
 │   │   ├── duck-db
