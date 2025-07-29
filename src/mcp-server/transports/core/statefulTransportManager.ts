@@ -2,15 +2,24 @@
  * @fileoverview Stateful Transport Manager implementation for MCP SDK.
  * This manager handles multiple, persistent sessions, creating a dedicated
  * McpServer and StreamableHTTPServerTransport instance for each one.
+ * This version is adapted for Hono by bridging the SDK's Node.js-style
+ * request handling with Hono's stream-based response model.
  * @module src/mcp-server/transports/core/statefulTransportManager
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { IncomingMessage, ServerResponse } from "http";
+import type { IncomingHttpHeaders, ServerResponse } from "http";
 import { randomUUID } from "node:crypto";
+import { PassThrough, Readable } from "stream";
+import { config } from "../../../config/index.js";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
-import { logger, RequestContext } from "../../../utils/index.js";
+import {
+  ErrorHandler,
+  logger,
+  RequestContext,
+  requestContextService,
+} from "../../../utils/index.js";
 import { BaseTransportManager } from "./baseTransportManager.js";
 import {
   HttpStatusCode,
@@ -20,7 +29,79 @@ import {
 } from "./transportTypes.js";
 
 /**
- * Stateful Transport Manager that handles MCP SDK integration and session management.
+ * A mock ServerResponse that pipes writes to a PassThrough stream.
+ * This is the bridge between the SDK's Node.js-style response handling
+ * and Hono's stream-based body. It captures status and headers.
+ */
+class HonoStreamResponse extends PassThrough {
+  statusCode = 200;
+  headers: Record<string, string | number | string[]> = {};
+
+  constructor() {
+    super();
+  }
+
+  writeHead(
+    statusCode: number,
+    headers?: Record<string, string | number | string[]>,
+  ): this {
+    this.statusCode = statusCode;
+    if (headers) {
+      this.headers = { ...this.headers, ...headers };
+    }
+    return this;
+  }
+
+  setHeader(name: string, value: string | number | string[]): this {
+    this.headers[name.toLowerCase()] = value;
+    return this;
+  }
+
+  getHeader(name: string): string | number | string[] | undefined {
+    return this.headers[name.toLowerCase()];
+  }
+
+  getHeaders(): Record<string, string | number | string[]> {
+    return this.headers;
+  }
+
+  removeHeader(name: string): void {
+    delete this.headers[name.toLowerCase()];
+  }
+
+  write(
+    chunk: unknown,
+    encodingOrCallback?:
+      | BufferEncoding
+      | ((error: Error | null | undefined) => void),
+    callback?: (error: Error | null | undefined) => void,
+  ): boolean {
+    const encoding =
+      typeof encodingOrCallback === "string" ? encodingOrCallback : undefined;
+    const cb =
+      typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return super.write(chunk as any, encoding as any, cb);
+  }
+
+  end(
+    chunk?: unknown,
+    encodingOrCallback?: BufferEncoding | (() => void),
+    callback?: () => void,
+  ): this {
+    const encoding =
+      typeof encodingOrCallback === "string" ? encodingOrCallback : undefined;
+    const cb =
+      typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    super.end(chunk as any, encoding as any, cb);
+    return this;
+  }
+}
+
+/**
+ * Stateful Transport Manager that handles MCP SDK integration and session management
+ * for a Hono-based HTTP server.
  */
 export class StatefulTransportManager
   extends BaseTransportManager
@@ -36,22 +117,32 @@ export class StatefulTransportManager
 
   constructor(createServerInstanceFn: () => Promise<McpServer>) {
     super(createServerInstanceFn);
+    const context = requestContextService.createRequestContext({
+      operation: "StatefulTransportManager.constructor",
+    });
+    logger.info("Starting session garbage collector.", context);
     this.garbageCollector = setInterval(
       () => this.cleanupStaleSessions(),
-      60 * 1000,
+      config.mcpStatefulSessionStaleTimeoutMs,
     );
   }
 
   async initializeAndHandle(
-    req: IncomingMessage,
-    res: ServerResponse,
+    headers: IncomingHttpHeaders,
     body: unknown,
     context: RequestContext,
-  ): Promise<ServerResponse> {
+  ): Promise<TransportResponse> {
+    const operationName = "StatefulTransportManager.initializeAndHandle";
+    const opContext = { ...context, operation: operationName };
+    logger.debug("Initializing new stateful session.", opContext);
+
     const server = await this.createServerInstanceFn();
+    const mockRes = new HonoStreamResponse() as unknown as ServerResponse;
+
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (sessionId) => {
+        const sessionContext = { ...opContext, sessionId };
         this.transports.set(sessionId, transport);
         this.servers.set(sessionId, server);
         this.sessions.set(sessionId, {
@@ -59,40 +150,69 @@ export class StatefulTransportManager
           createdAt: new Date(),
           lastAccessedAt: new Date(),
         });
-        logger.info(`MCP Session created: ${sessionId}`, {
-          ...context,
-          sessionId,
-        });
+        logger.info(`MCP Session created: ${sessionId}`, sessionContext);
       },
     });
 
     transport.onclose = () => {
       const sessionId = transport.sessionId;
       if (sessionId) {
-        this.closeSession(sessionId, {
-          requestId: `transport-close-${sessionId}`,
-          timestamp: new Date().toISOString(),
-        }).catch((err) =>
+        const closeContext = requestContextService.createRequestContext({
+          operation: "StatefulTransportManager.transport.onclose",
+          sessionId,
+        });
+        this.closeSession(sessionId, closeContext).catch((err) =>
           logger.error(
             `Error during transport.onclose cleanup for session ${sessionId}`,
             err,
+            closeContext,
           ),
         );
       }
     };
 
     await server.connect(transport);
-    await transport.handleRequest(req, res, body);
-    return res;
+    logger.debug(
+      "Server connected to transport, handling initial request.",
+      opContext,
+    );
+
+    const mockReq = {
+      headers,
+      method: "POST",
+      url: config.mcpHttpEndpointPath,
+    } as import("http").IncomingMessage;
+    await transport.handleRequest(mockReq, mockRes, body);
+
+    const responseHeaders = new Headers();
+    for (const [key, value] of Object.entries(mockRes.getHeaders())) {
+      responseHeaders.set(
+        key,
+        Array.isArray(value) ? value.join(", ") : String(value),
+      );
+    }
+    if (transport.sessionId) {
+      responseHeaders.set("Mcp-Session-Id", transport.sessionId);
+    }
+
+    const webStream = Readable.toWeb(
+      mockRes as unknown as HonoStreamResponse,
+    ) as ReadableStream<Uint8Array>;
+
+    return {
+      headers: responseHeaders,
+      statusCode: mockRes.statusCode as HttpStatusCode,
+      stream: webStream,
+      sessionId: transport.sessionId,
+    };
   }
 
   async handleRequest(
-    req: IncomingMessage,
-    res: ServerResponse,
+    headers: IncomingHttpHeaders,
     body: unknown,
     context: RequestContext,
     sessionId?: string,
-  ): Promise<void> {
+  ): Promise<TransportResponse> {
     if (!sessionId) {
       throw new McpError(
         BaseErrorCode.INVALID_INPUT,
@@ -100,44 +220,83 @@ export class StatefulTransportManager
         context,
       );
     }
-    const sessionContext = { ...context, sessionId };
+    const sessionContext = {
+      ...context,
+      sessionId,
+      operation: "StatefulTransportManager.handleRequest",
+    };
+    logger.debug(`Handling request for session: ${sessionId}`, {
+      ...sessionContext,
+      method: headers["x-forwarded-proto"] || "http",
+    });
+
     const transport = this.transports.get(sessionId);
     if (!transport) {
       logger.warning(
         `Request for non-existent session: ${sessionId}`,
         sessionContext,
       );
-      res.writeHead(404, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
+      return {
+        headers: new Headers({ "Content-Type": "application/json" }),
+        statusCode: 404,
+        body: {
           jsonrpc: "2.0",
           error: { code: -32601, message: "Session not found" },
-        }),
-      );
-      return;
+        },
+      };
     }
 
     const session = this.sessions.get(sessionId);
     if (session) {
       session.lastAccessedAt = new Date();
+      logger.debug(
+        `Updated lastAccessedAt for session ${sessionId}.`,
+        sessionContext,
+      );
     }
 
-    logger.debug(`Handling request for session: ${sessionId}`, {
-      ...sessionContext,
-      method: req.method,
-    });
+    const mockReq = { headers } as import("http").IncomingMessage;
+    const mockRes = new HonoStreamResponse() as unknown as ServerResponse;
 
-    // Delegate the raw request and response objects, and the body, to the SDK transport.
-    await transport.handleRequest(req, res, body);
+    await transport.handleRequest(mockReq, mockRes, body);
+
+    const responseHeaders = new Headers();
+    for (const [key, value] of Object.entries(mockRes.getHeaders())) {
+      responseHeaders.set(
+        key,
+        Array.isArray(value) ? value.join(", ") : String(value),
+      );
+    }
+
+    const webStream = Readable.toWeb(
+      mockRes as unknown as HonoStreamResponse,
+    ) as ReadableStream<Uint8Array>;
+
+    return {
+      headers: responseHeaders,
+      statusCode: mockRes.statusCode as HttpStatusCode,
+      stream: webStream,
+      sessionId: transport.sessionId,
+    };
   }
 
   async handleDeleteRequest(
     sessionId: string,
     context: RequestContext,
   ): Promise<TransportResponse> {
-    const sessionContext = { ...context, sessionId };
+    const sessionContext = {
+      ...context,
+      sessionId,
+      operation: "StatefulTransportManager.handleDeleteRequest",
+    };
+    logger.info(`Attempting to delete session: ${sessionId}`, sessionContext);
+
     const transport = this.transports.get(sessionId);
     if (!transport) {
+      logger.warning(
+        `Attempted to delete non-existent session: ${sessionId}`,
+        sessionContext,
+      );
       throw new McpError(
         BaseErrorCode.NOT_FOUND,
         "Session not found or expired.",
@@ -158,75 +317,115 @@ export class StatefulTransportManager
   }
 
   getSession(sessionId: string): TransportSession | undefined {
+    const context = requestContextService.createRequestContext({
+      operation: "StatefulTransportManager.getSession",
+      sessionId,
+    });
+    logger.debug(`Retrieving session: ${sessionId}`, context);
     return this.sessions.get(sessionId);
   }
 
   async shutdown(): Promise<void> {
-    clearInterval(this.garbageCollector); // Stop the garbage collector
-    const closePromises = Array.from(this.transports.keys()).map((sessionId) =>
-      this.closeSession(sessionId, {
-        requestId: "shutdown",
-        timestamp: new Date().toISOString(),
-      }),
+    const context = requestContextService.createRequestContext({
+      operation: "StatefulTransportManager.shutdown",
+    });
+    logger.info("Shutting down stateful transport manager...", context);
+    clearInterval(this.garbageCollector);
+    logger.debug("Garbage collector stopped.", context);
+
+    const sessionIds = Array.from(this.transports.keys());
+    logger.info(`Closing ${sessionIds.length} active sessions.`, context);
+
+    const closePromises = sessionIds.map((sessionId) =>
+      this.closeSession(sessionId, context),
     );
 
     await Promise.all(closePromises);
     this.transports.clear();
     this.sessions.clear();
     this.servers.clear();
+    logger.info("All active sessions closed and manager shut down.", context);
   }
 
-  /**
-   * Helper method to close a specific session.
-   */
   private async closeSession(
     sessionId: string,
     context: RequestContext,
   ): Promise<void> {
+    const sessionContext = {
+      ...context,
+      sessionId,
+      operation: "StatefulTransportManager.closeSession",
+    };
+    logger.debug(`Closing session: ${sessionId}`, sessionContext);
+
     const transport = this.transports.get(sessionId);
-    const server = this.servers.get(sessionId); // Get the server instance
+    const server = this.servers.get(sessionId);
 
-    // Close transport and server if they exist
-    if (transport) {
-      await transport.close();
-    }
-    if (server) {
-      await server.close(); // Also close the McpServer instance
-    }
+    await ErrorHandler.tryCatch(
+      async () => {
+        if (transport) {
+          await transport.close();
+          logger.debug(
+            `Transport closed for session ${sessionId}.`,
+            sessionContext,
+          );
+        }
+        if (server) {
+          await server.close();
+          logger.debug(
+            `Server instance closed for session ${sessionId}.`,
+            sessionContext,
+          );
+        }
+      },
+      {
+        operation: "closeSession.cleanup",
+        context: sessionContext,
+      },
+    );
 
-    // Clean up all maps
     this.transports.delete(sessionId);
     this.servers.delete(sessionId);
     this.sessions.delete(sessionId);
 
-    logger.info(`MCP Session closed: ${sessionId}`, {
-      ...context,
-      sessionId,
-    });
+    logger.info(
+      `MCP Session closed and resources released: ${sessionId}`,
+      sessionContext,
+    );
   }
 
-  /**
-   * Periodically scans for and cleans up stale sessions to prevent memory leaks.
-   */
   private async cleanupStaleSessions() {
-    const now = Date.now();
-    const STALE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
-    const context: RequestContext = {
-      requestId: `cleanup-${randomUUID()}`,
-      timestamp: new Date().toISOString(),
-    };
+    const context = requestContextService.createRequestContext({
+      operation: "StatefulTransportManager.cleanupStaleSessions",
+    });
+    logger.debug("Running stale session cleanup...", context);
 
-    logger.debug("Running stale session cleanup...", { ...context });
+    const now = Date.now();
+    const STALE_TIMEOUT_MS = config.mcpStatefulSessionStaleTimeoutMs;
+    let staleCount = 0;
 
     for (const [sessionId, session] of this.sessions.entries()) {
       if (now - session.lastAccessedAt.getTime() > STALE_TIMEOUT_MS) {
-        logger.info(`Closing stale session: ${sessionId}`, {
+        staleCount++;
+        const sessionContext = {
           ...context,
           sessionId,
           lastAccessed: session.lastAccessedAt.toISOString(),
-        });
-        await this.closeSession(sessionId, context);
+        };
+        logger.info(
+          `Found stale session, closing: ${sessionId}`,
+          sessionContext,
+        );
+        await this.closeSession(sessionId, sessionContext);
       }
+    }
+    if (staleCount > 0) {
+      logger.info(
+        `Stale session cleanup complete. Closed ${staleCount} sessions.`,
+        context,
+      );
+    } else {
+      logger.debug("No stale sessions found.", context);
     }
   }
 }

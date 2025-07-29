@@ -3,6 +3,7 @@
  * @module src/mcp-server/transports/core/transportTypes
  */
 
+import type { IncomingHttpHeaders } from "http";
 import { RequestContext } from "../../../utils/index.js";
 
 /**
@@ -48,20 +49,18 @@ export interface TransportSession {
 export interface TransportManager {
   /**
    * Handles an incoming request.
-   * @param req The raw request object.
-   * @param res The raw response object.
+   * @param headers The request headers.
    * @param body The parsed body of the request.
    * @param context Request context for logging and tracing.
    * @param sessionId Optional session identifier for stateful operations.
-   * @returns A promise that resolves when the request has been handled.
+   * @returns A promise resolving to a TransportResponse.
    */
   handleRequest(
-    req: unknown,
-    res: unknown,
+    headers: IncomingHttpHeaders,
     body: unknown,
     context: RequestContext,
     sessionId?: string,
-  ): Promise<unknown>;
+  ): Promise<TransportResponse>;
 
   /**
    * Clean up resources.
@@ -75,13 +74,16 @@ export interface TransportManager {
 export interface StatefulTransportManager extends TransportManager {
   /**
    * Initializes a new session and handles the request.
+   * @param headers The request headers.
+   * @param body The parsed body of the request.
+   * @param context Request context for logging and tracing.
+   * @returns A promise resolving to a TransportResponse.
    */
   initializeAndHandle(
-    req: unknown,
-    res: unknown,
+    headers: IncomingHttpHeaders,
     body: unknown,
     context: RequestContext,
-  ): Promise<unknown>;
+  ): Promise<TransportResponse>;
 
   /**
    * Handles a DELETE request to close a session.

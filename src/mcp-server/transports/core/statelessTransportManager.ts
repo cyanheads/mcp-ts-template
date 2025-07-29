@@ -2,29 +2,112 @@
  * @fileoverview Stateless Transport Manager implementation for MCP SDK.
  * This manager handles single-request operations without maintaining sessions.
  * Each request creates a temporary server instance that is cleaned up immediately.
+ * This version is adapted for Hono by bridging the SDK's Node.js-style
+ * request handling with Hono's stream-based response model.
  * @module src/mcp-server/transports/core/statelessTransportManager
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { IncomingMessage, ServerResponse } from "http";
-import { logger, RequestContext } from "../../../utils/index.js";
+import type { IncomingHttpHeaders, ServerResponse } from "http";
+import { PassThrough, Readable } from "stream";
+import {
+  ErrorHandler,
+  logger,
+  RequestContext,
+  requestContextService,
+} from "../../../utils/index.js";
 import { BaseTransportManager } from "./baseTransportManager.js";
+import { HttpStatusCode, TransportResponse } from "./transportTypes.js";
+
+/**
+ * A mock ServerResponse that pipes writes to a PassThrough stream.
+ * This is the bridge between the SDK's Node.js-style response handling
+ * and Hono's stream-based body. It captures status and headers.
+ */
+class HonoStreamResponse extends PassThrough {
+  statusCode = 200;
+  headers: Record<string, string | number | string[]> = {};
+
+  constructor() {
+    super();
+  }
+
+  writeHead(
+    statusCode: number,
+    headers?: Record<string, string | number | string[]>,
+  ): this {
+    this.statusCode = statusCode;
+    if (headers) {
+      this.headers = { ...this.headers, ...headers };
+    }
+    return this;
+  }
+
+  setHeader(name: string, value: string | number | string[]): this {
+    this.headers[name.toLowerCase()] = value;
+    return this;
+  }
+
+  getHeader(name: string): string | number | string[] | undefined {
+    return this.headers[name.toLowerCase()];
+  }
+
+  getHeaders(): Record<string, string | number | string[]> {
+    return this.headers;
+  }
+
+  removeHeader(name: string): void {
+    delete this.headers[name.toLowerCase()];
+  }
+
+  write(
+    chunk: unknown,
+    encodingOrCallback?:
+      | BufferEncoding
+      | ((error: Error | null | undefined) => void),
+    callback?: (error: Error | null | undefined) => void,
+  ): boolean {
+    const encoding =
+      typeof encodingOrCallback === "string" ? encodingOrCallback : undefined;
+    const cb =
+      typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return super.write(chunk as any, encoding as any, cb);
+  }
+
+  end(
+    chunk?: unknown,
+    encodingOrCallback?: BufferEncoding | (() => void),
+    callback?: () => void,
+  ): this {
+    const encoding =
+      typeof encodingOrCallback === "string" ? encodingOrCallback : undefined;
+    const cb =
+      typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    super.end(chunk as any, encoding as any, cb);
+    return this;
+  }
+}
 
 /**
  * Stateless Transport Manager that handles ephemeral MCP operations.
- * Each request creates a temporary server and transport that are immediately cleaned up.
  */
 export class StatelessTransportManager extends BaseTransportManager {
   async handleRequest(
-    req: IncomingMessage,
-    res: ServerResponse,
+    headers: IncomingHttpHeaders,
     body: unknown,
     context: RequestContext,
-  ): Promise<ServerResponse> {
-    logger.debug("Creating ephemeral server instance for stateless request", {
+  ): Promise<TransportResponse> {
+    const opContext = {
       ...context,
-    });
+      operation: "StatelessTransportManager.handleRequest",
+    };
+    logger.debug(
+      "Creating ephemeral server instance for stateless request.",
+      opContext,
+    );
 
     let server: McpServer | undefined;
     let transport: StreamableHTTPServerTransport | undefined;
@@ -37,20 +120,55 @@ export class StatelessTransportManager extends BaseTransportManager {
       });
 
       await server.connect(transport);
-      await transport.handleRequest(req, res, body);
+      logger.debug("Ephemeral server connected to transport.", opContext);
 
-      logger.debug("Stateless request handled successfully", { ...context });
-      return res;
+      const mockReq = { headers } as import("http").IncomingMessage;
+      const mockRes = new HonoStreamResponse() as unknown as ServerResponse;
+
+      await transport.handleRequest(mockReq, mockRes, body);
+
+      logger.info("Stateless request handled successfully.", opContext);
+
+      const responseHeaders = new Headers();
+      for (const [key, value] of Object.entries(mockRes.getHeaders())) {
+        responseHeaders.set(
+          key,
+          Array.isArray(value) ? value.join(", ") : String(value),
+        );
+      }
+
+      // Bridge the Node.js stream (PassThrough) to a Web Stream (ReadableStream)
+      const webStream = Readable.toWeb(
+        mockRes as unknown as HonoStreamResponse,
+      ) as ReadableStream<Uint8Array>;
+
+      return {
+        headers: responseHeaders,
+        statusCode: mockRes.statusCode as HttpStatusCode,
+        stream: webStream,
+      };
     } catch (error) {
-      logger.error("Error handling stateless request", { error, ...context });
-      throw error;
+      throw ErrorHandler.handleError(error, {
+        operation: "StatelessTransportManager.handleRequest",
+        context: opContext,
+        rethrow: true,
+      });
     } finally {
-      this.cleanup(server, transport, context);
+      if (server || transport) {
+        this.cleanup(server, transport, opContext);
+      }
     }
   }
 
   async shutdown(): Promise<void> {
-    logger.debug("Stateless transport manager shutdown - no action needed");
+    const context = requestContextService.createRequestContext({
+      operation: "StatelessTransportManager.shutdown",
+    });
+    logger.info(
+      "Stateless transport manager shutdown - no persistent resources to clean up.",
+      context,
+    );
+    return Promise.resolve();
   }
 
   private cleanup(
@@ -58,15 +176,23 @@ export class StatelessTransportManager extends BaseTransportManager {
     transport: StreamableHTTPServerTransport | undefined,
     context: RequestContext,
   ): void {
-    // Non-blocking cleanup
+    const opContext = {
+      ...context,
+      operation: "StatelessTransportManager.cleanup",
+    };
+    logger.debug("Scheduling cleanup for ephemeral resources.", opContext);
+
     Promise.all([transport?.close(), server?.close()])
       .then(() => {
-        logger.debug("Ephemeral resources cleaned up", { ...context });
+        logger.debug("Ephemeral resources cleaned up successfully.", opContext);
       })
       .catch((cleanupError) => {
-        logger.warning("Error during stateless cleanup", {
-          error: cleanupError,
-          ...context,
+        logger.warning("Error during stateless resource cleanup.", {
+          ...opContext,
+          error:
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : String(cleanupError),
         });
       });
   }

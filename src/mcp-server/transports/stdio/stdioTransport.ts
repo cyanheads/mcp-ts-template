@@ -51,7 +51,7 @@ export async function startStdioTransport(
     operation: "connectStdioTransport",
     transportType: "Stdio",
   };
-  logger.debug("Attempting to connect stdio transport...", operationContext);
+  logger.info("Attempting to connect stdio transport...", operationContext);
 
   try {
     logger.debug("Creating StdioServerTransport instance...", operationContext);
@@ -73,7 +73,12 @@ export async function startStdioTransport(
       );
     }
   } catch (err) {
-    ErrorHandler.handleError(err, { ...operationContext, critical: true });
-    throw err; // Re-throw after handling to allow caller to react if necessary
+    // Let the ErrorHandler log the error with all context, then rethrow.
+    throw ErrorHandler.handleError(err, {
+      operation: "connectStdioTransport",
+      context: operationContext,
+      critical: true,
+      rethrow: true,
+    });
   }
 }

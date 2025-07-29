@@ -4,8 +4,13 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { RequestContext } from "../../../utils/index.js";
-import { TransportManager } from "./transportTypes.js";
+import type { IncomingHttpHeaders } from "http";
+import {
+  logger,
+  RequestContext,
+  requestContextService,
+} from "../../../utils/index.js";
+import { TransportManager, TransportResponse } from "./transportTypes.js";
 
 /**
  * Abstract base class for transport managers, providing common functionality.
@@ -14,16 +19,20 @@ export abstract class BaseTransportManager implements TransportManager {
   protected readonly createServerInstanceFn: () => Promise<McpServer>;
 
   constructor(createServerInstanceFn: () => Promise<McpServer>) {
+    const context = requestContextService.createRequestContext({
+      operation: "BaseTransportManager.constructor",
+      managerType: this.constructor.name,
+    });
+    logger.debug("Initializing transport manager.", context);
     this.createServerInstanceFn = createServerInstanceFn;
   }
 
   abstract handleRequest(
-    req: unknown,
-    res: unknown,
+    headers: IncomingHttpHeaders,
     body: unknown,
     context: RequestContext,
     sessionId?: string,
-  ): Promise<unknown>;
+  ): Promise<TransportResponse>;
 
   abstract shutdown(): Promise<void>;
 }
