@@ -8,7 +8,11 @@
 import type { HttpBindings } from "@hono/node-server";
 import type { Context, Next } from "hono";
 import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
-import { logger, requestContextService } from "../../../utils/index.js";
+import {
+  ErrorHandler,
+  logger,
+  requestContextService,
+} from "../../../utils/index.js";
 import { authContext } from "./lib/authContext.js";
 import type { AuthStrategy } from "./strategies/authStrategy.js";
 
@@ -29,8 +33,11 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
       path: c.req.path,
     });
 
+    logger.debug("Initiating authentication check.", context);
+
     const authHeader = c.req.header("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      logger.warning("Authorization header missing or invalid.", context);
       throw new McpError(
         BaseErrorCode.UNAUTHORIZED,
         "Missing or invalid Authorization header. Bearer scheme required.",
@@ -40,6 +47,10 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
 
     const token = authHeader.substring(7);
     if (!token) {
+      logger.warning(
+        "Bearer token is missing from Authorization header.",
+        context,
+      );
       throw new McpError(
         BaseErrorCode.UNAUTHORIZED,
         "Authentication token is missing.",
@@ -47,14 +58,24 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
       );
     }
 
+    logger.debug(
+      "Extracted Bearer token, proceeding to verification.",
+      context,
+    );
+
     try {
       const authInfo = await strategy.verify(token);
 
-      logger.debug("Authentication successful. Auth context populated.", {
+      const authLogContext = {
         ...context,
         clientId: authInfo.clientId,
+        subject: authInfo.subject,
         scopes: authInfo.scopes,
-      });
+      };
+      logger.info(
+        "Authentication successful. Auth context populated.",
+        authLogContext,
+      );
 
       // Run the next middleware in the chain within the populated auth context.
       await authContext.run({ authInfo }, next);
@@ -65,7 +86,14 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
         ...context,
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+
+      // Ensure consistent error handling
+      throw ErrorHandler.handleError(error, {
+        operation: "authMiddlewareVerification",
+        context,
+        rethrow: true, // Rethrow to be caught by Hono's global error handler
+        errorCode: BaseErrorCode.UNAUTHORIZED, // Default to unauthorized if not more specific
+      });
     }
   };
 }
