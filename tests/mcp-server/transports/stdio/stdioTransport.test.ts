@@ -3,10 +3,11 @@
  * @module tests/mcp-server/transports/stdio/stdioTransport.test
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { startStdioTransport } from "../../../../src/mcp-server/transports/stdio/stdioTransport.js";
+import { McpError } from "../../../../src/types-global/errors.js";
 import { requestContextService } from "../../../../src/utils/index.js";
 
 // Mock SDK classes
@@ -33,12 +34,12 @@ describe("startStdioTransport", () => {
     );
   });
 
-  it("should re-throw an error if server.connect fails", async () => {
+  it("should re-throw an McpError if server.connect fails", async () => {
     const connectionError = new Error("Connection failed");
     vi.mocked(mockServer.connect).mockRejectedValue(connectionError);
 
     await expect(startStdioTransport(mockServer, context)).rejects.toThrow(
-      connectionError,
+      McpError,
     );
   });
 });

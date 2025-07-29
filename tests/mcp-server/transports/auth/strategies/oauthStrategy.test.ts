@@ -3,22 +3,22 @@
  * @module tests/mcp-server/transports/auth/strategies/oauthStrategy.test
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import * as jose from "jose";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OauthStrategy } from "../../../../../src/mcp-server/transports/auth/strategies/oauthStrategy.js";
 import {
   BaseErrorCode,
   McpError,
 } from "../../../../../src/types-global/errors.js";
-import * as jose from "jose";
 import { logger } from "../../../../../src/utils/internal/logger.js";
 
 // Mock config and logger with a mutable state object
 const mockState = {
   config: {
     mcpAuthMode: "oauth",
-    oauthIssuerUrl: "https://test-issuer.com/",
-    oauthAudience: "test-audience",
-    oauthJwksUri: "",
+    oauthIssuerUrl: "https://issuer.example.com/",
+    oauthAudience: "api://my-audience",
+    oauthJwksUri: "https://issuer.example.com/.well-known/jwks.json",
   },
 };
 
@@ -38,26 +38,22 @@ vi.mock("../../../../../src/utils/internal/logger.js", () => ({
   },
 }));
 
-// Mock jose library
+const mockCreateRemoteJWKSet = vi.fn();
 vi.mock("jose", () => ({
-  createRemoteJWKSet: vi.fn(),
+  createRemoteJWKSet: (url: URL) => mockCreateRemoteJWKSet(url),
   jwtVerify: vi.fn(),
 }));
 
 describe("OauthStrategy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset config for each test
     mockState.config = {
       mcpAuthMode: "oauth",
-      oauthIssuerUrl: "https://test-issuer.com/",
-      oauthAudience: "test-audience",
-      oauthJwksUri: "",
+      oauthIssuerUrl: "https://issuer.example.com/",
+      oauthAudience: "api://my-audience",
+      oauthJwksUri: "https://issuer.example.com/.well-known/jwks.json",
     };
-    // Mock the JWKS client to return a dummy function
-    vi.mocked(jose.createRemoteJWKSet).mockReturnValue(
-      vi.fn() as unknown as ReturnType<typeof jose.createRemoteJWKSet>,
-    );
+    mockCreateRemoteJWKSet.mockReturnValue(() => Promise.resolve());
   });
 
   describe("constructor", () => {
@@ -70,56 +66,55 @@ describe("OauthStrategy", () => {
 
     it("should throw an error if issuer URL is missing", () => {
       mockState.config.oauthIssuerUrl = "";
-      expect(() => new OauthStrategy()).toThrow(
-        "OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.",
+      expect(() => new OauthStrategy()).toThrow(McpError);
+      expect(vi.mocked(logger).fatal).toHaveBeenCalledWith(
+        "CRITICAL: OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.",
+        expect.any(Object),
       );
     });
 
     it("should throw an error if audience is missing", () => {
       mockState.config.oauthAudience = "";
-      expect(() => new OauthStrategy()).toThrow(
-        "OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.",
-      );
+      expect(() => new OauthStrategy()).toThrow(McpError);
     });
 
     it("should construct the JWKS URI from the issuer URL if not provided", () => {
+      mockState.config.oauthJwksUri = "";
       new OauthStrategy();
-      const expectedUrl = new URL(
-        "https://test-issuer.com/.well-known/jwks.json",
-      );
-      expect(jose.createRemoteJWKSet).toHaveBeenCalledWith(
-        expectedUrl,
-        expect.any(Object),
+      expect(mockCreateRemoteJWKSet).toHaveBeenCalledWith(
+        new URL("https://issuer.example.com/.well-known/jwks.json"),
       );
     });
 
     it("should use the provided JWKS URI if available", () => {
-      mockState.config.oauthJwksUri = "https://custom-jwks.com/keys";
+      mockState.config.oauthJwksUri = "https://custom.com/jwks.json";
       new OauthStrategy();
-      const expectedUrl = new URL("https://custom-jwks.com/keys");
-      expect(jose.createRemoteJWKSet).toHaveBeenCalledWith(
-        expectedUrl,
-        expect.any(Object),
+      expect(mockCreateRemoteJWKSet).toHaveBeenCalledWith(
+        new URL("https://custom.com/jwks.json"),
       );
     });
 
     it("should throw a fatal error if JWKS client initialization fails", () => {
-      vi.mocked(jose.createRemoteJWKSet).mockImplementation(() => {
-        throw new Error("JWKS client failed");
+      const error = new Error("JWKS client failed");
+      mockCreateRemoteJWKSet.mockImplementation(() => {
+        throw error;
       });
-      expect(() => new OauthStrategy()).toThrow(
-        "Could not initialize JWKS client for OAuth strategy.",
-      );
+      expect(() => new OauthStrategy()).toThrow(McpError);
       expect(vi.mocked(logger).fatal).toHaveBeenCalledWith(
         "Failed to initialize JWKS client.",
-        expect.any(Error),
+        expect.objectContaining({ error: "JWKS client failed" }),
       );
     });
   });
 
   describe("verify", () => {
+    let strategy: OauthStrategy;
+
+    beforeEach(() => {
+      strategy = new OauthStrategy();
+    });
+
     it("should successfully verify a valid token", async () => {
-      const strategy = new OauthStrategy();
       const mockDecoded = {
         payload: {
           client_id: "client-1",
@@ -143,14 +138,13 @@ describe("OauthStrategy", () => {
         "valid-token",
         expect.any(Function),
         {
-          issuer: "https://test-issuer.com/",
-          audience: "test-audience",
+          issuer: mockState.config.oauthIssuerUrl,
+          audience: mockState.config.oauthAudience,
         },
       );
     });
 
     it("should throw UNAUTHORIZED McpError if client_id claim is missing", async () => {
-      const strategy = new OauthStrategy();
       const mockDecoded = {
         payload: { scope: "read" },
         protectedHeader: { alg: "RS256" },
@@ -158,15 +152,13 @@ describe("OauthStrategy", () => {
       };
       vi.mocked(jose.jwtVerify).mockResolvedValue(mockDecoded);
 
-      await expect(strategy.verify("invalid-token")).rejects.toThrow(McpError);
       await expect(strategy.verify("invalid-token")).rejects.toMatchObject({
         code: BaseErrorCode.UNAUTHORIZED,
-        message: "Token must contain a 'client_id' claim.",
+        message: "OAuth token verification failed.",
       });
     });
 
     it("should throw UNAUTHORIZED McpError if scopes are missing", async () => {
-      const strategy = new OauthStrategy();
       const mockDecoded = {
         payload: { client_id: "client-1" },
         protectedHeader: { alg: "RS256" },
@@ -174,20 +166,17 @@ describe("OauthStrategy", () => {
       };
       vi.mocked(jose.jwtVerify).mockResolvedValue(mockDecoded);
 
-      await expect(strategy.verify("invalid-token")).rejects.toThrow(McpError);
       await expect(strategy.verify("invalid-token")).rejects.toMatchObject({
         code: BaseErrorCode.UNAUTHORIZED,
-        message: "Token must contain valid, non-empty scopes.",
+        message: "OAuth token verification failed.",
       });
     });
 
     it("should throw UNAUTHORIZED McpError if jose.jwtVerify throws JWTExpired", async () => {
-      const strategy = new OauthStrategy();
       const error = new Error("Token has expired.");
       error.name = "JWTExpired";
       vi.mocked(jose.jwtVerify).mockRejectedValue(error);
 
-      await expect(strategy.verify("expired-token")).rejects.toThrow(McpError);
       await expect(strategy.verify("expired-token")).rejects.toMatchObject({
         code: BaseErrorCode.UNAUTHORIZED,
         message: "Token has expired.",
@@ -195,14 +184,10 @@ describe("OauthStrategy", () => {
     });
 
     it("should throw UNAUTHORIZED McpError if jose.jwtVerify throws a generic error", async () => {
-      const strategy = new OauthStrategy();
       vi.mocked(jose.jwtVerify).mockRejectedValue(
         new Error("Verification failed"),
       );
 
-      await expect(strategy.verify("generic-error-token")).rejects.toThrow(
-        McpError,
-      );
       await expect(
         strategy.verify("generic-error-token"),
       ).rejects.toMatchObject({

@@ -3,20 +3,22 @@
  * @module tests/mcp-server/transports/auth/strategies/jwtStrategy.test
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import * as jose from "jose";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JwtStrategy } from "../../../../../src/mcp-server/transports/auth/strategies/jwtStrategy.js";
 import {
   BaseErrorCode,
   McpError,
 } from "../../../../../src/types-global/errors.js";
-import * as jose from "jose";
 import { logger } from "../../../../../src/utils/internal/logger.js";
 
 // Mock config and logger with a mutable state object
 const mockState = {
   config: {
     mcpAuthMode: "jwt",
-    mcpAuthSecretKey: "default-secret-key-for-testing",
+    mcpAuthSecretKey: "default-secret-key-for-testing-longer-than-32-chars",
+    devMcpClientId: "dev-client-id",
+    devMcpScopes: ["dev-scope"],
   },
   environment: "development",
 };
@@ -37,6 +39,7 @@ vi.mock("../../../../../src/utils/internal/logger.js", () => ({
     info: vi.fn(),
     error: vi.fn(),
     debug: vi.fn(),
+    crit: vi.fn(),
   },
 }));
 
@@ -51,7 +54,9 @@ describe("JwtStrategy", () => {
     // Reset config/environment mocks for each test
     mockState.config = {
       mcpAuthMode: "jwt",
-      mcpAuthSecretKey: "default-secret-key-for-testing",
+      mcpAuthSecretKey: "default-secret-key-for-testing-longer-than-32-chars",
+      devMcpClientId: "dev-client-id",
+      devMcpScopes: ["dev-scope"],
     };
     mockState.environment = "development";
   });
@@ -71,6 +76,7 @@ describe("JwtStrategy", () => {
       );
       expect(vi.mocked(logger).fatal).toHaveBeenCalledWith(
         "CRITICAL: MCP_AUTH_SECRET_KEY is not set in production for JWT auth.",
+        expect.any(Object),
       );
     });
 
@@ -79,6 +85,7 @@ describe("JwtStrategy", () => {
       new JwtStrategy();
       expect(vi.mocked(logger).warning).toHaveBeenCalledWith(
         "MCP_AUTH_SECRET_KEY is not set. JWT auth will be bypassed (DEV ONLY).",
+        expect.any(Object),
       );
     });
   });
@@ -99,6 +106,7 @@ describe("JwtStrategy", () => {
         token: "valid-token",
         clientId: "client-1",
         scopes: ["read", "write"],
+        subject: undefined,
       });
       expect(jose.jwtVerify).toHaveBeenCalledWith(
         "valid-token",
@@ -121,6 +129,7 @@ describe("JwtStrategy", () => {
         token: "valid-token-2",
         clientId: "client-2",
         scopes: ["read", "write"],
+        subject: undefined,
       });
     });
 
@@ -133,10 +142,10 @@ describe("JwtStrategy", () => {
       };
       vi.mocked(jose.jwtVerify).mockResolvedValue(mockDecoded);
 
-      await expect(strategy.verify("invalid-token")).rejects.toThrow(McpError);
+      // The ErrorHandler wraps the specific error, so we check for the generic message.
       await expect(strategy.verify("invalid-token")).rejects.toMatchObject({
         code: BaseErrorCode.UNAUTHORIZED,
-        message: "Invalid token: missing 'cid' or 'client_id' claim.",
+        message: "Token verification failed.",
       });
     });
 
@@ -149,10 +158,10 @@ describe("JwtStrategy", () => {
       };
       vi.mocked(jose.jwtVerify).mockResolvedValue(mockDecoded);
 
-      await expect(strategy.verify("invalid-token")).rejects.toThrow(McpError);
+      // The ErrorHandler wraps the specific error, so we check for the generic message.
       await expect(strategy.verify("invalid-token")).rejects.toMatchObject({
         code: BaseErrorCode.UNAUTHORIZED,
-        message: "Token must contain valid, non-empty scopes.",
+        message: "Token verification failed.",
       });
     });
 
@@ -162,7 +171,6 @@ describe("JwtStrategy", () => {
       error.name = "JWTExpired";
       vi.mocked(jose.jwtVerify).mockRejectedValue(error);
 
-      await expect(strategy.verify("expired-token")).rejects.toThrow(McpError);
       await expect(strategy.verify("expired-token")).rejects.toMatchObject({
         code: BaseErrorCode.UNAUTHORIZED,
         message: "Token has expired.",
@@ -175,9 +183,6 @@ describe("JwtStrategy", () => {
         new Error("Verification failed"),
       );
 
-      await expect(strategy.verify("generic-error-token")).rejects.toThrow(
-        McpError,
-      );
       await expect(
         strategy.verify("generic-error-token"),
       ).rejects.toMatchObject({
@@ -198,6 +203,7 @@ describe("JwtStrategy", () => {
       });
       expect(vi.mocked(logger).warning).toHaveBeenCalledWith(
         "Bypassing JWT verification: No secret key (DEV ONLY).",
+        expect.any(Object),
       );
     });
   });

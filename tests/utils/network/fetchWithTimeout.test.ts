@@ -2,15 +2,19 @@
  * @fileoverview Tests for the fetchWithTimeout utility using real HTTP endpoints.
  * @module tests/utils/network/fetchWithTimeout.test
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
 import { fetchWithTimeout } from "../../../src/utils/network/fetchWithTimeout";
 import { requestContextService } from "../../../src/utils";
 import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { server } from "../../mocks/server";
 
 // Using httpbin.org for real HTTP testing
 const HTTPBIN_BASE = "https://httpbin.org";
 
 describe("fetchWithTimeout", () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+  afterEach(() => server.resetHandlers());
+  afterAll(() => server.close());
   const parentRequestContext = requestContextService.createRequestContext({
     toolName: "test-parent",
   });
