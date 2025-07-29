@@ -26,13 +26,17 @@ describe("DuckDBQueryExecutor", () => {
       prepare: vi.fn(),
     };
 
-    queryExecutor = new DuckDBQueryExecutor(mockConnection as duckdb.DuckDBConnection);
+    queryExecutor = new DuckDBQueryExecutor(
+      mockConnection as duckdb.DuckDBConnection,
+    );
   });
 
   describe("run", () => {
     it("should execute SQL without parameters", async () => {
       const sql = "CREATE TABLE test (id INTEGER)";
-      vi.mocked(mockConnection.run!).mockResolvedValue({} as duckdb.DuckDBMaterializedResult);
+      vi.mocked(mockConnection.run!).mockResolvedValue(
+        {} as duckdb.DuckDBMaterializedResult,
+      );
 
       await queryExecutor.run(sql);
 
@@ -43,7 +47,9 @@ describe("DuckDBQueryExecutor", () => {
     it("should execute SQL with parameters", async () => {
       const sql = "INSERT INTO test VALUES (?)";
       const params = [1];
-      vi.mocked(mockConnection.run!).mockResolvedValue({} as duckdb.DuckDBMaterializedResult);
+      vi.mocked(mockConnection.run!).mockResolvedValue(
+        {} as duckdb.DuckDBMaterializedResult,
+      );
 
       await queryExecutor.run(sql, params);
 
@@ -57,7 +63,9 @@ describe("DuckDBQueryExecutor", () => {
       vi.mocked(mockConnection.run!).mockRejectedValue(error);
 
       await expect(queryExecutor.run(sql)).rejects.toThrow(McpError);
-      await expect(queryExecutor.run(sql)).rejects.toThrow("Error in DuckDBQueryExecutor.run");
+      await expect(queryExecutor.run(sql)).rejects.toThrow(
+        "Error in DuckDBQueryExecutor.run",
+      );
     });
   });
 
@@ -77,7 +85,9 @@ describe("DuckDBQueryExecutor", () => {
         columnTypes: vi.fn().mockReturnValue(mockColumnTypes),
       };
 
-      vi.mocked(mockConnection.stream!).mockResolvedValue(mockResult as unknown as duckdb.DuckDBResult);
+      vi.mocked(mockConnection.stream!).mockResolvedValue(
+        mockResult as unknown as duckdb.DuckDBResult,
+      );
 
       const result = await queryExecutor.query(sql);
 
@@ -97,13 +107,17 @@ describe("DuckDBQueryExecutor", () => {
       const mockResult = {
         getRows: vi.fn().mockResolvedValue(mockRows),
         columnNames: vi.fn().mockReturnValue(["id", "name"]),
-        columnTypes: vi.fn().mockReturnValue([
-          { typeId: duckdb.DuckDBTypeId.INTEGER },
-          { typeId: duckdb.DuckDBTypeId.VARCHAR },
-        ]),
+        columnTypes: vi
+          .fn()
+          .mockReturnValue([
+            { typeId: duckdb.DuckDBTypeId.INTEGER },
+            { typeId: duckdb.DuckDBTypeId.VARCHAR },
+          ]),
       };
 
-      vi.mocked(mockConnection.stream!).mockResolvedValue(mockResult as unknown as duckdb.DuckDBResult);
+      vi.mocked(mockConnection.stream!).mockResolvedValue(
+        mockResult as unknown as duckdb.DuckDBResult,
+      );
 
       const result = await queryExecutor.query(sql, params);
 
@@ -116,10 +130,14 @@ describe("DuckDBQueryExecutor", () => {
       const mockResult = {
         getRows: vi.fn().mockResolvedValue([]),
         columnNames: vi.fn().mockReturnValue(["id"]),
-        columnTypes: vi.fn().mockReturnValue([{ typeId: duckdb.DuckDBTypeId.INTEGER }]),
+        columnTypes: vi
+          .fn()
+          .mockReturnValue([{ typeId: duckdb.DuckDBTypeId.INTEGER }]),
       };
 
-      vi.mocked(mockConnection.stream!).mockResolvedValue(mockResult as unknown as duckdb.DuckDBResult);
+      vi.mocked(mockConnection.stream!).mockResolvedValue(
+        mockResult as unknown as duckdb.DuckDBResult,
+      );
 
       const result = await queryExecutor.query(sql);
 
@@ -132,7 +150,9 @@ describe("DuckDBQueryExecutor", () => {
     it("should return streaming result without parameters", async () => {
       const sql = "SELECT * FROM large_table";
       const mockResult = { stream: "result" };
-      vi.mocked(mockConnection.stream!).mockResolvedValue(mockResult as unknown as duckdb.DuckDBResult);
+      vi.mocked(mockConnection.stream!).mockResolvedValue(
+        mockResult as unknown as duckdb.DuckDBResult,
+      );
 
       const result = await queryExecutor.stream(sql);
 
@@ -144,7 +164,9 @@ describe("DuckDBQueryExecutor", () => {
       const sql = "SELECT * FROM large_table WHERE id > ?";
       const params = [100];
       const mockResult = { stream: "result" };
-      vi.mocked(mockConnection.stream!).mockResolvedValue(mockResult as unknown as duckdb.DuckDBResult);
+      vi.mocked(mockConnection.stream!).mockResolvedValue(
+        mockResult as unknown as duckdb.DuckDBResult,
+      );
 
       const result = await queryExecutor.stream(sql, params);
 
@@ -157,7 +179,9 @@ describe("DuckDBQueryExecutor", () => {
     it("should prepare a statement", async () => {
       const sql = "SELECT * FROM test WHERE id = ?";
       const mockPreparedStatement = { prepared: true };
-      vi.mocked(mockConnection.prepare!).mockResolvedValue(mockPreparedStatement as unknown as duckdb.DuckDBPreparedStatement);
+      vi.mocked(mockConnection.prepare!).mockResolvedValue(
+        mockPreparedStatement as unknown as duckdb.DuckDBPreparedStatement,
+      );
 
       const result = await queryExecutor.prepare(sql);
 
@@ -176,7 +200,9 @@ describe("DuckDBQueryExecutor", () => {
 
   describe("Transaction Management", () => {
     beforeEach(() => {
-      vi.mocked(mockConnection.run!).mockResolvedValue({} as duckdb.DuckDBMaterializedResult);
+      vi.mocked(mockConnection.run!).mockResolvedValue(
+        {} as duckdb.DuckDBMaterializedResult,
+      );
     });
 
     it("should begin transaction", async () => {
@@ -203,7 +229,9 @@ describe("DuckDBQueryExecutor", () => {
 
       await expect(queryExecutor.beginTransaction()).rejects.toThrow(McpError);
       await expect(queryExecutor.commitTransaction()).rejects.toThrow(McpError);
-      await expect(queryExecutor.rollbackTransaction()).rejects.toThrow(McpError);
+      await expect(queryExecutor.rollbackTransaction()).rejects.toThrow(
+        McpError,
+      );
     });
   });
 });

@@ -34,7 +34,11 @@ describe("fetchWithTimeout", () => {
     ).rejects.toThrow(McpError);
 
     try {
-      await fetchWithTimeout(`${HTTPBIN_BASE}/delay/2`, 1000, parentRequestContext);
+      await fetchWithTimeout(
+        `${HTTPBIN_BASE}/delay/2`,
+        1000,
+        parentRequestContext,
+      );
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.code).toBe(BaseErrorCode.TIMEOUT);
@@ -56,11 +60,19 @@ describe("fetchWithTimeout", () => {
   it("should throw an McpError for network errors", async () => {
     // Use an invalid URL to trigger a network error
     await expect(
-      fetchWithTimeout("https://invalid-domain-that-does-not-exist.com", 5000, parentRequestContext),
+      fetchWithTimeout(
+        "https://invalid-domain-that-does-not-exist.com",
+        5000,
+        parentRequestContext,
+      ),
     ).rejects.toThrow(McpError);
 
     try {
-      await fetchWithTimeout("https://invalid-domain-that-does-not-exist.com", 5000, parentRequestContext);
+      await fetchWithTimeout(
+        "https://invalid-domain-that-does-not-exist.com",
+        5000,
+        parentRequestContext,
+      );
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.code).toBe(BaseErrorCode.SERVICE_UNAVAILABLE);

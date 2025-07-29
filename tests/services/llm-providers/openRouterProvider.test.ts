@@ -19,8 +19,8 @@ describe("OpenRouterProvider", () => {
 
   beforeAll(() => {
     // Start the OpenRouter-specific test server
-    openRouterTestServer.listen({ 
-      onUnhandledRequest: 'bypass'  // Don't interfere with other requests
+    openRouterTestServer.listen({
+      onUnhandledRequest: "bypass", // Don't interfere with other requests
     });
   });
 
@@ -69,7 +69,7 @@ describe("OpenRouterProvider", () => {
             total_tokens: 21,
           },
         });
-      })
+      }),
     );
 
     const provider = new OpenRouterProvider();
@@ -93,7 +93,7 @@ describe("OpenRouterProvider", () => {
             headers: { "Content-Type": "application/json" },
           },
         );
-      })
+      }),
     );
 
     const provider = new OpenRouterProvider();
@@ -117,7 +117,7 @@ describe("OpenRouterProvider", () => {
             headers: { "Content-Type": "application/json" },
           },
         );
-      })
+      }),
     );
 
     const provider = new OpenRouterProvider();
@@ -141,7 +141,7 @@ describe("OpenRouterProvider", () => {
             headers: { "Content-Type": "application/json" },
           },
         );
-      })
+      }),
     );
 
     const provider = new OpenRouterProvider();

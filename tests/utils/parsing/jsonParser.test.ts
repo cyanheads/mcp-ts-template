@@ -98,7 +98,9 @@ describe("JsonParser", () => {
 
   it("should throw an McpError if the string contains only whitespace after the <think> block", () => {
     const stringWithWhitespace = "<think>thoughts</think>   ";
-    expect(() => parser.parse(stringWithWhitespace, Allow.ALL, context)).toThrow(
+    expect(() =>
+      parser.parse(stringWithWhitespace, Allow.ALL, context),
+    ).toThrow(
       new McpError(
         BaseErrorCode.VALIDATION_ERROR,
         "JSON string is empty after removing <think> block and trimming.",

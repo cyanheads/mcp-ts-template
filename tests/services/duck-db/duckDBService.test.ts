@@ -50,8 +50,12 @@ describe("DuckDBService", () => {
     };
 
     // Mock the constructors
-    vi.mocked(DuckDBConnectionManager).mockImplementation(() => mockConnectionManager as DuckDBConnectionManager);
-    vi.mocked(DuckDBQueryExecutor).mockImplementation(() => mockQueryExecutor as DuckDBQueryExecutor);
+    vi.mocked(DuckDBConnectionManager).mockImplementation(
+      () => mockConnectionManager as DuckDBConnectionManager,
+    );
+    vi.mocked(DuckDBQueryExecutor).mockImplementation(
+      () => mockQueryExecutor as DuckDBQueryExecutor,
+    );
 
     duckDBService = new DuckDBService();
   });
@@ -124,17 +128,24 @@ describe("DuckDBService", () => {
 
       await expect(duckDBService.run(sql, params)).rejects.toThrow(McpError);
       await expect(duckDBService.run(sql, params)).rejects.toThrow(
-        "DuckDB service only supports array-style parameters"
+        "DuckDB service only supports array-style parameters",
       );
     });
 
     it("should throw if not initialized", async () => {
       const uninitializedService = new DuckDBService();
-      vi.mocked(mockConnectionManager.ensureInitialized!).mockImplementation(() => {
-        throw new McpError(BaseErrorCode.SERVICE_NOT_INITIALIZED, "Service not initialized");
-      });
+      vi.mocked(mockConnectionManager.ensureInitialized!).mockImplementation(
+        () => {
+          throw new McpError(
+            BaseErrorCode.SERVICE_NOT_INITIALIZED,
+            "Service not initialized",
+          );
+        },
+      );
 
-      await expect(uninitializedService.run("SELECT 1")).rejects.toThrow(McpError);
+      await expect(uninitializedService.run("SELECT 1")).rejects.toThrow(
+        McpError,
+      );
     });
   });
 
@@ -193,7 +204,9 @@ describe("DuckDBService", () => {
 
     it("should return streaming result", async () => {
       const sql = "SELECT * FROM large_table";
-      const mockStreamResult = { stream: "result" } as unknown as duckdb.DuckDBResult;
+      const mockStreamResult = {
+        stream: "result",
+      } as unknown as duckdb.DuckDBResult;
 
       vi.mocked(mockQueryExecutor.stream!).mockResolvedValue(mockStreamResult);
 
@@ -206,7 +219,9 @@ describe("DuckDBService", () => {
     it("should handle streaming with parameters", async () => {
       const sql = "SELECT * FROM large_table WHERE id > ?";
       const params = [100];
-      const mockStreamResult = { stream: "result" } as unknown as duckdb.DuckDBResult;
+      const mockStreamResult = {
+        stream: "result",
+      } as unknown as duckdb.DuckDBResult;
 
       vi.mocked(mockQueryExecutor.stream!).mockResolvedValue(mockStreamResult);
 
@@ -224,9 +239,13 @@ describe("DuckDBService", () => {
 
     it("should prepare a statement", async () => {
       const sql = "SELECT * FROM test WHERE id = ?";
-      const mockPreparedStatement = { prepared: true } as unknown as duckdb.DuckDBPreparedStatement;
+      const mockPreparedStatement = {
+        prepared: true,
+      } as unknown as duckdb.DuckDBPreparedStatement;
 
-      vi.mocked(mockQueryExecutor.prepare!).mockResolvedValue(mockPreparedStatement);
+      vi.mocked(mockQueryExecutor.prepare!).mockResolvedValue(
+        mockPreparedStatement,
+      );
 
       const result = await duckDBService.prepare(sql);
 
@@ -238,9 +257,15 @@ describe("DuckDBService", () => {
   describe("Transaction Management", () => {
     beforeEach(async () => {
       await duckDBService.initialize();
-      vi.mocked(mockQueryExecutor.beginTransaction!).mockResolvedValue(undefined);
-      vi.mocked(mockQueryExecutor.commitTransaction!).mockResolvedValue(undefined);
-      vi.mocked(mockQueryExecutor.rollbackTransaction!).mockResolvedValue(undefined);
+      vi.mocked(mockQueryExecutor.beginTransaction!).mockResolvedValue(
+        undefined,
+      );
+      vi.mocked(mockQueryExecutor.commitTransaction!).mockResolvedValue(
+        undefined,
+      );
+      vi.mocked(mockQueryExecutor.rollbackTransaction!).mockResolvedValue(
+        undefined,
+      );
     });
 
     it("should begin transaction", async () => {
@@ -269,13 +294,15 @@ describe("DuckDBService", () => {
 
     it("should load extension", async () => {
       const extensionName = "spatial";
-      vi.mocked(mockConnectionManager.loadExtension!).mockResolvedValue(undefined);
+      vi.mocked(mockConnectionManager.loadExtension!).mockResolvedValue(
+        undefined,
+      );
 
       await duckDBService.loadExtension(extensionName);
 
       expect(mockConnectionManager.loadExtension).toHaveBeenCalledWith(
         extensionName,
-        expect.objectContaining({ operation: "DuckDBService.loadExtension" })
+        expect.objectContaining({ operation: "DuckDBService.loadExtension" }),
       );
     });
   });
@@ -312,9 +339,9 @@ describe("DuckDBService", () => {
 
     it("should return null when not initialized", () => {
       const uninitializedService = new DuckDBService();
-      Object.defineProperty(mockConnectionManager, 'isServiceInitialized', {
+      Object.defineProperty(mockConnectionManager, "isServiceInitialized", {
         get: vi.fn(() => false),
-        configurable: true
+        configurable: true,
       });
 
       const connection = uninitializedService.getRawConnection();
@@ -332,9 +359,9 @@ describe("DuckDBService", () => {
 
     it("should return null instance when not initialized", () => {
       const uninitializedService = new DuckDBService();
-      Object.defineProperty(mockConnectionManager, 'isServiceInitialized', {
+      Object.defineProperty(mockConnectionManager, "isServiceInitialized", {
         get: vi.fn(() => false),
-        configurable: true
+        configurable: true,
       });
 
       const instance = uninitializedService.getRawInstance();
@@ -346,9 +373,14 @@ describe("DuckDBService", () => {
   describe("Error Handling", () => {
     it("should handle ensureInitialized throwing service not initialized", async () => {
       await duckDBService.initialize();
-      vi.mocked(mockConnectionManager.ensureInitialized!).mockImplementation(() => {
-        throw new McpError(BaseErrorCode.SERVICE_NOT_INITIALIZED, "Service not initialized");
-      });
+      vi.mocked(mockConnectionManager.ensureInitialized!).mockImplementation(
+        () => {
+          throw new McpError(
+            BaseErrorCode.SERVICE_NOT_INITIALIZED,
+            "Service not initialized",
+          );
+        },
+      );
 
       await expect(duckDBService.run("SELECT 1")).rejects.toThrow(McpError);
     });
@@ -356,11 +388,17 @@ describe("DuckDBService", () => {
     it("should handle missing query executor", async () => {
       const service = new DuckDBService();
       // Simulate partially initialized state
-      (service as unknown as { isInitialized: boolean; queryExecutor: null }).isInitialized = true;
-      (service as unknown as { isInitialized: boolean; queryExecutor: null }).queryExecutor = null;
+      (
+        service as unknown as { isInitialized: boolean; queryExecutor: null }
+      ).isInitialized = true;
+      (
+        service as unknown as { isInitialized: boolean; queryExecutor: null }
+      ).queryExecutor = null;
 
       await expect(service.run("SELECT 1")).rejects.toThrow(McpError);
-      await expect(service.run("SELECT 1")).rejects.toThrow("DuckDBQueryExecutor not available");
+      await expect(service.run("SELECT 1")).rejects.toThrow(
+        "DuckDBQueryExecutor not available",
+      );
     });
   });
 });

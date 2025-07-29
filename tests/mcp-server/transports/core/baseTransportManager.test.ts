@@ -30,9 +30,11 @@ class TestTransportManager extends BaseTransportManager {
 
 describe("BaseTransportManager", () => {
   it("should correctly store the createServerInstanceFn in the constructor", () => {
-    const mockCreateServerFn = vi.fn().mockResolvedValue(new McpServer({ name: "test", version: "1" }));
+    const mockCreateServerFn = vi
+      .fn()
+      .mockResolvedValue(new McpServer({ name: "test", version: "1" }));
     const manager = new TestTransportManager(mockCreateServerFn);
-    
+
     expect(manager.getCreateServerFn()).toBe(mockCreateServerFn);
   });
 });

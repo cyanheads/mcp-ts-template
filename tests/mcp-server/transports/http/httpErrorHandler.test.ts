@@ -6,7 +6,10 @@
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
 import { httpErrorHandler } from "../../../../src/mcp-server/transports/http/httpErrorHandler.js";
-import { BaseErrorCode, McpError } from "../../../../src/types-global/errors.js";
+import {
+  BaseErrorCode,
+  McpError,
+} from "../../../../src/types-global/errors.js";
 
 describe("httpErrorHandler", () => {
   let app: Hono;

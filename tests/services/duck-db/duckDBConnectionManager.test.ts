@@ -32,7 +32,9 @@ describe("DuckDBConnectionManager", () => {
     };
 
     // Mock the static create method
-    vi.mocked(duckdb.DuckDBInstance).create = vi.fn().mockResolvedValue(mockInstance);
+    vi.mocked(duckdb.DuckDBInstance).create = vi
+      .fn()
+      .mockResolvedValue(mockInstance);
 
     connectionManager = new DuckDBConnectionManager();
   });
@@ -51,7 +53,10 @@ describe("DuckDBConnectionManager", () => {
 
       await connectionManager.initialize(config);
 
-      expect(duckdb.DuckDBInstance.create).toHaveBeenCalledWith("/tmp/test.db", {});
+      expect(duckdb.DuckDBInstance.create).toHaveBeenCalledWith(
+        "/tmp/test.db",
+        {},
+      );
       expect(connectionManager.isServiceInitialized).toBe(true);
     });
 
@@ -108,7 +113,10 @@ describe("DuckDBConnectionManager", () => {
 
     it("should install and load extension", async () => {
       const extensionName = "spatial";
-      const mockContext: RequestContext = { requestId: "test-123", timestamp: new Date().toISOString() };
+      const mockContext: RequestContext = {
+        requestId: "test-123",
+        timestamp: new Date().toISOString(),
+      };
 
       await connectionManager.loadExtension(extensionName, mockContext);
 
@@ -118,30 +126,41 @@ describe("DuckDBConnectionManager", () => {
 
     it("should escape single quotes in extension names", async () => {
       const extensionName = "test'extension";
-      const mockContext: RequestContext = { requestId: "test-123", timestamp: new Date().toISOString() };
+      const mockContext: RequestContext = {
+        requestId: "test-123",
+        timestamp: new Date().toISOString(),
+      };
 
       await connectionManager.loadExtension(extensionName, mockContext);
 
-      expect(mockConnection.run).toHaveBeenCalledWith("INSTALL 'test''extension'");
+      expect(mockConnection.run).toHaveBeenCalledWith(
+        "INSTALL 'test''extension'",
+      );
       expect(mockConnection.run).toHaveBeenCalledWith("LOAD 'test''extension'");
     });
 
     it("should throw if not initialized", async () => {
       const uninitializedManager = new DuckDBConnectionManager();
-      const mockContext: RequestContext = { requestId: "test-123", timestamp: new Date().toISOString() };
+      const mockContext: RequestContext = {
+        requestId: "test-123",
+        timestamp: new Date().toISOString(),
+      };
 
       await expect(
-        uninitializedManager.loadExtension("test", mockContext)
+        uninitializedManager.loadExtension("test", mockContext),
       ).rejects.toThrow(McpError);
     });
 
     it("should handle extension loading errors", async () => {
       const error = new Error("Extension not found");
       vi.mocked(mockConnection.run!).mockRejectedValue(error);
-      const mockContext: RequestContext = { requestId: "test-123", timestamp: new Date().toISOString() };
+      const mockContext: RequestContext = {
+        requestId: "test-123",
+        timestamp: new Date().toISOString(),
+      };
 
       await expect(
-        connectionManager.loadExtension("nonexistent", mockContext)
+        connectionManager.loadExtension("nonexistent", mockContext),
       ).rejects.toThrow(McpError);
     });
   });
@@ -174,17 +193,27 @@ describe("DuckDBConnectionManager", () => {
   describe("ensureInitialized", () => {
     it("should not throw when initialized", async () => {
       await connectionManager.initialize();
-      const mockContext: RequestContext = { requestId: "test-123", timestamp: new Date().toISOString() };
+      const mockContext: RequestContext = {
+        requestId: "test-123",
+        timestamp: new Date().toISOString(),
+      };
 
-      expect(() => connectionManager.ensureInitialized(mockContext)).not.toThrow();
+      expect(() =>
+        connectionManager.ensureInitialized(mockContext),
+      ).not.toThrow();
     });
 
     it("should throw when not initialized", () => {
-      const mockContext: RequestContext = { requestId: "test-123", timestamp: new Date().toISOString() };
+      const mockContext: RequestContext = {
+        requestId: "test-123",
+        timestamp: new Date().toISOString(),
+      };
 
-      expect(() => connectionManager.ensureInitialized(mockContext)).toThrow(McpError);
       expect(() => connectionManager.ensureInitialized(mockContext)).toThrow(
-        "DuckDBConnectionManager is not initialized"
+        McpError,
+      );
+      expect(() => connectionManager.ensureInitialized(mockContext)).toThrow(
+        "DuckDBConnectionManager is not initialized",
       );
     });
   });

@@ -6,7 +6,10 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { StatefulTransportManager } from "../../../../src/mcp-server/transports/core/statefulTransportManager.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { BaseErrorCode, McpError } from "../../../../src/types-global/errors.js";
+import {
+  BaseErrorCode,
+  McpError,
+} from "../../../../src/types-global/errors.js";
 import { requestContextService } from "../../../../src/utils/index.js";
 import type { IncomingMessage, ServerResponse } from "http";
 
@@ -58,7 +61,9 @@ describe("StatefulTransportManager", () => {
     writeHead: vi.fn(),
     end: vi.fn(),
   } as unknown as ServerResponse;
-  const context = requestContextService.createRequestContext({ toolName: "test" });
+  const context = requestContextService.createRequestContext({
+    toolName: "test",
+  });
 
   describe("initializeAndHandle", () => {
     it("should create a new server and transport for a new session", async () => {
@@ -72,7 +77,13 @@ describe("StatefulTransportManager", () => {
   describe("handleRequest", () => {
     it("should delegate to the correct transport for a valid session", async () => {
       await manager.initializeAndHandle(mockReq, mockRes, {}, context);
-      await manager.handleRequest(mockReq, mockRes, {}, context, "test-session-id");
+      await manager.handleRequest(
+        mockReq,
+        mockRes,
+        {},
+        context,
+        "test-session-id",
+      );
       expect(mockTransportInstance.handleRequest).toHaveBeenCalledTimes(2);
     });
 
@@ -82,7 +93,13 @@ describe("StatefulTransportManager", () => {
       const initialTime = initialSession?.lastAccessedAt.getTime();
 
       vi.advanceTimersByTime(1000);
-      await manager.handleRequest(mockReq, mockRes, {}, context, "test-session-id");
+      await manager.handleRequest(
+        mockReq,
+        mockRes,
+        {},
+        context,
+        "test-session-id",
+      );
 
       const updatedSession = manager.getSession("test-session-id");
       expect(updatedSession?.lastAccessedAt.getTime()).toBeGreaterThan(
@@ -91,7 +108,13 @@ describe("StatefulTransportManager", () => {
     });
 
     it("should return a 404 JSON-RPC error for a non-existent session", async () => {
-      await manager.handleRequest(mockReq, mockRes, {}, context, "non-existent-id");
+      await manager.handleRequest(
+        mockReq,
+        mockRes,
+        {},
+        context,
+        "non-existent-id",
+      );
       expect(mockRes.writeHead).toHaveBeenCalledWith(404, {
         "Content-Type": "application/json",
       });
@@ -104,15 +127,25 @@ describe("StatefulTransportManager", () => {
   describe("handleDeleteRequest", () => {
     it("should close the session and return a 200 response", async () => {
       await manager.initializeAndHandle(mockReq, mockRes, {}, context);
-      const response = await manager.handleDeleteRequest("test-session-id", context);
+      const response = await manager.handleDeleteRequest(
+        "test-session-id",
+        context,
+      );
       expect(response.statusCode).toBe(200);
-      expect(response.body).toEqual({ status: "session_closed", sessionId: "test-session-id" });
+      expect(response.body).toEqual({
+        status: "session_closed",
+        sessionId: "test-session-id",
+      });
       expect(manager.getSession("test-session-id")).toBeUndefined();
     });
 
     it("should throw NOT_FOUND McpError for a non-existent session", async () => {
-      await expect(manager.handleDeleteRequest("non-existent-id", context)).rejects.toThrow(McpError);
-      await expect(manager.handleDeleteRequest("non-existent-id", context)).rejects.toMatchObject({
+      await expect(
+        manager.handleDeleteRequest("non-existent-id", context),
+      ).rejects.toThrow(McpError);
+      await expect(
+        manager.handleDeleteRequest("non-existent-id", context),
+      ).rejects.toMatchObject({
         code: BaseErrorCode.NOT_FOUND,
       });
     });

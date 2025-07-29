@@ -6,12 +6,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerEchoTool } from "../../../../src/mcp-server/tools/echoTool/registration.js";
-import { EchoToolInputSchema, type EchoToolInput } from "../../../../src/mcp-server/tools/echoTool/logic.js";
+import {
+  EchoToolInputSchema,
+  type EchoToolInput,
+} from "../../../../src/mcp-server/tools/echoTool/logic.js";
 import * as utilsModule from "../../../../src/utils/index.js";
 
 // Mock only external utilities that would interfere with testing
 vi.mock("../../../../src/utils/index.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../../../src/utils/index.js")>();
+  const original =
+    await importOriginal<typeof import("../../../../src/utils/index.js")>();
   return {
     ...original,
     logger: {
@@ -97,7 +101,10 @@ describe("Echo Tool Integration Tests", () => {
       expect(toolData).toBeDefined();
       if (!toolData) return;
 
-      const inputSchema = toolData.metadata.inputSchema as Record<string, unknown>;
+      const inputSchema = toolData.metadata.inputSchema as Record<
+        string,
+        unknown
+      >;
 
       // Verify schema structure matches our Zod definition
       expect(inputSchema.message).toBeDefined();
@@ -132,7 +139,9 @@ describe("Echo Tool Integration Tests", () => {
       const structured = result.structuredContent;
       expect(structured.originalMessage).toBe("Hello Integration Test");
       expect(structured.timestamp).toBeDefined();
-      expect(new Date(structured.timestamp as string).getTime()).toBeGreaterThan(0);
+      expect(
+        new Date(structured.timestamp as string).getTime(),
+      ).toBeGreaterThan(0);
     });
 
     it("should handle different message modes through complete integration", async () => {
@@ -149,18 +158,22 @@ describe("Echo Tool Integration Tests", () => {
       });
 
       expect(uppercaseResult.isError).toBeFalsy();
-      expect(uppercaseResult.structuredContent.originalMessage).toBe("test message");
+      expect(uppercaseResult.structuredContent.originalMessage).toBe(
+        "test message",
+      );
 
-      // Test lowercase mode  
+      // Test lowercase mode
       const lowercaseResult = await toolData.handler({
         message: "TEST MESSAGE",
-        mode: "lowercase", 
+        mode: "lowercase",
         repeat: 1,
         timestamp: true,
       });
 
       expect(lowercaseResult.isError).toBeFalsy();
-      expect(lowercaseResult.structuredContent.originalMessage).toBe("TEST MESSAGE");
+      expect(lowercaseResult.structuredContent.originalMessage).toBe(
+        "TEST MESSAGE",
+      );
     });
 
     it("should handle message repetition through complete integration", async () => {
@@ -209,7 +222,7 @@ describe("Echo Tool Integration Tests", () => {
       try {
         await toolData.handler({
           message: "", // Empty message should fail validation
-          mode: "standard", 
+          mode: "standard",
           repeat: 1,
           timestamp: true,
         });
@@ -230,7 +243,7 @@ describe("Echo Tool Integration Tests", () => {
 
       // Test boundary condition - maximum message length
       const longMessage = "a".repeat(1001); // Exceeds 1000 char limit
-      
+
       try {
         await toolData.handler({
           message: longMessage,
@@ -258,7 +271,9 @@ describe("Echo Tool Integration Tests", () => {
 
       expect(result.isError).toBe(true);
       // Verify that request context was created and used
-      expect(vi.mocked(utilsModule.requestContextService.createRequestContext)).toHaveBeenCalled();
+      expect(
+        vi.mocked(utilsModule.requestContextService.createRequestContext),
+      ).toHaveBeenCalled();
     });
   });
 
@@ -275,7 +290,7 @@ describe("Echo Tool Integration Tests", () => {
           mode: "standard",
           repeat: 1,
           timestamp: true,
-        })
+        }),
       );
 
       const results = await Promise.all(promises);
@@ -283,7 +298,9 @@ describe("Echo Tool Integration Tests", () => {
       // Verify all executions succeeded independently
       results.forEach((result, i) => {
         expect(result.isError).toBeFalsy();
-        expect(result.structuredContent.originalMessage).toBe(`concurrent message ${i}`);
+        expect(result.structuredContent.originalMessage).toBe(
+          `concurrent message ${i}`,
+        );
       });
     });
 
@@ -300,18 +317,23 @@ describe("Echo Tool Integration Tests", () => {
       });
 
       // Small delay to ensure different timestamps
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       const result2 = await toolData.handler({
-        message: "timestamp test 2", 
+        message: "timestamp test 2",
         mode: "standard",
         repeat: 1,
         timestamp: true,
       });
 
-      expect(result1.structuredContent.timestamp).not.toBe(result2.structuredContent.timestamp);
-      expect(new Date(result1.structuredContent.timestamp as string).getTime())
-        .toBeLessThan(new Date(result2.structuredContent.timestamp as string).getTime());
+      expect(result1.structuredContent.timestamp).not.toBe(
+        result2.structuredContent.timestamp,
+      );
+      expect(
+        new Date(result1.structuredContent.timestamp as string).getTime(),
+      ).toBeLessThan(
+        new Date(result2.structuredContent.timestamp as string).getTime(),
+      );
     });
   });
 });

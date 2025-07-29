@@ -23,7 +23,10 @@ import {
   startHttpTransport,
 } from "../../../../src/mcp-server/transports/http/httpTransport.js";
 import { HonoNodeBindings } from "../../../../src/mcp-server/transports/http/httpTypes.js";
-import { BaseErrorCode, McpError } from "../../../../src/types-global/errors.js";
+import {
+  BaseErrorCode,
+  McpError,
+} from "../../../../src/types-global/errors.js";
 import {
   logger,
   rateLimiter,
@@ -72,7 +75,7 @@ vi.mock("@hono/node-server", () => ({
 }));
 
 vi.mock("../../../../src/utils/index.js", async (importOriginal) => {
-  const original = await importOriginal() as object;
+  const original = (await importOriginal()) as object;
   return {
     ...original,
     logger: {
@@ -125,11 +128,18 @@ describe("HTTP Transport - createHttpApp", () => {
         params: {
           protocolVersion: "1.0",
           clientInfo: { name: "test-client", version: "1.0.0" },
-          capabilities: { tool_calling: { enabled: true, supported_formats: ["json", "text"] } },
+          capabilities: {
+            tool_calling: {
+              enabled: true,
+              supported_formats: ["json", "text"],
+            },
+          },
         },
         id: "1",
       };
-      const mockResponse = new Response(JSON.stringify({ success: true }), { status: 200 });
+      const mockResponse = new Response(JSON.stringify({ success: true }), {
+        status: 200,
+      });
       mockTransportManager.initializeAndHandle.mockResolvedValue(mockResponse);
 
       const req = new Request("http://localhost/mcp", {
@@ -137,11 +147,14 @@ describe("HTTP Transport - createHttpApp", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(initRequest),
       });
-      
+
       const mockNodeReq = new IncomingMessage(new Socket());
       const mockNodeRes = new ServerResponse(mockNodeReq);
 
-      const res = await app.fetch(req, { incoming: mockNodeReq, res: mockNodeRes });
+      const res = await app.fetch(req, {
+        incoming: mockNodeReq,
+        res: mockNodeRes,
+      });
 
       expect(mockTransportManager.initializeAndHandle).toHaveBeenCalledWith(
         mockNodeReq,
@@ -160,10 +173,10 @@ describe("HTTP Transport - createHttpApp", () => {
         params: { name: "test_tool", arguments: { param1: "value1" } },
         id: "2",
       };
-      
+
       const mockNodeReq = new IncomingMessage(new Socket());
       const mockNodeRes = new ServerResponse(mockNodeReq);
-      
+
       mockTransportManager.handleRequest.mockImplementation(async () => {
         mockNodeRes.statusCode = 202;
         return mockNodeRes;
@@ -171,7 +184,10 @@ describe("HTTP Transport - createHttpApp", () => {
 
       const req = new Request("http://localhost/mcp", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "mcp-session-id": "test-session-id" },
+        headers: {
+          "Content-Type": "application/json",
+          "mcp-session-id": "test-session-id",
+        },
         body: JSON.stringify(toolRequest),
       });
 
@@ -195,7 +211,9 @@ describe("HTTP Transport - createHttpApp", () => {
         id: "3",
       };
 
-      createServerInstanceFn.mockResolvedValue(new McpServer({ name: "test", version: "1.0.0" }));
+      createServerInstanceFn.mockResolvedValue(
+        new McpServer({ name: "test", version: "1.0.0" }),
+      );
 
       const req = new Request("http://localhost/mcp", {
         method: "POST",
@@ -242,10 +260,12 @@ describe("HTTP Transport - createHttpApp", () => {
     });
 
     it("should handle GET requests without session ID in auto mode (stateless)", async () => {
-      createServerInstanceFn.mockResolvedValue(new McpServer({ name: "test", version: "1.0.0" }));
+      createServerInstanceFn.mockResolvedValue(
+        new McpServer({ name: "test", version: "1.0.0" }),
+      );
 
       const req = new Request("http://localhost/mcp", { method: "GET" });
-      
+
       const mockNodeReq = new IncomingMessage(new Socket());
       const mockNodeRes = new ServerResponse(mockNodeReq);
 
@@ -263,7 +283,9 @@ describe("HTTP Transport - createHttpApp", () => {
         body: { message: "Session deleted" },
         headers: new Headers({ "x-custom-header": "value" }),
       };
-      mockTransportManager.handleDeleteRequest.mockResolvedValue(mockTransportResponse);
+      mockTransportManager.handleDeleteRequest.mockResolvedValue(
+        mockTransportResponse,
+      );
 
       const req = new Request("http://localhost/mcp", {
         method: "DELETE",
@@ -290,7 +312,10 @@ describe("HTTP Transport - createHttpApp", () => {
     });
 
     it("should propagate errors from the transport manager during DELETE", async () => {
-      const error = new McpError(BaseErrorCode.INTERNAL_ERROR, "Deletion failed");
+      const error = new McpError(
+        BaseErrorCode.INTERNAL_ERROR,
+        "Deletion failed",
+      );
       mockTransportManager.handleDeleteRequest.mockRejectedValue(error);
 
       const req = new Request("http://localhost/mcp", {
@@ -307,14 +332,22 @@ describe("HTTP Transport - createHttpApp", () => {
 
   describe("Middleware", () => {
     it("should apply CORS headers", async () => {
-      const req = new Request("http://localhost/mcp", { method: "OPTIONS", headers: { Origin: "http://localhost:3000" } });
+      const req = new Request("http://localhost/mcp", {
+        method: "OPTIONS",
+        headers: { Origin: "http://localhost:3000" },
+      });
       const res = await app.fetch(req);
       expect(res.status).toBe(204);
-      expect(res.headers.get("access-control-allow-origin")).toBe("http://localhost:3000");
+      expect(res.headers.get("access-control-allow-origin")).toBe(
+        "http://localhost:3000",
+      );
     });
 
     it("should apply rate limiting", async () => {
-      const req = new Request("http://localhost/mcp", { method: "POST", body: "{}" });
+      const req = new Request("http://localhost/mcp", {
+        method: "POST",
+        body: "{}",
+      });
       await app.fetch(req);
       expect(rateLimiter.check).toHaveBeenCalled();
     });
@@ -348,7 +381,9 @@ describe("HTTP Transport - Session Mode Features", () => {
       id: "2",
     };
 
-    createServerInstanceFn.mockResolvedValue(new McpServer({ name: "test", version: "1.0.0" }));
+    createServerInstanceFn.mockResolvedValue(
+      new McpServer({ name: "test", version: "1.0.0" }),
+    );
 
     const req = new Request("http://localhost/mcp", {
       method: "POST",
@@ -389,7 +424,10 @@ describe("HTTP Transport - Session Mode Features", () => {
 
     const req = new Request("http://localhost/mcp", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "mcp-session-id": "test-session" },
+      headers: {
+        "Content-Type": "application/json",
+        "mcp-session-id": "test-session",
+      },
       body: JSON.stringify(toolRequest),
     });
 
@@ -430,7 +468,9 @@ describe("HTTP Transport - startHttpTransport", () => {
   it("should start the server and return app and server instances", async () => {
     const createServerInstanceFn = vi
       .fn()
-      .mockResolvedValue(new McpServer({ name: "test-server", version: "1.0.0" }));
+      .mockResolvedValue(
+        new McpServer({ name: "test-server", version: "1.0.0" }),
+      );
     const { serve } = await import("@hono/node-server");
 
     // Mock serve to return a proper server instance
@@ -450,7 +490,10 @@ describe("HTTP Transport - startHttpTransport", () => {
       return mockHttpServer;
     });
 
-    const result = await startHttpTransport(createServerInstanceFn, parentContext);
+    const result = await startHttpTransport(
+      createServerInstanceFn,
+      parentContext,
+    );
     server = result.server;
     transportManager = result.transportManager;
 
@@ -463,7 +506,9 @@ describe("HTTP Transport - startHttpTransport", () => {
   it("should retry on a different port if the initial port is in use", async () => {
     const createServerInstanceFn = vi
       .fn()
-      .mockResolvedValue(new McpServer({ name: "test-server", version: "1.0.0" }));
+      .mockResolvedValue(
+        new McpServer({ name: "test-server", version: "1.0.0" }),
+      );
     const { serve } = await import("@hono/node-server");
     const { config } = await import("../../../../src/config/index.js");
 
@@ -484,14 +529,15 @@ describe("HTTP Transport - startHttpTransport", () => {
       listen: Mock;
       close: Mock;
     }[] = [];
-    
-    vi.spyOn(http, 'createServer').mockImplementation(() => {
+
+    vi.spyOn(http, "createServer").mockImplementation(() => {
       const serverIndex = mockServers.length;
       const newMockServer = {
         once: vi.fn().mockImplementation((event, cb) => {
           if (serverIndex === 0) {
             // First server: port in use
-            if (event === "error") setImmediate(() => cb({ code: "EADDRINUSE" }));
+            if (event === "error")
+              setImmediate(() => cb({ code: "EADDRINUSE" }));
           } else {
             // Second server: port available
             if (event === "listening") setImmediate(cb);
@@ -505,7 +551,10 @@ describe("HTTP Transport - startHttpTransport", () => {
       return newMockServer as unknown as http.Server;
     });
 
-    const result = await startHttpTransport(createServerInstanceFn, parentContext);
+    const result = await startHttpTransport(
+      createServerInstanceFn,
+      parentContext,
+    );
     server = result.server;
     transportManager = result.transportManager;
 
@@ -521,10 +570,12 @@ describe("HTTP Transport - startHttpTransport", () => {
   it("should reject if all retry attempts fail", async () => {
     const createServerInstanceFn = vi
       .fn()
-      .mockResolvedValue(new McpServer({ name: "test-server", version: "1.0.0" }));
+      .mockResolvedValue(
+        new McpServer({ name: "test-server", version: "1.0.0" }),
+      );
 
     // Mock http.createServer to always return EADDRINUSE error
-    vi.spyOn(http, 'createServer').mockImplementation(() => {
+    vi.spyOn(http, "createServer").mockImplementation(() => {
       const server = {
         once: vi.fn().mockImplementation((event, cb) => {
           if (event === "error") setImmediate(() => cb({ code: "EADDRINUSE" }));
@@ -544,13 +595,15 @@ describe("HTTP Transport - startHttpTransport", () => {
   it("should reject on a non-EADDRINUSE error during server start", async () => {
     const createServerInstanceFn = vi
       .fn()
-      .mockResolvedValue(new McpServer({ name: "test-server", version: "1.0.0" }));
+      .mockResolvedValue(
+        new McpServer({ name: "test-server", version: "1.0.0" }),
+      );
     const { serve } = await import("@hono/node-server");
     const testError = new Error("Another error") as Error & { code: string };
     testError.code = "EACCES"; // Different error code
 
     // Mock http.createServer to return port available (listening event)
-    vi.spyOn(http, 'createServer').mockImplementation(() => {
+    vi.spyOn(http, "createServer").mockImplementation(() => {
       const server = {
         once: vi.fn().mockImplementation((event, cb) => {
           if (event === "listening") setImmediate(cb);

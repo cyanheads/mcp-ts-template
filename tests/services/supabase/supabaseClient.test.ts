@@ -105,7 +105,9 @@ describe("Supabase Client", () => {
       const mcpError = error as McpError;
       expect(mcpError.name).toBe("McpError");
       expect(mcpError.code).toBe(BaseErrorCode.SERVICE_NOT_INITIALIZED);
-      expect(mcpError.message).toContain("Supabase client has not been initialized");
+      expect(mcpError.message).toContain(
+        "Supabase client has not been initialized",
+      );
     }
   });
 
@@ -132,7 +134,9 @@ describe("Supabase Client", () => {
       const mcpError = error as McpError;
       expect(mcpError.name).toBe("McpError");
       expect(mcpError.code).toBe(BaseErrorCode.SERVICE_NOT_INITIALIZED);
-      expect(mcpError.message).toContain("Supabase admin client has not been initialized");
+      expect(mcpError.message).toContain(
+        "Supabase admin client has not been initialized",
+      );
     }
   });
 });

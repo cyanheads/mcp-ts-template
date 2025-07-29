@@ -5,7 +5,10 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { OauthStrategy } from "../../../../../src/mcp-server/transports/auth/strategies/oauthStrategy.js";
-import { BaseErrorCode, McpError } from "../../../../../src/types-global/errors.js";
+import {
+  BaseErrorCode,
+  McpError,
+} from "../../../../../src/types-global/errors.js";
 import * as jose from "jose";
 import { logger } from "../../../../../src/utils/internal/logger.js";
 
@@ -60,38 +63,57 @@ describe("OauthStrategy", () => {
   describe("constructor", () => {
     it("should throw an error if not in oauth mode", () => {
       mockState.config.mcpAuthMode = "jwt";
-      expect(() => new OauthStrategy()).toThrow("OauthStrategy instantiated for non-oauth auth mode.");
+      expect(() => new OauthStrategy()).toThrow(
+        "OauthStrategy instantiated for non-oauth auth mode.",
+      );
     });
 
     it("should throw an error if issuer URL is missing", () => {
       mockState.config.oauthIssuerUrl = "";
-      expect(() => new OauthStrategy()).toThrow("OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.");
+      expect(() => new OauthStrategy()).toThrow(
+        "OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.",
+      );
     });
 
     it("should throw an error if audience is missing", () => {
       mockState.config.oauthAudience = "";
-      expect(() => new OauthStrategy()).toThrow("OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.");
+      expect(() => new OauthStrategy()).toThrow(
+        "OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.",
+      );
     });
 
     it("should construct the JWKS URI from the issuer URL if not provided", () => {
       new OauthStrategy();
-      const expectedUrl = new URL("https://test-issuer.com/.well-known/jwks.json");
-      expect(jose.createRemoteJWKSet).toHaveBeenCalledWith(expectedUrl, expect.any(Object));
+      const expectedUrl = new URL(
+        "https://test-issuer.com/.well-known/jwks.json",
+      );
+      expect(jose.createRemoteJWKSet).toHaveBeenCalledWith(
+        expectedUrl,
+        expect.any(Object),
+      );
     });
 
     it("should use the provided JWKS URI if available", () => {
       mockState.config.oauthJwksUri = "https://custom-jwks.com/keys";
       new OauthStrategy();
       const expectedUrl = new URL("https://custom-jwks.com/keys");
-      expect(jose.createRemoteJWKSet).toHaveBeenCalledWith(expectedUrl, expect.any(Object));
+      expect(jose.createRemoteJWKSet).toHaveBeenCalledWith(
+        expectedUrl,
+        expect.any(Object),
+      );
     });
 
     it("should throw a fatal error if JWKS client initialization fails", () => {
       vi.mocked(jose.createRemoteJWKSet).mockImplementation(() => {
         throw new Error("JWKS client failed");
       });
-      expect(() => new OauthStrategy()).toThrow("Could not initialize JWKS client for OAuth strategy.");
-      expect(vi.mocked(logger).fatal).toHaveBeenCalledWith("Failed to initialize JWKS client.", expect.any(Error));
+      expect(() => new OauthStrategy()).toThrow(
+        "Could not initialize JWKS client for OAuth strategy.",
+      );
+      expect(vi.mocked(logger).fatal).toHaveBeenCalledWith(
+        "Failed to initialize JWKS client.",
+        expect.any(Error),
+      );
     });
   });
 
@@ -117,10 +139,14 @@ describe("OauthStrategy", () => {
         scopes: ["read", "write"],
         subject: "user-123",
       });
-      expect(jose.jwtVerify).toHaveBeenCalledWith("valid-token", expect.any(Function), {
-        issuer: "https://test-issuer.com/",
-        audience: "test-audience",
-      });
+      expect(jose.jwtVerify).toHaveBeenCalledWith(
+        "valid-token",
+        expect.any(Function),
+        {
+          issuer: "https://test-issuer.com/",
+          audience: "test-audience",
+        },
+      );
     });
 
     it("should throw UNAUTHORIZED McpError if client_id claim is missing", async () => {
@@ -170,10 +196,16 @@ describe("OauthStrategy", () => {
 
     it("should throw UNAUTHORIZED McpError if jose.jwtVerify throws a generic error", async () => {
       const strategy = new OauthStrategy();
-      vi.mocked(jose.jwtVerify).mockRejectedValue(new Error("Verification failed"));
+      vi.mocked(jose.jwtVerify).mockRejectedValue(
+        new Error("Verification failed"),
+      );
 
-      await expect(strategy.verify("generic-error-token")).rejects.toThrow(McpError);
-      await expect(strategy.verify("generic-error-token")).rejects.toMatchObject({
+      await expect(strategy.verify("generic-error-token")).rejects.toThrow(
+        McpError,
+      );
+      await expect(
+        strategy.verify("generic-error-token"),
+      ).rejects.toMatchObject({
         code: BaseErrorCode.UNAUTHORIZED,
         message: "OAuth token verification failed.",
       });

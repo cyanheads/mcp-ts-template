@@ -10,13 +10,18 @@ import { createAuthMiddleware } from "../../../../src/mcp-server/transports/auth
 import { JwtStrategy } from "../../../../src/mcp-server/transports/auth/strategies/jwtStrategy.js";
 import { OauthStrategy } from "../../../../src/mcp-server/transports/auth/strategies/oauthStrategy.js";
 import { authContext } from "../../../../src/mcp-server/transports/auth/lib/authContext.js";
-import { BaseErrorCode, McpError } from "../../../../src/types-global/errors.js";
+import {
+  BaseErrorCode,
+  McpError,
+} from "../../../../src/types-global/errors.js";
 import type { AuthStrategy } from "../../../../src/mcp-server/transports/auth/strategies/authStrategy.js";
 import type { AuthInfo } from "../../../../src/mcp-server/transports/auth/lib/authTypes.js";
 
 // Mock the strategies to prevent actual auth logic
 vi.mock("../../../../src/mcp-server/transports/auth/strategies/jwtStrategy.js");
-vi.mock("../../../../src/mcp-server/transports/auth/strategies/oauthStrategy.js");
+vi.mock(
+  "../../../../src/mcp-server/transports/auth/strategies/oauthStrategy.js",
+);
 
 // Mock config
 const mockState = {
@@ -54,7 +59,9 @@ describe("Auth Integration: Factory and Middleware", () => {
 
     it("should throw an error for an unknown auth mode", () => {
       mockState.config.mcpAuthMode = "unknown";
-      expect(() => createAuthStrategy()).toThrow("Unknown authentication mode: unknown");
+      expect(() => createAuthStrategy()).toThrow(
+        "Unknown authentication mode: unknown",
+      );
     });
   });
 

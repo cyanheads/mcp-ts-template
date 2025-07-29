@@ -23,19 +23,19 @@ describe("fetchImageTestLogic", () => {
     const base64Regex =
       /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
     expect(base64Regex.test(result.data)).toBe(true);
-    
+
     // Verify the base64 string is not empty and represents actual image data
     expect(result.data.length).toBeGreaterThan(100);
-    
+
     // Verify we can decode the base64 back to a buffer
-    const imageBuffer = Buffer.from(result.data, 'base64');
+    const imageBuffer = Buffer.from(result.data, "base64");
     expect(imageBuffer.length).toBeGreaterThan(0);
   });
 
   it("should throw an McpError if the image fetch fails with network error", async () => {
     // Test network error scenario
     const originalFetch = global.fetch;
-    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+    global.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
     const input = { trigger: true };
 
@@ -62,10 +62,10 @@ describe("fetchImageTestLogic", () => {
     const mockResponse = {
       ok: false,
       status: 500,
-      statusText: 'Internal Server Error',
-      text: vi.fn().mockResolvedValue('Server error details'),
+      statusText: "Internal Server Error",
+      text: vi.fn().mockResolvedValue("Server error details"),
     } as unknown as Response;
-    
+
     global.fetch = vi.fn().mockResolvedValue(mockResponse);
 
     const input = { trigger: true };

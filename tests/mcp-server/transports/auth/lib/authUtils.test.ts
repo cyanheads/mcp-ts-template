@@ -6,7 +6,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { withRequiredScopes } from "../../../../../src/mcp-server/transports/auth/lib/authUtils.js";
 import { authContext } from "../../../../../src/mcp-server/transports/auth/lib/authContext.js";
-import { BaseErrorCode, McpError } from "../../../../../src/types-global/errors.js";
+import {
+  BaseErrorCode,
+  McpError,
+} from "../../../../../src/types-global/errors.js";
 import type { AuthInfo } from "../../../../../src/mcp-server/transports/auth/lib/authTypes.js";
 
 // Mock logger to prevent console output during tests

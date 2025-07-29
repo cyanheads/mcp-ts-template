@@ -15,7 +15,9 @@ vi.mock("@modelcontextprotocol/sdk/server/stdio.js");
 
 describe("startStdioTransport", () => {
   let mockServer: McpServer;
-  const context = requestContextService.createRequestContext({ toolName: "test" });
+  const context = requestContextService.createRequestContext({
+    toolName: "test",
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -26,13 +28,17 @@ describe("startStdioTransport", () => {
     await startStdioTransport(mockServer, context);
 
     expect(StdioServerTransport).toHaveBeenCalledOnce();
-    expect(mockServer.connect).toHaveBeenCalledWith(expect.any(StdioServerTransport));
+    expect(mockServer.connect).toHaveBeenCalledWith(
+      expect.any(StdioServerTransport),
+    );
   });
 
   it("should re-throw an error if server.connect fails", async () => {
     const connectionError = new Error("Connection failed");
     vi.mocked(mockServer.connect).mockRejectedValue(connectionError);
 
-    await expect(startStdioTransport(mockServer, context)).rejects.toThrow(connectionError);
+    await expect(startStdioTransport(mockServer, context)).rejects.toThrow(
+      connectionError,
+    );
   });
 });
