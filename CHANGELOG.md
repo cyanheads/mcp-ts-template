@@ -4,10 +4,6 @@ All notable changes to this project will be documented in this file.
 
 ## [1.7.7] - 2025-07-29
 
-### BREAKING CHANGE
-
-- **HTTP Transport Layer Overhaul**: The entire HTTP transport layer has been migrated from a manual Node.js `http` server implementation to [**Hono**](https://hono.dev/), a modern, lightweight, and high-performance web framework. This change significantly simplifies the request handling pipeline, improves performance, and aligns the project with modern web standards.
-
 ### Changed
 
 - **Architectural Refactor**:
