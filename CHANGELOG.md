@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.7] - 2025-07-29
+
+### BREAKING CHANGE
+
+- **HTTP Transport Layer Overhaul**: The entire HTTP transport layer has been migrated from a manual Node.js `http` server implementation to [**Hono**](https://hono.dev/), a modern, lightweight, and high-performance web framework. This change significantly simplifies the request handling pipeline, improves performance, and aligns the project with modern web standards.
+
+### Changed
+
+- **Architectural Refactor**:
+  - **`httpTransport.ts`**: Completely refactored to use Hono. The logic for routing, middleware, and response handling is now managed by Hono's declarative API.
+  - **`mcpTransportMiddleware.ts`**: Introduced a new dedicated Hono middleware that encapsulates all logic for processing MCP requests. It handles session detection, delegates to the appropriate transport manager (stateful or stateless), and prepares the response for Hono.
+  - **`honoNodeBridge.ts`**: Added a new compatibility bridge to connect the MCP SDK's Node.js-centric `StreamableHTTPServerTransport` with Hono's Web Standards-based streaming response body.
+- **Dependencies**: Added `hono` and `@hono/node-server` as core dependencies.
+- **Testing**:
+  - Updated tests for `jwtStrategy`, `oauthStrategy`, and `authUtils` to be more robust and align with the new architecture.
+  - Improved test mocks in `tests/mocks/handlers.ts` for better coverage of real-world scenarios.
+
+### Removed
+
+- **Legacy Test Files**: Deleted obsolete and redundant test files for the old transport implementation, including `baseTransportManager.test.ts`, `statefulTransportManager.test.ts`, `statelessTransportManager.test.ts`, `httpErrorHandler.test.ts`, and `httpTransport.test.ts`. The new architecture is tested more effectively through integration tests.
+
 ## [1.7.5] - 2025-07-28
 
 ### Changed
