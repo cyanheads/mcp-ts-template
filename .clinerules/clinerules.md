@@ -1,4 +1,3 @@
-```markdown
 # mcp-ts-template: Architectural Standard & Developer Mandate
 
 **Effective Date:** 2025-07-15
@@ -104,7 +103,7 @@ export async function echoToolLogic(
     // CRITICAL: Logic layer MUST throw a structured error on failure.
     throw new McpError(
       BaseErrorCode.VALIDATION_ERROR,
-      "The message was 'fail'.",
+      "The message was 'fail'."
     );
   }
 
@@ -115,6 +114,8 @@ export async function echoToolLogic(
   };
 }
 ```
+
+````
 
 **Step 2: Register the Tool and Handle All Outcomes (registration.ts)**
 The registration.ts file acts as the handler, connecting the pure logic to the MCP server and managing all possible outcomes (success or failure).
@@ -253,60 +254,64 @@ Tests shall prioritize **integration testing over mocked unit testing**. The goa
 
 **A. Integration Testing for Core Logic**
 
--   **Focus:** Tests must validate the complete flow from input to output, including real dependencies and service interactions where feasible.
--   **Methodology:**
-    1.  **Real Dependencies:** Use actual service instances and real data flows instead of mocks wherever possible. For external services that cannot be controlled, use test doubles that simulate realistic behavior.
-    2.  **End-to-End Validation:** Test the complete execution path from tool invocation through to final response, including error scenarios.
-    3.  **Schema Compliance:** Use `@anatine/zod-mock` to generate test data, but validate that the complete system properly handles and transforms this data.
-    4.  **Error Flow Testing:** Test actual error conditions by triggering real failure states, not by mocking errors.
+- **Focus:** Tests must validate the complete flow from input to output, including real dependencies and service interactions where feasible.
+- **Methodology:**
+  1.  **Real Dependencies:** Use actual service instances and real data flows instead of mocks wherever possible. For external services that cannot be controlled, use test doubles that simulate realistic behavior.
+  2.  **End-to-End Validation:** Test the complete execution path from tool invocation through to final response, including error scenarios.
+  3.  **Schema Compliance:** Use `@anatine/zod-mock` to generate test data, but validate that the complete system properly handles and transforms this data.
+  4.  **Error Flow Testing:** Test actual error conditions by triggering real failure states, not by mocking errors.
 
 **B. MCP Transport Integration Testing**
 
--   **HTTP Transport:** Test actual `StreamableHTTPServerTransport` instances with real MCP protocol flows, including:
-    1.  **Session Lifecycle:** Complete initialize → tool call → cleanup flows
-    2.  **Streaming Responses:** Server-Sent Events (SSE) functionality
-    3.  **JSON-RPC 2.0 Compliance:** Actual protocol message validation
-    4.  **Session Management:** Real session persistence and cleanup
-    5.  **Error Scenarios:** Invalid sessions, malformed requests, concurrent sessions
--   **Stdio Transport:** Test actual stdio transport functionality with real process communication
--   **Protocol Compliance:** Validate MCP specification adherence through real message flows
+- **HTTP Transport:** Test actual `StreamableHTTPServerTransport` instances with real MCP protocol flows, including:
+  1.  **Session Lifecycle:** Complete initialize → tool call → cleanup flows
+  2.  **Streaming Responses:** Server-Sent Events (SSE) functionality
+  3.  **JSON-RPC 2.0 Compliance:** Actual protocol message validation
+  4.  **Session Management:** Real session persistence and cleanup
+  5.  **Error Scenarios:** Invalid sessions, malformed requests, concurrent sessions
+- **Stdio Transport:** Test actual stdio transport functionality with real process communication
+- **Protocol Compliance:** Validate MCP specification adherence through real message flows
 
 **C. Tool Registration Integration Testing**
 
--   **Real Registration:** Test tools through the actual registration process with a real `McpServer` instance
--   **Tool Execution:** Validate tool execution through the complete registration → invocation → response cycle
--   **Handler Integration:** Test the "Logic Throws, Handler Catches" pattern through actual error scenarios, not mocked exceptions
+- **Real Registration:** Test tools through the actual registration process with a real `McpServer` instance
+- **Tool Execution:** Validate tool execution through the complete registration → invocation → response cycle
+- **Handler Integration:** Test the "Logic Throws, Handler Catches" pattern through actual error scenarios, not mocked exceptions
 
 **D. Service Integration Testing**
 
--   **Database Services:** Use test databases or in-memory instances for real query execution
--   **External APIs:** Use test endpoints or controlled test environments when possible
--   **Singleton Services:** Test actual singleton behavior and state management
+- **Database Services:** Use test databases or in-memory instances for real query execution
+- **External APIs:** Use test endpoints or controlled test environments when possible
+- **Singleton Services:** Test actual singleton behavior and state management
 
 **E. Controlled Mocking Guidelines**
 
 When mocking is necessary, it must be **surgical and justified**:
--   **External Services Only:** Mock only truly external, uncontrollable dependencies (third-party APIs without test environments)
--   **Behavior Simulation:** Mocks must accurately simulate real service behavior, including realistic response times and error conditions
--   **Test Data Integrity:** Mocked responses must use actual data structures and realistic content
--   **Documentation Required:** All mocks must be documented with justification for why integration testing wasn't feasible
+
+- **External Services Only:** Mock only truly external, uncontrollable dependencies (third-party APIs without test environments)
+- **Behavior Simulation:** Mocks must accurately simulate real service behavior, including realistic response times and error conditions
+- **Test Data Integrity:** Mocked responses must use actual data structures and realistic content
+- **Documentation Required:** All mocks must be documented with justification for why integration testing wasn't feasible
 
 **F. Test Architecture Patterns**
 
 **Preferred Pattern - Integration:**
+
 ```typescript
-describe('Echo Tool Integration', () => {
+describe("Echo Tool Integration", () => {
   let server: McpServer;
   let transport: StreamableHTTPServerTransport;
-  
+
   beforeEach(async () => {
     server = new McpServer({ name: "test-server", version: "1.0.0" });
-    transport = new StreamableHTTPServerTransport({ /* real config */ });
+    transport = new StreamableHTTPServerTransport({
+      /* real config */
+    });
     await server.connect(transport);
     // Register actual tools
   });
-  
-  it('should execute complete tool flow', async () => {
+
+  it("should execute complete tool flow", async () => {
     // Test real MCP protocol message flow
     const response = await transport.handleRequest(/* real request */);
     // Validate actual response
@@ -315,29 +320,30 @@ describe('Echo Tool Integration', () => {
 ```
 
 **Discouraged Pattern - Heavy Mocking:**
+
 ```typescript
 // AVOID: This doesn't test real integration
-vi.mock('../logic.js', () => ({ echoToolLogic: vi.fn() }));
+vi.mock("../logic.js", () => ({ echoToolLogic: vi.fn() }));
 ```
 
 **G. Test File Organization**
 
--   **Integration Tests:** Primary test files (e.g., `tests/mcp-server/tools/toolName/integration.test.ts`)
--   **Logic Tests:** Focused tests for complex business logic (e.g., `tests/mcp-server/tools/toolName/logic.test.ts`)
--   **Registration Tests:** End-to-end registration and execution tests (e.g., `tests/mcp-server/tools/toolName/registration.test.ts`)
+- **Integration Tests:** Primary test files (e.g., `tests/mcp-server/tools/toolName/integration.test.ts`)
+- **Logic Tests:** Focused tests for complex business logic (e.g., `tests/mcp-server/tools/toolName/logic.test.ts`)
+- **Registration Tests:** End-to-end registration and execution tests (e.g., `tests/mcp-server/tools/toolName/registration.test.ts`)
 
 **H. Test Environment Setup**
 
--   **Test Databases:** Use dedicated test instances or in-memory databases
--   **Isolated Networking:** Use controlled test endpoints or local test servers
--   **Clean State:** Ensure test isolation through proper setup/teardown without relying on mocks
+- **Test Databases:** Use dedicated test instances or in-memory databases
+- **Isolated Networking:** Use controlled test endpoints or local test servers
+- **Clean State:** Ensure test isolation through proper setup/teardown without relying on mocks
 
 **I. Running Tests**
 
--   Use the following npm scripts to run tests:
-    -   `npm test`: Run all tests once.
-    -   `npm test:watch`: Run tests in watch mode for development.
-    -   `npm test:coverage`: Run all tests and generate a coverage report.
+- Use the following npm scripts to run tests:
+  - `npm test`: Run all tests once.
+  - `npm test:watch`: Run tests in watch mode for development.
+  - `npm test:coverage`: Run all tests and generate a coverage report.
 
 **J. Critical Testing Requirements**
 
@@ -349,4 +355,4 @@ vi.mock('../logic.js', () => ({ echoToolLogic: vi.fn() }));
 
 This integration-first approach ensures that tests catch real-world issues that pure unit tests with heavy mocking would miss, providing confidence that the system works correctly in production scenarios.
 
-```
+````

@@ -1,7 +1,4 @@
 {
   "files.exclude": {
-    "**/.clinerules": true,
-    "**/.claude": true,
-    "**/CLAUDE.md": true
   }
 }

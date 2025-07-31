@@ -1,9 +1,11 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-29 20:05:41
+Generated on: 2025-07-31 17:16:41
 
 ```
 mcp-ts-template
+├── .clinerules
+│   └── clinerules.md
 ├── .github
 │   ├── workflows
 │   │   └── publish.yml
@@ -170,7 +172,6 @@ mcp-ts-template
 │   │       ├── rateLimiter.test.ts
 │   │       └── sanitization.test.ts
 │   └── setup.ts
-├── .clinerules
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore

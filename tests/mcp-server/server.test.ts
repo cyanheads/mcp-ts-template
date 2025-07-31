@@ -46,6 +46,7 @@ vi.mock("../../src/utils/index.js", async (importOriginal) => {
       debug: vi.fn(),
       error: vi.fn(),
       warn: vi.fn(),
+      crit: vi.fn(),
     },
     ErrorHandler: {
       handleError: vi.fn(),
@@ -124,11 +125,9 @@ describe("MCP Server Initialization", () => {
       "invalid";
     await initializeAndStartServer();
     expect(ErrorHandler.handleError).toHaveBeenCalledWith(
-      new Error(
-        "Unsupported transport type: invalid. Must be 'stdio' or 'http'.",
-      ),
+      expect.any(Error),
       expect.objectContaining({
-        operation: "initializeAndStartServer",
+        operation: "initializeAndStartServer_Catch",
         critical: true,
       }),
     );
@@ -145,7 +144,7 @@ describe("MCP Server Initialization", () => {
     expect(ErrorHandler.handleError).toHaveBeenCalledWith(
       testError,
       expect.objectContaining({
-        operation: "initializeAndStartServer",
+        operation: "initializeAndStartServer_Catch",
         critical: true,
       }),
     );
@@ -155,14 +154,14 @@ describe("MCP Server Initialization", () => {
   it("should handle registration failures gracefully and exit", async () => {
     config.mcpTransportType = "stdio";
     const registrationError = new Error("Registration failed");
-    vi.mocked(ErrorHandler.tryCatch).mockRejectedValueOnce(registrationError);
+    vi.mocked(registerEchoTool).mockRejectedValueOnce(registrationError);
 
     await initializeAndStartServer();
 
     expect(ErrorHandler.handleError).toHaveBeenCalledWith(
       registrationError,
       expect.objectContaining({
-        operation: "initializeAndStartServer",
+        operation: "initializeAndStartServer_Catch",
         critical: true,
       }),
     );

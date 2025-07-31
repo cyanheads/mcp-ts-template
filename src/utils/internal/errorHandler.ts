@@ -288,8 +288,10 @@ export class ErrorHandler {
     const errorName = getErrorName(error);
     const errorMessage = getErrorMessage(error);
 
-    if (errorName in ERROR_TYPE_MAPPINGS) {
-      return ERROR_TYPE_MAPPINGS[errorName as keyof typeof ERROR_TYPE_MAPPINGS];
+    const mappedFromType =
+      ERROR_TYPE_MAPPINGS[errorName as keyof typeof ERROR_TYPE_MAPPINGS];
+    if (mappedFromType) {
+      return mappedFromType;
     }
 
     for (const mapping of COMMON_ERROR_PATTERNS) {

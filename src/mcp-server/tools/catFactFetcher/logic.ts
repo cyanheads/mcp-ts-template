@@ -13,6 +13,15 @@ import {
 } from "../../../utils/index.js";
 
 /**
+ * Zod schema for the raw response from the Cat Fact Ninja API.
+ * @internal
+ */
+const CatFactApiSchema = z.object({
+  fact: z.string(),
+  length: z.number(),
+});
+
+/**
  * Zod schema for validating input arguments for the `get_random_cat_fact` tool.
  */
 export const CatFactFetcherInputSchema = z
@@ -104,19 +113,37 @@ export async function catFactFetcherLogic(
     );
   }
 
-  const data = await response.json();
+  const rawData = await response.json();
 
-  const toolResponse: CatFactFetcherResponse = {
-    fact: data.fact,
-    length: data.length,
-    requestedMaxLength: params.maxLength,
-    timestamp: new Date().toISOString(),
-  };
+  try {
+    const data = CatFactApiSchema.parse(rawData);
 
-  logger.notice("Random cat fact fetched and processed successfully.", {
-    ...context,
-    factLength: toolResponse.length,
-  });
+    const toolResponse: CatFactFetcherResponse = {
+      fact: data.fact,
+      length: data.length,
+      requestedMaxLength: params.maxLength,
+      timestamp: new Date().toISOString(),
+    };
 
-  return toolResponse;
+    logger.notice("Random cat fact fetched and processed successfully.", {
+      ...context,
+      factLength: toolResponse.length,
+    });
+
+    return toolResponse;
+  } catch (validationError) {
+    logger.error("Cat Fact API response validation failed", {
+      ...context,
+      error: validationError,
+      receivedData: rawData,
+    });
+    throw new McpError(
+      BaseErrorCode.SERVICE_UNAVAILABLE,
+      "Cat Fact API returned unexpected data format.",
+      {
+        ...context,
+        cause: validationError,
+      },
+    );
+  }
 }

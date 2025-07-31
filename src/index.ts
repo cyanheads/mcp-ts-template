@@ -61,60 +61,47 @@ const shutdown = async (signal: string): Promise<void> => {
     shutdownContext,
   );
 
-  const shutdownPromises: Promise<void>[] = [];
+  try {
+    let closePromise: Promise<void> = Promise.resolve();
+    const transportType = config.mcpTransportType;
 
-  if (mcpStdioServer) {
-    const serverToClose = mcpStdioServer;
-    shutdownPromises.push(
-      new Promise((resolve) => {
-        logger.info("Closing main MCP server (STDIO)...", shutdownContext);
-        serverToClose
-          .close()
-          .then(() => {
-            logger.info(
-              "Main MCP server (STDIO) closed successfully.",
-              shutdownContext,
-            );
-            resolve();
-          })
-          .catch((err) => {
-            logger.error("Error closing MCP server (STDIO).", {
-              ...shutdownContext,
-              error: err,
-            });
-            resolve(); // Resolve even on error to not block shutdown
-          });
-      }),
-    );
-  }
-
-  if (actualHttpServer) {
-    const serverToClose = actualHttpServer;
-    shutdownPromises.push(
-      new Promise((resolve) => {
-        logger.info("Closing HTTP server...", shutdownContext);
-        serverToClose.close((err?: Error) => {
+    if (transportType === "stdio" && mcpStdioServer) {
+      logger.info(
+        "Attempting to close main MCP server (STDIO)...",
+        shutdownContext,
+      );
+      closePromise = mcpStdioServer.close();
+    } else if (transportType === "http" && actualHttpServer) {
+      logger.info("Attempting to close HTTP server...", shutdownContext);
+      closePromise = new Promise((resolve, reject) => {
+        actualHttpServer!.close((err) => {
           if (err) {
             logger.error("Error closing HTTP server.", {
               ...shutdownContext,
-              error: err,
+              error: err.message,
             });
-          } else {
-            logger.info("HTTP server closed successfully.", shutdownContext);
+            return reject(err);
           }
-          resolve(); // Resolve regardless of error
+          logger.info("HTTP server closed successfully.", shutdownContext);
+          resolve();
         });
-      }),
+      });
+    }
+
+    await closePromise;
+    logger.info(
+      "Graceful shutdown completed successfully. Exiting.",
+      shutdownContext,
     );
+    process.exit(0);
+  } catch (error) {
+    logger.error("Critical error during shutdown process.", {
+      ...shutdownContext,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    });
+    process.exit(1);
   }
-
-  await Promise.allSettled(shutdownPromises);
-
-  logger.info(
-    "Graceful shutdown completed successfully. Exiting.",
-    shutdownContext,
-  );
-  process.exit(0);
 };
 
 /**

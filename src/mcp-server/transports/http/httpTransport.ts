@@ -235,8 +235,11 @@ export function createHttpApp(
   app.use(
     MCP_ENDPOINT_PATH,
     async (c: Context<{ Bindings: HonoNodeBindings }>, next: Next) => {
+      const forwardedFor = c.req.header("x-forwarded-for");
       const clientIp =
-        c.req.header("x-forwarded-for")?.split(",")[0].trim() || "unknown_ip";
+        (forwardedFor?.split(",")[0] ?? "").trim() ||
+        c.req.header("x-real-ip") ||
+        "unknown_ip";
       const context = requestContextService.createRequestContext({
         operation: "httpRateLimitCheck",
         ipAddress: clientIp,

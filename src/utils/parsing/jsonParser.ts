@@ -70,8 +70,8 @@ export class JsonParser {
     const match = jsonString.match(thinkBlockRegex);
 
     if (match) {
-      const thinkContent = match[1].trim();
-      const restOfString = match[2];
+      const thinkContent = match[1]?.trim() ?? "";
+      const restOfString = match[2] ?? "";
 
       const logContext =
         context ||

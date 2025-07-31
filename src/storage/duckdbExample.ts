@@ -167,7 +167,15 @@ async function runDuckDBExample(): Promise<void> {
     // Example of using an extension function (json)
     // Use the ID of the first inserted user for the query
     if (usersToInsert.length > 0) {
-      const firstUserId = usersToInsert[0].id;
+      const firstUser = usersToInsert[0];
+      if (!firstUser) {
+        logger.warning(
+          "Could not get the first user for JSON query example.",
+          context,
+        );
+        return;
+      }
+      const firstUserId = firstUser.id;
       const jsonQuerySql =
         "SELECT json_object('id', id, 'name', name, 'email', email) AS user_json FROM users WHERE id = ?;"; // Added email to json_object
       logger.info(

@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.8] - 2025-07-31
+
+### Changed
+
+- **Server Core**:
+  - Refactored `src/index.ts` and `src/mcp-server/server.ts` for more robust and streamlined server initialization and shutdown logic. Error handling during startup and shutdown has been improved to provide clearer, more actionable logs.
+  - The `requestContextService` is now configured once at startup in `server.ts` to ensure consistency.
+- **Error Handling**:
+  - Improved the `ErrorHandler` in `src/utils/internal/errorHandler.ts` to more reliably map native error types to `McpError` codes.
+- **Code Quality & Robustness**:
+  - Added stricter validation for the API response in `catFactFetcher/logic.ts` to prevent crashes from unexpected data formats.
+  - Enhanced the `idGenerator` in `src/utils/security/idGenerator.ts` to prevent potential out-of-bounds errors during character selection.
+  - Improved null-safety checks in `jsonParser.ts` and `duckdbExample.ts`.
+- **Configuration**:
+  - Modernized `tsconfig.json` with stricter checks (`noUncheckedIndexedAccess`, `noUnusedLocals`, etc.) and aligned it with `NodeNext` module resolution for better ESM support.
+- **Testing**:
+  - Updated tests in `tests/mcp-server/server.test.ts` to align with the refactored initialization and shutdown logic.
+
+### Fixed
+
+- **HTTP Transport**: Correctly identify the client's IP address when behind a proxy by checking the `x-real-ip` header as a fallback in `httpTransport.ts`.
+
 ## [1.7.7] - 2025-07-29
 
 ### Changed
