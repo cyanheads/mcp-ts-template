@@ -31,6 +31,20 @@ const HTTP_HOST = config.mcpHttpHost;
 const MCP_ENDPOINT_PATH = config.mcpHttpEndpointPath;
 
 /**
+ * Extracts the client IP address from the request, prioritizing common proxy headers.
+ * @param c - The Hono context object.
+ * @returns The client's IP address or a default string if not found.
+ */
+function getClientIp(c: Context<{ Bindings: HonoNodeBindings }>): string {
+  const forwardedFor = c.req.header("x-forwarded-for");
+  return (
+    (forwardedFor?.split(",")[0] ?? "").trim() ||
+    c.req.header("x-real-ip") ||
+    "unknown_ip"
+  );
+}
+
+/**
  * Converts a Fetch API Headers object to Node.js IncomingHttpHeaders.
  * Hono uses Fetch API Headers, but the underlying transport managers expect
  * Node's native IncomingHttpHeaders.
@@ -152,9 +166,10 @@ function startHttpServerWithRetry(
           }
         })
         .catch((err) => {
+          const error = err instanceof Error ? err : new Error(String(err));
           logger.fatal(
             "Failed to check if port is in use.",
-            err,
+            error,
             attemptContext,
           );
           reject(err);
@@ -235,11 +250,7 @@ export function createHttpApp(
   app.use(
     MCP_ENDPOINT_PATH,
     async (c: Context<{ Bindings: HonoNodeBindings }>, next: Next) => {
-      const forwardedFor = c.req.header("x-forwarded-for");
-      const clientIp =
-        (forwardedFor?.split(",")[0] ?? "").trim() ||
-        c.req.header("x-real-ip") ||
-        "unknown_ip";
+      const clientIp = getClientIp(c);
       const context = requestContextService.createRequestContext({
         operation: "httpRateLimitCheck",
         ipAddress: clientIp,
@@ -319,9 +330,11 @@ export function createHttpApp(
           }
         });
       } else {
-        // Hono's c.json() expects a JSON-serializable object.
-        // The response.body is of type `unknown` from the transport layer.
-        // We ensure it's a valid object before passing it to c.json().
+        // Hono's c.json() expects a JSON-serializable object. The response.body
+        // from the transport layer is `unknown`. This check ensures we pass a valid
+        // object to c.json(). While a full serialization check (e.g., for circular
+        // references) is complex, this is a pragmatic and sufficient safeguard for
+        // the known, simple object structures returned by our tools.
         const body =
           typeof response.body === "object" && response.body !== null
             ? response.body

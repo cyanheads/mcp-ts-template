@@ -140,6 +140,11 @@ export class JwtStrategy implements AuthStrategy {
       });
       return authInfo;
     } catch (error) {
+      // If the error is already a structured McpError, re-throw it directly.
+      if (error instanceof McpError) {
+        throw error;
+      }
+
       const message =
         error instanceof Error && error.name === "JWTExpired"
           ? "Token has expired."

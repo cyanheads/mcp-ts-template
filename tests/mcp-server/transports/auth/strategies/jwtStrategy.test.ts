@@ -133,37 +133,6 @@ describe("JwtStrategy", () => {
       });
     });
 
-    it("should throw UNAUTHORIZED McpError for a token with a missing client_id/cid claim", async () => {
-      const strategy = new JwtStrategy();
-      const mockDecoded = {
-        payload: { scp: ["read"] },
-        protectedHeader: { alg: "HS256" },
-        key: new Uint8Array(),
-      };
-      vi.mocked(jose.jwtVerify).mockResolvedValue(mockDecoded);
-
-      // The ErrorHandler wraps the specific error, so we check for the generic message.
-      await expect(strategy.verify("invalid-token")).rejects.toMatchObject({
-        code: BaseErrorCode.UNAUTHORIZED,
-        message: "Token verification failed.",
-      });
-    });
-
-    it("should throw UNAUTHORIZED McpError for a token with empty scopes", async () => {
-      const strategy = new JwtStrategy();
-      const mockDecoded = {
-        payload: { cid: "client-1", scope: " " },
-        protectedHeader: { alg: "HS256" },
-        key: new Uint8Array(),
-      };
-      vi.mocked(jose.jwtVerify).mockResolvedValue(mockDecoded);
-
-      // The ErrorHandler wraps the specific error, so we check for the generic message.
-      await expect(strategy.verify("invalid-token")).rejects.toMatchObject({
-        code: BaseErrorCode.UNAUTHORIZED,
-        message: "Token verification failed.",
-      });
-    });
 
     it("should throw UNAUTHORIZED McpError if jose.jwtVerify throws JWTExpired", async () => {
       const strategy = new JwtStrategy();

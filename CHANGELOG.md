@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.9] - 2025-07-31
+
+### Changed
+
+- **Dependencies**:
+  - Updated `axios` to `^1.11.0` and moved it to `dependencies`.
+- **ESLint**:
+  - Updated `eslint.config.js` to ignore `coverage/`, `dist/`, `logs/`, `data/`, and `node_modules/`.
+- **Server Core**:
+  - Refactored `src/mcp-server/server.ts` for improved readability and maintainability.
+- **Authentication**:
+  - Refactored `src/mcp-server/transports/auth/strategies/jwtStrategy.ts` and `src/mcp-server/transports/auth/strategies/oauthStrategy.ts` to re-throw `McpError` instances directly.
+- **HTTP Transport**:
+  - Refactored `src/mcp-server/transports/http/httpTransport.ts` to extract the client IP address into a separate function.
+- **Testing**:
+  - Removed redundant tests from `tests/mcp-server/transports/auth/strategies/jwtStrategy.test.ts` and `tests/mcp-server/transports/auth/strategies/oauthStrategy.test.ts`.
+
 ## [1.7.8] - 2025-07-31
 
 ### Changed
@@ -821,8 +838,7 @@ All notable changes to this project will be documented in this file.
     - Services (`src/services/openRouterProvider.ts`) and global type definitions (`src/types-global/errors.ts`).
     - Polished JSDoc comments in `src/mcp-client/` (`client.ts`, `configLoader.ts`, `index.ts`, `transport.ts`) to align with TypeDoc best practices, remove redundant type annotations, and ensure correct `@module` tags.
 - **Documentation Files**:
-  - Updated `docs/tree.md` generation timestamp.
-  - Added `docs/api-references/typedoc-reference.md` to provide a guide for TypeDoc usage.
+  - Updated `docs/api-references/typedoc-reference.md` to provide a guide for TypeDoc usage.
 - **Internal Utilities**:
   - **Logger**:
     - Simplified project root determination in `logger.ts` by using `process.cwd()`.

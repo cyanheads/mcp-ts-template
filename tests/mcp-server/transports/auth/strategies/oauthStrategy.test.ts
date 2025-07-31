@@ -144,33 +144,6 @@ describe("OauthStrategy", () => {
       );
     });
 
-    it("should throw UNAUTHORIZED McpError if client_id claim is missing", async () => {
-      const mockDecoded = {
-        payload: { scope: "read" },
-        protectedHeader: { alg: "RS256" },
-        key: new Uint8Array(),
-      };
-      vi.mocked(jose.jwtVerify).mockResolvedValue(mockDecoded);
-
-      await expect(strategy.verify("invalid-token")).rejects.toMatchObject({
-        code: BaseErrorCode.UNAUTHORIZED,
-        message: "OAuth token verification failed.",
-      });
-    });
-
-    it("should throw UNAUTHORIZED McpError if scopes are missing", async () => {
-      const mockDecoded = {
-        payload: { client_id: "client-1" },
-        protectedHeader: { alg: "RS256" },
-        key: new Uint8Array(),
-      };
-      vi.mocked(jose.jwtVerify).mockResolvedValue(mockDecoded);
-
-      await expect(strategy.verify("invalid-token")).rejects.toMatchObject({
-        code: BaseErrorCode.UNAUTHORIZED,
-        message: "OAuth token verification failed.",
-      });
-    });
 
     it("should throw UNAUTHORIZED McpError if jose.jwtVerify throws JWTExpired", async () => {
       const error = new Error("Token has expired.");

@@ -122,6 +122,11 @@ export class OauthStrategy implements AuthStrategy {
       });
       return authInfo;
     } catch (error) {
+      // If the error is already a structured McpError, re-throw it directly.
+      if (error instanceof McpError) {
+        throw error;
+      }
+
       const message =
         error instanceof Error && error.name === "JWTExpired"
           ? "Token has expired."
@@ -132,6 +137,7 @@ export class OauthStrategy implements AuthStrategy {
         errorName: error instanceof Error ? error.name : "Unknown",
       });
 
+      // For all other errors, use the ErrorHandler to wrap them.
       throw ErrorHandler.handleError(error, {
         operation: "OauthStrategy.verify",
         context,

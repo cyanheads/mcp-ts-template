@@ -1,5 +1,5 @@
-import globals from "globals";
 import pluginJs from "@eslint/js";
+import globals from "globals";
 import tseslint from "typescript-eslint";
 
 const combinedGlobals = { ...globals.browser, ...globals.node };
@@ -22,5 +22,8 @@ export default [
         },
       ],
     },
+  },
+  {
+    ignores: ["coverage/", "dist/", "logs/", "data/", "node_modules/"],
   },
 ];
