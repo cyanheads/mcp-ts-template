@@ -319,8 +319,14 @@ export function createHttpApp(
           }
         });
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return c.json(response.body as any);
+        // Hono's c.json() expects a JSON-serializable object.
+        // The response.body is of type `unknown` from the transport layer.
+        // We ensure it's a valid object before passing it to c.json().
+        const body =
+          typeof response.body === "object" && response.body !== null
+            ? response.body
+            : { body: response.body };
+        return c.json(body);
       }
     },
   );
@@ -341,8 +347,11 @@ export function createHttpApp(
             sessionId,
             context,
           );
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return c.json(response.body as any, response.statusCode);
+          const body =
+            typeof response.body === "object" && response.body !== null
+              ? response.body
+              : { body: response.body };
+          return c.json(body, response.statusCode);
         } else {
           return c.json(
             {

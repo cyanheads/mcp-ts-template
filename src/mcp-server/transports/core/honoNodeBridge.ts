@@ -57,8 +57,11 @@ export class HonoStreamResponse extends PassThrough {
       typeof encodingOrCallback === "string" ? encodingOrCallback : undefined;
     const cb =
       typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return super.write(chunk as any, encoding as any, cb);
+
+    if (encoding) {
+      return super.write(chunk, encoding, cb);
+    }
+    return super.write(chunk, cb);
   }
 
   end(
@@ -70,8 +73,12 @@ export class HonoStreamResponse extends PassThrough {
       typeof encodingOrCallback === "string" ? encodingOrCallback : undefined;
     const cb =
       typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    super.end(chunk as any, encoding as any, cb);
+
+    if (encoding) {
+      super.end(chunk, encoding, cb);
+    } else {
+      super.end(chunk, cb);
+    }
     return this;
   }
 }

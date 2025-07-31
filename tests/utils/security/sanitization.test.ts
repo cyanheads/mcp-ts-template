@@ -140,10 +140,9 @@ describe("Sanitization Utility", () => {
         },
         nonSensitive: "data",
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sanitized = sanitization.sanitizeForLogging(
         sensitiveObject,
-      ) as Record<string, any>;
+      ) as Record<string, Record<string, unknown>>;
       expect(sanitized.credentials.password).toBe("[REDACTED]");
       expect(sanitized.credentials.session_token).toBe("[REDACTED]");
       expect(sanitized.nonSensitive).toBe("data");

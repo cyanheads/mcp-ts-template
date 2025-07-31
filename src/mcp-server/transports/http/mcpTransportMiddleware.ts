@@ -8,6 +8,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { MiddlewareHandler } from "hono";
 import { createMiddleware } from "hono/factory";
 import { IncomingHttpHeaders } from "http";
 import { config } from "../../../config/index.js";
@@ -70,8 +71,8 @@ type McpMiddlewareEnv = {
 export const mcpTransportMiddleware = (
   transportManager: TransportManager,
   createServerInstanceFn: () => Promise<McpServer>,
-) =>
-  createMiddleware<McpMiddlewareEnv & { Bindings: HonoNodeBindings }>(
+): MiddlewareHandler<McpMiddlewareEnv & { Bindings: HonoNodeBindings }> => {
+  return createMiddleware<McpMiddlewareEnv & { Bindings: HonoNodeBindings }>(
     async (c, next) => {
       const sessionId = c.req.header("mcp-session-id");
       const context = requestContextService.createRequestContext({
@@ -121,3 +122,4 @@ export const mcpTransportMiddleware = (
       await next();
     },
   );
+};
