@@ -10,6 +10,6 @@ export type { AuthInfo } from "./lib/authTypes.js";
 
 export { createAuthStrategy } from "./authFactory.js";
 export { createAuthMiddleware } from "./authMiddleware.js";
-export { AuthStrategy } from "./strategies/authStrategy.js";
+export type { AuthStrategy } from "./strategies/authStrategy.js";
 export { JwtStrategy } from "./strategies/jwtStrategy.js";
 export { OauthStrategy } from "./strategies/oauthStrategy.js";

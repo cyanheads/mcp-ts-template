@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Dependencies**:
+  - Updated `openai` to `^5.11.0`.
+  - Moved several development-related dependencies from `dependencies` to `devDependencies` for a cleaner production build.
+- **Developer Experience**:
+  - Added new `dev` scripts to `package.json` for running the server in watch mode using `tsx`.
+  - Introduced `typecheck`, `audit`, and `prepublishOnly` scripts to improve code quality and security workflows.
 - **Server Core**:
   - Refactored `src/index.ts` and `src/mcp-server/server.ts` for more robust and streamlined server initialization and shutdown logic. Error handling during startup and shutdown has been improved to provide clearer, more actionable logs.
   - The `requestContextService` is now configured once at startup in `server.ts` to ensure consistency.
@@ -23,6 +29,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **HTTP Transport**: Correctly identify the client's IP address when behind a proxy by checking the `x-real-ip` header as a fallback in `httpTransport.ts`.
+- **Build**: Corrected a type export in `src/mcp-server/transports/auth/index.ts` to resolve a `SyntaxError` when running in development mode with `tsx`.
 
 ## [1.7.7] - 2025-07-29
 
