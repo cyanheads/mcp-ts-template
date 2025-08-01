@@ -1,7 +1,7 @@
 # mcp-ts-template: Architectural Standard & Developer Mandate
 
-**Effective Date:** 2025-07-31
-**Version:** 2.2
+**Effective Date:** 2025-08-01
+**Version:** 2.3
 
 ## Preamble
 
@@ -27,46 +27,60 @@ Every operation must be fully traceable from initiation to completion via struct
 
 **Logger:** All logging shall be performed through the centralized logger singleton. Every log entry must include the RequestContext to ensure traceability.
 
-### 3. Application Lifecycle and Execution Flow
+### 3. Comprehensive Observability (OpenTelemetry)
+
+The system shall be fully observable out-of-the-box through integrated, comprehensive OpenTelemetry (OTel) instrumentation.
+
+**Automatic Instrumentation:** The OTel SDK is initialized at the application's entry point (`src/index.ts`) **before any other module is imported**. This ensures that all supported libraries (e.g., HTTP, DNS) are automatically instrumented for distributed tracing.
+
+**Trace-Aware Context:** The `RequestContext` is automatically enriched with the active `traceId` and `spanId` from OTel. This links every log entry directly to a specific trace, enabling seamless correlation between logs, traces, and metrics.
+
+**Error-Trace Correlation:** The central `ErrorHandler` automatically records exceptions on the active OTel span and sets its status to `ERROR`. This ensures that every handled error is visible and searchable within the distributed trace, providing a complete picture of the failure.
+
+**Performance Spans:** The `measureToolExecution` utility creates detailed spans for every tool call, capturing critical performance metrics (duration, success status, error codes) as attributes. This provides granular insight into the performance of individual tools.
+
+### 4. Application Lifecycle and Execution Flow
 
 This section outlines the complete operational flow of the application, from initial startup to the execution of a tool's core logic. Understanding this sequence is critical for contextualizing the role of each component.
 
 **A. Server Startup Sequence (Executed Once)**
 
-1.  **Entry Point (`src/index.ts`):** The application is launched. This script performs the first-level setup:
+1.  **Observability Initialization (`src/utils/telemetry/instrumentation.ts`):** The very first import in `src/index.ts` is the OpenTelemetry instrumentation module. This initializes the OTel SDK, sets up exporters, and patches supported libraries for automatic tracing.
+
+2.  **Entry Point (`src/index.ts`):** The application is launched. This script performs the first-level setup:
     - Initializes the `logger` with the configured log level.
     - Calls `initializeAndStartServer()` from `server.ts`.
-    - Establishes global process listeners (`uncaughtException`, `SIGTERM`) to ensure graceful shutdown.
+    - Establishes global process listeners (`uncaughtException`, `SIGTERM`) to ensure graceful shutdown, including the shutdown of the OTel SDK.
 
-2.  **Server Orchestration (`src/mcp-server/server.ts`):** This script orchestrates the creation and configuration of the MCP server itself.
+3.  **Server Orchestration (`src/mcp-server/server.ts`):** This script orchestrates the creation and configuration of the MCP server itself.
     - Creates the core `McpServer` instance from the SDK.
     - **Crucially, it imports and calls the `register...` function from every tool and resource** (e.g., `await registerEchoTool(server)`). This is the single point where all components are attached to the server.
 
-3.  **Tool Registration (`src/mcp-server/tools/toolName/registration.ts`):** During startup, the `registerEchoTool` function is executed.
+4.  **Tool Registration (`src/mcp-server/tools/toolName/registration.ts`):** During startup, the `registerEchoTool` function is executed.
     - It calls `server.registerTool()`, passing the tool's metadata (name, description, schemas) and the **runtime handler function**.
     - The `ErrorHandler.tryCatch` wrapper ensures that any failure during this registration step is caught, preventing a server startup failure. The handler function itself is **not** executed at this time; it is merely registered.
 
 **B. Tool Execution Sequence (Executed for Each Tool Call)**
 
-1.  **Transport Layer:** The server's transport (e.g., HTTP or stdio) receives an incoming tool call request from an MCP client.
+1.  **Transport Layer:** The server's transport (e.g., HTTP or stdio) receives an incoming tool call request from an MCP client. An OTel span is automatically created for the incoming request.
 
 2.  **Server Core:** The `McpServer` instance parses the request, validates it against the registered input schema for the requested tool (e.g., `echo_message`), and invokes the corresponding handler function that was provided during registration.
 
 3.  **Handler Execution (`src/mcp-server/tools/toolName/registration.ts`):** The runtime handler function is now executed.
-    - It creates a new, child `RequestContext` to trace this specific call.
+    - It creates a new, child `RequestContext` which is automatically populated with the `traceId` and `spanId` from the active OTel span.
     - The `try...catch` block begins.
-    - It calls the core logic function (e.g., `echoToolLogic()`), passing the validated parameters and the new context.
+    - It calls the core logic function (e.g., `echoToolLogic()`), which is wrapped by `measureToolExecution` to create a dedicated child span for the tool's execution.
 
-4.  **Logic Execution (`src/mcp-server/tools/toolName/logic.ts`):** The `echoToolLogic` function runs.
+4.  **Logic Execution (`src/mcp-server/tools/toolName/logic.ts`):** The `echoToolLogic` function runs within its own OTel span.
     - It performs its pure business logic.
-    - On success, it returns a structured response object.
+    - On success, it returns a structured response object. The span's status is set to `OK`.
     - On failure, it **throws** a structured `McpError`.
 
 5.  **Response Handling (Back in `registration.ts`):**
     - **Success Path:** The `try` block completes. The result from the logic function is formatted into a final `CallToolResult` object and returned to the server core.
-    - **Error Path:** The `catch` block is triggered. `ErrorHandler.handleError` is called to log the error and format it into a standardized error response, which is then returned to the server core.
+    - **Error Path:** The `catch` block is triggered. `ErrorHandler.handleError` is called. It records the exception on the active span, sets the span's status to `ERROR`, logs the error, and formats a standardized error response, which is then returned to the server core.
 
-6.  **Final Transmission:** The server core sends the formatted success or error response back to the client via the transport layer.
+6.  **Final Transmission:** The server core sends the formatted success or error response back to the client via the transport layer. The initial request span is ended.
 
 ## II. Tool Development Workflow
 
@@ -503,5 +517,3 @@ vi.mock("../logic.js", () => ({ echoToolLogic: vi.fn() }));
 5.  **Security Testing:** Test actual authentication, authorization, and input validation flows.
 
 This integration-first approach ensures that tests catch real-world issues that pure unit tests with heavy mocking would miss, providing confidence that the system works correctly in production scenarios.
-
-````
