@@ -37,7 +37,7 @@
 
     // Node.js specific
     "lib": ["ES2022"],
-    "types": ["node"],
+    "types": ["node", "reflect-metadata"],
 
     // Error on unused locals and parameters
     "noUnusedLocals": true,

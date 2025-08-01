@@ -6,6 +6,7 @@
  * @module src/utils/internal/requestContext
  */
 
+import { trace } from "@opentelemetry/api";
 import { generateUUID } from "../index.js";
 import { logger } from "./logger.js";
 
@@ -115,6 +116,17 @@ const requestContextServiceInstance = {
       timestamp,
       ...additionalContext,
     };
+
+    // --- OpenTelemetry Integration ---
+    // Automatically inject active trace and span IDs into the context for correlation.
+    const activeSpan = trace.getActiveSpan();
+    if (activeSpan) {
+      const spanContext = activeSpan.spanContext();
+      context.traceId = spanContext.traceId;
+      context.spanId = spanContext.spanId;
+    }
+    // --- End OpenTelemetry Integration ---
+
     return context;
   },
 };

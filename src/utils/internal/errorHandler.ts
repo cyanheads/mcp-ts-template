@@ -5,6 +5,7 @@
  * offers static methods for consistent error processing, logging, and transformation.
  * @module src/utils/internal/errorHandler
  */
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 import { generateUUID, sanitizeInputForLogging } from "../index.js";
 import { logger } from "./logger.js";
@@ -314,6 +315,19 @@ export class ErrorHandler {
     error: unknown,
     options: ErrorHandlerOptions,
   ): Error {
+    // --- OpenTelemetry Integration ---
+    const activeSpan = trace.getActiveSpan();
+    if (activeSpan) {
+      if (error instanceof Error) {
+        activeSpan.recordException(error);
+      }
+      activeSpan.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+    // --- End OpenTelemetry Integration ---
+
     const {
       context = {},
       operation,
@@ -360,14 +374,18 @@ export class ErrorHandler {
       loggedErrorCode = error.code;
       finalError = errorMapper
         ? errorMapper(error)
-        : new McpError(error.code, error.message, consolidatedDetails, { cause });
+        : new McpError(error.code, error.message, consolidatedDetails, {
+            cause,
+          });
     } else {
       loggedErrorCode =
         explicitErrorCode || ErrorHandler.determineErrorCode(error);
       const message = `Error in ${operation}: ${originalErrorMessage}`;
       finalError = errorMapper
         ? errorMapper(error)
-        : new McpError(loggedErrorCode, message, consolidatedDetails, { cause });
+        : new McpError(loggedErrorCode, message, consolidatedDetails, {
+            cause,
+          });
     }
 
     if (

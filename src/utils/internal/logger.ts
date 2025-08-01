@@ -453,6 +453,8 @@ export class Logger {
       return; // Do not log if message level is less severe than currentMcpLevel
     }
 
+    // The `@opentelemetry/instrumentation-winston` package automatically injects
+    // the active trace_id and span_id into logs, so manual injection is no longer needed.
     const logData: Record<string, unknown> = { ...context };
     const winstonLevel = mcpToWinstonLevel[level];
 
