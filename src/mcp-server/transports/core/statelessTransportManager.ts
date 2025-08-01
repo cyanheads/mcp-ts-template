@@ -1,9 +1,16 @@
 /**
- * @fileoverview Stateless Transport Manager implementation for MCP SDK.
- * This manager handles single-request operations without maintaining sessions.
- * Each request creates a temporary server instance that is cleaned up immediately.
- * This version is adapted for Hono by bridging the SDK's Node.js-style
- * request handling with Hono's stream-based response model.
+ * @fileoverview Implements a stateless transport manager for the MCP SDK.
+ *
+ * This manager handles single, ephemeral MCP operations. For each incoming request,
+ * it dynamically creates a temporary McpServer and transport instance, processes the
+ * request, and then immediately schedules the resources for cleanup. This approach
+ * is ideal for simple, one-off tool calls that do not require persistent session state.
+ *
+ * The key challenge addressed here is bridging the Node.js-centric MCP SDK with
+ * modern, Web Standards-based frameworks like Hono. This is achieved by deferring
+ * resource cleanup until the response stream has been fully consumed by the web
+ * framework, preventing premature closure and truncated responses.
+ *
  * @module src/mcp-server/transports/core/statelessTransportManager
  */
 
@@ -19,12 +26,25 @@ import {
 } from "../../../utils/index.js";
 import { BaseTransportManager } from "./baseTransportManager.js";
 import { HonoStreamResponse } from "./honoNodeBridge.js";
+import { convertNodeHeadersToWebHeaders } from "./headerUtils.js";
 import { HttpStatusCode, TransportResponse } from "./transportTypes.js";
 
 /**
- * Stateless Transport Manager that handles ephemeral MCP operations.
+ * Manages ephemeral, single-request MCP operations.
  */
 export class StatelessTransportManager extends BaseTransportManager {
+  /**
+   * Handles a single, stateless MCP request.
+   *
+   * This method orchestrates the creation of temporary server and transport instances,
+   * handles the request, and ensures resources are cleaned up only after the
+   * response stream is closed.
+   *
+   * @param headers - The incoming request headers.
+   * @param body - The parsed body of the request.
+   * @param context - The request context for logging and tracing.
+   * @returns A promise resolving to a streaming TransportResponse.
+   */
   async handleRequest(
     headers: IncomingHttpHeaders,
     body: unknown,
@@ -43,6 +63,7 @@ export class StatelessTransportManager extends BaseTransportManager {
     let transport: StreamableHTTPServerTransport | undefined;
 
     try {
+      // 1. Create ephemeral instances for this request.
       server = await this.createServerInstanceFn();
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
@@ -52,58 +73,89 @@ export class StatelessTransportManager extends BaseTransportManager {
       await server.connect(transport);
       logger.debug("Ephemeral server connected to transport.", opContext);
 
+      // 2. Set up the Node.js-to-Web stream bridge.
       const mockReq = {
         headers,
         method: "POST",
       } as import("http").IncomingMessage;
-      const mockRes = new HonoStreamResponse() as unknown as ServerResponse;
+      const mockResBridge = new HonoStreamResponse();
 
+      // 3. Defer cleanup until the stream is fully processed.
+      // This is the critical fix to prevent premature resource release.
+      this.setupDeferredCleanup(mockResBridge, server, transport, opContext);
+
+      // 4. Process the request using the MCP transport.
+      const mockRes = mockResBridge as unknown as ServerResponse;
       await transport.handleRequest(mockReq, mockRes, body);
 
       logger.info("Stateless request handled successfully.", opContext);
 
-      const responseHeaders = new Headers();
-      for (const [key, value] of Object.entries(mockRes.getHeaders())) {
-        responseHeaders.set(
-          key,
-          Array.isArray(value) ? value.join(", ") : String(value),
-        );
-      }
-
-      // Bridge the Node.js stream (PassThrough) to a Web Stream (ReadableStream)
+      // 5. Convert headers and create the final streaming response.
+      const responseHeaders = convertNodeHeadersToWebHeaders(
+        mockRes.getHeaders(),
+      );
       const webStream = Readable.toWeb(
-        mockRes as unknown as HonoStreamResponse,
+        mockResBridge,
       ) as ReadableStream<Uint8Array>;
 
       return {
+        type: "stream",
         headers: responseHeaders,
         statusCode: mockRes.statusCode as HttpStatusCode,
         stream: webStream,
       };
     } catch (error) {
+      // If an error occurs before the stream is returned, we must clean up immediately.
+      if (server || transport) {
+        this.cleanup(server, transport, opContext);
+      }
       throw ErrorHandler.handleError(error, {
         operation: "StatelessTransportManager.handleRequest",
         context: opContext,
         rethrow: true,
       });
-    } finally {
-      if (server || transport) {
-        this.cleanup(server, transport, opContext);
-      }
     }
   }
 
-  async shutdown(): Promise<void> {
-    const context = requestContextService.createRequestContext({
-      operation: "StatelessTransportManager.shutdown",
-    });
-    logger.info(
-      "Stateless transport manager shutdown - no persistent resources to clean up.",
-      context,
-    );
-    return Promise.resolve();
+  /**
+   * Attaches listeners to the response stream to trigger resource cleanup
+   * only after the stream has been fully consumed or has errored.
+   *
+   * @param stream - The response stream bridge.
+   * @param server - The ephemeral McpServer instance.
+   * @param transport - The ephemeral transport instance.
+   * @param context - The request context for logging.
+   */
+  private setupDeferredCleanup(
+    stream: HonoStreamResponse,
+    server: McpServer,
+    transport: StreamableHTTPServerTransport,
+    context: RequestContext,
+  ): void {
+    let cleanedUp = false;
+    const cleanupFn = (error?: Error) => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+
+      if (error) {
+        logger.warning("Stream ended with an error, proceeding to cleanup.", {
+          ...context,
+          error: error.message,
+        });
+      }
+      // Cleanup is fire-and-forget.
+      this.cleanup(server, transport, context);
+    };
+
+    // 'close' is the most reliable event, firing on both normal completion and abrupt termination.
+    stream.on("close", () => cleanupFn());
+    stream.on("error", (err) => cleanupFn(err));
   }
 
+  /**
+   * Performs the actual cleanup of ephemeral resources.
+   * This method is designed to be "fire-and-forget".
+   */
   private cleanup(
     server: McpServer | undefined,
     transport: StreamableHTTPServerTransport | undefined,
@@ -128,5 +180,20 @@ export class StatelessTransportManager extends BaseTransportManager {
               : String(cleanupError),
         });
       });
+  }
+
+  /**
+   * Shuts down the manager. For the stateless manager, this is a no-op
+   * as there are no persistent resources to manage.
+   */
+  async shutdown(): Promise<void> {
+    const context = requestContextService.createRequestContext({
+      operation: "StatelessTransportManager.shutdown",
+    });
+    logger.info(
+      "Stateless transport manager shutdown - no persistent resources to clean up.",
+      context,
+    );
+    return Promise.resolve();
   }
 }

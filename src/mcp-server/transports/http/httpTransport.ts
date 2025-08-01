@@ -292,36 +292,40 @@ export function createHttpApp(
     });
   });
 
-  app.get(MCP_ENDPOINT_PATH, async (c: Context<{ Bindings: HonoNodeBindings }>) => {
-    const sessionId = c.req.header("mcp-session-id");
-    if (sessionId) {
-      return c.text(
-        "GET requests to existing sessions are not supported.",
-        405,
-      );
-    }
+  app.get(
+    MCP_ENDPOINT_PATH,
+    async (c: Context<{ Bindings: HonoNodeBindings }>) => {
+      const sessionId = c.req.header("mcp-session-id");
+      if (sessionId) {
+        return c.text(
+          "GET requests to existing sessions are not supported.",
+          405,
+        );
+      }
 
-    // Since this is a stateless endpoint, we create a temporary instance
-    // to report on the server's configuration.
-    const serverInstance = await createServerInstanceFn();
+      // Since this is a stateless endpoint, we create a temporary instance
+      // to report on the server's configuration.
+      const serverInstance = await createServerInstanceFn();
 
-    return c.json({
-      status: "ok",
-      server: {
-        name: serverInstance.name,
-        version: serverInstance.version,
-        description:
-          (config.pkg as { description?: string })?.description ||
-          "No description provided.",
-        nodeVersion: process.version,
-        environment: config.environment,
-        capabilities: serverInstance.capabilities,
-      },
-      sessionMode: config.mcpSessionMode,
-      tools: serverInstance.getTools(),
-      message: "Server is running. POST to this endpoint to execute a tool call.",
-    });
-  });
+      return c.json({
+        status: "ok",
+        server: {
+          name: serverInstance.name,
+          version: serverInstance.version,
+          description:
+            (config.pkg as { description?: string })?.description ||
+            "No description provided.",
+          nodeVersion: process.version,
+          environment: config.environment,
+          capabilities: serverInstance.capabilities,
+        },
+        sessionMode: config.mcpSessionMode,
+        tools: serverInstance.getTools(),
+        message:
+          "Server is running. POST to this endpoint to execute a tool call.",
+      });
+    },
+  );
 
   app.post(
     MCP_ENDPOINT_PATH,
