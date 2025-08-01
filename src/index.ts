@@ -100,10 +100,6 @@ const start = async (): Promise<void> => {
   }
 
   await logger.initialize(validatedMcpLogLevel);
-  logger.info(
-    `Logger initialized. Effective MCP logging level: ${validatedMcpLogLevel}.`,
-    requestContextService.createRequestContext({ operation: "LoggerInit" }),
-  );
 
   const transportType = config.mcpTransportType;
   const startupContext = requestContextService.createRequestContext({
