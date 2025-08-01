@@ -55,20 +55,24 @@ try {
  */
 const loadPackageJson = (): { name: string; version: string } => {
   const pkgPath = join(projectRoot, "package.json");
-  // Fallback version is set to 1.0.0 as a recognizable default, distinct
-  // from an uninitialized or error state.
   const fallback = { name: "mcp-ts-template", version: "1.0.0" };
 
-  try {
-    if (existsSync(pkgPath)) {
-      const fileContents = readFileSync(pkgPath, "utf-8");
-      const parsed = JSON.parse(fileContents);
-      // Ensure name and version are strings, otherwise use fallback
-      return {
-        name: typeof parsed.name === 'string' ? parsed.name : fallback.name,
-        version: typeof parsed.version === 'string' ? parsed.version : fallback.version,
-      };
+  if (!existsSync(pkgPath)) {
+    if (process.stdout.isTTY) {
+      console.warn(
+        `Warning: package.json not found at ${pkgPath}. Using fallback values. This is expected in some environments (e.g., Docker) but may indicate an issue with project root detection.`,
+      );
     }
+    return fallback;
+  }
+
+  try {
+    const fileContents = readFileSync(pkgPath, "utf-8");
+    const parsed = JSON.parse(fileContents);
+    return {
+      name: typeof parsed.name === "string" ? parsed.name : fallback.name,
+      version: typeof parsed.version === "string" ? parsed.version : fallback.version,
+    };
   } catch (error) {
     if (process.stdout.isTTY) {
       console.error(
@@ -76,8 +80,8 @@ const loadPackageJson = (): { name: string; version: string } => {
         error,
       );
     }
+    return fallback;
   }
-  return fallback;
 };
 
 const pkg = loadPackageJson();
