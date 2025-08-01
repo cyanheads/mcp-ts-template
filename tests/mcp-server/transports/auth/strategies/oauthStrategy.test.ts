@@ -144,7 +144,6 @@ describe("OauthStrategy", () => {
       );
     });
 
-
     it("should throw UNAUTHORIZED McpError if jose.jwtVerify throws JWTExpired", async () => {
       const error = new Error("Token has expired.");
       error.name = "JWTExpired";

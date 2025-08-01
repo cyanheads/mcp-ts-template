@@ -3,13 +3,13 @@
  * Tests the complete flow from registration through to tool execution without heavy mocking.
  * @module tests/mcp-server/tools/echoTool/registration.test
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerEchoTool } from "../../../../src/mcp-server/tools/echoTool/registration.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   EchoToolInputSchema,
   type EchoToolInput,
 } from "../../../../src/mcp-server/tools/echoTool/logic.js";
+import { registerEchoTool } from "../../../../src/mcp-server/tools/echoTool/registration.js";
 import * as utilsModule from "../../../../src/utils/index.js";
 
 // Mock only external utilities that would interfere with testing
@@ -110,7 +110,7 @@ describe("Echo Tool Integration Tests", () => {
       expect(inputSchema.message).toBeDefined();
       expect(inputSchema.mode).toBeDefined();
       expect(inputSchema.repeat).toBeDefined();
-      expect(inputSchema.timestamp).toBeDefined();
+      expect(inputSchema.includeTimestamp).toBeDefined();
     });
   });
 
@@ -124,7 +124,7 @@ describe("Echo Tool Integration Tests", () => {
         message: "Hello Integration Test",
         mode: "standard",
         repeat: 1,
-        timestamp: true,
+        includeTimestamp: true,
       };
 
       const result = await toolData.handler(input);
@@ -154,7 +154,7 @@ describe("Echo Tool Integration Tests", () => {
         message: "test message",
         mode: "uppercase",
         repeat: 1,
-        timestamp: true,
+        includeTimestamp: true,
       });
 
       expect(uppercaseResult.isError).toBeFalsy();
@@ -167,7 +167,7 @@ describe("Echo Tool Integration Tests", () => {
         message: "TEST MESSAGE",
         mode: "lowercase",
         repeat: 1,
-        timestamp: true,
+        includeTimestamp: true,
       });
 
       expect(lowercaseResult.isError).toBeFalsy();
@@ -185,7 +185,7 @@ describe("Echo Tool Integration Tests", () => {
         message: "repeat test",
         mode: "standard",
         repeat: 3,
-        timestamp: true,
+        includeTimestamp: true,
       });
 
       expect(result.isError).toBeFalsy();
@@ -203,12 +203,14 @@ describe("Echo Tool Integration Tests", () => {
         message: "fail", // This triggers an error in the real logic
         mode: "standard",
         repeat: 1,
-        timestamp: true,
+        includeTimestamp: true,
       });
 
       // Verify error is handled properly by registration layer
       expect(result.isError).toBe(true);
-      expect(result.content[0].text).toContain("The message was 'fail'");
+      expect(result.content[0].text).toContain(
+        "Deliberate failure triggered: the message was 'fail'.",
+      );
       expect(result.structuredContent).toHaveProperty("code");
       expect(result.structuredContent).toHaveProperty("message");
     });
@@ -224,7 +226,7 @@ describe("Echo Tool Integration Tests", () => {
           message: "", // Empty message should fail validation
           mode: "standard",
           repeat: 1,
-          timestamp: true,
+          includeTimestamp: true,
         });
         // If we get here, validation didn't work
         expect.fail("Expected validation error for empty message");
@@ -249,7 +251,7 @@ describe("Echo Tool Integration Tests", () => {
           message: longMessage,
           mode: "standard",
           repeat: 1,
-          timestamp: true,
+          includeTimestamp: true,
         });
         expect.fail("Expected validation error for message too long");
       } catch (error) {
@@ -266,7 +268,7 @@ describe("Echo Tool Integration Tests", () => {
         message: "fail",
         mode: "standard",
         repeat: 1,
-        timestamp: true,
+        includeTimestamp: true,
       });
 
       expect(result.isError).toBe(true);
@@ -289,7 +291,7 @@ describe("Echo Tool Integration Tests", () => {
           message: `concurrent message ${i}`,
           mode: "standard",
           repeat: 1,
-          timestamp: true,
+          includeTimestamp: true,
         }),
       );
 
@@ -313,7 +315,7 @@ describe("Echo Tool Integration Tests", () => {
         message: "timestamp test 1",
         mode: "standard",
         repeat: 1,
-        timestamp: true,
+        includeTimestamp: true,
       });
 
       // Small delay to ensure different timestamps
@@ -323,7 +325,7 @@ describe("Echo Tool Integration Tests", () => {
         message: "timestamp test 2",
         mode: "standard",
         repeat: 1,
-        timestamp: true,
+        includeTimestamp: true,
       });
 
       expect(result1.structuredContent.timestamp).not.toBe(

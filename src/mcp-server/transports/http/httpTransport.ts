@@ -6,7 +6,6 @@
  */
 
 import { serve, ServerType } from "@hono/node-server";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Context, Hono, Next } from "hono";
 import { cors } from "hono/cors";
 import { stream } from "hono/streaming";
@@ -18,10 +17,11 @@ import {
   RequestContext,
   requestContextService,
 } from "../../../utils/index.js";
+import { ManagedMcpServer } from "../../core/managedMcpServer.js";
 import { createAuthMiddleware, createAuthStrategy } from "../auth/index.js";
-import { StatefulTransportManager } from "../core/statefulTransportManager.js";
 import { StatelessTransportManager } from "../core/statelessTransportManager.js";
 import { TransportManager } from "../core/transportTypes.js";
+import { StatefulTransportManager } from "./../core/statefulTransportManager.js";
 import { httpErrorHandler } from "./httpErrorHandler.js";
 import { HonoNodeBindings } from "./httpTypes.js";
 import { mcpTransportMiddleware } from "./mcpTransportMiddleware.js";
@@ -181,7 +181,7 @@ function startHttpServerWithRetry(
 }
 
 function createTransportManager(
-  createServerInstanceFn: () => Promise<McpServer>,
+  createServerInstanceFn: () => Promise<ManagedMcpServer>,
   sessionMode: string,
   context: RequestContext,
 ): TransportManager {
@@ -211,7 +211,7 @@ function createTransportManager(
 
 export function createHttpApp(
   transportManager: TransportManager,
-  createServerInstanceFn: () => Promise<McpServer>,
+  createServerInstanceFn: () => Promise<ManagedMcpServer>,
   parentContext: RequestContext,
 ): Hono<{ Bindings: HonoNodeBindings }> {
   const app = new Hono<{ Bindings: HonoNodeBindings }>();
@@ -292,7 +292,7 @@ export function createHttpApp(
     });
   });
 
-  app.get(MCP_ENDPOINT_PATH, (c: Context<{ Bindings: HonoNodeBindings }>) => {
+  app.get(MCP_ENDPOINT_PATH, async (c: Context<{ Bindings: HonoNodeBindings }>) => {
     const sessionId = c.req.header("mcp-session-id");
     if (sessionId) {
       return c.text(
@@ -300,11 +300,26 @@ export function createHttpApp(
         405,
       );
     }
+
+    // Since this is a stateless endpoint, we create a temporary instance
+    // to report on the server's configuration.
+    const serverInstance = await createServerInstanceFn();
+
     return c.json({
       status: "ok",
-      mode: "stateless",
-      message:
-        "Server is running. Provide a Mcp-Session-Id header to stream from a session.",
+      server: {
+        name: serverInstance.name,
+        version: serverInstance.version,
+        description:
+          (config.pkg as { description?: string })?.description ||
+          "No description provided.",
+        nodeVersion: process.version,
+        environment: config.environment,
+        capabilities: serverInstance.capabilities,
+      },
+      sessionMode: config.mcpSessionMode,
+      tools: serverInstance.getTools(),
+      message: "Server is running. POST to this endpoint to execute a tool call.",
     });
   });
 
@@ -388,7 +403,7 @@ export function createHttpApp(
 }
 
 export async function startHttpTransport(
-  createServerInstanceFn: () => Promise<McpServer>,
+  createServerInstanceFn: () => Promise<ManagedMcpServer>,
   parentContext: RequestContext,
 ): Promise<{
   app: Hono<{ Bindings: HonoNodeBindings }>;

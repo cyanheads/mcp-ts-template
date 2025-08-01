@@ -86,8 +86,9 @@ export class McpError extends Error {
     code: BaseErrorCode,
     message: string,
     details?: Record<string, unknown>,
+    options?: { cause?: unknown },
   ) {
-    super(message);
+    super(message, options);
 
     this.code = code;
     this.details = details;

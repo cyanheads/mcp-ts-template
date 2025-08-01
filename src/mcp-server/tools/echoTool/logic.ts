@@ -1,8 +1,9 @@
 /**
  * @fileoverview Defines the core logic, schemas, and types for the `echo_message` tool.
- * This module includes input validation using Zod, type definitions for input and output,
- * and the main processing function that handles message formatting and repetition.
+ * This module is the single source of truth for the tool's data contracts (Zod schemas)
+ * and its pure business logic.
  * @module src/mcp-server/tools/echoTool/logic
+ * @see {@link src/mcp-server/tools/echoTool/registration.ts} for the handler and registration logic.
  */
 
 import { z } from "zod";
@@ -15,8 +16,14 @@ import { logger, type RequestContext } from "../../../utils/index.js";
 export const ECHO_MODES = ["standard", "uppercase", "lowercase"] as const;
 
 /**
+ * A constant for the magic string used to trigger a test error.
+ * This improves maintainability by avoiding hardcoded strings.
+ */
+const TEST_ERROR_TRIGGER_MESSAGE = "fail";
+
+/**
  * Zod schema defining the input parameters for the `echo_message` tool.
- * This schema is used by the MCP SDK to validate the arguments provided when the tool is called.
+ * CRITICAL: The descriptions are sent to the LLM and must be clear.
  */
 export const EchoToolInputSchema = z.object({
   message: z
@@ -24,26 +31,24 @@ export const EchoToolInputSchema = z.object({
     .min(1, "Message cannot be empty.")
     .max(1000, "Message cannot exceed 1000 characters.")
     .describe(
-      "The message to echo back. It must be between 1 and 1000 characters long.",
+      `The message to echo back. To trigger a test error, provide the exact message '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
     ),
   mode: z
     .enum(ECHO_MODES)
     .optional()
     .default("standard")
     .describe(
-      "Specifies how the message should be formatted. Options: 'standard' (as-is), 'uppercase', 'lowercase'. Defaults to 'standard'.",
+      "Specifies how the message should be formatted. Defaults to 'standard'.",
     ),
   repeat: z
     .number()
-    .int("Repeat count must be an integer.")
-    .min(1, "Repeat count must be at least 1.")
-    .max(10, "Repeat count cannot exceed 10.")
+    .int()
+    .min(1)
+    .max(10)
     .optional()
     .default(1)
-    .describe(
-      "The number of times the formatted message should be repeated. Must be an integer between 1 and 10. Defaults to 1.",
-    ),
-  timestamp: z
+    .describe("The number of times to repeat the message. Defaults to 1."),
+  includeTimestamp: z
     .boolean()
     .optional()
     .default(true)
@@ -51,12 +56,6 @@ export const EchoToolInputSchema = z.object({
       "Whether to include an ISO 8601 timestamp in the response. Defaults to true.",
     ),
 });
-
-/**
- * TypeScript type inferred from `EchoToolInputSchema`.
- * Represents the validated input parameters for the echo tool.
- */
-export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;
 
 /**
  * Zod schema for the successful response of the `echo_message` tool.
@@ -70,9 +69,7 @@ export const EchoToolResponseSchema = z.object({
     .describe("The message after applying the specified formatting mode."),
   repeatedMessage: z
     .string()
-    .describe(
-      "The formatted message repeated the specified number of times, joined by spaces.",
-    ),
+    .describe("The formatted message repeated the specified number of times."),
   mode: z.enum(ECHO_MODES).describe("The formatting mode that was applied."),
   repeatCount: z
     .number()
@@ -88,33 +85,34 @@ export const EchoToolResponseSchema = z.object({
     ),
 });
 
-/**
- * Defines the structure of the JSON payload returned by the `echo_message` tool.
- */
+// Inferred TypeScript types
+export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;
 export type EchoToolResponse = z.infer<typeof EchoToolResponseSchema>;
 
 /**
  * Processes the core logic for the `echo_message` tool.
- * It takes validated input parameters, formats the message according to the specified mode,
- * repeats it as requested, and optionally adds a timestamp to the response.
+ * This function is pure; it processes inputs and returns a result or throws an error.
  *
- * @param params - The validated input parameters for the echo tool.
- * @param context - The request context, used for logging and tracing the operation.
- * @returns A promise that resolves with an object containing the processed response data.
+ * @param params - The validated input parameters.
+ * @param context - The request context for logging and tracing.
+ * @returns A promise resolving with the structured response data.
+ * @throws {McpError} If the logic encounters an unrecoverable issue.
  */
 export async function echoToolLogic(
   params: EchoToolInput,
   context: RequestContext,
 ): Promise<EchoToolResponse> {
-  logger.debug("Processing echo message logic with input parameters.", {
+  logger.debug("Processing echo message logic.", {
     ...context,
     toolInput: params,
   });
 
-  if (params.message === "fail") {
+  // The logic layer MUST throw a structured error on failure.
+  if (params.message === TEST_ERROR_TRIGGER_MESSAGE) {
     throw new McpError(
       BaseErrorCode.VALIDATION_ERROR,
-      "The message was 'fail'.",
+      `Deliberate failure triggered: the message was '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
+      { toolName: "echo_message" },
     );
   }
 
@@ -138,14 +136,14 @@ export async function echoToolLogic(
     repeatCount: params.repeat,
   };
 
-  if (params.timestamp) {
+  if (params.includeTimestamp) {
     response.timestamp = new Date().toISOString();
   }
 
   logger.debug("Echo message processed successfully.", {
     ...context,
     responseSummary: {
-      repeatedMessageLength: response.repeatedMessage.length,
+      messageLength: response.repeatedMessage.length,
       timestampGenerated: !!response.timestamp,
     },
   });

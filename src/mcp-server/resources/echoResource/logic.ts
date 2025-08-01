@@ -1,8 +1,7 @@
 /**
  * @fileoverview Defines the core logic, schemas, and types for the `echo` resource.
- * This module includes a Zod schema for query parameter validation, type definitions,
- * and the main processing function that constructs the resource response.
- * @module src/mcp-server/resources/echoResource/echoResourceLogic
+ * @module src/mcp-server/resources/echoResource/logic
+ * @see {@link src/mcp-server/resources/echoResource/registration.ts} for the handler and registration logic.
  */
 
 import { z } from "zod";

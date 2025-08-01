@@ -2,6 +2,7 @@
  * @fileoverview Defines the core logic, schemas, and types for the `get_random_cat_fact` tool.
  * This tool fetches a random cat fact from the public Cat Fact Ninja API.
  * @module src/mcp-server/tools/catFactFetcher/logic
+ * @see {@link src/mcp-server/tools/catFactFetcher/registration.ts} for the handler and registration logic.
  */
 
 import { z } from "zod";
@@ -24,20 +25,16 @@ const CatFactApiSchema = z.object({
 /**
  * Zod schema for validating input arguments for the `get_random_cat_fact` tool.
  */
-export const CatFactFetcherInputSchema = z
-  .object({
-    maxLength: z
-      .number()
-      .int("Max length must be an integer.")
-      .min(1, "Max length must be at least 1.")
-      .optional()
-      .describe(
-        "Optional: The maximum character length of the cat fact to retrieve.",
-      ),
-  })
-  .describe(
-    "Input schema for the get_random_cat_fact tool. Allows specifying a maximum length for the fact.",
-  );
+export const CatFactFetcherInputSchema = z.object({
+  maxLength: z
+    .number()
+    .int("Max length must be an integer.")
+    .min(1, "Max length must be at least 1.")
+    .optional()
+    .describe(
+      "Optional: The maximum character length of the cat fact to retrieve.",
+    ),
+});
 
 /**
  * TypeScript type inferred from `CatFactFetcherInputSchema`.

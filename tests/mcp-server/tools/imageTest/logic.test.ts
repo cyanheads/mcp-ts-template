@@ -2,10 +2,10 @@
  * @fileoverview Tests for the fetch_image_test tool's core logic using real APIs.
  * @module tests/mcp-server/tools/imageTest/logic.test
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fetchImageTestLogic } from "../../../../src/mcp-server/tools/imageTest/logic";
+import { BaseErrorCode, McpError } from "../../../../src/types-global/errors";
 import { requestContextService } from "../../../../src/utils";
-import { McpError, BaseErrorCode } from "../../../../src/types-global/errors";
 
 describe("fetchImageTestLogic", () => {
   const parentRequestContext = requestContextService.createRequestContext({

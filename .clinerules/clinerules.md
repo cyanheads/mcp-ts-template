@@ -1,7 +1,7 @@
 # mcp-ts-template: Architectural Standard & Developer Mandate
 
-**Effective Date:** 2025-07-15
-**Version:** 2.1
+**Effective Date:** 2025-07-31
+**Version:** 2.2
 
 ## Preamble
 
@@ -27,6 +27,47 @@ Every operation must be fully traceable from initiation to completion via struct
 
 **Logger:** All logging shall be performed through the centralized logger singleton. Every log entry must include the RequestContext to ensure traceability.
 
+### 3. Application Lifecycle and Execution Flow
+
+This section outlines the complete operational flow of the application, from initial startup to the execution of a tool's core logic. Understanding this sequence is critical for contextualizing the role of each component.
+
+**A. Server Startup Sequence (Executed Once)**
+
+1.  **Entry Point (`src/index.ts`):** The application is launched. This script performs the first-level setup:
+    - Initializes the `logger` with the configured log level.
+    - Calls `initializeAndStartServer()` from `server.ts`.
+    - Establishes global process listeners (`uncaughtException`, `SIGTERM`) to ensure graceful shutdown.
+
+2.  **Server Orchestration (`src/mcp-server/server.ts`):** This script orchestrates the creation and configuration of the MCP server itself.
+    - Creates the core `McpServer` instance from the SDK.
+    - **Crucially, it imports and calls the `register...` function from every tool and resource** (e.g., `await registerEchoTool(server)`). This is the single point where all components are attached to the server.
+
+3.  **Tool Registration (`src/mcp-server/tools/toolName/registration.ts`):** During startup, the `registerEchoTool` function is executed.
+    - It calls `server.registerTool()`, passing the tool's metadata (name, description, schemas) and the **runtime handler function**.
+    - The `ErrorHandler.tryCatch` wrapper ensures that any failure during this registration step is caught, preventing a server startup failure. The handler function itself is **not** executed at this time; it is merely registered.
+
+**B. Tool Execution Sequence (Executed for Each Tool Call)**
+
+1.  **Transport Layer:** The server's transport (e.g., HTTP or stdio) receives an incoming tool call request from an MCP client.
+
+2.  **Server Core:** The `McpServer` instance parses the request, validates it against the registered input schema for the requested tool (e.g., `echo_message`), and invokes the corresponding handler function that was provided during registration.
+
+3.  **Handler Execution (`src/mcp-server/tools/toolName/registration.ts`):** The runtime handler function is now executed.
+    - It creates a new, child `RequestContext` to trace this specific call.
+    - The `try...catch` block begins.
+    - It calls the core logic function (e.g., `echoToolLogic()`), passing the validated parameters and the new context.
+
+4.  **Logic Execution (`src/mcp-server/tools/toolName/logic.ts`):** The `echoToolLogic` function runs.
+    - It performs its pure business logic.
+    - On success, it returns a structured response object.
+    - On failure, it **throws** a structured `McpError`.
+
+5.  **Response Handling (Back in `registration.ts`):**
+    - **Success Path:** The `try` block completes. The result from the logic function is formatted into a final `CallToolResult` object and returned to the server core.
+    - **Error Path:** The `catch` block is triggered. `ErrorHandler.handleError` is called to log the error and format it into a standardized error response, which is then returned to the server core.
+
+6.  **Final Transmission:** The server core sends the formatted success or error response back to the client via the transport layer.
+
 ## II. Tool Development Workflow
 
 This section mandates the workflow for creating and modifying all tools. Deviation is not permitted.
@@ -45,48 +86,92 @@ Each tool shall reside in a dedicated directory within src/mcp-server/tools/. Th
 The echoTool is the authoritative implementation and shall be used as the template for all new tool development.
 
 **Step 1: Define Schema and Logic (logic.ts)**
-The logic.ts file defines the tool's contract (schemas) and its core function. It remains pure and throws errors when its contract cannot be fulfilled.
+The `logic.ts` file defines the tool's contract (schemas) and its core function. It remains pure and throws errors when its contract cannot be fulfilled. The JSDoc header includes a `@see` link for easy navigation to the corresponding handler file.
 
 ```typescript
 /**
  * @fileoverview Defines the core logic, schemas, and types for the `echo_message` tool.
+ * This module is the single source of truth for the tool's data contracts (Zod schemas)
+ * and its pure business logic.
  * @module src/mcp-server/tools/echoTool/logic
+ * @see {@link src/mcp-server/tools/echoTool/registration.ts} for the handler and registration logic.
  */
-import { z } from "zod";
-import { logger, type RequestContext } from "../../../utils/index.js";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 
-// 1. DEFINE the Zod input schema. This is the contract for the tool's input.
-// CRITICAL: The descriptions provided via .describe() for the object and each field
-// are sent directly to the LLM. They must be clear, concise, and contain all
-// necessary context, requirements, and formatting expectations for the model
-// to effectively use this tool.
+import { z } from "zod";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { logger, type RequestContext } from "../../../utils/index.js";
+
+// Defines the valid formatting modes for the echo tool operation.
+export const ECHO_MODES = ["standard", "uppercase", "lowercase"] as const;
+
+// Zod schema defining the input parameters for the `echo_message` tool.
+// CRITICAL: The descriptions are sent to the LLM and must be clear.
 export const EchoToolInputSchema = z.object({
   message: z
     .string()
     .min(1, "Message cannot be empty.")
     .max(1000, "Message cannot exceed 1000 characters.")
     .describe(
-      "The message to echo back. Clearly state any expectations for the LLM here.",
+      "The message to echo back. To trigger a test error, provide the exact message 'fail'.",
+    ),
+  mode: z
+    .enum(ECHO_MODES)
+    .optional()
+    .default("standard")
+    .describe(
+      "Specifies how the message should be formatted. Defaults to 'standard'.",
+    ),
+  repeat: z
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .optional()
+    .default(1)
+    .describe("The number of times to repeat the message. Defaults to 1."),
+  includeTimestamp: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe(
+      "Whether to include an ISO 8601 timestamp in the response. Defaults to true.",
     ),
 });
 
-// 2. DEFINE and export the Zod response schema for structured output.
+// Zod schema for the successful response of the `echo_message` tool.
 export const EchoToolResponseSchema = z.object({
-  originalMessage: z.string().describe("The original message provided."),
+  originalMessage: z
+    .string()
+    .describe("The original message provided in the input."),
+  formattedMessage: z
+    .string()
+    .describe("The message after applying the specified formatting mode."),
+  repeatedMessage: z
+    .string()
+    .describe("The formatted message repeated the specified number of times."),
+  mode: z.enum(ECHO_MODES).describe("The formatting mode that was applied."),
+  repeatCount: z
+    .number()
+    .int()
+    .min(1)
+    .describe("The number of times the message was repeated."),
   timestamp: z
     .string()
     .datetime()
-    .describe("The ISO 8601 timestamp of the operation."),
+    .optional()
+    .describe(
+      "Optional ISO 8601 timestamp of when the response was generated.",
+    ),
 });
 
-// 3. INFER and export TypeScript types from Zod schemas.
+// Inferred TypeScript types
 export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;
 export type EchoToolResponse = z.infer<typeof EchoToolResponseSchema>;
 
 /**
- * 4. IMPLEMENT and export the core logic function.
- * This function MUST remain pure; its only concerns are its inputs and its return value or thrown error.
+ * Processes the core logic for the `echo_message` tool.
+ * This function is pure; it processes inputs and returns a result or throws an error.
+ *
  * @param params - The validated input parameters.
  * @param context - The request context for logging and tracing.
  * @returns A promise resolving with the structured response data.
@@ -96,42 +181,77 @@ export async function echoToolLogic(
   params: EchoToolInput,
   context: RequestContext,
 ): Promise<EchoToolResponse> {
-  logger.debug("Executing echoToolLogic...", { ...context });
+  logger.debug("Processing echo message logic.", {
+    ...context,
+    toolInput: params,
+  });
 
-  // Example of a logic failure.
+  // The logic layer MUST throw a structured error on failure.
   if (params.message === "fail") {
-    // CRITICAL: Logic layer MUST throw a structured error on failure.
     throw new McpError(
       BaseErrorCode.VALIDATION_ERROR,
-      "The message was 'fail'.",
+      "Deliberate failure triggered: the message was 'fail'.",
+      { toolName: "echo_message" },
     );
   }
 
-  // On success, RETURN a structured output object adhering to the response schema.
-  return {
+  let formattedMessage = params.message;
+  switch (params.mode) {
+    case "uppercase":
+      formattedMessage = params.message.toUpperCase();
+      break;
+    case "lowercase":
+      formattedMessage = params.message.toLowerCase();
+      break;
+  }
+
+  const repeatedMessage = Array(params.repeat).fill(formattedMessage).join(" ");
+
+  const response: EchoToolResponse = {
     originalMessage: params.message,
-    timestamp: new Date().toISOString(),
+    formattedMessage,
+    repeatedMessage,
+    mode: params.mode,
+    repeatCount: params.repeat,
   };
+
+  if (params.includeTimestamp) {
+    response.timestamp = new Date().toISOString();
+  }
+
+  logger.debug("Echo message processed successfully.", {
+    ...context,
+    responseSummary: {
+      messageLength: response.repeatedMessage.length,
+      timestampGenerated: !!response.timestamp,
+    },
+  });
+
+  return response;
 }
 ```
 
 ````
 
 **Step 2: Register the Tool and Handle All Outcomes (registration.ts)**
-The registration.ts file acts as the handler, connecting the pure logic to the MCP server and managing all possible outcomes (success or failure).
+The `registration.ts` file acts as the handler. It connects the logic to the MCP server, wraps the registration in a top-level error handler, and wraps each tool invocation in another error handler. This ensures maximum stability.
 
 ```typescript
 /**
  * @fileoverview Handles registration and error handling for the `echo_message` tool.
+ * This module acts as the "handler" layer, connecting the pure business logic to the
+ * MCP server and ensuring all outcomes (success or failure) are handled gracefully.
  * @module src/mcp-server/tools/echoTool/registration
+ * @see {@link src/mcp-server/tools/echoTool/logic.ts} for the core business logic and schemas.
  */
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
-  requestContextService,
+  requestContextService
 } from "../../../utils/index.js";
-// 1. IMPORT all necessary components from the logic file.
 import {
   EchoToolInput,
   EchoToolInputSchema,
@@ -139,67 +259,96 @@ import {
   EchoToolResponseSchema,
 } from "./logic.js";
 
+// The unique name for the tool, used for registration and identification.
+const TOOL_NAME = "echo_message";
+
+// A concise description for the LLM. More detailed guidance should be in the
+// parameter descriptions within the Zod schema in `logic.ts`.
+const TOOL_DESCRIPTION = `Echoes a message back with optional formatting and repetition.`;
+
 /**
- * Registers the 'echo_message' tool with the MCP server instance.
- * @param server - The MCP server instance.
+ * Registers the 'echo_message' tool and its handler with the provided MCP server instance.
+ * This function uses ErrorHandler.tryCatch to ensure that any failure during the
+ * registration process itself is caught and logged, preventing server startup failures.
+ *
+ * @param server - The MCP server instance to register the tool with.
  */
 export const registerEchoTool = async (server: McpServer): Promise<void> => {
-  const toolName = "echo_message";
+  const registrationContext = requestContextService.createRequestContext({
+    operation: "RegisterTool",
+    toolName: TOOL_NAME,
+  });
 
-  server.registerTool(
-    toolName,
-    {
-      // CRITICAL: The title and description are sent to the LLM.
-      // They must clearly and concisely explain the tool's purpose to the model.
-      title: "Echo Message",
-      description:
-        "Echoes a message back with a timestamp. Use this to send a simple reply.",
-      inputSchema: EchoToolInputSchema.shape,
-      outputSchema: EchoToolResponseSchema.shape, // MANDATORY: Use the structured output schema.
-      annotations: { readOnlyHint: true, openWorldHint: false },
-    },
-    async (params: EchoToolInput) => {
-      const handlerContext = requestContextService.createRequestContext({
-        toolName,
-      });
+  logger.info(`Registering tool: '${TOOL_NAME}'`, registrationContext);
 
-      try {
-        // 2. INVOKE the core logic within the try block.
-        const result = await echoToolLogic(params, handlerContext);
-
-        // 3. FORMAT the SUCCESS response. It must include structuredContent.
-        return {
-          structuredContent: result,
-          content: [
-            { type: "text", text: `Success: ${JSON.stringify(result)}` },
-          ],
-        };
-      } catch (error) {
-        // 4. CATCH any error thrown by the logic layer.
-        logger.error("Error in echo_message handler", {
-          error,
-          ...handlerContext,
-        });
-        const mcpError = ErrorHandler.handleError(error, {
-          operation: toolName,
-          context: handlerContext,
-          input: params,
-        }) as McpError;
-
-        // 5. FORMAT the ERROR response. It must be an error object.
-        return {
-          isError: true,
-          content: [{ type: "text", text: mcpError.message }],
-          structuredContent: {
-            code: mcpError.code,
-            message: mcpError.message,
-            details: mcpError.details,
+  await ErrorHandler.tryCatch(
+    async () => {
+      server.registerTool(
+        TOOL_NAME,
+        {
+          title: "Echo Message",
+          description: TOOL_DESCRIPTION,
+          inputSchema: EchoToolInputSchema.shape,
+          outputSchema: EchoToolResponseSchema.shape,
+          annotations: {
+            readOnlyHint: true, // This tool does not modify state.
+            openWorldHint: false, // This tool does not interact with external, unpredictable systems.
           },
-        };
-      }
-    }
+        },
+        // This is the runtime handler for the tool.
+        async (params: EchoToolInput, callContext: Record<string, unknown>) => {
+          const handlerContext = requestContextService.createRequestContext({
+            parentContext: callContext,
+            operation: "HandleToolRequest",
+            toolName: TOOL_NAME,
+            input: params,
+          });
+
+          try {
+            // 1. INVOKE the core logic within the try block.
+            const result = await echoToolLogic(params, handlerContext);
+
+            // 2. FORMAT the SUCCESS response.
+            return {
+              structuredContent: result,
+              content: [
+                { type: "text", text: `Success: ${JSON.stringify(result, null, 2)}` },
+              ],
+            };
+          } catch (error) {
+            // 3. CATCH and PROCESS any error from the logic layer.
+            const mcpError = ErrorHandler.handleError(error, {
+              operation: `tool:${TOOL_NAME}`,
+              context: handlerContext,
+              input: params,
+            }) as McpError;
+
+            // 4. FORMAT the ERROR response.
+            return {
+              isError: true,
+              content: [{ type: "text", text: `Error: ${mcpError.message}` }],
+              structuredContent: {
+                code: mcpError.code,
+                message: mcpError.message,
+                details: mcpError.details,
+              },
+            };
+          }
+        },
+      );
+
+      logger.info(
+        `Tool '${TOOL_NAME}' registered successfully.`,
+        registrationContext,
+      );
+    },
+    {
+      operation: `RegisteringTool_${TOOL_NAME}`,
+      context: registrationContext,
+      errorCode: BaseErrorCode.INITIALIZATION_FAILED,
+      critical: true, // A failure to register a tool is a critical startup error.
+    },
   );
-  logger.info(`Tool '${toolName}' registered successfully.`);
 };
 ```
 

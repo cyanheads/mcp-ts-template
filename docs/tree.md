@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-07-31 17:16:41
+Generated on: 2025-08-01 02:58:50
 
 ```
 mcp-ts-template
@@ -30,10 +30,12 @@ mcp-ts-template
 │   ├── config
 │   │   └── index.ts
 │   ├── mcp-server
+│   │   ├── core
+│   │   │   └── managedMcpServer.ts
 │   │   ├── resources
 │   │   │   └── echoResource
-│   │   │       ├── echoResourceLogic.ts
 │   │   │       ├── index.ts
+│   │   │       ├── logic.ts
 │   │   │       └── registration.ts
 │   │   ├── tools
 │   │   │   ├── catFactFetcher
@@ -96,6 +98,7 @@ mcp-ts-template
 │   │   │   ├── errorHandler.ts
 │   │   │   ├── index.ts
 │   │   │   ├── logger.ts
+│   │   │   ├── performance.ts
 │   │   │   └── requestContext.ts
 │   │   ├── metrics
 │   │   │   ├── index.ts

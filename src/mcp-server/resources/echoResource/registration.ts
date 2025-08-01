@@ -1,8 +1,7 @@
 /**
  * @fileoverview Handles the registration of the `echo` resource with an MCP server instance.
- * This module defines the resource's template, metadata, and the asynchronous handler
- * that processes `resources/read` requests.
- * @module src/mcp-server/resources/echoResource/registration
+ * @module src/mcp-server/resources/echoResource/registration.ts
+ * @see {@link src/mcp-server/resources/echoResource/logic.ts} for the core business logic and schemas.
  */
 
 import {
@@ -20,13 +19,12 @@ import {
   RequestContext,
   requestContextService,
 } from "../../../utils/index.js";
-import { echoResourceLogic, EchoResourceParams } from "./echoResourceLogic.js";
+import { echoResourceLogic, EchoResourceParams } from "./logic.js";
 
 /**
  * Registers the 'echo' resource and its handlers with the provided MCP server instance.
  *
  * @param server - The MCP server instance to register the resource with.
- * @returns A promise that resolves when the resource registration is complete.
  */
 export const registerEchoResource = async (
   server: McpServer,
@@ -68,12 +66,19 @@ export const registerEchoResource = async (
         async (
           uri: URL,
           params: EchoResourceParams,
+          callContext: Record<string, unknown>,
         ): Promise<ReadResourceResult> => {
+          const sessionId =
+            typeof callContext?.sessionId === "string"
+              ? callContext.sessionId
+              : undefined;
+
           const handlerContext: RequestContext =
             requestContextService.createRequestContext({
-              parentRequestId: registrationContext.requestId,
+              parentContext: callContext,
               operation: "HandleResourceRead",
               resourceUri: uri.href,
+              sessionId,
               inputParams: params,
             });
 

@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2025-07-31
+
+### BREAKING CHANGE
+
+- **Architectural Standard v2.2**: This version introduces a mandatory and significant architectural refactoring to enforce a strict separation of concerns, enhance performance monitoring, and improve overall robustness.
+  - **"Logic Throws, Handler Catches" Pattern**: Reinforced the "Logic Throws, Handler Catches" pattern across all tools and resources, ensuring consistent error handling and response formatting.
+  - **`ManagedMcpServer`**: Introduced a new `ManagedMcpServer` class that wraps the core `McpServer` from the SDK. This wrapper provides enhanced introspection capabilities, such as retrieving metadata for all registered tools, which is used for status endpoints and diagnostics.
+  - **`echoTool` as Canonical Example**: The `echoTool` has been completely overhauled to serve as the authoritative, production-grade example of the new architectural standard. It demonstrates best practices for schema definition, logic implementation, handler registration, and documentation.
+
+### Added
+
+- **Performance Monitoring**: Added a new `measureToolExecution` utility (`src/utils/internal/performance.ts`) that wraps tool logic calls to measure execution time and log detailed performance metrics (duration, success status, payload size) for every tool invocation.
+
+### Changed
+
+- **Tool & Resource Refactoring**: All existing tools (`catFactFetcher`, `imageTest`) and resources (`echoResource`) have been refactored to comply with the new v2.2 architectural standard. This includes separating logic and registration, adopting the "Logic Throws, Handler Catches" pattern, and integrating with the new performance monitoring utility.
+- **Dependencies**: Upgraded `@modelcontextprotocol/sdk` to `^1.17.1`.
+- **Documentation**:
+  - Overhauled `.clinerules/clinerules.md` and `CLAUDE.md` to mandate the new architectural standard, providing detailed explanations and code examples for the "Logic Throws, Handler Catches" pattern, `ManagedMcpServer`, and the new tool development workflow.
+  - Updated `docs/tree.md` to reflect the new file structure and additions.
+- **Error Handling**: Refined the global `ErrorHandler` and `McpError` class to better support the new architectural pattern, including improved stack tracing and context propagation.
+- **HTTP Transport**: The HTTP transport layer (`httpTransport.ts`) has been updated to use the new `ManagedMcpServer`, enabling it to expose richer server metadata and tool information at its status endpoint.
+- **Testing**: Updated all relevant tests for tools and the server to align with the new architecture, ensuring that error handling, performance metrics, and registration logic are correctly validated.
+
 ## [1.7.9] - 2025-07-31
 
 ### Changed

@@ -1,8 +1,9 @@
 /**
- * @fileoverview Handles the registration of the `get_random_cat_fact` tool
- * with an MCP server instance. This tool fetches a random cat fact from the
- * Cat Fact Ninja API.
+ * @fileoverview Handles the registration of the `get_random_cat_fact` tool.
+ * This module acts as the "handler" layer, connecting the pure business logic to the
+ * MCP server and ensuring all outcomes (success or failure) are handled gracefully.
  * @module src/mcp-server/tools/catFactFetcher/registration
+ * @see {@link src/mcp-server/tools/catFactFetcher/logic.ts} for the core business logic and schemas.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -10,7 +11,7 @@ import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
-  RequestContext,
+  measureToolExecution,
   requestContextService,
 } from "../../../utils/index.js";
 import {
@@ -21,53 +22,70 @@ import {
 } from "./logic.js";
 
 /**
+ * The unique name for the tool, used for registration and identification.
+ * Include the server's namespace if applicable, e.g., "pubmed_fetch_article".
+ */
+const TOOL_NAME = "get_random_cat_fact";
+
+/**
+ * Detailed description for the MCP Client (LLM), explaining the tool's purpose, expectations,
+ * and behavior. This follows the best practice of providing rich context to the MCP Client (LLM) model. Use concise, authoritative language.
+ */
+const TOOL_DESCRIPTION =
+  "Fetches a random cat fact from a public API. Optionally, a maximum length for the fact can be specified.";
+
+/**
  * Registers the 'get_random_cat_fact' tool and its handler with the MCP server.
  *
  * @param server - The MCP server instance to register the tool with.
- * @returns A promise that resolves when tool registration is complete.
  */
 export const registerCatFactFetcherTool = async (
   server: McpServer,
 ): Promise<void> => {
-  const toolName = "get_random_cat_fact";
-  const toolDescription =
-    "Fetches a random cat fact from the Cat Fact Ninja API. Optionally, a maximum length for the fact can be specified.";
+  const registrationContext = requestContextService.createRequestContext({
+    operation: "RegisterTool",
+    toolName: TOOL_NAME,
+  });
 
-  const registrationContext: RequestContext =
-    requestContextService.createRequestContext({
-      operation: "RegisterTool",
-      toolName: toolName,
-    });
-
-  logger.info(`Registering tool: '${toolName}'`, registrationContext);
+  logger.info(`Registering tool: '${TOOL_NAME}'`, registrationContext);
 
   await ErrorHandler.tryCatch(
     async () => {
       server.registerTool(
-        toolName,
+        TOOL_NAME,
         {
           title: "Get Random Cat Fact",
-          description: toolDescription,
+          description: TOOL_DESCRIPTION,
           inputSchema: CatFactFetcherInputSchema.shape,
           outputSchema: CatFactFetcherResponseSchema.shape,
           annotations: {
             readOnlyHint: true,
-            openWorldHint: true,
+            openWorldHint: true, // This tool interacts with an external API.
           },
         },
-        async (params: CatFactFetcherInput) => {
-          const handlerContext: RequestContext =
-            requestContextService.createRequestContext({
-              parentRequestId: registrationContext.requestId,
-              operation: "HandleToolRequest",
-              toolName: toolName,
-              input: params,
-            });
+        async (
+          params: CatFactFetcherInput,
+          callContext: Record<string, unknown>,
+        ) => {
+          const sessionId =
+            typeof callContext?.sessionId === "string"
+              ? callContext.sessionId
+              : undefined;
+
+          const handlerContext = requestContextService.createRequestContext({
+            parentContext: callContext,
+            operation: "HandleToolRequest",
+            toolName: TOOL_NAME,
+            sessionId,
+            input: params,
+          });
 
           try {
-            const result = await catFactFetcherLogic(params, handlerContext);
-            // Return both structuredContent for modern clients and
-            // stringified content for backward compatibility.
+            const result = await measureToolExecution(
+              () => catFactFetcherLogic(params, handlerContext),
+              { ...handlerContext, toolName: TOOL_NAME },
+              params,
+            );
             return {
               structuredContent: result,
               content: [
@@ -76,7 +94,7 @@ export const registerCatFactFetcherTool = async (
             };
           } catch (error) {
             const mcpError = ErrorHandler.handleError(error, {
-              operation: "catFactFetcherToolHandler",
+              operation: `tool:${TOOL_NAME}`,
               context: handlerContext,
               input: params,
             }) as McpError;
@@ -95,12 +113,12 @@ export const registerCatFactFetcherTool = async (
       );
 
       logger.info(
-        `Tool '${toolName}' registered successfully.`,
+        `Tool '${TOOL_NAME}' registered successfully.`,
         registrationContext,
       );
     },
     {
-      operation: `RegisteringTool_${toolName}`,
+      operation: `RegisteringTool_${TOOL_NAME}`,
       context: registrationContext,
       errorCode: BaseErrorCode.INITIALIZATION_FAILED,
       critical: true,

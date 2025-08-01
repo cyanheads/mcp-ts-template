@@ -354,18 +354,20 @@ export class ErrorHandler {
       consolidatedDetails.originalStack = originalStack;
     }
 
+    const cause = error instanceof Error ? error : undefined;
+
     if (error instanceof McpError) {
       loggedErrorCode = error.code;
       finalError = errorMapper
         ? errorMapper(error)
-        : new McpError(error.code, error.message, consolidatedDetails);
+        : new McpError(error.code, error.message, consolidatedDetails, { cause });
     } else {
       loggedErrorCode =
         explicitErrorCode || ErrorHandler.determineErrorCode(error);
       const message = `Error in ${operation}: ${originalErrorMessage}`;
       finalError = errorMapper
         ? errorMapper(error)
-        : new McpError(loggedErrorCode, message, consolidatedDetails);
+        : new McpError(loggedErrorCode, message, consolidatedDetails, { cause });
     }
 
     if (

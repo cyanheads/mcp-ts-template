@@ -5,10 +5,10 @@
 **Build production-grade Model Context Protocol (MCP) servers with a powerful, type-safe, and extensible foundation.**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue?style=flat-square)](https://www.typescriptlang.org/)
-[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.0-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
+[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.1-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--06--18-lightgrey?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.7.9-blue?style=flat-square)](./CHANGELOG.md)
-[![Coverage](https://img.shields.io/badge/Coverage-65.78%25-brightgreen?style=flat-square)](./vitest.config.ts)
+[![Version](https://img.shields.io/badge/Version-1.8.0-blue?style=flat-square)](./CHANGELOG.md)
+[![Coverage](https://img.shields.io/badge/Coverage-65.8%25-brightgreen?style=flat-square)](./vitest.config.ts)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues)
 [![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
@@ -42,18 +42,18 @@ Building a robust server for AI agents is more than just writing code. It requir
 | **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                                 | `scripts/`                                                           |
 | **🧩 Services**             | Reusable modules for LLM (OpenRouter) and data storage (DuckDB) integration, with examples.                                                          | `src/services/`, `src/storage/duckdbExample.ts`                      |
 | **🧪 Integration Testing**  | Integrated with Vitest for fast and reliable integration testing. Includes example tests for core logic and a coverage reporter.                     | `vitest.config.ts`, `tests/`                                         |
+| **⏱️ Performance Metrics**  | Built-in utility to automatically measure and log the execution time and payload size of every tool call.                                            | `src/utils/internal/performance.ts`                                  |
 
 ## Architecture Overview
 
-This template employs a modular, transport-agnostic architecture to ensure a clean separation of concerns.
+This template is built on a set of architectural principles to ensure modularity, testability, and operational clarity.
 
-- **Core Server (`src/mcp-server/server.ts`)**: The central point where tools and resources are registered. It remains independent of how the server is accessed.
-- **Transports (`src/mcp-server/transports/`)**: The transport layer connects the core server to the outside world.
-  - **StdioTransport**: For direct process-to-process communication.
-  - **HttpTransport**: A modern, streamable HTTP server built with **Hono**. It uses a middleware-based approach for handling CORS, rate limiting, authentication, and MCP request processing.
-- **Transport Managers (`src/mcp-server/transports/core/`)**: These managers bridge the gap between the transport layer (like Hono) and the MCP SDK, handling session management (stateful vs. stateless) and request lifecycle.
-
-This design allows you to add new tools and logic to the core server without worrying about the underlying transport details.
+- **Core Server (`src/mcp-server/server.ts`)**: The central point where tools and resources are registered. It uses a `ManagedMcpServer` wrapper to provide enhanced introspection capabilities. It acts the same way as the native McpServer, but with additional features like introspection and enhanced error handling.
+- **Transports (`src/mcp-server/transports/`)**: The transport layer connects the core server to the outside world. It supports both `stdio` for direct process communication and a streamable **Hono**-based `http` server.
+- **"Logic Throws, Handler Catches"**: This is the immutable cornerstone of our error-handling strategy.
+  - **Core Logic (`logic.ts`)**: This layer is responsible for pure, self-contained business logic. It **throws** a structured `McpError` on any failure.
+  - **Handlers (`registration.ts`)**: This layer interfaces with the server, invokes the core logic, and **catches** any errors. It is the exclusive location where errors are processed and formatted into a final response.
+- **Structured, Traceable Operations**: Every operation is traced from initiation to completion via a `RequestContext` that is passed through the entire call stack, ensuring comprehensive and structured logging.
 
 ## Quick Start
 
@@ -138,12 +138,23 @@ npm run tree
 
 ## 🧩 Extending the System
 
-The canonical pattern for adding new tools and resources is defined in the [.clinerules](./.clinerules/clinerules.md) file. It mandates a strict separation of concerns:
+The template enforces a strict, modular pattern for adding new tools and resources, as mandated by the [Architectural Standard](./.clinerules/clinerules.md). The `echoTool` (`src/mcp-server/tools/echoTool/`) serves as the canonical example.
 
-1.  **`logic.ts`**: Contains the pure business logic, Zod schemas, and type definitions. This file throws structured errors on failure.
-2.  **`registration.ts`**: Acts as the "handler." It registers the tool with the server, wraps the logic call in a `try...catch` block, and formats the final success or error response.
+### The "Logic Throws, Handler Catches" Pattern
 
-This "Logic Throws, Handler Catches" pattern ensures that core logic remains pure and testable, while the registration layer handles all side effects and response formatting.
+This is the cornerstone of the architecture:
+
+1.  **`logic.ts`**: This file contains the pure business logic.
+    - It defines the Zod schemas for input and output, which serve as the single source of truth for the tool's data contract.
+    - The core logic function is pure: it takes validated parameters and a request context, and either returns a result or **throws** a structured `McpError`.
+    - It **never** contains `try...catch` blocks for formatting a final response.
+
+2.  **`registration.ts`**: This file is the "handler" that connects the logic to the MCP server.
+    - It imports the schemas and logic function from `logic.ts`.
+    - It calls `server.registerTool()`, providing the tool's metadata and the runtime handler.
+    - The runtime handler **always** wraps the call to the logic function in a `try...catch` block. This is the **only** place where errors are caught, processed by the `ErrorHandler`, and formatted into a standardized error response.
+
+This pattern ensures that core logic remains decoupled, pure, and easily testable, while the registration layer handles all transport-level concerns, side effects, and response formatting.
 
 ## 🌍 Explore More MCP Resources
 

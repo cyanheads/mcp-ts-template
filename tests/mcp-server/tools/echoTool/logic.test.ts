@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  echoToolLogic,
   EchoToolInputSchema,
+  echoToolLogic,
   EchoToolResponseSchema,
 } from "../../../../src/mcp-server/tools/echoTool/logic";
-import { McpError, BaseErrorCode } from "../../../../src/types-global/errors";
+import { BaseErrorCode, McpError } from "../../../../src/types-global/errors";
 import { requestContextService } from "../../../../src/utils";
 
 describe("echoToolLogic", () => {
@@ -17,7 +17,7 @@ describe("echoToolLogic", () => {
       message: "hello world",
       mode: "uppercase" as const,
       repeat: 2,
-      timestamp: true,
+      includeTimestamp: true,
     };
     const result = await echoToolLogic(mockInput, context);
 
@@ -38,7 +38,7 @@ describe("echoToolLogic", () => {
       message: "HELLO WORLD",
       mode: "lowercase" as const,
       repeat: 1,
-      timestamp: false,
+      includeTimestamp: false,
     };
     const result = await echoToolLogic(mockInput, context);
     const validation = EchoToolResponseSchema.safeParse(result);
@@ -56,11 +56,15 @@ describe("echoToolLogic", () => {
       message: "fail",
       mode: "standard" as const,
       repeat: 1,
-      timestamp: true,
+      includeTimestamp: true,
     };
 
     await expect(echoToolLogic(input, context)).rejects.toThrow(
-      new McpError(BaseErrorCode.VALIDATION_ERROR, "The message was 'fail'."),
+      new McpError(
+        BaseErrorCode.VALIDATION_ERROR,
+        "Deliberate failure triggered: the message was 'fail'.",
+        { toolName: "echo_message" },
+      ),
     );
   });
 
@@ -71,7 +75,7 @@ describe("echoToolLogic", () => {
       message: "",
       mode: "standard" as const,
       repeat: 1,
-      timestamp: true,
+      includeTimestamp: true,
     };
     const parseResult = EchoToolInputSchema.safeParse(input);
     expect(parseResult.success).toBe(false);

@@ -2,10 +2,10 @@
  * @fileoverview Tests for the registration of the get_random_cat_fact tool.
  * @module tests/mcp-server/tools/catFactFetcher/registration.test
  */
-import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerCatFactFetcherTool } from "../../../../src/mcp-server/tools/catFactFetcher/registration";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import * as logic from "../../../../src/mcp-server/tools/catFactFetcher/logic";
+import { registerCatFactFetcherTool } from "../../../../src/mcp-server/tools/catFactFetcher/registration";
 import { BaseErrorCode, McpError } from "../../../../src/types-global/errors";
 
 // Mock the logic module

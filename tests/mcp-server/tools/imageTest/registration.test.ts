@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerFetchImageTestTool } from "../../../../src/mcp-server/tools/imageTest/registration";
+import { describe, expect, it, vi } from "vitest";
 import * as imageTestLogic from "../../../../src/mcp-server/tools/imageTest/logic";
+import { registerFetchImageTestTool } from "../../../../src/mcp-server/tools/imageTest/registration";
 
 // Mock the logic module
 vi.mock("../../../../src/mcp-server/tools/imageTest/logic");

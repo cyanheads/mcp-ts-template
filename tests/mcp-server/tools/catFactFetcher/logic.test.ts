@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
 import { generateMock } from "@anatine/zod-mock";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import {
-  catFactFetcherLogic,
   CatFactFetcherInputSchema,
+  catFactFetcherLogic,
   CatFactFetcherResponseSchema,
 } from "../../../../src/mcp-server/tools/catFactFetcher/logic";
-import { McpError, BaseErrorCode } from "../../../../src/types-global/errors";
+import { BaseErrorCode, McpError } from "../../../../src/types-global/errors";
 import { requestContextService } from "../../../../src/utils";
 import * as networkUtils from "../../../../src/utils/network";
 
@@ -30,7 +30,7 @@ describe("catFactFetcherLogic", () => {
       length: 14,
     };
 
-    (networkUtils.fetchWithTimeout as vi.Mock).mockResolvedValue({
+    (networkUtils.fetchWithTimeout as Mock).mockResolvedValue({
       ok: true,
       json: async () => mockApiResponse,
     });
@@ -48,7 +48,7 @@ describe("catFactFetcherLogic", () => {
   it("should throw an McpError on failed API call", async () => {
     const mockInput = generateMock(CatFactFetcherInputSchema);
 
-    (networkUtils.fetchWithTimeout as vi.Mock).mockResolvedValue({
+    (networkUtils.fetchWithTimeout as Mock).mockResolvedValue({
       ok: false,
       status: 500,
       statusText: "Internal Server Error",
@@ -70,7 +70,7 @@ describe("catFactFetcherLogic", () => {
       length: 11,
     };
 
-    (networkUtils.fetchWithTimeout as vi.Mock).mockResolvedValue({
+    (networkUtils.fetchWithTimeout as Mock).mockResolvedValue({
       ok: true,
       json: async () => mockApiResponse,
     });
