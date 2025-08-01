@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-01 02:58:50
+Generated on: 2025-08-01 14:55:24
 
 ```
 mcp-ts-template
@@ -65,6 +65,7 @@ mcp-ts-template
 │   │   │   │   └── index.ts
 │   │   │   ├── core
 │   │   │   │   ├── baseTransportManager.ts
+│   │   │   │   ├── headerUtils.ts
 │   │   │   │   ├── honoNodeBridge.ts
 │   │   │   │   ├── statefulTransportManager.ts
 │   │   │   │   ├── statelessTransportManager.ts
@@ -118,6 +119,9 @@ mcp-ts-template
 │   │   │   ├── index.ts
 │   │   │   ├── rateLimiter.ts
 │   │   │   └── sanitization.ts
+│   │   ├── telemetry
+│   │   │   ├── instrumentation.ts
+│   │   │   └── semconv.ts
 │   │   └── index.ts
 │   ├── index.ts
 │   └── README.md
@@ -131,7 +135,6 @@ mcp-ts-template
 │   │   │   │   ├── logic.test.ts
 │   │   │   │   └── registration.test.ts
 │   │   │   └── imageTest
-│   │   │       ├── logic.test.ts
 │   │   │       └── registration.test.ts
 │   │   ├── transports
 │   │   │   ├── auth
@@ -170,10 +173,12 @@ mcp-ts-template
 │   │   │   └── jsonParser.test.ts
 │   │   ├── scheduling
 │   │   │   └── scheduler.test.ts
-│   │   └── security
-│   │       ├── idGenerator.test.ts
-│   │       ├── rateLimiter.test.ts
-│   │       └── sanitization.test.ts
+│   │   ├── security
+│   │   │   ├── idGenerator.test.ts
+│   │   │   ├── rateLimiter.test.ts
+│   │   │   └── sanitization.test.ts
+│   │   └── telemetry
+│   │       └── instrumentation.test.ts
 │   └── setup.ts
 ├── .dockerignore
 ├── .env.example

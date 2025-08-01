@@ -51,14 +51,13 @@ describe("fetchWithTimeout", () => {
   });
 
   it("should handle HTTP error status codes gracefully", async () => {
-    const response = await fetchWithTimeout(
-      `${HTTPBIN_BASE}/status/500`,
-      5000,
-      parentRequestContext,
-    );
-    expect(response.ok).toBe(false);
-    // httpbin.org can be flaky and sometimes returns 502 for this endpoint
-    expect([500, 502]).toContain(response.status);
+    await expect(
+      fetchWithTimeout(
+        `${HTTPBIN_BASE}/status/500`,
+        5000,
+        parentRequestContext,
+      ),
+    ).rejects.toThrow(McpError);
   });
 
   it("should throw an McpError for network errors", async () => {

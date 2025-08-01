@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.1] - 2025-08-01
+
+### Added
+
+- **Observability**: Integrated a comprehensive **OpenTelemetry (OTel)** instrumentation layer (`src/utils/telemetry/instrumentation.ts`) to provide deep insights into application performance and behavior. This includes:
+  - **Automatic Instrumentation**: Leverages `@opentelemetry/auto-instrumentations-node` to automatically trace core Node.js modules (HTTP, DNS) and supported libraries.
+  - **Trace and Metric Exporters**: Configured OTLP exporters for traces and metrics, allowing data to be sent to observability platforms. Includes a file-based trace logger for development environments without an OTLP endpoint.
+  - **Custom Instrumentation**:
+    - The `measureToolExecution` utility is now fully integrated with OTel, creating detailed spans for each tool call with relevant attributes (duration, success, error codes).
+    - The `ErrorHandler` now automatically records exceptions on the active span, linking errors directly to their originating traces.
+    - `RequestContext` is now trace-aware, automatically injecting `traceId` and `spanId` for seamless log correlation.
+- **Dependencies**: Added `@opentelemetry/*` packages and `reflect-metadata` to support the new observability features.
+
+### Changed
+
+- **Transport Layer Refactoring**: Significantly refactored the stateful and stateless transport managers (`statefulTransportManager.ts`, `statelessTransportManager.ts`) for enhanced stability, correctness, and resource management.
+  - **Stateful Manager**: Improved session lifecycle management with added concurrency controls (`activeRequests` counter) to prevent race conditions where a session could be garbage-collected during an active request.
+  - **Stateless Manager**: Fixed a critical bug where resources were cleaned up prematurely before the response stream was fully consumed by the client. Cleanup is now deferred until the stream is closed, ensuring complete responses.
+  - **Header Handling**: Introduced a `headerUtils.ts` module to correctly convert Node.js `OutgoingHttpHeaders` to Web-standard `Headers` objects, properly handling multi-value headers like `Set-Cookie`.
+- **Error Handling**:
+  - The `fetchWithTimeout` utility now correctly throws a structured `McpError` on non-2xx HTTP responses, ensuring consistent error propagation.
+- **Rate Limiter**: Enhanced the `RateLimiter` to integrate with OpenTelemetry, adding attributes to spans for rate limit checks, keys, and outcomes.
+
+### Fixed
+
+- **`imageTest` Tool**: Removed flawed error handling logic from `imageTest/logic.ts` that was duplicating the robust error handling already provided by the `fetchWithTimeout` utility.
+- **Testing**:
+  - Deleted the obsolete `logic.test.ts` for the `imageTest` tool, as its functionality is now covered by the more comprehensive `fetchWithTimeout.test.ts`.
+  - Updated `fetchWithTimeout.test.ts` to correctly test for thrown `McpError` on HTTP error status codes, aligning with the new, stricter error handling.
+
+### Removed
+
+- **`tests/mcp-server/tools/imageTest/logic.test.ts`**: This test file was removed but will be replaced with more comprehensive tests in the future.
+
 ## [1.8.0] - 2025-07-31
 
 ### BREAKING CHANGE

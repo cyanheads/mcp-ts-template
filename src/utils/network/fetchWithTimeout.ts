@@ -46,6 +46,33 @@ export async function fetchWithTimeout(
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorBody = await response
+        .text()
+        .catch(() => "Could not read response body");
+      logger.error(
+        `Fetch failed for ${urlString} with status ${response.status}.`,
+        {
+          ...context,
+          statusCode: response.status,
+          statusText: response.statusText,
+          responseBody: errorBody,
+          errorSource: "FetchHttpError",
+        },
+      );
+      throw new McpError(
+        BaseErrorCode.SERVICE_UNAVAILABLE,
+        `Fetch failed for ${urlString}. Status: ${response.status}`,
+        {
+          ...context,
+          statusCode: response.status,
+          statusText: response.statusText,
+          responseBody: errorBody,
+        },
+      );
+    }
+
     logger.debug(
       `Successfully fetched ${urlString}. Status: ${response.status}`,
       context,

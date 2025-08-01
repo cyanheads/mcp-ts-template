@@ -5,7 +5,6 @@
  * @see {@link src/mcp-server/tools/imageTest/registration.ts} for the handler and registration logic.
  */
 import { z } from "zod";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   fetchWithTimeout,
   logger,
@@ -45,21 +44,6 @@ export async function fetchImageTestLogic(
   );
 
   const response = await fetchWithTimeout(CAT_API_URL, 5000, context);
-
-  if (!response.ok) {
-    throw new McpError(
-      BaseErrorCode.SERVICE_UNAVAILABLE,
-      `Failed to fetch cat image from ${CAT_API_URL}. Status: ${response.status}`,
-      {
-        ...context,
-        statusCode: response.status,
-        statusText: response.statusText,
-        responseBody: await response
-          .text()
-          .catch(() => "Could not read response body"),
-      },
-    );
-  }
 
   const imageBuffer = Buffer.from(await response.arrayBuffer());
   const mimeType = response.headers.get("content-type") || "image/jpeg";

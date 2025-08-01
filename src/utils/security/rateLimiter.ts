@@ -3,6 +3,7 @@
  * It supports configurable time windows, request limits, and automatic cleanup of expired entries.
  * @module src/utils/security/rateLimiter
  */
+import { trace } from "@opentelemetry/api";
 import { environment } from "../../config/index.js";
 import { BaseErrorCode, McpError } from "../../types-global/errors.js";
 import { logger, RequestContext, requestContextService } from "../index.js";
@@ -164,30 +165,48 @@ export class RateLimiter {
    * @throws {McpError} If the rate limit is exceeded.
    */
   public check(key: string, context?: RequestContext): void {
+    const activeSpan = trace.getActiveSpan();
+    activeSpan?.setAttribute("mcp.rate_limit.checked", true);
+
     if (this.config.skipInDevelopment && environment === "development") {
+      activeSpan?.setAttribute("mcp.rate_limit.skipped", "development");
       return;
     }
 
     const limitKey = this.config.keyGenerator
       ? this.config.keyGenerator(key, context)
       : key;
+    activeSpan?.setAttribute("mcp.rate_limit.key", limitKey);
 
     const now = Date.now();
-    const entry = this.limits.get(limitKey);
+    let entry = this.limits.get(limitKey);
 
     if (!entry || now >= entry.resetTime) {
-      this.limits.set(limitKey, {
+      entry = {
         count: 1,
         resetTime: now + this.config.windowMs,
-      });
-      return;
+      };
+      this.limits.set(limitKey, entry);
+    } else {
+      entry.count++;
     }
 
-    if (entry.count >= this.config.maxRequests) {
+    const remaining = Math.max(0, this.config.maxRequests - entry.count);
+    activeSpan?.setAttributes({
+      "mcp.rate_limit.limit": this.config.maxRequests,
+      "mcp.rate_limit.count": entry.count,
+      "mcp.rate_limit.remaining": remaining,
+    });
+
+    if (entry.count > this.config.maxRequests) {
       const waitTime = Math.ceil((entry.resetTime - now) / 1000);
       const errorMessage = (
         this.config.errorMessage || RateLimiter.DEFAULT_CONFIG.errorMessage!
       ).replace("{waitTime}", waitTime.toString());
+
+      activeSpan?.addEvent("rate_limit_exceeded", {
+        "mcp.rate_limit.wait_time_seconds": waitTime,
+      });
 
       throw new McpError(BaseErrorCode.RATE_LIMITED, errorMessage, {
         waitTimeSeconds: waitTime,
@@ -196,8 +215,6 @@ export class RateLimiter {
         windowMs: this.config.windowMs,
       });
     }
-
-    entry.count++;
   }
 
   /**
