@@ -18,10 +18,6 @@ dotenv.config();
 // --- Determine Project Root ---
 const findProjectRoot = (startDir: string): string => {
   let currentDir = startDir;
-  // If the start directory is in `dist`, start searching from the parent directory.
-  if (path.basename(currentDir) === 'dist') {
-    currentDir = path.dirname(currentDir);
-  }
   while (true) {
     const packageJsonPath = join(currentDir, "package.json");
     if (existsSync(packageJsonPath)) {
