@@ -44,15 +44,17 @@ vi.mock('winston', () => {
     on: vi.fn().mockReturnThis(),
     end: vi.fn(),
   };
-  return {
-    createLogger: vi.fn(() => mLogger),
+  const createLoggerMock = vi.fn(() => mLogger);
+
+  const winstonMock = {
+    createLogger: createLoggerMock,
     format: mFormat,
     transports: mTransports,
-    default: {
-        createLogger: vi.fn(() => mLogger),
-        format: mFormat,
-        transports: mTransports,
-    }
+  };
+
+  return {
+    ...winstonMock,
+    default: winstonMock,
   };
 });
 
