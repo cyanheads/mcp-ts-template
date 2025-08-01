@@ -194,18 +194,24 @@ function createTransportManager(
     `Creating transport manager for session mode: ${sessionMode}`,
     opContext,
   );
+
+  const statefulOptions = {
+    staleSessionTimeoutMs: config.mcpStatefulSessionStaleTimeoutMs,
+    mcpHttpEndpointPath: config.mcpHttpEndpointPath,
+  };
+
   switch (sessionMode) {
     case "stateless":
       return new StatelessTransportManager(createServerInstanceFn);
     case "stateful":
-      return new StatefulTransportManager(createServerInstanceFn);
+      return new StatefulTransportManager(createServerInstanceFn, statefulOptions);
     case "auto":
     default:
       logger.info(
         "Defaulting to 'auto' mode (stateful with stateless fallback).",
         opContext,
       );
-      return new StatefulTransportManager(createServerInstanceFn);
+      return new StatefulTransportManager(createServerInstanceFn, statefulOptions);
   }
 }
 
@@ -342,18 +348,11 @@ export function createHttpApp(
 
       c.status(response.statusCode);
 
-      if (response.stream) {
+      if (response.type === "stream") {
         return stream(c, async (s) => {
-          if (response.stream) {
-            await s.pipe(response.stream);
-          }
+          await s.pipe(response.stream);
         });
       } else {
-        // Hono's c.json() expects a JSON-serializable object. The response.body
-        // from the transport layer is `unknown`. This check ensures we pass a valid
-        // object to c.json(). While a full serialization check (e.g., for circular
-        // references) is complex, this is a pragmatic and sufficient safeguard for
-        // the known, simple object structures returned by our tools.
         const body =
           typeof response.body === "object" && response.body !== null
             ? response.body
@@ -379,11 +378,15 @@ export function createHttpApp(
             sessionId,
             context,
           );
-          const body =
-            typeof response.body === "object" && response.body !== null
-              ? response.body
-              : { body: response.body };
-          return c.json(body, response.statusCode);
+          if (response.type === "buffered") {
+            const body =
+              typeof response.body === "object" && response.body !== null
+                ? response.body
+                : { body: response.body };
+            return c.json(body, response.statusCode);
+          }
+          // Fallback for unexpected stream response on DELETE
+          return c.body(null, response.statusCode);
         } else {
           return c.json(
             {
