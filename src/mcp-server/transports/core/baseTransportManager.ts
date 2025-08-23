@@ -9,7 +9,7 @@ import {
   logger,
   RequestContext,
   requestContextService,
-} from "../../../utils/index.js";
+} from "@/utils/index.js";
 import { TransportManager, TransportResponse } from "./transportTypes.js";
 
 /**
@@ -23,7 +23,7 @@ export abstract class BaseTransportManager implements TransportManager {
       operation: "BaseTransportManager.constructor",
       managerType: this.constructor.name,
     });
-    logger.debug("Initializing transport manager.", context);
+    logger.debug(context, "Initializing transport manager.");
     this.createServerInstanceFn = createServerInstanceFn;
   }
 

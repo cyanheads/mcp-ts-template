@@ -20,7 +20,11 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ErrorHandler, logger, RequestContext } from "../../../utils/index.js";
+import { ErrorHandler, RequestContext } from "../../../utils/index.js";
+import {
+  logOperationStart,
+  logOperationSuccess,
+} from "../../../utils/internal/logging-helpers.js";
 
 /**
  * Connects a given `McpServer` instance to the Stdio transport.
@@ -51,21 +55,27 @@ export async function startStdioTransport(
     operation: "connectStdioTransport",
     transportType: "Stdio",
   };
-  logger.info("Attempting to connect stdio transport...", operationContext);
+  logOperationStart(
+    operationContext,
+    "Attempting to connect stdio transport...",
+  );
 
   try {
-    logger.debug("Creating StdioServerTransport instance...", operationContext);
+    logOperationStart(
+      operationContext,
+      "Creating StdioServerTransport instance...",
+    );
     const transport = new StdioServerTransport();
 
-    logger.debug(
-      "Connecting McpServer instance to StdioServerTransport...",
+    logOperationStart(
       operationContext,
+      "Connecting McpServer instance to StdioServerTransport...",
     );
     await server.connect(transport);
 
-    logger.info(
-      "MCP Server connected and listening via stdio transport.",
+    logOperationSuccess(
       operationContext,
+      "MCP Server connected and listening via stdio transport.",
     );
     if (process.stdout.isTTY) {
       console.log(

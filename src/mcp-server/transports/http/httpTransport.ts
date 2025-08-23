@@ -6,18 +6,18 @@
  */
 
 import { serve, ServerType } from "@hono/node-server";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Context, Hono, Next } from "hono";
 import { cors } from "hono/cors";
 import { stream } from "hono/streaming";
 import http from "http";
-import { config } from "../../../config/index.js";
+import { config } from "@/config/index.js";
 import {
   logger,
   rateLimiter,
   RequestContext,
   requestContextService,
-} from "../../../utils/index.js";
-import { ManagedMcpServer } from "../../core/managedMcpServer.js";
+} from "@/utils/index.js";
 import { createAuthMiddleware, createAuthStrategy } from "../auth/index.js";
 import { StatelessTransportManager } from "../core/statelessTransportManager.js";
 import { TransportManager } from "../core/transportTypes.js";
@@ -58,22 +58,22 @@ async function isPortInUse(
   parentContext: RequestContext,
 ): Promise<boolean> {
   const context = { ...parentContext, operation: "isPortInUse", port, host };
-  logger.debug(`Checking if port ${port} is in use...`, context);
+  logger.debug(context, `Checking if port ${port} is in use...`);
   return new Promise((resolve) => {
     const tempServer = http.createServer();
     tempServer
       .once("error", (err: NodeJS.ErrnoException) => {
         const inUse = err.code === "EADDRINUSE";
         logger.debug(
-          `Port check resulted in error: ${err.code}. Port in use: ${inUse}`,
           context,
+          `Port check resulted in error: ${err.code}. Port in use: ${inUse}`,
         );
         resolve(inUse);
       })
       .once("listening", () => {
         logger.debug(
-          `Successfully bound to port ${port} temporarily. Port is not in use.`,
           context,
+          `Successfully bound to port ${port} temporarily. Port is not in use.`,
         );
         tempServer.close(() => resolve(false));
       })
@@ -93,8 +93,8 @@ function startHttpServerWithRetry(
     operation: "startHttpServerWithRetry",
   };
   logger.info(
-    `Attempting to start HTTP server on port ${initialPort} with ${maxRetries} retries.`,
     startContext,
+    `Attempting to start HTTP server on port ${initialPort} with ${maxRetries} retries.`,
   );
 
   return new Promise((resolve, reject) => {
@@ -104,7 +104,7 @@ function startHttpServerWithRetry(
         const error = new Error(
           `Failed to bind to any port after ${maxRetries} retries.`,
         );
-        logger.fatal(error.message, attemptContext);
+        logger.fatal(attemptContext, error.message);
         return reject(error);
       }
 
@@ -112,8 +112,8 @@ function startHttpServerWithRetry(
         .then((inUse) => {
           if (inUse) {
             logger.warning(
-              `Port ${port} is in use, retrying on port ${port + 1}...`,
               attemptContext,
+              `Port ${port} is in use, retrying on port ${port + 1}...`,
             );
             setTimeout(
               () => tryBind(port + 1, attempt + 1),
@@ -127,11 +127,14 @@ function startHttpServerWithRetry(
               { fetch: app.fetch, port, hostname: host },
               (info: { address: string; port: number }) => {
                 const serverAddress = `http://${info.address}:${info.port}${MCP_ENDPOINT_PATH}`;
-                logger.info(`HTTP transport listening at ${serverAddress}`, {
-                  ...attemptContext,
-                  address: serverAddress,
-                  sessionMode: config.mcpSessionMode,
-                });
+                logger.info(
+                  {
+                    ...attemptContext,
+                    address: serverAddress,
+                    sessionMode: config.mcpSessionMode,
+                  },
+                  `HTTP transport listening at ${serverAddress}`,
+                );
                 if (process.stdout.isTTY) {
                   console.log(`\n🚀 MCP Server running at: ${serverAddress}`);
                   console.log(`   Session Mode: ${config.mcpSessionMode}\n`);
@@ -149,15 +152,14 @@ function startHttpServerWithRetry(
               const errorToLog =
                 err instanceof Error ? err : new Error(String(err));
               logger.error(
+                { error: errorToLog, ...attemptContext },
                 "An unexpected error occurred while starting the server.",
-                errorToLog,
-                attemptContext,
               );
               return reject(err);
             }
             logger.warning(
-              `Encountered EADDRINUSE race condition on port ${port}, retrying...`,
               attemptContext,
+              `Encountered EADDRINUSE race condition on port ${port}, retrying...`,
             );
             setTimeout(
               () => tryBind(port + 1, attempt + 1),
@@ -168,9 +170,11 @@ function startHttpServerWithRetry(
         .catch((err) => {
           const error = err instanceof Error ? err : new Error(String(err));
           logger.fatal(
+            {
+              error,
+              ...attemptContext,
+            },
             "Failed to check if port is in use.",
-            error,
-            attemptContext,
           );
           reject(err);
         });
@@ -181,7 +185,7 @@ function startHttpServerWithRetry(
 }
 
 function createTransportManager(
-  createServerInstanceFn: () => Promise<ManagedMcpServer>,
+  createServerInstanceFn: () => Promise<McpServer>,
   sessionMode: string,
   context: RequestContext,
 ): TransportManager {
@@ -191,8 +195,8 @@ function createTransportManager(
     sessionMode,
   };
   logger.info(
-    `Creating transport manager for session mode: ${sessionMode}`,
     opContext,
+    `Creating transport manager for session mode: ${sessionMode}`,
   );
 
   const statefulOptions = {
@@ -204,20 +208,26 @@ function createTransportManager(
     case "stateless":
       return new StatelessTransportManager(createServerInstanceFn);
     case "stateful":
-      return new StatefulTransportManager(createServerInstanceFn, statefulOptions);
+      return new StatefulTransportManager(
+        createServerInstanceFn,
+        statefulOptions,
+      );
     case "auto":
     default:
       logger.info(
-        "Defaulting to 'auto' mode (stateful with stateless fallback).",
         opContext,
+        "Defaulting to 'auto' mode (stateful with stateless fallback).",
       );
-      return new StatefulTransportManager(createServerInstanceFn, statefulOptions);
+      return new StatefulTransportManager(
+        createServerInstanceFn,
+        statefulOptions,
+      );
   }
 }
 
 export function createHttpApp(
   transportManager: TransportManager,
-  createServerInstanceFn: () => Promise<ManagedMcpServer>,
+  createServerInstanceFn: () => Promise<McpServer>,
   parentContext: RequestContext,
 ): Hono<{ Bindings: HonoNodeBindings }> {
   const app = new Hono<{ Bindings: HonoNodeBindings }>();
@@ -225,12 +235,17 @@ export function createHttpApp(
     ...parentContext,
     component: "HttpTransportSetup",
   };
-  logger.info("Creating Hono HTTP application.", transportContext);
+  logger.info(transportContext, "Creating Hono HTTP application.");
 
   app.use(
     "*",
     cors({
-      origin: config.mcpAllowedOrigins || [],
+      origin:
+        config.mcpAllowedOrigins && config.mcpAllowedOrigins.length > 0
+          ? config.mcpAllowedOrigins
+          : config.environment === "production"
+            ? []
+            : "*",
       allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
       allowHeaders: [
         "Content-Type",
@@ -263,12 +278,15 @@ export function createHttpApp(
       });
       try {
         rateLimiter.check(clientIp, context);
-        logger.debug("Rate limit check passed.", context);
+        logger.debug(context, "Rate limit check passed.");
       } catch (error) {
-        logger.warning("Rate limit check failed.", {
-          ...context,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        logger.warning(
+          {
+            ...context,
+            error: error as Error,
+          },
+          "Rate limit check failed.",
+        );
         throw error;
       }
       await next();
@@ -278,14 +296,14 @@ export function createHttpApp(
   const authStrategy = createAuthStrategy();
   if (authStrategy) {
     logger.info(
-      "Authentication strategy found, enabling auth middleware.",
       transportContext,
+      "Authentication strategy found, enabling auth middleware.",
     );
     app.use(MCP_ENDPOINT_PATH, createAuthMiddleware(authStrategy));
   } else {
     logger.info(
-      "No authentication strategy found, auth middleware disabled.",
       transportContext,
+      "No authentication strategy found, auth middleware disabled.",
     );
   }
 
@@ -312,21 +330,19 @@ export function createHttpApp(
       // Since this is a stateless endpoint, we create a temporary instance
       // to report on the server's configuration.
       const serverInstance = await createServerInstanceFn();
-
+      await serverInstance.close(); // ensure cleanup
       return c.json({
         status: "ok",
         server: {
-          name: serverInstance.name,
-          version: serverInstance.version,
+          name: config.mcpServerName,
+          version: config.mcpServerVersion,
           description:
             (config.pkg as { description?: string })?.description ||
             "No description provided.",
           nodeVersion: process.version,
           environment: config.environment,
-          capabilities: serverInstance.capabilities,
         },
         sessionMode: config.mcpSessionMode,
-        tools: serverInstance.getTools(),
         message:
           "Server is running. POST to this endpoint to execute a tool call.",
       });
@@ -405,12 +421,12 @@ export function createHttpApp(
     },
   );
 
-  logger.info("Hono application setup complete.", transportContext);
+  logger.info(transportContext, "Hono application setup complete.");
   return app;
 }
 
 export async function startHttpTransport(
-  createServerInstanceFn: () => Promise<ManagedMcpServer>,
+  createServerInstanceFn: () => Promise<McpServer>,
   parentContext: RequestContext,
 ): Promise<{
   app: Hono<{ Bindings: HonoNodeBindings }>;
@@ -421,7 +437,7 @@ export async function startHttpTransport(
     ...parentContext,
     component: "HttpTransportStart",
   };
-  logger.info("Starting HTTP transport.", transportContext);
+  logger.info(transportContext, "Starting HTTP transport.");
 
   const transportManager = createTransportManager(
     createServerInstanceFn,
@@ -442,6 +458,6 @@ export async function startHttpTransport(
     transportContext,
   );
 
-  logger.info("HTTP transport started successfully.", transportContext);
+  logger.info(transportContext, "HTTP transport started successfully.");
   return { app, server, transportManager };
 }

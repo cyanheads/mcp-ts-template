@@ -5,6 +5,7 @@
  * @module src/utils/internal
  */
 
+export * from "./asyncContext.js";
 export * from "./errorHandler.js";
 export * from "./logger.js";
 export * from "./performance.js";

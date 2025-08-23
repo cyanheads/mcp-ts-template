@@ -6,8 +6,8 @@
  */
 
 import cron, { ScheduledTask, createTask } from "node-cron";
-import { logger, RequestContext } from "../internal/index.js";
-import { requestContextService } from "../internal/requestContext.js";
+import { logger, RequestContext } from "@/utils/internal/index.js";
+import { requestContextService } from "@/utils/internal/requestContext.js";
 
 /**
  * Represents a scheduled job managed by the SchedulerService.
@@ -34,10 +34,13 @@ export class SchedulerService {
 
   /** @private */
   private constructor() {
-    logger.info("SchedulerService initialized.", {
-      requestId: "scheduler-init",
-      timestamp: new Date().toISOString(),
-    });
+    logger.info(
+      {
+        requestId: "scheduler-init",
+        timestamp: new Date().toISOString(),
+      },
+      "SchedulerService initialized.",
+    );
   }
 
   /**
@@ -78,11 +81,11 @@ export class SchedulerService {
       const job = this.jobs.get(id);
       if (job && job.isRunning) {
         logger.warning(
-          `Job '${id}' is already running. Skipping this execution.`,
           {
             requestId: `job-skip-${id}`,
             timestamp: new Date().toISOString(),
           },
+          `Job '${id}' is already running. Skipping this execution.`,
         );
         return;
       }
@@ -96,12 +99,18 @@ export class SchedulerService {
         schedule,
       });
 
-      logger.info(`Starting job '${id}'...`, context);
+      logger.info(context, `Starting job '${id}'...`);
       try {
         await Promise.resolve(taskFunction(context));
-        logger.info(`Job '${id}' completed successfully.`, context);
+        logger.info(context, `Job '${id}' completed successfully.`);
       } catch (error) {
-        logger.error(`Job '${id}' failed.`, error as Error, context);
+        logger.error(
+          {
+            error: error as Error,
+            ...context,
+          },
+          `Job '${id}' failed.`,
+        );
       } finally {
         if (job) {
           job.isRunning = false;
@@ -118,10 +127,13 @@ export class SchedulerService {
     };
 
     this.jobs.set(id, newJob);
-    logger.info(`Job '${id}' scheduled: ${description}`, {
-      requestId: `job-schedule-${id}`,
-      timestamp: new Date().toISOString(),
-    });
+    logger.info(
+      {
+        requestId: `job-schedule-${id}`,
+        timestamp: new Date().toISOString(),
+      },
+      `Job '${id}' scheduled: ${description}`,
+    );
     return newJob;
   }
 
@@ -135,10 +147,13 @@ export class SchedulerService {
       throw new Error(`Job with ID '${id}' not found.`);
     }
     job.task.start();
-    logger.info(`Job '${id}' started.`, {
-      requestId: `job-start-${id}`,
-      timestamp: new Date().toISOString(),
-    });
+    logger.info(
+      {
+        requestId: `job-start-${id}`,
+        timestamp: new Date().toISOString(),
+      },
+      `Job '${id}' started.`,
+    );
   }
 
   /**
@@ -151,10 +166,13 @@ export class SchedulerService {
       throw new Error(`Job with ID '${id}' not found.`);
     }
     job.task.stop();
-    logger.info(`Job '${id}' stopped.`, {
-      requestId: `job-stop-${id}`,
-      timestamp: new Date().toISOString(),
-    });
+    logger.info(
+      {
+        requestId: `job-stop-${id}`,
+        timestamp: new Date().toISOString(),
+      },
+      `Job '${id}' stopped.`,
+    );
   }
 
   /**
@@ -168,10 +186,13 @@ export class SchedulerService {
     }
     job.task.stop();
     this.jobs.delete(id);
-    logger.info(`Job '${id}' removed.`, {
-      requestId: `job-remove-${id}`,
-      timestamp: new Date().toISOString(),
-    });
+    logger.info(
+      {
+        requestId: `job-remove-${id}`,
+        timestamp: new Date().toISOString(),
+      },
+      `Job '${id}' removed.`,
+    );
   }
 
   /**

@@ -5,9 +5,10 @@
 import { describe, it, expect } from "vitest";
 import {
   IdGenerator,
+  generateShortAlphanumericId,
   generateUUID,
 } from "../../../src/utils/security/idGenerator";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { McpError, JsonRpcErrorCode } from "../../../src/types-global/errors";
 
 describe("IdGenerator and UUID", () => {
   describe("generateUUID", () => {
@@ -16,6 +17,15 @@ describe("IdGenerator and UUID", () => {
       const uuidRegex =
         /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       expect(uuid).toMatch(uuidRegex);
+    });
+  });
+
+  describe("generateShortAlphanumericId", () => {
+    it("should generate an 8-character alphanumeric string", () => {
+      const shortId = generateShortAlphanumericId();
+      const shortIdRegex = /^[A-Z0-9]{8}$/;
+      expect(shortId).toHaveLength(8);
+      expect(shortId).toMatch(shortIdRegex);
     });
   });
 
@@ -59,7 +69,7 @@ describe("IdGenerator and UUID", () => {
         idGenerator.generateForEntity("unknown");
       } catch (error) {
         const mcpError = error as McpError;
-        expect(mcpError.code).toBe(BaseErrorCode.VALIDATION_ERROR);
+        expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
       }
     });
 

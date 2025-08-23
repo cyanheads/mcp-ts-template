@@ -20,13 +20,13 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { IncomingHttpHeaders, ServerResponse } from "http";
 import { randomUUID } from "node:crypto";
 import { Readable } from "stream";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
 import {
   ErrorHandler,
   logger,
   RequestContext,
   requestContextService,
-} from "../../../utils/index.js";
+} from "@/utils/index.js";
 import { BaseTransportManager } from "./baseTransportManager.js";
 import { HonoStreamResponse } from "./honoNodeBridge.js";
 import { convertNodeHeadersToWebHeaders } from "./headerUtils.js";
@@ -52,7 +52,10 @@ export class StatefulTransportManager
   extends BaseTransportManager
   implements IStatefulTransportManager
 {
-  private readonly transports = new Map<string, StreamableHTTPServerTransport>();
+  private readonly transports = new Map<
+    string,
+    StreamableHTTPServerTransport
+  >();
   private readonly servers = new Map<string, McpServer>();
   private readonly sessions = new Map<string, TransportSession>();
   private readonly garbageCollector: NodeJS.Timeout;
@@ -71,10 +74,14 @@ export class StatefulTransportManager
     const context = requestContextService.createRequestContext({
       operation: "StatefulTransportManager.constructor",
     });
-    logger.info("Starting session garbage collector.", context);
+    logger.info(context, "Starting session garbage collector.");
+    const intervalMs = Math.max(
+      10_000,
+      Math.floor(this.options.staleSessionTimeoutMs / 2),
+    );
     this.garbageCollector = setInterval(
       () => this.cleanupStaleSessions(),
-      this.options.staleSessionTimeoutMs,
+      intervalMs,
     );
   }
 
@@ -95,7 +102,7 @@ export class StatefulTransportManager
       ...context,
       operation: "StatefulTransportManager.initializeAndHandle",
     };
-    logger.debug("Initializing new stateful session.", opContext);
+    logger.debug(opContext, "Initializing new stateful session.");
 
     let server: McpServer | undefined;
     let transport: StreamableHTTPServerTransport | undefined;
@@ -117,7 +124,7 @@ export class StatefulTransportManager
             lastAccessedAt: new Date(),
             activeRequests: 0,
           });
-          logger.info(`MCP Session created: ${sessionId}`, sessionContext);
+          logger.info(sessionContext, `MCP Session created: ${sessionId}`);
         },
       });
 
@@ -127,16 +134,15 @@ export class StatefulTransportManager
           const closeContext = { ...opContext, sessionId };
           this.closeSession(sessionId, closeContext).catch((err) =>
             logger.error(
+              { error: err, ...closeContext },
               `Error during transport.onclose cleanup for session ${sessionId}`,
-              err,
-              closeContext,
             ),
           );
         }
       };
 
       await server.connect(transport);
-      logger.debug("Server connected, handling initial request.", opContext);
+      logger.debug(opContext, "Server connected, handling initial request.");
 
       const mockReq = {
         headers,
@@ -165,9 +171,8 @@ export class StatefulTransportManager
       };
     } catch (error) {
       logger.error(
+        { ...opContext, error: error as Error },
         "Failed to initialize stateful session. Cleaning up orphaned resources.",
-        error instanceof Error ? error : undefined,
-        { ...opContext, error: String(error) },
       );
 
       const sessionInitialized =
@@ -205,7 +210,7 @@ export class StatefulTransportManager
   ): Promise<TransportResponse> {
     if (!sessionId) {
       throw new McpError(
-        BaseErrorCode.INVALID_INPUT,
+        JsonRpcErrorCode.InvalidParams,
         "Session ID is required for stateful requests.",
         context,
       );
@@ -221,8 +226,8 @@ export class StatefulTransportManager
 
     if (!transport || !session) {
       logger.warning(
-        `Request for non-existent session: ${sessionId}`,
         sessionContext,
+        `Request for non-existent session: ${sessionId}`,
       );
       return {
         type: "buffered",
@@ -238,8 +243,8 @@ export class StatefulTransportManager
     session.lastAccessedAt = new Date();
     session.activeRequests += 1;
     logger.debug(
-      `Incremented activeRequests for session ${sessionId}. Count: ${session.activeRequests}`,
       sessionContext,
+      `Incremented activeRequests for session ${sessionId}. Count: ${session.activeRequests}`,
     );
 
     try {
@@ -276,8 +281,8 @@ export class StatefulTransportManager
       session.activeRequests -= 1;
       session.lastAccessedAt = new Date();
       logger.debug(
-        `Decremented activeRequests for session ${sessionId}. Count: ${session.activeRequests}`,
         sessionContext,
+        `Decremented activeRequests for session ${sessionId}. Count: ${session.activeRequests}`,
       );
     }
   }
@@ -294,15 +299,15 @@ export class StatefulTransportManager
       sessionId,
       operation: "StatefulTransportManager.handleDeleteRequest",
     };
-    logger.info(`Attempting to delete session: ${sessionId}`, sessionContext);
+    logger.info(sessionContext, `Attempting to delete session: ${sessionId}`);
 
     if (!this.transports.has(sessionId)) {
       logger.warning(
-        `Attempted to delete non-existent session: ${sessionId}`,
         sessionContext,
+        `Attempted to delete non-existent session: ${sessionId}`,
       );
       throw new McpError(
-        BaseErrorCode.NOT_FOUND,
+        JsonRpcErrorCode.NotFound,
         "Session not found or expired.",
         sessionContext,
       );
@@ -332,13 +337,13 @@ export class StatefulTransportManager
     const context = requestContextService.createRequestContext({
       operation: "StatefulTransportManager.shutdown",
     });
-    logger.info("Shutting down stateful transport manager...", context);
+    logger.info(context, "Shutting down stateful transport manager...");
     clearInterval(this.garbageCollector);
-    logger.debug("Garbage collector stopped.", context);
+    logger.debug(context, "Garbage collector stopped.");
 
     const sessionIds = Array.from(this.transports.keys());
     if (sessionIds.length > 0) {
-      logger.info(`Closing ${sessionIds.length} active sessions.`, context);
+      logger.info(context, `Closing ${sessionIds.length} active sessions.`);
       const closePromises = sessionIds.map((sessionId) =>
         this.closeSession(sessionId, context),
       );
@@ -348,7 +353,7 @@ export class StatefulTransportManager
     this.transports.clear();
     this.sessions.clear();
     this.servers.clear();
-    logger.info("All active sessions closed and manager shut down.", context);
+    logger.info(context, "All active sessions closed and manager shut down.");
   }
 
   /**
@@ -363,7 +368,7 @@ export class StatefulTransportManager
       sessionId,
       operation: "StatefulTransportManager.closeSession",
     };
-    logger.debug(`Closing session: ${sessionId}`, sessionContext);
+    logger.debug(sessionContext, `Closing session: ${sessionId}`);
 
     const transport = this.transports.get(sessionId);
     const server = this.servers.get(sessionId);
@@ -381,8 +386,8 @@ export class StatefulTransportManager
     this.sessions.delete(sessionId);
 
     logger.info(
-      `MCP Session closed and resources released: ${sessionId}`,
       sessionContext,
+      `MCP Session closed and resources released: ${sessionId}`,
     );
   }
 
@@ -393,7 +398,7 @@ export class StatefulTransportManager
     const context = requestContextService.createRequestContext({
       operation: "StatefulTransportManager.cleanupStaleSessions",
     });
-    logger.debug("Running stale session cleanup...", context);
+    logger.debug(context, "Running stale session cleanup...");
 
     const now = Date.now();
     const STALE_TIMEOUT_MS = this.options.staleSessionTimeoutMs;
@@ -403,8 +408,8 @@ export class StatefulTransportManager
       if (now - session.lastAccessedAt.getTime() > STALE_TIMEOUT_MS) {
         if (session.activeRequests > 0) {
           logger.info(
-            `Session ${sessionId} is stale but has ${session.activeRequests} active requests. Skipping cleanup.`,
             { ...context, sessionId },
+            `Session ${sessionId} is stale but has ${session.activeRequests} active requests. Skipping cleanup.`,
           );
           continue;
         }
@@ -414,25 +419,24 @@ export class StatefulTransportManager
 
     if (staleSessionIds.length > 0) {
       logger.info(
-        `Found ${staleSessionIds.length} stale sessions. Closing concurrently.`,
         context,
+        `Found ${staleSessionIds.length} stale sessions. Closing concurrently.`,
       );
       const closePromises = staleSessionIds.map((sessionId) =>
         this.closeSession(sessionId, context).catch((err) => {
           logger.error(
+            { error: err, ...context, sessionId },
             `Error during concurrent stale session cleanup for ${sessionId}`,
-            err,
-            { ...context, sessionId },
           );
         }),
       );
       await Promise.all(closePromises);
       logger.info(
-        `Stale session cleanup complete. Closed ${staleSessionIds.length} sessions.`,
         context,
+        `Stale session cleanup complete. Closed ${staleSessionIds.length} sessions.`,
       );
     } else {
-      logger.debug("No stale sessions found.", context);
+      logger.debug(context, "No stale sessions found.");
     }
   }
 }
