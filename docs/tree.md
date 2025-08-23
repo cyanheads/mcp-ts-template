@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-23 14:50:36
+Generated on: 2025-08-23 15:51:09
 
 ```
 mcp-ts-template
@@ -12,11 +12,16 @@ mcp-ts-template
 │   └── FUNDING.yml
 ├── .vscode
 │   └── settings.json
+├── changelogs
+│   └── CHANGELOG-v1.0.6-1.7.9.md
+├── coverage
 ├── docs
 │   ├── api-references
 │   │   ├── duckDB.md
 │   │   ├── jsdoc-standard-tags.md
 │   │   └── typedoc-reference.md
+│   ├── migrations
+│   │   └── v1.9.0.md
 │   ├── best-practices.md
 │   ├── devdocs.md
 │   └── tree.md
@@ -144,17 +149,13 @@ mcp-ts-template
 │   │   │   │   └── registration.test.ts
 │   │   │   └── imageTest
 │   │   │       └── registration.test.ts
-│   │   ├── transports
-│   │   │   ├── auth
-│   │   │   │   ├── lib
-│   │   │   │   │   └── authUtils.test.ts
-│   │   │   │   ├── strategies
-│   │   │   │   │   ├── jwtStrategy.test.ts
-│   │   │   │   │   └── oauthStrategy.test.ts
-│   │   │   │   └── auth.test.ts
-│   │   │   └── stdio
-│   │   │       └── stdioTransport.test.ts
-│   │   └── server.test.ts
+│   │   └── transports
+│   │       ├── auth
+│   │       │   ├── lib
+│   │       │   │   └── authUtils.test.ts
+│   │       │   └── strategies
+│   │       └── stdio
+│   │           └── stdioTransport.test.ts
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts
@@ -164,13 +165,9 @@ mcp-ts-template
 │   │   │   ├── duckDBQueryExecutor.test.ts
 │   │   │   └── duckDBService.test.ts
 │   │   ├── llm-providers
-│   │   │   └── openRouterProvider.test.ts
 │   │   └── supabase
-│   │       └── supabaseClient.test.ts
 │   ├── utils
 │   │   ├── internal
-│   │   │   ├── errorHandler.test.ts
-│   │   │   ├── logger.test.ts
 │   │   │   └── requestContext.test.ts
 │   │   ├── metrics
 │   │   │   └── tokenCounter.test.ts
@@ -193,7 +190,6 @@ mcp-ts-template
 ├── .gitignore
 ├── .ncurc.json
 ├── CHANGELOG.md
-├── CLAUDE.md
 ├── Dockerfile
 ├── eslint.config.js
 ├── LICENSE
