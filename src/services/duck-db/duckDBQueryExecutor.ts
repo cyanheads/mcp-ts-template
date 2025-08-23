@@ -4,12 +4,8 @@
  */
 
 import * as duckdb from "@duckdb/node-api";
-import { BaseErrorCode } from "../../types-global/errors.js";
-import {
-  ErrorHandler,
-  logger,
-  requestContextService,
-} from "../../utils/index.js";
+import { JsonRpcErrorCode } from "@/types-global/errors.js";
+import { ErrorHandler, logger, requestContextService } from "@/utils/index.js";
 import { DuckDBQueryResult } from "./types.js";
 
 export class DuckDBQueryExecutor {
@@ -27,7 +23,7 @@ export class DuckDBQueryExecutor {
 
     return ErrorHandler.tryCatch(
       async () => {
-        logger.debug(`Executing SQL (run): ${sql}`, { ...context, params });
+        logger.debug({ ...context, params }, `Executing SQL (run): ${sql}`);
         if (params === undefined) {
           await this.dbConnection.run(sql);
         } else {
@@ -38,7 +34,7 @@ export class DuckDBQueryExecutor {
         operation: "DuckDBQueryExecutor.run",
         context,
         input: { sql, params },
-        errorCode: BaseErrorCode.DATABASE_ERROR,
+        errorCode: JsonRpcErrorCode.DatabaseError,
       },
     );
   }
@@ -54,7 +50,7 @@ export class DuckDBQueryExecutor {
 
     return ErrorHandler.tryCatch(
       async () => {
-        logger.debug(`Executing SQL (query): ${sql}`, { ...context, params });
+        logger.debug({ ...context, params }, `Executing SQL (query): ${sql}`);
         const resultObject: duckdb.DuckDBResult = await this.stream(
           sql,
           params,
@@ -77,7 +73,7 @@ export class DuckDBQueryExecutor {
         operation: "DuckDBQueryExecutor.query",
         context,
         input: { sql, params },
-        errorCode: BaseErrorCode.DATABASE_ERROR,
+        errorCode: JsonRpcErrorCode.DatabaseError,
       },
     );
   }
@@ -93,7 +89,7 @@ export class DuckDBQueryExecutor {
 
     return ErrorHandler.tryCatch(
       async () => {
-        logger.debug(`Executing SQL (stream): ${sql}`, { ...context, params });
+        logger.debug({ ...context, params }, `Executing SQL (stream): ${sql}`);
         if (params === undefined) {
           return this.dbConnection.stream(sql);
         } else {
@@ -104,7 +100,7 @@ export class DuckDBQueryExecutor {
         operation: "DuckDBQueryExecutor.stream",
         context,
         input: { sql, params },
-        errorCode: BaseErrorCode.DATABASE_ERROR,
+        errorCode: JsonRpcErrorCode.DatabaseError,
       },
     );
   }
@@ -117,14 +113,14 @@ export class DuckDBQueryExecutor {
 
     return ErrorHandler.tryCatch(
       async () => {
-        logger.debug(`Preparing SQL: ${sql}`, context);
+        logger.debug(context, `Preparing SQL: ${sql}`);
         return this.dbConnection.prepare(sql);
       },
       {
         operation: "DuckDBQueryExecutor.prepare",
         context,
         input: { sql },
-        errorCode: BaseErrorCode.DATABASE_ERROR,
+        errorCode: JsonRpcErrorCode.DatabaseError,
       },
     );
   }
@@ -134,7 +130,7 @@ export class DuckDBQueryExecutor {
       operation: "DuckDBQueryExecutor.beginTransaction",
     });
     await this.run("BEGIN TRANSACTION");
-    logger.info("Transaction started.", context);
+    logger.info(context, "Transaction started.");
   }
 
   public async commitTransaction(): Promise<void> {
@@ -142,7 +138,7 @@ export class DuckDBQueryExecutor {
       operation: "DuckDBQueryExecutor.commitTransaction",
     });
     await this.run("COMMIT");
-    logger.info("Transaction committed.", context);
+    logger.info(context, "Transaction committed.");
   }
 
   public async rollbackTransaction(): Promise<void> {
@@ -150,6 +146,6 @@ export class DuckDBQueryExecutor {
       operation: "DuckDBQueryExecutor.rollbackTransaction",
     });
     await this.run("ROLLBACK");
-    logger.info("Transaction rolled back.", context);
+    logger.info(context, "Transaction rolled back.");
   }
 }

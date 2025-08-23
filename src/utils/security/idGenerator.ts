@@ -10,7 +10,7 @@
  * @module src/utils/security/idGenerator
  */
 import { randomUUID as cryptoRandomUUID, randomBytes } from "crypto";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
 // Removed: import { logger, requestContextService } from "../index.js";
 
 /**
@@ -163,7 +163,7 @@ export class IdGenerator {
     const prefix = this.entityPrefixes[entityType];
     if (!prefix) {
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         `Unknown entity type: ${entityType}. No prefix registered.`,
       );
     }
@@ -243,7 +243,7 @@ export class IdGenerator {
     const parts = id.split(separator);
     if (parts.length < 2 || !parts[0]) {
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         `Invalid ID format: ${id}. Expected format like: PREFIX${separator}RANDOMLPART`,
       );
     }
@@ -253,7 +253,7 @@ export class IdGenerator {
 
     if (!entityType) {
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         `Unknown entity type for prefix: ${prefix}`,
       );
     }
@@ -299,4 +299,17 @@ export const idGenerator = new IdGenerator();
  */
 export const generateUUID = (): string => {
   return cryptoRandomUUID();
+};
+
+/**
+ * Generates a short, 8-character alphanumeric identifier using the default IdGenerator instance.
+ * This is suitable for non-colliding IDs within a reasonable scope, like request IDs.
+ * @returns A new 8-character alphanumeric ID string.
+ */
+export const generateShortAlphanumericId = (): string => {
+  // Use the default instance and its generate method without a prefix.
+  return idGenerator.generate(undefined, {
+    length: 8,
+    separator: "", // No separator needed for a simple random string
+  });
 };

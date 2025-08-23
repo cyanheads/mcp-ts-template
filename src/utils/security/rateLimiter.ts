@@ -4,9 +4,13 @@
  * @module src/utils/security/rateLimiter
  */
 import { trace } from "@opentelemetry/api";
-import { environment } from "../../config/index.js";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
-import { logger, RequestContext, requestContextService } from "../index.js";
+import { environment } from "@/config/index.js";
+import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
+import {
+  logger,
+  RequestContext,
+  requestContextService,
+} from "@/utils/index.js";
 
 /**
  * Defines configuration options for the {@link RateLimiter}.
@@ -120,8 +124,8 @@ export class RateLimiter {
         totalRemainingAfterClean: this.limits.size,
       });
       logger.debug(
-        `Cleaned up ${expiredCount} expired rate limit entries`,
         logContext,
+        `Cleaned up ${expiredCount} expired rate limit entries`,
       );
     }
   }
@@ -153,7 +157,7 @@ export class RateLimiter {
     const logContext = requestContextService.createRequestContext({
       operation: "RateLimiter.reset",
     });
-    logger.debug("Rate limiter reset, all limits cleared", logContext);
+    logger.debug(logContext, "Rate limiter reset, all limits cleared");
   }
 
   /**
@@ -208,7 +212,7 @@ export class RateLimiter {
         "mcp.rate_limit.wait_time_seconds": waitTime,
       });
 
-      throw new McpError(BaseErrorCode.RATE_LIMITED, errorMessage, {
+      throw new McpError(JsonRpcErrorCode.RateLimited, errorMessage, {
         waitTimeSeconds: waitTime,
         key: limitKey,
         limit: this.config.maxRequests,

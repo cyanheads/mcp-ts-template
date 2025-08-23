@@ -4,13 +4,13 @@
  */
 
 import * as duckdb from "@duckdb/node-api";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
 import {
   ErrorHandler,
   logger,
   RequestContext,
   requestContextService,
-} from "../../utils/index.js";
+} from "@/utils/index.js";
 import { DuckDBServiceConfig } from "./types.js";
 
 const DEFAULT_DB_PATH = ":memory:";
@@ -34,8 +34,8 @@ export class DuckDBConnectionManager {
 
     if (this.isInitialized) {
       logger.warning(
-        "DuckDBConnectionManager already initialized. Close first to re-initialize.",
         context,
+        "DuckDBConnectionManager already initialized. Close first to re-initialize.",
       );
       // Potentially compare new config with old config if re-init with changes is desired
       return;
@@ -48,8 +48,8 @@ export class DuckDBConnectionManager {
         const launchConfig = this.currentConfig?.launchConfig;
 
         logger.info(
-          `Initializing DuckDB instance with path: ${dbPath}`,
           context,
+          `Initializing DuckDB instance with path: ${dbPath}`,
         );
 
         // Pass launchConfig directly to the create method
@@ -60,7 +60,7 @@ export class DuckDBConnectionManager {
           launchConfig || {},
         );
         this.dbConnection = await this.dbInstance.connect();
-        logger.info("DuckDB instance and connection created.", context);
+        logger.info(context, "DuckDB instance and connection created.");
 
         // Set isInitialized to true now that core components are ready
         this.isInitialized = true;
@@ -82,20 +82,23 @@ export class DuckDBConnectionManager {
         //       `SET ${key}='${String(value).replace(/'/g, "''")}';`,
         //     );
         //   }
-        //   logger.info("Applied launch configuration via SET commands.", {
+        //   logger.info({
         //     ...context,
         //     launchConfig,
-        //   });
+        //   }, "Applied launch configuration via SET commands.");
         // }
 
         if (
           this.currentConfig?.extensions &&
           this.currentConfig.extensions.length > 0
         ) {
-          logger.info("Loading extensions...", {
-            ...context,
-            extensions: this.currentConfig.extensions,
-          });
+          logger.info(
+            {
+              ...context,
+              extensions: this.currentConfig.extensions,
+            },
+            "Loading extensions...",
+          );
           for (const extName of this.currentConfig.extensions) {
             await this.loadExtension(extName, context);
           }
@@ -103,15 +106,15 @@ export class DuckDBConnectionManager {
 
         // this.isInitialized = true; // Moved earlier
         logger.info(
-          "DuckDBConnectionManager initialized successfully.",
           context,
+          "DuckDBConnectionManager initialized successfully.",
         );
       },
       {
         operation: "DuckDBConnectionManager.initialize",
         context,
         input: config,
-        errorCode: BaseErrorCode.INITIALIZATION_FAILED,
+        errorCode: JsonRpcErrorCode.InitializationFailed,
         critical: true,
       },
     );
@@ -136,24 +139,24 @@ export class DuckDBConnectionManager {
 
     return ErrorHandler.tryCatch(
       async () => {
-        logger.info(`Installing extension: ${extensionName}`, context);
+        logger.info(context, `Installing extension: ${extensionName}`);
         await this.dbConnection!.run(
           `INSTALL '${extensionName.replace(/'/g, "''")}'`,
         );
-        logger.info(`Loading extension: ${extensionName}`, context);
+        logger.info(context, `Loading extension: ${extensionName}`);
         await this.dbConnection!.run(
           `LOAD '${extensionName.replace(/'/g, "''")}'`,
         );
         logger.info(
-          `Extension ${extensionName} installed and loaded.`,
           context,
+          `Extension ${extensionName} installed and loaded.`,
         );
       },
       {
         operation: "DuckDBConnectionManager.loadExtension",
         context,
         input: { extensionName },
-        errorCode: BaseErrorCode.EXTENSION_ERROR,
+        errorCode: JsonRpcErrorCode.InternalError,
       },
     );
   }
@@ -169,8 +172,8 @@ export class DuckDBConnectionManager {
 
     if (!this.isInitialized) {
       logger.warning(
-        "DuckDBConnectionManager not initialized, nothing to close.",
         context,
+        "DuckDBConnectionManager not initialized, nothing to close.",
       );
       return;
     }
@@ -180,21 +183,21 @@ export class DuckDBConnectionManager {
         if (this.dbConnection) {
           this.dbConnection.closeSync(); // Use synchronous closeSync
           this.dbConnection = null;
-          logger.info("DuckDB connection closed.", context);
+          logger.info(context, "DuckDB connection closed.");
         }
         if (this.dbInstance) {
           this.dbInstance.closeSync(); // Use synchronous closeSync
           this.dbInstance = null;
-          logger.info("DuckDB instance closed.", context);
+          logger.info(context, "DuckDB instance closed.");
         }
         this.isInitialized = false;
         this.currentConfig = null;
-        logger.info("DuckDBConnectionManager closed successfully.", context);
+        logger.info(context, "DuckDBConnectionManager closed successfully.");
       },
       {
         operation: "DuckDBConnectionManager.close",
         context,
-        errorCode: BaseErrorCode.SHUTDOWN_ERROR,
+        errorCode: JsonRpcErrorCode.InternalError,
       },
     );
   }
@@ -207,7 +210,7 @@ export class DuckDBConnectionManager {
   public ensureInitialized(context: RequestContext): void {
     if (!this.isInitialized || !this.dbConnection || !this.dbInstance) {
       throw new McpError(
-        BaseErrorCode.SERVICE_NOT_INITIALIZED,
+        JsonRpcErrorCode.ServiceUnavailable,
         "DuckDBConnectionManager is not initialized. Call initialize() first.",
         context,
       );

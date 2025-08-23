@@ -4,13 +4,13 @@
  */
 
 import * as duckdb from "@duckdb/node-api";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
 import {
   ErrorHandler,
   logger,
   RequestContext,
   requestContextService,
-} from "../../utils/index.js";
+} from "@/utils/index.js";
 import { DuckDBConnectionManager } from "./duckDBConnectionManager.js";
 import { DuckDBQueryExecutor } from "./duckDBQueryExecutor.js";
 import {
@@ -36,8 +36,8 @@ export class DuckDBService implements IDuckDBService {
 
     if (this.isInitialized) {
       logger.warning(
-        "DuckDBService already initialized. Close first to re-initialize.",
         context,
+        "DuckDBService already initialized. Close first to re-initialize.",
       );
       return;
     }
@@ -48,13 +48,13 @@ export class DuckDBService implements IDuckDBService {
         const connection = this.connectionManager.getConnection();
         this.queryExecutor = new DuckDBQueryExecutor(connection);
         this.isInitialized = true;
-        logger.info("DuckDBService initialized successfully.", context);
+        logger.info(context, "DuckDBService initialized successfully.");
       },
       {
         operation: "DuckDBService.initialize",
         context,
         input: config,
-        errorCode: BaseErrorCode.INITIALIZATION_FAILED,
+        errorCode: JsonRpcErrorCode.InitializationFailed,
         critical: true,
       },
     );
@@ -65,7 +65,7 @@ export class DuckDBService implements IDuckDBService {
     if (!this.queryExecutor) {
       // This check is mostly for type safety, as connectionManager.ensureInitialized should cover it
       throw new McpError(
-        BaseErrorCode.SERVICE_NOT_INITIALIZED,
+        JsonRpcErrorCode.ServiceUnavailable,
         "DuckDBQueryExecutor not available. DuckDBService may not be fully initialized.",
         context,
       );
@@ -83,7 +83,7 @@ export class DuckDBService implements IDuckDBService {
       return params as duckdb.DuckDBValue[];
     }
     throw new McpError(
-      BaseErrorCode.INVALID_INPUT,
+      JsonRpcErrorCode.InvalidParams,
       "DuckDB service only supports array-style parameters, not named objects.",
       context,
     );
@@ -178,12 +178,12 @@ export class DuckDBService implements IDuckDBService {
         await this.connectionManager.close();
         this.queryExecutor = null;
         this.isInitialized = false;
-        logger.info("DuckDBService closed successfully.", context);
+        logger.info(context, "DuckDBService closed successfully.");
       },
       {
         operation: "DuckDBService.close",
         context,
-        errorCode: BaseErrorCode.SHUTDOWN_ERROR,
+        errorCode: JsonRpcErrorCode.InternalError,
       },
     );
   }

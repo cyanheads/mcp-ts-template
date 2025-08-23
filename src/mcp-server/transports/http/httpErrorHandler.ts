@@ -8,13 +8,37 @@
 
 import { Context } from "hono";
 import { StatusCode } from "hono/utils/http-status";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
-import {
-  ErrorHandler,
-  logger,
-  requestContextService,
-} from "../../../utils/index.js";
+import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
+import { ErrorHandler, requestContextService } from "../../../utils/index.js";
+import { logOperationStart } from "../../../utils/internal/logging-helpers.js";
 import { HonoNodeBindings } from "./httpTypes.js";
+
+function toHttpCode(errorCode: JsonRpcErrorCode): StatusCode {
+  switch (errorCode) {
+    case JsonRpcErrorCode.ParseError:
+    case JsonRpcErrorCode.InvalidRequest:
+    case JsonRpcErrorCode.InvalidParams:
+    case JsonRpcErrorCode.ValidationError:
+      return 400;
+    case JsonRpcErrorCode.MethodNotFound:
+    case JsonRpcErrorCode.NotFound:
+      return 404;
+    case JsonRpcErrorCode.Unauthorized:
+      return 401;
+    case JsonRpcErrorCode.Forbidden:
+      return 403;
+    case JsonRpcErrorCode.Conflict:
+      return 409;
+    case JsonRpcErrorCode.RateLimited:
+      return 429;
+    case JsonRpcErrorCode.Timeout:
+      return 504;
+    case JsonRpcErrorCode.ServiceUnavailable:
+      return 503;
+    default:
+      return 500;
+  }
+}
 
 /**
  * A centralized error handling middleware for Hono.
@@ -34,72 +58,34 @@ export const httpErrorHandler = async (
     path: c.req.path,
     method: c.req.method,
   });
-  logger.debug("HTTP error handler invoked.", context);
+  logOperationStart(context, "HTTP error handler invoked.");
 
   const handledError = ErrorHandler.handleError(err, {
     operation: "httpTransport",
     context,
   });
 
-  let status: StatusCode = 500;
-  if (handledError instanceof McpError) {
-    switch (handledError.code) {
-      case BaseErrorCode.NOT_FOUND:
-        status = 404;
-        break;
-      case BaseErrorCode.UNAUTHORIZED:
-        status = 401;
-        break;
-      case BaseErrorCode.FORBIDDEN:
-        status = 403;
-        break;
-      case BaseErrorCode.VALIDATION_ERROR:
-      case BaseErrorCode.INVALID_INPUT:
-        status = 400;
-        break;
-      case BaseErrorCode.CONFLICT:
-        status = 409;
-        break;
-      case BaseErrorCode.RATE_LIMITED:
-        status = 429;
-        break;
-      default:
-        status = 500;
-    }
-  }
-  logger.debug(`Mapping error to HTTP status ${status}.`, {
-    ...context,
+  const errorCode =
+    handledError instanceof McpError
+      ? handledError.code
+      : JsonRpcErrorCode.InternalError;
+  const status = toHttpCode(errorCode);
+
+  logOperationStart(context, `Mapping error to HTTP status ${status}.`, {
     status,
-    errorCode: (handledError as McpError).code,
+    errorCode,
   });
 
   // Attempt to get the request ID from the body, but don't fail if it's not there or unreadable.
   let requestId: string | number | null = null;
-  // Only attempt to read the body if it hasn't been consumed already.
   if (c.req.raw.bodyUsed === false) {
     try {
       const body = await c.req.json();
       requestId = body?.id || null;
-      logger.debug("Extracted JSON-RPC request ID from body.", {
-        ...context,
-        jsonRpcId: requestId,
-      });
     } catch {
-      logger.warning(
-        "Could not parse request body to extract JSON-RPC ID.",
-        context,
-      );
-      // Ignore parsing errors, requestId will remain null
+      // Ignore parsing errors
     }
-  } else {
-    logger.debug(
-      "Request body already consumed, cannot extract JSON-RPC ID.",
-      context,
-    );
   }
-
-  const errorCode =
-    handledError instanceof McpError ? handledError.code : -32603;
 
   c.status(status);
   const errorResponse = {
@@ -110,11 +96,5 @@ export const httpErrorHandler = async (
     },
     id: requestId,
   };
-  logger.info(`Sending formatted error response for request.`, {
-    ...context,
-    status,
-    errorCode,
-    jsonRpcId: requestId,
-  });
   return c.json(errorResponse);
 };

@@ -8,8 +8,12 @@ import {
   parse as parsePartialJson,
   Allow as PartialJsonAllow,
 } from "partial-json";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
-import { logger, RequestContext, requestContextService } from "../index.js";
+import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
+import {
+  logger,
+  RequestContext,
+  requestContextService,
+} from "@/utils/index.js";
 
 /**
  * Enum mirroring `partial-json`'s `Allow` constants. These specify
@@ -79,12 +83,15 @@ export class JsonParser {
           operation: "JsonParser.thinkBlock",
         });
       if (thinkContent) {
-        logger.debug("LLM <think> block detected and logged.", {
-          ...logContext,
-          thinkContent,
-        });
+        logger.debug(
+          {
+            ...logContext,
+            thinkContent,
+          },
+          "LLM <think> block detected and logged.",
+        );
       } else {
-        logger.debug("Empty LLM <think> block detected.", logContext);
+        logger.debug(logContext, "Empty LLM <think> block detected.");
       }
       stringToParse = restOfString;
     }
@@ -93,7 +100,7 @@ export class JsonParser {
 
     if (!stringToParse) {
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         "JSON string is empty after removing <think> block and trimming.",
         context,
       );
@@ -108,14 +115,17 @@ export class JsonParser {
         requestContextService.createRequestContext({
           operation: "JsonParser.parseError",
         });
-      logger.error("Failed to parse JSON content.", {
-        ...errorLogContext,
-        errorDetails: error.message,
-        contentAttempted: stringToParse.substring(0, 200),
-      });
+      logger.error(
+        {
+          ...errorLogContext,
+          errorDetails: error.message,
+          contentAttempted: stringToParse.substring(0, 200),
+        },
+        "Failed to parse JSON content.",
+      );
 
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         `Failed to parse JSON: ${error.message}`,
         {
           ...context,

@@ -3,9 +3,9 @@
  * @module src/utils/network/fetchWithTimeout
  */
 
-import { logger } from "../internal/logger.js"; // Adjusted import path
-import type { RequestContext } from "../internal/requestContext.js"; // Adjusted import path
-import { McpError, BaseErrorCode } from "../../types-global/errors.js";
+import { logger } from "@/utils/internal/logger.js"; // Adjusted import path
+import type { RequestContext } from "@/utils/internal/requestContext.js"; // Adjusted import path
+import { McpError, JsonRpcErrorCode } from "@/types-global/errors.js";
 
 /**
  * Options for the fetchWithTimeout utility.
@@ -36,8 +36,8 @@ export async function fetchWithTimeout(
   const operationDescription = `fetch ${options?.method || "GET"} ${urlString}`;
 
   logger.debug(
-    `Attempting ${operationDescription} with ${timeoutMs}ms timeout.`,
     context,
+    `Attempting ${operationDescription} with ${timeoutMs}ms timeout.`,
   );
 
   try {
@@ -52,7 +52,6 @@ export async function fetchWithTimeout(
         .text()
         .catch(() => "Could not read response body");
       logger.error(
-        `Fetch failed for ${urlString} with status ${response.status}.`,
         {
           ...context,
           statusCode: response.status,
@@ -60,9 +59,10 @@ export async function fetchWithTimeout(
           responseBody: errorBody,
           errorSource: "FetchHttpError",
         },
+        `Fetch failed for ${urlString} with status ${response.status}.`,
       );
       throw new McpError(
-        BaseErrorCode.SERVICE_UNAVAILABLE,
+        JsonRpcErrorCode.ServiceUnavailable,
         `Fetch failed for ${urlString}. Status: ${response.status}`,
         {
           ...context,
@@ -74,19 +74,22 @@ export async function fetchWithTimeout(
     }
 
     logger.debug(
-      `Successfully fetched ${urlString}. Status: ${response.status}`,
       context,
+      `Successfully fetched ${urlString}. Status: ${response.status}`,
     );
     return response;
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === "AbortError") {
-      logger.error(`${operationDescription} timed out after ${timeoutMs}ms.`, {
-        ...context,
-        errorSource: "FetchTimeout",
-      });
+      logger.error(
+        {
+          ...context,
+          errorSource: "FetchTimeout",
+        },
+        `${operationDescription} timed out after ${timeoutMs}ms.`,
+      );
       throw new McpError(
-        BaseErrorCode.TIMEOUT,
+        JsonRpcErrorCode.Timeout,
         `${operationDescription} timed out.`,
         { ...context, errorSource: "FetchTimeout" },
       );
@@ -95,12 +98,12 @@ export async function fetchWithTimeout(
     // Log and re-throw other errors as McpError
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(
-      `Network error during ${operationDescription}: ${errorMessage}`,
       {
         ...context,
         originalErrorName: error instanceof Error ? error.name : "UnknownError",
         errorSource: "FetchNetworkError",
       },
+      `Network error during ${operationDescription}: ${errorMessage}`,
     );
 
     if (error instanceof McpError) {
@@ -109,7 +112,7 @@ export async function fetchWithTimeout(
     }
 
     throw new McpError(
-      BaseErrorCode.SERVICE_UNAVAILABLE, // Generic error for network/service issues
+      JsonRpcErrorCode.ServiceUnavailable, // Generic error for network/service issues
       `Network error during ${operationDescription}: ${errorMessage}`,
       {
         ...context,

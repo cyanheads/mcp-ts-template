@@ -4,8 +4,8 @@
  * @module src/mcp-server/transports/auth/core/authUtils
  */
 
-import { BaseErrorCode, McpError } from "../../../../types-global/errors.js";
-import { logger, requestContextService } from "../../../../utils/index.js";
+import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
+import { logger, requestContextService } from "@/utils/index.js";
 import { authContext } from "./authContext.js";
 
 /**
@@ -27,18 +27,18 @@ export function withRequiredScopes(requiredScopes: string[]): void {
     requiredScopes,
   });
 
-  logger.debug("Performing scope authorization check.", initialContext);
+  logger.debug(initialContext, "Performing scope authorization check.");
 
   const store = authContext.getStore();
 
   if (!store || !store.authInfo) {
     logger.crit(
-      "Authentication context is missing in withRequiredScopes. This is a server configuration error.",
       initialContext,
+      "Authentication context is missing in withRequiredScopes. This is a server configuration error.",
     );
     // This is a server-side logic error; the auth middleware should always populate this.
     throw new McpError(
-      BaseErrorCode.INTERNAL_ERROR,
+      JsonRpcErrorCode.InternalError,
       "Authentication context is missing. This indicates a server configuration error.",
       {
         ...initialContext,
@@ -64,15 +64,15 @@ export function withRequiredScopes(requiredScopes: string[]): void {
   if (missingScopes.length > 0) {
     const errorContext = { ...finalContext, missingScopes };
     logger.warning(
-      "Authorization failed: Missing required scopes.",
       errorContext,
+      "Authorization failed: Missing required scopes.",
     );
     throw new McpError(
-      BaseErrorCode.FORBIDDEN,
+      JsonRpcErrorCode.Forbidden,
       `Insufficient permissions. Missing required scopes: ${missingScopes.join(", ")}`,
       errorContext,
     );
   }
 
-  logger.debug("Scope authorization successful.", finalContext);
+  logger.debug(finalContext, "Scope authorization successful.");
 }

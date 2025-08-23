@@ -4,8 +4,8 @@
  * @module src/utils/parsing/dateParser
  */
 import * as chrono from "chrono-node";
-import { BaseErrorCode } from "../../types-global/errors.js";
-import { ErrorHandler, logger, RequestContext } from "../index.js";
+import { JsonRpcErrorCode } from "@/types-global/errors.js";
+import { ErrorHandler, logger, RequestContext } from "@/utils/index.js";
 
 /**
  * Parses a natural language date string into a JavaScript Date object.
@@ -25,19 +25,19 @@ export async function parseDateString(
 ): Promise<Date | null> {
   const operation = "parseDateString";
   const logContext = { ...context, operation, inputText: text, refDate };
-  logger.debug(`Attempting to parse date string: "${text}"`, logContext);
+  logger.debug(logContext, `Attempting to parse date string: "${text}"`);
 
   return await ErrorHandler.tryCatch(
     async () => {
       const parsedDate = chrono.parseDate(text, refDate, { forwardDate: true });
       if (parsedDate) {
         logger.debug(
-          `Successfully parsed "${text}" to ${parsedDate.toISOString()}`,
           logContext,
+          `Successfully parsed "${text}" to ${parsedDate.toISOString()}`,
         );
         return parsedDate;
       } else {
-        logger.warning(`Failed to parse date string: "${text}"`, logContext);
+        logger.warning(logContext, `Failed to parse date string: "${text}"`);
         return null;
       }
     },
@@ -45,7 +45,7 @@ export async function parseDateString(
       operation,
       context: logContext,
       input: { text, refDate },
-      errorCode: BaseErrorCode.PARSING_ERROR,
+      errorCode: JsonRpcErrorCode.ParseError,
     },
   );
 }
@@ -69,16 +69,16 @@ export async function parseDateStringDetailed(
   const operation = "parseDateStringDetailed";
   const logContext = { ...context, operation, inputText: text, refDate };
   logger.debug(
-    `Attempting detailed parse of date string: "${text}"`,
     logContext,
+    `Attempting detailed parse of date string: "${text}"`,
   );
 
   return await ErrorHandler.tryCatch(
     async () => {
       const results = chrono.parse(text, refDate, { forwardDate: true });
       logger.debug(
-        `Detailed parse of "${text}" resulted in ${results.length} result(s)`,
         logContext,
+        `Detailed parse of "${text}" resulted in ${results.length} result(s)`,
       );
       return results;
     },
@@ -86,7 +86,7 @@ export async function parseDateStringDetailed(
       operation,
       context: logContext,
       input: { text, refDate },
-      errorCode: BaseErrorCode.PARSING_ERROR,
+      errorCode: JsonRpcErrorCode.ParseError,
     },
   );
 }

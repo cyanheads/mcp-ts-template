@@ -7,18 +7,16 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { config } from "../config/index.js"; // Added config import
-import { DuckDBService } from "../services/duck-db/duckDBService.js";
-import { DuckDBServiceConfig } from "../services/duck-db/types.js";
-import { BaseErrorCode } from "../types-global/errors.js";
+import { DuckDBService } from "@/services/duck-db/duckDBService.js";
+import { DuckDBServiceConfig } from "@/services/duck-db/types.js";
+import { JsonRpcErrorCode } from "@/types-global/errors.js";
 import {
   ErrorHandler,
   idGenerator, // Added idGenerator import
   logger,
-  McpLogLevel,
   RequestContext,
   requestContextService,
-} from "../utils/index.js";
+} from "@/utils/index.js";
 
 const DUCKDB_DATA_DIR = path.resolve(process.cwd(), "duckdata");
 const DUCKDB_FILE_PATH = path.join(DUCKDB_DATA_DIR, "example.db");
@@ -30,17 +28,19 @@ const DUCKDB_FILE_PATH = path.join(DUCKDB_DATA_DIR, "example.db");
 function ensureDataDirectoryExists(context: RequestContext): void {
   if (!fs.existsSync(DUCKDB_DATA_DIR)) {
     logger.info(
-      `Data directory ${DUCKDB_DATA_DIR} does not exist. Creating...`,
       context,
+      `Data directory ${DUCKDB_DATA_DIR} does not exist. Creating...`,
     );
     try {
       fs.mkdirSync(DUCKDB_DATA_DIR, { recursive: true });
-      logger.info(`Data directory ${DUCKDB_DATA_DIR} created.`, context);
+      logger.info(context, `Data directory ${DUCKDB_DATA_DIR} created.`);
     } catch (error) {
       logger.error(
+        {
+          error: error as Error,
+          ...context,
+        },
         `Failed to create data directory ${DUCKDB_DATA_DIR}`,
-        error as Error,
-        context,
       );
       // Re-throw as a critical error if directory creation fails
       throw new Error(
@@ -48,24 +48,23 @@ function ensureDataDirectoryExists(context: RequestContext): void {
       );
     }
   } else {
-    logger.debug(`Data directory ${DUCKDB_DATA_DIR} already exists.`, context);
+    logger.debug(context, `Data directory ${DUCKDB_DATA_DIR} already exists.`);
   }
 
   // Ensure a fresh database file for the example by deleting it if it exists.
   // This allows launchConfig settings like custom_user_agent to be applied on each run.
   if (fs.existsSync(DUCKDB_FILE_PATH)) {
     logger.info(
-      `Existing DuckDB file ${DUCKDB_FILE_PATH} found. Deleting for a fresh example run...`,
       context,
+      `Existing DuckDB file ${DUCKDB_FILE_PATH} found. Deleting for a fresh example run...`,
     );
     try {
       fs.unlinkSync(DUCKDB_FILE_PATH);
-      logger.info(`Successfully deleted ${DUCKDB_FILE_PATH}.`, context);
+      logger.info(context, `Successfully deleted ${DUCKDB_FILE_PATH}.`);
     } catch (error) {
       logger.error(
+        { error: error as Error, ...context },
         `Failed to delete existing DuckDB file ${DUCKDB_FILE_PATH}`,
-        error as Error,
-        context,
       );
       // Re-throw as a critical error if deletion fails, as it will likely cause subsequent errors
       throw new Error(
@@ -79,7 +78,7 @@ async function runDuckDBExample(): Promise<void> {
   const operation = "runDuckDBExample";
   const context = requestContextService.createRequestContext({ operation });
 
-  logger.notice("Starting DuckDB example script...", context);
+  logger.notice(context, "Starting DuckDB example script...");
 
   ensureDataDirectoryExists(context);
 
@@ -92,11 +91,11 @@ async function runDuckDBExample(): Promise<void> {
 
   try {
     logger.info(
-      `Initializing DuckDBService with path: ${config.dbPath}`,
       context,
+      `Initializing DuckDBService with path: ${config.dbPath}`,
     );
     await service.initialize(config);
-    logger.info("DuckDBService initialized.", context);
+    logger.info(context, "DuckDBService initialized.");
 
     // Create a table
     const createTableSql = `
@@ -107,12 +106,15 @@ async function runDuckDBExample(): Promise<void> {
         createdAt TIMESTAMP DEFAULT current_timestamp
       );
     `;
-    logger.info("Creating 'users' table...", {
-      ...context,
-      sql: createTableSql,
-    });
+    logger.info(
+      {
+        ...context,
+        sql: createTableSql,
+      },
+      "Creating 'users' table...",
+    );
     await service.run(createTableSql);
-    logger.info("'users' table created or already exists.", context);
+    logger.info(context, "'users' table created or already exists.");
 
     // Insert data
     const usersToInsert = [
@@ -124,10 +126,13 @@ async function runDuckDBExample(): Promise<void> {
       ...user,
     }));
 
-    logger.info("Inserting data into 'users' table...", {
-      ...context,
-      users: usersToInsert.length,
-    });
+    logger.info(
+      {
+        ...context,
+        users: usersToInsert.length,
+      },
+      "Inserting data into 'users' table...",
+    );
     for (const user of usersToInsert) {
       // Check if user already exists to prevent primary key constraint errors on re-runs
       const existingUser = await service.query(
@@ -139,29 +144,32 @@ async function runDuckDBExample(): Promise<void> {
           "INSERT INTO users (id, name, email) VALUES (?, ?, ?)",
           [user.id, user.name, user.email],
         );
-        logger.debug(`Inserted user with ID: ${user.id}`, context);
+        logger.debug(context, `Inserted user with ID: ${user.id}`);
       } else {
         logger.debug(
-          `User with ID: ${user.id} already exists. Skipping insertion.`,
           context,
+          `User with ID: ${user.id} already exists. Skipping insertion.`,
         );
       }
     }
-    logger.info("Data insertion complete.", context);
+    logger.info(context, "Data insertion complete.");
 
     // Query data
     const querySql =
       "SELECT id, name, email, createdAt FROM users ORDER BY id;";
-    logger.info("Querying 'users' table...", { ...context, sql: querySql });
+    logger.info({ ...context, sql: querySql }, "Querying 'users' table...");
     const result = await service.query(querySql);
 
-    logger.notice("Query Results:", {
-      ...context,
-      rowCount: result.rowCount,
-      columnNames: result.columnNames,
-    });
+    logger.notice(
+      {
+        ...context,
+        rowCount: result.rowCount,
+        columnNames: result.columnNames,
+      },
+      "Query Results:",
+    );
     result.rows.forEach((row: Record<string, unknown>, index: number) => {
-      logger.info(`Row ${index + 1}:`, { ...context, rowData: row });
+      logger.info({ ...context, rowData: row }, `Row ${index + 1}:`);
     });
 
     // Example of using an extension function (json)
@@ -170,8 +178,8 @@ async function runDuckDBExample(): Promise<void> {
       const firstUser = usersToInsert[0];
       if (!firstUser) {
         logger.warning(
-          "Could not get the first user for JSON query example.",
           context,
+          "Could not get the first user for JSON query example.",
         );
         return;
       }
@@ -179,65 +187,66 @@ async function runDuckDBExample(): Promise<void> {
       const jsonQuerySql =
         "SELECT json_object('id', id, 'name', name, 'email', email) AS user_json FROM users WHERE id = ?;"; // Added email to json_object
       logger.info(
-        "Querying with JSON extension function for a specific user...",
         {
           ...context,
           sql: jsonQuerySql,
           userId: firstUserId,
         },
+        "Querying with JSON extension function for a specific user...",
       );
       const jsonResult = await service.query(jsonQuerySql, [firstUserId]);
       if (jsonResult.rowCount > 0) {
-        logger.info("JSON Query Result:", {
-          ...context,
-          jsonData: jsonResult.rows[0],
-        });
+        logger.info(
+          {
+            ...context,
+            jsonData: jsonResult.rows[0],
+          },
+          "JSON Query Result:",
+        );
       } else {
         logger.warning(
-          `Could not find user with ID ${firstUserId} for JSON query example.`,
           context,
+          `Could not find user with ID ${firstUserId} for JSON query example.`,
         ); // Changed warn to warning
       }
     } else {
       logger.info(
-        "Skipping JSON query example as no users were inserted.",
         context,
+        "Skipping JSON query example as no users were inserted.",
       );
     }
   } catch (error) {
     // ErrorHandler.tryCatch is used within the service, so errors should be McpError
     // If an error occurs outside service calls (e.g. directory creation), it might be a standard Error
     logger.error(
-      "An error occurred in the DuckDB example script",
-      error as Error,
       {
+        error: error as Error,
         ...context,
         isMcpError: error instanceof Object && "errorCode" in error, // Basic check
       },
+      "An error occurred in the DuckDB example script",
     );
   } finally {
-    logger.info("Closing DuckDBService...", context);
+    logger.info(context, "Closing DuckDBService...");
     // Wrap close in its own tryCatch as it might also throw
     try {
       await service.close();
-      logger.info("DuckDBService closed.", context);
+      logger.info(context, "DuckDBService closed.");
     } catch (closeError) {
       logger.error(
+        {
+          error: closeError as Error,
+          ...context,
+        },
         "Failed to close DuckDBService",
-        closeError as Error,
-        context,
       );
     }
   }
-  logger.notice("DuckDB example script finished.", context);
+  logger.notice(context, "DuckDB example script finished.");
 }
 
 // Self-executing async function
 (async () => {
-  // Initialize the logger before any other operations
-  // Ensure config.logLevel is correctly typed as McpLogLevel for the initialize method.
-  await logger.initialize(config.logLevel as McpLogLevel);
-
   // Setup a global error handler for unhandled rejections or exceptions
   // specific to this script's execution context.
   const scriptContext = requestContextService.createRequestContext({
@@ -247,16 +256,15 @@ async function runDuckDBExample(): Promise<void> {
     await ErrorHandler.tryCatch(runDuckDBExample, {
       operation: "runDuckDBExample.mainExecution",
       context: scriptContext,
-      errorCode: BaseErrorCode.INTERNAL_ERROR, // Changed from SCRIPT_EXECUTION_ERROR
+      errorCode: JsonRpcErrorCode.InternalError, // Changed from SCRIPT_EXECUTION_ERROR
       critical: true, // If the main example fails, it's critical for the script
     });
   } catch (e) {
     // This catch is for errors that ErrorHandler.tryCatch itself might rethrow
     // or if ErrorHandler is bypassed.
     logger.crit(
+      { error: e as Error, ...scriptContext },
       "Unhandled critical error in DuckDB example script execution.",
-      e as Error,
-      scriptContext,
     );
     process.exit(1); // Exit with error code
   }

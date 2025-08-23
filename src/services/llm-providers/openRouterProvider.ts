@@ -13,16 +13,16 @@ import {
   ChatCompletionCreateParamsStreaming,
 } from "openai/resources/chat/completions";
 import { Stream } from "openai/streaming";
-import { config } from "../../config/index.js";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
-import { ErrorHandler } from "../../utils/internal/errorHandler.js";
-import { logger } from "../../utils/internal/logger.js";
+import { config } from "@/config/index.js";
+import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
+import { ErrorHandler } from "@/utils/internal/errorHandler.js";
+import { logger } from "@/utils/internal/logger.js";
 import {
   RequestContext,
   requestContextService,
-} from "../../utils/internal/requestContext.js";
-import { rateLimiter } from "../../utils/security/rateLimiter.js";
-import { sanitization } from "../../utils/security/sanitization.js";
+} from "@/utils/internal/requestContext.js";
+import { rateLimiter } from "@/utils/security/rateLimiter.js";
+import { sanitization } from "@/utils/security/sanitization.js";
 
 // Note: OpenRouter recommends setting HTTP-Referer (e.g., config.openrouterAppUrl)
 // and X-Title (e.g., config.openrouterAppName) headers.
@@ -198,25 +198,25 @@ async function _openRouterChatCompletionLogic(
     };
     if (error.status === 401) {
       throw new McpError(
-        BaseErrorCode.UNAUTHORIZED,
+        JsonRpcErrorCode.Unauthorized,
         `OpenRouter authentication failed: ${error.message}`,
         errorDetails,
       );
     } else if (error.status === 429) {
       throw new McpError(
-        BaseErrorCode.RATE_LIMITED,
+        JsonRpcErrorCode.RateLimited,
         `OpenRouter rate limit exceeded: ${error.message}`,
         errorDetails,
       );
     } else if (error.status === 402) {
       throw new McpError(
-        BaseErrorCode.FORBIDDEN,
+        JsonRpcErrorCode.Forbidden,
         `OpenRouter insufficient credits or payment required: ${error.message}`,
         errorDetails,
       );
     }
     throw new McpError(
-      BaseErrorCode.INTERNAL_ERROR,
+      JsonRpcErrorCode.InternalError,
       `OpenRouter API error (${error.status || "unknown status"}): ${
         error.message
       }`,
@@ -245,10 +245,16 @@ class OpenRouterProvider {
     if (!apiKey) {
       this.status = "unconfigured";
       this.initializationError = new McpError(
-        BaseErrorCode.CONFIGURATION_ERROR,
+        JsonRpcErrorCode.ConfigurationError,
         "OpenRouter API key is not configured.",
       );
-      logger.error(this.initializationError.message, opContext);
+      logger.error(
+        {
+          ...opContext,
+          error: this.initializationError,
+        },
+        this.initializationError.message,
+      );
       return;
     }
 
@@ -263,26 +269,32 @@ class OpenRouterProvider {
         maxRetries: 0,
       });
       this.status = "ready";
-      logger.info("OpenRouter Service Initialized and Ready", opContext);
+      logger.info(opContext, "OpenRouter Service Initialized and Ready");
     } catch (e: unknown) {
       const error = e as Error;
       this.status = "error";
       this.initializationError = error;
-      logger.error("Failed to initialize OpenRouter client", {
-        ...opContext,
-        error: error.message,
-      });
+      logger.error(
+        {
+          ...opContext,
+          error,
+        },
+        "Failed to initialize OpenRouter client",
+      );
     }
   }
 
   private checkReady(operation: string, context: RequestContext): void {
     if (this.status !== "ready" || !this.client) {
       const message = `OpenRouter service is not available (status: ${this.status}).`;
-      logger.error(`[${operation}] ${message}`, {
-        ...context,
-        status: this.status,
-      });
-      throw new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, message, {
+      logger.error(
+        {
+          ...context,
+          status: this.status,
+        },
+        `[${operation}] ${message}`,
+      );
+      throw new McpError(JsonRpcErrorCode.ServiceUnavailable, message, {
         cause: this.initializationError,
       });
     }

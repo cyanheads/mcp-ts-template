@@ -9,55 +9,35 @@
 import { z } from "zod";
 
 /**
- * Defines a comprehensive set of standardized error codes for common issues encountered
- * within MCP servers, tools, or related operations. These codes are designed to help
- * clients and developers programmatically understand the nature of an error, facilitating
- * more precise error handling and debugging.
+ * Defines JSON-RPC 2.0 error codes, including standard and implementation-defined codes.
+ * @see https://www.jsonrpc.org/specification#error_object
  */
-export enum BaseErrorCode {
-  /** Access denied due to invalid credentials or lack of authentication. */
-  UNAUTHORIZED = "UNAUTHORIZED",
-  /** Access denied despite valid authentication, due to insufficient permissions. */
-  FORBIDDEN = "FORBIDDEN",
-  /** The requested resource or entity could not be found. */
-  NOT_FOUND = "NOT_FOUND",
-  /** The request could not be completed due to a conflict with the current state of the resource. */
-  CONFLICT = "CONFLICT",
-  /** The request failed due to invalid input parameters or data. */
-  VALIDATION_ERROR = "VALIDATION_ERROR",
-  /** The provided input is invalid for the operation. */
-  INVALID_INPUT = "INVALID_INPUT",
-  /** An error occurred while parsing input data (e.g., date string, JSON). */
-  PARSING_ERROR = "PARSING_ERROR",
-  /** The request was rejected because the client has exceeded rate limits. */
-  RATE_LIMITED = "RATE_LIMITED",
-  /** The request timed out before a response could be generated. */
-  TIMEOUT = "TIMEOUT",
-  /** The service is temporarily unavailable, possibly due to maintenance or overload. */
-  SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE",
-  /** An unexpected error occurred on the server side. */
-  INTERNAL_ERROR = "INTERNAL_ERROR",
-  /** An error occurred, but the specific cause is unknown or cannot be categorized. */
-  UNKNOWN_ERROR = "UNKNOWN_ERROR",
-  /** An error occurred during the loading or validation of configuration data. */
-  CONFIGURATION_ERROR = "CONFIGURATION_ERROR",
-  /** An error occurred during the initialization phase of a service or module. */
-  INITIALIZATION_FAILED = "INITIALIZATION_FAILED",
-  /** A service was used before it was properly initialized. */
-  SERVICE_NOT_INITIALIZED = "SERVICE_NOT_INITIALIZED",
-  /** A generic error occurred during a database operation. */
-  DATABASE_ERROR = "DATABASE_ERROR",
-  /** An error occurred while loading or interacting with an extension. */
-  EXTENSION_ERROR = "EXTENSION_ERROR",
-  /** An error occurred during the shutdown phase of a service or module. */
-  SHUTDOWN_ERROR = "SHUTDOWN_ERROR",
-  /** A generic error occurred during the execution of an agent's task. */
-  AGENT_EXECUTION_ERROR = "AGENT_EXECUTION_ERROR",
+export enum JsonRpcErrorCode {
+  // Standard JSON-RPC 2.0 Errors
+  ParseError = -32700,
+  InvalidRequest = -32600,
+  MethodNotFound = -32601,
+  InvalidParams = -32602,
+  InternalError = -32603,
+
+  // Implementation-defined server-errors (-32000 to -32099)
+  ServiceUnavailable = -32000,
+  NotFound = -32001,
+  Conflict = -32002,
+  RateLimited = -32003,
+  Timeout = -32004,
+  Forbidden = -32005,
+  Unauthorized = -32006,
+  ValidationError = -32007,
+  ConfigurationError = -32008,
+  InitializationFailed = -32009,
+  DatabaseError = -32010,
+  UnknownError = -32099, // A generic fallback
 }
 
 /**
  * Custom error class for MCP-specific errors, extending the built-in `Error` class.
- * It standardizes error reporting by encapsulating a `BaseErrorCode`, a descriptive
+ * It standardizes error reporting by encapsulating a `JsonRpcErrorCode`, a descriptive
  * human-readable message, and optional structured details for more context.
  *
  * This class is central to error handling within the MCP framework, allowing for
@@ -65,9 +45,9 @@ export enum BaseErrorCode {
  */
 export class McpError extends Error {
   /**
-   * The standardized error code from {@link BaseErrorCode}.
+   * The standardized error code from {@link JsonRpcErrorCode}.
    */
-  public readonly code: BaseErrorCode;
+  public code: JsonRpcErrorCode;
 
   /**
    * Optional additional details or context about the error.
@@ -83,7 +63,7 @@ export class McpError extends Error {
    * @param details - Optional. A record containing additional structured details about the error.
    */
   constructor(
-    code: BaseErrorCode,
+    code: JsonRpcErrorCode,
     message: string,
     details?: Record<string, unknown>,
     options?: { cause?: unknown },
@@ -110,18 +90,18 @@ export class McpError extends Error {
  * - Ensuring consistency when creating or handling error objects internally.
  * - Generating TypeScript types for error objects.
  *
- * The schema enforces the presence of a `code` (from {@link BaseErrorCode}) and a `message`,
+ * The schema enforces the presence of a `code` (from {@link JsonRpcErrorCode}) and a `message`,
  * and allows for optional `details`.
  */
 export const ErrorSchema = z
   .object({
     /**
-     * The error code, corresponding to one of the {@link BaseErrorCode} enum values.
+     * The error code, corresponding to one of the {@link JsonRpcErrorCode} enum values.
      * This field is required and helps in programmatically identifying the error type.
      */
     code: z
-      .nativeEnum(BaseErrorCode)
-      .describe("Standardized error code from BaseErrorCode enum"),
+      .nativeEnum(JsonRpcErrorCode)
+      .describe("Standardized error code from JsonRpcErrorCode enum"),
     /**
      * A human-readable, descriptive message explaining the error.
      * This field is required and provides context to developers or users.

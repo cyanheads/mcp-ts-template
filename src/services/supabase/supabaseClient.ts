@@ -8,9 +8,9 @@
  */
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { config } from "../../config/index.js";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
-import { logger, requestContextService } from "../../utils/index.js";
+import { config } from "@/config/index.js";
+import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
+import { logger, requestContextService } from "@/utils/index.js";
 
 // Define a type for our database schema if we have one.
 // For now, we'll use `Record<string, unknown>` but this should be replaced with generated types.
@@ -36,7 +36,7 @@ const initializeSupabase = () => {
           },
         },
       );
-      logger.info("Supabase client initialized.", context);
+      logger.info(context, "Supabase client initialized.");
     }
 
     if (!supabaseAdmin && config.supabase.serviceRoleKey) {
@@ -50,12 +50,12 @@ const initializeSupabase = () => {
           },
         },
       );
-      logger.info("Supabase admin client initialized.", context);
+      logger.info(context, "Supabase admin client initialized.");
     }
   } else {
     logger.warning(
-      "Supabase URL or anon key is missing. Supabase clients not initialized.",
       context,
+      "Supabase URL or anon key is missing. Supabase clients not initialized.",
     );
   }
 };
@@ -71,7 +71,7 @@ initializeSupabase();
 export const getSupabaseClient = (): SupabaseClient<Database> => {
   if (!supabase) {
     throw new McpError(
-      BaseErrorCode.SERVICE_NOT_INITIALIZED,
+      JsonRpcErrorCode.ServiceUnavailable,
       "Supabase client has not been initialized. Please check your SUPABASE_URL and SUPABASE_ANON_KEY environment variables.",
     );
   }
@@ -87,7 +87,7 @@ export const getSupabaseClient = (): SupabaseClient<Database> => {
 export const getSupabaseAdminClient = (): SupabaseClient<Database> => {
   if (!supabaseAdmin) {
     throw new McpError(
-      BaseErrorCode.SERVICE_NOT_INITIALIZED,
+      JsonRpcErrorCode.ServiceUnavailable,
       "Supabase admin client has not been initialized. Please check your SUPABASE_SERVICE_ROLE_KEY environment variable.",
     );
   }

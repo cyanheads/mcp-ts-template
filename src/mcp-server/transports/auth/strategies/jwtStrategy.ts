@@ -6,13 +6,9 @@
  * @module src/mcp-server/transports/auth/strategies/JwtStrategy
  */
 import { jwtVerify } from "jose";
-import { config, environment } from "../../../../config/index.js";
-import { BaseErrorCode, McpError } from "../../../../types-global/errors.js";
-import {
-  ErrorHandler,
-  logger,
-  requestContextService,
-} from "../../../../utils/index.js";
+import { config, environment } from "@/config/index.js";
+import { JsonRpcErrorCode, McpError } from "@/types-global/errors.js";
+import { ErrorHandler, logger, requestContextService } from "@/utils/index.js";
 import type { AuthInfo } from "../lib/authTypes.js";
 import type { AuthStrategy } from "./authStrategy.js";
 
@@ -23,27 +19,27 @@ export class JwtStrategy implements AuthStrategy {
     const context = requestContextService.createRequestContext({
       operation: "JwtStrategy.constructor",
     });
-    logger.debug("Initializing JwtStrategy...", context);
+    logger.debug(context, "Initializing JwtStrategy...");
 
     if (config.mcpAuthMode === "jwt") {
       if (environment === "production" && !config.mcpAuthSecretKey) {
         logger.fatal(
-          "CRITICAL: MCP_AUTH_SECRET_KEY is not set in production for JWT auth.",
           context,
+          "CRITICAL: MCP_AUTH_SECRET_KEY is not set in production for JWT auth.",
         );
         throw new McpError(
-          BaseErrorCode.CONFIGURATION_ERROR,
+          JsonRpcErrorCode.ConfigurationError,
           "MCP_AUTH_SECRET_KEY must be set for JWT auth in production.",
           context,
         );
       } else if (!config.mcpAuthSecretKey) {
         logger.warning(
-          "MCP_AUTH_SECRET_KEY is not set. JWT auth will be bypassed (DEV ONLY).",
           context,
+          "MCP_AUTH_SECRET_KEY is not set. JWT auth will be bypassed (DEV ONLY).",
         );
         this.secretKey = null;
       } else {
-        logger.info("JWT secret key loaded successfully.", context);
+        logger.info(context, "JWT secret key loaded successfully.");
         this.secretKey = new TextEncoder().encode(config.mcpAuthSecretKey);
       }
     } else {
@@ -55,14 +51,14 @@ export class JwtStrategy implements AuthStrategy {
     const context = requestContextService.createRequestContext({
       operation: "JwtStrategy.verify",
     });
-    logger.debug("Attempting to verify JWT.", context);
+    logger.debug(context, "Attempting to verify JWT.");
 
     // Handle development mode bypass
     if (!this.secretKey) {
       if (environment !== "production") {
         logger.warning(
-          "Bypassing JWT verification: No secret key (DEV ONLY).",
           context,
+          "Bypassing JWT verification: No secret key (DEV ONLY).",
         );
         return {
           token: "dev-mode-placeholder-token",
@@ -71,9 +67,9 @@ export class JwtStrategy implements AuthStrategy {
         };
       }
       // This path is defensive. The constructor should prevent this state in production.
-      logger.crit("Auth secret key is missing in production.", context);
+      logger.crit(context, "Auth secret key is missing in production.");
       throw new McpError(
-        BaseErrorCode.CONFIGURATION_ERROR,
+        JsonRpcErrorCode.ConfigurationError,
         "Auth secret key is missing in production. This indicates a server configuration error.",
         context,
       );
@@ -81,10 +77,13 @@ export class JwtStrategy implements AuthStrategy {
 
     try {
       const { payload: decoded } = await jwtVerify(token, this.secretKey);
-      logger.debug("JWT signature verified successfully.", {
-        ...context,
-        claims: decoded,
-      });
+      logger.debug(
+        {
+          ...context,
+          claims: decoded,
+        },
+        "JWT signature verified successfully.",
+      );
 
       const clientId =
         typeof decoded.cid === "string"
@@ -95,11 +94,11 @@ export class JwtStrategy implements AuthStrategy {
 
       if (!clientId) {
         logger.warning(
-          "Invalid token: missing 'cid' or 'client_id' claim.",
           context,
+          "Invalid token: missing 'cid' or 'client_id' claim.",
         );
         throw new McpError(
-          BaseErrorCode.UNAUTHORIZED,
+          JsonRpcErrorCode.Unauthorized,
           "Invalid token: missing 'cid' or 'client_id' claim.",
           context,
         );
@@ -117,11 +116,11 @@ export class JwtStrategy implements AuthStrategy {
 
       if (scopes.length === 0) {
         logger.warning(
-          "Invalid token: missing or empty 'scp' or 'scope' claim.",
           context,
+          "Invalid token: missing or empty 'scp' or 'scope' claim.",
         );
         throw new McpError(
-          BaseErrorCode.UNAUTHORIZED,
+          JsonRpcErrorCode.Unauthorized,
           "Token must contain valid, non-empty scopes.",
           context,
         );
@@ -133,11 +132,14 @@ export class JwtStrategy implements AuthStrategy {
         scopes,
         subject: decoded.sub,
       };
-      logger.info("JWT verification successful.", {
-        ...context,
-        clientId,
-        scopes,
-      });
+      logger.info(
+        {
+          ...context,
+          clientId,
+          scopes,
+        },
+        "JWT verification successful.",
+      );
       return authInfo;
     } catch (error) {
       // If the error is already a structured McpError, re-throw it directly.
@@ -150,18 +152,21 @@ export class JwtStrategy implements AuthStrategy {
           ? "Token has expired."
           : "Token verification failed.";
 
-      logger.warning(`JWT verification failed: ${message}`, {
-        ...context,
-        errorName: error instanceof Error ? error.name : "Unknown",
-      });
+      logger.warning(
+        {
+          ...context,
+          errorName: error instanceof Error ? error.name : "Unknown",
+        },
+        `JWT verification failed: ${message}`,
+      );
 
       throw ErrorHandler.handleError(error, {
         operation: "JwtStrategy.verify",
         context,
         rethrow: true,
-        errorCode: BaseErrorCode.UNAUTHORIZED,
+        errorCode: JsonRpcErrorCode.Unauthorized,
         errorMapper: () =>
-          new McpError(BaseErrorCode.UNAUTHORIZED, message, context),
+          new McpError(JsonRpcErrorCode.Unauthorized, message, context),
       });
     }
   }

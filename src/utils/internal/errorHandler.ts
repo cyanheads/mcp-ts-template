@@ -6,9 +6,9 @@
  * @module src/utils/internal/errorHandler
  */
 import { SpanStatusCode, trace } from "@opentelemetry/api";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
-import { generateUUID, sanitizeInputForLogging } from "../index.js";
-import { logger } from "./logger.js";
+import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
+import { requestContextService, sanitizeInputForLogging } from "../index.js";
+import { logOperationError } from "./logging-helpers.js";
 import { RequestContext } from "./requestContext.js";
 
 /**
@@ -16,19 +16,7 @@ import { RequestContext } from "./requestContext.js";
  * This context can include identifiers like `requestId` or any other relevant
  * key-value pairs that aid in debugging or understanding the error's circumstances.
  */
-export interface ErrorContext {
-  /**
-   * A unique identifier for the request or operation during which the error occurred.
-   * Useful for tracing errors through logs and distributed systems.
-   */
-  requestId?: string;
-
-  /**
-   * Allows for arbitrary additional context information.
-   * Keys are strings, and values can be of any type.
-   */
-  [key: string]: unknown;
-}
+export type ErrorContext = RequestContext;
 
 /**
  * Configuration options for the `ErrorHandler.handleError` method.
@@ -61,10 +49,10 @@ export interface ErrorHandlerOptions {
   rethrow?: boolean;
 
   /**
-   * A specific `BaseErrorCode` to assign to the error, overriding any
+   * A specific `JsonRpcErrorCode` to assign to the error, overriding any
    * automatically determined error code.
    */
-  errorCode?: BaseErrorCode;
+  errorCode?: JsonRpcErrorCode;
 
   /**
    * A custom function to map or transform the original error into a new `Error` instance.
@@ -75,12 +63,6 @@ export interface ErrorHandlerOptions {
   errorMapper?: (error: unknown) => Error;
 
   /**
-   * If true, stack traces will be included in the logs.
-   * Defaults to `true`.
-   */
-  includeStack?: boolean;
-
-  /**
    * If true, indicates that the error is critical and might require immediate attention
    * or could lead to system instability. This is primarily for logging and alerting.
    * Defaults to `false`.
@@ -89,110 +71,75 @@ export interface ErrorHandlerOptions {
 }
 
 /**
- * Defines a basic rule for mapping errors based on patterns.
- * Used internally by `COMMON_ERROR_PATTERNS` and as a base for `ErrorMapping`.
+ * Defines a rule for mapping error patterns to a specific JSON-RPC error code.
  */
-export interface BaseErrorMapping {
+export interface ErrorMappingRule {
   /**
    * A string or regular expression to match against the error message.
-   * If a string is provided, it's typically used for substring matching (case-insensitive).
    */
   pattern: string | RegExp;
-
   /**
-   * The `BaseErrorCode` to assign if the pattern matches.
+   * The `JsonRpcErrorCode` to assign if the pattern matches.
    */
-  errorCode: BaseErrorCode;
-
-  /**
-   * An optional custom message template for the mapped error.
-   * (Note: This property is defined but not directly used by `ErrorHandler.determineErrorCode`
-   * which focuses on `errorCode`. It's more relevant for custom mapping logic.)
-   */
-  messageTemplate?: string;
+  errorCode: JsonRpcErrorCode;
 }
 
 /**
- * Extends `BaseErrorMapping` to include a factory function for creating
- * specific error instances and additional context for the mapping.
- * Used by `ErrorHandler.mapError`.
- * @template T The type of `Error` this mapping will produce, defaults to `Error`.
- */
-export interface ErrorMapping<T extends Error = Error>
-  extends BaseErrorMapping {
-  /**
-   * A factory function that creates and returns an instance of the mapped error type `T`.
-   * @param error - The original error that occurred.
-   * @param context - Optional additional context provided in the mapping rule.
-   * @returns The newly created error instance.
-   */
-  factory: (error: unknown, context?: Record<string, unknown>) => T;
-
-  /**
-   * Additional static context to be merged or passed to the `factory` function
-   * when this mapping rule is applied.
-   */
-  additionalContext?: Record<string, unknown>;
-}
-
-/**
- * Maps standard JavaScript error constructor names to `BaseErrorCode` values.
+ * Maps standard JavaScript error constructor names to `JsonRpcErrorCode` values.
  * @private
  */
-const ERROR_TYPE_MAPPINGS: Readonly<Record<string, BaseErrorCode>> = {
-  SyntaxError: BaseErrorCode.VALIDATION_ERROR,
-  TypeError: BaseErrorCode.VALIDATION_ERROR,
-  ReferenceError: BaseErrorCode.INTERNAL_ERROR,
-  RangeError: BaseErrorCode.VALIDATION_ERROR,
-  URIError: BaseErrorCode.VALIDATION_ERROR,
-  EvalError: BaseErrorCode.INTERNAL_ERROR,
+const ERROR_TYPE_MAPPINGS: Readonly<Record<string, JsonRpcErrorCode>> = {
+  SyntaxError: JsonRpcErrorCode.InvalidParams,
+  TypeError: JsonRpcErrorCode.InvalidParams,
+  ReferenceError: JsonRpcErrorCode.InternalError,
+  RangeError: JsonRpcErrorCode.InvalidParams,
+  URIError: JsonRpcErrorCode.InvalidParams,
+  EvalError: JsonRpcErrorCode.InternalError,
 };
 
 /**
- * Array of `BaseErrorMapping` rules to classify errors by message/name patterns.
+ * Array of `ErrorMappingRule` to classify errors by message/name patterns.
  * Order matters: more specific patterns should precede generic ones.
  * @private
  */
-const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
+const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<ErrorMappingRule>> = [
   {
-    pattern:
-      /auth|unauthorized|unauthenticated|not.*logged.*in|invalid.*token|expired.*token/i,
-    errorCode: BaseErrorCode.UNAUTHORIZED,
+    pattern: /auth|unauthorized|unauthenticated|invalid.*token/i,
+    errorCode: JsonRpcErrorCode.Unauthorized,
   },
   {
-    pattern: /permission|forbidden|access.*denied|not.*allowed/i,
-    errorCode: BaseErrorCode.FORBIDDEN,
+    pattern: /permission|forbidden|access.*denied/i,
+    errorCode: JsonRpcErrorCode.Forbidden,
   },
   {
-    pattern: /not found|missing|no such|doesn't exist|couldn't find/i,
-    errorCode: BaseErrorCode.NOT_FOUND,
+    pattern: /not found|missing|no such/i,
+    errorCode: JsonRpcErrorCode.NotFound,
   },
   {
     pattern:
       /invalid|validation|malformed|bad request|wrong format|missing required/i,
-    errorCode: BaseErrorCode.VALIDATION_ERROR,
+    errorCode: JsonRpcErrorCode.InvalidParams, // Use the standard code for invalid parameters
   },
   {
-    pattern: /conflict|already exists|duplicate|unique constraint/i,
-    errorCode: BaseErrorCode.CONFLICT,
+    pattern: /conflict|already exists|duplicate/i,
+    errorCode: JsonRpcErrorCode.Conflict,
   },
   {
-    pattern: /rate limit|too many requests|throttled/i,
-    errorCode: BaseErrorCode.RATE_LIMITED,
+    pattern: /rate limit|too many requests/i,
+    errorCode: JsonRpcErrorCode.RateLimited,
   },
   {
-    pattern: /timeout|timed out|deadline exceeded/i,
-    errorCode: BaseErrorCode.TIMEOUT,
+    pattern: /timeout|timed out/i,
+    errorCode: JsonRpcErrorCode.Timeout,
   },
   {
-    pattern: /service unavailable|bad gateway|gateway timeout|upstream error/i,
-    errorCode: BaseErrorCode.SERVICE_UNAVAILABLE,
+    pattern: /service unavailable|bad gateway/i,
+    errorCode: JsonRpcErrorCode.ServiceUnavailable,
   },
 ];
 
 /**
  * Creates a "safe" RegExp for testing error messages.
- * Ensures case-insensitivity and removes the global flag.
  * @param pattern - The string or RegExp pattern.
  * @returns A new RegExp instance.
  * @private
@@ -200,74 +147,21 @@ const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
 function createSafeRegex(pattern: string | RegExp): RegExp {
   if (pattern instanceof RegExp) {
     let flags = pattern.flags.replace("g", "");
-    if (!flags.includes("i")) {
-      flags += "i";
-    }
+    if (!flags.includes("i")) flags += "i";
     return new RegExp(pattern.source, flags);
   }
   return new RegExp(pattern, "i");
 }
 
-/**
- * Retrieves a descriptive name for an error object or value.
- * @param error - The error object or value.
- * @returns A string representing the error's name or type.
- * @private
- */
 function getErrorName(error: unknown): string {
-  if (error instanceof Error) {
-    return error.name || "Error";
-  }
-  if (error === null) {
-    return "NullValueEncountered";
-  }
-  if (error === undefined) {
-    return "UndefinedValueEncountered";
-  }
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    error.constructor &&
-    typeof error.constructor.name === "string" &&
-    error.constructor.name !== "Object"
-  ) {
-    return `${error.constructor.name}Encountered`;
-  }
-  return `${typeof error}Encountered`;
+  if (error instanceof Error) return error.name || "Error";
+  return "NonError";
 }
 
-/**
- * Extracts a message string from an error object or value.
- * @param error - The error object or value.
- * @returns The error message string.
- * @private
- */
 function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (error === null) {
-    return "Null value encountered as error";
-  }
-  if (error === undefined) {
-    return "Undefined value encountered as error";
-  }
-  if (typeof error === "string") {
-    return error;
-  }
-  try {
-    const str = String(error);
-    if (str === "[object Object]" && error !== null) {
-      try {
-        return `Non-Error object encountered: ${JSON.stringify(error)}`;
-      } catch {
-        return `Unstringifyable non-Error object encountered (constructor: ${error.constructor?.name || "Unknown"})`;
-      }
-    }
-    return str;
-  } catch (e) {
-    return `Error converting error to string: ${e instanceof Error ? e.message : "Unknown conversion error"}`;
-  }
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "An unknown error occurred.";
 }
 
 /**
@@ -275,13 +169,11 @@ function getErrorMessage(error: unknown): string {
  */
 export class ErrorHandler {
   /**
-   * Determines an appropriate `BaseErrorCode` for a given error.
-   * Checks `McpError` instances, `ERROR_TYPE_MAPPINGS`, and `COMMON_ERROR_PATTERNS`.
-   * Defaults to `BaseErrorCode.INTERNAL_ERROR`.
+   * Determines an appropriate `JsonRpcErrorCode` for a given error.
    * @param error - The error instance or value to classify.
    * @returns The determined error code.
    */
-  public static determineErrorCode(error: unknown): BaseErrorCode {
+  public static determineErrorCode(error: unknown): JsonRpcErrorCode {
     if (error instanceof McpError) {
       return error.code;
     }
@@ -289,8 +181,7 @@ export class ErrorHandler {
     const errorName = getErrorName(error);
     const errorMessage = getErrorMessage(error);
 
-    const mappedFromType =
-      ERROR_TYPE_MAPPINGS[errorName as keyof typeof ERROR_TYPE_MAPPINGS];
+    const mappedFromType = ERROR_TYPE_MAPPINGS[errorName];
     if (mappedFromType) {
       return mappedFromType;
     }
@@ -301,186 +192,105 @@ export class ErrorHandler {
         return mapping.errorCode;
       }
     }
-    return BaseErrorCode.INTERNAL_ERROR;
+    return JsonRpcErrorCode.InternalError;
   }
 
-  /**
-   * Handles an error with consistent logging and optional transformation.
-   * Sanitizes input, determines error code, logs details, and can rethrow.
-   * @param error - The error instance or value that occurred.
-   * @param options - Configuration for handling the error.
-   * @returns The handled (and potentially transformed) error instance.
-   */
   public static handleError(
     error: unknown,
     options: ErrorHandlerOptions,
   ): Error {
-    // --- OpenTelemetry Integration ---
-    const activeSpan = trace.getActiveSpan();
-    if (activeSpan) {
-      if (error instanceof Error) {
-        activeSpan.recordException(error);
-      }
-      activeSpan.setStatus({
-        code: SpanStatusCode.ERROR,
-        message: error instanceof Error ? error.message : String(error),
+    this._recordOtelError(error);
+
+    const finalError = this._createFinalError(error, options);
+    const logPayload = this._buildLogPayload(finalError, error, options);
+
+    // Ensure a valid context exists for logging.
+    const contextForLogging =
+      options.context ??
+      requestContextService.createRequestContext({
+        operation: options.operation,
       });
-    }
-    // --- End OpenTelemetry Integration ---
 
-    const {
-      context = {},
-      operation,
-      input,
-      rethrow = false,
-      errorCode: explicitErrorCode,
-      includeStack = true,
-      critical = false,
-      errorMapper,
-    } = options;
-
-    const sanitizedInput =
-      input !== undefined ? sanitizeInputForLogging(input) : undefined;
-    const originalErrorName = getErrorName(error);
-    const originalErrorMessage = getErrorMessage(error);
-    const originalStack = error instanceof Error ? error.stack : undefined;
-
-    let finalError: Error;
-    let loggedErrorCode: BaseErrorCode;
-
-    const errorDetailsSeed =
-      error instanceof McpError &&
-      typeof error.details === "object" &&
-      error.details !== null
-        ? { ...error.details }
-        : {};
-
-    const consolidatedDetails: Record<string, unknown> = {
-      ...errorDetailsSeed,
-      ...context,
-      originalErrorName,
-      originalMessage: originalErrorMessage,
-    };
-    if (
-      originalStack &&
-      !(error instanceof McpError && error.details?.originalStack)
-    ) {
-      consolidatedDetails.originalStack = originalStack;
-    }
-
-    const cause = error instanceof Error ? error : undefined;
-
-    if (error instanceof McpError) {
-      loggedErrorCode = error.code;
-      finalError = errorMapper
-        ? errorMapper(error)
-        : new McpError(error.code, error.message, consolidatedDetails, {
-            cause,
-          });
-    } else {
-      loggedErrorCode =
-        explicitErrorCode || ErrorHandler.determineErrorCode(error);
-      const message = `Error in ${operation}: ${originalErrorMessage}`;
-      finalError = errorMapper
-        ? errorMapper(error)
-        : new McpError(loggedErrorCode, message, consolidatedDetails, {
-            cause,
-          });
-    }
-
-    if (
-      finalError !== error &&
-      error instanceof Error &&
-      finalError instanceof Error &&
-      !finalError.stack &&
-      error.stack
-    ) {
-      finalError.stack = error.stack;
-    }
-
-    const logRequestId =
-      typeof context.requestId === "string" && context.requestId
-        ? context.requestId
-        : generateUUID();
-
-    const logTimestamp =
-      typeof context.timestamp === "string" && context.timestamp
-        ? context.timestamp
-        : new Date().toISOString();
-
-    const logPayload: Record<string, unknown> = {
-      requestId: logRequestId,
-      timestamp: logTimestamp,
-      operation,
-      input: sanitizedInput,
-      critical,
-      errorCode: loggedErrorCode,
-      originalErrorType: originalErrorName,
-      finalErrorType: getErrorName(finalError),
-      ...Object.fromEntries(
-        Object.entries(context).filter(
-          ([key]) => key !== "requestId" && key !== "timestamp",
-        ),
-      ),
-    };
-
-    if (finalError instanceof McpError && finalError.details) {
-      logPayload.errorDetails = finalError.details;
-    } else {
-      logPayload.errorDetails = consolidatedDetails;
-    }
-
-    if (includeStack) {
-      const stack =
-        finalError instanceof Error ? finalError.stack : originalStack;
-      if (stack) {
-        logPayload.stack = stack;
-      }
-    }
-
-    logger.error(
-      `Error in ${operation}: ${finalError.message || originalErrorMessage}`,
-      logPayload as unknown as RequestContext, // Cast to RequestContext for logger compatibility
+    // Use the centralized logging helper for consistent error logging.
+    logOperationError(
+      contextForLogging,
+      finalError.message,
+      finalError,
+      logPayload,
     );
 
-    if (rethrow) {
+    if (options.rethrow ?? false) {
       throw finalError;
     }
     return finalError;
   }
 
-  /**
-   * Maps an error to a specific error type `T` based on `ErrorMapping` rules.
-   * Returns original/default error if no mapping matches.
-   * @template T The target error type, extending `Error`.
-   * @param error - The error instance or value to map.
-   * @param mappings - An array of mapping rules to apply.
-   * @param defaultFactory - Optional factory for a default error if no mapping matches.
-   * @returns The mapped error of type `T`, or the original/defaulted error.
-   */
-  public static mapError<T extends Error>(
+  private static _recordOtelError(error: unknown): void {
+    const activeSpan = trace.getActiveSpan();
+    if (!activeSpan) return;
+
+    if (error instanceof Error) {
+      activeSpan.recordException(error);
+    }
+    activeSpan.setStatus({
+      code: SpanStatusCode.ERROR,
+      message: getErrorMessage(error),
+    });
+  }
+
+  private static _createFinalError(
     error: unknown,
-    mappings: ReadonlyArray<ErrorMapping<T>>,
-    defaultFactory?: (error: unknown, context?: Record<string, unknown>) => T,
-  ): T | Error {
-    const errorMessage = getErrorMessage(error);
-    const errorName = getErrorName(error);
-
-    for (const mapping of mappings) {
-      const regex = createSafeRegex(mapping.pattern);
-      if (regex.test(errorMessage) || regex.test(errorName)) {
-        return mapping.factory(error, mapping.additionalContext);
-      }
+    options: ErrorHandlerOptions,
+  ): Error {
+    if (options.errorMapper) {
+      return options.errorMapper(error);
     }
 
-    if (defaultFactory) {
-      return defaultFactory(error);
+    const determinedCode = options.errorCode || this.determineErrorCode(error);
+    const originalMessage = getErrorMessage(error);
+
+    if (error instanceof McpError) {
+      error.code = determinedCode; // Allow override
+      return error;
     }
-    return error instanceof Error ? error : new Error(String(error));
+
+    return new McpError(
+      determinedCode,
+      `Error in ${options.operation}: ${originalMessage}`,
+      {
+        originalErrorName: getErrorName(error),
+        originalMessage,
+      },
+      { cause: error instanceof Error ? error : undefined },
+    );
+  }
+
+  private static _buildLogPayload(
+    finalError: Error,
+    originalError: unknown,
+    options: ErrorHandlerOptions,
+  ): Record<string, unknown> {
+    const { context = {}, operation, input, critical = false } = options;
+
+    const payload: Record<string, unknown> = {
+      ...context,
+      operation,
+      input: input !== undefined ? sanitizeInputForLogging(input) : undefined,
+      critical,
+      errorCode:
+        finalError instanceof McpError
+          ? finalError.code
+          : this.determineErrorCode(finalError),
+      originalErrorType: getErrorName(originalError),
+      finalErrorType: getErrorName(finalError),
+    };
+
+    // The Pino error serializer will handle the stack trace automatically.
+    return payload;
   }
 
   /**
-   * Formats an error into a consistent object structure for API responses or structured logging.
+   * Formats an error into a consistent object structure for API responses.
    * @param error - The error instance or value to format.
    * @returns A structured representation of the error.
    */
@@ -489,49 +299,22 @@ export class ErrorHandler {
       return {
         code: error.code,
         message: error.message,
-        details:
-          typeof error.details === "object" && error.details !== null
-            ? error.details
-            : {},
-      };
-    }
-
-    if (error instanceof Error) {
-      return {
-        code: ErrorHandler.determineErrorCode(error),
-        message: error.message,
-        details: { errorType: error.name || "Error" },
+        details: error.details ?? {},
       };
     }
 
     return {
-      code: BaseErrorCode.UNKNOWN_ERROR,
+      code: this.determineErrorCode(error),
       message: getErrorMessage(error),
       details: { errorType: getErrorName(error) },
     };
   }
 
   /**
-   * Safely executes a function (sync or async) and handles errors using `ErrorHandler.handleError`.
-   * The error is always rethrown.
-   * @template T The expected return type of the function `fn`.
+   * Safely executes a function and handles errors using `ErrorHandler.handleError`.
    * @param fn - The function to execute.
-   * @param options - Error handling options (excluding `rethrow`).
-   * @returns A promise resolving with the result of `fn` if successful.
-   * @throws {McpError | Error} The error processed by `ErrorHandler.handleError`.
-   * @example
-   * ```typescript
-   * async function fetchData(userId: string, context: RequestContext) {
-   *   return ErrorHandler.tryCatch(
-   *     async () => {
-   *       const response = await fetch(`/api/users/${userId}`);
-   *       if (!response.ok) throw new Error(`Failed to fetch user: ${response.status}`);
-   *       return response.json();
-   *     },
-   *     { operation: 'fetchUserData', context, input: { userId } }
-   *   );
-   * }
-   * ```
+   * @param options - Error handling options.
+   * @returns A promise resolving with the result of `fn`.
    */
   public static async tryCatch<T>(
     fn: () => Promise<T> | T,
@@ -540,8 +323,7 @@ export class ErrorHandler {
     try {
       return await Promise.resolve(fn());
     } catch (error) {
-      // ErrorHandler.handleError will return the error to be thrown.
-      throw ErrorHandler.handleError(error, { ...options, rethrow: true });
+      throw this.handleError(error, { ...options, rethrow: true });
     }
   }
 }
