@@ -4,7 +4,7 @@
  * @module src/mcp-server/transports/core/headerUtils
  */
 
-import type { OutgoingHttpHeaders } from "http";
+import type { OutgoingHttpHeaders, IncomingHttpHeaders } from "http";
 
 /**
  * Converts Node.js-style OutgoingHttpHeaders to a Web-standard Headers object.
@@ -39,4 +39,22 @@ export function convertNodeHeadersToWebHeaders(
     }
   }
   return webHeaders;
+}
+
+/**
+ * Converts a Web-standard Headers object (used by Hono) to Node.js-style IncomingHttpHeaders.
+ *
+ * @param webHeaders - The Web-standard Headers object to convert.
+ * @returns A Node.js-style IncomingHttpHeaders object.
+ */
+export function convertWebHeadersToNodeHeaders(
+  webHeaders: Headers,
+): IncomingHttpHeaders {
+  const nodeHeaders: IncomingHttpHeaders = {};
+  // The Headers.forEach provides the comma-separated string if multiple headers existed.
+  webHeaders.forEach((value, key) => {
+    // Node.js lowercases incoming header keys.
+    nodeHeaders[key.toLowerCase()] = value;
+  });
+  return nodeHeaders;
 }

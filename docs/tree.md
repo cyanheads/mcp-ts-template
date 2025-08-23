@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-23 15:51:09
+Generated on: 2025-08-23 17:10:45
 
 ```
 mcp-ts-template
@@ -23,7 +23,6 @@ mcp-ts-template
 │   ├── migrations
 │   │   └── v1.9.0.md
 │   ├── best-practices.md
-│   ├── devdocs.md
 │   └── tree.md
 ├── scripts
 │   ├── clean.ts
@@ -75,11 +74,13 @@ mcp-ts-template
 │   │   │   │   ├── authMiddleware.ts
 │   │   │   │   └── index.ts
 │   │   │   ├── core
+│   │   │   │   ├── autoTransportManager.ts
 │   │   │   │   ├── baseTransportManager.ts
 │   │   │   │   ├── headerUtils.ts
 │   │   │   │   ├── honoNodeBridge.ts
 │   │   │   │   ├── statefulTransportManager.ts
 │   │   │   │   ├── statelessTransportManager.ts
+│   │   │   │   ├── transportRequest.ts
 │   │   │   │   └── transportTypes.ts
 │   │   │   ├── http
 │   │   │   │   ├── httpErrorHandler.ts

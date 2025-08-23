@@ -51,7 +51,10 @@ function toHttpCode(errorCode: JsonRpcErrorCode): StatusCode {
  */
 export const httpErrorHandler = async (
   err: Error,
-  c: Context<{ Bindings: HonoNodeBindings }>,
+  c: Context<{
+    Bindings: HonoNodeBindings;
+    Variables: { requestId?: string | number | null };
+  }>,
 ): Promise<Response> => {
   const context = requestContextService.createRequestContext({
     operation: "httpErrorHandler",
@@ -76,15 +79,17 @@ export const httpErrorHandler = async (
     errorCode,
   });
 
-  // Attempt to get the request ID from the body, but don't fail if it's not there or unreadable.
+  // Retrieve the request ID from the Hono context
   let requestId: string | number | null = null;
-  if (c.req.raw.bodyUsed === false) {
-    try {
-      const body = await c.req.json();
-      requestId = body?.id || null;
-    } catch {
-      // Ignore parsing errors
-    }
+  try {
+    // Use c.get() which handles the retrieval safely
+    requestId = c.get("requestId") ?? null;
+  } catch (_e) {
+    // Log if retrieval fails, though unlikely
+    logOperationStart(
+      context,
+      "Could not retrieve requestId from Hono context in error handler.",
+    );
   }
 
   c.status(status);

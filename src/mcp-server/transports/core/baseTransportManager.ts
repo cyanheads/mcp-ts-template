@@ -4,12 +4,8 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { IncomingHttpHeaders } from "http";
-import {
-  logger,
-  RequestContext,
-  requestContextService,
-} from "@/utils/index.js";
+import { logger, requestContextService } from "@/utils/index.js";
+import { McpTransportRequest } from "./transportRequest.js";
 import { TransportManager, TransportResponse } from "./transportTypes.js";
 
 /**
@@ -28,10 +24,7 @@ export abstract class BaseTransportManager implements TransportManager {
   }
 
   abstract handleRequest(
-    headers: IncomingHttpHeaders,
-    body: unknown,
-    context: RequestContext,
-    sessionId?: string,
+    request: McpTransportRequest,
   ): Promise<TransportResponse>;
 
   abstract shutdown(): Promise<void>;

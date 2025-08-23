@@ -8,6 +8,7 @@
 
 import { PassThrough } from "stream";
 import type { OutgoingHttpHeaders } from "http";
+import { logger, requestContextService } from "../../../utils/index.js";
 
 /**
  * A mock `http.ServerResponse` that pipes all written data to a `PassThrough` stream.
@@ -78,9 +79,15 @@ export class HonoStreamResponse extends PassThrough {
    */
   setHeader(name: string, value: string | number | string[]): this {
     if (this._headersSent) {
-      // This is a deviation from Node.js (which would throw), but provides a
-      // more graceful warning for this emulation layer.
-      console.warn(
+      // Retrieve context if available, otherwise create a basic one
+      const context = requestContextService.createRequestContext({
+        operation: "HonoStreamResponse.setHeader",
+        component: "HonoNodeBridge",
+      });
+
+      // Replace console.warn with logger.warning
+      logger.warning(
+        { ...context, headerName: name },
         `[HonoBridge] Warning: Cannot set header "${name}" after headers are sent.`,
       );
       return this;
@@ -111,7 +118,15 @@ export class HonoStreamResponse extends PassThrough {
    */
   removeHeader(name: string): void {
     if (this._headersSent) {
-      console.warn(
+      // Retrieve context if available
+      const context = requestContextService.createRequestContext({
+        operation: "HonoStreamResponse.removeHeader",
+        component: "HonoNodeBridge",
+      });
+
+      // Replace console.warn with logger.warning
+      logger.warning(
+        { ...context, headerName: name },
         `[HonoBridge] Warning: Cannot remove header "${name}" after headers are sent.`,
       );
       return;

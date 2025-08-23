@@ -9,18 +9,26 @@ import { serve, ServerType } from "@hono/node-server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Context, Hono, Next } from "hono";
 import { cors } from "hono/cors";
+import { logger as honoLogger } from "hono/logger";
+import { secureHeaders } from "hono/secure-headers";
 import { stream } from "hono/streaming";
 import http from "http";
 import { config } from "@/config/index.js";
+import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   logger,
   rateLimiter,
   RequestContext,
   requestContextService,
 } from "@/utils/index.js";
-import { createAuthMiddleware, createAuthStrategy } from "../auth/index.js";
+import {
+  authContext,
+  createAuthMiddleware,
+  createAuthStrategy,
+} from "../auth/index.js";
+import { AutoTransportManager } from "../core/autoTransportManager.js";
 import { StatelessTransportManager } from "../core/statelessTransportManager.js";
-import { TransportManager } from "../core/transportTypes.js";
+import { TransportManager, TransportResponse } from "../core/transportTypes.js";
 import { StatefulTransportManager } from "./../core/statefulTransportManager.js";
 import { httpErrorHandler } from "./httpErrorHandler.js";
 import { HonoNodeBindings } from "./httpTypes.js";
@@ -82,7 +90,7 @@ async function isPortInUse(
 }
 
 function startHttpServerWithRetry(
-  app: Hono<{ Bindings: HonoNodeBindings }>,
+  app: Hono<HonoAppEnv>,
   initialPort: number,
   host: string,
   maxRetries: number,
@@ -214,29 +222,60 @@ function createTransportManager(
       );
     case "auto":
     default:
-      logger.info(
-        opContext,
-        "Defaulting to 'auto' mode (stateful with stateless fallback).",
-      );
-      return new StatefulTransportManager(
-        createServerInstanceFn,
-        statefulOptions,
-      );
+      logger.info(opContext, "Using 'auto' mode manager.");
+      return new AutoTransportManager(createServerInstanceFn, statefulOptions);
   }
 }
+
+/**
+ * Middleware to enforce 'application/json' content type for POST requests.
+ */
+const enforceJsonContentType = async (c: Context, next: Next) => {
+  if (c.req.method === "POST") {
+    const contentType = c.req.header("content-type");
+    if (!contentType || !contentType.startsWith("application/json")) {
+      // Use the request context if available
+      const context = requestContextService.createRequestContext({
+        operation: "enforceJsonContentType",
+      });
+      throw new McpError(
+        JsonRpcErrorCode.InvalidRequest,
+        "Unsupported Media Type: Content-Type must be 'application/json'.",
+        context,
+      );
+    }
+  }
+  await next();
+};
+
+// Define the Hono app's environment to include custom variables
+type HonoAppEnv = {
+  Bindings: HonoNodeBindings;
+  Variables: {
+    mcpResponse?: TransportResponse;
+    requestId?: string | number | null;
+  };
+};
 
 export function createHttpApp(
   transportManager: TransportManager,
   createServerInstanceFn: () => Promise<McpServer>,
   parentContext: RequestContext,
-): Hono<{ Bindings: HonoNodeBindings }> {
-  const app = new Hono<{ Bindings: HonoNodeBindings }>();
+): Hono<HonoAppEnv> {
+  const app = new Hono<HonoAppEnv>();
   const transportContext = {
     ...parentContext,
     component: "HttpTransportSetup",
   };
   logger.info(transportContext, "Creating Hono HTTP application.");
 
+  // 1. HTTP Access Logging
+  app.use(honoLogger());
+
+  // 2. Security Headers
+  app.use(secureHeaders());
+
+  // 3. CORS
   app.use(
     "*",
     cors({
@@ -257,48 +296,59 @@ export function createHttpApp(
     }),
   );
 
-  app.use(
-    "*",
-    async (c: Context<{ Bindings: HonoNodeBindings }>, next: Next) => {
-      (c.env.outgoing as http.ServerResponse).setHeader(
-        "X-Content-Type-Options",
-        "nosniff",
-      );
-      await next();
-    },
-  );
+  // 4. Content Type Enforcement (Specific to MCP endpoint)
+  app.use(MCP_ENDPOINT_PATH, enforceJsonContentType);
 
-  app.use(
-    MCP_ENDPOINT_PATH,
-    async (c: Context<{ Bindings: HonoNodeBindings }>, next: Next) => {
-      const clientIp = getClientIp(c);
-      const context = requestContextService.createRequestContext({
-        operation: "httpRateLimitCheck",
-        ipAddress: clientIp,
-      });
-      try {
-        rateLimiter.check(clientIp, context);
-        logger.debug(context, "Rate limit check passed.");
-      } catch (error) {
-        logger.warning(
-          {
-            ...context,
-            error: error as Error,
-          },
-          "Rate limit check failed.",
-        );
-        throw error;
-      }
-      await next();
-    },
-  );
+  // 5. Authentication and Advanced Rate Limiting (Order Matters)
 
   const authStrategy = createAuthStrategy();
+
+  // Define the rate limiting logic as a reusable middleware
+  const rateLimitHandler = async (
+    c: Context<{ Bindings: HonoNodeBindings }>,
+    next: Next,
+  ) => {
+    const clientIp = getClientIp(c);
+    let key: string;
+    let clientId: string | undefined;
+
+    if (authStrategy) {
+      // If auth is enabled, authContext should be populated by the preceding authMiddleware.
+      const store = authContext.getStore();
+      clientId = store?.authInfo.clientId;
+      // Key should be clientId if authenticated, otherwise fallback to IP.
+      key = clientId || clientIp;
+    } else {
+      // If auth is disabled, key is always IP.
+      key = clientIp;
+    }
+
+    const context = requestContextService.createRequestContext({
+      operation: "httpRateLimitCheck",
+      rateLimitKey: key,
+      ipAddress: clientIp,
+      clientId: clientId,
+    });
+
+    try {
+      rateLimiter.check(key, context);
+      logger.debug(context, "Rate limit check passed.");
+    } catch (error) {
+      logger.warning(
+        { ...context, error: error as Error },
+        "Rate limit check failed.",
+      );
+      throw error;
+    }
+    await next();
+  };
+
   if (authStrategy) {
     logger.info(
       transportContext,
       "Authentication strategy found, enabling auth middleware.",
     );
+    // Auth Middleware first
     app.use(MCP_ENDPOINT_PATH, createAuthMiddleware(authStrategy));
   } else {
     logger.info(
@@ -306,6 +356,9 @@ export function createHttpApp(
       "No authentication strategy found, auth middleware disabled.",
     );
   }
+
+  // Rate Limiting second (can now leverage auth context if available)
+  app.use(MCP_ENDPOINT_PATH, rateLimitHandler);
 
   app.onError(httpErrorHandler);
 
@@ -349,34 +402,45 @@ export function createHttpApp(
     },
   );
 
-  app.post(
-    MCP_ENDPOINT_PATH,
-    mcpTransportMiddleware(transportManager, createServerInstanceFn),
-    (c) => {
-      const response = c.get("mcpResponse");
+  app.post(MCP_ENDPOINT_PATH, mcpTransportMiddleware(transportManager), (c) => {
+    const response = c.get("mcpResponse");
 
-      if (response.sessionId) {
-        c.header("Mcp-Session-Id", response.sessionId);
-      }
-      response.headers.forEach((value, key) => {
-        c.header(key, value);
+    if (!response) {
+      // This case should ideally not be reached if middleware runs correctly
+      return c.json(
+        {
+          jsonrpc: "2.0",
+          error: {
+            code: JsonRpcErrorCode.InternalError,
+            message: "Middleware failed to produce a response.",
+          },
+          id: c.get("requestId") ?? null,
+        },
+        500,
+      );
+    }
+
+    if (response.sessionId) {
+      c.header("Mcp-Session-Id", response.sessionId);
+    }
+    response.headers.forEach((value: string, key: string) => {
+      c.header(key, value);
+    });
+
+    c.status(response.statusCode);
+
+    if (response.type === "stream") {
+      return stream(c, async (s) => {
+        await s.pipe(response.stream);
       });
-
-      c.status(response.statusCode);
-
-      if (response.type === "stream") {
-        return stream(c, async (s) => {
-          await s.pipe(response.stream);
-        });
-      } else {
-        const body =
-          typeof response.body === "object" && response.body !== null
-            ? response.body
-            : { body: response.body };
-        return c.json(body);
-      }
-    },
-  );
+    } else {
+      const body =
+        typeof response.body === "object" && response.body !== null
+          ? response.body
+          : { body: response.body };
+      return c.json(body);
+    }
+  });
 
   app.delete(
     MCP_ENDPOINT_PATH,
@@ -389,7 +453,8 @@ export function createHttpApp(
       });
 
       if (sessionId) {
-        if (transportManager instanceof StatefulTransportManager) {
+        // Type-safe check for the optional method
+        if (transportManager.handleDeleteRequest) {
           const response = await transportManager.handleDeleteRequest(
             sessionId,
             context,
@@ -429,7 +494,7 @@ export async function startHttpTransport(
   createServerInstanceFn: () => Promise<McpServer>,
   parentContext: RequestContext,
 ): Promise<{
-  app: Hono<{ Bindings: HonoNodeBindings }>;
+  app: Hono<HonoAppEnv>;
   server: ServerType;
   transportManager: TransportManager;
 }> {

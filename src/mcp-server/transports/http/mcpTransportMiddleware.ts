@@ -1,84 +1,33 @@
 /**
  * @fileoverview Hono middleware for handling MCP transport logic.
- * This middleware encapsulates the logic for processing MCP requests,
- * delegating to the appropriate transport manager, and preparing the
- * response for Hono to send.
+ * This middleware is responsible for adapting an incoming Hono request into a
+ * standardized McpTransportRequest object and delegating all further processing
+ * to the provided TransportManager. It no longer contains any session logic itself.
  * @module src/mcp-server/transports/http/mcpTransportMiddleware
  */
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import {
-  isInitializeRequest,
-  McpError,
-  ErrorCode,
-} from "@modelcontextprotocol/sdk/types.js";
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { MiddlewareHandler } from "hono";
 import { createMiddleware } from "hono/factory";
-import { IncomingHttpHeaders } from "http";
-import { config } from "../../../config/index.js";
 import {
-  RequestContext,
   requestContextService,
   withRequestContext,
 } from "../../../utils/index.js";
-import { StatefulTransportManager } from "../core/statefulTransportManager.js";
-import { StatelessTransportManager } from "../core/statelessTransportManager.js";
+import { convertWebHeadersToNodeHeaders } from "../core/headerUtils.js"; // Import the utility
+import { McpTransportRequest } from "../core/transportRequest.js";
 import { TransportManager, TransportResponse } from "../core/transportTypes.js";
 import { HonoNodeBindings } from "./httpTypes.js";
-
-/**
- * Converts a Fetch API Headers object to Node.js IncomingHttpHeaders.
- * @param headers - The Headers object to convert.
- * @returns An object compatible with IncomingHttpHeaders.
- */
-function toIncomingHttpHeaders(headers: Headers): IncomingHttpHeaders {
-  const result: IncomingHttpHeaders = {};
-  headers.forEach((value, key) => {
-    result[key] = value;
-  });
-  return result;
-}
-
-/**
- * Handles a stateless request by creating an ephemeral transport manager.
- * @param createServerInstanceFn - Function to create an McpServer instance.
- * @param headers - The request headers.
- * @param body - The request body.
- * @param context - The request context.
- * @returns A promise resolving with the transport response.
- */
-async function handleStatelessRequest(
-  createServerInstanceFn: () => Promise<McpServer>,
-  headers: Headers,
-  body: unknown,
-  context: RequestContext,
-): Promise<TransportResponse> {
-  const statelessManager = new StatelessTransportManager(
-    createServerInstanceFn,
-  );
-  return statelessManager.handleRequest(
-    toIncomingHttpHeaders(headers),
-    body,
-    context,
-  );
-}
-
-/**
- * Creates a Hono middleware for handling MCP POST requests.
- * @param transportManager - The main transport manager (usually stateful).
- * @param createServerInstanceFn - Function to create an McpServer instance.
- * @returns A Hono middleware function.
- */
 
 type McpMiddlewareEnv = {
   Variables: {
     mcpResponse: TransportResponse;
+    // Add requestId for use in the error handler
+    requestId: string | number | null;
   };
 };
 
 export const mcpTransportMiddleware = (
   transportManager: TransportManager,
-  createServerInstanceFn: () => Promise<McpServer>,
 ): MiddlewareHandler<McpMiddlewareEnv & { Bindings: HonoNodeBindings }> => {
   return createMiddleware<McpMiddlewareEnv & { Bindings: HonoNodeBindings }>(
     async (c, next) => {
@@ -91,50 +40,42 @@ export const mcpTransportMiddleware = (
 
       await withRequestContext(context, async () => {
         let body: unknown;
+        let requestId: string | number | null = null;
+
         try {
           body = await c.req.json();
+
+          // Safely extract ID
+          if (body && typeof body === "object" && "id" in body) {
+            const id = (body as { id: unknown }).id;
+            if (
+              typeof id === "string" ||
+              typeof id === "number" ||
+              id === null
+            ) {
+              requestId = id;
+            }
+          }
         } catch (_error) {
+          // Ensure requestId is set even if parsing fails
+          c.set("requestId", null);
           throw new McpError(
             ErrorCode.ParseError,
             "Failed to parse request body as JSON.",
           );
         }
-        let response: TransportResponse;
 
-        if (isInitializeRequest(body)) {
-          if (config.mcpSessionMode === "stateless") {
-            response = await handleStatelessRequest(
-              createServerInstanceFn,
-              c.req.raw.headers,
-              body,
-              context,
-            );
-          } else {
-            response = await (
-              transportManager as StatefulTransportManager
-            ).initializeAndHandle(
-              toIncomingHttpHeaders(c.req.raw.headers),
-              body,
-              context,
-            );
-          }
-        } else {
-          if (sessionId) {
-            response = await transportManager.handleRequest(
-              toIncomingHttpHeaders(c.req.raw.headers),
-              body,
-              context,
-              sessionId,
-            );
-          } else {
-            response = await handleStatelessRequest(
-              createServerInstanceFn,
-              c.req.raw.headers,
-              body,
-              context,
-            );
-          }
-        }
+        c.set("requestId", requestId); // Store in context
+
+        const transportRequest: McpTransportRequest = {
+          // Use the centralized utility
+          headers: convertWebHeadersToNodeHeaders(c.req.raw.headers),
+          body,
+          context,
+          sessionId: sessionId || undefined,
+        };
+
+        const response = await transportManager.handleRequest(transportRequest);
 
         c.set("mcpResponse", response);
         await next();

@@ -5,8 +5,8 @@
  * @module src/mcp-server/transports/core/transportTypes
  */
 
-import type { IncomingHttpHeaders } from "http";
 import { RequestContext } from "../../../utils/index.js";
+import { McpTransportRequest } from "./transportRequest.js";
 
 /**
  * Defines the set of valid HTTP status codes that the transport layer can return.
@@ -62,10 +62,19 @@ export type TransportResponse =
   | StreamingTransportResponse;
 
 /**
+ * Defines the lifecycle states of a transport session.
+ */
+export enum SessionState {
+  ACTIVE = "ACTIVE",
+  CLOSING = "CLOSING",
+}
+
+/**
  * Represents the state of an active, persistent transport session.
  */
 export interface TransportSession {
   id: string;
+  state: SessionState; // Add state property
   createdAt: Date;
   lastAccessedAt: Date;
   /**
@@ -85,23 +94,27 @@ export interface TransportSession {
 export interface TransportManager {
   /**
    * Handles an incoming request.
-   * @param headers The incoming request headers.
-   * @param body The parsed body of the request.
-   * @param context The request context for logging, tracing, and metadata.
-   * @param sessionId An optional session identifier for stateful operations.
+   * @param request The standardized transport request object.
    * @returns A promise that resolves to a TransportResponse object.
    */
-  handleRequest(
-    headers: IncomingHttpHeaders,
-    body: unknown,
-    context: RequestContext,
-    sessionId?: string,
-  ): Promise<TransportResponse>;
+  handleRequest(request: McpTransportRequest): Promise<TransportResponse>;
 
   /**
    * Gracefully shuts down the transport manager, cleaning up any resources.
    */
   shutdown(): Promise<void>;
+
+  /**
+   * Handles a request to explicitly delete a session.
+   * This is optional as it only applies to stateful managers.
+   * @param sessionId The ID of the session to delete.
+   * @param context The request context.
+   * @returns A promise resolving to a TransportResponse confirming closure.
+   */
+  handleDeleteRequest?(
+    sessionId: string,
+    context: RequestContext,
+  ): Promise<TransportResponse>;
 }
 
 /**
@@ -109,20 +122,8 @@ export interface TransportManager {
  */
 export interface StatefulTransportManager extends TransportManager {
   /**
-   * Initializes a new stateful session and handles the first request.
-   * @param headers The incoming request headers.
-   * @param body The parsed body of the request.
-   * @param context The request context.
-   * @returns A promise resolving to a TransportResponse, which will include a session ID.
-   */
-  initializeAndHandle(
-    headers: IncomingHttpHeaders,
-    body: unknown,
-    context: RequestContext,
-  ): Promise<TransportResponse>;
-
-  /**
    * Handles a request to explicitly delete a session.
+   * This is a required implementation for stateful managers.
    * @param sessionId The ID of the session to delete.
    * @param context The request context.
    * @returns A promise resolving to a TransportResponse confirming closure.

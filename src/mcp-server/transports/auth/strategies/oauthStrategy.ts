@@ -86,8 +86,18 @@ export class OauthStrategy implements AuthStrategy {
         "OAuth token signature verified successfully.",
       );
 
-      const scopes =
-        typeof payload.scope === "string" ? payload.scope.split(" ") : [];
+      // Robust scope parsing (mirroring JwtStrategy):
+      let scopes: string[] = [];
+      // Check for 'scp' claim (array format)
+      if (
+        Array.isArray(payload.scp) &&
+        (payload.scp as unknown[]).every((s) => typeof s === "string")
+      ) {
+        scopes = payload.scp as string[];
+        // Check for 'scope' claim (space-delimited string format)
+      } else if (typeof payload.scope === "string" && payload.scope.trim()) {
+        scopes = payload.scope.split(" ").filter(Boolean);
+      }
       if (scopes.length === 0) {
         logger.warning(
           context,

@@ -116,14 +116,14 @@ export const EchoToolInputSchema = z.object({
     .min(1, "Message cannot be empty.")
     .max(1000, "Message cannot exceed 1000 characters.")
     .describe(
-      `The message to echo back. To trigger a test error, provide the exact message '${TEST_ERROR_TRIGGER_MESSAGE}'.`
+      `The message to echo back. To trigger a test error, provide the exact message '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
     ),
   mode: z
     .enum(ECHO_MODES)
     .optional()
     .default("standard")
     .describe(
-      "Specifies how the message should be formatted. Defaults to 'standard'."
+      "Specifies how the message should be formatted. Defaults to 'standard'.",
     ),
   repeat: z
     .number()
@@ -138,7 +138,7 @@ export const EchoToolInputSchema = z.object({
     .optional()
     .default(true)
     .describe(
-      "Whether to include an ISO 8601 timestamp in the response. Defaults to true."
+      "Whether to include an ISO 8601 timestamp in the response. Defaults to true.",
     ),
 });
 
@@ -166,7 +166,7 @@ export const EchoToolResponseSchema = z.object({
     .datetime()
     .optional()
     .describe(
-      "Optional ISO 8601 timestamp of when the response was generated."
+      "Optional ISO 8601 timestamp of when the response was generated.",
     ),
 });
 
@@ -184,12 +184,12 @@ export type EchoToolResponse = z.infer<typeof EchoToolResponseSchema>;
  * @throws {McpError} If the logic encounters an unrecoverable issue.
  */
 export async function echoToolLogic(
-  params: EchoToolInput
+  params: EchoToolInput,
 ): Promise<EchoToolResponse> {
   const context = getRequestContext();
   logger.debug(
     { ...context, toolInput: params },
-    "Processing echo message logic."
+    "Processing echo message logic.",
   );
 
   // The logic layer MUST throw a structured error on failure.
@@ -197,7 +197,7 @@ export async function echoToolLogic(
     throw new McpError(
       JsonRpcErrorCode.ValidationError,
       `Deliberate failure triggered: the message was '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
-      { toolName: "echo_message" }
+      { toolName: "echo_message" },
     );
   }
 
@@ -233,7 +233,7 @@ export async function echoToolLogic(
         timestampGenerated: !!response.timestamp,
       },
     },
-    "Echo message processed successfully."
+    "Echo message processed successfully.",
   );
 
   return response;
@@ -299,12 +299,12 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
             openWorldHint: false,
           },
         },
-        createToolHandler(TOOL_NAME, echoToolLogic, responseFormatter)
+        createToolHandler(TOOL_NAME, echoToolLogic, responseFormatter),
       );
 
       logOperationSuccess(
         registrationContext,
-        `Tool '${TOOL_NAME}' registered successfully.`
+        `Tool '${TOOL_NAME}' registered successfully.`,
       );
     },
     {
@@ -312,7 +312,7 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
       context: registrationContext,
       errorCode: JsonRpcErrorCode.InitializationFailed,
       critical: true,
-    }
+    },
   );
 };
 ```

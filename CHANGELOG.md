@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.1] - 2025-08-23
+
+### Added
+
+- **Hybrid Session Mode ("auto")**: Enhanced the `auto` session mode (`src/mcp-server/transports/core/autoTransportManager.ts`) that intelligently handles both stateful and stateless requests. It routes requests with a session ID or an `initialize` call to a stateful manager, while all other requests are handled by an ephemeral, stateless manager.
+- **Standardized Transport Request**: Created a unified `McpTransportRequest` interface (`src/mcp-server/transports/core/transportRequest.ts`) to standardize the request object passed between the transport layer (Hono) and the transport managers.
+- **Web-to-Node Header Conversion**: Added a `convertWebHeadersToNodeHeaders` utility (`src/mcp-server/transports/core/headerUtils.ts`) to correctly translate Web-standard `Headers` objects into Node.js `IncomingHttpHeaders`.
+
+### Changed
+
+- **Transport Manager Abstraction**: Refactored all transport managers (`StatefulTransportManager`, `StatelessTransportManager`, and the new `AutoTransportManager`) to conform to a common `TransportManager` interface (`src/mcp-server/transports/core/transportTypes.ts`), simplifying the HTTP transport layer.
+- **HTTP Middleware (`mcpTransportMiddleware.ts`)**: The core middleware was streamlined to be responsible only for adapting the Hono request to the `McpTransportRequest` format and delegating to the active transport manager. All session-handling logic has been moved into the managers themselves.
+- **Stateful Session Management**: Enhanced `StatefulTransportManager` with explicit session states (`ACTIVE`, `CLOSING`) and improved locking to prevent race conditions, ensuring requests are not processed for sessions that are being terminated.
+- **OAuth Scope Parsing**: Improved the `OauthStrategy` (`oauthStrategy.ts`) to robustly parse scopes from both the `scp` (array) and `scope` (space-delimited string) claims, aligning it with the `JwtStrategy` implementation.
+- **Hono Error Handling**: The global `httpErrorHandler` now correctly retrieves the `requestId` from the Hono context (`c.get("requestId")`) instead of attempting to re-parse the request body, making error responses more reliable.
+
+### Fixed
+
+- **Logging in Hono Bridge**: Replaced `console.warn` with the centralized `pino` logger in `honoNodeBridge.ts` to ensure all warnings are captured in structured logs.
+
 <!-- Archived versions -->
 
 For versions prior to 1.8.0, see:

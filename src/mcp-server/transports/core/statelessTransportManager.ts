@@ -14,19 +14,20 @@
  * @module src/mcp-server/transports/core/statelessTransportManager
  */
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { IncomingHttpHeaders, ServerResponse } from "http";
-import { Readable } from "stream";
 import {
   ErrorHandler,
   logger,
   RequestContext,
   requestContextService,
 } from "@/utils/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { ServerResponse } from "http";
+import { Readable } from "stream";
 import { BaseTransportManager } from "./baseTransportManager.js";
-import { HonoStreamResponse } from "./honoNodeBridge.js";
 import { convertNodeHeadersToWebHeaders } from "./headerUtils.js";
+import { HonoStreamResponse } from "./honoNodeBridge.js";
+import { McpTransportRequest } from "./transportRequest.js";
 import { HttpStatusCode, TransportResponse } from "./transportTypes.js";
 
 /**
@@ -45,11 +46,11 @@ export class StatelessTransportManager extends BaseTransportManager {
    * @param context - The request context for logging and tracing.
    * @returns A promise resolving to a streaming TransportResponse.
    */
-  async handleRequest(
-    headers: IncomingHttpHeaders,
-    body: unknown,
-    context: RequestContext,
-  ): Promise<TransportResponse> {
+  async handleRequest({
+    headers,
+    body,
+    context,
+  }: McpTransportRequest): Promise<TransportResponse> {
     const opContext = {
       ...context,
       operation: "StatelessTransportManager.handleRequest",
