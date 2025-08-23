@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2025-08-23
+
+### BREAKING CHANGE
+
+This version introduces a major architectural refactoring focused on simplifying development, enhancing traceability, and standardizing core functionalities. A comprehensive migration guide is available at [docs/migrations/v1.9.0.md](./docs/migrations/v1.9.0.md).
+
+### Added
+
+-   **AsyncLocalStorage for Request Context**: Replaced manual "prop drilling" of `RequestContext` with Node.js's `AsyncLocalStorage` (`src/utils/internal/asyncContext.ts`). The context is now implicitly available throughout the entire asynchronous call stack of an operation, dramatically simplifying function signatures in the logic layer.
+-   **Centralized Tool & Resource Handlers**: Introduced `createToolHandler` (`src/mcp-server/tools/utils/tool-utils.ts`) and `createResourceHandler` (`src/mcp-server/resources/utils/resource-utils.ts`) utilities. These factories centralize `try...catch` logic, performance measurement, and response formatting, significantly reducing boilerplate in individual `registration.ts` files.
+-   **Pino Logger**: Migrated the logging system from Winston to Pino for improved performance and structured, context-aware logging. The new logger (`src/utils/internal/logger.ts`) automatically enriches logs with the active `RequestContext` from `AsyncLocalStorage`.
+-   **Standardized Logging Helpers**: Added new helper functions (`logOperationStart`, `logOperationSuccess`, `logOperationError`) in `src/utils/internal/logging-helpers.ts` to ensure consistent and structured log messages across the application.
+-   **TypeScript Path Aliases**: Implemented path aliases (e.g., `@/utils`) in `tsconfig.json` to simplify import statements and improve code readability.
+-   **Developer Scripts**: Added new scripts for developer convenience:
+    -   `devdocs.ts`: A script to generate comprehensive development documentation by combining a file tree and `repomix` output.
+    -   `lint.ts`: An enhanced linting script using `execa` and `chalk` for better feedback.
+
+### Changed
+
+-   **Error Codes**: Replaced the custom `BaseErrorCode` enum with `JsonRpcErrorCode` (`src/types-global/errors.ts`) to align with the JSON-RPC 2.0 specification, improving interoperability.
+-   **Tool & Resource Registration**: All `registration.ts` files have been refactored to use the new centralized handlers, making them significantly leaner and more focused on metadata definition.
+-   **Logic Functions**: All `logic.ts` files have been simplified by removing the `context` parameter. Logic functions now retrieve the context directly via `getRequestContext()`.
+-   **Server Initialization**: The server startup process in `src/mcp-server/server.ts` now uses centralized `registerAllTools` and `registerAllResources` functions from new barrel files (`src/mcp-server/tools/index.ts`, `src/mcp-server/resources/index.ts`) for cleaner and more scalable registration.
+-   **Dependencies**:
+    -   Added `pino`, `pino-pretty`, `pino-roll`, `ts-node`, `tsc-alias`, `chalk`, and `execa`.
+    -   Removed `winston`, `winston-transport`, and `@opentelemetry/instrumentation-winston`.
+    -   Updated numerous core dependencies, including `@modelcontextprotocol/sdk` to `^1.17.4`.
+
+### Removed
+
+-   **`ManagedMcpServer`**: Removed the `ManagedMcpServer` wrapper class (`src/mcp-server/core/managedMcpServer.ts`) as its introspection capabilities are less critical with the new centralized architecture. The server now uses the standard `McpServer` from the SDK directly.
+
 ## [1.8.1] - 2025-08-01
 
 ### Added

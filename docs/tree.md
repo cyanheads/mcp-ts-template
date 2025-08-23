@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-01 14:55:24
+Generated on: 2025-08-23 14:50:36
 
 ```
 mcp-ts-template
@@ -12,17 +12,19 @@ mcp-ts-template
 │   └── FUNDING.yml
 ├── .vscode
 │   └── settings.json
-├── coverage
 ├── docs
 │   ├── api-references
 │   │   ├── duckDB.md
 │   │   ├── jsdoc-standard-tags.md
 │   │   └── typedoc-reference.md
 │   ├── best-practices.md
+│   ├── devdocs.md
 │   └── tree.md
 ├── scripts
 │   ├── clean.ts
+│   ├── devdocs.ts
 │   ├── fetch-openapi-spec.ts
+│   ├── lint.ts
 │   ├── make-executable.ts
 │   ├── README.md
 │   └── tree.ts
@@ -30,13 +32,14 @@ mcp-ts-template
 │   ├── config
 │   │   └── index.ts
 │   ├── mcp-server
-│   │   ├── core
-│   │   │   └── managedMcpServer.ts
 │   │   ├── resources
-│   │   │   └── echoResource
-│   │   │       ├── index.ts
-│   │   │       ├── logic.ts
-│   │   │       └── registration.ts
+│   │   │   ├── echoResource
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── logic.ts
+│   │   │   │   └── registration.ts
+│   │   │   ├── utils
+│   │   │   │   └── resource-utils.ts
+│   │   │   └── index.ts
 │   │   ├── tools
 │   │   │   ├── catFactFetcher
 │   │   │   │   ├── index.ts
@@ -46,10 +49,13 @@ mcp-ts-template
 │   │   │   │   ├── index.ts
 │   │   │   │   ├── logic.ts
 │   │   │   │   └── registration.ts
-│   │   │   └── imageTest
-│   │   │       ├── index.ts
-│   │   │       ├── logic.ts
-│   │   │       └── registration.ts
+│   │   │   ├── imageTest
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── logic.ts
+│   │   │   │   └── registration.ts
+│   │   │   ├── utils
+│   │   │   │   └── tool-utils.ts
+│   │   │   └── index.ts
 │   │   ├── transports
 │   │   │   ├── auth
 │   │   │   │   ├── lib
@@ -96,9 +102,11 @@ mcp-ts-template
 │   │   └── errors.ts
 │   ├── utils
 │   │   ├── internal
+│   │   │   ├── asyncContext.ts
 │   │   │   ├── errorHandler.ts
 │   │   │   ├── index.ts
 │   │   │   ├── logger.ts
+│   │   │   ├── logging-helpers.ts
 │   │   │   ├── performance.ts
 │   │   │   └── requestContext.ts
 │   │   ├── metrics
