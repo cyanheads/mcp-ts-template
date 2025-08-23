@@ -9,14 +9,19 @@
 
 // IMPORTANT: This line MUST be the first import to ensure OpenTelemetry is
 // initialized before any other modules are loaded.
-import { shutdownOpenTelemetry } from "./utils/telemetry/instrumentation.js";
+import { shutdownOpenTelemetry } from "@/utils/telemetry/instrumentation.js";
 
+import { config, environment } from "@/config/index.js";
+import { initializeAndStartServer } from "@/mcp-server/server.js";
+import { requestContextService } from "@/utils/index.js";
+import {
+  logFatal,
+  logOperationError,
+  logOperationStart,
+  logOperationSuccess,
+} from "@/utils/internal/logging-helpers.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import http from "http";
-import { config, environment } from "./config/index.js";
-import { initializeAndStartServer } from "./mcp-server/server.js";
-import { requestContextService } from "./utils/index.js";
-import { logger, McpLogLevel } from "./utils/internal/logger.js";
 
 let mcpStdioServer: McpServer | undefined;
 let actualHttpServer: http.Server | undefined;
@@ -27,84 +32,61 @@ const shutdown = async (signal: string): Promise<void> => {
     triggerEvent: signal,
   });
 
-  logger.info(
-    `Received ${signal}. Initiating graceful shutdown...`,
+  logOperationStart(
     shutdownContext,
+    `Received ${signal}. Initiating graceful shutdown...`,
   );
 
   try {
-    // Shutdown OpenTelemetry first to ensure buffered telemetry is sent
     await shutdownOpenTelemetry();
 
     let closePromise: Promise<void> = Promise.resolve();
     const transportType = config.mcpTransportType;
 
     if (transportType === "stdio" && mcpStdioServer) {
-      logger.info(
-        "Attempting to close main MCP server (STDIO)...",
+      logOperationStart(
         shutdownContext,
+        "Attempting to close main MCP server (STDIO)...",
       );
       closePromise = mcpStdioServer.close();
     } else if (transportType === "http" && actualHttpServer) {
-      logger.info("Attempting to close HTTP server...", shutdownContext);
+      logOperationStart(shutdownContext, "Attempting to close HTTP server...");
       closePromise = new Promise((resolve, reject) => {
         actualHttpServer!.close((err) => {
           if (err) {
-            logger.error("Error closing HTTP server.", err, shutdownContext);
+            logOperationError(
+              shutdownContext,
+              "Error closing HTTP server.",
+              err,
+            );
             return reject(err);
           }
-          logger.info("HTTP server closed successfully.", shutdownContext);
+          logOperationSuccess(
+            shutdownContext,
+            "HTTP server closed successfully.",
+          );
           resolve();
         });
       });
     }
 
     await closePromise;
-    logger.info(
-      "Graceful shutdown completed successfully. Exiting.",
+    logOperationSuccess(
       shutdownContext,
+      "Graceful shutdown completed successfully. Exiting.",
     );
     process.exit(0);
   } catch (error) {
-    logger.error(
-      "Critical error during shutdown process.",
-      error as Error,
+    logOperationError(
       shutdownContext,
+      "Critical error during shutdown process.",
+      error,
     );
     process.exit(1);
   }
 };
 
 const start = async (): Promise<void> => {
-  const validMcpLogLevels: McpLogLevel[] = [
-    "debug",
-    "info",
-    "notice",
-    "warning",
-    "error",
-    "crit",
-    "alert",
-    "emerg",
-  ];
-  const initialLogLevelConfig = config.logLevel;
-
-  let validatedMcpLogLevel: McpLogLevel = "info";
-  if (validMcpLogLevels.includes(initialLogLevelConfig as McpLogLevel)) {
-    validatedMcpLogLevel = initialLogLevelConfig as McpLogLevel;
-  } else {
-    if (process.stdout.isTTY) {
-      console.warn(
-        `[Startup Warning] Invalid MCP_LOG_LEVEL "${initialLogLevelConfig}". Defaulting to "info".`,
-      );
-    }
-  }
-
-  await logger.initialize(validatedMcpLogLevel);
-  logger.info(
-    `Logger initialized. Effective MCP logging level: ${validatedMcpLogLevel}.`,
-    requestContextService.createRequestContext({ operation: "LoggerInit" }),
-  );
-
   const transportType = config.mcpTransportType;
   const startupContext = requestContextService.createRequestContext({
     operation: `ServerStartupSequence_${transportType}`,
@@ -113,9 +95,9 @@ const start = async (): Promise<void> => {
     nodeEnvironment: environment,
   });
 
-  logger.info(
-    `Starting ${config.mcpServerName} (Version: ${config.mcpServerVersion}, Transport: ${transportType}, Env: ${environment})...`,
+  logOperationStart(
     startupContext,
+    `Starting ${config.mcpServerName} (Version: ${config.mcpServerVersion}, Transport: ${transportType}, Env: ${environment})...`,
   );
 
   try {
@@ -130,35 +112,37 @@ const start = async (): Promise<void> => {
       actualHttpServer = serverInstance;
     }
 
-    logger.info(
-      `${config.mcpServerName} is now running and ready.`,
+    logOperationSuccess(
       startupContext,
+      `${config.mcpServerName} is now running and ready.`,
     );
 
     process.on("SIGTERM", () => shutdown("SIGTERM"));
     process.on("SIGINT", () => shutdown("SIGINT"));
+
+    // The logger already has a global uncaughtException handler for logging.
+    // This handler is for initiating a graceful shutdown.
     process.on("uncaughtException", (error: Error) => {
-      logger.fatal(
-        "FATAL: Uncaught exception detected.",
-        error,
-        startupContext,
-      );
+      const context = requestContextService.createRequestContext({
+        operation: "uncaughtException",
+      });
+      logFatal(context, "FATAL: Uncaught exception triggered shutdown.", error);
       shutdown("uncaughtException");
     });
+
     process.on("unhandledRejection", (reason: unknown) => {
-      logger.fatal(
-        "FATAL: Unhandled promise rejection detected.",
-        reason as Error,
-        startupContext,
+      const context = requestContextService.createRequestContext({
+        operation: "unhandledRejection",
+      });
+      logFatal(
+        context,
+        "FATAL: Unhandled promise rejection triggered shutdown.",
+        reason,
       );
       shutdown("unhandledRejection");
     });
   } catch (error) {
-    logger.fatal(
-      "CRITICAL ERROR DURING STARTUP.",
-      error as Error,
-      startupContext,
-    );
+    logFatal(startupContext, "CRITICAL ERROR DURING STARTUP.", error);
     await shutdownOpenTelemetry(); // Attempt to flush any startup-related traces
     process.exit(1);
   }
@@ -168,9 +152,14 @@ const start = async (): Promise<void> => {
   try {
     await start();
   } catch (error) {
-    if (process.stdout.isTTY) {
-      console.error("[GLOBAL CATCH] A fatal, unhandled error occurred:", error);
-    }
+    const context = requestContextService.createRequestContext({
+      operation: "globalCatch",
+    });
+    logFatal(
+      context,
+      "[GLOBAL CATCH] A fatal, unhandled error occurred.",
+      error,
+    );
     process.exit(1);
   }
 })();

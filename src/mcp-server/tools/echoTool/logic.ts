@@ -3,12 +3,12 @@
  * This module is the single source of truth for the tool's data contracts (Zod schemas)
  * and its pure business logic.
  * @module src/mcp-server/tools/echoTool/logic
- * @see {@link src/mcp-server/tools/echoTool/registration.ts} for the handler and registration logic.
- */
+ **/
 
 import { z } from "zod";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
-import { logger, type RequestContext } from "../../../utils/index.js";
+import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
+import { getRequestContext } from "../../../utils/index.js";
+import { logger } from "../../../utils/internal/logger.js";
 
 /**
  * Defines the valid formatting modes for the echo tool operation.
@@ -92,25 +92,25 @@ export type EchoToolResponse = z.infer<typeof EchoToolResponseSchema>;
 /**
  * Processes the core logic for the `echo_message` tool.
  * This function is pure; it processes inputs and returns a result or throws an error.
+ * It retrieves the request context from AsyncLocalStorage.
  *
  * @param params - The validated input parameters.
- * @param context - The request context for logging and tracing.
  * @returns A promise resolving with the structured response data.
  * @throws {McpError} If the logic encounters an unrecoverable issue.
  */
 export async function echoToolLogic(
   params: EchoToolInput,
-  context: RequestContext,
 ): Promise<EchoToolResponse> {
-  logger.debug("Processing echo message logic.", {
-    ...context,
-    toolInput: params,
-  });
+  const context = getRequestContext();
+  logger.debug(
+    { ...context, toolInput: params },
+    "Processing echo message logic.",
+  );
 
   // The logic layer MUST throw a structured error on failure.
   if (params.message === TEST_ERROR_TRIGGER_MESSAGE) {
     throw new McpError(
-      BaseErrorCode.VALIDATION_ERROR,
+      JsonRpcErrorCode.ValidationError,
       `Deliberate failure triggered: the message was '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
       { toolName: "echo_message" },
     );
@@ -140,13 +140,16 @@ export async function echoToolLogic(
     response.timestamp = new Date().toISOString();
   }
 
-  logger.debug("Echo message processed successfully.", {
-    ...context,
-    responseSummary: {
-      messageLength: response.repeatedMessage.length,
-      timestampGenerated: !!response.timestamp,
+  logger.debug(
+    {
+      ...context,
+      responseSummary: {
+        messageLength: response.repeatedMessage.length,
+        timestampGenerated: !!response.timestamp,
+      },
     },
-  });
+    "Echo message processed successfully.",
+  );
 
   return response;
 }

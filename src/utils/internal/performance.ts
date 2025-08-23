@@ -12,8 +12,9 @@ import {
 } from "../telemetry/semconv.js";
 import { config } from "../../config/index.js";
 import { McpError } from "../../types-global/errors.js";
-import { logger } from "./logger.js";
-import { RequestContext } from "./requestContext.js";
+import { getRequestContext } from "./asyncContext.js";
+import { logOperationSuccess } from "./logging-helpers.js";
+import { requestContextService } from "./requestContext.js";
 
 /**
  * Calculates the size of a payload in bytes.
@@ -36,22 +37,28 @@ function getPayloadSize(payload: unknown): number {
  * and log a structured metrics event upon completion.
  *
  * @template T The expected return type of the tool's logic function.
+ * @param toolName - The name of the tool being executed.
  * @param toolLogicFn - The asynchronous tool logic function to be executed and measured.
- * @param context - The request context for the operation, used for logging and tracing.
  * @param inputPayload - The input payload to the tool for size calculation.
  * @returns A promise that resolves with the result of the tool logic function.
  * @throws Re-throws any error caught from the tool logic function after logging the failure.
  */
 export async function measureToolExecution<T>(
+  toolName: string,
   toolLogicFn: () => Promise<T>,
-  context: RequestContext & { toolName: string },
   inputPayload: unknown,
 ): Promise<T> {
+  // Ensure a valid context exists for logging and tracing.
+  const context =
+    getRequestContext() ??
+    requestContextService.createRequestContext({
+      operation: `measureToolExecution:${toolName}`,
+    });
+
   const tracer = trace.getTracer(
     config.openTelemetry.serviceName,
     config.openTelemetry.serviceVersion,
   );
-  const { toolName } = context;
 
   return tracer.startActiveSpan(`tool_execution:${toolName}`, async (span) => {
     span.setAttributes({
@@ -62,7 +69,7 @@ export async function measureToolExecution<T>(
 
     const startTime = process.hrtime.bigint();
     let isSuccess = false;
-    let errorCode: string | undefined;
+    let errorCode: number | string | undefined;
     let outputPayload: T | undefined;
 
     try {
@@ -104,9 +111,9 @@ export async function measureToolExecution<T>(
 
       span.end();
 
-      logger.info("Tool execution finished.", {
-        ...context,
-        metrics: {
+      logOperationSuccess(context, "Tool execution finished.", {
+        performance: {
+          toolName,
           durationMs: parseFloat(durationMs.toFixed(2)),
           isSuccess,
           errorCode,

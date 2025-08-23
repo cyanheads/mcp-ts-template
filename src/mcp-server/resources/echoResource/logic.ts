@@ -1,11 +1,10 @@
 /**
  * @fileoverview Defines the core logic, schemas, and types for the `echo` resource.
  * @module src/mcp-server/resources/echoResource/logic
- * @see {@link src/mcp-server/resources/echoResource/registration.ts} for the handler and registration logic.
- */
+ **/
 
 import { z } from "zod";
-import { logger, type RequestContext } from "../../../utils/index.js";
+import { logger, type RequestContext } from "@/utils/index.js";
 
 /**
  * Zod schema defining expected query parameters for the echo resource.
@@ -51,11 +50,14 @@ export async function echoResourceLogic(
   const messageToEcho =
     params.message || messageFromPath || "Default echo message";
 
-  logger.debug("Processing echo resource logic.", {
-    ...context,
-    resourceUri: uri.href,
-    extractedMessage: messageToEcho,
-  });
+  logger.debug(
+    {
+      ...context,
+      resourceUri: uri.href,
+      extractedMessage: messageToEcho,
+    },
+    "Processing echo resource logic.",
+  );
 
   const responsePayload: EchoResourceResponsePayload = {
     message: messageToEcho,
@@ -63,12 +65,15 @@ export async function echoResourceLogic(
     requestUri: uri.href,
   };
 
-  logger.debug("Echo resource processed successfully.", {
-    ...context,
-    responsePayloadSummary: {
-      messageLength: responsePayload.message.length,
+  logger.debug(
+    {
+      ...context,
+      responsePayloadSummary: {
+        messageLength: responsePayload.message.length,
+      },
     },
-  });
+    "Echo resource processed successfully.",
+  );
 
   return responsePayload;
 }
