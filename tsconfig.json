@@ -7,6 +7,17 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
 
+    // Path Aliases
+    "baseUrl": "./src",
+    "paths": {
+      "@/types-global/*": ["types-global/*"],
+      "@/utils/*": ["utils/*"],
+      "@/utils": ["utils/index"],
+      "@/services/*": ["services/*"],
+      "@/mcp-server/*": ["mcp-server/*"],
+      "@/*": ["*"]
+    },
+
     // Enable all strict type checking
     "strict": true,
     "noUncheckedIndexedAccess": true,
