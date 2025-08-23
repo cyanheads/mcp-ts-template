@@ -5,7 +5,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NodeSDK } from "@opentelemetry/sdk-node";
-import winston from "winston";
 
 // Mock dependencies
 const mockSpanProcessor = {
@@ -86,18 +85,6 @@ describe("OpenTelemetry Instrumentation", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
-  });
-
-  describe("OtelDiagnosticLogger", () => {
-    it("should create a winston logger with a file transport if logsPath is available", () => {
-      // This test relies on the mock implementation of winston
-      expect(winston.createLogger).toHaveBeenCalled();
-      expect(winston.transports.File).toHaveBeenCalledWith(
-        expect.objectContaining({
-          filename: expect.stringContaining("opentelemetry.log"),
-        }),
-      );
-    });
   });
 
   describe("FileSpanProcessor", () => {

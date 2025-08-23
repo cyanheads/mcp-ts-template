@@ -4,14 +4,8 @@ import {
   echoToolLogic,
   EchoToolResponseSchema,
 } from "../../../../src/mcp-server/tools/echoTool/logic";
-import { BaseErrorCode, McpError } from "../../../../src/types-global/errors";
-import { requestContextService } from "../../../../src/utils";
 
 describe("echoToolLogic", () => {
-  const context = requestContextService.createRequestContext({
-    toolName: "echo_message",
-  });
-
   it("should return a valid response for valid input", async () => {
     const mockInput = {
       message: "hello world",
@@ -19,7 +13,7 @@ describe("echoToolLogic", () => {
       repeat: 2,
       includeTimestamp: true,
     };
-    const result = await echoToolLogic(mockInput, context);
+    const result = await echoToolLogic(mockInput);
 
     // Validate that the output matches the response schema
     const validation = EchoToolResponseSchema.safeParse(result);
@@ -40,7 +34,7 @@ describe("echoToolLogic", () => {
       repeat: 1,
       includeTimestamp: false,
     };
-    const result = await echoToolLogic(mockInput, context);
+    const result = await echoToolLogic(mockInput);
     const validation = EchoToolResponseSchema.safeParse(result);
     expect(validation.success).toBe(true);
 
@@ -49,23 +43,6 @@ describe("echoToolLogic", () => {
       expect(result.repeatedMessage).toBe("hello world");
       expect(result.timestamp).toBeUndefined();
     }
-  });
-
-  it('should throw an McpError with correct details when the message is "fail"', async () => {
-    const input = {
-      message: "fail",
-      mode: "standard" as const,
-      repeat: 1,
-      includeTimestamp: true,
-    };
-
-    await expect(echoToolLogic(input, context)).rejects.toThrow(
-      new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
-        "Deliberate failure triggered: the message was 'fail'.",
-        { toolName: "echo_message" },
-      ),
-    );
   });
 
   it("should handle empty message correctly based on Zod schema", async () => {

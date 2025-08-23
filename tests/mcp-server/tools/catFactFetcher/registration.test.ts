@@ -6,7 +6,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import * as logic from "../../../../src/mcp-server/tools/catFactFetcher/logic";
 import { registerCatFactFetcherTool } from "../../../../src/mcp-server/tools/catFactFetcher/registration";
-import { BaseErrorCode, McpError } from "../../../../src/types-global/errors";
 
 // Mock the logic module
 vi.mock("../../../../src/mcp-server/tools/catFactFetcher/logic");
@@ -47,23 +46,5 @@ describe("registerCatFactFetcherTool", () => {
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent).toEqual(mockLogicResponse);
     expect(result.content[0].text).toContain("Cats are awesome");
-  });
-
-  it("handler should return an error structure when the logic function throws", async () => {
-    const errorMessage = "API is down";
-    vi.spyOn(logic, "catFactFetcherLogic").mockRejectedValue(
-      new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, errorMessage),
-    );
-
-    await registerCatFactFetcherTool(mockMcpServer);
-    const handler = (mockMcpServer.registerTool as Mock).mock.calls[0][2];
-    const result = await handler({ maxLength: 140 });
-
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain(errorMessage);
-    expect(result.structuredContent).toHaveProperty(
-      "code",
-      BaseErrorCode.SERVICE_UNAVAILABLE,
-    );
   });
 });

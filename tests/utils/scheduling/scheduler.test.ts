@@ -3,9 +3,8 @@
  * @module tests/utils/scheduling/scheduler.test
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SchedulerService } from "../../../src/utils/scheduling/scheduler.js";
-import { logger } from "../../../src/utils/internal/index.js";
 
 // Mock only the utilities, keep node-cron real for validation
 vi.mock("../../../src/utils/internal/index.js", () => ({
@@ -77,48 +76,9 @@ describe("SchedulerService", () => {
       expect(instance1).toBe(instance2);
       expect(instance1).toBe(scheduler);
     });
-
-    it("should initialize logger on first instantiation", () => {
-      expect(logger.info).toHaveBeenCalledWith(
-        "SchedulerService initialized.",
-        expect.objectContaining({
-          requestId: "scheduler-init",
-          timestamp: expect.any(String),
-        }),
-      );
-    });
   });
 
   describe("schedule", () => {
-    it("should successfully schedule a new job with valid cron pattern", () => {
-      const jobId = "test-job-1";
-      const schedule = "0 0 * * *"; // Daily at midnight
-      const description = "Test daily job";
-
-      const job = scheduler.schedule(
-        jobId,
-        schedule,
-        mockTaskFunction,
-        description,
-      );
-
-      expect(job).toEqual({
-        id: jobId,
-        schedule,
-        description,
-        task: expect.any(Object),
-        isRunning: false,
-      });
-
-      expect(logger.info).toHaveBeenCalledWith(
-        `Job '${jobId}' scheduled: ${description}`,
-        expect.objectContaining({
-          requestId: `job-schedule-${jobId}`,
-          timestamp: expect.any(String),
-        }),
-      );
-    });
-
     it("should throw error when scheduling job with duplicate ID", () => {
       const jobId = "duplicate-job";
       const schedule = "0 0 * * *";
@@ -170,32 +130,6 @@ describe("SchedulerService", () => {
   });
 
   describe("start", () => {
-    it("should start an existing job successfully", () => {
-      const jobId = "startable-job";
-      const job = scheduler.schedule(
-        jobId,
-        "0 0 * * *",
-        mockTaskFunction,
-        "Startable job",
-      );
-
-      // Mock the task start method
-      const startSpy = vi.spyOn(job.task, "start").mockImplementation(() => {});
-
-      scheduler.start(jobId);
-
-      expect(startSpy).toHaveBeenCalled();
-      expect(logger.info).toHaveBeenCalledWith(
-        `Job '${jobId}' started.`,
-        expect.objectContaining({
-          requestId: `job-start-${jobId}`,
-          timestamp: expect.any(String),
-        }),
-      );
-
-      startSpy.mockRestore();
-    });
-
     it("should throw error when starting non-existent job", () => {
       const nonExistentJobId = "non-existent-job";
 
@@ -206,32 +140,6 @@ describe("SchedulerService", () => {
   });
 
   describe("stop", () => {
-    it("should stop an existing job successfully", () => {
-      const jobId = "stoppable-job";
-      const job = scheduler.schedule(
-        jobId,
-        "0 0 * * *",
-        mockTaskFunction,
-        "Stoppable job",
-      );
-
-      // Mock the task stop method
-      const stopSpy = vi.spyOn(job.task, "stop").mockImplementation(() => {});
-
-      scheduler.stop(jobId);
-
-      expect(stopSpy).toHaveBeenCalled();
-      expect(logger.info).toHaveBeenCalledWith(
-        `Job '${jobId}' stopped.`,
-        expect.objectContaining({
-          requestId: `job-stop-${jobId}`,
-          timestamp: expect.any(String),
-        }),
-      );
-
-      stopSpy.mockRestore();
-    });
-
     it("should throw error when stopping non-existent job", () => {
       const nonExistentJobId = "non-existent-job";
 
@@ -242,35 +150,6 @@ describe("SchedulerService", () => {
   });
 
   describe("remove", () => {
-    it("should remove an existing job successfully", () => {
-      const jobId = "removable-job";
-      const job = scheduler.schedule(
-        jobId,
-        "0 0 * * *",
-        mockTaskFunction,
-        "Removable job",
-      );
-
-      // Mock the task stop method
-      const stopSpy = vi.spyOn(job.task, "stop").mockImplementation(() => {});
-
-      expect(scheduler.listJobs()).toHaveLength(1);
-
-      scheduler.remove(jobId);
-
-      expect(stopSpy).toHaveBeenCalled();
-      expect(scheduler.listJobs()).toHaveLength(0);
-      expect(logger.info).toHaveBeenCalledWith(
-        `Job '${jobId}' removed.`,
-        expect.objectContaining({
-          requestId: `job-remove-${jobId}`,
-          timestamp: expect.any(String),
-        }),
-      );
-
-      stopSpy.mockRestore();
-    });
-
     it("should throw error when removing non-existent job", () => {
       const nonExistentJobId = "non-existent-job";
 

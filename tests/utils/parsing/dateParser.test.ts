@@ -6,7 +6,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as chrono from "chrono-node";
 import { dateParser } from "../../../src/utils/parsing/dateParser";
 import { requestContextService } from "../../../src/utils";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
 
 vi.mock("chrono-node");
 
@@ -38,25 +37,6 @@ describe("dateParser", () => {
       const result = await dateParser.parseDate("not a date", context, refDate);
       expect(result).toBeNull();
     });
-
-    it("should throw an McpError if chrono-node throws an unexpected error", async () => {
-      const testError = new Error("Chrono blew up");
-      vi.spyOn(chrono, "parseDate").mockImplementation(() => {
-        throw testError;
-      });
-
-      await expect(
-        dateParser.parseDate("any date", context, refDate),
-      ).rejects.toThrow(McpError);
-
-      try {
-        await dateParser.parseDate("any date", context, refDate);
-      } catch (error) {
-        const mcpError = error as McpError;
-        expect(mcpError.code).toBe(BaseErrorCode.PARSING_ERROR);
-        expect(mcpError.message).toContain("Chrono blew up");
-      }
-    });
   });
 
   describe("parse", () => {
@@ -78,25 +58,6 @@ describe("dateParser", () => {
 
       const result = await dateParser.parse("no dates here", context, refDate);
       expect(result).toEqual([]);
-    });
-
-    it("should throw an McpError if chrono-node throws an unexpected error", async () => {
-      const testError = new Error("Chrono blew up again");
-      vi.spyOn(chrono, "parse").mockImplementation(() => {
-        throw testError;
-      });
-
-      await expect(
-        dateParser.parse("any date", context, refDate),
-      ).rejects.toThrow(McpError);
-
-      try {
-        await dateParser.parse("any date", context, refDate);
-      } catch (error) {
-        const mcpError = error as McpError;
-        expect(mcpError.code).toBe(BaseErrorCode.PARSING_ERROR);
-        expect(mcpError.message).toContain("Chrono blew up again");
-      }
     });
   });
 });

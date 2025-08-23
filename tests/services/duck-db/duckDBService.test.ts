@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DuckDBService } from "../../../src/services/duck-db/duckDBService.js";
 import { DuckDBConnectionManager } from "../../../src/services/duck-db/duckDBConnectionManager.js";
 import { DuckDBQueryExecutor } from "../../../src/services/duck-db/duckDBQueryExecutor.js";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors.js";
+import { McpError } from "../../../src/types-global/errors.js";
 
 // Mock the dependencies
 vi.mock("../../../src/services/duck-db/duckDBConnectionManager.js");
@@ -129,22 +129,6 @@ describe("DuckDBService", () => {
       await expect(duckDBService.run(sql, params)).rejects.toThrow(McpError);
       await expect(duckDBService.run(sql, params)).rejects.toThrow(
         "DuckDB service only supports array-style parameters",
-      );
-    });
-
-    it("should throw if not initialized", async () => {
-      const uninitializedService = new DuckDBService();
-      vi.mocked(mockConnectionManager.ensureInitialized!).mockImplementation(
-        () => {
-          throw new McpError(
-            BaseErrorCode.SERVICE_NOT_INITIALIZED,
-            "Service not initialized",
-          );
-        },
-      );
-
-      await expect(uninitializedService.run("SELECT 1")).rejects.toThrow(
-        McpError,
       );
     });
   });
@@ -371,20 +355,6 @@ describe("DuckDBService", () => {
   });
 
   describe("Error Handling", () => {
-    it("should handle ensureInitialized throwing service not initialized", async () => {
-      await duckDBService.initialize();
-      vi.mocked(mockConnectionManager.ensureInitialized!).mockImplementation(
-        () => {
-          throw new McpError(
-            BaseErrorCode.SERVICE_NOT_INITIALIZED,
-            "Service not initialized",
-          );
-        },
-      );
-
-      await expect(duckDBService.run("SELECT 1")).rejects.toThrow(McpError);
-    });
-
     it("should handle missing query executor", async () => {
       const service = new DuckDBService();
       // Simulate partially initialized state

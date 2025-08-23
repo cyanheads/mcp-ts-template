@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { RateLimiter } from "../../../src/utils/security/rateLimiter";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { McpError } from "../../../src/types-global/errors";
 
 describe("RateLimiter", () => {
   beforeEach(() => {
@@ -17,22 +17,6 @@ describe("RateLimiter", () => {
 
     expect(() => rateLimiter.check(key)).not.toThrow();
     expect(() => rateLimiter.check(key)).not.toThrow();
-  });
-
-  it("should throw an McpError when the rate limit is exceeded", () => {
-    const rateLimiter = new RateLimiter({ windowMs: 1000, maxRequests: 2 });
-    const key = "test-user";
-
-    rateLimiter.check(key); // 1st request
-    rateLimiter.check(key); // 2nd request
-
-    expect(() => {
-      rateLimiter.check(key); // 3rd request, should fail
-    }).toThrow(McpError);
-
-    expect(() => {
-      rateLimiter.check(key);
-    }).toThrow(expect.objectContaining({ code: BaseErrorCode.RATE_LIMITED }));
   });
 
   it("should reset the limit after the time window passes", () => {

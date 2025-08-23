@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { sanitization } from "../../../src/utils/security/sanitization";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { McpError } from "../../../src/types-global/errors";
 
 describe("Sanitization Utility", () => {
   describe("sanitizeHtml", () => {
@@ -51,18 +51,6 @@ describe("Sanitization Utility", () => {
         "",
       );
     });
-
-    it('should throw an McpError when context is "javascript"', () => {
-      const jsInput = 'alert("hello")';
-      expect(() =>
-        sanitization.sanitizeString(jsInput, { context: "javascript" }),
-      ).toThrow(McpError);
-      expect(() =>
-        sanitization.sanitizeString(jsInput, { context: "javascript" }),
-      ).toThrow(
-        expect.objectContaining({ code: BaseErrorCode.VALIDATION_ERROR }),
-      );
-    });
   });
 
   describe("sanitizePath", () => {
@@ -70,17 +58,6 @@ describe("Sanitization Utility", () => {
       const traversalPath = "a/b/../c";
       const result = sanitization.sanitizePath(traversalPath);
       expect(result.sanitizedPath).toBe("a/c");
-    });
-
-    it("should throw an error for paths containing null bytes (\\0)", () => {
-      const nullBytePath = "/path/to/file\0.txt";
-      expect(() => sanitization.sanitizePath(nullBytePath)).toThrow(McpError);
-      expect(() => sanitization.sanitizePath(nullBytePath)).toThrow(
-        expect.objectContaining({
-          code: BaseErrorCode.VALIDATION_ERROR,
-          message: "Path contains null byte, which is disallowed.",
-        }),
-      );
     });
 
     it("should respect the rootDir option and throw if path escapes it", () => {

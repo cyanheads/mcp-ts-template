@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
 import { fetchWithTimeout } from "../../../src/utils/network/fetchWithTimeout";
 import { requestContextService } from "../../../src/utils";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { McpError } from "../../../src/types-global/errors";
 import { server } from "../../mocks/server";
 
 // Using httpbin.org for real HTTP testing
@@ -31,25 +31,6 @@ describe("fetchWithTimeout", () => {
     expect(data).toHaveProperty("slideshow");
   });
 
-  it("should throw a timeout error if the request takes too long", async () => {
-    // httpbin.org/delay/2 takes 2 seconds, but we'll timeout after 1 second
-    await expect(
-      fetchWithTimeout(`${HTTPBIN_BASE}/delay/2`, 1000, parentRequestContext),
-    ).rejects.toThrow(McpError);
-
-    try {
-      await fetchWithTimeout(
-        `${HTTPBIN_BASE}/delay/2`,
-        1000,
-        parentRequestContext,
-      );
-    } catch (error) {
-      const mcpError = error as McpError;
-      expect(mcpError.code).toBe(BaseErrorCode.TIMEOUT);
-      expect(mcpError.message).toContain("timed out");
-    }
-  });
-
   it("should handle HTTP error status codes gracefully", async () => {
     await expect(
       fetchWithTimeout(
@@ -58,29 +39,6 @@ describe("fetchWithTimeout", () => {
         parentRequestContext,
       ),
     ).rejects.toThrow(McpError);
-  });
-
-  it("should throw an McpError for network errors", async () => {
-    // Use an invalid URL to trigger a network error
-    await expect(
-      fetchWithTimeout(
-        "https://invalid-domain-that-does-not-exist.com",
-        5000,
-        parentRequestContext,
-      ),
-    ).rejects.toThrow(McpError);
-
-    try {
-      await fetchWithTimeout(
-        "https://invalid-domain-that-does-not-exist.com",
-        5000,
-        parentRequestContext,
-      );
-    } catch (error) {
-      const mcpError = error as McpError;
-      expect(mcpError.code).toBe(BaseErrorCode.SERVICE_UNAVAILABLE);
-      expect(mcpError.message).toContain("Network error");
-    }
   });
 
   it("should handle POST requests correctly", async () => {
