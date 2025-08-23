@@ -5,9 +5,9 @@
 **Build production-grade Model Context Protocol (MCP) servers with a powerful, type-safe, and extensible foundation.**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue?style=flat-square)](https://www.typescriptlang.org/)
-[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.1-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
+[![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.4-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--06--18-lightgrey?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.8.1-blue?style=flat-square)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.9.0-blue?style=flat-square)](./CHANGELOG.md)
 [![Coverage](https://img.shields.io/badge/Coverage-64.67%25-brightgreen?style=flat-square)](./vitest.config.ts)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues)
@@ -34,10 +34,10 @@ Building a robust server for AI agents is more than just writing code. It requir
 | :-------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
 | **🔌 MCP Server**           | A functional server with example tools and resources. Supports `stdio` and a **Streamable HTTP** transport built with [**Hono**](https://hono.dev/). | `src/mcp-server/`, `src/mcp-server/transports/`                      |
 | **🔭 Observability**        | Built-in **OpenTelemetry** for distributed tracing and metrics. Auto-instrumentation for core modules and custom tracing for all tool executions.    | `src/utils/telemetry/`                                               |
-| **🚀 Production Utilities** | Logging, Error Handling, ID Generation, Rate Limiting, Request Context tracking, Input Sanitization.                                                 | `src/utils/`                                                         |
+| **🚀 Production Utilities** | High-performance logging (Pino), Error Handling, ID Generation, Rate Limiting, Async Request Context, Input Sanitization.                            | `src/utils/`                                                         |
 | **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware for HTTP).                          | Throughout, `src/utils/security/`, `src/mcp-server/transports/auth/` |
-| **⚙️ Error Handling**       | Consistent error categorization (`BaseErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                                          | `src/utils/internal/errorHandler.ts`, `src/types-global/`            |
-| **📚 Documentation**        | Comprehensive `README.md`, structured JSDoc comments, API references.                                                                                | `README.md`, Codebase, `tsdoc.json`, `docs/api-references/`          |
+| **⚙️ Error Handling**       | Consistent error categorization (`JsonRpcErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                                       | `src/utils/internal/errorHandler.ts`, `src/types-global/`            |
+| **📚 Documentation**        | Comprehensive `README.md`, structured JSDoc comments, API references, and a detailed [Migration Guide](./docs/migrations/v1.9.0.md).                 | `README.md`, Codebase, `tsdoc.json`, `docs/`                         |
 | **🕵️ Interaction Logging**  | Captures raw requests and responses for all external LLM provider interactions to a dedicated `interactions.log` file for full traceability.         | `src/utils/internal/logger.ts`                                       |
 | **🤖 Agent Ready**          | Includes a [.clinerules](./.clinerules/clinerules.md) developer cheatsheet tailored for LLM coding agents.                                           | `.clinerules/`                                                       |
 | **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                                 | `scripts/`                                                           |
@@ -49,12 +49,12 @@ Building a robust server for AI agents is more than just writing code. It requir
 
 This template is built on a set of architectural principles to ensure modularity, testability, and operational clarity.
 
-- **Core Server (`src/mcp-server/server.ts`)**: The central point where tools and resources are registered. It uses a `ManagedMcpServer` wrapper to provide enhanced introspection capabilities. It acts the same way as the native McpServer, but with additional features like introspection and enhanced error handling.
+- **Core Server (`src/mcp-server/server.ts`)**: The central point where tools and resources are registered using the standard `McpServer` from the SDK.
 - **Transports (`src/mcp-server/transports/`)**: The transport layer connects the core server to the outside world. It supports both `stdio` for direct process communication and a streamable **Hono**-based `http` server.
 - **"Logic Throws, Handler Catches"**: This is the immutable cornerstone of our error-handling strategy.
   - **Core Logic (`logic.ts`)**: This layer is responsible for pure, self-contained business logic. It **throws** a structured `McpError` on any failure.
-  - **Handlers (`registration.ts`)**: This layer interfaces with the server, invokes the core logic, and **catches** any errors. It is the exclusive location where errors are processed and formatted into a final response.
-- **Structured, Traceable Operations**: Every operation is traced from initiation to completion via a `RequestContext` that is passed through the entire call stack, ensuring comprehensive and structured logging.
+  - **Handlers (`registration.ts`)**: This layer interfaces with the server, invokes the core logic, and **catches** any errors using centralized utilities (`createToolHandler`). It is the exclusive location where errors are processed and formatted into a final response.
+- **Structured, Traceable Operations**: Every operation is traced from initiation to completion via a `RequestContext` that is implicitly available throughout the entire asynchronous call stack using Node.js's `AsyncLocalStorage`.
 
 ## Quick Start
 
@@ -79,11 +79,11 @@ npm run build
 
 - **Via Stdio (Default):**
   ```bash
-  npm run start:server
+  npm run start:stdio
   ```
 - **Via Streamable HTTP:**
   ```bash
-  npm run start:server:http
+  npm run start:http
   ```
 
 ### 4. Running Tests
@@ -150,13 +150,13 @@ This is the cornerstone of the architecture:
 
 1.  **`logic.ts`**: This file contains the pure business logic.
     - It defines the Zod schemas for input and output, which serve as the single source of truth for the tool's data contract.
-    - The core logic function is pure: it takes validated parameters and a request context, and either returns a result or **throws** a structured `McpError`.
+    - The core logic function is pure: it takes validated parameters and either returns a result or **throws** a structured `McpError`. It retrieves the request context via `getRequestContext()`.
     - It **never** contains `try...catch` blocks for formatting a final response.
 
 2.  **`registration.ts`**: This file is the "handler" that connects the logic to the MCP server.
     - It imports the schemas and logic function from `logic.ts`.
-    - It calls `server.registerTool()`, providing the tool's metadata and the runtime handler.
-    - The runtime handler **always** wraps the call to the logic function in a `try...catch` block. This is the **only** place where errors are caught, processed by the `ErrorHandler`, and formatted into a standardized error response.
+    - It calls `server.registerTool()`, providing the tool's metadata and the runtime handler created by the `createToolHandler` utility.
+    - The centralized handler **always** wraps the call to the logic function in a `try...catch` block. This is the **only** place where errors are caught, processed by the `ErrorHandler`, and formatted into a standardized error response.
 
 This pattern ensures that core logic remains decoupled, pure, and easily testable, while the registration layer handles all transport-level concerns, side effects, and response formatting.
 
