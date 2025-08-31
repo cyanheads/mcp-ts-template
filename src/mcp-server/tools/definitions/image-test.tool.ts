@@ -65,7 +65,10 @@ function responseFormatter(result: FetchImageTestResponse): ContentBlock[] {
   ];
 }
 
-export const imageTestTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
+export const imageTestTool: ToolDefinition<
+  typeof InputSchema,
+  typeof OutputSchema
+> = {
   name: "fetch_image_test",
   description:
     "Fetches a random cat image from an external API (cataas.com) and returns it as a blob. Useful for testing image handling capabilities.",

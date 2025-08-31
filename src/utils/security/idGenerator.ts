@@ -313,7 +313,10 @@ export const generateRequestContextId = (): string => {
    * @param charset The characters to use for generation.
    * @returns The generated random string.
    */
-  const generateSecureRandomString = (length: number, charset: string): string => {
+  const generateSecureRandomString = (
+    length: number,
+    charset: string,
+  ): string => {
     let result = "";
     const maxValidByteValue = Math.floor(256 / charset.length) * charset.length;
 

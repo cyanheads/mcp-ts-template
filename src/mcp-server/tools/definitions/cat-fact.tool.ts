@@ -120,11 +120,15 @@ async function catFactFetcherLogic(
   }
 }
 
-export const catFactTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
-    name: "get_random_cat_fact",
-    description: "Fetches a random cat fact from a public API. Optionally, a maximum length for the fact can be specified.",
-    inputSchema: InputSchema,
-    outputSchema: OutputSchema,
-    annotations: { readOnlyHint: true, openWorldHint: true },
-    logic: catFactFetcherLogic,
+export const catFactTool: ToolDefinition<
+  typeof InputSchema,
+  typeof OutputSchema
+> = {
+  name: "get_random_cat_fact",
+  description:
+    "Fetches a random cat fact from a public API. Optionally, a maximum length for the fact can be specified.",
+  inputSchema: InputSchema,
+  outputSchema: OutputSchema,
+  annotations: { readOnlyHint: true, openWorldHint: true },
+  logic: catFactFetcherLogic,
 };

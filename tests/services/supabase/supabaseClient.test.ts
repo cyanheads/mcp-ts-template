@@ -112,9 +112,7 @@ describe("Supabase Client", () => {
       const mcpError = error as McpError;
       expect(mcpError.name).toBe("McpError");
       expect(mcpError.code).toBe(JsonRpcErrorCode.ConfigurationError);
-      expect(mcpError.message).toContain(
-        "Supabase URL or anon key is missing",
-      );
+      expect(mcpError.message).toContain("Supabase URL or anon key is missing");
     }
   });
 

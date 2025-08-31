@@ -5,7 +5,10 @@
  * @module src/mcp-server/tools/utils/toolHandlerFactory
  */
 
-import type { CallToolResult, ContentBlock } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolResult,
+  ContentBlock,
+} from "@modelcontextprotocol/sdk/types.js";
 import { McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
