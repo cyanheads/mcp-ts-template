@@ -36,3 +36,9 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
   - Enabled type-aware linting rules (`@typescript-eslint/no-floating-promises`, `@typescript-eslint/no-misused-promises`).
   - Activated `exactOptionalPropertyTypes` in `tsconfig.json` to prevent bugs related to optional properties.
 - **Core Refactoring**: Refactored object creation patterns across the application to be compliant with `exactOptionalPropertyTypes`. This improves robustness by ensuring optional properties are handled correctly and consistently, particularly in auth strategies, transport managers, and storage providers.
+- **Server Lifecycle**: Introduced a `TransportManager` to handle the lifecycle of transport-related resources, ensuring graceful shutdown of stateful sessions (e.g., in HTTP transport) and preventing resource leaks. The main application entry point (`index.ts`) and server startup sequence were refactored to support this.
+- **HTTP Middleware**: Aligned the MCP transport middleware with Hono v4 by removing the deprecated `createMiddleware` factory, improving compatibility and future-proofing the transport layer.
+
+### Fixed
+
+- **Storage**: The Supabase storage provider's `list` method now correctly filters out expired items, ensuring that only active key-value pairs are returned.
