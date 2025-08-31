@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.5] - 2025-08-31
+
+### Added
+
+- **Storage Service**: Implemented a new, flexible storage abstraction layer (`StorageService`) to decouple the application from a specific storage backend. This includes:
+  - An `IStorageProvider` interface defining a common contract for storage operations.
+  - Three concrete providers: `InMemoryProvider`, `FileSystemProvider`, and `SupabaseProvider`.
+  - A `storageFactory` to dynamically create the configured provider at startup.
+- **Request IDs**: Introduced a new `generateRequestContextId` function to create shorter, more readable alphanumeric IDs (e.g., `ABC12-FG345`) for improved log traceability.
+
+### Changed
+
+- **Configuration**: Overhauled the configuration system (`src/config/index.ts`) to use a single, comprehensive Zod schema for validation, type inference, and default values. This replaces scattered environment variable parsing with a centralized, robust, and type-safe mechanism.
+- **Dockerfile**: Optimized the `Dockerfile` for production by implementing a multi-stage build. The final image is smaller, more secure (runs as a non-root user), and contains only production dependencies.
+- **Core Application**: The new `StorageService` is now initialized during the application's startup sequence in `src/index.ts`.
+- **Security**: Refactored the `JwtStrategy` and `RateLimiter` to receive configuration via their constructors (dependency injection) instead of importing the global config directly, improving testability and decoupling.
+
+### Removed
+
+- **Supabase Client**: Deleted the old, standalone Supabase client (`src/services/supabase/supabaseClient.ts`) as its functionality is now encapsulated within the new `SupabaseProvider` in the storage layer.
+
 ## [1.9.4] - 2025-08-31
 
 ### Changed
