@@ -6,7 +6,7 @@
  * @module src/mcp-server/transports/auth/strategies/JwtStrategy
  */
 import { jwtVerify } from "jose";
-import { config, environment } from "../../../../config/index.js";
+import { config } from "../../../../config/index.js";
 import { JsonRpcErrorCode, McpError } from "../../../../types-global/errors.js";
 import {
   ErrorHandler,
@@ -18,36 +18,37 @@ import type { AuthStrategy } from "./authStrategy.js";
 
 export class JwtStrategy implements AuthStrategy {
   private readonly secretKey: Uint8Array | null;
+  private readonly env: string;
 
-  constructor() {
+  constructor(
+    env: string = config.environment,
+    secretKey: string | undefined = config.mcpAuthSecretKey,
+  ) {
     const context = requestContextService.createRequestContext({
       operation: "JwtStrategy.constructor",
     });
     logger.debug("Initializing JwtStrategy...", context);
+    this.env = env;
 
-    if (config.mcpAuthMode === "jwt") {
-      if (environment === "production" && !config.mcpAuthSecretKey) {
-        logger.fatal(
-          "CRITICAL: MCP_AUTH_SECRET_KEY is not set in production for JWT auth.",
-          context,
-        );
-        throw new McpError(
-          JsonRpcErrorCode.ConfigurationError,
-          "MCP_AUTH_SECRET_KEY must be set for JWT auth in production.",
-          context,
-        );
-      } else if (!config.mcpAuthSecretKey) {
-        logger.warning(
-          "MCP_AUTH_SECRET_KEY is not set. JWT auth will be bypassed (DEV ONLY).",
-          context,
-        );
-        this.secretKey = null;
-      } else {
-        logger.info("JWT secret key loaded successfully.", context);
-        this.secretKey = new TextEncoder().encode(config.mcpAuthSecretKey);
-      }
-    } else {
+    if (this.env === "production" && !secretKey) {
+      logger.fatal(
+        "CRITICAL: MCP_AUTH_SECRET_KEY is not set in production for JWT auth.",
+        context,
+      );
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        "MCP_AUTH_SECRET_KEY must be set for JWT auth in production.",
+        context,
+      );
+    } else if (!secretKey) {
+      logger.warning(
+        "MCP_AUTH_SECRET_KEY is not set. JWT auth will be bypassed (DEV ONLY).",
+        context,
+      );
       this.secretKey = null;
+    } else {
+      logger.info("JWT secret key loaded successfully.", context);
+      this.secretKey = new TextEncoder().encode(secretKey);
     }
   }
 
@@ -59,7 +60,7 @@ export class JwtStrategy implements AuthStrategy {
 
     // Handle development mode bypass
     if (!this.secretKey) {
-      if (environment !== "production") {
+      if (this.env !== "production") {
         logger.warning(
           "Bypassing JWT verification: No secret key (DEV ONLY).",
           context,

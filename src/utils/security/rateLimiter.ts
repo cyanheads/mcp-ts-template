@@ -4,7 +4,7 @@
  * @module src/utils/security/rateLimiter
  */
 import { trace } from "@opentelemetry/api";
-import { environment } from "../../config/index.js";
+import { config } from "../../config/index.js";
 import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
 import { logger, RequestContext, requestContextService } from "../index.js";
 
@@ -170,7 +170,7 @@ export class RateLimiter {
     const activeSpan = trace.getActiveSpan();
     activeSpan?.setAttribute("mcp.rate_limit.checked", true);
 
-    if (this.config.skipInDevelopment && environment === "development") {
+    if (this.config.skipInDevelopment && config.environment === "development") {
       activeSpan?.setAttribute("mcp.rate_limit.skipped", "development");
       return;
     }
