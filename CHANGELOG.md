@@ -32,3 +32,7 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 - **Configuration**: Enhanced the configuration system to include package description and more detailed settings for OAuth and storage providers.
 - **Developer Scripts**: Significantly improved the `devdocs.ts` script for better prompt generation and reliability.
 - **Logging**: The `Logger` class now uses overloaded methods for high-severity logs (`error`, `crit`, etc.) for more flexible error reporting.
+- **Build & Type Safety**: Upgraded the project's build and linting configurations for enhanced type safety and stricter code quality checks.
+  - Enabled type-aware linting rules (`@typescript-eslint/no-floating-promises`, `@typescript-eslint/no-misused-promises`).
+  - Activated `exactOptionalPropertyTypes` in `tsconfig.json` to prevent bugs related to optional properties.
+- **Core Refactoring**: Refactored object creation patterns across the application to be compliant with `exactOptionalPropertyTypes`. This improves robustness by ensuring optional properties are handled correctly and consistently, particularly in auth strategies, transport managers, and storage providers.
