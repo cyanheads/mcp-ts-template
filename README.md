@@ -17,16 +17,16 @@
 
 This template provides a comprehensive foundation for building rich Model Context Protocol servers, adhering to the **MCP 2025-06-18 specification** and modern best practices. It includes a fully-featured server, production-ready utilities, and clear documentation to get you up and running quickly.
 
-## 🤔 Why Use This Template?
+## 🤔 What Can You Build With This?
 
-Building a robust server for AI agents is more than just writing code. It requires a solid architecture, consistent error handling, and secure, type-safe practices from the ground up. This template solves these challenges by providing:
+Developing a reliable server for AI agents requires a thoughtful approach to architecture, error handling, and security. This template provides a starting point to help you:
 
-- **Accelerated Development**: Skip the boilerplate and focus on your tool's core logic.
-- **Production-Ready Foundation**: Built-in logging, error handling, security, and testing.
-- **Best Practices by Default**: Enforces a clean, modular architecture that's easy to maintain and extend.
-- **AI-Ready**: Designed with LLM agents in mind, including detailed schemas and rich LLM developer-friendly resources (e.g. .clinerules).
+- **Focus on Innovation**: Move past the setup and boilerplate. Spend your time building the unique logic for your tools.
+- **Build with Confidence**: Start with a foundation that includes logging, error handling, security features, and a testing framework.
+- **Write Maintainable Code**: The modular architecture is designed to be easy to understand, maintain, and extend as your project grows.
+- **Create for AI**: With detailed schemas and developer resources (like `.clinerules`), the template is set up for building tools that LLM agents can easily understand and use.
 
-> **Note on src/mcp-client & src/agent:** The MCP client & Agent components have been enhanced and moved to the [**atlas-mcp-agent**](https://github.com/cyanheads/atlas-mcp-agent) repository. This template now focuses exclusively on providing a best-in-class server implementation and framework.
+> **Note on src/mcp-client & src/agent:** The MCP client & Agent components have been enhanced and moved to the (coming soon)[**atlas-mcp-agent**](https://github.com/cyanheads/atlas-mcp-agent) repository. This template now focuses exclusively on providing a best-in-class server implementation and framework.
 
 ## ✨ Key Features
 
