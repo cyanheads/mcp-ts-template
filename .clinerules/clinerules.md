@@ -39,7 +39,17 @@ The system shall be fully observable out-of-the-box through integrated, comprehe
 
 **Performance Spans:** The `measureToolExecution` utility creates detailed spans for every tool call, capturing critical performance metrics (duration, success status, error codes) as attributes. This provides granular insight into the performance of individual tools.
 
-### 4. Application Lifecycle and Execution Flow
+### 4. Decoupled, Provider-Based Storage
+
+To ensure flexibility and testability, all persistent state is managed through a generic storage service that abstracts the underlying backend.
+
+**Storage Service (`src/storage/core/StorageService.ts`):** A singleton service that acts as the single point of entry for all storage operations. It implements the `IStorageProvider` interface.
+
+**Storage Provider (`src/storage/core/IStorageProvider.ts`):** A strict interface defining the contract for all storage backends (e.g., `get`, `set`, `delete`, `list`).
+
+**Storage Factory (`src/storage/core/storageFactory.ts`):** A factory function that reads the application's configuration and dynamically instantiates the appropriate storage provider (e.g., `InMemoryProvider`, `FileSystemProvider`, `SupabaseProvider`).
+
+### 5. Application Lifecycle and Execution Flow
 
 This section outlines the complete operational flow of the application, from initial startup to the execution of a tool's core logic. Understanding this sequence is critical for contextualizing the role of each component.
 
@@ -49,6 +59,7 @@ This section outlines the complete operational flow of the application, from ini
 
 2.  **Entry Point (`src/index.ts`):** The application is launched. This script performs the first-level setup:
     - Initializes the `logger` with the configured log level.
+    - **Initializes the `StorageService`** by creating the configured storage provider via the `storageFactory`.
     - Calls `initializeAndStartServer()` from `server.ts`.
     - Establishes global process listeners (`uncaughtException`, `SIGTERM`) to ensure graceful shutdown, including the shutdown of the OTel SDK.
 
@@ -380,11 +391,11 @@ The workflow for creating Resources mirrors that of Tools, with a focus on data 
 
 Interaction with any external service (e.g., database, third-party API) shall be encapsulated within a singleton provider class.
 
-**Encapsulation:** Each service provider (e.g., src/services/llm-providers/openRouterProvider.ts) is responsible for its own client, configuration, and API-specific logic.
+**Encapsulation:** Each service provider (e.g., `src/services/llm-providers/openRouterProvider.ts`) is responsible for its own client, configuration, and API-specific logic. For data persistence, this pattern is implemented via the `StorageService` and its underlying providers (e.g., `src/storage/providers/supabase/supabaseProvider.ts`).
 
-**Singleton Pattern:** The singleton pattern shall be employed to manage a single, shared instance of a service client across the application (e.g., src/services/supabase/supabaseClient.ts).
+**Singleton Pattern:** The singleton pattern shall be employed to manage a single, shared instance of a service across the application. This is used for the `StorageService` and for external API clients like the `OpenRouterProvider`.
 
-**Usage:** The singleton instance shall be imported directly into the logic.ts file where it is required.
+**Usage:** The singleton instance (e.g., `storageService`) shall be imported directly into the `logic.ts` file where it is required.
 
 ## V. Code Quality and Documentation Mandates
 

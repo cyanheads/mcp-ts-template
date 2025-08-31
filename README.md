@@ -7,7 +7,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue?style=flat-square)](https://www.typescriptlang.org/)
 [![Model Context Protocol SDK](https://img.shields.io/badge/MCP%20SDK-^1.17.4-green?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![MCP Spec Version](https://img.shields.io/badge/MCP%20Spec-2025--06--18-lightgrey?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
-[![Version](https://img.shields.io/badge/Version-1.9.4-blue?style=flat-square)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.9.5-blue?style=flat-square)](./CHANGELOG.md)
 [![Coverage](https://img.shields.io/badge/Coverage-63.51%25-brightgreen?style=flat-square)](./vitest.config.ts)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues)
@@ -41,6 +41,7 @@ Developing a reliable server for AI agents requires a thoughtful approach to arc
 | **🕵️ Interaction Logging**  | Captures raw requests and responses for all external LLM provider interactions to a dedicated `interactions.log` file for full traceability.         | `src/utils/internal/logger.ts`                                       |
 | **🤖 Agent Ready**          | Includes a [.clinerules](./.clinerules/clinerules.md) developer cheatsheet tailored for LLM coding agents.                                           | `.clinerules/`                                                       |
 | **🛠️ Utility Scripts**      | Scripts for cleaning builds, setting executable permissions, generating directory trees, and fetching OpenAPI specs.                                 | `scripts/`                                                           |
+| **💾 Storage Service**      | A flexible, provider-based storage layer for persisting data. Supports in-memory, filesystem, and Supabase backends out-of-the-box.                | `src/storage/`                                                       |
 | **🧩 Services**             | Reusable modules for LLM (OpenRouter) integration.                                                                                                   | `src/services/`                                                      |
 | **🧪 Integration Testing**  | Integrated with Vitest for fast and reliable integration testing. Includes example tests for core logic and a coverage reporter.                     | `vitest.config.ts`, `tests/`                                         |
 | **⏱️ Performance Metrics**  | Built-in utility to automatically measure and log the execution time and payload size of every tool call.                                            | `src/utils/internal/performance.ts`                                  |
@@ -118,6 +119,10 @@ Configure the server using these environment variables (or a `.env` file):
 | `MCP_AUTH_SECRET_KEY`                 | **Required for `jwt` mode.** Secret key (min 32 chars) for signing/verifying auth tokens. | (none - **MUST be set in production**) |
 | `OAUTH_ISSUER_URL`                    | **Required for `oauth` mode.** The issuer URL of your authorization server.               | (none)                                 |
 | `OAUTH_AUDIENCE`                      | **Required for `oauth` mode.** The audience identifier for this MCP server.               | (none)                                 |
+| `STORAGE_PROVIDER_TYPE`               | The storage backend to use: `in-memory`, `filesystem`, or `supabase`.                     | `filesystem`                           |
+| `STORAGE_FILESYSTEM_PATH`             | **Required for `filesystem` mode.** The local path for storing data.                      | `./.storage`                           |
+| `SUPABASE_URL`                        | **Required for `supabase` mode.** The URL of your Supabase project.                       | (none)                                 |
+| `SUPABASE_SERVICE_ROLE_KEY`           | **Required for `supabase` mode.** The service role key for your Supabase project.         | (none)                                 |
 | `OPENROUTER_API_KEY`                  | API key for OpenRouter.ai service.                                                        | (none)                                 |
 | `OTEL_ENABLED`                        | Set to `true` to enable OpenTelemetry instrumentation.                                    | `false`                                |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`  | The OTLP endpoint for exporting traces (e.g., `http://localhost:4318/v1/traces`).         | (none; logs to file)                   |
