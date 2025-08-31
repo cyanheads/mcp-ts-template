@@ -1,11 +1,10 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-31 18:38:45
+Generated on: 2025-08-31 19:12:47
 
 ```
 mcp-ts-template
 ├── .clinerules
-│   └── clinerules.md
 ├── .github
 │   ├── workflows
 │   │   └── publish.yml
@@ -181,6 +180,7 @@ mcp-ts-template
 ├── .env.example
 ├── .gitignore
 ├── .ncurc.json
+├── AGENTS.md
 ├── CHANGELOG.md
 ├── CLAUDE.md
 ├── Dockerfile
