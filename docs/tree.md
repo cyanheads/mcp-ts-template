@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-31 17:13:59
+Generated on: 2025-08-31 18:38:45
 
 ```
 mcp-ts-template
@@ -33,18 +33,13 @@ mcp-ts-template
 │   │   │       ├── logic.ts
 │   │   │       └── registration.ts
 │   │   ├── tools
-│   │   │   ├── catFactFetcher
-│   │   │   │   ├── index.ts
-│   │   │   │   ├── logic.ts
-│   │   │   │   └── registration.ts
-│   │   │   ├── echoTool
-│   │   │   │   ├── index.ts
-│   │   │   │   ├── logic.ts
-│   │   │   │   └── registration.ts
-│   │   │   └── imageTest
-│   │   │       ├── index.ts
-│   │   │       ├── logic.ts
-│   │   │       └── registration.ts
+│   │   │   ├── definitions
+│   │   │   │   ├── cat-fact.tool.ts
+│   │   │   │   ├── echo.tool.ts
+│   │   │   │   └── image-test.tool.ts
+│   │   │   └── utils
+│   │   │       ├── toolDefinition.ts
+│   │   │       └── toolHandlerFactory.ts
 │   │   ├── transports
 │   │   │   ├── auth
 │   │   │   │   ├── lib

@@ -1,8 +1,8 @@
 /**
- * @fileoverview Defines the core logic, schemas, and types for the `get_random_cat_fact` tool.
- * This tool fetches a random cat fact from the public Cat Fact Ninja API.
- * @module src/mcp-server/tools/catFactFetcher/logic
- * @see {@link src/mcp-server/tools/catFactFetcher/registration.ts} for the handler and registration logic.
+ * @fileoverview The complete definition for the 'get_random_cat_fact' tool.
+ * This file encapsulates the tool's schema, logic, and metadata,
+ * making it a self-contained and modular component.
+ * @module src/mcp-server/tools/definitions/cat-fact.tool
  */
 
 import { z } from "zod";
@@ -12,20 +12,17 @@ import {
   logger,
   type RequestContext,
 } from "../../../utils/index.js";
+import { ToolDefinition } from "../utils/toolDefinition.js";
 
-/**
- * Zod schema for the raw response from the Cat Fact Ninja API.
- * @internal
- */
+const CAT_FACT_API_URL = "https://catfact.ninja/fact";
+const CAT_FACT_API_TIMEOUT_MS = 5000;
+
 const CatFactApiSchema = z.object({
   fact: z.string(),
   length: z.number(),
 });
 
-/**
- * Zod schema for validating input arguments for the `get_random_cat_fact` tool.
- */
-export const CatFactFetcherInputSchema = z.object({
+const InputSchema = z.object({
   maxLength: z
     .number()
     .int("Max length must be an integer.")
@@ -36,15 +33,7 @@ export const CatFactFetcherInputSchema = z.object({
     ),
 });
 
-/**
- * TypeScript type inferred from `CatFactFetcherInputSchema`.
- */
-export type CatFactFetcherInput = z.infer<typeof CatFactFetcherInputSchema>;
-
-/**
- * Zod schema for the successful response of the `get_random_cat_fact` tool.
- */
-export const CatFactFetcherResponseSchema = z.object({
+const OutputSchema = z.object({
   fact: z.string().describe("The retrieved cat fact."),
   length: z.number().int().describe("The character length of the cat fact."),
   requestedMaxLength: z
@@ -58,38 +47,24 @@ export const CatFactFetcherResponseSchema = z.object({
     .describe("ISO 8601 timestamp of when the response was generated."),
 });
 
-/**
- * Defines the structure of the JSON payload returned by the `get_random_cat_fact` tool handler.
- */
-export type CatFactFetcherResponse = z.infer<
-  typeof CatFactFetcherResponseSchema
->;
+type CatFactFetcherInput = z.infer<typeof InputSchema>;
+type CatFactFetcherResponse = z.infer<typeof OutputSchema>;
 
-/**
- * Processes the core logic for the `get_random_cat_fact` tool.
- * It calls the Cat Fact Ninja API and returns the fetched fact.
- * @param params - The validated input parameters for the tool.
- * @param context - The request context for logging and tracing.
- * @returns A promise that resolves to an object containing the cat fact data.
- * @throws {McpError} If the API request fails or returns an error.
- */
-export async function catFactFetcherLogic(
-  params: CatFactFetcherInput,
+async function catFactFetcherLogic(
+  input: CatFactFetcherInput,
   context: RequestContext,
 ): Promise<CatFactFetcherResponse> {
   logger.debug("Processing get_random_cat_fact logic.", {
     ...context,
-    toolInput: params,
+    toolInput: input,
   });
 
-  let apiUrl = "https://catfact.ninja/fact";
-  if (params.maxLength !== undefined) {
-    apiUrl += `?max_length=${params.maxLength}`;
+  let apiUrl = CAT_FACT_API_URL;
+  if (input.maxLength !== undefined) {
+    apiUrl += `?max_length=${input.maxLength}`;
   }
 
   logger.info(`Fetching random cat fact from: ${apiUrl}`, context);
-
-  const CAT_FACT_API_TIMEOUT_MS = 5000;
 
   const response = await fetchWithTimeout(
     apiUrl,
@@ -118,7 +93,7 @@ export async function catFactFetcherLogic(
     const toolResponse: CatFactFetcherResponse = {
       fact: data.fact,
       length: data.length,
-      requestedMaxLength: params.maxLength,
+      requestedMaxLength: input.maxLength,
       timestamp: new Date().toISOString(),
     };
 
@@ -144,3 +119,12 @@ export async function catFactFetcherLogic(
     );
   }
 }
+
+export const catFactTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
+    name: "get_random_cat_fact",
+    description: "Fetches a random cat fact from a public API. Optionally, a maximum length for the fact can be specified.",
+    inputSchema: InputSchema,
+    outputSchema: OutputSchema,
+    annotations: { readOnlyHint: true, openWorldHint: true },
+    logic: catFactFetcherLogic,
+};

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2025-08-31
+
+### BREAKING CHANGE
+
+- **Declarative Tooling Architecture**: Completely refactored the tool registration and definition architecture to a declarative, single-file pattern. This is a significant breaking change that simplifies tool creation and improves maintainability.
+  - **ToolDefinition Interface**: Introduced a new `ToolDefinition` interface (`src/mcp-server/tools/utils/toolDefinition.ts`) that encapsulates a tool's name, description, schemas, annotations, and core logic in a single object.
+  - **Tool Handler Factory**: Created a `toolHandlerFactory.ts` to abstract away boilerplate for error handling, context creation, performance measurement, and response formatting, ensuring all tools behave consistently.
+  - **Single-File Tool Definitions**: All tools (`echo`, `cat-fact`, `image-test`) are now defined in a single file within `src/mcp-server/tools/definitions/`. This replaces the previous `logic.ts`, `registration.ts`, and `index.ts` structure for each tool.
+  - **Type-Safe Registration**: Implemented a new type-safe `registerTool` helper function in `src/mcp-server/server.ts` that uses the `ToolDefinition` to correctly register the tool and its handler.
+
+### Removed
+
+- **Legacy Tool Structure**: Deleted all legacy tool files, including the `logic.ts`, `registration.ts`, and `index.ts` files for `echoTool`, `catFactFetcher`, and `imageTest`.
+
 ## [1.9.5] - 2025-08-31
 
 ### Added

@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "1.9.5",
+  "version": "2.0.0",
   "description": "A production-grade TypeScript template for building robust Model Context Protocol (MCP) servers, featuring built-in observability with OpenTelemetry, advanced error handling, comprehensive utilities, and a modular architecture.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

@@ -16,14 +16,79 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import http from "http";
+import { ZodObject, ZodRawShape } from "zod";
 import { config } from "../config/index.js";
+import { JsonRpcErrorCode } from "../types-global/errors.js";
 import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
 import { registerEchoResource } from "./resources/echoResource/index.js";
-import { registerCatFactFetcherTool } from "./tools/catFactFetcher/index.js";
-import { registerEchoTool } from "./tools/echoTool/index.js";
-import { registerFetchImageTestTool } from "./tools/imageTest/index.js";
+import { catFactTool } from "./tools/definitions/cat-fact.tool.js";
+import { echoTool } from "./tools/definitions/echo.tool.js";
+import { imageTestTool } from "./tools/definitions/image-test.tool.js";
+import { ToolDefinition } from "./tools/utils/toolDefinition.js";
+import { createMcpToolHandler } from "./tools/utils/toolHandlerFactory.js";
 import { startHttpTransport } from "./transports/http/index.js";
 import { startStdioTransport } from "./transports/stdio/index.js";
+
+/**
+ * A type-safe helper function to register a single tool definition.
+ * It creates a handler and registers the tool with the server,
+ * ensuring that the generic types for the handler and the tool definition match.
+ *
+ * @param server The McpServer instance.
+ * @param tool The ToolDefinition object to register.
+ */
+async function registerTool<
+  TInputSchema extends ZodObject<ZodRawShape>,
+  TOutputSchema extends ZodObject<ZodRawShape>,
+>(
+  server: McpServer,
+  tool: ToolDefinition<TInputSchema, TOutputSchema>,
+): Promise<void> {
+  const registrationContext = requestContextService.createRequestContext({
+    operation: "RegisterTool",
+    toolName: tool.name,
+  });
+
+  logger.debug(`Registering tool: '${tool.name}'`, registrationContext);
+
+  await ErrorHandler.tryCatch(
+    async () => {
+      const handler = createMcpToolHandler({
+        toolName: tool.name,
+        logic: tool.logic,
+        responseFormatter: tool.responseFormatter,
+      });
+
+      const title =
+        tool.title ??
+        tool.annotations?.title ??
+        tool.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+
+      server.registerTool(
+        tool.name,
+        {
+          title,
+          description: tool.description,
+          inputSchema: tool.inputSchema.shape,
+          outputSchema: tool.outputSchema.shape,
+          annotations: tool.annotations,
+        },
+        handler,
+      );
+
+      logger.notice(
+        `Tool '${tool.name}' registered successfully.`,
+        registrationContext,
+      );
+    },
+    {
+      operation: `RegisteringTool_${tool.name}`,
+      context: registrationContext,
+      errorCode: JsonRpcErrorCode.InitializationFailed,
+      critical: true,
+    },
+  );
+}
 
 /**
  * Creates and configures a new instance of the `McpServer`.
@@ -58,9 +123,12 @@ export async function createMcpServerInstance(): Promise<McpServer> {
   try {
     logger.debug("Registering resources and tools...", context);
     await registerEchoResource(server);
-    await registerEchoTool(server);
-    await registerCatFactFetcherTool(server);
-    await registerFetchImageTestTool(server);
+
+    // Register all tools in a type-safe manner
+    await registerTool(server, echoTool);
+    await registerTool(server, catFactTool);
+    await registerTool(server, imageTestTool);
+
     logger.info("Resources and tools registered successfully", context);
   } catch (err) {
     logger.error("Failed to register resources/tools", {
