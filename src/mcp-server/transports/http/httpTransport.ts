@@ -204,14 +204,20 @@ function createTransportManager(
     case "stateless":
       return new StatelessTransportManager(createServerInstanceFn);
     case "stateful":
-      return new StatefulTransportManager(createServerInstanceFn, statefulOptions);
+      return new StatefulTransportManager(
+        createServerInstanceFn,
+        statefulOptions,
+      );
     case "auto":
     default:
       logger.info(
         "Defaulting to 'auto' mode (stateful with stateless fallback).",
         opContext,
       );
-      return new StatefulTransportManager(createServerInstanceFn, statefulOptions);
+      return new StatefulTransportManager(
+        createServerInstanceFn,
+        statefulOptions,
+      );
   }
 }
 

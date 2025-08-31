@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-01 14:55:24
+Generated on: 2025-08-31 06:40:03
 
 ```
 mcp-ts-template
@@ -22,6 +22,7 @@ mcp-ts-template
 │   └── tree.md
 ├── scripts
 │   ├── clean.ts
+│   ├── devdocs.ts
 │   ├── fetch-openapi-spec.ts
 │   ├── make-executable.ts
 │   ├── README.md
@@ -81,17 +82,11 @@ mcp-ts-template
 │   │   │       └── stdioTransport.ts
 │   │   └── server.ts
 │   ├── services
-│   │   ├── duck-db
-│   │   │   ├── duckDBConnectionManager.ts
-│   │   │   ├── duckDBQueryExecutor.ts
-│   │   │   ├── duckDBService.ts
-│   │   │   └── types.ts
 │   │   ├── llm-providers
 │   │   │   └── openRouterProvider.ts
 │   │   └── supabase
 │   │       └── supabaseClient.ts
 │   ├── storage
-│   │   └── duckdbExample.ts
 │   ├── types-global
 │   │   └── errors.ts
 │   ├── utils
@@ -151,10 +146,6 @@ mcp-ts-template
 │   │   ├── handlers.ts
 │   │   └── server.ts
 │   ├── services
-│   │   ├── duck-db
-│   │   │   ├── duckDBConnectionManager.test.ts
-│   │   │   ├── duckDBQueryExecutor.test.ts
-│   │   │   └── duckDBService.test.ts
 │   │   ├── llm-providers
 │   │   │   └── openRouterProvider.test.ts
 │   │   └── supabase

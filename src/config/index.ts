@@ -19,7 +19,7 @@ dotenv.config();
 const findProjectRoot = (startDir: string): string => {
   let currentDir = startDir;
   // If the start directory is in `dist`, start searching from the parent directory.
-  if (path.basename(currentDir) === 'dist') {
+  if (path.basename(currentDir) === "dist") {
     currentDir = path.dirname(currentDir);
   }
   while (true) {
@@ -75,7 +75,8 @@ const loadPackageJson = (): { name: string; version: string } => {
     const parsed = JSON.parse(fileContents);
     return {
       name: typeof parsed.name === "string" ? parsed.name : fallback.name,
-      version: typeof parsed.version === "string" ? parsed.version : fallback.version,
+      version:
+        typeof parsed.version === "string" ? parsed.version : fallback.version,
     };
   } catch (error) {
     if (process.stdout.isTTY) {

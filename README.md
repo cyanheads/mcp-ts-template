@@ -33,7 +33,7 @@ Building a robust server for AI agents is more than just writing code. It requir
 | Feature Area                | Description                                                                                                                                          | Key Components / Location                                            |
 | :-------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
 | **🔌 MCP Server**           | A functional server with example tools and resources. Supports `stdio` and a **Streamable HTTP** transport built with [**Hono**](https://hono.dev/). | `src/mcp-server/`, `src/mcp-server/transports/`                      |
-| **🔭 Observability**        | Built-in **OpenTelemetry** for distributed tracing and metrics. Auto-instrumentation for core modules and custom tracing for all tool executions.      | `src/utils/telemetry/`                                               |
+| **🔭 Observability**        | Built-in **OpenTelemetry** for distributed tracing and metrics. Auto-instrumentation for core modules and custom tracing for all tool executions.    | `src/utils/telemetry/`                                               |
 | **🚀 Production Utilities** | Logging, Error Handling, ID Generation, Rate Limiting, Request Context tracking, Input Sanitization.                                                 | `src/utils/`                                                         |
 | **🔒 Type Safety/Security** | Strong type checking via TypeScript & Zod validation. Built-in security utilities (sanitization, auth middleware for HTTP).                          | Throughout, `src/utils/security/`, `src/mcp-server/transports/auth/` |
 | **⚙️ Error Handling**       | Consistent error categorization (`BaseErrorCode`), detailed logging, centralized handling (`ErrorHandler`).                                          | `src/utils/internal/errorHandler.ts`, `src/types-global/`            |
@@ -107,21 +107,21 @@ This template uses [Vitest](https://vitest.dev/) for testing, with a strong emph
 
 Configure the server using these environment variables (or a `.env` file):
 
-| Variable              | Description                                                                               | Default                                |
-| :-------------------- | :---------------------------------------------------------------------------------------- | :------------------------------------- |
-| `MCP_TRANSPORT_TYPE`  | Server transport: `stdio` or `http`.                                                      | `stdio`                                |
-| `MCP_SESSION_MODE`    | Session mode for HTTP: `stateless`, `stateful`, or `auto`.                                | `auto`                                 |
-| `MCP_HTTP_PORT`       | Port for the HTTP server.                                                                 | `3010`                                 |
-| `MCP_HTTP_HOST`       | Host address for the HTTP server.                                                         | `127.0.0.1`                            |
-| `MCP_ALLOWED_ORIGINS` | Comma-separated allowed origins for CORS.                                                 | (none)                                 |
-| `MCP_AUTH_MODE`       | Authentication mode for HTTP: `jwt`, `oauth`, or `none`.                                  | `none`                                 |
-| `MCP_AUTH_SECRET_KEY` | **Required for `jwt` mode.** Secret key (min 32 chars) for signing/verifying auth tokens. | (none - **MUST be set in production**) |
-| `OAUTH_ISSUER_URL`    | **Required for `oauth` mode.** The issuer URL of your authorization server.               | (none)                                 |
-| `OAUTH_AUDIENCE`      | **Required for `oauth` mode.** The audience identifier for this MCP server.               | (none)                                 |
-| `OPENROUTER_API_KEY`  | API key for OpenRouter.ai service.                                                        | (none)                                 |
-| `OTEL_ENABLED` | Set to `true` to enable OpenTelemetry instrumentation. | `false` |
-| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | The OTLP endpoint for exporting traces (e.g., `http://localhost:4318/v1/traces`). | (none; logs to file) |
-| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | The OTLP endpoint for exporting metrics (e.g., `http://localhost:4318/v1/metrics`). | (none) |
+| Variable                              | Description                                                                               | Default                                |
+| :------------------------------------ | :---------------------------------------------------------------------------------------- | :------------------------------------- |
+| `MCP_TRANSPORT_TYPE`                  | Server transport: `stdio` or `http`.                                                      | `stdio`                                |
+| `MCP_SESSION_MODE`                    | Session mode for HTTP: `stateless`, `stateful`, or `auto`.                                | `auto`                                 |
+| `MCP_HTTP_PORT`                       | Port for the HTTP server.                                                                 | `3010`                                 |
+| `MCP_HTTP_HOST`                       | Host address for the HTTP server.                                                         | `127.0.0.1`                            |
+| `MCP_ALLOWED_ORIGINS`                 | Comma-separated allowed origins for CORS.                                                 | (none)                                 |
+| `MCP_AUTH_MODE`                       | Authentication mode for HTTP: `jwt`, `oauth`, or `none`.                                  | `none`                                 |
+| `MCP_AUTH_SECRET_KEY`                 | **Required for `jwt` mode.** Secret key (min 32 chars) for signing/verifying auth tokens. | (none - **MUST be set in production**) |
+| `OAUTH_ISSUER_URL`                    | **Required for `oauth` mode.** The issuer URL of your authorization server.               | (none)                                 |
+| `OAUTH_AUDIENCE`                      | **Required for `oauth` mode.** The audience identifier for this MCP server.               | (none)                                 |
+| `OPENROUTER_API_KEY`                  | API key for OpenRouter.ai service.                                                        | (none)                                 |
+| `OTEL_ENABLED`                        | Set to `true` to enable OpenTelemetry instrumentation.                                    | `false`                                |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`  | The OTLP endpoint for exporting traces (e.g., `http://localhost:4318/v1/traces`).         | (none; logs to file)                   |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | The OTLP endpoint for exporting metrics (e.g., `http://localhost:4318/v1/metrics`).       | (none)                                 |
 
 ## 🏗️ Project Structure
 

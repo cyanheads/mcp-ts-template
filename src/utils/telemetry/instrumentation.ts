@@ -63,83 +63,110 @@ if (config.openTelemetry.enabled) {
         ],
       });
     }
-    public override error = (message: string, ...args: unknown[]): void => { this.winstonLogger.error(message, { args }); }
-    public override warn = (message: string, ...args: unknown[]): void => { this.winstonLogger.warn(message, { args }); }
-    public override info = (message: string, ...args: unknown[]): void => { this.winstonLogger.info(message, { args }); }
-    public override debug = (message: string, ...args: unknown[]): void => { this.winstonLogger.debug(message, { args }); }
-    public override verbose = (message: string, ...args: unknown[]): void => { this.winstonLogger.verbose(message, { args }); }
+    public override error = (message: string, ...args: unknown[]): void => {
+      this.winstonLogger.error(message, { args });
+    };
+    public override warn = (message: string, ...args: unknown[]): void => {
+      this.winstonLogger.warn(message, { args });
+    };
+    public override info = (message: string, ...args: unknown[]): void => {
+      this.winstonLogger.info(message, { args });
+    };
+    public override debug = (message: string, ...args: unknown[]): void => {
+      this.winstonLogger.debug(message, { args });
+    };
+    public override verbose = (message: string, ...args: unknown[]): void => {
+      this.winstonLogger.verbose(message, { args });
+    };
   }
 
   /**
    * A custom SpanProcessor that writes ended spans to a log file using Winston.
    */
   class FileSpanProcessor implements SpanProcessor {
-      private traceLogger: winston.Logger;
+    private traceLogger: winston.Logger;
 
-      constructor() {
-          const logsDir = config.logsPath;
-          if (!logsDir) {
-              diag.error("[FileSpanProcessor] Cannot initialize: logsPath is not available.");
-              this.traceLogger = winston.createLogger({ silent: true });
-              return;
-          }
-          this.traceLogger = winston.createLogger({
-              format: winston.format.json(),
-              transports: [
-                  new winston.transports.File({
-                      filename: path.join(logsDir, 'traces.log'),
-                      maxsize: 10 * 1024 * 1024, // 10MB
-                      maxFiles: 5,
-                  }),
-              ],
-          });
+    constructor() {
+      const logsDir = config.logsPath;
+      if (!logsDir) {
+        diag.error(
+          "[FileSpanProcessor] Cannot initialize: logsPath is not available.",
+        );
+        this.traceLogger = winston.createLogger({ silent: true });
+        return;
       }
+      this.traceLogger = winston.createLogger({
+        format: winston.format.json(),
+        transports: [
+          new winston.transports.File({
+            filename: path.join(logsDir, "traces.log"),
+            maxsize: 10 * 1024 * 1024, // 10MB
+            maxFiles: 5,
+          }),
+        ],
+      });
+    }
 
-      forceFlush(): Promise<void> { return Promise.resolve(); }
-      onStart(_span: ReadableSpan): void {}
-      onEnd(span: ReadableSpan): void {
-          const loggableSpan = {
-              traceId: span.spanContext().traceId,
-              spanId: span.spanContext().spanId,
-              name: span.name,
-              kind: span.kind,
-              startTime: span.startTime,
-              endTime: span.endTime,
-              duration: span.duration,
-              status: span.status,
-              attributes: span.attributes,
-              events: span.events,
-          };
-          this.traceLogger.info(loggableSpan);
-      }
-      shutdown(): Promise<void> {
-          return new Promise(resolve => this.traceLogger.on('finish', resolve).end());
-      }
+    forceFlush(): Promise<void> {
+      return Promise.resolve();
+    }
+    onStart(_span: ReadableSpan): void {}
+    onEnd(span: ReadableSpan): void {
+      const loggableSpan = {
+        traceId: span.spanContext().traceId,
+        spanId: span.spanContext().spanId,
+        name: span.name,
+        kind: span.kind,
+        startTime: span.startTime,
+        endTime: span.endTime,
+        duration: span.duration,
+        status: span.status,
+        attributes: span.attributes,
+        events: span.events,
+      };
+      this.traceLogger.info(loggableSpan);
+    }
+    shutdown(): Promise<void> {
+      return new Promise((resolve) =>
+        this.traceLogger.on("finish", resolve).end(),
+      );
+    }
   }
 
   try {
-    const otelLogLevel = DiagLogLevel[config.openTelemetry.logLevel as keyof typeof DiagLogLevel] ?? DiagLogLevel.INFO;
+    const otelLogLevel =
+      DiagLogLevel[
+        config.openTelemetry.logLevel as keyof typeof DiagLogLevel
+      ] ?? DiagLogLevel.INFO;
     diag.setLogger(new OtelDiagnosticLogger(otelLogLevel), otelLogLevel);
 
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: config.openTelemetry.serviceName,
       [ATTR_SERVICE_VERSION]: config.openTelemetry.serviceVersion,
-      'deployment.environment.name': config.environment,
+      "deployment.environment.name": config.environment,
     });
 
     let spanProcessor: SpanProcessor;
     if (config.openTelemetry.tracesEndpoint) {
-      diag.info(`Using OTLP exporter for traces, endpoint: ${config.openTelemetry.tracesEndpoint}`);
-      const traceExporter = new OTLPTraceExporter({ url: config.openTelemetry.tracesEndpoint });
+      diag.info(
+        `Using OTLP exporter for traces, endpoint: ${config.openTelemetry.tracesEndpoint}`,
+      );
+      const traceExporter = new OTLPTraceExporter({
+        url: config.openTelemetry.tracesEndpoint,
+      });
       spanProcessor = new BatchSpanProcessor(traceExporter);
     } else {
-      diag.info("No OTLP endpoint configured. Using FileSpanProcessor for local trace logging.");
+      diag.info(
+        "No OTLP endpoint configured. Using FileSpanProcessor for local trace logging.",
+      );
       spanProcessor = new FileSpanProcessor();
     }
 
     const metricReader = config.openTelemetry.metricsEndpoint
       ? new PeriodicExportingMetricReader({
-          exporter: new OTLPMetricExporter({ url: config.openTelemetry.metricsEndpoint }),
+          exporter: new OTLPMetricExporter({
+            url: config.openTelemetry.metricsEndpoint,
+          }),
           exportIntervalMillis: 15000,
         })
       : undefined;
@@ -151,7 +178,10 @@ if (config.openTelemetry.enabled) {
       sampler: new TraceIdRatioBasedSampler(config.openTelemetry.samplingRatio),
       instrumentations: [
         getNodeAutoInstrumentations({
-          "@opentelemetry/instrumentation-http": { enabled: true, ignoreIncomingRequestHook: (req) => req.url === "/healthz" },
+          "@opentelemetry/instrumentation-http": {
+            enabled: true,
+            ignoreIncomingRequestHook: (req) => req.url === "/healthz",
+          },
           "@opentelemetry/instrumentation-fs": { enabled: false },
         }),
         new WinstonInstrumentation({
@@ -161,8 +191,9 @@ if (config.openTelemetry.enabled) {
     });
 
     sdk.start();
-    diag.info(`OpenTelemetry initialized for ${config.openTelemetry.serviceName} v${config.openTelemetry.serviceVersion}`);
-
+    diag.info(
+      `OpenTelemetry initialized for ${config.openTelemetry.serviceName} v${config.openTelemetry.serviceVersion}`,
+    );
   } catch (error) {
     diag.error("Error initializing OpenTelemetry", error);
     process.exit(1);
@@ -175,7 +206,8 @@ if (config.openTelemetry.enabled) {
  */
 export async function shutdownOpenTelemetry() {
   if (sdk) {
-    await sdk.shutdown()
+    await sdk
+      .shutdown()
       .then(() => diag.info("OpenTelemetry terminated"))
       .catch((error) => diag.error("Error terminating OpenTelemetry", error));
   }

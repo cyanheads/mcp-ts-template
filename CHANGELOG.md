@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.3] - 2025-08-30
+
+### BREAKING CHANGE
+
+- **DuckDB Removal**: The entire DuckDB integration has been removed from the project to streamline focus and reduce complexity. A proper storage layer will be implemented in the future. All related files, dependencies, and configurations have been deleted for now.
+- **Version Deprecation**: Versions `1.9.0` through `1.9.2` are considered deprecated due to the significant architectural changes and dependency updates in this release. They integrated Pino but I reverted to Winston for stability.
+
+### Added
+
+- **Developer Script**: Introduced a new `devdocs.ts` script to automate the generation of comprehensive development documentation by running `repomix` and `tree`, and copying the output to the clipboard.
+
+### Changed
+
+- **Logging**: Reverted the logging utility from Pino back to a previous, more stable Winston-based implementation to resolve performance and compatibility issues. Enhanced the logger with rate-limiting capabilities to prevent log flooding.
+- **Dependencies**: Upgraded all dependencies to their latest stable versions, including major updates to `@modelcontextprotocol/sdk`, `hono`, `typescript`, and `eslint`.
+- **Error Handling**: Refactored the entire error code system from the custom `BaseErrorCode` enum to the industry-standard `JsonRpcErrorCode`. This improves interoperability and aligns the project with MCP & JSON-RPC 2.0 specifications.
+- **Context Propagation**: Improved `requestContextService` to more robustly handle context propagation, ensuring better traceability across operations.
+
+### Removed
+
+- **DuckDB Service**: Deleted all files related to the DuckDB service, including:
+  - `src/services/duck-db/`
+  - `src/storage/duckdbExample.ts`
+  - All related test files in `tests/services/duck-db/`.
+
 ## [1.8.1] - 2025-08-01
 
 ### Added
