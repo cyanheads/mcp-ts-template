@@ -10,6 +10,7 @@
     // Enable all strict type checking
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
 
     // Module interop for CommonJS compatibility
     "esModuleInterop": true,

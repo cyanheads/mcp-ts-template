@@ -13,10 +13,17 @@
     "useGitignore": true,
     "useDefaultPatterns": true,
     "customPatterns": [
-      ".clinerules",
-      "AGENTS.md",
+      ".clinerules/",
+      ".github/",
+      ".storage/",
+      ".vscode/",
+      "CHANGELOG.md",
+      "changelog/",
+      "coverage/",
+      "docs/",
       "repomix.config.json",
-      "docs/api-references/"
+      "scripts/",
+      "tests/"
     ]
   },
   "security": {

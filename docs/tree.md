@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-31 20:11:03
+Generated on: 2025-08-31 21:41:07
 
 ```
 mcp-ts-template
@@ -13,6 +13,8 @@ mcp-ts-template
 ├── .storage
 ├── .vscode
 │   └── settings.json
+├── changelog
+│   └── archive1.md
 ├── coverage
 ├── docs
 │   └── tree.md
