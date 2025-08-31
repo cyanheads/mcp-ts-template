@@ -38,7 +38,11 @@ describe("Supabase Client", () => {
       },
     }));
 
-    await import("../../../src/services/supabase/supabaseClient.js");
+    const { getSupabaseClient, getSupabaseAdminClient } = await import(
+      "../../../src/storage/providers/supabase/supabaseClient.js"
+    );
+    getSupabaseClient();
+    getSupabaseAdminClient();
 
     expect(mockCreateClient).toHaveBeenCalledTimes(2);
     expect(mockCreateClient).toHaveBeenCalledWith(
@@ -65,7 +69,7 @@ describe("Supabase Client", () => {
     }));
 
     const { getSupabaseClient } = await import(
-      "../../../src/services/supabase/supabaseClient.js"
+      "../../../src/storage/providers/supabase/supabaseClient.js"
     );
     const client = getSupabaseClient();
     expect(client).toBeDefined();
@@ -84,7 +88,7 @@ describe("Supabase Client", () => {
     }));
 
     const { getSupabaseAdminClient } = await import(
-      "../../../src/services/supabase/supabaseClient.js"
+      "../../../src/storage/providers/supabase/supabaseClient.js"
     );
     const adminClient = getSupabaseAdminClient();
     expect(adminClient).toBeDefined();
@@ -97,7 +101,7 @@ describe("Supabase Client", () => {
     }));
 
     const { getSupabaseClient } = await import(
-      "../../../src/services/supabase/supabaseClient.js"
+      "../../../src/storage/providers/supabase/supabaseClient.js"
     );
 
     try {
@@ -107,9 +111,9 @@ describe("Supabase Client", () => {
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.name).toBe("McpError");
-      expect(mcpError.code).toBe(JsonRpcErrorCode.ServiceUnavailable);
+      expect(mcpError.code).toBe(JsonRpcErrorCode.ConfigurationError);
       expect(mcpError.message).toContain(
-        "Supabase client has not been initialized",
+        "Supabase URL or anon key is missing",
       );
     }
   });
@@ -126,7 +130,7 @@ describe("Supabase Client", () => {
     }));
 
     const { getSupabaseAdminClient } = await import(
-      "../../../src/services/supabase/supabaseClient.js"
+      "../../../src/storage/providers/supabase/supabaseClient.js"
     );
 
     try {
@@ -136,9 +140,9 @@ describe("Supabase Client", () => {
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.name).toBe("McpError");
-      expect(mcpError.code).toBe(JsonRpcErrorCode.ServiceUnavailable);
+      expect(mcpError.code).toBe(JsonRpcErrorCode.ConfigurationError);
       expect(mcpError.message).toContain(
-        "Supabase admin client has not been initialized",
+        "Supabase URL or service role key is missing",
       );
     }
   });
