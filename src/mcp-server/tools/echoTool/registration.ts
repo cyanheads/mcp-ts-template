@@ -7,7 +7,7 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
@@ -42,7 +42,7 @@ const TOOL_DESCRIPTION =
 export const registerEchoTool = async (server: McpServer): Promise<void> => {
   const registrationContext = requestContextService.createRequestContext({
     operation: "RegisterTool",
-    toolName: TOOL_NAME,
+    additionalContext: { toolName: TOOL_NAME },
   });
 
   logger.info(`Registering tool: '${TOOL_NAME}'`, registrationContext);
@@ -72,9 +72,11 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
           const handlerContext = requestContextService.createRequestContext({
             parentContext: callContext,
             operation: "HandleToolRequest",
-            toolName: TOOL_NAME,
-            sessionId, // Add sessionId for enhanced traceability
-            input: params,
+            additionalContext: {
+              toolName: TOOL_NAME,
+              sessionId, // Add sessionId for enhanced traceability
+              input: params,
+            },
           });
 
           try {
@@ -111,7 +113,7 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
               structuredContent: {
                 code: mcpError.code,
                 message: mcpError.message,
-                details: mcpError.details,
+                data: mcpError.data,
               },
             };
           }
@@ -126,7 +128,7 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
     {
       operation: `RegisteringTool_${TOOL_NAME}`,
       context: registrationContext,
-      errorCode: BaseErrorCode.INITIALIZATION_FAILED,
+      errorCode: JsonRpcErrorCode.InitializationFailed,
       critical: true, // A failure to register a tool is a critical startup error.
     },
   );

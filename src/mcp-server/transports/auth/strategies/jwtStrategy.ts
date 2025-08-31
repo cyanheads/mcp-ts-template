@@ -7,7 +7,7 @@
  */
 import { jwtVerify } from "jose";
 import { config, environment } from "../../../../config/index.js";
-import { BaseErrorCode, McpError } from "../../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
@@ -32,7 +32,7 @@ export class JwtStrategy implements AuthStrategy {
           context,
         );
         throw new McpError(
-          BaseErrorCode.CONFIGURATION_ERROR,
+          JsonRpcErrorCode.ConfigurationError,
           "MCP_AUTH_SECRET_KEY must be set for JWT auth in production.",
           context,
         );
@@ -73,7 +73,7 @@ export class JwtStrategy implements AuthStrategy {
       // This path is defensive. The constructor should prevent this state in production.
       logger.crit("Auth secret key is missing in production.", context);
       throw new McpError(
-        BaseErrorCode.CONFIGURATION_ERROR,
+        JsonRpcErrorCode.ConfigurationError,
         "Auth secret key is missing in production. This indicates a server configuration error.",
         context,
       );
@@ -99,7 +99,7 @@ export class JwtStrategy implements AuthStrategy {
           context,
         );
         throw new McpError(
-          BaseErrorCode.UNAUTHORIZED,
+          JsonRpcErrorCode.Unauthorized,
           "Invalid token: missing 'cid' or 'client_id' claim.",
           context,
         );
@@ -121,7 +121,7 @@ export class JwtStrategy implements AuthStrategy {
           context,
         );
         throw new McpError(
-          BaseErrorCode.UNAUTHORIZED,
+          JsonRpcErrorCode.Unauthorized,
           "Token must contain valid, non-empty scopes.",
           context,
         );
@@ -159,9 +159,9 @@ export class JwtStrategy implements AuthStrategy {
         operation: "JwtStrategy.verify",
         context,
         rethrow: true,
-        errorCode: BaseErrorCode.UNAUTHORIZED,
+        errorCode: JsonRpcErrorCode.Unauthorized,
         errorMapper: () =>
-          new McpError(BaseErrorCode.UNAUTHORIZED, message, context),
+          new McpError(JsonRpcErrorCode.Unauthorized, message, context),
       });
     }
   }

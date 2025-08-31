@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ErrorHandler } from "../../../src/utils/internal/errorHandler";
 import { logger } from "../../../src/utils/internal/logger";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { McpError, JsonRpcErrorCode } from "../../../src/types-global/errors";
 
 // Mock the logger module
 vi.mock("../../../src/utils/internal/logger", () => ({
@@ -20,42 +20,42 @@ describe("ErrorHandler", () => {
 
   describe("determineErrorCode", () => {
     it("should return the code from an McpError instance", () => {
-      const err = new McpError(BaseErrorCode.FORBIDDEN, "test");
+      const err = new McpError(JsonRpcErrorCode.Forbidden, "test");
       expect(ErrorHandler.determineErrorCode(err)).toBe(
-        BaseErrorCode.FORBIDDEN,
+        JsonRpcErrorCode.Forbidden,
       );
     });
 
     it("should return VALIDATION_ERROR for a TypeError", () => {
       const err = new TypeError("test");
       expect(ErrorHandler.determineErrorCode(err)).toBe(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
       );
     });
 
     it('should return NOT_FOUND for an error message containing "not found"', () => {
       const err = new Error("Item not found");
       expect(ErrorHandler.determineErrorCode(err)).toBe(
-        BaseErrorCode.NOT_FOUND,
+        JsonRpcErrorCode.NotFound,
       );
     });
 
     it("should default to INTERNAL_ERROR for an unknown error", () => {
       const err = new Error("Something weird happened");
       expect(ErrorHandler.determineErrorCode(err)).toBe(
-        BaseErrorCode.INTERNAL_ERROR,
+        JsonRpcErrorCode.InternalError,
       );
     });
 
     it.each([
-      ["unauthorized access", BaseErrorCode.UNAUTHORIZED],
-      ["access denied", BaseErrorCode.FORBIDDEN],
-      ["item not found", BaseErrorCode.NOT_FOUND],
-      ["validation failed", BaseErrorCode.VALIDATION_ERROR],
-      ["duplicate key", BaseErrorCode.CONFLICT],
-      ["rate limit exceeded", BaseErrorCode.RATE_LIMITED],
-      ["request timed out", BaseErrorCode.TIMEOUT],
-      ["service unavailable", BaseErrorCode.SERVICE_UNAVAILABLE],
+      ["unauthorized access", JsonRpcErrorCode.Unauthorized],
+      ["access denied", JsonRpcErrorCode.Forbidden],
+      ["item not found", JsonRpcErrorCode.NotFound],
+      ["validation failed", JsonRpcErrorCode.ValidationError],
+      ["duplicate key", JsonRpcErrorCode.Conflict],
+      ["rate limit exceeded", JsonRpcErrorCode.RateLimited],
+      ["request timed out", JsonRpcErrorCode.Timeout],
+      ["service unavailable", JsonRpcErrorCode.ServiceUnavailable],
     ])("should map '%s' to %s", (message, code) => {
       const err = new Error(message);
       expect(ErrorHandler.determineErrorCode(err)).toBe(code);
@@ -115,9 +115,9 @@ describe("ErrorHandler", () => {
       const error = new Error("test");
       const handledError = ErrorHandler.handleError(error, {
         operation: "op",
-        errorCode: BaseErrorCode.NOT_FOUND,
+        errorCode: JsonRpcErrorCode.NotFound,
       }) as McpError;
-      expect(handledError.code).toBe(BaseErrorCode.NOT_FOUND);
+      expect(handledError.code).toBe(JsonRpcErrorCode.NotFound);
     });
 
     it("should use a custom error mapper if provided", () => {
@@ -135,9 +135,9 @@ describe("ErrorHandler", () => {
     const mappings = [
       {
         pattern: /not found/i,
-        errorCode: BaseErrorCode.NOT_FOUND,
+        errorCode: JsonRpcErrorCode.NotFound,
         factory: (e: unknown) =>
-          new McpError(BaseErrorCode.NOT_FOUND, (e as Error).message),
+          new McpError(JsonRpcErrorCode.NotFound, (e as Error).message),
       },
     ];
 
@@ -145,7 +145,7 @@ describe("ErrorHandler", () => {
       const error = new Error("Item not found");
       const mappedError = ErrorHandler.mapError(error, mappings) as McpError;
       expect(mappedError).toBeInstanceOf(McpError);
-      expect(mappedError.code).toBe(BaseErrorCode.NOT_FOUND);
+      expect(mappedError.code).toBe(JsonRpcErrorCode.NotFound);
     });
 
     it("should return the original error if no mapping matches", () => {
@@ -157,26 +157,26 @@ describe("ErrorHandler", () => {
     it("should use the default factory if no mapping matches", () => {
       const error = new Error("Some other error");
       const defaultFactory = (e: unknown) =>
-        new McpError(BaseErrorCode.UNKNOWN_ERROR, (e as Error).message);
+        new McpError(JsonRpcErrorCode.UnknownError, (e as Error).message);
       const mappedError = ErrorHandler.mapError(
         error,
         mappings,
         defaultFactory,
       ) as McpError;
-      expect(mappedError.code).toBe(BaseErrorCode.UNKNOWN_ERROR);
+      expect(mappedError.code).toBe(JsonRpcErrorCode.UnknownError);
     });
   });
 
   describe("formatError", () => {
     it("should format an McpError correctly", () => {
-      const error = new McpError(BaseErrorCode.FORBIDDEN, "Access denied", {
+      const error = new McpError(JsonRpcErrorCode.Forbidden, "Access denied", {
         detail: "test",
       });
       const formatted = ErrorHandler.formatError(error);
       expect(formatted).toEqual({
-        code: BaseErrorCode.FORBIDDEN,
+        code: JsonRpcErrorCode.Forbidden,
         message: "Access denied",
-        details: { detail: "test" },
+        data: { detail: "test" },
       });
     });
 
@@ -184,18 +184,18 @@ describe("ErrorHandler", () => {
       const error = new Error("Not found");
       const formatted = ErrorHandler.formatError(error);
       expect(formatted).toEqual({
-        code: BaseErrorCode.NOT_FOUND,
+        code: JsonRpcErrorCode.NotFound,
         message: "Not found",
-        details: { errorType: "Error" },
+        data: { errorType: "Error" },
       });
     });
 
     it("should format a non-error value correctly", () => {
       const formatted = ErrorHandler.formatError("a string error");
       expect(formatted).toEqual({
-        code: BaseErrorCode.UNKNOWN_ERROR,
+        code: JsonRpcErrorCode.UnknownError,
         message: "a string error",
-        details: { errorType: "stringEncountered" },
+        data: { errorType: "stringEncountered" },
       });
     });
   });

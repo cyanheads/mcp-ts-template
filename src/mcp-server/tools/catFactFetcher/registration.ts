@@ -7,7 +7,7 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
@@ -44,7 +44,7 @@ export const registerCatFactFetcherTool = async (
 ): Promise<void> => {
   const registrationContext = requestContextService.createRequestContext({
     operation: "RegisterTool",
-    toolName: TOOL_NAME,
+    additionalContext: { toolName: TOOL_NAME },
   });
 
   logger.info(`Registering tool: '${TOOL_NAME}'`, registrationContext);
@@ -75,9 +75,11 @@ export const registerCatFactFetcherTool = async (
           const handlerContext = requestContextService.createRequestContext({
             parentContext: callContext,
             operation: "HandleToolRequest",
-            toolName: TOOL_NAME,
-            sessionId,
-            input: params,
+            additionalContext: {
+              toolName: TOOL_NAME,
+              sessionId,
+              input: params,
+            },
           });
 
           try {
@@ -105,7 +107,7 @@ export const registerCatFactFetcherTool = async (
               structuredContent: {
                 code: mcpError.code,
                 message: mcpError.message,
-                details: mcpError.details,
+                data: mcpError.data,
               },
             };
           }
@@ -120,7 +122,7 @@ export const registerCatFactFetcherTool = async (
     {
       operation: `RegisteringTool_${TOOL_NAME}`,
       context: registrationContext,
-      errorCode: BaseErrorCode.INITIALIZATION_FAILED,
+      errorCode: JsonRpcErrorCode.InitializationFailed,
       critical: true,
     },
   );

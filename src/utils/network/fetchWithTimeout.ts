@@ -5,7 +5,7 @@
 
 import { logger } from "../internal/logger.js"; // Adjusted import path
 import type { RequestContext } from "../internal/requestContext.js"; // Adjusted import path
-import { McpError, BaseErrorCode } from "../../types-global/errors.js";
+import { McpError, JsonRpcErrorCode } from "../../types-global/errors.js";
 
 /**
  * Options for the fetchWithTimeout utility.
@@ -62,7 +62,7 @@ export async function fetchWithTimeout(
         },
       );
       throw new McpError(
-        BaseErrorCode.SERVICE_UNAVAILABLE,
+        JsonRpcErrorCode.ServiceUnavailable,
         `Fetch failed for ${urlString}. Status: ${response.status}`,
         {
           ...context,
@@ -86,7 +86,7 @@ export async function fetchWithTimeout(
         errorSource: "FetchTimeout",
       });
       throw new McpError(
-        BaseErrorCode.TIMEOUT,
+        JsonRpcErrorCode.Timeout,
         `${operationDescription} timed out.`,
         { ...context, errorSource: "FetchTimeout" },
       );
@@ -109,7 +109,7 @@ export async function fetchWithTimeout(
     }
 
     throw new McpError(
-      BaseErrorCode.SERVICE_UNAVAILABLE, // Generic error for network/service issues
+      JsonRpcErrorCode.ServiceUnavailable, // Generic error for network/service issues
       `Network error during ${operationDescription}: ${errorMessage}`,
       {
         ...context,

@@ -44,6 +44,14 @@ describe("Logger", () => {
     vi.resetModules();
 
     // 2. Mock dependencies using vi.doMock to prevent hoisting issues
+    vi.doMock("../../../src/utils/scheduling/scheduler.ts", () => ({
+      SchedulerService: {
+        getInstance: vi.fn(() => ({
+          // Mock any methods that might be called during initialization
+        })),
+      },
+    }));
+
     vi.doMock("../../../src/config/index.js", () => ({
       config: {
         logsPath: "/tmp/test-logs",

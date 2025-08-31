@@ -8,7 +8,7 @@ import {
   parse as parsePartialJson,
   Allow as PartialJsonAllow,
 } from "partial-json";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
 import { logger, RequestContext, requestContextService } from "../index.js";
 
 /**
@@ -93,7 +93,7 @@ export class JsonParser {
 
     if (!stringToParse) {
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         "JSON string is empty after removing <think> block and trimming.",
         context,
       );
@@ -115,7 +115,7 @@ export class JsonParser {
       });
 
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         `Failed to parse JSON: ${error.message}`,
         {
           ...context,

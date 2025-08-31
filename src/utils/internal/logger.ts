@@ -1,13 +1,15 @@
 /**
  * @fileoverview Provides a singleton Logger class that wraps Winston for file logging
  * and supports sending MCP (Model Context Protocol) `notifications/message`.
- * It handles different log levels compliant with RFC 5424 and MCP specifications.
+ * It handles different log levels compliant with RFC 5424 and MCP specifications,
+ * and includes features like automatic context sanitization and rate limiting.
  * @module src/utils/internal/logger
  */
 import path from "path";
 import winston from "winston";
 import TransportStream from "winston-transport";
 import { config } from "../../config/index.js";
+import { sanitizeInputForLogging } from "../security/sanitization.js";
 import { RequestContext } from "./requestContext.js";
 
 /**
@@ -101,9 +103,6 @@ export type McpNotificationSender = (
   loggerName?: string,
 ) => void;
 
-// The logsPath from config is resolved and validated by src/config/index.ts.
-// It can be null if the directory is invalid or inaccessible, in which case file logging will be disabled.
-
 /**
  * Creates the Winston console log format.
  * @returns The Winston log format for console output.
@@ -159,12 +158,24 @@ export class Logger {
   private currentMcpLevel: McpLogLevel = "info";
   private currentWinstonLevel: "debug" | "info" | "warn" | "error" = "info";
 
+  // Rate limiting state
+  private rateLimitThreshold = 10; // Max 10 identical messages
+  private rateLimitWindow = 60000; // within 1 minute
+  private messageCounts = new Map<
+    string,
+    { count: number; firstSeen: number }
+  >();
+  private suppressedMessages = new Map<string, number>();
+
   private readonly MCP_NOTIFICATION_STACK_TRACE_MAX_LENGTH = 1024;
   private readonly LOG_FILE_MAX_SIZE = 5 * 1024 * 1024; // 5MB
   private readonly LOG_MAX_FILES = 5;
 
   /** @private */
-  private constructor() {}
+  private constructor() {
+    // Periodically flush suppressed message counts
+    setInterval(() => this.flushSuppressedMessages(), this.rateLimitWindow);
+  }
 
   /**
    * Initializes the Winston logger instance.
@@ -181,14 +192,11 @@ export class Logger {
       return;
     }
 
-    // Set initialized to true at the beginning of the initialization process.
     this.initialized = true;
-
     this.currentMcpLevel = level;
     this.currentWinstonLevel = mcpToWinstonLevel[level];
 
     const resolvedLogsDir = config.logsPath;
-
     const fileFormat = winston.format.combine(
       winston.format.timestamp(),
       winston.format.errors({ stack: true }),
@@ -211,31 +219,14 @@ export class Logger {
           ...fileTransportOptions,
         }),
         new winston.transports.File({
-          filename: path.join(resolvedLogsDir, "warn.log"),
-          level: "warn",
-          ...fileTransportOptions,
-        }),
-        new winston.transports.File({
-          filename: path.join(resolvedLogsDir, "info.log"),
-          level: "info",
-          ...fileTransportOptions,
-        }),
-        new winston.transports.File({
-          filename: path.join(resolvedLogsDir, "debug.log"),
-          level: "debug",
-          ...fileTransportOptions,
-        }),
-        new winston.transports.File({
           filename: path.join(resolvedLogsDir, "combined.log"),
           ...fileTransportOptions,
         }),
       );
-    } else {
-      if (process.stdout.isTTY) {
-        console.warn(
-          "File logging disabled as logsPath is not configured or invalid.",
-        );
-      }
+    } else if (process.stdout.isTTY) {
+      console.warn(
+        "File logging disabled as logsPath is not configured or invalid.",
+      );
     }
 
     this.winstonLogger = winston.createLogger({
@@ -244,7 +235,6 @@ export class Logger {
       exitOnError: false,
     });
 
-    // Initialize a separate logger for structured interactions
     if (resolvedLogsDir) {
       this.interactionLogger = winston.createLogger({
         format: winston.format.combine(
@@ -260,20 +250,17 @@ export class Logger {
       });
     }
 
-    // Configure console transport after Winston logger is created
     const consoleStatus = this._configureConsoleTransport();
-
     const initialContext: RequestContext = {
       loggerSetup: true,
       requestId: "logger-init-deferred",
       timestamp: new Date().toISOString(),
     };
-    // Removed logging of logsDirCreatedMessage as it's no longer set
+
     if (consoleStatus.message) {
       this.info(consoleStatus.message, initialContext);
     }
 
-    this.initialized = true; // Ensure this is set after successful setup
     this.info(
       `Logger initialized. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${consoleStatus.enabled ? "enabled" : "disabled"}`,
       {
@@ -285,10 +272,6 @@ export class Logger {
     );
   }
 
-  /**
-   * Sets the function used to send MCP 'notifications/message'.
-   * @param sender - The function to call for sending notifications, or undefined to disable.
-   */
   public setMcpNotificationSender(
     sender: McpNotificationSender | undefined,
   ): void {
@@ -301,10 +284,6 @@ export class Logger {
     });
   }
 
-  /**
-   * Dynamically sets the minimum logging level.
-   * @param newLevel - The new minimum MCP log level to set.
-   */
   public setLevel(newLevel: McpLogLevel): void {
     const setLevelContext: RequestContext = {
       loggerSetup: true,
@@ -329,7 +308,6 @@ export class Logger {
     this.currentMcpLevel = newLevel;
     this.currentWinstonLevel = mcpToWinstonLevel[newLevel];
     if (this.winstonLogger) {
-      // Ensure winstonLogger is defined
       this.winstonLogger.level = this.currentWinstonLevel;
     }
 
@@ -340,21 +318,9 @@ export class Logger {
         `Log level changed. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${consoleStatus.enabled ? "enabled" : "disabled"}`,
         setLevelContext,
       );
-      if (
-        consoleStatus.message &&
-        consoleStatus.message !== "Console logging status unchanged."
-      ) {
-        this.info(consoleStatus.message, setLevelContext);
-      }
     }
   }
 
-  /**
-   * Configures the console transport based on the current log level and TTY status.
-   * Adds or removes the console transport as needed.
-   * @returns {{ enabled: boolean, message: string | null }} Status of console logging.
-   * @private
-   */
   private _configureConsoleTransport(): {
     enabled: boolean;
     message: string | null;
@@ -374,27 +340,20 @@ export class Logger {
     let message: string | null = null;
 
     if (shouldHaveConsole && !consoleTransport) {
-      const consoleFormat = createWinstonConsoleFormat();
       this.winstonLogger.add(
         new winston.transports.Console({
-          level: "debug", // Console always logs debug if enabled
-          format: consoleFormat,
+          level: "debug",
+          format: createWinstonConsoleFormat(),
         }),
       );
       message = "Console logging enabled (level: debug, stdout is TTY).";
     } else if (!shouldHaveConsole && consoleTransport) {
       this.winstonLogger.remove(consoleTransport);
       message = "Console logging disabled (level not debug or stdout not TTY).";
-    } else {
-      message = "Console logging status unchanged.";
     }
     return { enabled: shouldHaveConsole, message };
   }
 
-  /**
-   * Gets the singleton instance of the Logger.
-   * @returns The singleton Logger instance.
-   */
   public static getInstance(): Logger {
     if (!Logger.instance) {
       Logger.instance = new Logger();
@@ -402,28 +361,16 @@ export class Logger {
     return Logger.instance;
   }
 
-  /**
-   * Resets the singleton instance.
-   * This is intended for use in testing environments only.
-   */
   public static resetForTesting(): void {
-    // This is a clear indication that this method is for testing purposes.
     if (process.env.NODE_ENV !== "test") {
       console.warn(
         "Warning: `resetForTesting` should only be called in a test environment.",
       );
       return;
     }
-    // De-reference the instance to allow garbage collection
-    // and force re-creation on next getInstance() call.
     (Logger.instance as unknown) = undefined;
   }
 
-  /**
-   * Ensures the logger has been initialized.
-   * @returns True if initialized, false otherwise.
-   * @private
-   */
   private ensureInitialized(): boolean {
     if (!this.initialized || !this.winstonLogger) {
       if (process.stdout.isTTY) {
@@ -434,14 +381,48 @@ export class Logger {
     return true;
   }
 
-  /**
-   * Centralized log processing method.
-   * @param level - The MCP severity level of the message.
-   * @param msg - The main log message.
-   * @param context - Optional request context for the log.
-   * @param error - Optional error object associated with the log.
-   * @private
-   */
+  private isRateLimited(message: string): boolean {
+    const now = Date.now();
+    const entry = this.messageCounts.get(message);
+
+    if (entry) {
+      if (now - entry.firstSeen > this.rateLimitWindow) {
+        this.messageCounts.set(message, { count: 1, firstSeen: now });
+        return false;
+      }
+      entry.count++;
+      if (entry.count > this.rateLimitThreshold) {
+        this.suppressedMessages.set(
+          message,
+          (this.suppressedMessages.get(message) || 0) + 1,
+        );
+        return true;
+      }
+    } else {
+      this.messageCounts.set(message, { count: 1, firstSeen: now });
+    }
+    return false;
+  }
+
+  private flushSuppressedMessages(): void {
+    if (this.suppressedMessages.size === 0) {
+      return;
+    }
+    for (const [message, count] of this.suppressedMessages.entries()) {
+      this.warning(
+        `Log message suppressed ${count} times due to rate limiting.`,
+        {
+          requestId: "logger-rate-limit-flush",
+          timestamp: new Date().toISOString(),
+          originalMessage: message,
+          rateLimitInfo: true,
+        },
+      );
+    }
+    this.suppressedMessages.clear();
+    this.messageCounts.clear();
+  }
+
   private log(
     level: McpLogLevel,
     msg: string,
@@ -450,12 +431,18 @@ export class Logger {
   ): void {
     if (!this.ensureInitialized()) return;
     if (mcpLevelSeverity[level] > mcpLevelSeverity[this.currentMcpLevel]) {
-      return; // Do not log if message level is less severe than currentMcpLevel
+      return;
+    }
+    if (this.isRateLimited(msg)) {
+      return;
     }
 
-    // The `@opentelemetry/instrumentation-winston` package automatically injects
-    // the active trace_id and span_id into logs, so manual injection is no longer needed.
-    const logData: Record<string, unknown> = { ...context };
+    const sanitizedContext = context
+      ? (sanitizeInputForLogging(context) as RequestContext)
+      : undefined;
+    const logData: Record<string, unknown> = sanitizedContext
+      ? { ...sanitizedContext }
+      : {};
     const winstonLevel = mcpToWinstonLevel[level];
 
     if (error) {
@@ -466,11 +453,11 @@ export class Logger {
 
     if (this.mcpNotificationSender) {
       const mcpDataPayload: McpLogPayload = { message: msg };
-      if (context && Object.keys(context).length > 0)
-        mcpDataPayload.context = context;
+      if (sanitizedContext) {
+        mcpDataPayload.context = sanitizedContext;
+      }
       if (error) {
         mcpDataPayload.error = { message: error.message };
-        // Include stack trace in debug mode for MCP notifications, truncated for brevity
         if (this.currentMcpLevel === "debug" && error.stack) {
           mcpDataPayload.error.stack = error.stack.substring(
             0,
@@ -485,48 +472,33 @@ export class Logger {
       } catch (sendError: unknown) {
         const errorMessage =
           sendError instanceof Error ? sendError.message : String(sendError);
-        const internalErrorContext: RequestContext = {
+        this.winstonLogger!.error("Failed to send MCP log notification", {
           requestId: context?.requestId || "logger-internal-error",
           timestamp: new Date().toISOString(),
           originalLevel: level,
           originalMessage: msg,
           sendError: errorMessage,
-          mcpPayload: JSON.stringify(mcpDataPayload).substring(0, 500), // Log a preview
-        };
-        this.winstonLogger!.error(
-          "Failed to send MCP log notification",
-          internalErrorContext,
-        );
+        });
       }
     }
   }
 
-  /** Logs a message at the 'debug' level. */
   public debug(msg: string, context?: RequestContext): void {
     this.log("debug", msg, context);
   }
 
-  /** Logs a message at the 'info' level. */
   public info(msg: string, context?: RequestContext): void {
     this.log("info", msg, context);
   }
 
-  /** Logs a message at the 'notice' level. */
   public notice(msg: string, context?: RequestContext): void {
     this.log("notice", msg, context);
   }
 
-  /** Logs a message at the 'warning' level. */
   public warning(msg: string, context?: RequestContext): void {
     this.log("warning", msg, context);
   }
 
-  /**
-   * Logs a message at the 'error' level.
-   * @param msg - The main log message.
-   * @param err - Optional. Error object or RequestContext.
-   * @param context - Optional. RequestContext if `err` is an Error.
-   */
   public error(
     msg: string,
     err?: Error | RequestContext,
@@ -537,12 +509,6 @@ export class Logger {
     this.log("error", msg, actualContext, errorObj);
   }
 
-  /**
-   * Logs a message at the 'crit' (critical) level.
-   * @param msg - The main log message.
-   * @param err - Optional. Error object or RequestContext.
-   * @param context - Optional. RequestContext if `err` is an Error.
-   */
   public crit(
     msg: string,
     err?: Error | RequestContext,
@@ -553,12 +519,6 @@ export class Logger {
     this.log("crit", msg, actualContext, errorObj);
   }
 
-  /**
-   * Logs a message at the 'alert' level.
-   * @param msg - The main log message.
-   * @param err - Optional. Error object or RequestContext.
-   * @param context - Optional. RequestContext if `err` is an Error.
-   */
   public alert(
     msg: string,
     err?: Error | RequestContext,
@@ -569,12 +529,6 @@ export class Logger {
     this.log("alert", msg, actualContext, errorObj);
   }
 
-  /**
-   * Logs a message at the 'emerg' (emergency) level.
-   * @param msg - The main log message.
-   * @param err - Optional. Error object or RequestContext.
-   * @param context - Optional. RequestContext if `err` is an Error.
-   */
   public emerg(
     msg: string,
     err?: Error | RequestContext,
@@ -585,12 +539,6 @@ export class Logger {
     this.log("emerg", msg, actualContext, errorObj);
   }
 
-  /**
-   * Logs a message at the 'emerg' (emergency) level, typically for fatal errors.
-   * @param msg - The main log message.
-   * @param err - Optional. Error object or RequestContext.
-   * @param context - Optional. RequestContext if `err` is an Error.
-   */
   public fatal(
     msg: string,
     err?: Error | RequestContext,
@@ -601,11 +549,6 @@ export class Logger {
     this.log("emerg", msg, actualContext, errorObj);
   }
 
-  /**
-   * Logs a structured interaction object to a dedicated file.
-   * @param interactionName - A name for the interaction type (e.g., 'OpenRouterIO').
-   * @param data - The structured data to log.
-   */
   public logInteraction(
     interactionName: string,
     data: Record<string, unknown>,
@@ -621,8 +564,4 @@ export class Logger {
   }
 }
 
-/**
- * The singleton instance of the Logger.
- * Use this instance for all logging operations.
- */
 export const logger = Logger.getInstance();

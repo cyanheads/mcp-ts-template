@@ -74,7 +74,7 @@ export async function measureToolExecution<T>(
       return result;
     } catch (error) {
       if (error instanceof McpError) {
-        errorCode = error.code;
+        errorCode = String(error.code);
       } else if (error instanceof Error) {
         errorCode = "UNHANDLED_ERROR";
       } else {

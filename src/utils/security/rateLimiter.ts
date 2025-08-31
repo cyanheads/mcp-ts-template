@@ -5,7 +5,7 @@
  */
 import { trace } from "@opentelemetry/api";
 import { environment } from "../../config/index.js";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
 import { logger, RequestContext, requestContextService } from "../index.js";
 
 /**
@@ -116,8 +116,10 @@ export class RateLimiter {
     if (expiredCount > 0) {
       const logContext = requestContextService.createRequestContext({
         operation: "RateLimiter.cleanupExpiredEntries",
-        cleanedCount: expiredCount,
-        totalRemainingAfterClean: this.limits.size,
+        additionalContext: {
+          cleanedCount: expiredCount,
+          totalRemainingAfterClean: this.limits.size,
+        },
       });
       logger.debug(
         `Cleaned up ${expiredCount} expired rate limit entries`,
@@ -208,7 +210,7 @@ export class RateLimiter {
         "mcp.rate_limit.wait_time_seconds": waitTime,
       });
 
-      throw new McpError(BaseErrorCode.RATE_LIMITED, errorMessage, {
+      throw new McpError(JsonRpcErrorCode.RateLimited, errorMessage, {
         waitTimeSeconds: waitTime,
         key: limitKey,
         limit: this.config.maxRequests,

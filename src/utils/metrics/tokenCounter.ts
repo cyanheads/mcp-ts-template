@@ -7,7 +7,7 @@
  */
 import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { encoding_for_model, Tiktoken, TiktokenModel } from "tiktoken";
-import { BaseErrorCode } from "../../types-global/errors.js";
+import { JsonRpcErrorCode } from "../../types-global/errors.js";
 import { ErrorHandler, logger, RequestContext } from "../index.js";
 
 /**
@@ -46,7 +46,7 @@ export async function countTokens(
       operation: "countTokens",
       context: context,
       input: { textSample: text.substring(0, 50) + "..." },
-      errorCode: BaseErrorCode.INTERNAL_ERROR,
+      errorCode: JsonRpcErrorCode.InternalError,
     },
   );
 }
@@ -109,13 +109,15 @@ export async function countChatTokens(
             message.tool_calls
           ) {
             for (const tool_call of message.tool_calls) {
-              if (tool_call.function.name) {
-                num_tokens += encoding.encode(tool_call.function.name).length;
-              }
-              if (tool_call.function.arguments) {
-                num_tokens += encoding.encode(
-                  tool_call.function.arguments,
-                ).length;
+              if (tool_call.type === "function") {
+                if (tool_call.function?.name) {
+                  num_tokens += encoding.encode(tool_call.function.name).length;
+                }
+                if (tool_call.function?.arguments) {
+                  num_tokens += encoding.encode(
+                    tool_call.function.arguments,
+                  ).length;
+                }
               }
             }
           }
@@ -138,7 +140,7 @@ export async function countChatTokens(
       operation: "countChatTokens",
       context: context,
       input: { messageCount: messages.length },
-      errorCode: BaseErrorCode.INTERNAL_ERROR,
+      errorCode: JsonRpcErrorCode.InternalError,
     },
   );
 }

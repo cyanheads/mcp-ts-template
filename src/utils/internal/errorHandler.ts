@@ -6,7 +6,7 @@
  * @module src/utils/internal/errorHandler
  */
 import { SpanStatusCode, trace } from "@opentelemetry/api";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
 import { generateUUID, sanitizeInputForLogging } from "../index.js";
 import { logger } from "./logger.js";
 import { RequestContext } from "./requestContext.js";
@@ -61,10 +61,10 @@ export interface ErrorHandlerOptions {
   rethrow?: boolean;
 
   /**
-   * A specific `BaseErrorCode` to assign to the error, overriding any
+   * A specific `JsonRpcErrorCode` to assign to the error, overriding any
    * automatically determined error code.
    */
-  errorCode?: BaseErrorCode;
+  errorCode?: JsonRpcErrorCode;
 
   /**
    * A custom function to map or transform the original error into a new `Error` instance.
@@ -100,9 +100,9 @@ export interface BaseErrorMapping {
   pattern: string | RegExp;
 
   /**
-   * The `BaseErrorCode` to assign if the pattern matches.
+   * The `JsonRpcErrorCode` to assign if the pattern matches.
    */
-  errorCode: BaseErrorCode;
+  errorCode: JsonRpcErrorCode;
 
   /**
    * An optional custom message template for the mapped error.
@@ -136,16 +136,16 @@ export interface ErrorMapping<T extends Error = Error>
 }
 
 /**
- * Maps standard JavaScript error constructor names to `BaseErrorCode` values.
+ * Maps standard JavaScript error constructor names to `JsonRpcErrorCode` values.
  * @private
  */
-const ERROR_TYPE_MAPPINGS: Readonly<Record<string, BaseErrorCode>> = {
-  SyntaxError: BaseErrorCode.VALIDATION_ERROR,
-  TypeError: BaseErrorCode.VALIDATION_ERROR,
-  ReferenceError: BaseErrorCode.INTERNAL_ERROR,
-  RangeError: BaseErrorCode.VALIDATION_ERROR,
-  URIError: BaseErrorCode.VALIDATION_ERROR,
-  EvalError: BaseErrorCode.INTERNAL_ERROR,
+const ERROR_TYPE_MAPPINGS: Readonly<Record<string, JsonRpcErrorCode>> = {
+  SyntaxError: JsonRpcErrorCode.ValidationError,
+  TypeError: JsonRpcErrorCode.ValidationError,
+  ReferenceError: JsonRpcErrorCode.InternalError,
+  RangeError: JsonRpcErrorCode.ValidationError,
+  URIError: JsonRpcErrorCode.ValidationError,
+  EvalError: JsonRpcErrorCode.InternalError,
 };
 
 /**
@@ -157,36 +157,36 @@ const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
   {
     pattern:
       /auth|unauthorized|unauthenticated|not.*logged.*in|invalid.*token|expired.*token/i,
-    errorCode: BaseErrorCode.UNAUTHORIZED,
+    errorCode: JsonRpcErrorCode.Unauthorized,
   },
   {
     pattern: /permission|forbidden|access.*denied|not.*allowed/i,
-    errorCode: BaseErrorCode.FORBIDDEN,
+    errorCode: JsonRpcErrorCode.Forbidden,
   },
   {
     pattern: /not found|missing|no such|doesn't exist|couldn't find/i,
-    errorCode: BaseErrorCode.NOT_FOUND,
+    errorCode: JsonRpcErrorCode.NotFound,
   },
   {
     pattern:
       /invalid|validation|malformed|bad request|wrong format|missing required/i,
-    errorCode: BaseErrorCode.VALIDATION_ERROR,
+    errorCode: JsonRpcErrorCode.ValidationError,
   },
   {
     pattern: /conflict|already exists|duplicate|unique constraint/i,
-    errorCode: BaseErrorCode.CONFLICT,
+    errorCode: JsonRpcErrorCode.Conflict,
   },
   {
     pattern: /rate limit|too many requests|throttled/i,
-    errorCode: BaseErrorCode.RATE_LIMITED,
+    errorCode: JsonRpcErrorCode.RateLimited,
   },
   {
     pattern: /timeout|timed out|deadline exceeded/i,
-    errorCode: BaseErrorCode.TIMEOUT,
+    errorCode: JsonRpcErrorCode.Timeout,
   },
   {
     pattern: /service unavailable|bad gateway|gateway timeout|upstream error/i,
-    errorCode: BaseErrorCode.SERVICE_UNAVAILABLE,
+    errorCode: JsonRpcErrorCode.ServiceUnavailable,
   },
 ];
 
@@ -275,13 +275,13 @@ function getErrorMessage(error: unknown): string {
  */
 export class ErrorHandler {
   /**
-   * Determines an appropriate `BaseErrorCode` for a given error.
+   * Determines an appropriate `JsonRpcErrorCode` for a given error.
    * Checks `McpError` instances, `ERROR_TYPE_MAPPINGS`, and `COMMON_ERROR_PATTERNS`.
-   * Defaults to `BaseErrorCode.INTERNAL_ERROR`.
+   * Defaults to `JsonRpcErrorCode.InternalError`.
    * @param error - The error instance or value to classify.
    * @returns The determined error code.
    */
-  public static determineErrorCode(error: unknown): BaseErrorCode {
+  public static determineErrorCode(error: unknown): JsonRpcErrorCode {
     if (error instanceof McpError) {
       return error.code;
     }
@@ -301,7 +301,7 @@ export class ErrorHandler {
         return mapping.errorCode;
       }
     }
-    return BaseErrorCode.INTERNAL_ERROR;
+    return JsonRpcErrorCode.InternalError;
   }
 
   /**
@@ -346,26 +346,26 @@ export class ErrorHandler {
     const originalStack = error instanceof Error ? error.stack : undefined;
 
     let finalError: Error;
-    let loggedErrorCode: BaseErrorCode;
+    let loggedErrorCode: JsonRpcErrorCode;
 
-    const errorDetailsSeed =
+    const errorDataSeed =
       error instanceof McpError &&
-      typeof error.details === "object" &&
-      error.details !== null
-        ? { ...error.details }
+      typeof error.data === "object" &&
+      error.data !== null
+        ? { ...error.data }
         : {};
 
-    const consolidatedDetails: Record<string, unknown> = {
-      ...errorDetailsSeed,
+    const consolidatedData: Record<string, unknown> = {
+      ...errorDataSeed,
       ...context,
       originalErrorName,
       originalMessage: originalErrorMessage,
     };
     if (
       originalStack &&
-      !(error instanceof McpError && error.details?.originalStack)
+      !(error instanceof McpError && error.data?.originalStack)
     ) {
-      consolidatedDetails.originalStack = originalStack;
+      consolidatedData.originalStack = originalStack;
     }
 
     const cause = error instanceof Error ? error : undefined;
@@ -374,7 +374,7 @@ export class ErrorHandler {
       loggedErrorCode = error.code;
       finalError = errorMapper
         ? errorMapper(error)
-        : new McpError(error.code, error.message, consolidatedDetails, {
+        : new McpError(error.code, error.message, consolidatedData, {
             cause,
           });
     } else {
@@ -383,7 +383,7 @@ export class ErrorHandler {
       const message = `Error in ${operation}: ${originalErrorMessage}`;
       finalError = errorMapper
         ? errorMapper(error)
-        : new McpError(loggedErrorCode, message, consolidatedDetails, {
+        : new McpError(loggedErrorCode, message, consolidatedData, {
             cause,
           });
     }
@@ -424,10 +424,10 @@ export class ErrorHandler {
       ),
     };
 
-    if (finalError instanceof McpError && finalError.details) {
-      logPayload.errorDetails = finalError.details;
+    if (finalError instanceof McpError && finalError.data) {
+      logPayload.errorData = finalError.data;
     } else {
-      logPayload.errorDetails = consolidatedDetails;
+      logPayload.errorData = consolidatedData;
     }
 
     if (includeStack) {
@@ -489,9 +489,9 @@ export class ErrorHandler {
       return {
         code: error.code,
         message: error.message,
-        details:
-          typeof error.details === "object" && error.details !== null
-            ? error.details
+        data:
+          typeof error.data === "object" && error.data !== null
+            ? error.data
             : {},
       };
     }
@@ -500,14 +500,14 @@ export class ErrorHandler {
       return {
         code: ErrorHandler.determineErrorCode(error),
         message: error.message,
-        details: { errorType: error.name || "Error" },
+        data: { errorType: error.name || "Error" },
       };
     }
 
     return {
-      code: BaseErrorCode.UNKNOWN_ERROR,
+      code: JsonRpcErrorCode.UnknownError,
       message: getErrorMessage(error),
-      details: { errorType: getErrorName(error) },
+      data: { errorType: getErrorName(error) },
     };
   }
 

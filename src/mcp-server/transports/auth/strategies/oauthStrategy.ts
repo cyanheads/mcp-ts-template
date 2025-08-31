@@ -6,7 +6,7 @@
  */
 import { createRemoteJWKSet, jwtVerify, JWTVerifyResult } from "jose";
 import { config } from "../../../../config/index.js";
-import { BaseErrorCode, McpError } from "../../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
@@ -35,7 +35,7 @@ export class OauthStrategy implements AuthStrategy {
       );
       // This is a user-facing configuration error, so McpError is appropriate.
       throw new McpError(
-        BaseErrorCode.CONFIGURATION_ERROR,
+        JsonRpcErrorCode.ConfigurationError,
         "OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.",
         context,
       );
@@ -58,7 +58,7 @@ export class OauthStrategy implements AuthStrategy {
       });
       // This is a critical startup failure, so a specific McpError is warranted.
       throw new McpError(
-        BaseErrorCode.SERVICE_UNAVAILABLE,
+        JsonRpcErrorCode.ServiceUnavailable,
         "Could not initialize JWKS client for OAuth strategy.",
         {
           ...context,
@@ -92,7 +92,7 @@ export class OauthStrategy implements AuthStrategy {
           context,
         );
         throw new McpError(
-          BaseErrorCode.UNAUTHORIZED,
+          JsonRpcErrorCode.Unauthorized,
           "Token must contain valid, non-empty scopes.",
           context,
         );
@@ -103,7 +103,7 @@ export class OauthStrategy implements AuthStrategy {
       if (!clientId) {
         logger.warning("Invalid token: missing 'client_id' claim.", context);
         throw new McpError(
-          BaseErrorCode.UNAUTHORIZED,
+          JsonRpcErrorCode.Unauthorized,
           "Token must contain a 'client_id' claim.",
           context,
         );
@@ -142,9 +142,9 @@ export class OauthStrategy implements AuthStrategy {
         operation: "OauthStrategy.verify",
         context,
         rethrow: true,
-        errorCode: BaseErrorCode.UNAUTHORIZED,
+        errorCode: JsonRpcErrorCode.Unauthorized,
         errorMapper: () =>
-          new McpError(BaseErrorCode.UNAUTHORIZED, message, context),
+          new McpError(JsonRpcErrorCode.Unauthorized, message, context),
       });
     }
   }

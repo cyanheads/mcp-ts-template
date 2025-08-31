@@ -6,7 +6,7 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { OpenRouterProvider } from "../../../src/services/llm-providers/openRouterProvider";
-import { BaseErrorCode } from "../../../src/types-global/errors";
+import { JsonRpcErrorCode } from "../../../src/types-global/errors";
 import { requestContextService } from "../../../src/utils";
 
 // Create a separate MSW server for OpenRouter tests only
@@ -34,7 +34,7 @@ describe("OpenRouterProvider", () => {
       messages: [{ role: "user" as const, content: "Hello!" }],
     };
     await expect(provider.chatCompletion(params, context)).rejects.toThrow(
-      expect.objectContaining({ code: BaseErrorCode.SERVICE_UNAVAILABLE }),
+      expect.objectContaining({ code: JsonRpcErrorCode.ServiceUnavailable }),
     );
   });
 
@@ -104,7 +104,7 @@ describe("OpenRouterProvider", () => {
     };
     await expect(
       provider.chatCompletion(params, context),
-    ).rejects.toHaveProperty("code", BaseErrorCode.UNAUTHORIZED);
+    ).rejects.toHaveProperty("code", JsonRpcErrorCode.Unauthorized);
   });
 
   it("should throw a RATE_LIMITED McpError on a 429 response", async () => {
@@ -128,7 +128,7 @@ describe("OpenRouterProvider", () => {
     };
     await expect(
       provider.chatCompletion(params, context),
-    ).rejects.toHaveProperty("code", BaseErrorCode.RATE_LIMITED);
+    ).rejects.toHaveProperty("code", JsonRpcErrorCode.RateLimited);
   });
 
   it("should throw an INTERNAL_ERROR McpError on a 500 response", async () => {
@@ -152,6 +152,6 @@ describe("OpenRouterProvider", () => {
     };
     await expect(
       provider.chatCompletion(params, context),
-    ).rejects.toHaveProperty("code", BaseErrorCode.INTERNAL_ERROR);
+    ).rejects.toHaveProperty("code", JsonRpcErrorCode.InternalError);
   });
 });

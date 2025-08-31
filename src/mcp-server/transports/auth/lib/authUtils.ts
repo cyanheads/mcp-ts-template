@@ -4,7 +4,7 @@
  * @module src/mcp-server/transports/auth/core/authUtils
  */
 
-import { BaseErrorCode, McpError } from "../../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../../../types-global/errors.js";
 import { logger, requestContextService } from "../../../../utils/index.js";
 import { authContext } from "./authContext.js";
 
@@ -15,16 +15,16 @@ import { authContext } from "./authContext.js";
  * from `authContext` (AsyncLocalStorage).
  *
  * @param requiredScopes - An array of scope strings that are mandatory for the operation.
- * @throws {McpError} Throws an error with `BaseErrorCode.INTERNAL_ERROR` if the
+ * @throws {McpError} Throws an error with `JsonRpcErrorCode.InternalError` if the
  *   authentication context is missing, which indicates a server configuration issue.
- * @throws {McpError} Throws an error with `BaseErrorCode.FORBIDDEN` if one or
+ * @throws {McpError} Throws an error with `JsonRpcErrorCode.Forbidden` if one or
  *   more required scopes are not present in the validated token.
  */
 export function withRequiredScopes(requiredScopes: string[]): void {
   const operationName = "withRequiredScopesCheck";
   const initialContext = requestContextService.createRequestContext({
     operation: operationName,
-    requiredScopes,
+    additionalContext: { requiredScopes },
   });
 
   logger.debug("Performing scope authorization check.", initialContext);
@@ -38,7 +38,7 @@ export function withRequiredScopes(requiredScopes: string[]): void {
     );
     // This is a server-side logic error; the auth middleware should always populate this.
     throw new McpError(
-      BaseErrorCode.INTERNAL_ERROR,
+      JsonRpcErrorCode.InternalError,
       "Authentication context is missing. This indicates a server configuration error.",
       {
         ...initialContext,
@@ -68,7 +68,7 @@ export function withRequiredScopes(requiredScopes: string[]): void {
       errorContext,
     );
     throw new McpError(
-      BaseErrorCode.FORBIDDEN,
+      JsonRpcErrorCode.Forbidden,
       `Insufficient permissions. Missing required scopes: ${missingScopes.join(", ")}`,
       errorContext,
     );

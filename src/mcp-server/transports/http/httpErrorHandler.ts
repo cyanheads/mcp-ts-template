@@ -8,7 +8,7 @@
 
 import { Context } from "hono";
 import { StatusCode } from "hono/utils/http-status";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
@@ -31,8 +31,10 @@ export const httpErrorHandler = async (
 ): Promise<Response> => {
   const context = requestContextService.createRequestContext({
     operation: "httpErrorHandler",
-    path: c.req.path,
-    method: c.req.method,
+    additionalContext: {
+      path: c.req.path,
+      method: c.req.method,
+    },
   });
   logger.debug("HTTP error handler invoked.", context);
 
@@ -44,23 +46,23 @@ export const httpErrorHandler = async (
   let status: StatusCode = 500;
   if (handledError instanceof McpError) {
     switch (handledError.code) {
-      case BaseErrorCode.NOT_FOUND:
+      case JsonRpcErrorCode.NotFound:
         status = 404;
         break;
-      case BaseErrorCode.UNAUTHORIZED:
+      case JsonRpcErrorCode.Unauthorized:
         status = 401;
         break;
-      case BaseErrorCode.FORBIDDEN:
+      case JsonRpcErrorCode.Forbidden:
         status = 403;
         break;
-      case BaseErrorCode.VALIDATION_ERROR:
-      case BaseErrorCode.INVALID_INPUT:
+      case JsonRpcErrorCode.ValidationError:
+      case JsonRpcErrorCode.InvalidRequest:
         status = 400;
         break;
-      case BaseErrorCode.CONFLICT:
+      case JsonRpcErrorCode.Conflict:
         status = 409;
         break;
-      case BaseErrorCode.RATE_LIMITED:
+      case JsonRpcErrorCode.RateLimited:
         status = 429;
         break;
       default:

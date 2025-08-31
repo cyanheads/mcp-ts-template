@@ -3,7 +3,7 @@
  * @module tests/utils/parsing/jsonParser.test
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BaseErrorCode, McpError } from "../../../src/types-global/errors";
+import { JsonRpcErrorCode, McpError } from "../../../src/types-global/errors";
 import { logger, requestContextService } from "../../../src/utils";
 import { Allow, JsonParser } from "../../../src/utils/parsing/jsonParser";
 
@@ -85,7 +85,7 @@ describe("JsonParser", () => {
       parser.parse(stringWithOnlyThinkBlock, Allow.ALL, context);
     } catch (error) {
       const mcpError = error as McpError;
-      expect(mcpError.code).toBe(BaseErrorCode.VALIDATION_ERROR);
+      expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
       expect(mcpError.message).toContain("JSON string is empty");
     }
   });
@@ -102,7 +102,7 @@ describe("JsonParser", () => {
       parser.parse(stringWithWhitespace, Allow.ALL, context),
     ).toThrow(
       new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         "JSON string is empty after removing <think> block and trimming.",
         context,
       ),
@@ -124,7 +124,7 @@ describe("JsonParser", () => {
       parser.parse(invalidJson, Allow.ALL, context);
     } catch (error) {
       const mcpError = error as McpError;
-      expect(mcpError.code).toBe(BaseErrorCode.VALIDATION_ERROR);
+      expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
       expect(mcpError.message).toContain("Failed to parse JSON");
       expect(logger.error).toHaveBeenCalledWith(
         "Failed to parse JSON content.",

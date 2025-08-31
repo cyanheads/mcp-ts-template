@@ -4,7 +4,10 @@ import {
   echoToolLogic,
   EchoToolResponseSchema,
 } from "../../../../src/mcp-server/tools/echoTool/logic";
-import { BaseErrorCode, McpError } from "../../../../src/types-global/errors";
+import {
+  JsonRpcErrorCode,
+  McpError,
+} from "../../../../src/types-global/errors";
 import { requestContextService } from "../../../../src/utils";
 
 describe("echoToolLogic", () => {
@@ -61,7 +64,7 @@ describe("echoToolLogic", () => {
 
     await expect(echoToolLogic(input, context)).rejects.toThrow(
       new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         "Deliberate failure triggered: the message was 'fail'.",
         { toolName: "echo_message" },
       ),

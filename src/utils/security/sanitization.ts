@@ -7,7 +7,7 @@
 import path from "path";
 import sanitizeHtml from "sanitize-html";
 import validator from "validator";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
 import { logger, requestContextService } from "../index.js";
 
 /**
@@ -162,7 +162,9 @@ export class Sanitization {
     ];
     const logContext = requestContextService.createRequestContext({
       operation: "Sanitization.setSensitiveFields",
-      newSensitiveFieldCount: this.sensitiveFields.length,
+      additionalContext: {
+        newSensitiveFieldCount: this.sensitiveFields.length,
+      },
     });
     logger.debug(
       "Updated sensitive fields list for log sanitization",
@@ -258,7 +260,7 @@ export class Sanitization {
             "Potentially invalid URL detected during string sanitization (context: url)",
             requestContextService.createRequestContext({
               operation: "Sanitization.sanitizeString.urlWarning",
-              invalidUrlAttempt: input,
+              additionalContext: { invalidUrlAttempt: input },
             }),
           );
           return "";
@@ -269,11 +271,11 @@ export class Sanitization {
           "Attempted JavaScript sanitization via sanitizeString, which is disallowed.",
           requestContextService.createRequestContext({
             operation: "Sanitization.sanitizeString.jsAttempt",
-            inputSnippet: input.substring(0, 50),
+            additionalContext: { inputSnippet: input.substring(0, 50) },
           }),
         );
         throw new McpError(
-          BaseErrorCode.VALIDATION_ERROR,
+          JsonRpcErrorCode.ValidationError,
           "JavaScript sanitization is not supported through sanitizeString due to security risks.",
         );
       case "text":
@@ -329,7 +331,7 @@ export class Sanitization {
       return trimmedInput;
     } catch (error) {
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         error instanceof Error
           ? error.message
           : "Invalid or unsafe URL provided.",
@@ -433,13 +435,16 @@ export class Sanitization {
         "Path sanitization error",
         requestContextService.createRequestContext({
           operation: "Sanitization.sanitizePath.error",
-          originalPathInput: originalInput,
-          pathOptionsUsed: effectiveOptions,
-          errorMessage: error instanceof Error ? error.message : String(error),
+          additionalContext: {
+            originalPathInput: originalInput,
+            pathOptionsUsed: effectiveOptions,
+            errorMessage:
+              error instanceof Error ? error.message : String(error),
+          },
         }),
       );
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         error instanceof Error
           ? error.message
           : "Invalid or unsafe path provided.",
@@ -463,7 +468,7 @@ export class Sanitization {
         throw new Error("Invalid input: expected a JSON string.");
       if (maxSize !== undefined && Buffer.byteLength(input, "utf8") > maxSize) {
         throw new McpError(
-          BaseErrorCode.VALIDATION_ERROR,
+          JsonRpcErrorCode.ValidationError,
           `JSON string exceeds maximum allowed size of ${maxSize} bytes.`,
           { actualSize: Buffer.byteLength(input, "utf8"), maxSize },
         );
@@ -472,7 +477,7 @@ export class Sanitization {
     } catch (error) {
       if (error instanceof McpError) throw error;
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         error instanceof Error ? error.message : "Invalid JSON format.",
         {
           inputPreview:
@@ -501,7 +506,7 @@ export class Sanitization {
       const trimmedInput = input.trim();
       if (trimmedInput === "" || !validator.isNumeric(trimmedInput)) {
         throw new McpError(
-          BaseErrorCode.VALIDATION_ERROR,
+          JsonRpcErrorCode.ValidationError,
           "Invalid number format: input is empty or not numeric.",
           { input },
         );
@@ -511,7 +516,7 @@ export class Sanitization {
       value = input;
     } else {
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         "Invalid input type: expected number or string.",
         { input: String(input) },
       );
@@ -519,7 +524,7 @@ export class Sanitization {
 
     if (isNaN(value) || !isFinite(value)) {
       throw new McpError(
-        BaseErrorCode.VALIDATION_ERROR,
+        JsonRpcErrorCode.ValidationError,
         "Invalid number value (NaN or Infinity).",
         { input },
       );
@@ -540,11 +545,13 @@ export class Sanitization {
         "Number clamped to range.",
         requestContextService.createRequestContext({
           operation: "Sanitization.sanitizeNumber.clamped",
-          originalInput: String(input),
-          parsedValue: originalValueForLog,
-          minValue: min,
-          maxValue: max,
-          clampedValue: value,
+          additionalContext: {
+            originalInput: String(input),
+            parsedValue: originalValueForLog,
+            minValue: min,
+            maxValue: max,
+            clampedValue: value,
+          },
         }),
       );
     }
@@ -585,7 +592,10 @@ export class Sanitization {
         "Error during log sanitization, returning placeholder.",
         requestContextService.createRequestContext({
           operation: "Sanitization.sanitizeForLogging.error",
-          errorMessage: error instanceof Error ? error.message : String(error),
+          additionalContext: {
+            errorMessage:
+              error instanceof Error ? error.message : String(error),
+          },
         }),
       );
       return "[Log Sanitization Failed]";

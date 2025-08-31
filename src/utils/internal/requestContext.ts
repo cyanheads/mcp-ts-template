@@ -1,8 +1,8 @@
 /**
  * @fileoverview Utilities for creating and managing request contexts.
  * A request context is an object carrying a unique ID, timestamp, and other
- * relevant data for logging, tracing, and processing. It also defines
- * configuration and operational context structures.
+ * relevant data for logging, tracing, and processing. It supports context
+ * propagation for distributed tracing.
  * @module src/utils/internal/requestContext
  */
 
@@ -57,6 +57,29 @@ export interface OperationContext {
 }
 
 /**
+ * Parameters for creating a new request context.
+ */
+export interface CreateRequestContextParams {
+  /**
+   * An optional parent context to inherit properties from, such as `requestId`.
+   * This is key for propagating context in distributed systems.
+   */
+  parentContext?: Record<string, unknown> | RequestContext;
+
+  /**
+   * An optional record of key-value pairs to be merged into the new context.
+   * These will override any properties inherited from the parent context.
+   */
+  additionalContext?: Record<string, unknown>;
+
+  /**
+   * A descriptive name for the operation creating this context.
+   * Useful for debugging and tracing.
+   */
+  operation?: string;
+}
+
+/**
  * Singleton-like service object for managing request context operations.
  * @private
  */
@@ -80,7 +103,7 @@ const requestContextServiceInstance = {
     };
     const logContext = this.createRequestContext({
       operation: "RequestContextService.configure",
-      newConfigState: { ...this.config },
+      additionalContext: { newConfigState: { ...this.config } },
     });
     logger.debug("RequestContextService configuration updated", logContext);
     return { ...this.config };
@@ -97,28 +120,49 @@ const requestContextServiceInstance = {
   },
 
   /**
-   * Creates a new {@link RequestContext} instance.
-   * Each context is assigned a unique `requestId` (UUID) and a current `timestamp` (ISO 8601).
-   * Additional custom properties can be merged into the context.
+   * Creates a new {@link RequestContext} instance, supporting context propagation.
+   * This function robustly handles two calling patterns:
+   * 1. Passing a `CreateRequestContextParams` object: `createRequestContext({ parentContext: ..., additionalContext: ... })`
+   * 2. Passing a plain object to be used as the context: `createRequestContext({ userId: '123', operation: '...' })`
    *
-   * @param additionalContext - An optional record of key-value pairs to be
-   *   included in the created request context.
+   * OpenTelemetry trace and span IDs are automatically injected if an active span exists.
+   *
+   * @param params - Parameters for creating the context.
    * @returns A new `RequestContext` object.
    */
   createRequestContext(
-    additionalContext: Record<string, unknown> = {},
+    params: CreateRequestContextParams | Record<string, unknown> = {},
   ): RequestContext {
-    const requestId = generateUUID();
+    // Destructure known CreateRequestContextParams keys and capture the rest.
+    // The 'rest' object will contain all properties that are NOT the special keys,
+    // effectively capturing the direct context object when passed.
+    const { parentContext, additionalContext, operation, ...rest } =
+      params as CreateRequestContextParams;
+
+    const inheritedContext =
+      parentContext && typeof parentContext === "object"
+        ? { ...parentContext }
+        : {};
+
+    const requestId =
+      typeof inheritedContext.requestId === "string" &&
+      inheritedContext.requestId
+        ? inheritedContext.requestId
+        : generateUUID();
     const timestamp = new Date().toISOString();
 
     const context: RequestContext = {
+      ...inheritedContext,
+      ...rest, // Spread any other properties from the params object
       requestId,
       timestamp,
-      ...additionalContext,
+      ...(additionalContext && typeof additionalContext === "object"
+        ? additionalContext
+        : {}),
+      ...(operation && typeof operation === "string" ? { operation } : {}),
     };
 
     // --- OpenTelemetry Integration ---
-    // Automatically inject active trace and span IDs into the context for correlation.
     const activeSpan = trace.getActiveSpan();
     if (activeSpan) {
       const spanContext = activeSpan.spanContext();

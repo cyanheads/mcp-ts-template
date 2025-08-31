@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   fetchWithTimeout,
   logger,
@@ -100,7 +100,7 @@ export async function catFactFetcherLogic(
   if (!response.ok) {
     const errorText = await response.text();
     throw new McpError(
-      BaseErrorCode.SERVICE_UNAVAILABLE,
+      JsonRpcErrorCode.ServiceUnavailable,
       `Cat Fact API request failed: ${response.status} ${response.statusText}`,
       {
         ...context,
@@ -135,7 +135,7 @@ export async function catFactFetcherLogic(
       receivedData: rawData,
     });
     throw new McpError(
-      BaseErrorCode.SERVICE_UNAVAILABLE,
+      JsonRpcErrorCode.ServiceUnavailable,
       "Cat Fact API returned unexpected data format.",
       {
         ...context,

@@ -9,7 +9,7 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { config } from "../../config/index.js";
-import { BaseErrorCode, McpError } from "../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
 import { logger, requestContextService } from "../../utils/index.js";
 
 // Define a type for our database schema if we have one.
@@ -71,7 +71,7 @@ initializeSupabase();
 export const getSupabaseClient = (): SupabaseClient<Database> => {
   if (!supabase) {
     throw new McpError(
-      BaseErrorCode.SERVICE_NOT_INITIALIZED,
+      JsonRpcErrorCode.ServiceUnavailable, // Mapped from SERVICE_NOT_INITIALIZED
       "Supabase client has not been initialized. Please check your SUPABASE_URL and SUPABASE_ANON_KEY environment variables.",
     );
   }
@@ -87,7 +87,7 @@ export const getSupabaseClient = (): SupabaseClient<Database> => {
 export const getSupabaseAdminClient = (): SupabaseClient<Database> => {
   if (!supabaseAdmin) {
     throw new McpError(
-      BaseErrorCode.SERVICE_NOT_INITIALIZED,
+      JsonRpcErrorCode.ServiceUnavailable, // Mapped from SERVICE_NOT_INITIALIZED
       "Supabase admin client has not been initialized. Please check your SUPABASE_SERVICE_ROLE_KEY environment variable.",
     );
   }

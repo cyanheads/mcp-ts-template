@@ -7,7 +7,7 @@
  */
 import type { HttpBindings } from "@hono/node-server";
 import type { Context, Next } from "hono";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
@@ -29,8 +29,10 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
   ) {
     const context = requestContextService.createRequestContext({
       operation: "authMiddleware",
-      method: c.req.method,
-      path: c.req.path,
+      additionalContext: {
+        method: c.req.method,
+        path: c.req.path,
+      },
     });
 
     logger.debug("Initiating authentication check.", context);
@@ -39,7 +41,7 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       logger.warning("Authorization header missing or invalid.", context);
       throw new McpError(
-        BaseErrorCode.UNAUTHORIZED,
+        JsonRpcErrorCode.Unauthorized,
         "Missing or invalid Authorization header. Bearer scheme required.",
         context,
       );
@@ -52,7 +54,7 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
         context,
       );
       throw new McpError(
-        BaseErrorCode.UNAUTHORIZED,
+        JsonRpcErrorCode.Unauthorized,
         "Authentication token is missing.",
         context,
       );
@@ -92,7 +94,7 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
         operation: "authMiddlewareVerification",
         context,
         rethrow: true, // Rethrow to be caught by Hono's global error handler
-        errorCode: BaseErrorCode.UNAUTHORIZED, // Default to unauthorized if not more specific
+        errorCode: JsonRpcErrorCode.Unauthorized, // Default to unauthorized if not more specific
       });
     }
   };

@@ -12,7 +12,7 @@ import type {
   ListResourcesResult,
   ReadResourceResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { BaseErrorCode } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
@@ -33,7 +33,7 @@ export const registerEchoResource = async (
   const registrationContext: RequestContext =
     requestContextService.createRequestContext({
       operation: "RegisterResource",
-      resourceName: resourceName,
+      additionalContext: { resourceName },
     });
 
   logger.info(`Registering resource: '${resourceName}'`, registrationContext);
@@ -77,9 +77,11 @@ export const registerEchoResource = async (
             requestContextService.createRequestContext({
               parentContext: callContext,
               operation: "HandleResourceRead",
-              resourceUri: uri.href,
-              sessionId,
-              inputParams: params,
+              additionalContext: {
+                resourceUri: uri.href,
+                sessionId,
+                inputParams: params,
+              },
             });
 
           try {
@@ -118,7 +120,7 @@ export const registerEchoResource = async (
     {
       operation: `RegisteringResource_${resourceName}`,
       context: registrationContext,
-      errorCode: BaseErrorCode.INITIALIZATION_FAILED,
+      errorCode: JsonRpcErrorCode.InitializationFailed,
       critical: true,
     },
   );

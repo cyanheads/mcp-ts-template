@@ -20,7 +20,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { IncomingHttpHeaders, ServerResponse } from "http";
 import { randomUUID } from "node:crypto";
 import { Readable } from "stream";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
@@ -52,7 +52,10 @@ export class StatefulTransportManager
   extends BaseTransportManager
   implements IStatefulTransportManager
 {
-  private readonly transports = new Map<string, StreamableHTTPServerTransport>();
+  private readonly transports = new Map<
+    string,
+    StreamableHTTPServerTransport
+  >();
   private readonly servers = new Map<string, McpServer>();
   private readonly sessions = new Map<string, TransportSession>();
   private readonly garbageCollector: NodeJS.Timeout;
@@ -91,10 +94,10 @@ export class StatefulTransportManager
     body: unknown,
     context: RequestContext,
   ): Promise<TransportResponse> {
-    const opContext = {
-      ...context,
+    const opContext = requestContextService.createRequestContext({
+      parentContext: context,
       operation: "StatefulTransportManager.initializeAndHandle",
-    };
+    });
     logger.debug("Initializing new stateful session.", opContext);
 
     let server: McpServer | undefined;
@@ -187,7 +190,7 @@ export class StatefulTransportManager
         })();
       }
       throw ErrorHandler.handleError(error, {
-        operation: opContext.operation,
+        operation: opContext.operation as string,
         context: opContext,
         rethrow: true,
       });
@@ -205,16 +208,16 @@ export class StatefulTransportManager
   ): Promise<TransportResponse> {
     if (!sessionId) {
       throw new McpError(
-        BaseErrorCode.INVALID_INPUT,
+        JsonRpcErrorCode.InvalidRequest,
         "Session ID is required for stateful requests.",
         context,
       );
     }
-    const sessionContext = {
-      ...context,
-      sessionId,
+    const sessionContext = requestContextService.createRequestContext({
+      parentContext: context,
       operation: "StatefulTransportManager.handleRequest",
-    };
+      additionalContext: { sessionId },
+    });
 
     const transport = this.transports.get(sessionId);
     const session = this.sessions.get(sessionId);
@@ -268,7 +271,7 @@ export class StatefulTransportManager
       };
     } catch (error) {
       throw ErrorHandler.handleError(error, {
-        operation: sessionContext.operation,
+        operation: sessionContext.operation as string,
         context: sessionContext,
         rethrow: true,
       });
@@ -289,11 +292,11 @@ export class StatefulTransportManager
     sessionId: string,
     context: RequestContext,
   ): Promise<TransportResponse> {
-    const sessionContext = {
-      ...context,
-      sessionId,
+    const sessionContext = requestContextService.createRequestContext({
+      parentContext: context,
       operation: "StatefulTransportManager.handleDeleteRequest",
-    };
+      additionalContext: { sessionId },
+    });
     logger.info(`Attempting to delete session: ${sessionId}`, sessionContext);
 
     if (!this.transports.has(sessionId)) {
@@ -302,7 +305,7 @@ export class StatefulTransportManager
         sessionContext,
       );
       throw new McpError(
-        BaseErrorCode.NOT_FOUND,
+        JsonRpcErrorCode.NotFound,
         "Session not found or expired.",
         sessionContext,
       );
@@ -358,11 +361,11 @@ export class StatefulTransportManager
     sessionId: string,
     context: RequestContext,
   ): Promise<void> {
-    const sessionContext = {
-      ...context,
-      sessionId,
+    const sessionContext = requestContextService.createRequestContext({
+      parentContext: context,
       operation: "StatefulTransportManager.closeSession",
-    };
+      additionalContext: { sessionId },
+    });
     logger.debug(`Closing session: ${sessionId}`, sessionContext);
 
     const transport = this.transports.get(sessionId);

@@ -7,7 +7,7 @@ import * as jose from "jose";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JwtStrategy } from "../../../../../src/mcp-server/transports/auth/strategies/jwtStrategy.js";
 import {
-  BaseErrorCode,
+  JsonRpcErrorCode,
   McpError,
 } from "../../../../../src/types-global/errors.js";
 import { logger } from "../../../../../src/utils/internal/logger.js";
@@ -69,7 +69,7 @@ describe("JwtStrategy", () => {
       expect(constructor).toThrow(McpError);
       expect(constructor).toThrow(
         expect.objectContaining({
-          code: BaseErrorCode.CONFIGURATION_ERROR,
+          code: JsonRpcErrorCode.ConfigurationError,
           message:
             "MCP_AUTH_SECRET_KEY must be set for JWT auth in production.",
         }),
@@ -140,7 +140,7 @@ describe("JwtStrategy", () => {
       vi.mocked(jose.jwtVerify).mockRejectedValue(error);
 
       await expect(strategy.verify("expired-token")).rejects.toMatchObject({
-        code: BaseErrorCode.UNAUTHORIZED,
+        code: JsonRpcErrorCode.Unauthorized,
         message: "Token has expired.",
       });
     });
@@ -154,7 +154,7 @@ describe("JwtStrategy", () => {
       await expect(
         strategy.verify("generic-error-token"),
       ).rejects.toMatchObject({
-        code: BaseErrorCode.UNAUTHORIZED,
+        code: JsonRpcErrorCode.Unauthorized,
         message: "Token verification failed.",
       });
     });

@@ -8,7 +8,7 @@ import { authContext } from "../../../../../src/mcp-server/transports/auth/lib/a
 import type { AuthInfo } from "../../../../../src/mcp-server/transports/auth/lib/authTypes.js";
 import { withRequiredScopes } from "../../../../../src/mcp-server/transports/auth/lib/authUtils.js";
 import {
-  BaseErrorCode,
+  JsonRpcErrorCode,
   McpError,
 } from "../../../../../src/types-global/errors.js";
 
@@ -68,10 +68,10 @@ describe("withRequiredScopes", () => {
       testFunction();
     } catch (error) {
       const mcpError = error as McpError;
-      expect(mcpError.code).toBe(BaseErrorCode.FORBIDDEN);
+      expect(mcpError.code).toBe(JsonRpcErrorCode.Forbidden);
       expect(mcpError.message).toContain("Insufficient permissions");
       // Use toMatchObject for flexible detail checking
-      expect(mcpError.details).toMatchObject({
+      expect(mcpError.data).toMatchObject({
         requiredScopes,
         missingScopes: ["admin:access"],
         grantedScopes: mockAuthInfo.scopes,
@@ -92,9 +92,9 @@ describe("withRequiredScopes", () => {
       testFunction();
     } catch (error) {
       const mcpError = error as McpError;
-      expect(mcpError.code).toBe(BaseErrorCode.FORBIDDEN);
+      expect(mcpError.code).toBe(JsonRpcErrorCode.Forbidden);
       expect(mcpError.message).toContain("Insufficient permissions");
-      expect(mcpError.details).toMatchObject({
+      expect(mcpError.data).toMatchObject({
         requiredScopes,
         missingScopes: ["admin:access", "system:config"],
         grantedScopes: mockAuthInfo.scopes,
@@ -113,7 +113,7 @@ describe("withRequiredScopes", () => {
       testFunction();
     } catch (error) {
       const mcpError = error as McpError;
-      expect(mcpError.code).toBe(BaseErrorCode.INTERNAL_ERROR);
+      expect(mcpError.code).toBe(JsonRpcErrorCode.InternalError);
       expect(mcpError.message).toContain("Authentication context is missing");
     }
   });

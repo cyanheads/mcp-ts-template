@@ -4,7 +4,7 @@
  * @module src/utils/parsing/dateParser
  */
 import * as chrono from "chrono-node";
-import { BaseErrorCode } from "../../types-global/errors.js";
+import { JsonRpcErrorCode } from "../../types-global/errors.js";
 import { ErrorHandler, logger, RequestContext } from "../index.js";
 
 /**
@@ -45,7 +45,7 @@ export async function parseDateString(
       operation,
       context: logContext,
       input: { text, refDate },
-      errorCode: BaseErrorCode.PARSING_ERROR,
+      errorCode: JsonRpcErrorCode.ParseError,
     },
   );
 }
@@ -86,7 +86,7 @@ export async function parseDateStringDetailed(
       operation,
       context: logContext,
       input: { text, refDate },
-      errorCode: BaseErrorCode.PARSING_ERROR,
+      errorCode: JsonRpcErrorCode.ParseError,
     },
   );
 }

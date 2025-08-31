@@ -11,7 +11,7 @@ import { JwtStrategy } from "../../../../src/mcp-server/transports/auth/strategi
 import { OauthStrategy } from "../../../../src/mcp-server/transports/auth/strategies/oauthStrategy.js";
 import { authContext } from "../../../../src/mcp-server/transports/auth/lib/authContext.js";
 import {
-  BaseErrorCode,
+  JsonRpcErrorCode,
   McpError,
 } from "../../../../src/types-global/errors.js";
 import type { AuthStrategy } from "../../../../src/mcp-server/transports/auth/strategies/authStrategy.js";
@@ -89,7 +89,7 @@ describe("Auth Integration: Factory and Middleware", () => {
       // Add a global error handler to catch thrown McpErrors
       app.onError((err, c) => {
         if (err instanceof McpError) {
-          const status = err.code === BaseErrorCode.UNAUTHORIZED ? 401 : 500;
+          const status = err.code === JsonRpcErrorCode.Unauthorized ? 401 : 500;
           return c.json({ code: err.code, message: err.message }, status);
         }
         return c.json({ message: "Internal Server Error" }, 500);
@@ -112,7 +112,7 @@ describe("Auth Integration: Factory and Middleware", () => {
       const res = await app.request(req);
       expect(res.status).toBe(401);
       const body = await res.json();
-      expect(body.code).toBe(BaseErrorCode.UNAUTHORIZED);
+      expect(body.code).toBe(JsonRpcErrorCode.Unauthorized);
       expect(body.message).toContain("Missing or invalid Authorization header");
     });
 
@@ -136,7 +136,7 @@ describe("Auth Integration: Factory and Middleware", () => {
 
     it("should pass the error from the strategy to the global error handler", async () => {
       vi.mocked(mockStrategy.verify).mockRejectedValue(
-        new McpError(BaseErrorCode.UNAUTHORIZED, "Invalid token"),
+        new McpError(JsonRpcErrorCode.Unauthorized, "Invalid token"),
       );
       const req = new Request("http://localhost/protected/data", {
         headers: { Authorization: "Bearer invalid-token" },

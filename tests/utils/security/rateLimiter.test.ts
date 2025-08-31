@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { RateLimiter } from "../../../src/utils/security/rateLimiter";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { McpError, JsonRpcErrorCode } from "../../../src/types-global/errors";
 
 describe("RateLimiter", () => {
   beforeEach(() => {
@@ -32,7 +32,7 @@ describe("RateLimiter", () => {
 
     expect(() => {
       rateLimiter.check(key);
-    }).toThrow(expect.objectContaining({ code: BaseErrorCode.RATE_LIMITED }));
+    }).toThrow(expect.objectContaining({ code: JsonRpcErrorCode.RateLimited }));
   });
 
   it("should reset the limit after the time window passes", () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { sanitization } from "../../../src/utils/security/sanitization";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { McpError, JsonRpcErrorCode } from "../../../src/types-global/errors";
 
 describe("Sanitization Utility", () => {
   describe("sanitizeHtml", () => {
@@ -60,7 +60,7 @@ describe("Sanitization Utility", () => {
       expect(() =>
         sanitization.sanitizeString(jsInput, { context: "javascript" }),
       ).toThrow(
-        expect.objectContaining({ code: BaseErrorCode.VALIDATION_ERROR }),
+        expect.objectContaining({ code: JsonRpcErrorCode.ValidationError }),
       );
     });
   });
@@ -77,7 +77,7 @@ describe("Sanitization Utility", () => {
       expect(() => sanitization.sanitizePath(nullBytePath)).toThrow(McpError);
       expect(() => sanitization.sanitizePath(nullBytePath)).toThrow(
         expect.objectContaining({
-          code: BaseErrorCode.VALIDATION_ERROR,
+          code: JsonRpcErrorCode.ValidationError,
           message: "Path contains null byte, which is disallowed.",
         }),
       );

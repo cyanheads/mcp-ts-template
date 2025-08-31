@@ -6,7 +6,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import * as logic from "../../../../src/mcp-server/tools/catFactFetcher/logic";
 import { registerCatFactFetcherTool } from "../../../../src/mcp-server/tools/catFactFetcher/registration";
-import { BaseErrorCode, McpError } from "../../../../src/types-global/errors";
+import {
+  JsonRpcErrorCode,
+  McpError,
+} from "../../../../src/types-global/errors";
 
 // Mock the logic module
 vi.mock("../../../../src/mcp-server/tools/catFactFetcher/logic");
@@ -52,7 +55,7 @@ describe("registerCatFactFetcherTool", () => {
   it("handler should return an error structure when the logic function throws", async () => {
     const errorMessage = "API is down";
     vi.spyOn(logic, "catFactFetcherLogic").mockRejectedValue(
-      new McpError(BaseErrorCode.SERVICE_UNAVAILABLE, errorMessage),
+      new McpError(JsonRpcErrorCode.ServiceUnavailable, errorMessage),
     );
 
     await registerCatFactFetcherTool(mockMcpServer);
@@ -63,7 +66,7 @@ describe("registerCatFactFetcherTool", () => {
     expect(result.content[0].text).toContain(errorMessage);
     expect(result.structuredContent).toHaveProperty(
       "code",
-      BaseErrorCode.SERVICE_UNAVAILABLE,
+      JsonRpcErrorCode.ServiceUnavailable,
     );
   });
 });

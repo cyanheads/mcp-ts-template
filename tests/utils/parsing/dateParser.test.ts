@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as chrono from "chrono-node";
 import { dateParser } from "../../../src/utils/parsing/dateParser";
 import { requestContextService } from "../../../src/utils";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { McpError, JsonRpcErrorCode } from "../../../src/types-global/errors";
 
 vi.mock("chrono-node");
 
@@ -53,7 +53,7 @@ describe("dateParser", () => {
         await dateParser.parseDate("any date", context, refDate);
       } catch (error) {
         const mcpError = error as McpError;
-        expect(mcpError.code).toBe(BaseErrorCode.PARSING_ERROR);
+        expect(mcpError.code).toBe(JsonRpcErrorCode.ParseError);
         expect(mcpError.message).toContain("Chrono blew up");
       }
     });
@@ -94,7 +94,7 @@ describe("dateParser", () => {
         await dateParser.parse("any date", context, refDate);
       } catch (error) {
         const mcpError = error as McpError;
-        expect(mcpError.code).toBe(BaseErrorCode.PARSING_ERROR);
+        expect(mcpError.code).toBe(JsonRpcErrorCode.ParseError);
         expect(mcpError.message).toContain("Chrono blew up again");
       }
     });

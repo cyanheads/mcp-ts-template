@@ -5,7 +5,10 @@ import {
   catFactFetcherLogic,
   CatFactFetcherResponseSchema,
 } from "../../../../src/mcp-server/tools/catFactFetcher/logic";
-import { BaseErrorCode, McpError } from "../../../../src/types-global/errors";
+import {
+  JsonRpcErrorCode,
+  McpError,
+} from "../../../../src/types-global/errors";
 import { requestContextService } from "../../../../src/utils";
 import * as networkUtils from "../../../../src/utils/network";
 
@@ -60,7 +63,7 @@ describe("catFactFetcherLogic", () => {
     );
     await expect(
       catFactFetcherLogic(mockInput, context),
-    ).rejects.toHaveProperty("code", BaseErrorCode.SERVICE_UNAVAILABLE);
+    ).rejects.toHaveProperty("code", JsonRpcErrorCode.ServiceUnavailable);
   });
 
   it("should construct the correct URL with maxLength parameter", async () => {

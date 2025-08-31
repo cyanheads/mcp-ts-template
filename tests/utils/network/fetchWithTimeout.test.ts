@@ -2,11 +2,27 @@
  * @fileoverview Tests for the fetchWithTimeout utility using real HTTP endpoints.
  * @module tests/utils/network/fetchWithTimeout.test
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterEach,
+  afterAll,
+  vi,
+} from "vitest";
 import { fetchWithTimeout } from "../../../src/utils/network/fetchWithTimeout";
 import { requestContextService } from "../../../src/utils";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { McpError, JsonRpcErrorCode } from "../../../src/types-global/errors";
 import { server } from "../../mocks/server";
+
+vi.mock("../../../src/utils/scheduling/scheduler.ts", () => ({
+  SchedulerService: {
+    getInstance: vi.fn(() => ({
+      // Mock any methods that might be called during initialization
+    })),
+  },
+}));
 
 // Using httpbin.org for real HTTP testing
 const HTTPBIN_BASE = "https://httpbin.org";
@@ -45,7 +61,7 @@ describe("fetchWithTimeout", () => {
       );
     } catch (error) {
       const mcpError = error as McpError;
-      expect(mcpError.code).toBe(BaseErrorCode.TIMEOUT);
+      expect(mcpError.code).toBe(JsonRpcErrorCode.Timeout);
       expect(mcpError.message).toContain("timed out");
     }
   });
@@ -78,7 +94,7 @@ describe("fetchWithTimeout", () => {
       );
     } catch (error) {
       const mcpError = error as McpError;
-      expect(mcpError.code).toBe(BaseErrorCode.SERVICE_UNAVAILABLE);
+      expect(mcpError.code).toBe(JsonRpcErrorCode.ServiceUnavailable);
       expect(mcpError.message).toContain("Network error");
     }
   });

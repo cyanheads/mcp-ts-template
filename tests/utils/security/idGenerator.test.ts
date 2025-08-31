@@ -7,7 +7,7 @@ import {
   IdGenerator,
   generateUUID,
 } from "../../../src/utils/security/idGenerator";
-import { McpError, BaseErrorCode } from "../../../src/types-global/errors";
+import { McpError, JsonRpcErrorCode } from "../../../src/types-global/errors";
 
 describe("IdGenerator and UUID", () => {
   describe("generateUUID", () => {
@@ -59,7 +59,7 @@ describe("IdGenerator and UUID", () => {
         idGenerator.generateForEntity("unknown");
       } catch (error) {
         const mcpError = error as McpError;
-        expect(mcpError.code).toBe(BaseErrorCode.VALIDATION_ERROR);
+        expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
       }
     });
 

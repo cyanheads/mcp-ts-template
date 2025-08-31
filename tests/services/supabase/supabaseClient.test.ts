@@ -4,7 +4,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { BaseErrorCode, McpError } from "../../../src/types-global/errors.js";
+import {
+  JsonRpcErrorCode,
+  McpError,
+} from "../../../src/types-global/errors.js";
 
 // Mock the supabase-js library
 const mockCreateClient = vi.fn((_url, _key) => ({
@@ -104,7 +107,7 @@ describe("Supabase Client", () => {
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.name).toBe("McpError");
-      expect(mcpError.code).toBe(BaseErrorCode.SERVICE_NOT_INITIALIZED);
+      expect(mcpError.code).toBe(JsonRpcErrorCode.ServiceUnavailable);
       expect(mcpError.message).toContain(
         "Supabase client has not been initialized",
       );
@@ -133,7 +136,7 @@ describe("Supabase Client", () => {
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.name).toBe("McpError");
-      expect(mcpError.code).toBe(BaseErrorCode.SERVICE_NOT_INITIALIZED);
+      expect(mcpError.code).toBe(JsonRpcErrorCode.ServiceUnavailable);
       expect(mcpError.message).toContain(
         "Supabase admin client has not been initialized",
       );

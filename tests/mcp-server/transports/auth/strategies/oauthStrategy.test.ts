@@ -7,7 +7,7 @@ import * as jose from "jose";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OauthStrategy } from "../../../../../src/mcp-server/transports/auth/strategies/oauthStrategy.js";
 import {
-  BaseErrorCode,
+  JsonRpcErrorCode,
   McpError,
 } from "../../../../../src/types-global/errors.js";
 import { logger } from "../../../../../src/utils/internal/logger.js";
@@ -150,7 +150,7 @@ describe("OauthStrategy", () => {
       vi.mocked(jose.jwtVerify).mockRejectedValue(error);
 
       await expect(strategy.verify("expired-token")).rejects.toMatchObject({
-        code: BaseErrorCode.UNAUTHORIZED,
+        code: JsonRpcErrorCode.Unauthorized,
         message: "Token has expired.",
       });
     });
@@ -163,7 +163,7 @@ describe("OauthStrategy", () => {
       await expect(
         strategy.verify("generic-error-token"),
       ).rejects.toMatchObject({
-        code: BaseErrorCode.UNAUTHORIZED,
+        code: JsonRpcErrorCode.Unauthorized,
         message: "OAuth token verification failed.",
       });
     });
