@@ -16,7 +16,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import http from "http";
-import { config, environment } from "../config/index.js";
+import { config } from "../config/index.js";
 import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
 import { registerEchoResource } from "./resources/echoResource/index.js";
 import { registerCatFactFetcherTool } from "./tools/catFactFetcher/index.js";
@@ -41,7 +41,7 @@ export async function createMcpServerInstance(): Promise<McpServer> {
   requestContextService.configure({
     appName: config.mcpServerName,
     appVersion: config.mcpServerVersion,
-    environment,
+    environment: config.environment,
   });
 
   const server = new McpServer(

@@ -293,10 +293,47 @@ export const idGenerator = new IdGenerator();
 
 /**
  * Generates a standard Version 4 UUID (Universally Unique Identifier).
- * Uses the Node.js `crypto` module. This function is independent of the IdGenerator instance
- * to prevent circular dependencies when used by other utilities like requestContextService.
+ * Uses the Node.js `crypto` module.
  * @returns A new UUID string.
  */
 export const generateUUID = (): string => {
   return cryptoRandomUUID();
+};
+
+/**
+ * Generates a unique 10-character alphanumeric ID with a hyphen in the middle (e.g., `ABCDE-FGHIJ`).
+ * This function is specifically for request contexts to provide a shorter, more readable ID.
+ * It contains its own random string generation logic to remain self-contained and avoid circular dependencies.
+ * @returns A new unique ID string.
+ */
+export const generateRequestContextId = (): string => {
+  /**
+   * Generates a cryptographically secure random string of a given length from a given charset.
+   * @param length The desired length of the string.
+   * @param charset The characters to use for generation.
+   * @returns The generated random string.
+   */
+  const generateSecureRandomString = (length: number, charset: string): string => {
+    let result = "";
+    const maxValidByteValue = Math.floor(256 / charset.length) * charset.length;
+
+    while (result.length < length) {
+      const byteBuffer = randomBytes(1);
+      const byte = byteBuffer[0];
+
+      if (byte !== undefined && byte < maxValidByteValue) {
+        const charIndex = byte % charset.length;
+        const char = charset[charIndex];
+        if (char) {
+          result += char;
+        }
+      }
+    }
+    return result;
+  };
+
+  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const part1 = generateSecureRandomString(5, charset);
+  const part2 = generateSecureRandomString(5, charset);
+  return `${part1}-${part2}`;
 };

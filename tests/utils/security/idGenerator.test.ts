@@ -6,6 +6,7 @@ import { describe, it, expect } from "vitest";
 import {
   IdGenerator,
   generateUUID,
+  generateRequestContextId,
 } from "../../../src/utils/security/idGenerator";
 import { McpError, JsonRpcErrorCode } from "../../../src/types-global/errors";
 
@@ -16,6 +17,15 @@ describe("IdGenerator and UUID", () => {
       const uuidRegex =
         /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       expect(uuid).toMatch(uuidRegex);
+    });
+  });
+
+  describe("generateRequestContextId", () => {
+    it("should generate a valid 10-character uppercase alphanumeric ID with a hyphen", () => {
+      const id = generateRequestContextId();
+      const idRegex = /^[A-Z0-9]{5}-[A-Z0-9]{5}$/;
+      expect(id).toMatch(idRegex);
+      expect(id).toHaveLength(11);
     });
   });
 

@@ -7,7 +7,7 @@
  */
 
 import { trace } from "@opentelemetry/api";
-import { generateUUID } from "../index.js";
+import { generateRequestContextId } from "../index.js";
 import { logger } from "./logger.js";
 
 /**
@@ -148,7 +148,7 @@ const requestContextServiceInstance = {
       typeof inheritedContext.requestId === "string" &&
       inheritedContext.requestId
         ? inheritedContext.requestId
-        : generateUUID();
+        : generateRequestContextId();
     const timestamp = new Date().toISOString();
 
     const context: RequestContext = {

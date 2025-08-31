@@ -13,8 +13,9 @@ import { shutdownOpenTelemetry } from "./utils/telemetry/instrumentation.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import http from "http";
-import { config, environment } from "./config/index.js";
+import { config } from "./config/index.js";
 import { initializeAndStartServer } from "./mcp-server/server.js";
+import { createStorageProvider, storageService } from "./storage/index.js";
 import { requestContextService } from "./utils/index.js";
 import { logger, McpLogLevel } from "./utils/internal/logger.js";
 
@@ -105,16 +106,33 @@ const start = async (): Promise<void> => {
     requestContextService.createRequestContext({ operation: "LoggerInit" }),
   );
 
+  // Initialize Storage Service
+  try {
+    const storageProvider = createStorageProvider();
+    storageService.initialize(storageProvider);
+    logger.info(
+      `Storage service initialized with provider: ${config.storage.providerType}`,
+      requestContextService.createRequestContext({ operation: "StorageInit" }),
+    );
+  } catch (error) {
+    logger.fatal(
+      "Failed to initialize storage service.",
+      error as Error,
+      requestContextService.createRequestContext({ operation: "StorageInit" }),
+    );
+    process.exit(1);
+  }
+
   const transportType = config.mcpTransportType;
   const startupContext = requestContextService.createRequestContext({
     operation: `ServerStartupSequence_${transportType}`,
     applicationName: config.mcpServerName,
     applicationVersion: config.mcpServerVersion,
-    nodeEnvironment: environment,
+    nodeEnvironment: config.environment,
   });
 
   logger.info(
-    `Starting ${config.mcpServerName} (Version: ${config.mcpServerVersion}, Transport: ${transportType}, Env: ${environment})...`,
+    `Starting ${config.mcpServerName} (Version: ${config.mcpServerVersion}, Transport: ${transportType}, Env: ${config.environment})...`,
     startupContext,
   );
 
