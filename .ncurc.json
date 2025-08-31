@@ -5,6 +5,7 @@
     "zod",
     "@hono/node-server",
     "hono",
+    "@faker-js/faker",
     "typescript"
   ]
 }
