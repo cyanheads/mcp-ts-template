@@ -5,6 +5,7 @@
  * @module src/mcp-server/transports/http/httpTransport
  */
 
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { serve, ServerType } from "@hono/node-server";
 import { Context, Hono, Next } from "hono";
 import { cors } from "hono/cors";
@@ -17,7 +18,6 @@ import {
   RequestContext,
   requestContextService,
 } from "../../../utils/index.js";
-import { ManagedMcpServer } from "../../core/managedMcpServer.js";
 import { createAuthMiddleware, createAuthStrategy } from "../auth/index.js";
 import { StatelessTransportManager } from "../core/statelessTransportManager.js";
 import { TransportManager } from "../core/transportTypes.js";
@@ -181,7 +181,7 @@ function startHttpServerWithRetry(
 }
 
 function createTransportManager(
-  createServerInstanceFn: () => Promise<ManagedMcpServer>,
+  createServerInstanceFn: () => Promise<McpServer>,
   sessionMode: string,
   context: RequestContext,
 ): TransportManager {
@@ -223,7 +223,7 @@ function createTransportManager(
 
 export function createHttpApp(
   transportManager: TransportManager,
-  createServerInstanceFn: () => Promise<ManagedMcpServer>,
+  createServerInstanceFn: () => Promise<McpServer>,
   parentContext: RequestContext,
 ): Hono<{ Bindings: HonoNodeBindings }> {
   const app = new Hono<{ Bindings: HonoNodeBindings }>();
@@ -317,22 +317,20 @@ export function createHttpApp(
 
       // Since this is a stateless endpoint, we create a temporary instance
       // to report on the server's configuration.
-      const serverInstance = await createServerInstanceFn();
+      await createServerInstanceFn();
 
       return c.json({
         status: "ok",
         server: {
-          name: serverInstance.name,
-          version: serverInstance.version,
+          name: config.mcpServerName,
+          version: config.mcpServerVersion,
           description:
             (config.pkg as { description?: string })?.description ||
             "No description provided.",
           nodeVersion: process.version,
           environment: config.environment,
-          capabilities: serverInstance.capabilities,
         },
         sessionMode: config.mcpSessionMode,
-        tools: serverInstance.getTools(),
         message:
           "Server is running. POST to this endpoint to execute a tool call.",
       });
@@ -416,7 +414,7 @@ export function createHttpApp(
 }
 
 export async function startHttpTransport(
-  createServerInstanceFn: () => Promise<ManagedMcpServer>,
+  createServerInstanceFn: () => Promise<McpServer>,
   parentContext: RequestContext,
 ): Promise<{
   app: Hono<{ Bindings: HonoNodeBindings }>;

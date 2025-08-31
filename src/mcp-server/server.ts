@@ -14,10 +14,10 @@
  * @module src/mcp-server/server
  */
 
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import http from "http";
 import { config, environment } from "../config/index.js";
 import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
-import { ManagedMcpServer } from "./core/managedMcpServer.js";
 import { registerEchoResource } from "./resources/echoResource/index.js";
 import { registerCatFactFetcherTool } from "./tools/catFactFetcher/index.js";
 import { registerEchoTool } from "./tools/echoTool/index.js";
@@ -28,11 +28,11 @@ import { startStdioTransport } from "./transports/stdio/index.js";
 /**
  * Creates and configures a new instance of the `McpServer`.
  *
- * @returns A promise resolving with the configured `ManagedMcpServer` instance.
+ * @returns A promise resolving with the configured `McpServer` instance.
  * @throws {McpError} If any resource or tool registration fails.
  * @private
  */
-async function createMcpServerInstance(): Promise<ManagedMcpServer> {
+export async function createMcpServerInstance(): Promise<McpServer> {
   const context = requestContextService.createRequestContext({
     operation: "createMcpServerInstance",
   });
@@ -44,7 +44,7 @@ async function createMcpServerInstance(): Promise<ManagedMcpServer> {
     environment,
   });
 
-  const server = new ManagedMcpServer(
+  const server = new McpServer(
     { name: config.mcpServerName, version: config.mcpServerVersion },
     {
       capabilities: {
@@ -81,7 +81,7 @@ async function createMcpServerInstance(): Promise<ManagedMcpServer> {
  * @throws {Error} If transport type is unsupported or setup fails.
  * @private
  */
-async function startTransport(): Promise<ManagedMcpServer | http.Server> {
+async function startTransport(): Promise<McpServer | http.Server> {
   const transportType = config.mcpTransportType;
   const context = requestContextService.createRequestContext({
     operation: "startTransport",
@@ -116,7 +116,7 @@ async function startTransport(): Promise<ManagedMcpServer | http.Server> {
  * Main application entry point. Initializes and starts the MCP server.
  */
 export async function initializeAndStartServer(): Promise<
-  ManagedMcpServer | http.Server
+  McpServer | http.Server
 > {
   const context = requestContextService.createRequestContext({
     operation: "initializeAndStartServer",
