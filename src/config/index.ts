@@ -18,7 +18,6 @@ dotenv.config();
 // --- Determine Project Root ---
 const findProjectRoot = (startDir: string): string => {
   let currentDir = startDir;
-  // If the start directory is in `dist`, start searching from the parent directory.
   if (path.basename(currentDir) === "dist") {
     currentDir = path.dirname(currentDir);
   }
@@ -36,6 +35,7 @@ const findProjectRoot = (startDir: string): string => {
     currentDir = parentDir;
   }
 };
+
 let projectRoot: string;
 try {
   const currentModuleDir = dirname(fileURLToPath(import.meta.url));
@@ -52,24 +52,17 @@ try {
 }
 // --- End Determine Project Root ---
 
-/**
- * Loads and parses the package.json file from the project root.
- * @returns The parsed package.json object or a fallback default.
- * @private
- */
 const loadPackageJson = (): { name: string; version: string } => {
   const pkgPath = join(projectRoot, "package.json");
   const fallback = { name: "mcp-ts-template", version: "1.0.0" };
-
   if (!existsSync(pkgPath)) {
     if (process.stdout.isTTY) {
       console.warn(
-        `Warning: package.json not found at ${pkgPath}. Using fallback values. This is expected in some environments (e.g., Docker) but may indicate an issue with project root detection.`,
+        `Warning: package.json not found at ${pkgPath}. Using fallback values.`,
       );
     }
     return fallback;
   }
-
   try {
     const fileContents = readFileSync(pkgPath, "utf-8");
     const parsed = JSON.parse(fileContents);
@@ -90,115 +83,6 @@ const loadPackageJson = (): { name: string; version: string } => {
 };
 
 const pkg = loadPackageJson();
-
-const EnvSchema = z.object({
-  // --- Existing MCP and other variables ---
-  MCP_SERVER_NAME: z.string().optional(),
-  MCP_SERVER_VERSION: z.string().optional(),
-  MCP_LOG_LEVEL: z.string().default("debug"),
-  LOGS_DIR: z.string().default(path.join(projectRoot, "logs")),
-  NODE_ENV: z.string().default("development"),
-  MCP_TRANSPORT_TYPE: z.enum(["stdio", "http"]).default("stdio"),
-  MCP_SESSION_MODE: z.enum(["stateless", "stateful", "auto"]).default("auto"),
-  MCP_HTTP_PORT: z.coerce.number().int().positive().default(3010),
-  MCP_HTTP_HOST: z.string().default("127.0.0.1"),
-  MCP_HTTP_ENDPOINT_PATH: z.string().default("/mcp"),
-  MCP_HTTP_MAX_PORT_RETRIES: z.coerce.number().int().nonnegative().default(15),
-  MCP_HTTP_PORT_RETRY_DELAY_MS: z.coerce
-    .number()
-    .int()
-    .nonnegative()
-    .default(50),
-  MCP_STATEFUL_SESSION_STALE_TIMEOUT_MS: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(1_800_000),
-  MCP_ALLOWED_ORIGINS: z.string().optional(),
-  MCP_AUTH_SECRET_KEY: z
-    .string()
-    .min(
-      32,
-      "MCP_AUTH_SECRET_KEY must be at least 32 characters long for security reasons.",
-    )
-    .optional(),
-  MCP_AUTH_MODE: z.enum(["jwt", "oauth", "none"]).default("none"),
-  OAUTH_ISSUER_URL: z.string().url().optional(),
-  OAUTH_JWKS_URI: z.string().url().optional(),
-  OAUTH_AUDIENCE: z.string().optional(),
-  DEV_MCP_CLIENT_ID: z.string().optional(),
-  DEV_MCP_SCOPES: z.string().optional(),
-  OPENROUTER_APP_URL: z
-    .string()
-    .url("OPENROUTER_APP_URL must be a valid URL (e.g., http://localhost:3000)")
-    .optional(),
-  OPENROUTER_APP_NAME: z.string().optional(),
-  OPENROUTER_API_KEY: z.string().optional(),
-  LLM_DEFAULT_MODEL: z.string().default("google/gemini-2.5-flash"),
-  LLM_DEFAULT_TEMPERATURE: z.coerce.number().min(0).max(2).optional(),
-  LLM_DEFAULT_TOP_P: z.coerce.number().min(0).max(1).optional(),
-  LLM_DEFAULT_MAX_TOKENS: z.coerce.number().int().positive().optional(),
-  LLM_DEFAULT_TOP_K: z.coerce.number().int().nonnegative().optional(),
-  LLM_DEFAULT_MIN_P: z.coerce.number().min(0).max(1).optional(),
-  OAUTH_PROXY_AUTHORIZATION_URL: z
-    .string()
-    .url("OAUTH_PROXY_AUTHORIZATION_URL must be a valid URL.")
-    .optional(),
-  OAUTH_PROXY_TOKEN_URL: z
-    .string()
-    .url("OAUTH_PROXY_TOKEN_URL must be a valid URL.")
-    .optional(),
-  OAUTH_PROXY_REVOCATION_URL: z
-    .string()
-    .url("OAUTH_PROXY_REVOCATION_URL must be a valid URL.")
-    .optional(),
-  OAUTH_PROXY_ISSUER_URL: z
-    .string()
-    .url("OAUTH_PROXY_ISSUER_URL must be a valid URL.")
-    .optional(),
-  OAUTH_PROXY_SERVICE_DOCUMENTATION_URL: z
-    .string()
-    .url("OAUTH_PROXY_SERVICE_DOCUMENTATION_URL must be a valid URL.")
-    .optional(),
-  OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS: z.string().optional(),
-  SUPABASE_URL: z.string().url("SUPABASE_URL must be a valid URL.").optional(),
-  SUPABASE_ANON_KEY: z.string().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-
-  // --- START: OpenTelemetry Configuration ---
-  /** If 'true', OpenTelemetry will be initialized and enabled. Default: 'false'. */
-  OTEL_ENABLED: z
-    .string()
-    .transform((v) => v.toLowerCase() === "true")
-    .default("false"),
-  /** The logical name of the service. Defaults to MCP_SERVER_NAME or package name. */
-  OTEL_SERVICE_NAME: z.string().optional(),
-  /** The version of the service. Defaults to MCP_SERVER_VERSION or package version. */
-  OTEL_SERVICE_VERSION: z.string().optional(),
-  /** The OTLP endpoint for traces. If not set, traces are logged to a file in development. */
-  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: z.string().url().optional(),
-  /** The OTLP endpoint for metrics. If not set, metrics are not exported. */
-  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: z.string().url().optional(),
-  /** Sampling ratio for traces (0.0 to 1.0). 1.0 means sample all. Default: 1.0 */
-  OTEL_TRACES_SAMPLER_ARG: z.coerce.number().min(0).max(1).default(1.0),
-  /** Log level for OpenTelemetry's internal diagnostic logger. Default: "INFO". */
-  OTEL_LOG_LEVEL: z
-    .enum(["NONE", "ERROR", "WARN", "INFO", "DEBUG", "VERBOSE", "ALL"])
-    .default("INFO"),
-});
-
-const parsedEnv = EnvSchema.safeParse(process.env);
-
-if (!parsedEnv.success) {
-  if (process.stdout.isTTY) {
-    console.error(
-      "❌ Invalid environment variables found:",
-      parsedEnv.error.flatten().fieldErrors,
-    );
-  }
-}
-
-const env = parsedEnv.success ? parsedEnv.data : EnvSchema.parse({});
 
 const ensureDirectory = (
   dirPath: string,
@@ -259,100 +143,166 @@ const ensureDirectory = (
   return resolvedDirPath;
 };
 
-let validatedLogsPath: string | null = ensureDirectory(
-  env.LOGS_DIR,
-  projectRoot,
-  "logs",
-);
-if (!validatedLogsPath) {
-  if (process.stdout.isTTY) {
-    console.warn(
-      `Warning: Custom logs directory ('${env.LOGS_DIR}') is invalid or outside the project boundary. Falling back to default.`,
-    );
-  }
-  const defaultLogsDir = path.join(projectRoot, "logs");
-  validatedLogsPath = ensureDirectory(defaultLogsDir, projectRoot, "logs");
-  if (!validatedLogsPath) {
+const ConfigSchema = z
+  .object({
+    pkg: z.object({ name: z.string(), version: z.string() }),
+    mcpServerName: z.string(),
+    mcpServerVersion: z.string(),
+    logLevel: z.string().default("debug"),
+    logsPath: z.string(),
+    environment: z.string().default("development"),
+    mcpTransportType: z.enum(["stdio", "http"]).default("stdio"),
+    mcpSessionMode: z.enum(["stateless", "stateful", "auto"]).default("auto"),
+    mcpHttpPort: z.coerce.number().default(3010),
+    mcpHttpHost: z.string().default("127.0.0.1"),
+    mcpHttpEndpointPath: z.string().default("/mcp"),
+    mcpHttpMaxPortRetries: z.coerce.number().default(15),
+    mcpHttpPortRetryDelayMs: z.coerce.number().default(50),
+    mcpStatefulSessionStaleTimeoutMs: z.coerce.number().default(1_800_000),
+    mcpAllowedOrigins: z.array(z.string()).optional(),
+    mcpAuthSecretKey: z.string().optional(),
+    mcpAuthMode: z.enum(["jwt", "oauth", "none"]).default("none"),
+    oauthIssuerUrl: z.string().url().optional(),
+    oauthJwksUri: z.string().url().optional(),
+    oauthAudience: z.string().optional(),
+    devMcpClientId: z.string().optional(),
+    devMcpScopes: z.array(z.string()).optional(),
+    openrouterAppUrl: z.string().default("http://localhost:3000"),
+    openrouterAppName: z.string(),
+    openrouterApiKey: z.string().optional(),
+    llmDefaultModel: z.string().default("google/gemini-2.5-flash"),
+    llmDefaultTemperature: z.coerce.number().optional(),
+    llmDefaultTopP: z.coerce.number().optional(),
+    llmDefaultMaxTokens: z.coerce.number().optional(),
+    llmDefaultTopK: z.coerce.number().optional(),
+    llmDefaultMinP: z.coerce.number().optional(),
+    oauthProxy: z
+      .object({
+        authorizationUrl: z.string().url().optional(),
+        tokenUrl: z.string().url().optional(),
+        revocationUrl: z.string().url().optional(),
+        issuerUrl: z.string().url().optional(),
+        serviceDocumentationUrl: z.string().url().optional(),
+        defaultClientRedirectUris: z.array(z.string()).optional(),
+      })
+      .optional(),
+    supabase: z
+      .object({
+        url: z.string().url(),
+        anonKey: z.string(),
+        serviceRoleKey: z.string().optional(),
+      })
+      .optional(),
+    storage: z.object({
+      providerType: z
+        .enum(["in-memory", "filesystem", "supabase"])
+        .default("in-memory"),
+      filesystemPath: z.string().optional(),
+    }),
+    openTelemetry: z.object({
+      enabled: z.coerce.boolean().default(false),
+      serviceName: z.string(),
+      serviceVersion: z.string(),
+      tracesEndpoint: z.string().url().optional(),
+      metricsEndpoint: z.string().url().optional(),
+      samplingRatio: z.coerce.number().default(1.0),
+      logLevel: z
+        .enum(["NONE", "ERROR", "WARN", "INFO", "DEBUG", "VERBOSE", "ALL"])
+        .default("INFO"),
+    }),
+  })
+  .transform((data) => {
+    const logsPath = ensureDirectory(data.logsPath, projectRoot, "logs");
+    return { ...data, logsPath };
+  });
+
+const parseConfig = () => {
+  const env = process.env;
+  const rawConfig = {
+    pkg,
+    mcpServerName: env.MCP_SERVER_NAME || pkg.name,
+    mcpServerVersion: env.MCP_SERVER_VERSION || pkg.version,
+    logLevel: env.MCP_LOG_LEVEL,
+    logsPath: env.LOGS_DIR || path.join(projectRoot, "logs"),
+    environment: env.NODE_ENV,
+    mcpTransportType: env.MCP_TRANSPORT_TYPE,
+    mcpSessionMode: env.MCP_SESSION_MODE,
+    mcpHttpPort: env.MCP_HTTP_PORT,
+    mcpHttpHost: env.MCP_HTTP_HOST,
+    mcpHttpEndpointPath: env.MCP_HTTP_ENDPOINT_PATH,
+    mcpHttpMaxPortRetries: env.MCP_HTTP_MAX_PORT_RETRIES,
+    mcpHttpPortRetryDelayMs: env.MCP_HTTP_PORT_RETRY_DELAY_MS,
+    mcpStatefulSessionStaleTimeoutMs: env.MCP_STATEFUL_SESSION_STALE_TIMEOUT_MS,
+    mcpAllowedOrigins: env.MCP_ALLOWED_ORIGINS?.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean),
+    mcpAuthSecretKey: env.MCP_AUTH_SECRET_KEY,
+    mcpAuthMode: env.MCP_AUTH_MODE,
+    oauthIssuerUrl: env.OAUTH_ISSUER_URL,
+    oauthJwksUri: env.OAUTH_JWKS_URI,
+    oauthAudience: env.OAUTH_AUDIENCE,
+    devMcpClientId: env.DEV_MCP_CLIENT_ID,
+    devMcpScopes: env.DEV_MCP_SCOPES?.split(",").map((s) => s.trim()),
+    openrouterAppUrl: env.OPENROUTER_APP_URL,
+    openrouterAppName: env.OPENROUTER_APP_NAME || pkg.name || "mcp-ts-template",
+    openrouterApiKey: env.OPENROUTER_API_KEY,
+    llmDefaultModel: env.LLM_DEFAULT_MODEL,
+    llmDefaultTemperature: env.LLM_DEFAULT_TEMPERATURE,
+    llmDefaultTopP: env.LLM_DEFAULT_TOP_P,
+    llmDefaultMaxTokens: env.LLM_DEFAULT_MAX_TOKENS,
+    llmDefaultTopK: env.LLM_DEFAULT_TOP_K,
+    llmDefaultMinP: env.LLM_DEFAULT_MIN_P,
+    oauthProxy:
+      env.OAUTH_PROXY_AUTHORIZATION_URL || env.OAUTH_PROXY_TOKEN_URL
+        ? {
+            authorizationUrl: env.OAUTH_PROXY_AUTHORIZATION_URL,
+            tokenUrl: env.OAUTH_PROXY_TOKEN_URL,
+            revocationUrl: env.OAUTH_PROXY_REVOCATION_URL,
+            issuerUrl: env.OAUTH_PROXY_ISSUER_URL,
+            serviceDocumentationUrl: env.OAUTH_PROXY_SERVICE_DOCUMENTATION_URL,
+            defaultClientRedirectUris:
+              env.OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS?.split(",")
+                .map((uri) => uri.trim())
+                .filter(Boolean),
+          }
+        : undefined,
+    supabase:
+      env.SUPABASE_URL && env.SUPABASE_ANON_KEY
+        ? {
+            url: env.SUPABASE_URL,
+            anonKey: env.SUPABASE_ANON_KEY,
+            serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+          }
+        : undefined,
+    storage: {
+      providerType: env.STORAGE_PROVIDER_TYPE,
+      filesystemPath: env.STORAGE_FILESYSTEM_PATH || "./.storage",
+    },
+    openTelemetry: {
+      enabled: env.OTEL_ENABLED,
+      serviceName: env.OTEL_SERVICE_NAME || env.MCP_SERVER_NAME || pkg.name,
+      serviceVersion:
+        env.OTEL_SERVICE_VERSION || env.MCP_SERVER_VERSION || pkg.version,
+      tracesEndpoint: env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
+      metricsEndpoint: env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
+      samplingRatio: env.OTEL_TRACES_SAMPLER_ARG,
+      logLevel: env.OTEL_LOG_LEVEL,
+    },
+  };
+
+  const parsedConfig = ConfigSchema.safeParse(rawConfig);
+
+  if (!parsedConfig.success) {
     if (process.stdout.isTTY) {
-      console.warn(
-        "Warning: Default logs directory could not be created. File logging will be disabled.",
+      console.error(
+        "❌ Invalid configuration found. Please check your environment variables.",
+        parsedConfig.error.flatten().fieldErrors,
       );
     }
+    process.exit(1);
   }
-}
 
-export const config = {
-  pkg,
-  mcpServerName: env.MCP_SERVER_NAME || pkg.name,
-  mcpServerVersion: env.MCP_SERVER_VERSION || pkg.version,
-  logLevel: env.MCP_LOG_LEVEL,
-  logsPath: validatedLogsPath,
-  environment: env.NODE_ENV,
-  mcpTransportType: env.MCP_TRANSPORT_TYPE,
-  mcpSessionMode: env.MCP_SESSION_MODE,
-  mcpHttpPort: env.MCP_HTTP_PORT,
-  mcpHttpHost: env.MCP_HTTP_HOST,
-  mcpHttpEndpointPath: env.MCP_HTTP_ENDPOINT_PATH,
-  mcpHttpMaxPortRetries: env.MCP_HTTP_MAX_PORT_RETRIES,
-  mcpHttpPortRetryDelayMs: env.MCP_HTTP_PORT_RETRY_DELAY_MS,
-  mcpStatefulSessionStaleTimeoutMs: env.MCP_STATEFUL_SESSION_STALE_TIMEOUT_MS,
-  mcpAllowedOrigins: env.MCP_ALLOWED_ORIGINS?.split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean),
-  mcpAuthSecretKey: env.MCP_AUTH_SECRET_KEY,
-  mcpAuthMode: env.MCP_AUTH_MODE,
-  oauthIssuerUrl: env.OAUTH_ISSUER_URL,
-  oauthJwksUri: env.OAUTH_JWKS_URI,
-  oauthAudience: env.OAUTH_AUDIENCE,
-  devMcpClientId: env.DEV_MCP_CLIENT_ID,
-  devMcpScopes: env.DEV_MCP_SCOPES?.split(",").map((s) => s.trim()),
-  openrouterAppUrl: env.OPENROUTER_APP_URL || "http://localhost:3000",
-  openrouterAppName: env.OPENROUTER_APP_NAME || pkg.name || "mcp-ts-template",
-  openrouterApiKey: env.OPENROUTER_API_KEY,
-  llmDefaultModel: env.LLM_DEFAULT_MODEL,
-  llmDefaultTemperature: env.LLM_DEFAULT_TEMPERATURE,
-  llmDefaultTopP: env.LLM_DEFAULT_TOP_P,
-  llmDefaultMaxTokens: env.LLM_DEFAULT_MAX_TOKENS,
-  llmDefaultTopK: env.LLM_DEFAULT_TOP_K,
-  llmDefaultMinP: env.LLM_DEFAULT_MIN_P,
-  oauthProxy:
-    env.OAUTH_PROXY_AUTHORIZATION_URL ||
-    env.OAUTH_PROXY_TOKEN_URL ||
-    env.OAUTH_PROXY_REVOCATION_URL ||
-    env.OAUTH_PROXY_ISSUER_URL ||
-    env.OAUTH_PROXY_SERVICE_DOCUMENTATION_URL ||
-    env.OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS
-      ? {
-          authorizationUrl: env.OAUTH_PROXY_AUTHORIZATION_URL,
-          tokenUrl: env.OAUTH_PROXY_TOKEN_URL,
-          revocationUrl: env.OAUTH_PROXY_REVOCATION_URL,
-          issuerUrl: env.OAUTH_PROXY_ISSUER_URL,
-          serviceDocumentationUrl: env.OAUTH_PROXY_SERVICE_DOCUMENTATION_URL,
-          defaultClientRedirectUris:
-            env.OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS?.split(",")
-              .map((uri) => uri.trim())
-              .filter(Boolean),
-        }
-      : undefined,
-  supabase:
-    env.SUPABASE_URL && env.SUPABASE_ANON_KEY
-      ? {
-          url: env.SUPABASE_URL,
-          anonKey: env.SUPABASE_ANON_KEY,
-          serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
-        }
-      : undefined,
-  openTelemetry: {
-    enabled: env.OTEL_ENABLED,
-    serviceName: env.OTEL_SERVICE_NAME || env.MCP_SERVER_NAME || pkg.name,
-    serviceVersion:
-      env.OTEL_SERVICE_VERSION || env.MCP_SERVER_VERSION || pkg.version,
-    tracesEndpoint: env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
-    metricsEndpoint: env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
-    samplingRatio: env.OTEL_TRACES_SAMPLER_ARG,
-    logLevel: env.OTEL_LOG_LEVEL,
-  },
+  return parsedConfig.data;
 };
 
-export const logLevel: string = config.logLevel;
-export const environment: string = config.environment;
+export const config = parseConfig();
