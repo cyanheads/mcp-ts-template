@@ -1,7 +1,7 @@
 # mcp-ts-template: Architectural Standard & Developer Mandate
 
-**Effective Date:** 2025-08-30
-**Version:** 2.4
+**Effective Date:** 2025-08-31
+**Version:** 2.0.0 (Synced to Project Version)
 
 ## Preamble
 
@@ -15,17 +15,17 @@ The architecture is founded upon a strict separation of concerns to guarantee mo
 
 This is the immutable cornerstone of the error-handling and control-flow strategy.
 
-**Core Logic (logic.ts):** This layer's sole responsibility is the execution of business logic. It shall be pure, self-contained, and stateless where possible. If an operational or validation error occurs, it must terminate its execution by throwing a structured McpError. Logic files shall not contain try...catch blocks for the purpose of formatting a final response.
+**Core Logic (within Tool Definition):** A tool's core logic is a pure, self-contained, and stateless function defined within its `ToolDefinition` object. If an operational or validation error occurs, it must terminate its execution by throwing a structured `McpError`. Logic functions shall not contain `try...catch` blocks for the purpose of formatting a final response.
 
-**Handlers (registration.ts, Transports):** This layer's responsibility is to interface with the transport layer (e.g., MCP, HTTP), invoke core logic, and manage the final response lifecycle. It must wrap every call to the logic layer in a try...catch block. This is the exclusive location where errors are caught, processed by the ErrorHandler, and formatted into a definitive CallToolResult or HTTP response.
+**Handler (Generated via `toolHandlerFactory`):** The runtime handler for every tool is created by the `toolHandlerFactory`. This factory wraps the core logic function, and its responsibilities are to interface with the server, manage the `try...catch` block, and format the final `CallToolResult`. This is the exclusive location where errors are caught, processed by the `ErrorHandler`, and formatted into a definitive response.
 
 ### 2. Structured, Traceable Operations
 
 Every operation must be fully traceable from initiation to completion via structured logging and context propagation.
 
-**RequestContext:** Any significant operation shall be initiated by creating a RequestContext via requestContextService.createRequestContext(). This context, containing a unique requestId, must be passed as an argument through the entire call stack of the operation.
+**RequestContext:** Any significant operation shall be initiated by creating a `RequestContext` via `requestContextService.createRequestContext()`. This context, containing a unique `requestId`, must be passed as an argument through the entire call stack of the operation.
 
-**Logger:** All logging shall be performed through the centralized logger singleton, which includes rate-limiting capabilities. Every log entry must include the RequestContext to ensure traceability.
+**Logger:** All logging shall be performed through the centralized logger singleton, which includes rate-limiting capabilities. Every log entry must include the `RequestContext` to ensure traceability.
 
 ### 3. Comprehensive Observability (OpenTelemetry)
 
@@ -55,96 +55,81 @@ This section outlines the complete operational flow of the application, from ini
 
 **A. Server Startup Sequence (Executed Once)**
 
-1.  **Observability Initialization (`src/utils/telemetry/instrumentation.ts`):** The very first import in `src/index.ts` is the OpenTelemetry instrumentation module. This initializes the OTel SDK, sets up exporters, and patches supported libraries for automatic tracing.
-
-2.  **Entry Point (`src/index.ts`):** The application is launched. This script performs the first-level setup:
-    - Initializes the `logger` with the configured log level.
-    - **Initializes the `StorageService`** by creating the configured storage provider via the `storageFactory`.
-    - Calls `initializeAndStartServer()` from `server.ts`.
-    - Establishes global process listeners (`uncaughtException`, `SIGTERM`) to ensure graceful shutdown, including the shutdown of the OTel SDK.
-
-3.  **Server Orchestration (`src/mcp-server/server.ts`):** This script orchestrates the creation and configuration of the MCP server itself.
-    - Creates the core `McpServer` instance from the SDK.
-    - **Crucially, it imports and calls the `register...` function from every tool and resource** (e.g., `await registerEchoTool(server)`). This is the single point where all components are attached to the server.
-
-4.  **Tool Registration (`src/mcp-server/tools/toolName/registration.ts`):** During startup, the `registerEchoTool` function is executed.
-    - It calls `server.registerTool()`, passing the tool's metadata (name, description, schemas) and the **runtime handler function**.
-    - The `ErrorHandler.tryCatch` wrapper ensures that any failure during this registration step is caught, preventing a server startup failure. The handler function itself is **not** executed at this time; it is merely registered.
+1.  **Observability Initialization (`src/utils/telemetry/instrumentation.ts`):** The very first import in `src/index.ts` is the OpenTelemetry instrumentation module.
+2.  **Entry Point (`src/index.ts`):** The application is launched. It initializes the logger, storage service, and then calls `initializeAndStartServer()`.
+3.  **Server Orchestration (`src/mcp-server/server.ts`):** This script creates the `McpServer` instance. Crucially, it imports all tool definitions (e.g., `echoTool`) from `src/mcp-server/tools/definitions/` and iterates through them, calling a type-safe `registerTool` helper for each one. This is the single point where all components are attached to the server.
+4.  **Tool Registration (`src/mcp-server/server.ts`):** During startup, the `registerTool` helper function is executed for each tool definition.
+    - It creates a runtime handler for the tool using `createMcpToolHandler`.
+    - It calls `server.registerTool()`, passing the tool's metadata (name, description, schemas) and the newly created handler function.
+    - The `ErrorHandler.tryCatch` wrapper ensures that any failure during this registration step is caught, preventing a server startup failure.
 
 **B. Tool Execution Sequence (Executed for Each Tool Call)**
 
-1.  **Transport Layer:** The server's transport (e.g., HTTP or stdio) receives an incoming tool call request from an MCP client. An OTel span is automatically created for the incoming request.
-
-2.  **Server Core:** The `McpServer` instance parses the request, validates it against the registered input schema for the requested tool (e.g., `echo_message`), and invokes the corresponding handler function that was provided during registration.
-
-3.  **Handler Execution (`src/mcp-server/tools/toolName/registration.ts`):** The runtime handler function is now executed.
-    - It creates a new, child `RequestContext` which is automatically populated with the `traceId` and `spanId` from the active OTel span.
-    - The `try...catch` block begins.
-    - It calls the core logic function (e.g., `echoToolLogic()`), which is wrapped by `measureToolExecution` to create a dedicated child span for the tool's execution.
-
-4.  **Logic Execution (`src/mcp-server/tools/toolName/logic.ts`):** The `echoToolLogic` function runs within its own OTel span.
+1.  **Transport Layer:** The server's transport (e.g., HTTP or stdio) receives an incoming tool call request. An OTel span is automatically created.
+2.  **Server Core:** The `McpServer` instance parses the request, validates it against the registered input schema, and invokes the corresponding factory-generated handler function.
+3.  **Handler Execution (via `createMcpToolHandler`):** The runtime handler is now executed.
+    - It creates a `RequestContext`.
+    - It wraps the logic call in `measureToolExecution` to create a dedicated child span.
+    - The `try...catch` block begins. It invokes the tool's core logic function.
+4.  **Logic Execution (from `tool-name.tool.ts`):** The core logic function runs within its own OTel span.
     - It performs its pure business logic.
-    - On success, it returns a structured response object. The span's status is set to `OK`.
+    - On success, it returns a structured response. The span's status is set to `OK`.
     - On failure, it **throws** a structured `McpError`.
-
-5.  **Response Handling (Back in `registration.ts`):**
-    - **Success Path:** The `try` block completes. The result from the logic function is formatted into a final `CallToolResult` object and returned to the server core.
-    - **Error Path:** The `catch` block is triggered. `ErrorHandler.handleError` is called. It records the exception on the active span, sets the span's status to `ERROR`, logs the error, and formats a standardized error response, which is then returned to the server core.
-
-6.  **Final Transmission:** The server core sends the formatted success or error response back to the client via the transport layer. The initial request span is ended.
+5.  **Response Handling (within `createMcpToolHandler`):**
+    - **Success Path:** The `try` block completes. The result is formatted into a final `CallToolResult` (using a custom formatter if provided, or a default JSON stringifier) and returned.
+    - **Error Path:** The `catch` block is triggered. `ErrorHandler.handleError` is called. It records the exception, logs the error, and formats a standardized error response.
+6.  **Final Transmission:** The server core sends the formatted response back to the client.
 
 ## II. Tool Development Workflow
 
-This section mandates the workflow for creating and modifying all tools. Deviation is not permitted.
+This section mandates the workflow for creating and modifying all tools. Deviation is not permitted. The new architecture uses a declarative, single-file pattern for tool definitions.
 
 ### A. File and Directory Structure
 
-Each tool shall reside in a dedicated directory within src/mcp-server/tools/. The structure is fixed as follows:
+Each tool is defined in a single, self-contained file within `src/mcp-server/tools/definitions/`. The supporting utilities are in `src/mcp-server/tools/utils/`.
 
-- **`toolName/`**
-  - **`index.ts`**: A barrel file that performs a single function: exporting the register... function from registration.ts. No other logic shall exist in this file.
-  - **`logic.ts`**: Contains the tool's core business logic. It must define and export the tool's Zod input schema, all inferred TypeScript types (input and output), and the primary logic function.
-  - **`registration.ts`**: Registers the tool with the MCP server. It imports from logic.ts and strictly implements the "Handler" role as defined in the core principles.
+- **`src/mcp-server/tools/`**
+  - **`definitions/`**
+    - **`my-tool.tool.ts`**: The complete definition for a new tool.
+  - **`utils/`**
+    - **`toolDefinition.ts`**: Defines the `ToolDefinition<TInput, TOutput>` interface.
+    - **`toolHandlerFactory.ts`**: The factory that creates runtime handlers from a `ToolDefinition`.
 
-### B. The Canonical Pattern: echoTool
+### B. The Canonical Pattern: `echo.tool.ts`
 
-The echoTool is the authoritative implementation and shall be used as the template for all new tool development.
-
-**Step 1: Define Schema and Logic (logic.ts)**
-The `logic.ts` file defines the tool's contract (schemas) and its core function. It remains pure and throws errors when its contract cannot be fulfilled. The JSDoc header includes a `@see` link for easy navigation to the corresponding handler file.
+The `echo.tool.ts` file is the authoritative implementation and shall be used as the template for all new tool development. It defines the tool's entire contract—schemas, logic, and metadata—in one place.
 
 ```typescript
 /**
- * @fileoverview Defines the core logic, schemas, and types for the `echo_message` tool.
- * This module is the single source of truth for the tool's data contracts (Zod schemas)
- * and its pure business logic.
- * @module src/mcp-server/tools/echoTool/logic
- * @see {@link src/mcp-server/tools/echoTool/registration.ts} for the handler and registration logic.
+ * @fileoverview The complete definition for the 'echo_message' tool.
+ * This file encapsulates the tool's schema, logic, and metadata,
+ * making it a self-contained and modular component.
+ * @module src/mcp-server/tools/definitions/echo.tool
  */
 
 import { z } from "zod";
 import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
-import { logger, type RequestContext } from "../../../utils/index.js";
+import { logger, RequestContext } from "../../../utils/index.js";
+import { ToolDefinition } from "../utils/toolDefinition.js";
 
-// Defines the valid formatting modes for the echo tool operation.
-export const ECHO_MODES = ["standard", "uppercase", "lowercase"] as const;
+// Schemas and Logic
+const ECHO_MODES = ["standard", "uppercase", "lowercase"] as const;
+const TEST_ERROR_TRIGGER_MESSAGE = "fail";
 
-// Zod schema defining the input parameters for the `echo_message` tool.
-// CRITICAL: The descriptions are sent to the LLM and must be clear.
-export const EchoToolInputSchema = z.object({
+const InputSchema = z.object({
   message: z
     .string()
-    .min(1, "Message cannot be empty.")
-    .max(1000, "Message cannot exceed 1000 characters.")
+    .min(1)
+    .max(1000)
     .describe(
-      "The message to echo back. To trigger a test error, provide the exact message 'fail'.",
+      `The message to echo back. To trigger a test error, provide the exact message '${TEST_ERROR_TRIGGER_MESSAGE}'.`
     ),
   mode: z
     .enum(ECHO_MODES)
     .optional()
     .default("standard")
     .describe(
-      "Specifies how the message should be formatted. Defaults to 'standard'.",
+      "Specifies how the message should be formatted. Defaults to 'standard'."
     ),
   repeat: z
     .number()
@@ -159,12 +144,11 @@ export const EchoToolInputSchema = z.object({
     .optional()
     .default(true)
     .describe(
-      "Whether to include an ISO 8601 timestamp in the response. Defaults to true.",
+      "Whether to include an ISO 8601 timestamp in the response. Defaults to true."
     ),
 });
 
-// Zod schema for the successful response of the `echo_message` tool.
-export const EchoToolResponseSchema = z.object({
+const OutputSchema = z.object({
   originalMessage: z
     .string()
     .describe("The original message provided in the input."),
@@ -185,347 +169,95 @@ export const EchoToolResponseSchema = z.object({
     .datetime()
     .optional()
     .describe(
-      "Optional ISO 8601 timestamp of when the response was generated.",
+      "Optional ISO 8601 timestamp of when the response was generated."
     ),
 });
 
-// Inferred TypeScript types
-export type EchoToolInput = z.infer<typeof EchoToolInputSchema>;
-export type EchoToolResponse = z.infer<typeof EchoToolResponseSchema>;
+type EchoToolInput = z.infer<typeof InputSchema>;
+type EchoToolResponse = z.infer<typeof OutputSchema>;
 
-/**
- * Processes the core logic for the `echo_message` tool.
- * This function is pure; it processes inputs and returns a result or throws an error.
- *
- * @param params - The validated input parameters.
- * @param context - The request context for logging and tracing.
- * @returns A promise resolving with the structured response data.
- * @throws {McpError} If the logic encounters an unrecoverable issue.
- */
-export async function echoToolLogic(
-  params: EchoToolInput,
-  context: RequestContext,
+async function echoToolLogic(
+  input: EchoToolInput,
+  context: RequestContext
 ): Promise<EchoToolResponse> {
   logger.debug("Processing echo message logic.", {
     ...context,
-    toolInput: params,
+    toolInput: input,
   });
-
-  // The logic layer MUST throw a structured error on failure.
-  if (params.message === "fail") {
+  if (input.message === TEST_ERROR_TRIGGER_MESSAGE) {
     throw new McpError(
       JsonRpcErrorCode.ValidationError,
-      "Deliberate failure triggered: the message was 'fail'.",
-      { toolName: "echo_message" },
+      `Deliberate failure triggered.`
     );
   }
-
-  let formattedMessage = params.message;
-  switch (params.mode) {
-    case "uppercase":
-      formattedMessage = params.message.toUpperCase();
-      break;
-    case "lowercase":
-      formattedMessage = params.message.toLowerCase();
-      break;
-  }
-
-  const repeatedMessage = Array(params.repeat).fill(formattedMessage).join(" ");
-
+  let formattedMessage = input.message;
+  if (input.mode === "uppercase")
+    formattedMessage = input.message.toUpperCase();
+  if (input.mode === "lowercase")
+    formattedMessage = input.message.toLowerCase();
+  const repeatedMessage = Array(input.repeat).fill(formattedMessage).join(" ");
   const response: EchoToolResponse = {
-    originalMessage: params.message,
+    originalMessage: input.message,
     formattedMessage,
     repeatedMessage,
-    mode: params.mode,
-    repeatCount: params.repeat,
+    mode: input.mode,
+    repeatCount: input.repeat,
   };
-
-  if (params.includeTimestamp) {
+  if (input.includeTimestamp) {
     response.timestamp = new Date().toISOString();
   }
-
-  logger.debug("Echo message processed successfully.", {
-    ...context,
-    responseSummary: {
-      messageLength: response.repeatedMessage.length,
-      timestampGenerated: !!response.timestamp,
-    },
-  });
-
   return response;
 }
-```
 
-````
-
-**Step 2: Register the Tool and Handle All Outcomes (registration.ts)**
-The `registration.ts` file acts as the handler. It connects the logic to the MCP server, wraps the registration in a top-level error handler, and wraps each tool invocation in another error handler. This ensures maximum stability.
-
-```typescript
-/**
- * @fileoverview Handles registration and error handling for the `echo_message` tool.
- * This module acts as the "handler" layer, connecting the pure business logic to the
- * MCP server and ensuring all outcomes (success or failure) are handled gracefully.
- * @module src/mcp-server/tools/echoTool/registration
- * @see {@link src/mcp-server/tools/echoTool/logic.ts} for the core business logic and schemas.
- */
-
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
-import {
-  ErrorHandler,
-  logger,
-  requestContextService
-} from "../../../utils/index.js";
-import {
-  EchoToolInput,
-  EchoToolInputSchema,
-  echoToolLogic,
-  EchoToolResponseSchema,
-} from "./logic.js";
-
-// The unique name for the tool, used for registration and identification.
-const TOOL_NAME = "echo_message";
-
-// A concise description for the LLM. More detailed guidance should be in the
-// parameter descriptions within the Zod schema in `logic.ts`.
-const TOOL_DESCRIPTION = `Echoes a message back with optional formatting and repetition.`;
-
-/**
- * Registers the 'echo_message' tool and its handler with the provided MCP server instance.
- * This function uses ErrorHandler.tryCatch to ensure that any failure during the
- * registration process itself is caught and logged, preventing server startup failures.
- *
- * @param server - The MCP server instance to register the tool with.
- */
-export const registerEchoTool = async (server: McpServer): Promise<void> => {
-  const registrationContext = requestContextService.createRequestContext({
-    operation: "RegisterTool",
-    additionalContext: { toolName: TOOL_NAME },
-  });
-
-  logger.info(`Registering tool: '${TOOL_NAME}'`, registrationContext);
-
-  await ErrorHandler.tryCatch(
-    async () => {
-      server.registerTool(
-        TOOL_NAME,
-        {
-          title: "Echo Message",
-          description: TOOL_DESCRIPTION,
-          inputSchema: EchoToolInputSchema.shape,
-          outputSchema: EchoToolResponseSchema.shape,
-          annotations: {
-            readOnlyHint: true, // This tool does not modify state.
-            openWorldHint: false, // This tool does not interact with external, unpredictable systems.
-          },
-        },
-        // This is the runtime handler for the tool.
-        async (params: EchoToolInput, callContext: Record<string, unknown>) => {
-          const handlerContext = requestContextService.createRequestContext({
-            parentContext: callContext,
-            operation: "HandleToolRequest",
-            additionalContext: {
-              toolName: TOOL_NAME,
-              input: params,
-            }
-          });
-
-          try {
-            // 1. INVOKE the core logic within the try block.
-            const result = await echoToolLogic(params, handlerContext);
-
-            // 2. FORMAT the SUCCESS response.
-            return {
-              structuredContent: result,
-              content: [
-                { type: "text", text: `Success: ${JSON.stringify(result, null, 2)}` },
-              ],
-            };
-          } catch (error) {
-            // 3. CATCH and PROCESS any error from the logic layer.
-            const mcpError = ErrorHandler.handleError(error, {
-              operation: `tool:${TOOL_NAME}`,
-              context: handlerContext,
-              input: params,
-            }) as McpError;
-
-            // 4. FORMAT the ERROR response.
-            return {
-              isError: true,
-              content: [{ type: "text", text: `Error: ${mcpError.message}` }],
-              structuredContent: {
-                code: mcpError.code,
-                message: mcpError.message,
-                data: mcpError.data,
-              },
-            };
-          }
-        },
-      );
-
-      logger.info(
-        `Tool '${TOOL_NAME}' registered successfully.`,
-        registrationContext,
-      );
+// The Tool Definition
+export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
+  {
+    name: "echo_message",
+    description:
+      "Echoes a message back with optional formatting and repetition.",
+    inputSchema: InputSchema,
+    outputSchema: OutputSchema,
+    annotations: {
+      readOnlyHint: true,
+      openWorldHint: false,
+      title: "Echo Message",
     },
-    {
-      operation: `RegisteringTool_${TOOL_NAME}`,
-      context: registrationContext,
-      errorCode: JsonRpcErrorCode.InitializationFailed,
-      critical: true, // A failure to register a tool is a critical startup error.
-    },
-  );
-};
+    logic: echoToolLogic,
+  };
 ```
 
 ## III. Resource Development Workflow
 
-The workflow for creating Resources mirrors that of Tools, with a focus on data retrieval.
+The workflow for creating Resources remains unchanged, with a focus on data retrieval using a `registration.ts` and `logic.ts` file structure.
 
-**File Structure:** The structure is identical to that of tools, but located under src/mcp-server/resources/.
+**File Structure:** The structure is located under `src/mcp-server/resources/`.
 
-**Registration:** Registration shall use server.resource(registrationName, template, metadata, handler). The handler receives URI parameters and must return an object conforming to the { contents: [{ uri, blob, mimeType }] } structure.
+**Registration:** Registration shall use `server.resource(registrationName, template, metadata, handler)`. The handler receives URI parameters and must return an object conforming to the `{ contents: [{ uri, blob, mimeType }] }` structure.
 
 ## IV. External Service Integration
 
-Interaction with any external service (e.g., database, third-party API) shall be encapsulated within a singleton provider class.
+Interaction with any external service shall be encapsulated within a singleton provider class.
 
-**Encapsulation:** Each service provider (e.g., `src/services/llm-providers/openRouterProvider.ts`) is responsible for its own client, configuration, and API-specific logic. For data persistence, this pattern is implemented via the `StorageService` and its underlying providers (e.g., `src/storage/providers/supabase/supabaseProvider.ts`).
-
-**Singleton Pattern:** The singleton pattern shall be employed to manage a single, shared instance of a service across the application. This is used for the `StorageService` and for external API clients like the `OpenRouterProvider`.
-
-**Usage:** The singleton instance (e.g., `storageService`) shall be imported directly into the `logic.ts` file where it is required.
+**Usage:** The singleton instance shall be imported directly into the tool's definition file (e.g., `my-tool.tool.ts`) and used within the `logic` function.
 
 ## V. Code Quality and Documentation Mandates
 
-**JSDoc:** Every file shall begin with a @fileoverview and @module block. All exported functions, types, and classes shall have complete JSDoc comments.
+**JSDoc:** Every file shall begin with a `@fileoverview` and `@module` block. All exported functions, types, and classes shall have complete JSDoc comments.
 
-**LLM-Facing Descriptions:** The tool's title, description, and all parameter descriptions defined in Zod schemas (.describe()) are transmitted directly to the LLM to inform its tool-use decisions. These descriptions must be written with the LLM as the primary audience. They must be descriptive, concise, and explicitly state any requirements, constraints, or expected formats outside of the Zod shape itself. This is a primary interface for prompting the model and is critical for correct tool invocation.
+**LLM-Facing Descriptions:** The tool's `description`, and all parameter descriptions in Zod schemas (`.describe()`), are transmitted directly to the LLM. They must be descriptive, concise, and explicit.
 
-**Clarity and Intent:** Code shall be self-documenting. Variable and function names must be explicit and unambiguous. Brevity is secondary to clarity.
+**Clarity and Intent:** Code shall be self-documenting. Variable and function names must be explicit and unambiguous.
 
-**Immutability:** Functional approaches and immutable data structures are the required standard to prevent side effects. State mutation must be justified and localized.
+**Immutability:** Functional approaches and immutable data structures are the required standard.
 
-**Formatting:** All code must be formatted using Prettier (npm run format) prior to being committed. This will be enforced by CI.
+**Formatting:** All code must be formatted using Prettier (`npm run format`) prior to being committed.
 
 ## VI. Security Mandates
 
-**Input Sanitization:** All input from any external source (tool arguments, API responses) shall be treated as untrusted and validated with Zod. Use sanitization utilities for explicit sanitization where Zod parsing is insufficient.
-
-**Secrets Management:** Hardcoding secrets is a direct violation of this standard. All secrets (API keys, credentials) shall be loaded exclusively from environment variables via the config module.
-
-**Authentication & Authorization:**
-The server's authentication mode is configured via the MCP_AUTH_MODE environment variable.
-Tools requiring specific permissions shall be protected by checking scopes. The withRequiredScopes(["scope:read"]) utility must be used inside the tool handler for this purpose.
-
-**Rate Limiting:** To prevent abuse, handlers for public-facing or resource-intensive tools shall be protected by the centralized rateLimiter.
+**Input Sanitization:** All input from any external source is validated with Zod by the MCP Server core before the handler is called.
+**Secrets Management:** All secrets shall be loaded exclusively from environment variables via the config module.
+**Authentication & Authorization:** The server's authentication mode is configured via the `MCP_AUTH_MODE` environment variable.
 
 ## VII. Testing Mandates
 
-A `tests/` directory exists at the project root and mirrors the `src/` directory structure. All tests shall be written using Vitest.
-
-**INTEGRATION TESTING FIRST PRINCIPLE:**
-Tests shall prioritize **integration testing over mocked unit testing**. The goal is to test real interactions between components, actual MCP protocol flows, and complete system behavior. Heavy mocking that isolates components from their real dependencies is explicitly discouraged as it can miss critical integration issues.
-
-**A. Integration Testing for Core Logic**
-
-- **Focus:** Tests must validate the complete flow from input to output, including real dependencies and service interactions where feasible.
-- **Methodology:**
-  1.  **Real Dependencies:** Use actual service instances and real data flows instead of mocks wherever possible. For external services that cannot be controlled, use test doubles that simulate realistic behavior.
-  2.  **End-to-End Validation:** Test the complete execution path from tool invocation through to final response, including error scenarios.
-  3.  **Schema Compliance:** Use `@anatine/zod-mock` to generate test data, but validate that the complete system properly handles and transforms this data.
-  4.  **Error Flow Testing:** Test actual error conditions by triggering real failure states, not by mocking errors.
-
-**B. MCP Transport Integration Testing**
-
-- **HTTP Transport:** Test actual `StreamableHTTPServerTransport` instances with real MCP protocol flows, including:
-  1.  **Session Lifecycle:** Complete initialize → tool call → cleanup flows
-  2.  **Streaming Responses:** Server-Sent Events (SSE) functionality
-  3.  **JSON-RPC 2.0 Compliance:** Actual protocol message validation
-  4.  **Session Management:** Real session persistence and cleanup
-  5.  **Error Scenarios:** Invalid sessions, malformed requests, concurrent sessions
-- **Stdio Transport:** Test actual stdio transport functionality with real process communication
-- **Protocol Compliance:** Validate MCP specification adherence through real message flows
-
-**C. Tool Registration Integration Testing**
-
-- **Real Registration:** Test tools through the actual registration process with a real `McpServer` instance
-- **Tool Execution:** Validate tool execution through the complete registration → invocation → response cycle
-- **Handler Integration:** Test the "Logic Throws, Handler Catches" pattern through actual error scenarios, not mocked exceptions
-
-**D. Service Integration Testing**
-
-- **External APIs:** Use test endpoints or controlled test environments when possible
-- **Singleton Services:** Test actual singleton behavior and state management
-
-**E. Controlled Mocking Guidelines**
-
-When mocking is necessary, it must be **surgical and justified**:
-
-- **External Services Only:** Mock only truly external, uncontrollable dependencies (third-party APIs without test environments)
-- **Behavior Simulation:** Mocks must accurately simulate real service behavior, including realistic response times and error conditions
-- **Test Data Integrity:** Mocked responses must use actual data structures and realistic content
-- **Documentation Required:** All mocks must be documented with justification for why integration testing wasn't feasible
-
-**F. Test Architecture Patterns**
-
-**Preferred Pattern - Integration:**
-
-```typescript
-describe("Echo Tool Integration", () => {
-  let server: McpServer;
-  let transport: StreamableHTTPServerTransport;
-
-  beforeEach(async () => {
-    server = new McpServer({ name: "test-server", version: "1.0.0" });
-    transport = new StreamableHTTPServerTransport({
-      /* real config */
-    });
-    await server.connect(transport);
-    // Register actual tools
-  });
-
-  it("should execute complete tool flow", async () => {
-    // Test real MCP protocol message flow
-    const response = await transport.handleRequest(/* real request */);
-    // Validate actual response
-  });
-});
-```
-
-**Discouraged Pattern - Heavy Mocking:**
-
-```typescript
-// AVOID: This doesn't test real integration
-vi.mock("../logic.js", () => ({ echoToolLogic: vi.fn() }));
-```
-
-**G. Test File Organization**
-
-- **Integration Tests:** Primary test files (e.g., `tests/mcp-server/tools/toolName/integration.test.ts`)
-- **Logic Tests:** Focused tests for complex business logic (e.g., `tests/mcp-server/tools/toolName/logic.test.ts`)
-- **Registration Tests:** End-to-end registration and execution tests (e.g., `tests/mcp-server/tools/toolName/registration.test.ts`)
-
-**H. Test Environment Setup**
-
-- **Isolated Networking:** Use controlled test endpoints or local test servers
-- **Clean State:** Ensure test isolation through proper setup/teardown without relying on mocks
-
-**I. Running Tests**
-
-- Use the following npm scripts to run tests:
-  - `npm test`: Run all tests once.
-  - `npm test:watch`: Run tests in watch mode for development.
-  - `npm test:coverage`: Run all tests and generate a coverage report.
-
-**J. Critical Testing Requirements**
-
-1.  **Read Before Testing:** Always read the file before creating or modifying tests. Never edit without understanding current implementation.
-2.  **Real Error Conditions:** Test actual error scenarios by creating real failure conditions, not by mocking errors.
-3.  **Protocol Compliance:** All MCP transport tests must validate actual MCP protocol compliance.
-4.  **Performance Validation:** Integration tests should validate that real system performance meets requirements.
-5.  **Security Testing:** Test actual authentication, authorization, and input validation flows.
-
-This integration-first approach ensures that tests catch real-world issues that pure unit tests with heavy mocking would miss, providing confidence that the system works correctly in production scenarios.
-````
+A `tests/` directory exists at the project root and mirrors the `src/` directory structure. All tests shall be written using Vitest. The **INTEGRATION TESTING FIRST PRINCIPLE** remains in effect. Tests must validate the complete flow from input to output, including real dependencies where feasible.
