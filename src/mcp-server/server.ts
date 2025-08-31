@@ -15,8 +15,10 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ServerType } from "@hono/node-server";
 import http from "http";
 import { ZodObject, ZodRawShape } from "zod";
+import { TransportManager } from "./transports/core/transportTypes.js";
 import { config } from "../config/index.js";
 import { JsonRpcErrorCode } from "../types-global/errors.js";
 import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
@@ -37,6 +39,16 @@ import { startStdioTransport } from "./transports/stdio/index.js";
  * @param server The McpServer instance.
  * @param tool The ToolDefinition object to register.
  */
+/**
+ * Derives a human-readable title from a tool's programmatic name.
+ * e.g., 'get_random_cat_fact' becomes 'Get Random Cat Fact'.
+ * @param name The tool name.
+ * @returns A formatted title string.
+ */
+function deriveTitleFromName(name: string): string {
+  return name.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 async function registerTool<
   TInputSchema extends ZodObject<ZodRawShape>,
   TOutputSchema extends ZodObject<ZodRawShape>,
@@ -61,10 +73,7 @@ async function registerTool<
         }),
       });
 
-      const title =
-        tool.title ??
-        tool.annotations?.title ??
-        tool.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+      const title = tool.title ?? deriveTitleFromName(tool.name);
 
       server.registerTool(
         tool.name,
@@ -155,7 +164,10 @@ export async function createMcpServerInstance(): Promise<McpServer> {
  * @throws {Error} If transport type is unsupported or setup fails.
  * @private
  */
-async function startTransport(): Promise<McpServer | http.Server> {
+async function startTransport(): Promise<
+  | { server: ServerType; transportManager: TransportManager }
+  | { server: McpServer; transportManager: undefined }
+> {
   const transportType = config.mcpTransportType;
   const context = requestContextService.createRequestContext({
     operation: "startTransport",
@@ -164,17 +176,17 @@ async function startTransport(): Promise<McpServer | http.Server> {
   logger.info(`Starting transport: ${transportType}`, context);
 
   if (transportType === "http") {
-    const { server } = await startHttpTransport(
+    const { server, transportManager } = await startHttpTransport(
       createMcpServerInstance,
       context,
     );
-    return server as http.Server;
+    return { server, transportManager };
   }
 
   if (transportType === "stdio") {
     const server = await createMcpServerInstance();
     await startStdioTransport(server, context);
-    return server;
+    return { server, transportManager: undefined };
   }
 
   logger.crit(
@@ -190,7 +202,8 @@ async function startTransport(): Promise<McpServer | http.Server> {
  * Main application entry point. Initializes and starts the MCP server.
  */
 export async function initializeAndStartServer(): Promise<
-  McpServer | http.Server
+  | { server: ServerType; transportManager: TransportManager }
+  | { server: McpServer; transportManager: undefined }
 > {
   const context = requestContextService.createRequestContext({
     operation: "initializeAndStartServer",
@@ -202,7 +215,20 @@ export async function initializeAndStartServer(): Promise<
       "MCP Server initialization sequence completed successfully.",
       context,
     );
-    return result;
+    if (
+      "transportManager" in result &&
+      result.transportManager &&
+      result.server instanceof http.Server
+    ) {
+      return {
+        server: result.server as ServerType,
+        transportManager: result.transportManager,
+      };
+    }
+    return {
+      server: result.server as McpServer,
+      transportManager: undefined,
+    };
   } catch (err) {
     logger.crit("Critical error during MCP server initialization.", {
       ...context,

@@ -14,6 +14,7 @@ import { shutdownOpenTelemetry } from "./utils/telemetry/instrumentation.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import http from "http";
 import { config } from "./config/index.js";
+import { TransportManager } from "./mcp-server/transports/core/transportTypes.js";
 import { initializeAndStartServer } from "./mcp-server/server.js";
 import { createStorageProvider, storageService } from "./storage/index.js";
 import { requestContextService } from "./utils/index.js";
@@ -21,6 +22,7 @@ import { logger, McpLogLevel } from "./utils/internal/logger.js";
 
 let mcpStdioServer: McpServer | undefined;
 let actualHttpServer: http.Server | undefined;
+let transportManager: TransportManager | undefined; // <-- Add this line
 
 const shutdown = async (signal: string): Promise<void> => {
   const shutdownContext = requestContextService.createRequestContext({
@@ -36,6 +38,13 @@ const shutdown = async (signal: string): Promise<void> => {
   try {
     // Shutdown OpenTelemetry first to ensure buffered telemetry is sent
     await shutdownOpenTelemetry();
+
+    // Shut down the transport manager to clean up sessions
+    if (transportManager) {
+      logger.info("Shutting down transport manager...", shutdownContext);
+      await transportManager.shutdown();
+      logger.info("Transport manager shut down successfully.", shutdownContext);
+    }
 
     let closePromise: Promise<void> = Promise.resolve();
     const transportType = config.mcpTransportType;
@@ -137,15 +146,23 @@ const start = async (): Promise<void> => {
   );
 
   try {
-    const serverInstance = await initializeAndStartServer();
+    const serverInstanceOrHttpBundle = await initializeAndStartServer();
 
-    if (transportType === "stdio" && serverInstance instanceof McpServer) {
-      mcpStdioServer = serverInstance;
-    } else if (
+    if (
       transportType === "http" &&
-      serverInstance instanceof http.Server
+      "server" in serverInstanceOrHttpBundle &&
+      "transportManager" in serverInstanceOrHttpBundle
     ) {
-      actualHttpServer = serverInstance;
+      actualHttpServer = serverInstanceOrHttpBundle.server as http.Server;
+      transportManager =
+        serverInstanceOrHttpBundle.transportManager as TransportManager;
+    } else if (transportType === "stdio") {
+      const bundle = serverInstanceOrHttpBundle as {
+        server: McpServer;
+        transportManager: undefined;
+      };
+      mcpStdioServer = bundle.server;
+      // Note: Stdio transport is stateless and its manager doesn't need explicit shutdown here.
     }
 
     logger.info(
@@ -153,15 +170,15 @@ const start = async (): Promise<void> => {
       startupContext,
     );
 
-    process.on("SIGTERM", () => shutdown("SIGTERM"));
-    process.on("SIGINT", () => shutdown("SIGINT"));
+    process.on("SIGTERM", () => void shutdown("SIGTERM"));
+    process.on("SIGINT", () => void shutdown("SIGINT"));
     process.on("uncaughtException", (error: Error) => {
       logger.fatal(
         "FATAL: Uncaught exception detected.",
         error,
         startupContext,
       );
-      shutdown("uncaughtException");
+      void shutdown("uncaughtException");
     });
     process.on("unhandledRejection", (reason: unknown) => {
       logger.fatal(
@@ -169,7 +186,7 @@ const start = async (): Promise<void> => {
         reason as Error,
         startupContext,
       );
-      shutdown("unhandledRejection");
+      void shutdown("unhandledRejection");
     });
   } catch (error) {
     logger.fatal(
@@ -182,7 +199,7 @@ const start = async (): Promise<void> => {
   }
 };
 
-(async () => {
+void (async () => {
   try {
     await start();
   } catch (error) {
