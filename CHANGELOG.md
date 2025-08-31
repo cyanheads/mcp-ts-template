@@ -14,11 +14,13 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **Documentation**: Overhauled `README.md` and `.clinerules/clinerules.md` to reflect the new declarative architecture, providing updated explanations, a modern aesthetic, and clearer guidance for developers.
+- **Documentation**: Overhauled `README.md` to feature a more modern, scannable design and updated content. Moved the developer mandate to a new `AGENTS.md` file to better align with agent-based development workflows.
+- **Code Quality**: Applied formatting and minor code quality improvements across several tool definitions and utilities.
 
 ### Removed
 
 - **Legacy Tool Structure**: Deleted all legacy tool files, including the `logic.ts`, `registration.ts`, and `index.ts` files for `echoTool`, `catFactFetcher`, and `imageTest`.
+- **Legacy `.clinerules`**: Deleted the now-redundant `.clinerules/clinerules.md` in favor of the new `AGENTS.md`.
 
 ## [1.9.5] - 2025-08-31
 
