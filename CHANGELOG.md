@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.4] - 2025-08-31
+
+### Changed
+
+- **Server Core**: Refactored the server instantiation logic by removing the `ManagedMcpServer` wrapper. The server now uses the `McpServer` class directly from the SDK, simplifying the architecture. This change enhances maintainability and reduces complexity - the cost/benefit of the wrapper was not justifiable.
+- **Documentation**: Streamlined the documentation by removing outdated and redundant markdown files from the `docs/` and `src/` directories. The `docs/tree.md` has been updated to reflect these changes.
+
+### Removed
+
+- **`ManagedMcpServer`**: Deleted the `src/mcp-server/core/managedMcpServer.ts` file as part of the server core refactoring.
+- **Documentation Files**: Removed `docs/api-references/duckDB.md`, `docs/api-references/jsdoc-standard-tags.md`, `docs/api-references/typedoc-reference.md`, `docs/best-practices.md`, and `src/README.md`.
+
 ## [1.9.3] - 2025-08-30
 
 ### BREAKING CHANGE

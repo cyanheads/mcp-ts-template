@@ -517,3 +517,4 @@ vi.mock("../logic.js", () => ({ echoToolLogic: vi.fn() }));
 5.  **Security Testing:** Test actual authentication, authorization, and input validation flows.
 
 This integration-first approach ensures that tests catch real-world issues that pure unit tests with heavy mocking would miss, providing confidence that the system works correctly in production scenarios.
+````
