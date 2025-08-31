@@ -52,11 +52,13 @@ async function registerTool<
   logger.debug(`Registering tool: '${tool.name}'`, registrationContext);
 
   await ErrorHandler.tryCatch(
-    async () => {
+    () => {
       const handler = createMcpToolHandler({
         toolName: tool.name,
         logic: tool.logic,
-        responseFormatter: tool.responseFormatter,
+        ...(tool.responseFormatter && {
+          responseFormatter: tool.responseFormatter,
+        }),
       });
 
       const title =
@@ -71,7 +73,7 @@ async function registerTool<
           description: tool.description,
           inputSchema: tool.inputSchema.shape,
           outputSchema: tool.outputSchema.shape,
-          annotations: tool.annotations,
+          ...(tool.annotations && { annotations: tool.annotations }),
         },
         handler,
       );
@@ -176,11 +178,11 @@ async function startTransport(): Promise<McpServer | http.Server> {
   }
 
   logger.crit(
-    `Unsupported transport type configured: ${transportType}`,
+    `Unsupported transport type configured: ${transportType as string}`,
     context,
   );
   throw new Error(
-    `Unsupported transport type: ${transportType}. Must be 'stdio' or 'http'.`,
+    `Unsupported transport type: ${transportType as string}. Must be 'stdio' or 'http'.`,
   );
 }
 

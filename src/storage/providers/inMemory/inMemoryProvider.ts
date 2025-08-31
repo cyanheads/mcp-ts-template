@@ -19,12 +19,12 @@ interface InMemoryStoreEntry {
 export class InMemoryProvider implements IStorageProvider {
   private readonly store = new Map<string, InMemoryStoreEntry>();
 
-  async get<T>(key: string, context: RequestContext): Promise<T | null> {
+  get<T>(key: string, context: RequestContext): Promise<T | null> {
     logger.debug(`[InMemoryProvider] Getting key: ${key}`, context);
     const entry = this.store.get(key);
 
     if (!entry) {
-      return null;
+      return Promise.resolve(null);
     }
 
     if (entry.expiresAt && Date.now() > entry.expiresAt) {
@@ -33,13 +33,13 @@ export class InMemoryProvider implements IStorageProvider {
         `[InMemoryProvider] Key expired and removed: ${key}`,
         context,
       );
-      return null;
+      return Promise.resolve(null);
     }
 
-    return entry.value as T;
+    return Promise.resolve(entry.value as T);
   }
 
-  async set(
+  set(
     key: string,
     value: unknown,
     context: RequestContext,
@@ -49,15 +49,19 @@ export class InMemoryProvider implements IStorageProvider {
     const expiresAt = options?.ttl
       ? Date.now() + options.ttl * 1000
       : undefined;
-    this.store.set(key, { value, expiresAt });
+    this.store.set(key, {
+      value,
+      ...(expiresAt && { expiresAt }),
+    });
+    return Promise.resolve();
   }
 
-  async delete(key: string, context: RequestContext): Promise<boolean> {
+  delete(key: string, context: RequestContext): Promise<boolean> {
     logger.debug(`[InMemoryProvider] Deleting key: ${key}`, context);
-    return this.store.delete(key);
+    return Promise.resolve(this.store.delete(key));
   }
 
-  async list(prefix: string, context: RequestContext): Promise<string[]> {
+  list(prefix: string, context: RequestContext): Promise<string[]> {
     logger.debug(
       `[InMemoryProvider] Listing keys with prefix: ${prefix}`,
       context,
@@ -73,6 +77,6 @@ export class InMemoryProvider implements IStorageProvider {
         }
       }
     }
-    return keys;
+    return Promise.resolve(keys);
   }
 }

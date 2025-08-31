@@ -98,7 +98,10 @@ export class FileSystemProvider implements IStorageProvider {
         const expiresAt = options?.ttl
           ? Date.now() + options.ttl * 1000
           : undefined;
-        const entry: FileStoreEntry = { value, expiresAt };
+        const entry: FileStoreEntry = {
+          value,
+          ...(expiresAt && { expiresAt }),
+        };
         await writeFile(filePath, JSON.stringify(entry), "utf-8");
       },
       { operation: "FileSystemProvider.set", context, input: { key } },

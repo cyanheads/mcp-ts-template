@@ -352,10 +352,13 @@ export class Sanitization {
     options: PathSanitizeOptions = {},
   ): SanitizedPathInfo {
     const originalInput = input;
+    const resolvedRootDir = options.rootDir
+      ? path.resolve(options.rootDir)
+      : undefined;
     const effectiveOptions: PathSanitizeOptions = {
       toPosix: options.toPosix ?? false,
       allowAbsolute: options.allowAbsolute ?? false,
-      rootDir: options.rootDir ? path.resolve(options.rootDir) : undefined,
+      ...(resolvedRootDir && { rootDir: resolvedRootDir }),
     };
 
     let wasAbsoluteInitially = false;
@@ -375,17 +378,17 @@ export class Sanitization {
 
       let finalSanitizedPath: string;
 
-      if (effectiveOptions.rootDir) {
-        const fullPath = path.resolve(effectiveOptions.rootDir, normalized);
+      if (resolvedRootDir) {
+        const fullPath = path.resolve(resolvedRootDir, normalized);
         if (
-          !fullPath.startsWith(effectiveOptions.rootDir + path.sep) &&
-          fullPath !== effectiveOptions.rootDir
+          !fullPath.startsWith(resolvedRootDir + path.sep) &&
+          fullPath !== resolvedRootDir
         ) {
           throw new Error(
             "Path traversal detected: attempts to escape the defined root directory.",
           );
         }
-        finalSanitizedPath = path.relative(effectiveOptions.rootDir, fullPath);
+        finalSanitizedPath = path.relative(resolvedRootDir, fullPath);
         finalSanitizedPath =
           finalSanitizedPath === "" ? "." : finalSanitizedPath;
         if (
@@ -581,7 +584,7 @@ export class Sanitization {
     try {
       if (!input || typeof input !== "object") return input;
 
-      const clonedInput =
+      const clonedInput: unknown =
         typeof globalThis.structuredClone === "function"
           ? globalThis.structuredClone(input)
           : JSON.parse(JSON.stringify(input));

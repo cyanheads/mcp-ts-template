@@ -111,7 +111,7 @@ export class JwtStrategy implements AuthStrategy {
         Array.isArray(decoded.scp) &&
         decoded.scp.every((s) => typeof s === "string")
       ) {
-        scopes = decoded.scp as string[];
+        scopes = decoded.scp;
       } else if (typeof decoded.scope === "string" && decoded.scope.trim()) {
         scopes = decoded.scope.split(" ").filter(Boolean);
       }
@@ -132,7 +132,7 @@ export class JwtStrategy implements AuthStrategy {
         token,
         clientId,
         scopes,
-        subject: decoded.sub,
+        ...(decoded.sub && { subject: decoded.sub }),
       };
       logger.info("JWT verification successful.", {
         ...context,

@@ -140,7 +140,9 @@ function createWinstonConsoleFormat(): winston.Logform.Format {
           metaString += `\n  Meta: [Error stringifying metadata: ${errorMessage}]`;
         }
       }
-      return `${timestamp} ${level}: ${message}${metaString}`;
+      return `${String(timestamp)} ${String(
+        level,
+      )}: ${message as string}${metaString}`;
     }),
   );
 }
@@ -182,14 +184,14 @@ export class Logger {
    * Should be called once at application startup.
    * @param level - The initial minimum MCP log level.
    */
-  public async initialize(level: McpLogLevel = "info"): Promise<void> {
+  public initialize(level: McpLogLevel = "info"): Promise<void> {
     if (this.initialized) {
       this.warning("Logger already initialized.", {
         loggerSetup: true,
         requestId: "logger-init",
         timestamp: new Date().toISOString(),
       });
-      return;
+      return Promise.resolve();
     }
 
     this.initialized = true;
@@ -270,12 +272,17 @@ export class Logger {
         logsPathUsed: resolvedLogsDir ?? "none",
       },
     );
+    return Promise.resolve();
   }
 
   public setMcpNotificationSender(
     sender: McpNotificationSender | undefined,
   ): void {
-    this.mcpNotificationSender = sender;
+    if (sender) {
+      this.mcpNotificationSender = sender;
+    } else {
+      delete this.mcpNotificationSender;
+    }
     const status = sender ? "enabled" : "disabled";
     this.info(`MCP notification sending ${status}.`, {
       loggerSetup: true,

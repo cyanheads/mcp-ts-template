@@ -135,9 +135,7 @@ if (config.openTelemetry.enabled) {
 
   try {
     const otelLogLevel =
-      DiagLogLevel[
-        config.openTelemetry.logLevel as keyof typeof DiagLogLevel
-      ] ?? DiagLogLevel.INFO;
+      DiagLogLevel[config.openTelemetry.logLevel] ?? DiagLogLevel.INFO;
     diag.setLogger(new OtelDiagnosticLogger(otelLogLevel), otelLogLevel);
 
     const resource = resourceFromAttributes({
@@ -174,7 +172,7 @@ if (config.openTelemetry.enabled) {
     sdk = new NodeSDK({
       resource,
       spanProcessors: [spanProcessor],
-      metricReader,
+      ...(metricReader && { metricReader }),
       sampler: new TraceIdRatioBasedSampler(config.openTelemetry.samplingRatio),
       instrumentations: [
         getNodeAutoInstrumentations({

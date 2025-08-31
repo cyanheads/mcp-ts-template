@@ -80,12 +80,13 @@ export abstract class BaseTransportManager implements TransportManager {
       mockRes as unknown as HonoStreamResponse,
     ) as ReadableStream<Uint8Array>;
 
+    const sessionId = transport.sessionId;
     return {
       type: "stream",
       headers: responseHeaders,
       statusCode: mockRes.statusCode as HttpStatusCode,
       stream: webStream,
-      sessionId: transport.sessionId,
+      ...(sessionId && { sessionId }),
     };
   }
 }

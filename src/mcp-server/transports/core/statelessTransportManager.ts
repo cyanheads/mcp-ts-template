@@ -20,6 +20,7 @@ import type { IncomingHttpHeaders } from "http";
 import { config } from "../../../config/index.js";
 import {
   ErrorHandler,
+  idGenerator,
   logger,
   RequestContext,
   requestContextService,
@@ -64,8 +65,8 @@ export class StatelessTransportManager extends BaseTransportManager {
       // 1. Create ephemeral instances for this request.
       server = await this.createServerInstanceFn();
       transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: undefined,
-        onsessioninitialized: undefined,
+        sessionIdGenerator: () => idGenerator.generate(),
+        onsessioninitialized: () => {},
       });
 
       await server.connect(transport);
@@ -153,7 +154,7 @@ export class StatelessTransportManager extends BaseTransportManager {
       }
     };
 
-    processStream();
+    void processStream();
   }
 
   /**
@@ -171,7 +172,7 @@ export class StatelessTransportManager extends BaseTransportManager {
     };
     logger.debug("Scheduling cleanup for ephemeral resources.", opContext);
 
-    Promise.all([transport?.close(), server?.close()])
+    void Promise.all([transport?.close(), server?.close()])
       .then(() => {
         logger.debug("Ephemeral resources cleaned up successfully.", opContext);
       })

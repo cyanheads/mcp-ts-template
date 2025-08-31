@@ -72,7 +72,9 @@ export class McpError extends Error {
     super(message, options);
 
     this.code = code;
-    this.data = data;
+    if (data) {
+      this.data = data;
+    }
     this.name = "McpError";
 
     // Maintain a proper prototype chain.

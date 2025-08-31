@@ -44,7 +44,7 @@ export async function countTokens(
     },
     {
       operation: "countTokens",
-      context: context,
+      ...(context && { context }),
       input: { textSample: text.substring(0, 50) + "..." },
       errorCode: JsonRpcErrorCode.InternalError,
     },
@@ -138,7 +138,7 @@ export async function countChatTokens(
     },
     {
       operation: "countChatTokens",
-      context: context,
+      ...(context && { context }),
       input: { messageCount: messages.length },
       errorCode: JsonRpcErrorCode.InternalError,
     },

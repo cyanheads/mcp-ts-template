@@ -133,11 +133,11 @@ export class OpenRouterProvider {
   private readonly client: OpenAI;
   private readonly defaultParams: {
     model: string;
-    temperature?: number;
-    topP?: number;
-    maxTokens?: number;
-    topK?: number;
-    minP?: number;
+    temperature: number | undefined;
+    topP: number | undefined;
+    maxTokens: number | undefined;
+    topK: number | undefined;
+    minP: number | undefined;
   };
 
   constructor(
@@ -177,15 +177,13 @@ export class OpenRouterProvider {
   private _prepareApiParameters(params: OpenRouterChatParams) {
     const effectiveModelId = params.model || this.defaultParams.model;
 
-    const standardParams: Partial<
-      | ChatCompletionCreateParamsStreaming
-      | ChatCompletionCreateParamsNonStreaming
-    > = {
+    const standardParams = {
       model: effectiveModelId,
       messages: params.messages,
       temperature: params.temperature ?? this.defaultParams.temperature,
       top_p: params.top_p ?? this.defaultParams.topP,
-      stream: params.stream,
+      stream: (params.stream ?? false) as true | false | null,
+      max_tokens: params.max_tokens ?? this.defaultParams.maxTokens,
       tools: params.tools,
       tool_choice: params.tool_choice,
       response_format: params.response_format,
@@ -228,12 +226,6 @@ export class OpenRouterProvider {
       this.defaultParams.minP !== undefined
     ) {
       extraBody.min_p = this.defaultParams.minP;
-    }
-
-    const effectiveMaxTokensValue =
-      params.max_tokens ?? this.defaultParams.maxTokens;
-    if (effectiveMaxTokensValue !== undefined) {
-      standardParams.max_tokens = effectiveMaxTokensValue;
     }
 
     return { ...standardParams, ...extraBody };
@@ -298,7 +290,7 @@ export class OpenRouterProvider {
  * @returns A configured instance of OpenRouterProvider.
  * @throws {McpError} if required configuration is missing.
  */
-export function createOpenRouterProvider(): OpenRouterProvider {
+function createOpenRouterProvider(): OpenRouterProvider {
   const opContext = requestContextService.createRequestContext({
     operation: "createOpenRouterProvider",
   });
@@ -328,6 +320,5 @@ export function createOpenRouterProvider(): OpenRouterProvider {
   return new OpenRouterProvider(options, defaultParams);
 }
 
-const openRouterProviderInstance = createOpenRouterProvider();
-
-export { openRouterProviderInstance as openRouterProvider };
+// Create and export the singleton instance
+export const openRouterProvider = createOpenRouterProvider();
