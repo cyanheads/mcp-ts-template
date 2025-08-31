@@ -1,7 +1,7 @@
 # mcp-ts-template: Architectural Standard & Developer Mandate
 
-**Effective Date:** 2025-08-01
-**Version:** 2.3
+**Effective Date:** 2025-08-30
+**Version:** 2.4
 
 ## Preamble
 
@@ -25,7 +25,7 @@ Every operation must be fully traceable from initiation to completion via struct
 
 **RequestContext:** Any significant operation shall be initiated by creating a RequestContext via requestContextService.createRequestContext(). This context, containing a unique requestId, must be passed as an argument through the entire call stack of the operation.
 
-**Logger:** All logging shall be performed through the centralized logger singleton. Every log entry must include the RequestContext to ensure traceability.
+**Logger:** All logging shall be performed through the centralized logger singleton, which includes rate-limiting capabilities. Every log entry must include the RequestContext to ensure traceability.
 
 ### 3. Comprehensive Observability (OpenTelemetry)
 
@@ -112,7 +112,7 @@ The `logic.ts` file defines the tool's contract (schemas) and its core function.
  */
 
 import { z } from "zod";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import { logger, type RequestContext } from "../../../utils/index.js";
 
 // Defines the valid formatting modes for the echo tool operation.
@@ -203,7 +203,7 @@ export async function echoToolLogic(
   // The logic layer MUST throw a structured error on failure.
   if (params.message === "fail") {
     throw new McpError(
-      BaseErrorCode.VALIDATION_ERROR,
+      JsonRpcErrorCode.ValidationError,
       "Deliberate failure triggered: the message was 'fail'.",
       { toolName: "echo_message" },
     );
@@ -260,7 +260,7 @@ The `registration.ts` file acts as the handler. It connects the logic to the MCP
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
   logger,
@@ -290,7 +290,7 @@ const TOOL_DESCRIPTION = `Echoes a message back with optional formatting and rep
 export const registerEchoTool = async (server: McpServer): Promise<void> => {
   const registrationContext = requestContextService.createRequestContext({
     operation: "RegisterTool",
-    toolName: TOOL_NAME,
+    additionalContext: { toolName: TOOL_NAME },
   });
 
   logger.info(`Registering tool: '${TOOL_NAME}'`, registrationContext);
@@ -314,8 +314,10 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
           const handlerContext = requestContextService.createRequestContext({
             parentContext: callContext,
             operation: "HandleToolRequest",
-            toolName: TOOL_NAME,
-            input: params,
+            additionalContext: {
+              toolName: TOOL_NAME,
+              input: params,
+            }
           });
 
           try {
@@ -344,7 +346,7 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
               structuredContent: {
                 code: mcpError.code,
                 message: mcpError.message,
-                details: mcpError.details,
+                data: mcpError.data,
               },
             };
           }
@@ -359,7 +361,7 @@ export const registerEchoTool = async (server: McpServer): Promise<void> => {
     {
       operation: `RegisteringTool_${TOOL_NAME}`,
       context: registrationContext,
-      errorCode: BaseErrorCode.INITIALIZATION_FAILED,
+      errorCode: JsonRpcErrorCode.InitializationFailed,
       critical: true, // A failure to register a tool is a critical startup error.
     },
   );
@@ -443,7 +445,6 @@ Tests shall prioritize **integration testing over mocked unit testing**. The goa
 
 **D. Service Integration Testing**
 
-- **Database Services:** Use test databases or in-memory instances for real query execution
 - **External APIs:** Use test endpoints or controlled test environments when possible
 - **Singleton Services:** Test actual singleton behavior and state management
 
@@ -497,7 +498,6 @@ vi.mock("../logic.js", () => ({ echoToolLogic: vi.fn() }));
 
 **H. Test Environment Setup**
 
-- **Test Databases:** Use dedicated test instances or in-memory databases
 - **Isolated Networking:** Use controlled test endpoints or local test servers
 - **Clean State:** Ensure test isolation through proper setup/teardown without relying on mocks
 
@@ -517,4 +517,3 @@ vi.mock("../logic.js", () => ({ echoToolLogic: vi.fn() }));
 5.  **Security Testing:** Test actual authentication, authorization, and input validation flows.
 
 This integration-first approach ensures that tests catch real-world issues that pure unit tests with heavy mocking would miss, providing confidence that the system works correctly in production scenarios.
-````
