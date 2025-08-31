@@ -96,10 +96,15 @@ export class SupabaseProvider implements IStorageProvider {
   async list(prefix: string, context: RequestContext): Promise<string[]> {
     return ErrorHandler.tryCatch(
       async () => {
+        const now = new Date().toISOString();
+
         const { data, error } = await this.getClient()
           .from(TABLE_NAME)
           .select("key")
-          .like("key", `${prefix}%`);
+          .like("key", `${prefix}%`)
+          // Add a filter to only include non-expired items.
+          // It selects rows where expires_at is NULL OR expires_at is in the future.
+          .or(`expires_at.is.null,expires_at.gt.${now}`);
 
         if (error) throw error;
         return data?.map((item) => item.key) ?? [];
