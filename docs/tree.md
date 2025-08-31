@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-31 06:40:03
+Generated on: 2025-08-31 07:48:24
 
 ```
 mcp-ts-template
@@ -14,11 +14,6 @@ mcp-ts-template
 │   └── settings.json
 ├── coverage
 ├── docs
-│   ├── api-references
-│   │   ├── duckDB.md
-│   │   ├── jsdoc-standard-tags.md
-│   │   └── typedoc-reference.md
-│   ├── best-practices.md
 │   └── tree.md
 ├── scripts
 │   ├── clean.ts
@@ -31,8 +26,6 @@ mcp-ts-template
 │   ├── config
 │   │   └── index.ts
 │   ├── mcp-server
-│   │   ├── core
-│   │   │   └── managedMcpServer.ts
 │   │   ├── resources
 │   │   │   └── echoResource
 │   │   │       ├── index.ts
@@ -118,8 +111,7 @@ mcp-ts-template
 │   │   │   ├── instrumentation.ts
 │   │   │   └── semconv.ts
 │   │   └── index.ts
-│   ├── index.ts
-│   └── README.md
+│   └── index.ts
 ├── tests
 │   ├── mcp-server
 │   │   ├── tools
@@ -169,7 +161,6 @@ mcp-ts-template
 │   │   │   ├── rateLimiter.test.ts
 │   │   │   └── sanitization.test.ts
 │   │   └── telemetry
-│   │       └── instrumentation.test.ts
 │   └── setup.ts
 ├── .dockerignore
 ├── .env.example
