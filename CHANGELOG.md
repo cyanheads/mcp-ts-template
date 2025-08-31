@@ -12,6 +12,10 @@ All notable changes to this project will be documented in this file.
   - **Single-File Tool Definitions**: All tools (`echo`, `cat-fact`, `image-test`) are now defined in a single file within `src/mcp-server/tools/definitions/`. This replaces the previous `logic.ts`, `registration.ts`, and `index.ts` structure for each tool.
   - **Type-Safe Registration**: Implemented a new type-safe `registerTool` helper function in `src/mcp-server/server.ts` that uses the `ToolDefinition` to correctly register the tool and its handler.
 
+### Changed
+
+- **Documentation**: Overhauled `README.md` and `.clinerules/clinerules.md` to reflect the new declarative architecture, providing updated explanations, a modern aesthetic, and clearer guidance for developers.
+
 ### Removed
 
 - **Legacy Tool Structure**: Deleted all legacy tool files, including the `logic.ts`, `registration.ts`, and `index.ts` files for `echoTool`, `catFactFetcher`, and `imageTest`.
