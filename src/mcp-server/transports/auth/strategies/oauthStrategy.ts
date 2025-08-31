@@ -109,8 +109,7 @@ export class OauthStrategy implements AuthStrategy {
         );
       }
 
-      const subject =
-        typeof payload.sub === "string" ? payload.sub : undefined;
+      const subject = typeof payload.sub === "string" ? payload.sub : undefined;
       const authInfo: AuthInfo = {
         token,
         clientId,

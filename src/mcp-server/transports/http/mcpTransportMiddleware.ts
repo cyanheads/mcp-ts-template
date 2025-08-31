@@ -9,7 +9,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { MiddlewareHandler } from "hono";
-import { createMiddleware } from "hono/factory";
 import { IncomingHttpHeaders } from "http";
 import { config } from "../../../config/index.js";
 import { RequestContext, requestContextService } from "../../../utils/index.js";
@@ -72,54 +71,52 @@ export const mcpTransportMiddleware = (
   transportManager: TransportManager,
   createServerInstanceFn: () => Promise<McpServer>,
 ): MiddlewareHandler<McpMiddlewareEnv & { Bindings: HonoNodeBindings }> => {
-  return createMiddleware<McpMiddlewareEnv & { Bindings: HonoNodeBindings }>(
-    async (c, next) => {
-      const sessionId = c.req.header("mcp-session-id");
-      const context = requestContextService.createRequestContext({
-        operation: "mcpTransportMiddleware",
-        sessionId,
-      });
+  return async (c, next) => {
+    const sessionId = c.req.header("mcp-session-id");
+    const context = requestContextService.createRequestContext({
+      operation: "mcpTransportMiddleware",
+      sessionId,
+    });
 
-      const body = await c.req.json();
-      let response: TransportResponse;
+    const body = (await c.req.json()) as unknown;
+    let response: TransportResponse;
 
-      if (isInitializeRequest(body)) {
-        if (config.mcpSessionMode === "stateless") {
-          response = await handleStatelessRequest(
-            createServerInstanceFn,
-            c.req.raw.headers,
-            body,
-            context,
-          );
-        } else {
-          response = await (
-            transportManager as StatefulTransportManager
-          ).initializeAndHandle(
-            toIncomingHttpHeaders(c.req.raw.headers),
-            body,
-            context,
-          );
-        }
+    if (isInitializeRequest(body)) {
+      if (config.mcpSessionMode === "stateless") {
+        response = await handleStatelessRequest(
+          createServerInstanceFn,
+          c.req.raw.headers,
+          body,
+          context,
+        );
       } else {
-        if (sessionId) {
-          response = await transportManager.handleRequest(
-            toIncomingHttpHeaders(c.req.raw.headers),
-            body,
-            context,
-            sessionId,
-          );
-        } else {
-          response = await handleStatelessRequest(
-            createServerInstanceFn,
-            c.req.raw.headers,
-            body,
-            context,
-          );
-        }
+        response = await (
+          transportManager as StatefulTransportManager
+        ).initializeAndHandle(
+          toIncomingHttpHeaders(c.req.raw.headers),
+          body,
+          context,
+        );
       }
+    } else {
+      if (sessionId) {
+        response = await transportManager.handleRequest(
+          toIncomingHttpHeaders(c.req.raw.headers),
+          body,
+          context,
+          sessionId,
+        );
+      } else {
+        response = await handleStatelessRequest(
+          createServerInstanceFn,
+          c.req.raw.headers,
+          body,
+          context,
+        );
+      }
+    }
 
-      c.set("mcpResponse", response);
-      await next();
-    },
-  );
+    c.set("mcpResponse", response);
+    await next();
+  };
 };

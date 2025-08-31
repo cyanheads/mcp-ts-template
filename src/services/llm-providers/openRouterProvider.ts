@@ -175,23 +175,39 @@ export class OpenRouterProvider {
   }
 
   private _prepareApiParameters(params: OpenRouterChatParams) {
-    const effectiveModelId = params.model || this.defaultParams.model;
+    const {
+      model = this.defaultParams.model,
+      messages,
+      temperature = this.defaultParams.temperature,
+      top_p = this.defaultParams.topP,
+      stream = false,
+      max_tokens = this.defaultParams.maxTokens,
+      tools,
+      tool_choice,
+      response_format,
+      stop,
+      seed,
+      frequency_penalty,
+      presence_penalty,
+      logit_bias,
+      ...extraParams
+    } = params;
 
     const standardParams = {
-      model: effectiveModelId,
-      messages: params.messages,
-      temperature: params.temperature ?? this.defaultParams.temperature,
-      top_p: params.top_p ?? this.defaultParams.topP,
-      stream: (params.stream ?? false) as true | false | null,
-      max_tokens: params.max_tokens ?? this.defaultParams.maxTokens,
-      tools: params.tools,
-      tool_choice: params.tool_choice,
-      response_format: params.response_format,
-      stop: params.stop,
-      seed: params.seed,
-      frequency_penalty: params.frequency_penalty,
-      presence_penalty: params.presence_penalty,
-      logit_bias: params.logit_bias,
+      model,
+      messages,
+      temperature,
+      top_p,
+      stream,
+      max_tokens,
+      tools,
+      tool_choice,
+      response_format,
+      stop,
+      seed,
+      frequency_penalty,
+      presence_penalty,
+      logit_bias,
     };
 
     // Filter out undefined values from standardParams
@@ -201,34 +217,21 @@ export class OpenRouterProvider {
         delete (standardParams as Record<string, unknown>)[key],
     );
 
-    const extraBody: Record<string, unknown> = {};
-    const standardKeys = new Set(Object.keys(standardParams));
-    standardKeys.add("messages"); // ensure messages is not added to extra_body
-
-    for (const key in params) {
-      if (
-        Object.prototype.hasOwnProperty.call(params, key) &&
-        !standardKeys.has(key) &&
-        key !== "max_tokens"
-      ) {
-        extraBody[key] = (params as unknown as Record<string, unknown>)[key];
-      }
-    }
-
+    // Add default OpenRouter-specific params if not provided
     if (
-      extraBody.top_k === undefined &&
+      extraParams.top_k === undefined &&
       this.defaultParams.topK !== undefined
     ) {
-      extraBody.top_k = this.defaultParams.topK;
+      extraParams.top_k = this.defaultParams.topK;
     }
     if (
-      extraBody.min_p === undefined &&
+      extraParams.min_p === undefined &&
       this.defaultParams.minP !== undefined
     ) {
-      extraBody.min_p = this.defaultParams.minP;
+      extraParams.min_p = this.defaultParams.minP;
     }
 
-    return { ...standardParams, ...extraBody };
+    return { ...standardParams, ...extraParams };
   }
 
   public async chatCompletion(

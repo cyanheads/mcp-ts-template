@@ -35,6 +35,13 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["eslint.config.js", "coverage/", "dist/", "logs/", "data/", "node_modules/"],
+    ignores: [
+      "eslint.config.js",
+      "coverage/",
+      "dist/",
+      "logs/",
+      "data/",
+      "node_modules/",
+    ],
   },
 );
