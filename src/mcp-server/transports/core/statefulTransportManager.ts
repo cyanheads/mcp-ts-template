@@ -17,9 +17,8 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { IncomingHttpHeaders, ServerResponse } from "http";
+import type { IncomingHttpHeaders } from "http";
 import { randomUUID } from "node:crypto";
-import { Readable } from "stream";
 import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
 import {
   ErrorHandler,
@@ -28,8 +27,6 @@ import {
   requestContextService,
 } from "../../../utils/index.js";
 import { BaseTransportManager } from "./baseTransportManager.js";
-import { HonoStreamResponse } from "./honoNodeBridge.js";
-import { convertNodeHeadersToWebHeaders } from "./headerUtils.js";
 import {
   HttpStatusCode,
   StatefulTransportManager as IStatefulTransportManager,
@@ -60,6 +57,7 @@ export class StatefulTransportManager
   private readonly sessions = new Map<string, TransportSession>();
   private readonly garbageCollector: NodeJS.Timeout;
   private readonly options: StatefulTransportOptions;
+  private readonly mode: "stateful" | "auto";
 
   /**
    * @param createServerInstanceFn - A factory function to create new McpServer instances.
@@ -68,9 +66,11 @@ export class StatefulTransportManager
   constructor(
     createServerInstanceFn: () => Promise<McpServer>,
     options: StatefulTransportOptions,
+    mode: "stateful" | "auto" = "auto",
   ) {
     super(createServerInstanceFn);
     this.options = options;
+    this.mode = mode;
     const context = requestContextService.createRequestContext({
       operation: "StatefulTransportManager.constructor",
     });
@@ -105,7 +105,6 @@ export class StatefulTransportManager
 
     try {
       server = await this.createServerInstanceFn();
-      const mockRes = new HonoStreamResponse() as unknown as ServerResponse;
       const currentServer = server;
 
       transport = new StreamableHTTPServerTransport({
@@ -141,37 +140,26 @@ export class StatefulTransportManager
       await server.connect(transport);
       logger.debug("Server connected, handling initial request.", opContext);
 
-      const mockReq = {
+      return await this._processRequestWithBridge(
+        transport,
         headers,
-        method: "POST",
-        url: this.options.mcpHttpEndpointPath,
-      } as import("http").IncomingMessage;
-      await transport.handleRequest(mockReq, mockRes, body);
-
-      const responseHeaders = convertNodeHeadersToWebHeaders(
-        mockRes.getHeaders(),
+        body,
+        this.options.mcpHttpEndpointPath,
       );
-      if (transport.sessionId) {
-        responseHeaders.set("Mcp-Session-Id", transport.sessionId);
-      }
-
-      const webStream = Readable.toWeb(
-        mockRes as unknown as HonoStreamResponse,
-      ) as ReadableStream<Uint8Array>;
-
-      return {
-        type: "stream",
-        headers: responseHeaders,
-        statusCode: mockRes.statusCode as HttpStatusCode,
-        stream: webStream,
-        sessionId: transport.sessionId,
-      };
     } catch (error) {
-      logger.error(
-        "Failed to initialize stateful session. Cleaning up orphaned resources.",
-        error instanceof Error ? error : undefined,
-        { ...opContext, error: String(error) },
-      );
+      const logContext = { ...opContext, error: String(error) };
+      if (error instanceof Error) {
+        logger.error(
+          "Failed to initialize stateful session. Cleaning up orphaned resources.",
+          error,
+          logContext,
+        );
+      } else {
+        logger.error(
+          "Failed to initialize stateful session with non-error object. Cleaning up orphaned resources.",
+          logContext,
+        );
+      }
 
       const sessionInitialized =
         transport?.sessionId && this.transports.has(transport.sessionId);
@@ -246,29 +234,12 @@ export class StatefulTransportManager
     );
 
     try {
-      const mockReq = {
+      return await this._processRequestWithBridge(
+        transport,
         headers,
-        method: "POST",
-        url: this.options.mcpHttpEndpointPath,
-      } as import("http").IncomingMessage;
-      const mockRes = new HonoStreamResponse() as unknown as ServerResponse;
-
-      await transport.handleRequest(mockReq, mockRes, body);
-
-      const responseHeaders = convertNodeHeadersToWebHeaders(
-        mockRes.getHeaders(),
+        body,
+        this.options.mcpHttpEndpointPath,
       );
-      const webStream = Readable.toWeb(
-        mockRes as unknown as HonoStreamResponse,
-      ) as ReadableStream<Uint8Array>;
-
-      return {
-        type: "stream",
-        headers: responseHeaders,
-        statusCode: mockRes.statusCode as HttpStatusCode,
-        stream: webStream,
-        sessionId: transport.sessionId,
-      };
     } catch (error) {
       throw ErrorHandler.handleError(error, {
         operation: sessionContext.operation as string,
@@ -326,6 +297,13 @@ export class StatefulTransportManager
    */
   getSession(sessionId: string): TransportSession | undefined {
     return this.sessions.get(sessionId);
+  }
+
+  /**
+   * Returns the configured session mode of the manager.
+   */
+  getMode(): "stateful" | "auto" {
+    return this.mode;
   }
 
   /**

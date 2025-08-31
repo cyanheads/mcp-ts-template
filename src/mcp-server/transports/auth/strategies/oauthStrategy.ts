@@ -47,8 +47,8 @@ export class OauthStrategy implements AuthStrategy {
           `${config.oauthIssuerUrl.replace(/\/$/, "")}/.well-known/jwks.json`,
       );
       this.jwks = createRemoteJWKSet(jwksUrl, {
-        cooldownDuration: 300000, // 5 minutes
-        timeoutDuration: 5000, // 5 seconds
+        cooldownDuration: config.oauthJwksCooldownMs,
+        timeoutDuration: config.oauthJwksTimeoutMs,
       });
       logger.info(`JWKS client initialized for URL: ${jwksUrl.href}`, context);
     } catch (error) {

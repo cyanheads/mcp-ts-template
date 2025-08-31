@@ -52,9 +52,17 @@ try {
 }
 // --- End Determine Project Root ---
 
-const loadPackageJson = (): { name: string; version: string } => {
+const loadPackageJson = (): {
+  name: string;
+  version: string;
+  description: string;
+} => {
   const pkgPath = join(projectRoot, "package.json");
-  const fallback = { name: "mcp-ts-template", version: "1.0.0" };
+  const fallback = {
+    name: "mcp-ts-template",
+    version: "1.0.0",
+    description: "Shits broken",
+  };
   if (!existsSync(pkgPath)) {
     if (process.stdout.isTTY) {
       console.warn(
@@ -70,6 +78,10 @@ const loadPackageJson = (): { name: string; version: string } => {
       name: typeof parsed.name === "string" ? parsed.name : fallback.name,
       version:
         typeof parsed.version === "string" ? parsed.version : fallback.version,
+      description:
+        typeof parsed.description === "string"
+          ? parsed.description
+          : fallback.description,
     };
   } catch (error) {
     if (process.stdout.isTTY) {
@@ -145,9 +157,14 @@ const ensureDirectory = (
 
 const ConfigSchema = z
   .object({
-    pkg: z.object({ name: z.string(), version: z.string() }),
+    pkg: z.object({
+      name: z.string(),
+      version: z.string(),
+      description: z.string(),
+    }),
     mcpServerName: z.string(),
     mcpServerVersion: z.string(),
+    mcpServerDescription: z.string().optional(),
     logLevel: z.string().default("debug"),
     logsPath: z.string(),
     environment: z.string().default("development"),
@@ -165,6 +182,8 @@ const ConfigSchema = z
     oauthIssuerUrl: z.string().url().optional(),
     oauthJwksUri: z.string().url().optional(),
     oauthAudience: z.string().optional(),
+    oauthJwksCooldownMs: z.coerce.number().default(300_000), // 5 minutes
+    oauthJwksTimeoutMs: z.coerce.number().default(5_000), // 5 seconds
     devMcpClientId: z.string().optional(),
     devMcpScopes: z.array(z.string()).optional(),
     openrouterAppUrl: z.string().default("http://localhost:3000"),
@@ -213,7 +232,16 @@ const ConfigSchema = z
   })
   .transform((data) => {
     const logsPath = ensureDirectory(data.logsPath, projectRoot, "logs");
-    return { ...data, logsPath };
+    const filesystemPath =
+      data.storage.providerType === "filesystem" && data.storage.filesystemPath
+        ? ensureDirectory(data.storage.filesystemPath, projectRoot, "storage")
+        : data.storage.filesystemPath;
+
+    return {
+      ...data,
+      logsPath,
+      storage: { ...data.storage, filesystemPath },
+    };
   });
 
 const parseConfig = () => {
@@ -222,6 +250,7 @@ const parseConfig = () => {
     pkg,
     mcpServerName: env.MCP_SERVER_NAME || pkg.name,
     mcpServerVersion: env.MCP_SERVER_VERSION || pkg.version,
+    mcpServerDescription: env.MCP_SERVER_DESCRIPTION || pkg.description,
     logLevel: env.MCP_LOG_LEVEL,
     logsPath: env.LOGS_DIR || path.join(projectRoot, "logs"),
     environment: env.NODE_ENV,
@@ -241,6 +270,8 @@ const parseConfig = () => {
     oauthIssuerUrl: env.OAUTH_ISSUER_URL,
     oauthJwksUri: env.OAUTH_JWKS_URI,
     oauthAudience: env.OAUTH_AUDIENCE,
+    oauthJwksCooldownMs: env.OAUTH_JWKS_COOLDOWN_MS,
+    oauthJwksTimeoutMs: env.OAUTH_JWKS_TIMEOUT_MS,
     devMcpClientId: env.DEV_MCP_CLIENT_ID,
     devMcpScopes: env.DEV_MCP_SCOPES?.split(",").map((s) => s.trim()),
     openrouterAppUrl: env.OPENROUTER_APP_URL,

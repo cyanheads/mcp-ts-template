@@ -16,8 +16,8 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { IncomingHttpHeaders, ServerResponse } from "http";
-import { Readable } from "stream";
+import type { IncomingHttpHeaders } from "http";
+import { config } from "../../../config/index.js";
 import {
   ErrorHandler,
   logger,
@@ -25,9 +25,7 @@ import {
   requestContextService,
 } from "../../../utils/index.js";
 import { BaseTransportManager } from "./baseTransportManager.js";
-import { HonoStreamResponse } from "./honoNodeBridge.js";
-import { convertNodeHeadersToWebHeaders } from "./headerUtils.js";
-import { HttpStatusCode, TransportResponse } from "./transportTypes.js";
+import { TransportResponse } from "./transportTypes.js";
 
 /**
  * Manages ephemeral, single-request MCP operations.
@@ -73,37 +71,29 @@ export class StatelessTransportManager extends BaseTransportManager {
       await server.connect(transport);
       logger.debug("Ephemeral server connected to transport.", opContext);
 
-      // 2. Set up the Node.js-to-Web stream bridge.
-      const mockReq = {
+      // 2. Process the request using the bridge method from the base class.
+      const response = await this._processRequestWithBridge(
+        transport,
         headers,
-        method: "POST",
-      } as import("http").IncomingMessage;
-      const mockResBridge = new HonoStreamResponse();
+        body,
+        config.mcpHttpEndpointPath,
+      );
+
+      if (response.type !== "stream") {
+        // This should not happen with _processRequestWithBridge
+        throw new Error(
+          "Expected a streaming response but got a buffered one.",
+        );
+      }
 
       // 3. Defer cleanup until the stream is fully processed.
       // This is the critical fix to prevent premature resource release.
-      this.setupDeferredCleanup(mockResBridge, server, transport, opContext);
-
-      // 4. Process the request using the MCP transport.
-      const mockRes = mockResBridge as unknown as ServerResponse;
-      await transport.handleRequest(mockReq, mockRes, body);
+      this.setupDeferredCleanup(response.stream, server, transport, opContext);
 
       logger.info("Stateless request handled successfully.", opContext);
 
-      // 5. Convert headers and create the final streaming response.
-      const responseHeaders = convertNodeHeadersToWebHeaders(
-        mockRes.getHeaders(),
-      );
-      const webStream = Readable.toWeb(
-        mockResBridge,
-      ) as ReadableStream<Uint8Array>;
-
-      return {
-        type: "stream",
-        headers: responseHeaders,
-        statusCode: mockRes.statusCode as HttpStatusCode,
-        stream: webStream,
-      };
+      // 4. Return the streaming response.
+      return response;
     } catch (error) {
       // If an error occurs before the stream is returned, we must clean up immediately.
       if (server || transport) {
@@ -121,13 +111,13 @@ export class StatelessTransportManager extends BaseTransportManager {
    * Attaches listeners to the response stream to trigger resource cleanup
    * only after the stream has been fully consumed or has errored.
    *
-   * @param stream - The response stream bridge.
+   * @param stream - The response stream.
    * @param server - The ephemeral McpServer instance.
    * @param transport - The ephemeral transport instance.
    * @param context - The request context for logging.
    */
   private setupDeferredCleanup(
-    stream: HonoStreamResponse,
+    stream: ReadableStream<Uint8Array>,
     server: McpServer,
     transport: StreamableHTTPServerTransport,
     context: RequestContext,
@@ -147,9 +137,23 @@ export class StatelessTransportManager extends BaseTransportManager {
       this.cleanup(server, transport, context);
     };
 
-    // 'close' is the most reliable event, firing on both normal completion and abrupt termination.
-    stream.on("close", () => cleanupFn());
-    stream.on("error", (err) => cleanupFn(err));
+    // Use a reader to reliably detect stream closure/error
+    const reader = stream.getReader();
+    const processStream = async () => {
+      try {
+        while (true) {
+          const { done } = await reader.read();
+          if (done) break;
+        }
+      } catch (err) {
+        cleanupFn(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        cleanupFn();
+        reader.releaseLock();
+      }
+    };
+
+    processStream();
   }
 
   /**

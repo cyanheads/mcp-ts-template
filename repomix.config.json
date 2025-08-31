@@ -5,7 +5,7 @@
     "removeComments": false,
     "removeEmptyLines": false,
     "topFilesLength": 5,
-    "showLineNumbers": false,
+    "showLineNumbers": true,
     "copyToClipboard": false
   },
   "include": [],
@@ -14,6 +14,7 @@
     "useDefaultPatterns": true,
     "customPatterns": [
       ".clinerules",
+      "AGENTS.md",
       "repomix.config.json",
       "docs/api-references/"
     ]

@@ -130,11 +130,13 @@ function startHttpServerWithRetry(
                 logger.info(`HTTP transport listening at ${serverAddress}`, {
                   ...attemptContext,
                   address: serverAddress,
-                  sessionMode: config.mcpSessionMode,
+                  sessionMode: config.mcpSessionMode, // This will show the configured mode, not the potentially selected one.
                 });
                 if (process.stdout.isTTY) {
                   console.log(`\n🚀 MCP Server running at: ${serverAddress}`);
-                  console.log(`   Session Mode: ${config.mcpSessionMode}\n`);
+                  console.log(
+                    `   Session Mode Config: ${config.mcpSessionMode}\n`,
+                  );
                 }
               },
             );
@@ -207,6 +209,7 @@ function createTransportManager(
       return new StatefulTransportManager(
         createServerInstanceFn,
         statefulOptions,
+        "stateful",
       );
     case "auto":
     default:
@@ -217,6 +220,7 @@ function createTransportManager(
       return new StatefulTransportManager(
         createServerInstanceFn,
         statefulOptions,
+        "auto",
       );
   }
 }
@@ -319,20 +323,22 @@ export function createHttpApp(
       // to report on the server's configuration.
       await createServerInstanceFn();
 
+      const selectedSessionMode =
+        transportManager instanceof StatefulTransportManager
+          ? (transportManager as StatefulTransportManager).getMode()
+          : config.mcpSessionMode;
+
       return c.json({
         status: "ok",
         server: {
           name: config.mcpServerName,
           version: config.mcpServerVersion,
-          description:
-            (config.pkg as { description?: string })?.description ||
-            "No description provided.",
+          description: config.mcpServerDescription,
           nodeVersion: process.version,
           environment: config.environment,
         },
-        sessionMode: config.mcpSessionMode,
-        message:
-          "Server is running. POST to this endpoint to execute a tool call.",
+        sessionMode: selectedSessionMode,
+        message: `Server is running in ${selectedSessionMode} mode. POST to this endpoint to execute a tool call.`,
       });
     },
   );

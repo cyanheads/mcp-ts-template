@@ -499,53 +499,74 @@ export class Logger {
     this.log("warning", msg, context);
   }
 
+  // Overloaded methods for high-severity logs
+  public error(msg: string, context: RequestContext): void;
+  public error(msg: string, error: Error, context?: RequestContext): void;
   public error(
     msg: string,
-    err?: Error | RequestContext,
+    errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    const errorObj = err instanceof Error ? err : undefined;
-    const actualContext = err instanceof Error ? context : err;
+    const errorObj =
+      errorOrContext instanceof Error ? errorOrContext : undefined;
+    const actualContext =
+      errorOrContext instanceof Error ? context : errorOrContext;
     this.log("error", msg, actualContext, errorObj);
   }
 
+  public crit(msg: string, context: RequestContext): void;
+  public crit(msg: string, error: Error, context?: RequestContext): void;
   public crit(
     msg: string,
-    err?: Error | RequestContext,
+    errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    const errorObj = err instanceof Error ? err : undefined;
-    const actualContext = err instanceof Error ? context : err;
+    const errorObj =
+      errorOrContext instanceof Error ? errorOrContext : undefined;
+    const actualContext =
+      errorOrContext instanceof Error ? context : errorOrContext;
     this.log("crit", msg, actualContext, errorObj);
   }
 
+  public alert(msg: string, context: RequestContext): void;
+  public alert(msg: string, error: Error, context?: RequestContext): void;
   public alert(
     msg: string,
-    err?: Error | RequestContext,
+    errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    const errorObj = err instanceof Error ? err : undefined;
-    const actualContext = err instanceof Error ? context : err;
+    const errorObj =
+      errorOrContext instanceof Error ? errorOrContext : undefined;
+    const actualContext =
+      errorOrContext instanceof Error ? context : errorOrContext;
     this.log("alert", msg, actualContext, errorObj);
   }
 
+  public emerg(msg: string, context: RequestContext): void;
+  public emerg(msg: string, error: Error, context?: RequestContext): void;
   public emerg(
     msg: string,
-    err?: Error | RequestContext,
+    errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    const errorObj = err instanceof Error ? err : undefined;
-    const actualContext = err instanceof Error ? context : err;
+    const errorObj =
+      errorOrContext instanceof Error ? errorOrContext : undefined;
+    const actualContext =
+      errorOrContext instanceof Error ? context : errorOrContext;
     this.log("emerg", msg, actualContext, errorObj);
   }
 
+  public fatal(msg: string, context: RequestContext): void;
+  public fatal(msg: string, error: Error, context?: RequestContext): void;
   public fatal(
     msg: string,
-    err?: Error | RequestContext,
+    errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    const errorObj = err instanceof Error ? err : undefined;
-    const actualContext = err instanceof Error ? context : err;
+    const errorObj =
+      errorOrContext instanceof Error ? errorOrContext : undefined;
+    const actualContext =
+      errorOrContext instanceof Error ? context : errorOrContext;
     this.log("emerg", msg, actualContext, errorObj);
   }
 

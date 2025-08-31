@@ -110,7 +110,11 @@ export async function createMcpServerInstance(): Promise<McpServer> {
   });
 
   const server = new McpServer(
-    { name: config.mcpServerName, version: config.mcpServerVersion },
+    {
+      name: config.mcpServerName,
+      version: config.mcpServerVersion,
+      description: config.mcpServerDescription,
+    },
     {
       capabilities: {
         logging: {},

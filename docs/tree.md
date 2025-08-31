@@ -1,10 +1,11 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-31 19:12:47
+Generated on: 2025-08-31 20:11:03
 
 ```
 mcp-ts-template
 ├── .clinerules
+│   └── AGENTS.md
 ├── .github
 │   ├── workflows
 │   │   └── publish.yml
@@ -121,15 +122,6 @@ mcp-ts-template
 │   └── index.ts
 ├── tests
 │   ├── mcp-server
-│   │   ├── tools
-│   │   │   ├── catFactFetcher
-│   │   │   │   ├── logic.test.ts
-│   │   │   │   └── registration.test.ts
-│   │   │   ├── echoTool
-│   │   │   │   ├── logic.test.ts
-│   │   │   │   └── registration.test.ts
-│   │   │   └── imageTest
-│   │   │       └── registration.test.ts
 │   │   ├── transports
 │   │   │   ├── auth
 │   │   │   │   ├── lib
@@ -180,7 +172,6 @@ mcp-ts-template
 ├── .env.example
 ├── .gitignore
 ├── .ncurc.json
-├── AGENTS.md
 ├── CHANGELOG.md
 ├── CLAUDE.md
 ├── Dockerfile

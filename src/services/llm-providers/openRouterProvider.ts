@@ -31,10 +31,10 @@ import { sanitization } from "../../utils/security/sanitization.js";
  * Options for configuring the OpenRouter client.
  */
 export interface OpenRouterClientOptions {
-  apiKey?: string;
+  apiKey: string;
   baseURL?: string;
-  siteUrl?: string;
-  siteName?: string;
+  siteUrl: string;
+  siteName: string;
 }
 
 /**
@@ -54,123 +54,25 @@ export type OpenRouterChatParams = (
 
 // #region Internal Logic Functions (Throwing Errors)
 
-/**
- * Prepares parameters for the OpenRouter API call, separating standard
- * and extra parameters and applying defaults.
- * @internal
- */
-function _prepareApiParameters(params: OpenRouterChatParams) {
-  const effectiveModelId = params.model || config.llmDefaultModel;
-
-  const standardParams: Partial<
-    ChatCompletionCreateParamsStreaming | ChatCompletionCreateParamsNonStreaming
-  > = {
-    model: effectiveModelId,
-    messages: params.messages,
-    ...(params.temperature !== undefined ||
-    config.llmDefaultTemperature !== undefined
-      ? { temperature: params.temperature ?? config.llmDefaultTemperature }
-      : {}),
-    ...(params.top_p !== undefined || config.llmDefaultTopP !== undefined
-      ? { top_p: params.top_p ?? config.llmDefaultTopP }
-      : {}),
-    ...(params.presence_penalty !== undefined
-      ? { presence_penalty: params.presence_penalty }
-      : {}),
-    ...(params.stream !== undefined && { stream: params.stream }),
-    ...(params.tools !== undefined && { tools: params.tools }),
-    ...(params.tool_choice !== undefined && {
-      tool_choice: params.tool_choice,
-    }),
-    ...(params.response_format !== undefined && {
-      response_format: params.response_format,
-    }),
-    ...(params.stop !== undefined && { stop: params.stop }),
-    ...(params.seed !== undefined && { seed: params.seed }),
-    ...(params.frequency_penalty !== undefined
-      ? { frequency_penalty: params.frequency_penalty }
-      : {}),
-    ...(params.logit_bias !== undefined && { logit_bias: params.logit_bias }),
-  };
-
-  const extraBody: Record<string, unknown> = {};
-  const standardKeys = new Set(Object.keys(standardParams));
-  standardKeys.add("messages");
-
-  for (const key in params) {
-    if (
-      Object.prototype.hasOwnProperty.call(params, key) &&
-      !standardKeys.has(key) &&
-      key !== "max_tokens"
-    ) {
-      extraBody[key] = (params as unknown as Record<string, unknown>)[key];
-    }
-  }
-
-  if (extraBody.top_k === undefined && config.llmDefaultTopK !== undefined) {
-    extraBody.top_k = config.llmDefaultTopK;
-  }
-  if (extraBody.min_p === undefined && config.llmDefaultMinP !== undefined) {
-    extraBody.min_p = config.llmDefaultMinP;
-  }
-  if (
-    extraBody.provider &&
-    typeof extraBody.provider === "object" &&
-    extraBody.provider !== null
-  ) {
-    const provider = extraBody.provider as Record<string, unknown>;
-    if (!provider.sort) {
-      provider.sort = "throughput";
-    }
-  } else if (extraBody.provider === undefined) {
-    extraBody.provider = { sort: "throughput" };
-  }
-
-  const modelsRequiringMaxCompletionTokens = ["openai/o1", "openai/gpt-4.1"];
-  const needsMaxCompletionTokens = modelsRequiringMaxCompletionTokens.some(
-    (modelPrefix) => effectiveModelId.startsWith(modelPrefix),
-  );
-  const effectiveMaxTokensValue =
-    params.max_tokens ?? config.llmDefaultMaxTokens;
-
-  if (effectiveMaxTokensValue !== undefined) {
-    if (needsMaxCompletionTokens) {
-      extraBody.max_completion_tokens = effectiveMaxTokensValue;
-    } else {
-      standardParams.max_tokens = effectiveMaxTokensValue;
-    }
-  }
-
-  return { standardParams, extraBody };
-}
-
 async function _openRouterChatCompletionLogic(
   client: OpenAI,
   params: OpenRouterChatParams,
   context: RequestContext,
 ): Promise<ChatCompletion | Stream<ChatCompletionChunk>> {
-  const isStreaming = params.stream === true;
-
-  const { standardParams, extraBody } = _prepareApiParameters(params);
-
-  const apiParams = { ...standardParams };
-  if (Object.keys(extraBody).length > 0) {
-    (apiParams as Record<string, unknown>).extra_body = extraBody;
-  }
-
   logger.logInteraction("OpenRouterRequest", {
     context,
-    request: apiParams,
+    request: params,
   });
 
   try {
+    const isStreaming = params.stream === true;
     if (isStreaming) {
       return await client.chat.completions.create(
-        apiParams as unknown as ChatCompletionCreateParamsStreaming,
+        params as unknown as ChatCompletionCreateParamsStreaming,
       );
     }
     const response = await client.chat.completions.create(
-      apiParams as unknown as ChatCompletionCreateParamsNonStreaming,
+      params as unknown as ChatCompletionCreateParamsNonStreaming,
     );
 
     logger.logInteraction("OpenRouterResponse", {
@@ -225,67 +127,116 @@ async function _openRouterChatCompletionLogic(
   }
 }
 
-class OpenRouterProvider {
-  private client?: OpenAI;
-  public status: "unconfigured" | "initializing" | "ready" | "error";
-  private initializationError: Error | null = null;
+// #endregion
 
-  constructor() {
-    this.status = "unconfigured";
-  }
+export class OpenRouterProvider {
+  private readonly client: OpenAI;
+  private readonly defaultParams: {
+    model: string;
+    temperature?: number;
+    topP?: number;
+    maxTokens?: number;
+    topK?: number;
+    minP?: number;
+  };
 
-  public initialize(options?: OpenRouterClientOptions): void {
-    const opContext = requestContextService.createRequestContext({
-      operation: "OpenRouterProvider.initialize",
+  constructor(
+    options: OpenRouterClientOptions,
+    defaultParams: OpenRouterProvider["defaultParams"],
+  ) {
+    const context = requestContextService.createRequestContext({
+      operation: "OpenRouterProvider.constructor",
     });
-    this.status = "initializing";
-
-    const apiKey =
-      options?.apiKey !== undefined ? options.apiKey : config.openrouterApiKey;
-    if (!apiKey) {
-      this.status = "unconfigured";
-      this.initializationError = new McpError(
-        JsonRpcErrorCode.ConfigurationError,
-        "OpenRouter API key is not configured.",
-      );
-      logger.error(this.initializationError.message, opContext);
-      return;
-    }
 
     try {
       this.client = new OpenAI({
-        baseURL: options?.baseURL || "https://openrouter.ai/api/v1",
-        apiKey,
+        baseURL: options.baseURL || "https://openrouter.ai/api/v1",
+        apiKey: options.apiKey,
         defaultHeaders: {
-          "HTTP-Referer": options?.siteUrl || config.openrouterAppUrl,
-          "X-Title": options?.siteName || config.openrouterAppName,
+          "HTTP-Referer": options.siteUrl,
+          "X-Title": options.siteName,
         },
         maxRetries: 0,
       });
-      this.status = "ready";
-      logger.info("OpenRouter Service Initialized and Ready", opContext);
+      this.defaultParams = defaultParams;
+      logger.info("OpenRouter provider instance created and ready.", context);
     } catch (e: unknown) {
       const error = e as Error;
-      this.status = "error";
-      this.initializationError = error;
-      logger.error("Failed to initialize OpenRouter client", {
-        ...opContext,
+      logger.error("Failed to construct OpenRouter client", {
+        ...context,
         error: error.message,
       });
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        "Failed to construct OpenRouter client. Please check the configuration.",
+        { cause: error },
+      );
     }
   }
 
-  private checkReady(operation: string, context: RequestContext): void {
-    if (this.status !== "ready" || !this.client) {
-      const message = `OpenRouter service is not available (status: ${this.status}).`;
-      logger.error(`[${operation}] ${message}`, {
-        ...context,
-        status: this.status,
-      });
-      throw new McpError(JsonRpcErrorCode.ServiceUnavailable, message, {
-        cause: this.initializationError,
-      });
+  private _prepareApiParameters(params: OpenRouterChatParams) {
+    const effectiveModelId = params.model || this.defaultParams.model;
+
+    const standardParams: Partial<
+      | ChatCompletionCreateParamsStreaming
+      | ChatCompletionCreateParamsNonStreaming
+    > = {
+      model: effectiveModelId,
+      messages: params.messages,
+      temperature: params.temperature ?? this.defaultParams.temperature,
+      top_p: params.top_p ?? this.defaultParams.topP,
+      stream: params.stream,
+      tools: params.tools,
+      tool_choice: params.tool_choice,
+      response_format: params.response_format,
+      stop: params.stop,
+      seed: params.seed,
+      frequency_penalty: params.frequency_penalty,
+      presence_penalty: params.presence_penalty,
+      logit_bias: params.logit_bias,
+    };
+
+    // Filter out undefined values from standardParams
+    Object.keys(standardParams).forEach(
+      (key) =>
+        (standardParams as Record<string, unknown>)[key] === undefined &&
+        delete (standardParams as Record<string, unknown>)[key],
+    );
+
+    const extraBody: Record<string, unknown> = {};
+    const standardKeys = new Set(Object.keys(standardParams));
+    standardKeys.add("messages"); // ensure messages is not added to extra_body
+
+    for (const key in params) {
+      if (
+        Object.prototype.hasOwnProperty.call(params, key) &&
+        !standardKeys.has(key) &&
+        key !== "max_tokens"
+      ) {
+        extraBody[key] = (params as unknown as Record<string, unknown>)[key];
+      }
     }
+
+    if (
+      extraBody.top_k === undefined &&
+      this.defaultParams.topK !== undefined
+    ) {
+      extraBody.top_k = this.defaultParams.topK;
+    }
+    if (
+      extraBody.min_p === undefined &&
+      this.defaultParams.minP !== undefined
+    ) {
+      extraBody.min_p = this.defaultParams.minP;
+    }
+
+    const effectiveMaxTokensValue =
+      params.max_tokens ?? this.defaultParams.maxTokens;
+    if (effectiveMaxTokensValue !== undefined) {
+      standardParams.max_tokens = effectiveMaxTokensValue;
+    }
+
+    return { ...standardParams, ...extraBody };
   }
 
   public async chatCompletion(
@@ -297,12 +248,16 @@ class OpenRouterProvider {
 
     return await ErrorHandler.tryCatch(
       async () => {
-        this.checkReady(operation, context);
         const rateLimitKey = context.requestId || "openrouter_default_key";
         rateLimiter.check(rateLimitKey, context);
-        return await _openRouterChatCompletionLogic(
-          this.client!,
+
+        const finalApiParams = this._prepareApiParameters(
           params,
+        ) as OpenRouterChatParams;
+
+        return await _openRouterChatCompletionLogic(
+          this.client,
+          finalApiParams,
           context,
         );
       },
@@ -338,6 +293,41 @@ class OpenRouterProvider {
   }
 }
 
-const openRouterProviderInstance = new OpenRouterProvider();
+/**
+ * Factory function to create and configure an OpenRouterProvider instance.
+ * @returns A configured instance of OpenRouterProvider.
+ * @throws {McpError} if required configuration is missing.
+ */
+export function createOpenRouterProvider(): OpenRouterProvider {
+  const opContext = requestContextService.createRequestContext({
+    operation: "createOpenRouterProvider",
+  });
+  if (!config.openrouterApiKey) {
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      "OpenRouter API key (OPENROUTER_API_KEY) is not configured.",
+      opContext,
+    );
+  }
 
-export { openRouterProviderInstance as openRouterProvider, OpenRouterProvider };
+  const options: OpenRouterClientOptions = {
+    apiKey: config.openrouterApiKey,
+    siteUrl: config.openrouterAppUrl,
+    siteName: config.openrouterAppName,
+  };
+
+  const defaultParams = {
+    model: config.llmDefaultModel,
+    temperature: config.llmDefaultTemperature,
+    topP: config.llmDefaultTopP,
+    maxTokens: config.llmDefaultMaxTokens,
+    topK: config.llmDefaultTopK,
+    minP: config.llmDefaultMinP,
+  };
+
+  return new OpenRouterProvider(options, defaultParams);
+}
+
+const openRouterProviderInstance = createOpenRouterProvider();
+
+export { openRouterProviderInstance as openRouterProvider };

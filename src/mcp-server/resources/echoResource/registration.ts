@@ -94,9 +94,9 @@ export const registerEchoResource = async (
               contents: [
                 {
                   uri: uri.href,
-                  blob: Buffer.from(JSON.stringify(responseData)).toString(
-                    "base64",
-                  ),
+                  // Use a direct string for application/json content.
+                  // The SDK handles encoding appropriately.
+                  text: JSON.stringify(responseData),
                   mimeType: "application/json",
                 },
               ],
