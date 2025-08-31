@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-31 07:54:04
+Generated on: 2025-08-31 17:13:59
 
 ```
 mcp-ts-template
@@ -10,6 +10,7 @@ mcp-ts-template
 │   ├── workflows
 │   │   └── publish.yml
 │   └── FUNDING.yml
+├── .storage
 ├── .vscode
 │   └── settings.json
 ├── coverage
@@ -75,11 +76,23 @@ mcp-ts-template
 │   │   │       └── stdioTransport.ts
 │   │   └── server.ts
 │   ├── services
-│   │   ├── llm-providers
-│   │   │   └── openRouterProvider.ts
-│   │   └── supabase
-│   │       └── supabaseClient.ts
+│   │   └── llm-providers
+│   │       └── openRouterProvider.ts
 │   ├── storage
+│   │   ├── core
+│   │   │   ├── IStorageProvider.ts
+│   │   │   ├── storageFactory.ts
+│   │   │   └── StorageService.ts
+│   │   ├── providers
+│   │   │   ├── fileSystem
+│   │   │   │   └── fileSystemProvider.ts
+│   │   │   ├── inMemory
+│   │   │   │   └── inMemoryProvider.ts
+│   │   │   └── supabase
+│   │   │       ├── supabase.types.ts
+│   │   │       ├── supabaseClient.ts
+│   │   │       └── supabaseProvider.ts
+│   │   └── index.ts
 │   ├── types-global
 │   │   └── errors.ts
 │   ├── utils
@@ -142,6 +155,13 @@ mcp-ts-template
 │   │   │   └── openRouterProvider.test.ts
 │   │   └── supabase
 │   │       └── supabaseClient.test.ts
+│   ├── storage
+│   │   ├── providers
+│   │   │   ├── fileSystem
+│   │   │   │   └── fileSystemProvider.test.ts
+│   │   │   └── inMemory
+│   │   │       └── inMemoryProvider.test.ts
+│   │   └── storageProviderCompliance.ts
 │   ├── utils
 │   │   ├── internal
 │   │   │   ├── errorHandler.test.ts
