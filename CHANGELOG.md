@@ -38,19 +38,16 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 - **Core Refactoring**: Refactored object creation patterns across the application to be compliant with `exactOptionalPropertyTypes`. This improves robustness by ensuring optional properties are handled correctly and consistently, particularly in auth strategies, transport managers, and storage providers.
 - **Server Lifecycle**: Introduced a `TransportManager` to handle the lifecycle of transport-related resources, ensuring graceful shutdown of stateful sessions (e.g., in HTTP transport) and preventing resource leaks. The main application entry point (`index.ts`) and server startup sequence were refactored to support this.
 - **HTTP Middleware**: Aligned the MCP transport middleware with Hono v4 by removing the deprecated `createMiddleware` factory, improving compatibility and future-proofing the transport layer.
-
-### Changed
-
-- **CI/CD**: Tweaked `.github/workflows/publish.yml` to improve publish reliability and alignment with the 2.0.0 pipeline. ([f301041](https://github.com/cyanheads/mcp-ts-template/commit/f3010415cb615950ccd3d3f50a8ca56b2834faf8))
-- **Configuration**: Updated `Dockerfile` and `eslint.config.js`; refreshed `smithery.yaml` for current tool and publishing settings. ([f301041](https://github.com/cyanheads/mcp-ts-template/commit/f3010415cb615950ccd3d3f50a8ca56b2834faf8))
-- **Build**: Standardized on Bun lockfiles by adding `bun.lock` and updating `package.json` (replacing `package-lock.json`). ([26e66a8](https://github.com/cyanheads/mcp-ts-template/commit/26e66a85b3fdc8f8ab500c459dd059461a3c1430))
-- **Developer Scripts**: Updated `scripts/clean.ts`, `scripts/devdocs.ts`, and `scripts/tree.ts` for consistency and improved DX. ([297fa4e](https://github.com/cyanheads/mcp-ts-template/commit/297fa4e663d45770186d9a4460bdf2b7304e1ba1))
-- **Documentation**: Updated `README.md`, `CLAUDE.md`, and `scripts/README.md`; tidied `changelog/archive1.md`. ([18d4cda](https://github.com/cyanheads/mcp-ts-template/commit/18d4cda3ca10c45cad02c940aad234db2fad9556))
+- **CI/CD**: Tweaked `.github/workflows/publish.yml` to improve publish reliability and alignment with the 2.0.0 pipeline. (f301041)
+- **Configuration**: Updated `Dockerfile` and `eslint.config.js`; refreshed `smithery.yaml` for current tool and publishing settings. (f301041)
+- **Build**: Standardized on Bun lockfiles by adding `bun.lock` and updating `package.json` (replacing `package-lock.json`). (26e66a8)
+- **Developer Scripts**: Updated `scripts/clean.ts`, `scripts/devdocs.ts`, and `scripts/tree.ts` for consistency and improved DX. (297fa4e)
+- **Documentation**: Updated `README.md`, `CLAUDE.md`, and `scripts/README.md`; tidied `changelog/archive1.md`. (18d4cda)
 
 ### Added
 
-- **Formatting**: Introduced `.prettierrc.json` for consistent repository formatting. ([f301041](https://github.com/cyanheads/mcp-ts-template/commit/f3010415cb615950ccd3d3f50a8ca56b2834faf8))
-- **Developer Scripts**: Added `scripts/devcheck.ts` utility for local checks during development. ([297fa4e](https://github.com/cyanheads/mcp-ts-template/commit/297fa4e663d45770186d9a4460bdf2b7304e1ba1))
+- **Formatting**: Introduced `.prettierrc.json` for consistent repository formatting. (f301041)
+- **Developer Scripts**: Added `scripts/devcheck.ts` utility for local checks during development. (297fa4e)
 
 ### Fixed
 
