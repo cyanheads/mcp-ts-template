@@ -13,12 +13,13 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
   - **Tool Handler Factory**: Created a `toolHandlerFactory.ts` to abstract away boilerplate for error handling, context creation, performance measurement, and response formatting, ensuring all tools behave consistently.
   - **Single-File Tool Definitions**: All tools (`echo`, `cat-fact`, `image-test`) are now defined in a single file within `src/mcp-server/tools/definitions/`. This replaces the previous `logic.ts`, `registration.ts`, and `index.ts` structure for each tool.
   - **Type-Safe Registration**: Implemented a new type-safe `registerTool` helper function in `src/mcp-server/server.ts` that uses the `ToolDefinition` to correctly register the tool and its handler.
+  - **Resource Definitions**: Established a parallel declarative pattern for resources using `ResourceDefinition` and a dedicated registrar (`resources/utils/resourceHandlerFactory.ts`), replacing ad-hoc resource wiring.
 
 ### Removed
 
 - **Legacy Tool Structure**: Deleted all legacy tool files, including the `logic.ts`, `registration.ts`, and `index.ts` files for `echoTool`, `catFactFetcher`, and `imageTest`.
 - **Legacy `.clinerules`**: Deleted the now-redundant `.clinerules/clinerules.md` in favor of the new `AGENTS.md`. (ee77911)
-- **Obsolete Tests**: Removed all tests related to the legacy tool registration pattern (`tests/mcp-server/tools/`).
+- **Obsolete Tests**: Removed tests tied to the old patterns, including `tests/mcp-server/server.test.ts` and `tests/services/llm-providers/openRouterProvider.test.ts`.
 
 ### Changed
 
@@ -43,6 +44,9 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 - **Developer Scripts**: Updated `scripts/clean.ts`, `scripts/devdocs.ts`, `scripts/fetch-openapi-spec.ts`, `scripts/make-executable.ts`, and `scripts/tree.ts` for consistency and improved DX. (297fa4e)
 - **Observability & Context**: Tightened `RequestContext` propagation and performance logging across utils (`errorHandler`, `logger`, `performance`, `requestContext`) to align with full-stack observability goals.
 - **Tools**: Brought existing tool definitions (`echo`, `cat-fact`, `image-test`) and echo resource into compliance with the declarative single-file pattern and handler factory; removed ad-hoc try/catch from tool logic and enforced `McpError` throwing.
+- **Server Registration**: Updated `src/mcp-server/server.ts` to register tools and resources via `registerTool` and `registerResource`, applying title-precedence rules for UIs.
+- **Agent Meta**: Updated `AGENTS.md` and `.clinerules/AGENTS.md` with the Protocol & Architectural Mandate v2.0.0 and clarified development workflow and invariants.
+- **Docs**: Refreshed `docs/tree.md` to match the new structure (tools/resources moved under `definitions/` with `utils/` for registrars).
 - **Tests**: Updated and expanded tests to reflect new patterns across transports, auth, storage providers, metrics, network, parsing, scheduling, and security utilities; refined `vitest.config.ts`.
 - **Documentation**: Updated `README.md`, `CLAUDE.md`, and `scripts/README.md`; tidied `changelog/archive1.md`. (18d4cda)
 
@@ -58,6 +62,8 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 - **Documentation**: Added root-level `AGENTS.md` as the single source of truth for agent development mandates; retained `.clinerules/AGENTS.md` as a synced artifact.
 - **CI**: Added `.github/workflows/sync-agents-md.yml` to automatically mirror `.clinerules/AGENTS.md` to `AGENTS.md` on push.
 - **Husky**: Introduced a `pre-commit` hook to run `bun run devcheck` for local guardrails.
+ - **Resource Pattern**: Added `src/mcp-server/resources/definitions/echo.resource.ts` and resource utilities (`resources/utils/resourceDefinition.ts`, `resources/utils/resourceHandlerFactory.ts`) with `registerResource` support.
+ - **Template Tools**: Added `template-echo-message.tool.ts`, `template-cat-fact.tool.ts`, and `template-image-test.tool.ts` as reference implementations for the declarative tool pattern.
 
 ### Fixed
 
