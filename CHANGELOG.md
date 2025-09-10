@@ -17,6 +17,7 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 ### Changed
 
 - **Documentation**: Overhauled `README.md` to feature a more modern, scannable design and updated content. Moved the developer mandate to a new `AGENTS.md` file to better align with agent-based development workflows. (ee77911)
+- **Documentation**: Formalized the "Agent Protocol & Architectural Mandate" and aligned internal docs (`CLAUDE.md`, `.clinerules/AGENTS.md`) with the declarative tool pattern and error-handling invariants (logic throws, handler catches).
 - **Code Quality**: Applied formatting and minor code quality improvements across several tool definitions and utilities. (7e6cf63)
 
 ### Removed
@@ -28,6 +29,7 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 ### Changed
 
 - **Transport Layer**: Refactored `StatefulTransportManager` and `StatelessTransportManager` to use a new `_processRequestWithBridge` method in the base class, centralizing request handling and stream management.
+- **Auth**: Consolidated auth type definitions and refined middleware; improved JWT and OAuth strategies for clearer flows and stronger typing (`authFactory`, `authMiddleware`, `authUtils`, `jwtStrategy`, `oauthStrategy`).
 - **LLM Provider**: Overhauled `OpenRouterProvider` to be more robust, with constructor-based configuration and improved parameter handling. (32f4c38)
 - **Configuration**: Enhanced the configuration system to include package description and more detailed settings for OAuth and storage providers. (15ce967)
 - **Developer Scripts**: Significantly improved the `devdocs.ts` script for better prompt generation and reliability. (297fa4e)
@@ -41,13 +43,19 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 - **CI/CD**: Tweaked `.github/workflows/publish.yml` to improve publish reliability and alignment with the 2.0.0 pipeline. (f301041)
 - **Configuration**: Updated `Dockerfile` and `eslint.config.js`; refreshed `smithery.yaml` for current tool and publishing settings. (f301041)
 - **Build**: Standardized on Bun lockfiles by adding `bun.lock` and updating `package.json` (replacing `package-lock.json`). (26e66a8)
-- **Developer Scripts**: Updated `scripts/clean.ts`, `scripts/devdocs.ts`, and `scripts/tree.ts` for consistency and improved DX. (297fa4e)
+- **Developer Scripts**: Updated `scripts/clean.ts`, `scripts/devdocs.ts`, `scripts/fetch-openapi-spec.ts`, `scripts/make-executable.ts`, and `scripts/tree.ts` for consistency and improved DX. (297fa4e)
+- **Observability & Context**: Tightened `RequestContext` propagation and performance logging across utils (`errorHandler`, `logger`, `performance`, `requestContext`) to align with full-stack observability goals.
+- **Tools**: Brought existing tool definitions (`echo`, `cat-fact`, `image-test`) and echo resource into compliance with the declarative single-file pattern and handler factory; removed ad-hoc try/catch from tool logic and enforced `McpError` throwing.
+- **Tests**: Updated and expanded tests to reflect new patterns across transports, auth, storage providers, metrics, network, parsing, scheduling, and security utilities; refined `vitest.config.ts`.
 - **Documentation**: Updated `README.md`, `CLAUDE.md`, and `scripts/README.md`; tidied `changelog/archive1.md`. (18d4cda)
 
 ### Added
 
 - **Formatting**: Introduced `.prettierrc.json` for consistent repository formatting. (f301041)
 - **Developer Scripts**: Added `scripts/devcheck.ts` utility for local checks during development. (297fa4e)
+- **Documentation**: Added root-level `AGENTS.md` as the single source of truth for agent development mandates; retained `.clinerules/AGENTS.md` as a synced artifact.
+- **CI**: Added `.github/workflows/sync-agents-md.yml` to automatically mirror `.clinerules/AGENTS.md` to `AGENTS.md` on push.
+- **Husky**: Introduced a `pre-commit` hook to run `bun run devcheck` for local guardrails.
 
 ### Fixed
 
