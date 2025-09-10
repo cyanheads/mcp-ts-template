@@ -3,8 +3,7 @@
  * and Web Standards formats, ensuring compliance and correctness.
  * @module src/mcp-server/transports/core/headerUtils
  */
-
-import type { OutgoingHttpHeaders } from "http";
+import type { OutgoingHttpHeaders } from 'http';
 
 /**
  * Converts Node.js-style OutgoingHttpHeaders to a Web-standard Headers object.

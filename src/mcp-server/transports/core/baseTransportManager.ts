@@ -2,23 +2,23 @@
  * @fileoverview Abstract base class for transport managers.
  * @module src/mcp-server/transports/core/baseTransportManager
  */
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import type { IncomingHttpHeaders, ServerResponse } from 'http';
+import { Readable } from 'stream';
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { IncomingHttpHeaders, ServerResponse } from "http";
-import { Readable } from "stream";
 import {
-  logger,
   RequestContext,
+  logger,
   requestContextService,
-} from "../../../utils/index.js";
-import { HonoStreamResponse } from "./honoNodeBridge.js";
-import { convertNodeHeadersToWebHeaders } from "./headerUtils.js";
+} from '../../../utils/index.js';
+import { convertNodeHeadersToWebHeaders } from './headerUtils.js';
+import { HonoStreamResponse } from './honoNodeBridge.js';
 import {
   HttpStatusCode,
   TransportManager,
   TransportResponse,
-} from "./transportTypes.js";
+} from './transportTypes.js';
 
 /**
  * Abstract base class for transport managers, providing common functionality.
@@ -28,10 +28,10 @@ export abstract class BaseTransportManager implements TransportManager {
 
   constructor(createServerInstanceFn: () => Promise<McpServer>) {
     const context = requestContextService.createRequestContext({
-      operation: "BaseTransportManager.constructor",
+      operation: 'BaseTransportManager.constructor',
       managerType: this.constructor.name,
     });
-    logger.debug("Initializing transport manager.", context);
+    logger.debug('Initializing transport manager.', context);
     this.createServerInstanceFn = createServerInstanceFn;
   }
 
@@ -62,9 +62,9 @@ export abstract class BaseTransportManager implements TransportManager {
   ): Promise<TransportResponse> {
     const mockReq = {
       headers,
-      method: "POST",
+      method: 'POST',
       url: endpointPath,
-    } as import("http").IncomingMessage;
+    } as import('http').IncomingMessage;
     const mockRes = new HonoStreamResponse() as unknown as ServerResponse;
 
     await transport.handleRequest(mockReq, mockRes, body);
@@ -73,7 +73,7 @@ export abstract class BaseTransportManager implements TransportManager {
       mockRes.getHeaders(),
     );
     if (transport.sessionId) {
-      responseHeaders.set("Mcp-Session-Id", transport.sessionId);
+      responseHeaders.set('Mcp-Session-Id', transport.sessionId);
     }
 
     const webStream = Readable.toWeb(
@@ -82,7 +82,7 @@ export abstract class BaseTransportManager implements TransportManager {
 
     const sessionId = transport.sessionId;
     return {
-      type: "stream",
+      type: 'stream',
       headers: responseHeaders,
       statusCode: mockRes.statusCode as HttpStatusCode,
       stream: webStream,

@@ -5,16 +5,16 @@
  * formats them into a consistent JSON-RPC error response.
  * @module src/mcp-server/transports/httpErrorHandler
  */
+import { Context } from 'hono';
+import { StatusCode } from 'hono/utils/http-status';
 
-import { Context } from "hono";
-import { StatusCode } from "hono/utils/http-status";
-import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
 import {
   ErrorHandler,
   logger,
   requestContextService,
-} from "../../../utils/index.js";
-import { HonoNodeBindings } from "./httpTypes.js";
+} from '../../../utils/index.js';
+import { HonoNodeBindings } from './httpTypes.js';
 
 /**
  * A centralized error handling middleware for Hono.
@@ -30,16 +30,16 @@ export const httpErrorHandler = async (
   c: Context<{ Bindings: HonoNodeBindings }>,
 ): Promise<Response> => {
   const context = requestContextService.createRequestContext({
-    operation: "httpErrorHandler",
+    operation: 'httpErrorHandler',
     additionalContext: {
       path: c.req.path,
       method: c.req.method,
     },
   });
-  logger.debug("HTTP error handler invoked.", context);
+  logger.debug('HTTP error handler invoked.', context);
 
   const handledError = ErrorHandler.handleError(err, {
-    operation: "httpTransport",
+    operation: 'httpTransport',
     context,
   });
 
@@ -82,20 +82,20 @@ export const httpErrorHandler = async (
     try {
       const body = await c.req.json();
       requestId = body?.id || null;
-      logger.debug("Extracted JSON-RPC request ID from body.", {
+      logger.debug('Extracted JSON-RPC request ID from body.', {
         ...context,
         jsonRpcId: requestId,
       });
     } catch {
       logger.warning(
-        "Could not parse request body to extract JSON-RPC ID.",
+        'Could not parse request body to extract JSON-RPC ID.',
         context,
       );
       // Ignore parsing errors, requestId will remain null
     }
   } else {
     logger.debug(
-      "Request body already consumed, cannot extract JSON-RPC ID.",
+      'Request body already consumed, cannot extract JSON-RPC ID.',
       context,
     );
   }
@@ -105,7 +105,7 @@ export const httpErrorHandler = async (
 
   c.status(status);
   const errorResponse = {
-    jsonrpc: "2.0",
+    jsonrpc: '2.0',
     error: {
       code: errorCode,
       message: handledError.message,

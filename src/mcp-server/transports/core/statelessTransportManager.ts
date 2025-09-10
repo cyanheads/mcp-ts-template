@@ -13,20 +13,20 @@
  *
  * @module src/mcp-server/transports/core/statelessTransportManager
  */
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import type { IncomingHttpHeaders } from 'http';
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { IncomingHttpHeaders } from "http";
-import { config } from "../../../config/index.js";
+import { config } from '../../../config/index.js';
 import {
   ErrorHandler,
+  RequestContext,
   idGenerator,
   logger,
-  RequestContext,
   requestContextService,
-} from "../../../utils/index.js";
-import { BaseTransportManager } from "./baseTransportManager.js";
-import { TransportResponse } from "./transportTypes.js";
+} from '../../../utils/index.js';
+import { BaseTransportManager } from './baseTransportManager.js';
+import { TransportResponse } from './transportTypes.js';
 
 /**
  * Manages ephemeral, single-request MCP operations.
@@ -51,10 +51,10 @@ export class StatelessTransportManager extends BaseTransportManager {
   ): Promise<TransportResponse> {
     const opContext = {
       ...context,
-      operation: "StatelessTransportManager.handleRequest",
+      operation: 'StatelessTransportManager.handleRequest',
     };
     logger.debug(
-      "Creating ephemeral server instance for stateless request.",
+      'Creating ephemeral server instance for stateless request.',
       opContext,
     );
 
@@ -70,7 +70,7 @@ export class StatelessTransportManager extends BaseTransportManager {
       });
 
       await server.connect(transport);
-      logger.debug("Ephemeral server connected to transport.", opContext);
+      logger.debug('Ephemeral server connected to transport.', opContext);
 
       // 2. Process the request using the bridge method from the base class.
       const response = await this._processRequestWithBridge(
@@ -80,10 +80,10 @@ export class StatelessTransportManager extends BaseTransportManager {
         config.mcpHttpEndpointPath,
       );
 
-      if (response.type !== "stream") {
+      if (response.type !== 'stream') {
         // This should not happen with _processRequestWithBridge
         throw new Error(
-          "Expected a streaming response but got a buffered one.",
+          'Expected a streaming response but got a buffered one.',
         );
       }
 
@@ -91,7 +91,7 @@ export class StatelessTransportManager extends BaseTransportManager {
       // This is the critical fix to prevent premature resource release.
       this.setupDeferredCleanup(response.stream, server, transport, opContext);
 
-      logger.info("Stateless request handled successfully.", opContext);
+      logger.info('Stateless request handled successfully.', opContext);
 
       // 4. Return the streaming response.
       return response;
@@ -101,7 +101,7 @@ export class StatelessTransportManager extends BaseTransportManager {
         this.cleanup(server, transport, opContext);
       }
       throw ErrorHandler.handleError(error, {
-        operation: "StatelessTransportManager.handleRequest",
+        operation: 'StatelessTransportManager.handleRequest',
         context: opContext,
         rethrow: true,
       });
@@ -129,7 +129,7 @@ export class StatelessTransportManager extends BaseTransportManager {
       cleanedUp = true;
 
       if (error) {
-        logger.warning("Stream ended with an error, proceeding to cleanup.", {
+        logger.warning('Stream ended with an error, proceeding to cleanup.', {
           ...context,
           error: error.message,
         });
@@ -168,16 +168,16 @@ export class StatelessTransportManager extends BaseTransportManager {
   ): void {
     const opContext = {
       ...context,
-      operation: "StatelessTransportManager.cleanup",
+      operation: 'StatelessTransportManager.cleanup',
     };
-    logger.debug("Scheduling cleanup for ephemeral resources.", opContext);
+    logger.debug('Scheduling cleanup for ephemeral resources.', opContext);
 
     void Promise.all([transport?.close(), server?.close()])
       .then(() => {
-        logger.debug("Ephemeral resources cleaned up successfully.", opContext);
+        logger.debug('Ephemeral resources cleaned up successfully.', opContext);
       })
       .catch((cleanupError) => {
-        logger.warning("Error during stateless resource cleanup.", {
+        logger.warning('Error during stateless resource cleanup.', {
           ...opContext,
           error:
             cleanupError instanceof Error
@@ -193,10 +193,10 @@ export class StatelessTransportManager extends BaseTransportManager {
    */
   async shutdown(): Promise<void> {
     const context = requestContextService.createRequestContext({
-      operation: "StatelessTransportManager.shutdown",
+      operation: 'StatelessTransportManager.shutdown',
     });
     logger.info(
-      "Stateless transport manager shutdown - no persistent resources to clean up.",
+      'Stateless transport manager shutdown - no persistent resources to clean up.',
       context,
     );
     return Promise.resolve();

@@ -14,25 +14,25 @@
  *
  * @module src/mcp-server/transports/core/statefulTransportManager
  */
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import type { IncomingHttpHeaders } from 'http';
+import { randomUUID } from 'node:crypto';
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { IncomingHttpHeaders } from "http";
-import { randomUUID } from "node:crypto";
-import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
+import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
 import {
   ErrorHandler,
-  logger,
   RequestContext,
+  logger,
   requestContextService,
-} from "../../../utils/index.js";
-import { BaseTransportManager } from "./baseTransportManager.js";
+} from '../../../utils/index.js';
+import { BaseTransportManager } from './baseTransportManager.js';
 import {
   HttpStatusCode,
   StatefulTransportManager as IStatefulTransportManager,
   TransportResponse,
   TransportSession,
-} from "./transportTypes.js";
+} from './transportTypes.js';
 
 /**
  * Defines the configuration options for the StatefulTransportManager.
@@ -57,7 +57,7 @@ export class StatefulTransportManager
   private readonly sessions = new Map<string, TransportSession>();
   private readonly garbageCollector: NodeJS.Timeout;
   private readonly options: StatefulTransportOptions;
-  private readonly mode: "stateful" | "auto";
+  private readonly mode: 'stateful' | 'auto';
 
   /**
    * @param createServerInstanceFn - A factory function to create new McpServer instances.
@@ -66,15 +66,15 @@ export class StatefulTransportManager
   constructor(
     createServerInstanceFn: () => Promise<McpServer>,
     options: StatefulTransportOptions,
-    mode: "stateful" | "auto" = "auto",
+    mode: 'stateful' | 'auto' = 'auto',
   ) {
     super(createServerInstanceFn);
     this.options = options;
     this.mode = mode;
     const context = requestContextService.createRequestContext({
-      operation: "StatefulTransportManager.constructor",
+      operation: 'StatefulTransportManager.constructor',
     });
-    logger.info("Starting session garbage collector.", context);
+    logger.info('Starting session garbage collector.', context);
     this.garbageCollector = setInterval(
       () => this.cleanupStaleSessions(),
       this.options.staleSessionTimeoutMs,
@@ -96,9 +96,9 @@ export class StatefulTransportManager
   ): Promise<TransportResponse> {
     const opContext = requestContextService.createRequestContext({
       parentContext: context,
-      operation: "StatefulTransportManager.initializeAndHandle",
+      operation: 'StatefulTransportManager.initializeAndHandle',
     });
-    logger.debug("Initializing new stateful session.", opContext);
+    logger.debug('Initializing new stateful session.', opContext);
 
     let server: McpServer | undefined;
     let transport: StreamableHTTPServerTransport | undefined;
@@ -138,7 +138,7 @@ export class StatefulTransportManager
       };
 
       await server.connect(transport);
-      logger.debug("Server connected, handling initial request.", opContext);
+      logger.debug('Server connected, handling initial request.', opContext);
 
       return await this._processRequestWithBridge(
         transport,
@@ -150,13 +150,13 @@ export class StatefulTransportManager
       const logContext = { ...opContext, error: String(error) };
       if (error instanceof Error) {
         logger.error(
-          "Failed to initialize stateful session. Cleaning up orphaned resources.",
+          'Failed to initialize stateful session. Cleaning up orphaned resources.',
           error,
           logContext,
         );
       } else {
         logger.error(
-          "Failed to initialize stateful session with non-error object. Cleaning up orphaned resources.",
+          'Failed to initialize stateful session with non-error object. Cleaning up orphaned resources.',
           logContext,
         );
       }
@@ -171,7 +171,7 @@ export class StatefulTransportManager
               if (server) await server.close();
             },
             {
-              operation: "initializeAndHandle.cleanupOrphaned",
+              operation: 'initializeAndHandle.cleanupOrphaned',
               context: opContext,
             },
           );
@@ -197,13 +197,13 @@ export class StatefulTransportManager
     if (!sessionId) {
       throw new McpError(
         JsonRpcErrorCode.InvalidRequest,
-        "Session ID is required for stateful requests.",
+        'Session ID is required for stateful requests.',
         context,
       );
     }
     const sessionContext = requestContextService.createRequestContext({
       parentContext: context,
-      operation: "StatefulTransportManager.handleRequest",
+      operation: 'StatefulTransportManager.handleRequest',
       additionalContext: { sessionId },
     });
 
@@ -216,12 +216,12 @@ export class StatefulTransportManager
         sessionContext,
       );
       return {
-        type: "buffered",
-        headers: new Headers({ "Content-Type": "application/json" }),
+        type: 'buffered',
+        headers: new Headers({ 'Content-Type': 'application/json' }),
         statusCode: 404,
         body: {
-          jsonrpc: "2.0",
-          error: { code: -32601, message: "Session not found" },
+          jsonrpc: '2.0',
+          error: { code: -32601, message: 'Session not found' },
         },
       };
     }
@@ -265,7 +265,7 @@ export class StatefulTransportManager
   ): Promise<TransportResponse> {
     const sessionContext = requestContextService.createRequestContext({
       parentContext: context,
-      operation: "StatefulTransportManager.handleDeleteRequest",
+      operation: 'StatefulTransportManager.handleDeleteRequest',
       additionalContext: { sessionId },
     });
     logger.info(`Attempting to delete session: ${sessionId}`, sessionContext);
@@ -277,7 +277,7 @@ export class StatefulTransportManager
       );
       throw new McpError(
         JsonRpcErrorCode.NotFound,
-        "Session not found or expired.",
+        'Session not found or expired.',
         sessionContext,
       );
     }
@@ -285,10 +285,10 @@ export class StatefulTransportManager
     await this.closeSession(sessionId, sessionContext);
 
     return {
-      type: "buffered",
-      headers: new Headers({ "Content-Type": "application/json" }),
+      type: 'buffered',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       statusCode: 200 as HttpStatusCode,
-      body: { status: "session_closed", sessionId },
+      body: { status: 'session_closed', sessionId },
     };
   }
 
@@ -302,7 +302,7 @@ export class StatefulTransportManager
   /**
    * Returns the configured session mode of the manager.
    */
-  getMode(): "stateful" | "auto" {
+  getMode(): 'stateful' | 'auto' {
     return this.mode;
   }
 
@@ -311,11 +311,11 @@ export class StatefulTransportManager
    */
   async shutdown(): Promise<void> {
     const context = requestContextService.createRequestContext({
-      operation: "StatefulTransportManager.shutdown",
+      operation: 'StatefulTransportManager.shutdown',
     });
-    logger.info("Shutting down stateful transport manager...", context);
+    logger.info('Shutting down stateful transport manager...', context);
     clearInterval(this.garbageCollector);
-    logger.debug("Garbage collector stopped.", context);
+    logger.debug('Garbage collector stopped.', context);
 
     const sessionIds = Array.from(this.transports.keys());
     if (sessionIds.length > 0) {
@@ -329,7 +329,7 @@ export class StatefulTransportManager
     this.transports.clear();
     this.sessions.clear();
     this.servers.clear();
-    logger.info("All active sessions closed and manager shut down.", context);
+    logger.info('All active sessions closed and manager shut down.', context);
   }
 
   /**
@@ -341,7 +341,7 @@ export class StatefulTransportManager
   ): Promise<void> {
     const sessionContext = requestContextService.createRequestContext({
       parentContext: context,
-      operation: "StatefulTransportManager.closeSession",
+      operation: 'StatefulTransportManager.closeSession',
       additionalContext: { sessionId },
     });
     logger.debug(`Closing session: ${sessionId}`, sessionContext);
@@ -354,7 +354,7 @@ export class StatefulTransportManager
         if (transport) await transport.close();
         if (server) await server.close();
       },
-      { operation: "closeSession.cleanup", context: sessionContext },
+      { operation: 'closeSession.cleanup', context: sessionContext },
     );
 
     this.transports.delete(sessionId);
@@ -372,9 +372,9 @@ export class StatefulTransportManager
    */
   private async cleanupStaleSessions(): Promise<void> {
     const context = requestContextService.createRequestContext({
-      operation: "StatefulTransportManager.cleanupStaleSessions",
+      operation: 'StatefulTransportManager.cleanupStaleSessions',
     });
-    logger.debug("Running stale session cleanup...", context);
+    logger.debug('Running stale session cleanup...', context);
 
     const now = Date.now();
     const STALE_TIMEOUT_MS = this.options.staleSessionTimeoutMs;
@@ -413,7 +413,7 @@ export class StatefulTransportManager
         context,
       );
     } else {
-      logger.debug("No stale sessions found.", context);
+      logger.debug('No stale sessions found.', context);
     }
   }
 }

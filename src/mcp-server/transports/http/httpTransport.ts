@@ -4,27 +4,27 @@
  * capabilities with the Model Context Protocol SDK's transport layer.
  * @module src/mcp-server/transports/http/httpTransport
  */
+import { ServerType, serve } from '@hono/node-server';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { Context, Hono, Next } from 'hono';
+import { cors } from 'hono/cors';
+import { stream } from 'hono/streaming';
+import http from 'http';
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { serve, ServerType } from "@hono/node-server";
-import { Context, Hono, Next } from "hono";
-import { cors } from "hono/cors";
-import { stream } from "hono/streaming";
-import http from "http";
-import { config } from "../../../config/index.js";
+import { config } from '../../../config/index.js';
 import {
+  RequestContext,
   logger,
   rateLimiter,
-  RequestContext,
   requestContextService,
-} from "../../../utils/index.js";
-import { createAuthMiddleware, createAuthStrategy } from "../auth/index.js";
-import { StatelessTransportManager } from "../core/statelessTransportManager.js";
-import { TransportManager } from "../core/transportTypes.js";
-import { StatefulTransportManager } from "./../core/statefulTransportManager.js";
-import { httpErrorHandler } from "./httpErrorHandler.js";
-import { HonoNodeBindings } from "./httpTypes.js";
-import { mcpTransportMiddleware } from "./mcpTransportMiddleware.js";
+} from '../../../utils/index.js';
+import { createAuthMiddleware, createAuthStrategy } from '../auth/index.js';
+import { StatelessTransportManager } from '../core/statelessTransportManager.js';
+import { TransportManager } from '../core/transportTypes.js';
+import { StatefulTransportManager } from './../core/statefulTransportManager.js';
+import { httpErrorHandler } from './httpErrorHandler.js';
+import { HonoNodeBindings } from './httpTypes.js';
+import { mcpTransportMiddleware } from './mcpTransportMiddleware.js';
 
 const HTTP_PORT = config.mcpHttpPort;
 const HTTP_HOST = config.mcpHttpHost;
@@ -36,11 +36,11 @@ const MCP_ENDPOINT_PATH = config.mcpHttpEndpointPath;
  * @returns The client's IP address or a default string if not found.
  */
 function getClientIp(c: Context<{ Bindings: HonoNodeBindings }>): string {
-  const forwardedFor = c.req.header("x-forwarded-for");
+  const forwardedFor = c.req.header('x-forwarded-for');
   return (
-    (forwardedFor?.split(",")[0] ?? "").trim() ||
-    c.req.header("x-real-ip") ||
-    "unknown_ip"
+    (forwardedFor?.split(',')[0] ?? '').trim() ||
+    c.req.header('x-real-ip') ||
+    'unknown_ip'
   );
 }
 
@@ -57,20 +57,20 @@ async function isPortInUse(
   host: string,
   parentContext: RequestContext,
 ): Promise<boolean> {
-  const context = { ...parentContext, operation: "isPortInUse", port, host };
+  const context = { ...parentContext, operation: 'isPortInUse', port, host };
   logger.debug(`Checking if port ${port} is in use...`, context);
   return new Promise((resolve) => {
     const tempServer = http.createServer();
     tempServer
-      .once("error", (err: NodeJS.ErrnoException) => {
-        const inUse = err.code === "EADDRINUSE";
+      .once('error', (err: NodeJS.ErrnoException) => {
+        const inUse = err.code === 'EADDRINUSE';
         logger.debug(
           `Port check resulted in error: ${err.code}. Port in use: ${inUse}`,
           context,
         );
         resolve(inUse);
       })
-      .once("listening", () => {
+      .once('listening', () => {
         logger.debug(
           `Successfully bound to port ${port} temporarily. Port is not in use.`,
           context,
@@ -90,7 +90,7 @@ function startHttpServerWithRetry(
 ): Promise<ServerType> {
   const startContext = {
     ...parentContext,
-    operation: "startHttpServerWithRetry",
+    operation: 'startHttpServerWithRetry',
   };
   logger.info(
     `Attempting to start HTTP server on port ${initialPort} with ${maxRetries} retries.`,
@@ -144,14 +144,14 @@ function startHttpServerWithRetry(
           } catch (err: unknown) {
             if (
               err &&
-              typeof err === "object" &&
-              "code" in err &&
-              (err as { code: string }).code !== "EADDRINUSE"
+              typeof err === 'object' &&
+              'code' in err &&
+              (err as { code: string }).code !== 'EADDRINUSE'
             ) {
               const errorToLog =
                 err instanceof Error ? err : new Error(String(err));
               logger.error(
-                "An unexpected error occurred while starting the server.",
+                'An unexpected error occurred while starting the server.',
                 errorToLog,
                 attemptContext,
               );
@@ -170,7 +170,7 @@ function startHttpServerWithRetry(
         .catch((err) => {
           const error = err instanceof Error ? err : new Error(String(err));
           logger.fatal(
-            "Failed to check if port is in use.",
+            'Failed to check if port is in use.',
             error,
             attemptContext,
           );
@@ -189,7 +189,7 @@ function createTransportManager(
 ): TransportManager {
   const opContext = {
     ...context,
-    operation: "createTransportManager",
+    operation: 'createTransportManager',
     sessionMode,
   };
   logger.info(
@@ -203,15 +203,15 @@ function createTransportManager(
   };
 
   switch (sessionMode) {
-    case "stateless":
+    case 'stateless':
       return new StatelessTransportManager(createServerInstanceFn);
-    case "stateful":
+    case 'stateful':
       return new StatefulTransportManager(
         createServerInstanceFn,
         statefulOptions,
-        "stateful",
+        'stateful',
       );
-    case "auto":
+    case 'auto':
     default:
       logger.info(
         "Defaulting to 'auto' mode (stateful with stateless fallback).",
@@ -220,7 +220,7 @@ function createTransportManager(
       return new StatefulTransportManager(
         createServerInstanceFn,
         statefulOptions,
-        "auto",
+        'auto',
       );
   }
 }
@@ -233,31 +233,31 @@ export function createHttpApp(
   const app = new Hono<{ Bindings: HonoNodeBindings }>();
   const transportContext = {
     ...parentContext,
-    component: "HttpTransportSetup",
+    component: 'HttpTransportSetup',
   };
-  logger.info("Creating Hono HTTP application.", transportContext);
+  logger.info('Creating Hono HTTP application.', transportContext);
 
   app.use(
-    "*",
+    '*',
     cors({
       origin: config.mcpAllowedOrigins || [],
-      allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
+      allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
       allowHeaders: [
-        "Content-Type",
-        "Mcp-Session-Id",
-        "Last-Event-ID",
-        "Authorization",
+        'Content-Type',
+        'Mcp-Session-Id',
+        'Last-Event-ID',
+        'Authorization',
       ],
       credentials: true,
     }),
   );
 
   app.use(
-    "*",
+    '*',
     async (c: Context<{ Bindings: HonoNodeBindings }>, next: Next) => {
       (c.env.outgoing as http.ServerResponse).setHeader(
-        "X-Content-Type-Options",
-        "nosniff",
+        'X-Content-Type-Options',
+        'nosniff',
       );
       await next();
     },
@@ -268,14 +268,14 @@ export function createHttpApp(
     async (c: Context<{ Bindings: HonoNodeBindings }>, next: Next) => {
       const clientIp = getClientIp(c);
       const context = requestContextService.createRequestContext({
-        operation: "httpRateLimitCheck",
+        operation: 'httpRateLimitCheck',
         ipAddress: clientIp,
       });
       try {
         rateLimiter.check(clientIp, context);
-        logger.debug("Rate limit check passed.", context);
+        logger.debug('Rate limit check passed.', context);
       } catch (error) {
-        logger.warning("Rate limit check failed.", {
+        logger.warning('Rate limit check failed.', {
           ...context,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -288,22 +288,22 @@ export function createHttpApp(
   const authStrategy = createAuthStrategy();
   if (authStrategy) {
     logger.info(
-      "Authentication strategy found, enabling auth middleware.",
+      'Authentication strategy found, enabling auth middleware.',
       transportContext,
     );
     app.use(MCP_ENDPOINT_PATH, createAuthMiddleware(authStrategy));
   } else {
     logger.info(
-      "No authentication strategy found, auth middleware disabled.",
+      'No authentication strategy found, auth middleware disabled.',
       transportContext,
     );
   }
 
   app.onError(httpErrorHandler);
 
-  app.get("/healthz", (c) => {
+  app.get('/healthz', (c) => {
     return c.json({
-      status: "ok",
+      status: 'ok',
       timestamp: new Date().toISOString(),
     });
   });
@@ -311,10 +311,10 @@ export function createHttpApp(
   app.get(
     MCP_ENDPOINT_PATH,
     async (c: Context<{ Bindings: HonoNodeBindings }>) => {
-      const sessionId = c.req.header("mcp-session-id");
+      const sessionId = c.req.header('mcp-session-id');
       if (sessionId) {
         return c.text(
-          "GET requests to existing sessions are not supported.",
+          'GET requests to existing sessions are not supported.',
           405,
         );
       }
@@ -329,7 +329,7 @@ export function createHttpApp(
           : config.mcpSessionMode;
 
       return c.json({
-        status: "ok",
+        status: 'ok',
         server: {
           name: config.mcpServerName,
           version: config.mcpServerVersion,
@@ -347,10 +347,10 @@ export function createHttpApp(
     MCP_ENDPOINT_PATH,
     mcpTransportMiddleware(transportManager, createServerInstanceFn),
     (c) => {
-      const response = c.get("mcpResponse");
+      const response = c.get('mcpResponse');
 
       if (response.sessionId) {
-        c.header("Mcp-Session-Id", response.sessionId);
+        c.header('Mcp-Session-Id', response.sessionId);
       }
       response.headers.forEach((value, key) => {
         c.header(key, value);
@@ -358,13 +358,13 @@ export function createHttpApp(
 
       c.status(response.statusCode);
 
-      if (response.type === "stream") {
+      if (response.type === 'stream') {
         return stream(c, async (s) => {
           await s.pipe(response.stream);
         });
       } else {
         const body =
-          typeof response.body === "object" && response.body !== null
+          typeof response.body === 'object' && response.body !== null
             ? response.body
             : { body: response.body };
         return c.json(body);
@@ -375,10 +375,10 @@ export function createHttpApp(
   app.delete(
     MCP_ENDPOINT_PATH,
     async (c: Context<{ Bindings: HonoNodeBindings }>) => {
-      const sessionId = c.req.header("mcp-session-id");
+      const sessionId = c.req.header('mcp-session-id');
       const context = requestContextService.createRequestContext({
         ...transportContext,
-        operation: "handleDeleteRequest",
+        operation: 'handleDeleteRequest',
         sessionId,
       });
 
@@ -388,9 +388,9 @@ export function createHttpApp(
             sessionId,
             context,
           );
-          if (response.type === "buffered") {
+          if (response.type === 'buffered') {
             const body =
-              typeof response.body === "object" && response.body !== null
+              typeof response.body === 'object' && response.body !== null
                 ? response.body
                 : { body: response.body };
             return c.json(body, response.statusCode);
@@ -400,22 +400,22 @@ export function createHttpApp(
         } else {
           return c.json(
             {
-              error: "Method Not Allowed",
-              message: "DELETE operations are not supported in this mode.",
+              error: 'Method Not Allowed',
+              message: 'DELETE operations are not supported in this mode.',
             },
             405,
           );
         }
       } else {
         return c.json({
-          status: "stateless_mode",
-          message: "No sessions to delete in stateless mode",
+          status: 'stateless_mode',
+          message: 'No sessions to delete in stateless mode',
         });
       }
     },
   );
 
-  logger.info("Hono application setup complete.", transportContext);
+  logger.info('Hono application setup complete.', transportContext);
   return app;
 }
 
@@ -429,9 +429,9 @@ export async function startHttpTransport(
 }> {
   const transportContext = {
     ...parentContext,
-    component: "HttpTransportStart",
+    component: 'HttpTransportStart',
   };
-  logger.info("Starting HTTP transport.", transportContext);
+  logger.info('Starting HTTP transport.', transportContext);
 
   const transportManager = createTransportManager(
     createServerInstanceFn,
@@ -452,6 +452,6 @@ export async function startHttpTransport(
     transportContext,
   );
 
-  logger.info("HTTP transport started successfully.", transportContext);
+  logger.info('HTTP transport started successfully.', transportContext);
   return { app, server, transportManager };
 }

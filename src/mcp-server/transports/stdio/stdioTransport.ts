@@ -17,10 +17,10 @@
  * @see {@link https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/authorization.mdx | MCP Authorization Specification}
  * @module src/mcp-server/transports/stdioTransport
  */
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ErrorHandler, logger, RequestContext } from "../../../utils/index.js";
+import { ErrorHandler, RequestContext, logger } from '../../../utils/index.js';
 
 /**
  * Connects a given `McpServer` instance to the Stdio transport.
@@ -48,23 +48,23 @@ export async function startStdioTransport(
 ): Promise<void> {
   const operationContext = {
     ...parentContext,
-    operation: "connectStdioTransport",
-    transportType: "Stdio",
+    operation: 'connectStdioTransport',
+    transportType: 'Stdio',
   };
-  logger.info("Attempting to connect stdio transport...", operationContext);
+  logger.info('Attempting to connect stdio transport...', operationContext);
 
   try {
-    logger.debug("Creating StdioServerTransport instance...", operationContext);
+    logger.debug('Creating StdioServerTransport instance...', operationContext);
     const transport = new StdioServerTransport();
 
     logger.debug(
-      "Connecting McpServer instance to StdioServerTransport...",
+      'Connecting McpServer instance to StdioServerTransport...',
       operationContext,
     );
     await server.connect(transport);
 
     logger.info(
-      "MCP Server connected and listening via stdio transport.",
+      'MCP Server connected and listening via stdio transport.',
       operationContext,
     );
     if (process.stdout.isTTY) {
@@ -75,7 +75,7 @@ export async function startStdioTransport(
   } catch (err) {
     // Let the ErrorHandler log the error with all context, then rethrow.
     throw ErrorHandler.handleError(err, {
-      operation: "connectStdioTransport",
+      operation: 'connectStdioTransport',
       context: operationContext,
       critical: true,
       rethrow: true,

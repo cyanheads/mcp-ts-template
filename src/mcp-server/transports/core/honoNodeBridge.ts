@@ -5,9 +5,8 @@
  * to a format consumable by modern web frameworks.
  * @module src/mcp-server/transports/core/honoNodeBridge
  */
-
-import { PassThrough } from "stream";
-import type { OutgoingHttpHeaders } from "http";
+import type { OutgoingHttpHeaders } from 'http';
+import { PassThrough } from 'stream';
 
 /**
  * A mock `http.ServerResponse` that pipes all written data to a `PassThrough` stream.
@@ -55,7 +54,7 @@ export class HonoStreamResponse extends PassThrough {
     this.statusCode = statusCode;
 
     const headersArg =
-      typeof statusMessageOrHeaders === "string"
+      typeof statusMessageOrHeaders === 'string'
         ? headers
         : statusMessageOrHeaders;
 
@@ -143,9 +142,9 @@ export class HonoStreamResponse extends PassThrough {
     this.ensureHeadersSent();
 
     const encoding =
-      typeof encodingOrCallback === "string" ? encodingOrCallback : undefined;
+      typeof encodingOrCallback === 'string' ? encodingOrCallback : undefined;
     const cb =
-      typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
+      typeof encodingOrCallback === 'function' ? encodingOrCallback : callback;
 
     if (encoding) {
       return super.write(chunk, encoding, cb);
@@ -165,9 +164,9 @@ export class HonoStreamResponse extends PassThrough {
     this.ensureHeadersSent();
 
     const encoding =
-      typeof encodingOrCallback === "string" ? encodingOrCallback : undefined;
+      typeof encodingOrCallback === 'string' ? encodingOrCallback : undefined;
     const cb =
-      typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
+      typeof encodingOrCallback === 'function' ? encodingOrCallback : callback;
 
     if (encoding) {
       super.end(chunk, encoding, cb);

@@ -5,17 +5,17 @@
  * response for Hono to send.
  * @module src/mcp-server/transports/http/mcpTransportMiddleware
  */
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import { MiddlewareHandler } from 'hono';
+import { IncomingHttpHeaders } from 'http';
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import { MiddlewareHandler } from "hono";
-import { IncomingHttpHeaders } from "http";
-import { config } from "../../../config/index.js";
-import { RequestContext, requestContextService } from "../../../utils/index.js";
-import { StatefulTransportManager } from "../core/statefulTransportManager.js";
-import { StatelessTransportManager } from "../core/statelessTransportManager.js";
-import { TransportManager, TransportResponse } from "../core/transportTypes.js";
-import { HonoNodeBindings } from "./httpTypes.js";
+import { config } from '../../../config/index.js';
+import { RequestContext, requestContextService } from '../../../utils/index.js';
+import { StatefulTransportManager } from '../core/statefulTransportManager.js';
+import { StatelessTransportManager } from '../core/statelessTransportManager.js';
+import { TransportManager, TransportResponse } from '../core/transportTypes.js';
+import { HonoNodeBindings } from './httpTypes.js';
 
 /**
  * Converts a Fetch API Headers object to Node.js IncomingHttpHeaders.
@@ -72,9 +72,9 @@ export const mcpTransportMiddleware = (
   createServerInstanceFn: () => Promise<McpServer>,
 ): MiddlewareHandler<McpMiddlewareEnv & { Bindings: HonoNodeBindings }> => {
   return async (c, next) => {
-    const sessionId = c.req.header("mcp-session-id");
+    const sessionId = c.req.header('mcp-session-id');
     const context = requestContextService.createRequestContext({
-      operation: "mcpTransportMiddleware",
+      operation: 'mcpTransportMiddleware',
       sessionId,
     });
 
@@ -82,7 +82,7 @@ export const mcpTransportMiddleware = (
     let response: TransportResponse;
 
     if (isInitializeRequest(body)) {
-      if (config.mcpSessionMode === "stateless") {
+      if (config.mcpSessionMode === 'stateless') {
         response = await handleStatelessRequest(
           createServerInstanceFn,
           c.req.raw.headers,
@@ -116,7 +116,7 @@ export const mcpTransportMiddleware = (
       }
     }
 
-    c.set("mcpResponse", response);
+    c.set('mcpResponse', response);
     await next();
   };
 };

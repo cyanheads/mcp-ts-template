@@ -3,4 +3,4 @@
  * @module src/mcp-server/transports/stdio/index
  */
 
-export { startStdioTransport } from "./stdioTransport.js";
+export { startStdioTransport } from './stdioTransport.js';
