@@ -4,39 +4,40 @@
  * JWTs against a remote JSON Web Key Set (JWKS), as is common in OAuth 2.1 flows.
  * @module src/mcp-server/transports/auth/strategies/OauthStrategy
  */
-import { createRemoteJWKSet, jwtVerify, JWTVerifyResult } from "jose";
-import { config } from "../../../../config/index.js";
-import { JsonRpcErrorCode, McpError } from "../../../../types-global/errors.js";
+import { JWTVerifyResult, createRemoteJWKSet, jwtVerify } from 'jose';
+
+import { config } from '../../../../config/index.js';
+import { JsonRpcErrorCode, McpError } from '../../../../types-global/errors.js';
 import {
   ErrorHandler,
   logger,
   requestContextService,
-} from "../../../../utils/index.js";
-import type { AuthInfo } from "../lib/authTypes.js";
-import type { AuthStrategy } from "./authStrategy.js";
+} from '../../../../utils/index.js';
+import type { AuthInfo } from '../lib/authTypes.js';
+import type { AuthStrategy } from './authStrategy.js';
 
 export class OauthStrategy implements AuthStrategy {
   private readonly jwks: ReturnType<typeof createRemoteJWKSet>;
 
   constructor() {
     const context = requestContextService.createRequestContext({
-      operation: "OauthStrategy.constructor",
+      operation: 'OauthStrategy.constructor',
     });
-    logger.debug("Initializing OauthStrategy...", context);
+    logger.debug('Initializing OauthStrategy...', context);
 
-    if (config.mcpAuthMode !== "oauth") {
+    if (config.mcpAuthMode !== 'oauth') {
       // This check is for internal consistency, so a standard Error is acceptable here.
-      throw new Error("OauthStrategy instantiated for non-oauth auth mode.");
+      throw new Error('OauthStrategy instantiated for non-oauth auth mode.');
     }
     if (!config.oauthIssuerUrl || !config.oauthAudience) {
       logger.fatal(
-        "CRITICAL: OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.",
+        'CRITICAL: OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.',
         context,
       );
       // This is a user-facing configuration error, so McpError is appropriate.
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
-        "OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.",
+        'OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.',
         context,
       );
     }
@@ -44,7 +45,7 @@ export class OauthStrategy implements AuthStrategy {
     try {
       const jwksUrl = new URL(
         config.oauthJwksUri ||
-          `${config.oauthIssuerUrl.replace(/\/$/, "")}/.well-known/jwks.json`,
+          `${config.oauthIssuerUrl.replace(/\/$/, '')}/.well-known/jwks.json`,
       );
       this.jwks = createRemoteJWKSet(jwksUrl, {
         cooldownDuration: config.oauthJwksCooldownMs,
@@ -52,17 +53,17 @@ export class OauthStrategy implements AuthStrategy {
       });
       logger.info(`JWKS client initialized for URL: ${jwksUrl.href}`, context);
     } catch (error) {
-      logger.fatal("Failed to initialize JWKS client.", {
+      logger.fatal('Failed to initialize JWKS client.', {
         ...context,
         error: error instanceof Error ? error.message : String(error),
       });
       // This is a critical startup failure, so a specific McpError is warranted.
       throw new McpError(
         JsonRpcErrorCode.ServiceUnavailable,
-        "Could not initialize JWKS client for OAuth strategy.",
+        'Could not initialize JWKS client for OAuth strategy.',
         {
           ...context,
-          originalError: error instanceof Error ? error.message : "Unknown",
+          originalError: error instanceof Error ? error.message : 'Unknown',
         },
       );
     }
@@ -70,22 +71,22 @@ export class OauthStrategy implements AuthStrategy {
 
   async verify(token: string): Promise<AuthInfo> {
     const context = requestContextService.createRequestContext({
-      operation: "OauthStrategy.verify",
+      operation: 'OauthStrategy.verify',
     });
-    logger.debug("Attempting to verify OAuth token via JWKS.", context);
+    logger.debug('Attempting to verify OAuth token via JWKS.', context);
 
     try {
       const { payload }: JWTVerifyResult = await jwtVerify(token, this.jwks, {
         issuer: config.oauthIssuerUrl!,
         audience: config.oauthAudience!,
       });
-      logger.debug("OAuth token signature verified successfully.", {
+      logger.debug('OAuth token signature verified successfully.', {
         ...context,
         claims: payload,
       });
 
       const scopes =
-        typeof payload.scope === "string" ? payload.scope.split(" ") : [];
+        typeof payload.scope === 'string' ? payload.scope.split(' ') : [];
       if (scopes.length === 0) {
         logger.warning(
           "Invalid token: missing or empty 'scope' claim.",
@@ -93,13 +94,13 @@ export class OauthStrategy implements AuthStrategy {
         );
         throw new McpError(
           JsonRpcErrorCode.Unauthorized,
-          "Token must contain valid, non-empty scopes.",
+          'Token must contain valid, non-empty scopes.',
           context,
         );
       }
 
       const clientId =
-        typeof payload.client_id === "string" ? payload.client_id : undefined;
+        typeof payload.client_id === 'string' ? payload.client_id : undefined;
       if (!clientId) {
         logger.warning("Invalid token: missing 'client_id' claim.", context);
         throw new McpError(
@@ -109,14 +110,14 @@ export class OauthStrategy implements AuthStrategy {
         );
       }
 
-      const subject = typeof payload.sub === "string" ? payload.sub : undefined;
+      const subject = typeof payload.sub === 'string' ? payload.sub : undefined;
       const authInfo: AuthInfo = {
         token,
         clientId,
         scopes,
         ...(subject && { subject }),
       };
-      logger.info("OAuth token verification successful.", {
+      logger.info('OAuth token verification successful.', {
         ...context,
         clientId,
         scopes,
@@ -129,18 +130,18 @@ export class OauthStrategy implements AuthStrategy {
       }
 
       const message =
-        error instanceof Error && error.name === "JWTExpired"
-          ? "Token has expired."
-          : "OAuth token verification failed.";
+        error instanceof Error && error.name === 'JWTExpired'
+          ? 'Token has expired.'
+          : 'OAuth token verification failed.';
 
       logger.warning(`OAuth token verification failed: ${message}`, {
         ...context,
-        errorName: error instanceof Error ? error.name : "Unknown",
+        errorName: error instanceof Error ? error.name : 'Unknown',
       });
 
       // For all other errors, use the ErrorHandler to wrap them.
       throw ErrorHandler.handleError(error, {
-        operation: "OauthStrategy.verify",
+        operation: 'OauthStrategy.verify',
         context,
         rethrow: true,
         errorCode: JsonRpcErrorCode.Unauthorized,

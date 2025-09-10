@@ -4,11 +4,11 @@
  * authentication strategy, promoting loose coupling and easy extensibility.
  * @module src/mcp-server/transports/auth/authFactory
  */
-import { config } from "../../../config/index.js";
-import { logger, requestContextService } from "../../../utils/index.js";
-import { AuthStrategy } from "./strategies/authStrategy.js";
-import { JwtStrategy } from "./strategies/jwtStrategy.js";
-import { OauthStrategy } from "./strategies/oauthStrategy.js";
+import { config } from '../../../config/index.js';
+import { logger, requestContextService } from '../../../utils/index.js';
+import { AuthStrategy } from './strategies/authStrategy.js';
+import { JwtStrategy } from './strategies/jwtStrategy.js';
+import { OauthStrategy } from './strategies/oauthStrategy.js';
 
 /**
  * Creates and returns an authentication strategy instance based on the
@@ -20,19 +20,19 @@ import { OauthStrategy } from "./strategies/oauthStrategy.js";
  */
 export function createAuthStrategy(): AuthStrategy | null {
   const context = requestContextService.createRequestContext({
-    operation: "createAuthStrategy",
+    operation: 'createAuthStrategy',
     authMode: config.mcpAuthMode,
   });
-  logger.info("Creating authentication strategy...", context);
+  logger.info('Creating authentication strategy...', context);
 
   switch (config.mcpAuthMode) {
-    case "jwt":
-      logger.debug("Instantiating JWT authentication strategy.", context);
+    case 'jwt':
+      logger.debug('Instantiating JWT authentication strategy.', context);
       return new JwtStrategy();
-    case "oauth":
-      logger.debug("Instantiating OAuth authentication strategy.", context);
+    case 'oauth':
+      logger.debug('Instantiating OAuth authentication strategy.', context);
       return new OauthStrategy();
-    case "none":
+    case 'none':
       logger.info("Authentication is disabled ('none' mode).", context);
       return null; // No authentication
     default:

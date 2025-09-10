@@ -5,16 +5,17 @@
  * populates the async-local storage context with the resulting auth info.
  * @module src/mcp-server/transports/auth/authMiddleware
  */
-import type { HttpBindings } from "@hono/node-server";
-import type { Context, Next } from "hono";
-import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
+import type { HttpBindings } from '@hono/node-server';
+import type { Context, Next } from 'hono';
+
+import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
 import {
   ErrorHandler,
   logger,
   requestContextService,
-} from "../../../utils/index.js";
-import { authContext } from "./lib/authContext.js";
-import type { AuthStrategy } from "./strategies/authStrategy.js";
+} from '../../../utils/index.js';
+import { authContext } from './lib/authContext.js';
+import type { AuthStrategy } from './strategies/authStrategy.js';
 
 /**
  * Creates a Hono middleware function that enforces authentication using a given strategy.
@@ -28,21 +29,21 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
     next: Next,
   ) {
     const context = requestContextService.createRequestContext({
-      operation: "authMiddleware",
+      operation: 'authMiddleware',
       additionalContext: {
         method: c.req.method,
         path: c.req.path,
       },
     });
 
-    logger.debug("Initiating authentication check.", context);
+    logger.debug('Initiating authentication check.', context);
 
-    const authHeader = c.req.header("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      logger.warning("Authorization header missing or invalid.", context);
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      logger.warning('Authorization header missing or invalid.', context);
       throw new McpError(
         JsonRpcErrorCode.Unauthorized,
-        "Missing or invalid Authorization header. Bearer scheme required.",
+        'Missing or invalid Authorization header. Bearer scheme required.',
         context,
       );
     }
@@ -50,18 +51,18 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
     const token = authHeader.substring(7);
     if (!token) {
       logger.warning(
-        "Bearer token is missing from Authorization header.",
+        'Bearer token is missing from Authorization header.',
         context,
       );
       throw new McpError(
         JsonRpcErrorCode.Unauthorized,
-        "Authentication token is missing.",
+        'Authentication token is missing.',
         context,
       );
     }
 
     logger.debug(
-      "Extracted Bearer token, proceeding to verification.",
+      'Extracted Bearer token, proceeding to verification.',
       context,
     );
 
@@ -75,7 +76,7 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
         scopes: authInfo.scopes,
       };
       logger.info(
-        "Authentication successful. Auth context populated.",
+        'Authentication successful. Auth context populated.',
         authLogContext,
       );
 
@@ -84,14 +85,14 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
     } catch (error) {
       // The strategy is expected to throw an McpError.
       // We re-throw it here to be caught by the global httpErrorHandler.
-      logger.warning("Authentication verification failed.", {
+      logger.warning('Authentication verification failed.', {
         ...context,
         error: error instanceof Error ? error.message : String(error),
       });
 
       // Ensure consistent error handling
       throw ErrorHandler.handleError(error, {
-        operation: "authMiddlewareVerification",
+        operation: 'authMiddlewareVerification',
         context,
         rethrow: true, // Rethrow to be caught by Hono's global error handler
         errorCode: JsonRpcErrorCode.Unauthorized, // Default to unauthorized if not more specific
