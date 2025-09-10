@@ -8,7 +8,7 @@
  */
 import { execSync } from 'child_process';
 import * as fs from 'fs';
-import minimist from 'minimist';
+// Avoid minimist to keep types safe under strict lint rules
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -104,7 +104,7 @@ const generateFileTree = (rootDir: string): string => {
 };
 
 const getRepomixOutputs = (filePaths: string[]): string => {
-  const allOutputs = filePaths
+  const allOutputs: string[] = filePaths
     .map((filePath) => {
       if (!fs.existsSync(filePath)) {
         log(
@@ -122,7 +122,7 @@ const getRepomixOutputs = (filePaths: string[]): string => {
       log(`Warning: Repomix produced no output for ${filePath}. Skipping.`);
       return null;
     })
-    .filter(Boolean);
+    .filter((v): v is string => typeof v === 'string');
 
   return allOutputs.join('\n\n---\n\n');
 };
@@ -188,12 +188,10 @@ const createDevDocsFile = (
 
 // --- Main Execution ---
 
-const main = () => {
-  const args = minimist(process.argv.slice(2), {
-    boolean: ['include-rules'],
-  });
-  const filePaths = args._;
-  const includeRules = args['include-rules'];
+const main = (): void => {
+  const argv = process.argv.slice(2);
+  const includeRules = argv.includes('--include-rules');
+  const filePaths: string[] = argv.filter((a) => !a.startsWith('--'));
 
   if (filePaths.length === 0) {
     log('Error: Please provide at least one file path for repomix.');
@@ -229,8 +227,9 @@ const main = () => {
     copyToClipboard(devDocsPath);
 
     log('All tasks completed successfully.');
-  } catch (error) {
-    console.error('\nAn unexpected error occurred. Aborting.', error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('\nAn unexpected error occurred. Aborting.', errorMessage);
     process.exit(1);
   }
 };

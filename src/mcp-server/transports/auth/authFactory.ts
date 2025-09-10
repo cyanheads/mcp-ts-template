@@ -39,9 +39,11 @@ export function createAuthStrategy(): AuthStrategy | null {
       // This ensures that if a new auth mode is added to the config type
       // but not to this factory, we get a compile-time or runtime error.
       logger.error(
-        `Unknown authentication mode: ${config.mcpAuthMode}`,
+        `Unknown authentication mode: ${String(config.mcpAuthMode)}`,
         context,
       );
-      throw new Error(`Unknown authentication mode: ${config.mcpAuthMode}`);
+      throw new Error(
+        `Unknown authentication mode: ${String(config.mcpAuthMode)}`,
+      );
   }
 }

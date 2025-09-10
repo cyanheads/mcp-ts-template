@@ -104,4 +104,5 @@ const clean = async (): Promise<void> => {
   }
 };
 
-clean();
+// Intentionally not awaiting; internal try/catch handles errors.
+void clean();

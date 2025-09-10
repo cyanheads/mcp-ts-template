@@ -29,7 +29,7 @@ export async function parseDateString(
   logger.debug(`Attempting to parse date string: "${text}"`, logContext);
 
   return await ErrorHandler.tryCatch(
-    async () => {
+    () => {
       const parsedDate = chrono.parseDate(text, refDate, { forwardDate: true });
       if (parsedDate) {
         logger.debug(
@@ -75,7 +75,7 @@ export async function parseDateStringDetailed(
   );
 
   return await ErrorHandler.tryCatch(
-    async () => {
+    () => {
       const results = chrono.parse(text, refDate, { forwardDate: true });
       logger.debug(
         `Detailed parse of "${text}" resulted in ${results.length} result(s)`,

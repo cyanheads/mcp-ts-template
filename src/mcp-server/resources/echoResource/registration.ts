@@ -39,19 +39,17 @@ export const registerEchoResource = async (
   logger.info(`Registering resource: '${resourceName}'`, registrationContext);
 
   await ErrorHandler.tryCatch(
-    async () => {
+    () => {
       const template = new ResourceTemplate('echo://{message}', {
-        list: async (): Promise<ListResourcesResult> => {
-          return {
-            resources: [
-              {
-                uri: 'echo://hello',
-                name: 'Default Echo Message',
-                description: 'A simple echo resource example.',
-              },
-            ],
-          };
-        },
+        list: (): ListResourcesResult => ({
+          resources: [
+            {
+              uri: 'echo://hello',
+              name: 'Default Echo Message',
+              description: 'A simple echo resource example.',
+            },
+          ],
+        }),
       });
 
       server.resource(
@@ -63,11 +61,11 @@ export const registerEchoResource = async (
           mimeType: 'application/json',
           examples: [{ name: 'Basic echo', uri: 'echo://hello' }],
         },
-        async (
+        (
           uri: URL,
           params: EchoResourceParams,
           callContext: Record<string, unknown>,
-        ): Promise<ReadResourceResult> => {
+        ): ReadResourceResult => {
           const sessionId =
             typeof callContext?.sessionId === 'string'
               ? callContext.sessionId
@@ -85,11 +83,7 @@ export const registerEchoResource = async (
             });
 
           try {
-            const responseData = await echoResourceLogic(
-              uri,
-              params,
-              handlerContext,
-            );
+            const responseData = echoResourceLogic(uri, params, handlerContext);
             return {
               contents: [
                 {

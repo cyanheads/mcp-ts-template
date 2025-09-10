@@ -72,11 +72,15 @@ async function tryFetch(
 ): Promise<{ data: string; contentType: string | null } | null> {
   try {
     console.log(`Attempting to fetch from: ${url}`);
-    const response = await axios.get(url, {
+    const response = await axios.get<string>(url, {
       responseType: 'text',
       validateStatus: (status) => status >= 200 && status < 300,
     });
-    const contentType = response.headers['content-type'] || null;
+    const rawContentType = (response.headers as Record<string, unknown>)[
+      'content-type'
+    ];
+    const contentType =
+      typeof rawContentType === 'string' ? rawContentType : null;
     console.log(
       `Successfully fetched (Status: ${response.status}, Content-Type: ${contentType || 'N/A'})`,
     );
@@ -108,16 +112,20 @@ function parseSpec(data: string, contentType: string | null): object | null {
       lowerContentType?.includes('yml')
     ) {
       console.log('Parsing content as YAML based on Content-Type...');
-      return yaml.load(data) as object;
+      const parsed = yaml.load(data);
+      if (parsed && typeof parsed === 'object') return parsed;
+      return null;
     } else if (lowerContentType?.includes('json')) {
       console.log('Parsing content as JSON based on Content-Type...');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data) as unknown;
+      if (parsed && typeof parsed === 'object') return parsed;
+      return null;
     } else {
       console.log(
         'Content-Type is ambiguous or missing. Attempting to parse as YAML first...',
       );
       try {
-        const parsedYaml = yaml.load(data) as object;
+        const parsedYaml = yaml.load(data);
         // Basic validation: check if it's a non-null object.
         if (parsedYaml && typeof parsedYaml === 'object') {
           console.log('Successfully parsed as YAML.');
@@ -126,7 +134,7 @@ function parseSpec(data: string, contentType: string | null): object | null {
       } catch (_yamlError) {
         console.log('YAML parsing failed. Attempting to parse as JSON...');
         try {
-          const parsedJson = JSON.parse(data);
+          const parsedJson = JSON.parse(data) as unknown;
           if (parsedJson && typeof parsedJson === 'object') {
             console.log('Successfully parsed as JSON.');
             return parsedJson;
@@ -143,7 +151,7 @@ function parseSpec(data: string, contentType: string | null): object | null {
         'Content parsed as YAML but was not a valid object structure. Trying JSON.',
       );
       try {
-        const parsedJson = JSON.parse(data);
+        const parsedJson = JSON.parse(data) as unknown;
         if (parsedJson && typeof parsedJson === 'object') {
           console.log(
             'Successfully parsed as JSON on second attempt for non-object YAML.',
@@ -256,4 +264,5 @@ async function fetchAndProcessSpec(): Promise<void> {
   console.log('OpenAPI specification processed and saved successfully.');
 }
 
-fetchAndProcessSpec();
+// Intentionally not awaiting; internal try/catch handles errors.
+void fetchAndProcessSpec();

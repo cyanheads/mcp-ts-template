@@ -40,11 +40,11 @@ export interface EchoResourceResponsePayload {
  * @param context - The request context, used for logging and tracing the operation.
  * @returns The data payload for the response.
  */
-export async function echoResourceLogic(
+export function echoResourceLogic(
   uri: URL,
   params: EchoResourceParams,
   context: RequestContext,
-): Promise<EchoResourceResponsePayload> {
+): EchoResourceResponsePayload {
   // The message can come from a query parameter or the path itself.
   // For a URI like `echo://my-message?param=1`, `hostname` is `my-message`.
   const messageFromPath = uri.hostname || uri.pathname.replace(/^\/+/g, '');

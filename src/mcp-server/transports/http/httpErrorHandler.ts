@@ -80,8 +80,14 @@ export const httpErrorHandler = async (
   // Only attempt to read the body if it hasn't been consumed already.
   if (c.req.raw.bodyUsed === false) {
     try {
-      const body = await c.req.json();
-      requestId = body?.id || null;
+      const body: unknown = await c.req.json();
+      if (body && typeof body === 'object' && 'id' in body) {
+        const id = (body as Record<string, unknown>).id;
+        requestId =
+          typeof id === 'string' || typeof id === 'number' ? id : null;
+      } else {
+        requestId = null;
+      }
       logger.debug('Extracted JSON-RPC request ID from body.', {
         ...context,
         jsonRpcId: requestId,

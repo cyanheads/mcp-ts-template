@@ -75,10 +75,9 @@ export class StatefulTransportManager
       operation: 'StatefulTransportManager.constructor',
     });
     logger.info('Starting session garbage collector.', context);
-    this.garbageCollector = setInterval(
-      () => this.cleanupStaleSessions(),
-      this.options.staleSessionTimeoutMs,
-    );
+    this.garbageCollector = setInterval(() => {
+      void this.cleanupStaleSessions();
+    }, this.options.staleSessionTimeoutMs);
   }
 
   /**
@@ -130,7 +129,7 @@ export class StatefulTransportManager
           this.closeSession(sessionId, closeContext).catch((err) =>
             logger.error(
               `Error during transport.onclose cleanup for session ${sessionId}`,
-              err,
+              err instanceof Error ? err : new Error(String(err)),
               closeContext,
             ),
           );
@@ -164,7 +163,7 @@ export class StatefulTransportManager
       const sessionInitialized =
         transport?.sessionId && this.transports.has(transport.sessionId);
       if (!sessionInitialized) {
-        (async () => {
+        void (async () => {
           await ErrorHandler.tryCatch(
             async () => {
               if (transport) await transport.close();
@@ -402,7 +401,7 @@ export class StatefulTransportManager
         this.closeSession(sessionId, context).catch((err) => {
           logger.error(
             `Error during concurrent stale session cleanup for ${sessionId}`,
-            err,
+            err instanceof Error ? err : new Error(String(err)),
             { ...context, sessionId },
           );
         }),

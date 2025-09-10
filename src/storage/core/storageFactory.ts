@@ -56,7 +56,7 @@ export function createStorageProvider(): IStorageProvider {
       const exhaustiveCheck: never = providerType;
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
-        `Unhandled storage provider type: ${exhaustiveCheck}`,
+        `Unhandled storage provider type: ${String(exhaustiveCheck)}`,
         context,
       );
     }

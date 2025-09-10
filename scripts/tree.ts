@@ -258,7 +258,17 @@ const writeTreeToFile = async (): Promise<void> => {
       ) {
         // ENOENT (file not found) is expected if the file hasn't been created yet.
         const errorMessage =
-          error instanceof Error ? error.message : String(error);
+          error instanceof Error
+            ? error.message
+            : typeof error === 'string'
+              ? error
+              : (() => {
+                  try {
+                    return JSON.stringify(error);
+                  } catch {
+                    return 'Unknown error';
+                  }
+                })();
         console.warn(
           `Warning: Could not read existing output file ("${resolvedOutputFile}") for comparison: ${errorMessage}`,
         );
@@ -310,4 +320,5 @@ const writeTreeToFile = async (): Promise<void> => {
   }
 };
 
-writeTreeToFile();
+// Intentionally not awaiting; internal try/catch handles errors.
+void writeTreeToFile();

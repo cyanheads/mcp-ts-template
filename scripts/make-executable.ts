@@ -132,4 +132,5 @@ const makeExecutable = async (): Promise<void> => {
   }
 };
 
-makeExecutable();
+// Intentionally not awaiting; internal try/catch handles errors.
+void makeExecutable();

@@ -134,7 +134,7 @@ export class SchedulerService {
     if (!job) {
       throw new Error(`Job with ID '${id}' not found.`);
     }
-    job.task.start();
+    void job.task.start();
     logger.info(`Job '${id}' started.`, {
       requestId: `job-start-${id}`,
       timestamp: new Date().toISOString(),
@@ -150,7 +150,7 @@ export class SchedulerService {
     if (!job) {
       throw new Error(`Job with ID '${id}' not found.`);
     }
-    job.task.stop();
+    void job.task.stop();
     logger.info(`Job '${id}' stopped.`, {
       requestId: `job-stop-${id}`,
       timestamp: new Date().toISOString(),
@@ -166,7 +166,7 @@ export class SchedulerService {
     if (!job) {
       throw new Error(`Job with ID '${id}' not found.`);
     }
-    job.task.stop();
+    void job.task.stop();
     this.jobs.delete(id);
     logger.info(`Job '${id}' removed.`, {
       requestId: `job-remove-${id}`,

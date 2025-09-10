@@ -257,15 +257,30 @@ function getErrorMessage(error: unknown): string {
     return error;
   }
   try {
-    const str = String(error);
-    if (str === '[object Object]' && error !== null) {
-      try {
-        return `Non-Error object encountered: ${JSON.stringify(error)}`;
-      } catch {
-        return `Unstringifyable non-Error object encountered (constructor: ${error.constructor?.name || 'Unknown'})`;
-      }
+    if (typeof error === 'number' || typeof error === 'boolean') {
+      return String(error);
     }
-    return str;
+    if (typeof error === 'bigint') {
+      return error.toString();
+    }
+    if (typeof error === 'function') {
+      return `[function ${error.name || 'anonymous'}]`;
+    }
+    if (typeof error === 'object') {
+      try {
+        const json = JSON.stringify(error);
+        if (json && json !== '{}') return json;
+      } catch {
+        // fall through
+      }
+      const ctor = (error as { constructor?: { name?: string } }).constructor
+        ?.name;
+      return `Non-Error object encountered (constructor: ${ctor || 'Object'})`;
+    }
+    if (typeof error === 'symbol') {
+      return error.toString();
+    }
+    return '[unrepresentable error]';
   } catch (e) {
     return `Error converting error to string: ${e instanceof Error ? e.message : 'Unknown conversion error'}`;
   }
@@ -290,8 +305,9 @@ export class ErrorHandler {
     const errorName = getErrorName(error);
     const errorMessage = getErrorMessage(error);
 
-    const mappedFromType =
-      ERROR_TYPE_MAPPINGS[errorName as keyof typeof ERROR_TYPE_MAPPINGS];
+    const mappedFromType = (
+      ERROR_TYPE_MAPPINGS as Record<string, JsonRpcErrorCode>
+    )[errorName];
     if (mappedFromType) {
       return mappedFromType;
     }

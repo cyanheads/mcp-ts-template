@@ -72,16 +72,20 @@ const loadPackageJson = (): {
   }
   try {
     const fileContents = readFileSync(pkgPath, 'utf-8');
-    const parsed = JSON.parse(fileContents);
-    return {
-      name: typeof parsed.name === 'string' ? parsed.name : fallback.name,
-      version:
-        typeof parsed.version === 'string' ? parsed.version : fallback.version,
-      description:
-        typeof parsed.description === 'string'
-          ? parsed.description
-          : fallback.description,
-    };
+    const parsed: unknown = JSON.parse(fileContents);
+    if (parsed && typeof parsed === 'object') {
+      const obj = parsed as Record<string, unknown>;
+      return {
+        name: typeof obj.name === 'string' ? obj.name : fallback.name,
+        version:
+          typeof obj.version === 'string' ? obj.version : fallback.version,
+        description:
+          typeof obj.description === 'string'
+            ? obj.description
+            : fallback.description,
+      };
+    }
+    return fallback;
   } catch (error) {
     if (process.stdout.isTTY) {
       console.error(

@@ -148,14 +148,24 @@ function startHttpServerWithRetry(
               'code' in err &&
               (err as { code: string }).code !== 'EADDRINUSE'
             ) {
+              const fallbackMessage =
+                typeof err === 'string'
+                  ? err
+                  : (() => {
+                      try {
+                        return JSON.stringify(err);
+                      } catch {
+                        return '[unknown error]';
+                      }
+                    })();
               const errorToLog =
-                err instanceof Error ? err : new Error(String(err));
+                err instanceof Error ? err : new Error(fallbackMessage);
               logger.error(
                 'An unexpected error occurred while starting the server.',
                 errorToLog,
                 attemptContext,
               );
-              return reject(err);
+              return reject(errorToLog);
             }
             logger.warning(
               `Encountered EADDRINUSE race condition on port ${port}, retrying...`,
@@ -168,13 +178,23 @@ function startHttpServerWithRetry(
           }
         })
         .catch((err) => {
-          const error = err instanceof Error ? err : new Error(String(err));
+          const fallbackMessage =
+            typeof err === 'string'
+              ? err
+              : (() => {
+                  try {
+                    return JSON.stringify(err);
+                  } catch {
+                    return '[unknown error]';
+                  }
+                })();
+          const error = err instanceof Error ? err : new Error(fallbackMessage);
           logger.fatal(
             'Failed to check if port is in use.',
             error,
             attemptContext,
           );
-          reject(err);
+          reject(error);
         });
     };
 
@@ -255,10 +275,7 @@ export function createHttpApp(
   app.use(
     '*',
     async (c: Context<{ Bindings: HonoNodeBindings }>, next: Next) => {
-      (c.env.outgoing as http.ServerResponse).setHeader(
-        'X-Content-Type-Options',
-        'nosniff',
-      );
+      c.header('X-Content-Type-Options', 'nosniff');
       await next();
     },
   );
@@ -325,7 +342,7 @@ export function createHttpApp(
 
       const selectedSessionMode =
         transportManager instanceof StatefulTransportManager
-          ? (transportManager as StatefulTransportManager).getMode()
+          ? transportManager.getMode()
           : config.mcpSessionMode;
 
       return c.json({
