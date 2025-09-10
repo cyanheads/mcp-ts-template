@@ -4,16 +4,16 @@
  * Each key-value pair is stored as a separate JSON file.
  * @module src/storage/providers/fileSystem/fileSystemProvider
  */
+import { existsSync, mkdirSync } from 'fs';
+import { readFile, readdir, rm, writeFile } from 'fs/promises';
+import path from 'path';
 
-import { existsSync, mkdirSync } from "fs";
-import { readdir, readFile, rm, writeFile } from "fs/promises";
-import path from "path";
-import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
-import { ErrorHandler, logger, RequestContext } from "../../../utils/index.js";
+import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
+import { ErrorHandler, RequestContext, logger } from '../../../utils/index.js';
 import {
   IStorageProvider,
   StorageOptions,
-} from "../../core/IStorageProvider.js";
+} from '../../core/IStorageProvider.js';
 
 interface FileStoreEntry {
   value: unknown;
@@ -27,7 +27,7 @@ export class FileSystemProvider implements IStorageProvider {
     if (!storagePath) {
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
-        "FileSystemProvider requires a valid storagePath.",
+        'FileSystemProvider requires a valid storagePath.',
       );
     }
     this.storagePath = path.resolve(storagePath);
@@ -38,7 +38,7 @@ export class FileSystemProvider implements IStorageProvider {
 
   private sanitizeKey(key: string): string {
     // Use Base64 URL-safe encoding for robustness to prevent collisions.
-    return Buffer.from(key).toString("base64url");
+    return Buffer.from(key).toString('base64url');
   }
 
   private getFilePath(key: string): string {
@@ -48,7 +48,7 @@ export class FileSystemProvider implements IStorageProvider {
     if (!path.resolve(filePath).startsWith(this.storagePath)) {
       throw new McpError(
         JsonRpcErrorCode.ValidationError,
-        "Invalid key results in path traversal attempt.",
+        'Invalid key results in path traversal attempt.',
       );
     }
     return filePath;
@@ -59,7 +59,7 @@ export class FileSystemProvider implements IStorageProvider {
     return ErrorHandler.tryCatch(
       async () => {
         try {
-          const data = await readFile(filePath, "utf-8");
+          const data = await readFile(filePath, 'utf-8');
           const entry = JSON.parse(data) as FileStoreEntry;
 
           if (entry.expiresAt && Date.now() > entry.expiresAt) {
@@ -74,15 +74,15 @@ export class FileSystemProvider implements IStorageProvider {
         } catch (error) {
           if (
             error instanceof Error &&
-            "code" in error &&
-            error.code === "ENOENT"
+            'code' in error &&
+            error.code === 'ENOENT'
           ) {
             return null; // File not found
           }
           throw error; // Re-throw other errors
         }
       },
-      { operation: "FileSystemProvider.get", context, input: { key } },
+      { operation: 'FileSystemProvider.get', context, input: { key } },
     );
   }
 
@@ -102,9 +102,9 @@ export class FileSystemProvider implements IStorageProvider {
           value,
           ...(expiresAt && { expiresAt }),
         };
-        await writeFile(filePath, JSON.stringify(entry), "utf-8");
+        await writeFile(filePath, JSON.stringify(entry), 'utf-8');
       },
-      { operation: "FileSystemProvider.set", context, input: { key } },
+      { operation: 'FileSystemProvider.set', context, input: { key } },
     );
   }
 
@@ -118,15 +118,15 @@ export class FileSystemProvider implements IStorageProvider {
         } catch (error) {
           if (
             error instanceof Error &&
-            "code" in error &&
-            error.code === "ENOENT"
+            'code' in error &&
+            error.code === 'ENOENT'
           ) {
             return false; // File didn't exist
           }
           throw error;
         }
       },
-      { operation: "FileSystemProvider.delete", context, input: { key } },
+      { operation: 'FileSystemProvider.delete', context, input: { key } },
     );
   }
 
@@ -136,11 +136,11 @@ export class FileSystemProvider implements IStorageProvider {
         const files = await readdir(this.storagePath);
         const keys: string[] = [];
         for (const file of files) {
-          if (file.endsWith(".json")) {
+          if (file.endsWith('.json')) {
             const originalKey = Buffer.from(
               file.slice(0, -5),
-              "base64url",
-            ).toString("utf8");
+              'base64url',
+            ).toString('utf8');
             if (originalKey.startsWith(prefix)) {
               // Check for expiration before adding to the list
               const value = await this.get(originalKey, context);
@@ -152,7 +152,7 @@ export class FileSystemProvider implements IStorageProvider {
         }
         return keys;
       },
-      { operation: "FileSystemProvider.list", context, input: { prefix } },
+      { operation: 'FileSystemProvider.list', context, input: { prefix } },
     );
   }
 }

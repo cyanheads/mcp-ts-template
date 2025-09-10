@@ -6,23 +6,22 @@
  *
  * @module src/config/index
  */
-
-import dotenv from "dotenv";
-import { existsSync, mkdirSync, readFileSync, statSync } from "fs";
-import path, { dirname, join } from "path";
-import { fileURLToPath } from "url";
-import { z } from "zod";
+import dotenv from 'dotenv';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'fs';
+import path, { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import { z } from 'zod';
 
 dotenv.config();
 
 // --- Determine Project Root ---
 const findProjectRoot = (startDir: string): string => {
   let currentDir = startDir;
-  if (path.basename(currentDir) === "dist") {
+  if (path.basename(currentDir) === 'dist') {
     currentDir = path.dirname(currentDir);
   }
   while (true) {
-    const packageJsonPath = join(currentDir, "package.json");
+    const packageJsonPath = join(currentDir, 'package.json');
     if (existsSync(packageJsonPath)) {
       return currentDir;
     }
@@ -57,11 +56,11 @@ const loadPackageJson = (): {
   version: string;
   description: string;
 } => {
-  const pkgPath = join(projectRoot, "package.json");
+  const pkgPath = join(projectRoot, 'package.json');
   const fallback = {
-    name: "mcp-ts-template",
-    version: "1.0.0",
-    description: "Shits broken",
+    name: 'mcp-ts-template',
+    version: '1.0.0',
+    description: 'Shits broken',
   };
   if (!existsSync(pkgPath)) {
     if (process.stdout.isTTY) {
@@ -72,21 +71,21 @@ const loadPackageJson = (): {
     return fallback;
   }
   try {
-    const fileContents = readFileSync(pkgPath, "utf-8");
+    const fileContents = readFileSync(pkgPath, 'utf-8');
     const parsed = JSON.parse(fileContents);
     return {
-      name: typeof parsed.name === "string" ? parsed.name : fallback.name,
+      name: typeof parsed.name === 'string' ? parsed.name : fallback.name,
       version:
-        typeof parsed.version === "string" ? parsed.version : fallback.version,
+        typeof parsed.version === 'string' ? parsed.version : fallback.version,
       description:
-        typeof parsed.description === "string"
+        typeof parsed.description === 'string'
           ? parsed.description
           : fallback.description,
     };
   } catch (error) {
     if (process.stdout.isTTY) {
       console.error(
-        "Warning: Could not read or parse package.json. Using hardcoded defaults.",
+        'Warning: Could not read or parse package.json. Using hardcoded defaults.',
         error,
       );
     }
@@ -165,20 +164,20 @@ const ConfigSchema = z
     mcpServerName: z.string(),
     mcpServerVersion: z.string(),
     mcpServerDescription: z.string().optional(),
-    logLevel: z.string().default("debug"),
+    logLevel: z.string().default('debug'),
     logsPath: z.string(),
-    environment: z.string().default("development"),
-    mcpTransportType: z.enum(["stdio", "http"]).default("stdio"),
-    mcpSessionMode: z.enum(["stateless", "stateful", "auto"]).default("auto"),
+    environment: z.string().default('development'),
+    mcpTransportType: z.enum(['stdio', 'http']).default('stdio'),
+    mcpSessionMode: z.enum(['stateless', 'stateful', 'auto']).default('auto'),
     mcpHttpPort: z.coerce.number().default(3010),
-    mcpHttpHost: z.string().default("127.0.0.1"),
-    mcpHttpEndpointPath: z.string().default("/mcp"),
+    mcpHttpHost: z.string().default('127.0.0.1'),
+    mcpHttpEndpointPath: z.string().default('/mcp'),
     mcpHttpMaxPortRetries: z.coerce.number().default(15),
     mcpHttpPortRetryDelayMs: z.coerce.number().default(50),
     mcpStatefulSessionStaleTimeoutMs: z.coerce.number().default(1_800_000),
     mcpAllowedOrigins: z.array(z.string()).optional(),
     mcpAuthSecretKey: z.string().optional(),
-    mcpAuthMode: z.enum(["jwt", "oauth", "none"]).default("none"),
+    mcpAuthMode: z.enum(['jwt', 'oauth', 'none']).default('none'),
     oauthIssuerUrl: z.string().url().optional(),
     oauthJwksUri: z.string().url().optional(),
     oauthAudience: z.string().optional(),
@@ -186,10 +185,10 @@ const ConfigSchema = z
     oauthJwksTimeoutMs: z.coerce.number().default(5_000), // 5 seconds
     devMcpClientId: z.string().optional(),
     devMcpScopes: z.array(z.string()).optional(),
-    openrouterAppUrl: z.string().default("http://localhost:3000"),
+    openrouterAppUrl: z.string().default('http://localhost:3000'),
     openrouterAppName: z.string(),
     openrouterApiKey: z.string().optional(),
-    llmDefaultModel: z.string().default("google/gemini-2.5-flash"),
+    llmDefaultModel: z.string().default('google/gemini-2.5-flash'),
     llmDefaultTemperature: z.coerce.number().optional(),
     llmDefaultTopP: z.coerce.number().optional(),
     llmDefaultMaxTokens: z.coerce.number().optional(),
@@ -214,8 +213,8 @@ const ConfigSchema = z
       .optional(),
     storage: z.object({
       providerType: z
-        .enum(["in-memory", "filesystem", "supabase"])
-        .default("in-memory"),
+        .enum(['in-memory', 'filesystem', 'supabase'])
+        .default('in-memory'),
       filesystemPath: z.string().optional(),
     }),
     openTelemetry: z.object({
@@ -226,15 +225,15 @@ const ConfigSchema = z
       metricsEndpoint: z.string().url().optional(),
       samplingRatio: z.coerce.number().default(1.0),
       logLevel: z
-        .enum(["NONE", "ERROR", "WARN", "INFO", "DEBUG", "VERBOSE", "ALL"])
-        .default("INFO"),
+        .enum(['NONE', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'VERBOSE', 'ALL'])
+        .default('INFO'),
     }),
   })
   .transform((data) => {
-    const logsPath = ensureDirectory(data.logsPath, projectRoot, "logs");
+    const logsPath = ensureDirectory(data.logsPath, projectRoot, 'logs');
     const filesystemPath =
-      data.storage.providerType === "filesystem" && data.storage.filesystemPath
-        ? ensureDirectory(data.storage.filesystemPath, projectRoot, "storage")
+      data.storage.providerType === 'filesystem' && data.storage.filesystemPath
+        ? ensureDirectory(data.storage.filesystemPath, projectRoot, 'storage')
         : data.storage.filesystemPath;
 
     return {
@@ -252,7 +251,7 @@ const parseConfig = () => {
     mcpServerVersion: env.MCP_SERVER_VERSION || pkg.version,
     mcpServerDescription: env.MCP_SERVER_DESCRIPTION || pkg.description,
     logLevel: env.MCP_LOG_LEVEL,
-    logsPath: env.LOGS_DIR || path.join(projectRoot, "logs"),
+    logsPath: env.LOGS_DIR || path.join(projectRoot, 'logs'),
     environment: env.NODE_ENV,
     mcpTransportType: env.MCP_TRANSPORT_TYPE,
     mcpSessionMode: env.MCP_SESSION_MODE,
@@ -262,7 +261,7 @@ const parseConfig = () => {
     mcpHttpMaxPortRetries: env.MCP_HTTP_MAX_PORT_RETRIES,
     mcpHttpPortRetryDelayMs: env.MCP_HTTP_PORT_RETRY_DELAY_MS,
     mcpStatefulSessionStaleTimeoutMs: env.MCP_STATEFUL_SESSION_STALE_TIMEOUT_MS,
-    mcpAllowedOrigins: env.MCP_ALLOWED_ORIGINS?.split(",")
+    mcpAllowedOrigins: env.MCP_ALLOWED_ORIGINS?.split(',')
       .map((o) => o.trim())
       .filter(Boolean),
     mcpAuthSecretKey: env.MCP_AUTH_SECRET_KEY,
@@ -273,9 +272,9 @@ const parseConfig = () => {
     oauthJwksCooldownMs: env.OAUTH_JWKS_COOLDOWN_MS,
     oauthJwksTimeoutMs: env.OAUTH_JWKS_TIMEOUT_MS,
     devMcpClientId: env.DEV_MCP_CLIENT_ID,
-    devMcpScopes: env.DEV_MCP_SCOPES?.split(",").map((s) => s.trim()),
+    devMcpScopes: env.DEV_MCP_SCOPES?.split(',').map((s) => s.trim()),
     openrouterAppUrl: env.OPENROUTER_APP_URL,
-    openrouterAppName: env.OPENROUTER_APP_NAME || pkg.name || "mcp-ts-template",
+    openrouterAppName: env.OPENROUTER_APP_NAME || pkg.name || 'mcp-ts-template',
     openrouterApiKey: env.OPENROUTER_API_KEY,
     llmDefaultModel: env.LLM_DEFAULT_MODEL,
     llmDefaultTemperature: env.LLM_DEFAULT_TEMPERATURE,
@@ -292,7 +291,7 @@ const parseConfig = () => {
             issuerUrl: env.OAUTH_PROXY_ISSUER_URL,
             serviceDocumentationUrl: env.OAUTH_PROXY_SERVICE_DOCUMENTATION_URL,
             defaultClientRedirectUris:
-              env.OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS?.split(",")
+              env.OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS?.split(',')
                 .map((uri) => uri.trim())
                 .filter(Boolean),
           }
@@ -307,7 +306,7 @@ const parseConfig = () => {
         : undefined,
     storage: {
       providerType: env.STORAGE_PROVIDER_TYPE,
-      filesystemPath: env.STORAGE_FILESYSTEM_PATH || "./.storage",
+      filesystemPath: env.STORAGE_FILESYSTEM_PATH || './.storage',
     },
     openTelemetry: {
       enabled: env.OTEL_ENABLED,
@@ -326,7 +325,7 @@ const parseConfig = () => {
   if (!parsedConfig.success) {
     if (process.stdout.isTTY) {
       console.error(
-        "❌ Invalid configuration found. Please check your environment variables.",
+        '❌ Invalid configuration found. Please check your environment variables.',
         parsedConfig.error.flatten().fieldErrors,
       );
     }

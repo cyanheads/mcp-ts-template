@@ -6,29 +6,29 @@
  *
  * @module src/storage/providers/supabase/supabaseClient
  */
+import { SupabaseClient, createClient } from '@supabase/supabase-js';
 
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { config } from "../../../config/index.js";
-import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
-import { logger, requestContextService } from "../../../utils/index.js";
-import { Database } from "./supabase.types.js";
+import { config } from '../../../config/index.js';
+import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
+import { logger, requestContextService } from '../../../utils/index.js';
+import { Database } from './supabase.types.js';
 
 let supabase: SupabaseClient<Database> | null = null;
 let supabaseAdmin: SupabaseClient<Database> | null = null;
 
 const createSupabaseClient = (): SupabaseClient<Database> => {
   const context = requestContextService.createRequestContext({
-    operation: "createSupabaseClient",
+    operation: 'createSupabaseClient',
   });
 
   if (!config.supabase?.url || !config.supabase?.anonKey) {
     throw new McpError(
       JsonRpcErrorCode.ConfigurationError,
-      "Supabase URL or anon key is missing. Supabase client cannot be created.",
+      'Supabase URL or anon key is missing. Supabase client cannot be created.',
     );
   }
 
-  logger.info("Creating new Supabase client instance.", context);
+  logger.info('Creating new Supabase client instance.', context);
   return createClient<Database>(config.supabase.url, config.supabase.anonKey, {
     auth: {
       persistSession: false,
@@ -39,17 +39,17 @@ const createSupabaseClient = (): SupabaseClient<Database> => {
 
 const createSupabaseAdminClient = (): SupabaseClient<Database> => {
   const context = requestContextService.createRequestContext({
-    operation: "createSupabaseAdminClient",
+    operation: 'createSupabaseAdminClient',
   });
 
   if (!config.supabase?.url || !config.supabase?.serviceRoleKey) {
     throw new McpError(
       JsonRpcErrorCode.ConfigurationError,
-      "Supabase URL or service role key is missing. Supabase admin client cannot be created.",
+      'Supabase URL or service role key is missing. Supabase admin client cannot be created.',
     );
   }
 
-  logger.info("Creating new Supabase admin client instance.", context);
+  logger.info('Creating new Supabase admin client instance.', context);
   return createClient<Database>(
     config.supabase.url,
     config.supabase.serviceRoleKey,

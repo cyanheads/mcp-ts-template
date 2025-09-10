@@ -5,9 +5,8 @@
  * at startup with a concrete provider instance created by the `storageFactory`.
  * @module src/storage/StorageService
  */
-
-import { IStorageProvider, StorageOptions } from "./IStorageProvider.js";
-import { RequestContext } from "../../utils/index.js";
+import { RequestContext } from '../../utils/index.js';
+import { IStorageProvider, StorageOptions } from './IStorageProvider.js';
 
 class StorageService implements IStorageProvider {
   private provider: IStorageProvider | null = null;
@@ -19,7 +18,7 @@ class StorageService implements IStorageProvider {
   private getProvider(): IStorageProvider {
     if (!this.provider) {
       throw new Error(
-        "StorageService has not been initialized. Call initialize() first.",
+        'StorageService has not been initialized. Call initialize() first.',
       );
     }
     return this.provider;

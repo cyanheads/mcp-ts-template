@@ -4,18 +4,17 @@
  * storage backend to be selected via environment variables.
  * @module src/storage/storageFactory
  */
-
-import { config } from "../../config/index.js";
-import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
-import { logger, requestContextService } from "../../utils/index.js";
-import { IStorageProvider } from "./IStorageProvider.js";
-import { FileSystemProvider } from "../providers/fileSystem/fileSystemProvider.js";
-import { InMemoryProvider } from "../providers/inMemory/inMemoryProvider.js";
-import { SupabaseProvider } from "../providers/supabase/supabaseProvider.js";
+import { config } from '../../config/index.js';
+import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
+import { logger, requestContextService } from '../../utils/index.js';
+import { FileSystemProvider } from '../providers/fileSystem/fileSystemProvider.js';
+import { InMemoryProvider } from '../providers/inMemory/inMemoryProvider.js';
+import { SupabaseProvider } from '../providers/supabase/supabaseProvider.js';
+import { IStorageProvider } from './IStorageProvider.js';
 
 export function createStorageProvider(): IStorageProvider {
   const context = requestContextService.createRequestContext({
-    operation: "createStorageProvider",
+    operation: 'createStorageProvider',
   });
   const providerType = config.storage.providerType;
 
@@ -31,22 +30,22 @@ export function createStorageProvider(): IStorageProvider {
   logger.info(`Creating storage provider of type: ${providerType}`, context);
 
   switch (providerType) {
-    case "in-memory":
+    case 'in-memory':
       return new InMemoryProvider();
-    case "filesystem":
+    case 'filesystem':
       if (!config.storage.filesystemPath) {
         throw new McpError(
           JsonRpcErrorCode.ConfigurationError,
-          "STORAGE_FILESYSTEM_PATH must be set for the filesystem storage provider.",
+          'STORAGE_FILESYSTEM_PATH must be set for the filesystem storage provider.',
           context,
         );
       }
       return new FileSystemProvider(config.storage.filesystemPath);
-    case "supabase":
+    case 'supabase':
       if (!config.supabase?.url || !config.supabase?.serviceRoleKey) {
         throw new McpError(
           JsonRpcErrorCode.ConfigurationError,
-          "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for the supabase storage provider.",
+          'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for the supabase storage provider.',
           context,
         );
       }

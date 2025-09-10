@@ -4,16 +4,15 @@
  * Assumes a table with columns: `key` (text), `value` (jsonb), and `expires_at` (timestamptz).
  * @module src/storage/providers/supabase/supabaseProvider
  */
-
-import { ErrorHandler, logger, RequestContext } from "../../../utils/index.js";
+import { ErrorHandler, RequestContext, logger } from '../../../utils/index.js';
 import {
   IStorageProvider,
   StorageOptions,
-} from "../../core/IStorageProvider.js";
-import { getSupabaseAdminClient } from "./supabaseClient.js";
-import { Json } from "./supabase.types.js";
+} from '../../core/IStorageProvider.js';
+import { Json } from './supabase.types.js';
+import { getSupabaseAdminClient } from './supabaseClient.js';
 
-const TABLE_NAME = "kv_store";
+const TABLE_NAME = 'kv_store';
 
 export class SupabaseProvider implements IStorageProvider {
   private getClient() {
@@ -26,12 +25,12 @@ export class SupabaseProvider implements IStorageProvider {
       async () => {
         const { data, error } = await this.getClient()
           .from(TABLE_NAME)
-          .select("value, expires_at")
-          .eq("key", key)
+          .select('value, expires_at')
+          .eq('key', key)
           .single();
 
         if (error) {
-          if (error.code === "PGRST116") {
+          if (error.code === 'PGRST116') {
             // "Not found" error code from PostgREST
             return null;
           }
@@ -52,7 +51,7 @@ export class SupabaseProvider implements IStorageProvider {
 
         return data.value as T;
       },
-      { operation: "SupabaseProvider.get", context, input: { key } },
+      { operation: 'SupabaseProvider.get', context, input: { key } },
     );
   }
 
@@ -74,7 +73,7 @@ export class SupabaseProvider implements IStorageProvider {
 
         if (error) throw error;
       },
-      { operation: "SupabaseProvider.set", context, input: { key } },
+      { operation: 'SupabaseProvider.set', context, input: { key } },
     );
   }
 
@@ -83,13 +82,13 @@ export class SupabaseProvider implements IStorageProvider {
       async () => {
         const { error, count } = await this.getClient()
           .from(TABLE_NAME)
-          .delete({ count: "exact" })
-          .eq("key", key);
+          .delete({ count: 'exact' })
+          .eq('key', key);
 
         if (error) throw error;
         return (count ?? 0) > 0;
       },
-      { operation: "SupabaseProvider.delete", context, input: { key } },
+      { operation: 'SupabaseProvider.delete', context, input: { key } },
     );
   }
 
@@ -100,8 +99,8 @@ export class SupabaseProvider implements IStorageProvider {
 
         const { data, error } = await this.getClient()
           .from(TABLE_NAME)
-          .select("key")
-          .like("key", `${prefix}%`)
+          .select('key')
+          .like('key', `${prefix}%`)
           // Add a filter to only include non-expired items.
           // It selects rows where expires_at is NULL OR expires_at is in the future.
           .or(`expires_at.is.null,expires_at.gt.${now}`);
@@ -109,7 +108,7 @@ export class SupabaseProvider implements IStorageProvider {
         if (error) throw error;
         return data?.map((item) => item.key) ?? [];
       },
-      { operation: "SupabaseProvider.list", context, input: { prefix } },
+      { operation: 'SupabaseProvider.list', context, input: { prefix } },
     );
   }
 }
