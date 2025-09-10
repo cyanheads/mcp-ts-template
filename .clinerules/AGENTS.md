@@ -1,139 +1,115 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.0.0
-**Target Project:** `mcp-ts-template`
+Version: 2.0.0
+Target Project: `mcp-ts-template`
 
-This document provides the operational directives for developing and modifying this project. Adherence is mandatory.
-
----
-
-## Ⅰ. Core Principles: The Non-Negotiable Rules
-
-1.  **The Logic Throws, The Handler Catches**:
-    - **Your Task (`logic` function)**: Write your core business logic inside the `logic` function of a `ToolDefinition`. This function MUST be pure and stateless. It MUST NOT contain a `try...catch` block.
-    - **On Failure**: If your logic encounters an error, you MUST `throw new McpError(...)`.
-    - **Framework's Job (Handler)**: The `toolHandlerFactory` automatically wraps your `logic` in a `try...catch` block, handles `RequestContext`, measures performance, and formats the final response. Do not replicate this behavior.
-
-2.  **Full-Stack Observability**:
-    - **Tracing**: OpenTelemetry is auto-configured. Every log and error you generate is automatically correlated to a trace.
-    - **Performance**: The `measureToolExecution` wrapper automatically benchmarks your tool's execution time.
-    - **Your Responsibility**: You do not need to manually instrument your tools. The framework handles it.
-
-3.  **Structured & Traceable Operations**:
-    - Every significant operation MUST accept a `RequestContext` object as its last parameter.
-    - This `context` object MUST be passed through the entire call stack of the operation.
-    - All logging MUST be performed using the global `logger` singleton, and every log entry MUST include the `context` object. Example: `logger.info("Message", context);`.
-
-4.  **Decoupled Storage**:
-    - **DO NOT** access storage backends (filesystem, database) directly.
-    - **ALWAYS** use the `storageService` singleton for all storage operations (`get`, `set`, `delete`, `list`).
-    - The `storageService` abstracts the underlying provider (in-memory, filesystem, Supabase), which is configured via environment variables.
+This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
 ---
 
-## Ⅱ. The Tool Development Workflow
+## I. Core Principles (Non‑Negotiable)
 
-This is the **only** permitted workflow for creating or modifying tools.
+1. The Logic Throws, The Handler Catches
+   - Your Task (logic): Implement pure, stateless business logic inside the `logic` function on a `ToolDefinition`. Do not add `try...catch` here.
+   - On Failure: Throw `new McpError(...)` with the appropriate `JsonRpcErrorCode` and context.
+   - Framework’s Job (Handler): The standardized handler created by `createMcpToolHandler` (in `src/mcp-server/tools/utils/toolHandlerFactory.ts`) wraps your logic, manages `RequestContext`, measures execution via `measureToolExecution`, formats the response, and handles errors.
 
-### Step 1: Locate or Create the Tool Definition File
+2. Full‑Stack Observability
+   - Tracing: OpenTelemetry is preconfigured; your logs and errors are correlated to traces automatically.
+   - Performance: `measureToolExecution` records duration, success, payload sizes, and error codes.
+   - No Manual Instrumentation: Do not add custom tracing; use the provided utilities and logging.
 
-- All tools are defined in a single file located at: `src/mcp-server/tools/definitions/`.
-- The filename MUST be `[tool-name].tool.ts`.
-- Use `src/mcp-server/tools/definitions/echo.tool.ts` as the canonical template for all new tools.
+3. Structured, Traceable Operations
+   - Always accept a `RequestContext` as the last parameter of any significant operation.
+   - Pass the same `context` through your entire call stack for continuity.
+   - Use the global `logger` for all logging; include the `context` in every log call.
 
-### Step 2: Define the `ToolDefinition` Object
+4. Decoupled Storage
+   - Never access storage backends directly.
+   - Always use `storageService` for `get`, `set`, `delete`, and `list` operations.
+   - The concrete provider is configured via environment variables and initialized at startup.
 
-Your tool file must export a single `const` named `[toolName]Tool` of type `ToolDefinition`.
+---
 
-This object MUST contain:
+## II. Tool Development Workflow
 
-1.  **`name`**: The programmatic name of the tool (e.g., `"get_weather_forecast"`).
-2.  **`description`**: A clear, concise, LLM-facing description of the tool's purpose.
-3.  **`inputSchema`**: A `z.object({})` from Zod defining all input parameters. Each parameter MUST have a `.describe()` chain.
-4.  **`outputSchema`**: A `z.object({})` from Zod defining the structure of the successful return object.
-5.  **`logic`**: An `async` function containing the pure business logic.
-    - It accepts two arguments: `(input: z.infer<typeof InputSchema>, context: RequestContext)`.
-    - It MUST `return` a promise that resolves to an object matching `OutputSchema` on success.
-    - It MUST `throw new McpError(...)` on failure.
+This is the only approved workflow for authoring or modifying tools.
 
-### Step 3: Register the Tool
+Step 1 — File Location
 
-- In `src/mcp-server/server.ts`, import your new tool definition.
-- Add it to the list of tools being registered with `await registerTool(server, yourNewTool);`.
+- Place tools in `src/mcp-server/tools/definitions/`.
+- Name files `[tool-name].tool.ts`.
+- Use `src/mcp-server/tools/definitions/echo.tool.ts` as the reference template.
 
-### Example `ToolDefinition` Structure:
+Step 2 — Define the ToolDefinition
+Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 
-```typescript
+- name: Programmatic tool name (e.g., `"get_weather_forecast"`).
+- description: Clear, LLM-facing description.
+- inputSchema: Zod `z.object({ ... })` for parameters. Every field must have `.describe()`.
+- outputSchema: Zod `z.object({ ... })` describing success output.
+- logic: `async (input, context) => { ... }` pure business logic; throws `McpError` on failure.
+- annotations (optional): Hints like `{ readOnlyHint, openWorldHint }`.
+- responseFormatter (optional): Map successful output to `ContentBlock[]` when non-JSON output is preferred (e.g., images).
+
+Step 3 — Register the Tool
+
+- Edit `src/mcp-server/server.ts` and import the new tool.
+- Register it using the existing helper: `await registerTool(server, yourNewTool);`.
+  The helper constructs the handler via `createMcpToolHandler` and registers schemas and annotations.
+
+Example (Echo Tool)
+
+```ts
 /**
  * @fileoverview The complete definition for the 'echo_message' tool.
- * This file encapsulates the tool's schema, logic, and metadata,
- * making it a self-contained and modular component.
  * @module src/mcp-server/tools/definitions/echo.tool
  */
+import { z } from 'zod';
 
-import { z } from "zod";
-import { JsonRpcErrorCode, McpError } from "../../../types-global/errors.js";
-import { logger, RequestContext } from "../../../utils/index.js";
-import { ToolDefinition } from "../utils/toolDefinition.js";
+import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
+import { RequestContext, logger } from '../../../utils/index.js';
+import { ToolDefinition } from '../utils/toolDefinition.js';
 
-const ECHO_MODES = ["standard", "uppercase", "lowercase"] as const;
-const TEST_ERROR_TRIGGER_MESSAGE = "fail";
+const ECHO_MODES = ['standard', 'uppercase', 'lowercase'] as const;
+const TEST_ERROR_TRIGGER_MESSAGE = 'fail';
 
 const InputSchema = z.object({
   message: z
     .string()
-    .min(1, "Message cannot be empty.")
-    .max(1000, "Message cannot exceed 1000 characters.")
+    .min(1)
+    .max(1000)
     .describe(
-      `The message to echo back. To trigger a test error, provide the exact message '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
+      `The message to echo back. To trigger a test error, pass '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
     ),
   mode: z
     .enum(ECHO_MODES)
-    .optional()
-    .default("standard")
-    .describe(
-      "Specifies how the message should be formatted. Defaults to 'standard'.",
-    ),
+    .default('standard')
+    .describe('Case formatting for the message.'),
   repeat: z
     .number()
     .int()
     .min(1)
     .max(10)
-    .optional()
     .default(1)
-    .describe("The number of times to repeat the message. Defaults to 1."),
+    .describe('Times to repeat the message.'),
   includeTimestamp: z
     .boolean()
-    .optional()
     .default(true)
-    .describe(
-      "Whether to include an ISO 8601 timestamp in the response. Defaults to true.",
-    ),
+    .describe('Include ISO 8601 timestamp in the response.'),
 });
 
 const OutputSchema = z.object({
-  originalMessage: z
-    .string()
-    .describe("The original message provided in the input."),
-  formattedMessage: z
-    .string()
-    .describe("The message after applying the specified formatting mode."),
-  repeatedMessage: z
-    .string()
-    .describe("The formatted message repeated the specified number of times."),
-  mode: z.enum(ECHO_MODES).describe("The formatting mode that was applied."),
-  repeatCount: z
-    .number()
-    .int()
-    .min(1)
-    .describe("The number of times the message was repeated."),
+  originalMessage: z.string().describe('Original input message.'),
+  formattedMessage: z.string().describe('Message after formatting.'),
+  repeatedMessage: z.string().describe('Final repeated output.'),
+  mode: z.enum(ECHO_MODES).describe('Applied formatting mode.'),
+  repeatCount: z.number().int().describe('Repeat count used.'),
   timestamp: z
     .string()
     .datetime()
     .optional()
-    .describe(
-      "Optional ISO 8601 timestamp of when the response was generated.",
-    ),
+    .describe('Optional ISO timestamp.'),
 });
 
 type EchoToolInput = z.infer<typeof InputSchema>;
@@ -143,41 +119,42 @@ async function echoToolLogic(
   input: EchoToolInput,
   context: RequestContext,
 ): Promise<EchoToolResponse> {
-  logger.debug("Processing echo message logic.", {
+  logger.debug('Processing echo message logic.', {
     ...context,
     toolInput: input,
   });
+
   if (input.message === TEST_ERROR_TRIGGER_MESSAGE) {
     throw new McpError(
       JsonRpcErrorCode.ValidationError,
-      `Deliberate failure triggered.`,
+      'Deliberate failure triggered.',
     );
   }
-  let formattedMessage = input.message;
-  if (input.mode === "uppercase")
-    formattedMessage = input.message.toUpperCase();
-  if (input.mode === "lowercase")
-    formattedMessage = input.message.toLowerCase();
-  const repeatedMessage = Array(input.repeat).fill(formattedMessage).join(" ");
-  const response: EchoToolResponse = {
+
+  const base =
+    input.mode === 'uppercase'
+      ? input.message.toUpperCase()
+      : input.mode === 'lowercase'
+        ? input.message.toLowerCase()
+        : input.message;
+
+  const repeatedMessage = Array(input.repeat).fill(base).join(' ');
+
+  const result: EchoToolResponse = {
     originalMessage: input.message,
-    formattedMessage,
+    formattedMessage: base,
     repeatedMessage,
     mode: input.mode,
     repeatCount: input.repeat,
   };
-  if (input.includeTimestamp) {
-    response.timestamp = new Date().toISOString();
-  }
-  return response;
+  if (input.includeTimestamp) result.timestamp = new Date().toISOString();
+  return result;
 }
 
-// The Tool Definition
 export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
   {
-    name: "echo_message",
-    description:
-      "Echoes a message back with optional formatting and repetition.",
+    name: 'echo_message',
+    description: 'Echoes a message with optional formatting and repetition.',
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     annotations: { readOnlyHint: true, openWorldHint: false },
@@ -185,53 +162,63 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
   };
 ```
 
+Note: For binary or image outputs, provide a `responseFormatter` that returns `ContentBlock[]` (see `image-test.tool.ts`).
+
 ---
 
 ## III. Core Services & Utilities
 
-This project includes a suite of singleton services and utilities to handle common backend tasks. You are required to use these services instead of implementing your own solutions. They are all instrumented for logging and tracing.
+Use these singletons/utilities; do not reimplement them. They are logging/trace aware.
 
-- **`requestContextService`**:
-  - **Purpose**: Creates and manages the `RequestContext` for tracing and logging.
-  - **Usage**: `const context = requestContextService.createRequestContext({ operation: 'MyOperation' });`
-  - **Rule**: Every new operational flow must start by creating a context. Pass this context down through all subsequent function calls.
+- requestContextService (src/utils/internal/requestContext.ts): Create and manage `RequestContext`.
+  - Usage: `const context = requestContextService.createRequestContext({ operation: "MyOp" });`
+  - Rule: Start every operation by creating a context and pass it down.
 
-- **`logger`**:
-  - **Purpose**: Centralized, level-based logging.
-  - **Usage**: `logger.info("Message", context);`, `logger.error("Error message", error, context);`
-  - **Rule**: Use for all logging. Never use `console.log`.
+- logger (src/utils/internal/logger.ts): Centralized, structured logging.
+  - Usage: `logger.info("Message", context)` or `logger.info("Message", { ...context, extra })`.
+  - Rule: Never use `console.log`.
 
-- **`ErrorHandler.tryCatch`**:
-  - **Purpose**: A robust wrapper for any fallible operation that ensures proper error handling and logging.
-  - **Usage**: `await ErrorHandler.tryCatch(async () => { /* your logic */ }, { operation: 'MyOperation', context });`
-  - **Rule**: Use this to wrap external API calls or any other code that might throw an unexpected error _outside_ of a tool's main `logic` function (which has its own handler).
+- ErrorHandler.tryCatch (src/utils/internal/errorHandler.ts): Robust wrapper for fallible operations outside tool logic.
+  - Usage: `await ErrorHandler.tryCatch(async () => { ... }, { operation: "MyOp", context });`
+  - Rule: Use in services/providers and bootstrapping; tool logic is already handled by the handler.
 
-- **`storageService`**:
-  - **Purpose**: Interacts with the configured storage backend (in-memory, filesystem, or Supabase).
-  - **Usage**: `await storageService.set('my-key', { value: 1 }, context);`
-  - **Rule**: Use for all key-value storage needs. Do not directly access `fs` or a database for storage.
+- storageService (src/storage/core/StorageService.ts): Abstraction over configured storage provider.
+  - Usage: `await storageService.set(key, value, context)`; also `get`, `delete`, `list`.
+  - Rule: Never access storage directly.
 
-- **`openRouterProvider`**:
-  - **Purpose**: A client for making calls to the OpenRouter LLM Gateway.
-  - **Usage**: `const response = await openRouterProvider.chatCompletion(params, context);`
-  - **Rule**: Use this for any required LLM interactions.
+- openRouterProvider (src/services/llm-providers/openRouterProvider.ts): OpenRouter LLM gateway client.
+  - Usage: `await openRouterProvider.chatCompletion(params, context)`.
 
-- **`sanitization`**:
-  - **Purpose**: Provides methods for cleaning input to prevent security vulnerabilities.
-  - **Usage**: `sanitization.sanitizeHtml(userInput);`, `sanitization.sanitizePath(filePath);`
-  - **Rule**: Sanitize any data that originates from an external, untrusted source before using it.
+- sanitization (src/utils/security/sanitization.ts): Input/path sanitization helpers.
+  - Usage: `sanitization.sanitizeHtml(str)`, `sanitization.sanitizePath(path)`.
+  - Rule: Sanitize untrusted input.
 
-- **`rateLimiter`**:
-  - **Purpose**: Enforces rate limits on operations.
-  - **Usage**: `rateLimiter.check(userIdentifier, context);`
-  - **Rule**: Apply to public-facing or resource-intensive operations to prevent abuse.
+- rateLimiter (src/utils/security/rateLimiter.ts): Rate limiting utility.
+  - Usage: `rateLimiter.check(identifier, context)` on public/resource-heavy flows.
 
-## IV. Code Quality and Security Mandates
+- measureToolExecution (src/utils/internal/performance.ts): Tool execution metrics wrapper.
+  - Note: Invoked by the standardized handler; you do not call it directly from tool logic.
 
-- **JSDoc**: Every file must start with `@fileoverview` and `@module`. All exported functions, types, and classes must have complete JSDoc comments.
-- **Immutability**: Use functional patterns and immutable data structures. Avoid reassigning variables where possible.
-- **Dependencies**: All external service interactions (e.g., APIs) MUST be encapsulated within a singleton provider class in the `src/services/` directory.
-- **Validation**: All inputs are automatically validated by the framework using your Zod a`inputSchema`. You can assume the `input` to your `logic` function is type-safe.
-- **Secrets**: Access secrets **only** from the `config` module, which loads them from environment variables. Do not hard-code secrets.
-- **Formatting**: Before completing a task, you MUST run `npm run format` to ensure code style consistency.
-- **Testing**: All new functionality must be accompanied by integration tests in the `tests/` directory, following the existing structure. Use Vitest.
+---
+
+## IV. Code Quality & Security
+
+- JSDoc: Every file starts with `@fileoverview` and `@module`. Document all exported APIs.
+- Immutability: Prefer functional patterns; avoid reassignments.
+- External Dependencies: Encapsulate API clients/providers under `src/services/`.
+- Validation: Inputs are validated via Zod `inputSchema`; your `logic` receives typed, safe `input`.
+- Secrets: Access through the `config` module only; never hard‑code.
+- Formatting: Run `npm run format` before finishing any task.
+- Testing: Add/extend Vitest integration tests under `tests/`, following existing structure.
+
+---
+
+## V. Quick Checklist
+
+- Implement tool in `src/mcp-server/tools/definitions/[name].tool.ts` using the echo tool as a template.
+- Keep logic pure; throw `McpError` for failures. No `try...catch` inside logic.
+- Use `logger` with `RequestContext` in every meaningful operation.
+- Use `storageService` for all persistence.
+- Add `annotations` and a `responseFormatter` when needed (e.g., images).
+- Register via `registerTool(server, myTool)` in `src/mcp-server/server.ts`.
+- Add tests in `tests/`; run `npm run test` and `npm run format`.

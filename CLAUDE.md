@@ -96,28 +96,28 @@ The `logic.ts` file defines the tool's contract (schemas) and its core function.
  * @module src/mcp-server/tools/echoTool/logic
  * @see {@link src/mcp-server/tools/echoTool/registration.ts} for the handler and registration logic.
  */
+import { z } from 'zod';
 
-import { z } from "zod";
-import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
-import { logger, type RequestContext } from "../../../utils/index.js";
+import { BaseErrorCode, McpError } from '../../../types-global/errors.js';
+import { type RequestContext, logger } from '../../../utils/index.js';
 
 // Defines the valid formatting modes for the echo tool operation.
-export const ECHO_MODES = ["standard", "uppercase", "lowercase"] as const;
+export const ECHO_MODES = ['standard', 'uppercase', 'lowercase'] as const;
 
 // Zod schema defining the input parameters for the `echo_message` tool.
 // CRITICAL: The descriptions are sent to the LLM and must be clear.
 export const EchoToolInputSchema = z.object({
   message: z
     .string()
-    .min(1, "Message cannot be empty.")
-    .max(1000, "Message cannot exceed 1000 characters.")
+    .min(1, 'Message cannot be empty.')
+    .max(1000, 'Message cannot exceed 1000 characters.')
     .describe(
       "The message to echo back. To trigger a test error, provide the exact message 'fail'.",
     ),
   mode: z
     .enum(ECHO_MODES)
     .optional()
-    .default("standard")
+    .default('standard')
     .describe(
       "Specifies how the message should be formatted. Defaults to 'standard'.",
     ),
@@ -128,13 +128,13 @@ export const EchoToolInputSchema = z.object({
     .max(10)
     .optional()
     .default(1)
-    .describe("The number of times to repeat the message. Defaults to 1."),
+    .describe('The number of times to repeat the message. Defaults to 1.'),
   includeTimestamp: z
     .boolean()
     .optional()
     .default(true)
     .describe(
-      "Whether to include an ISO 8601 timestamp in the response. Defaults to true.",
+      'Whether to include an ISO 8601 timestamp in the response. Defaults to true.',
     ),
 });
 
@@ -142,25 +142,25 @@ export const EchoToolInputSchema = z.object({
 export const EchoToolResponseSchema = z.object({
   originalMessage: z
     .string()
-    .describe("The original message provided in the input."),
+    .describe('The original message provided in the input.'),
   formattedMessage: z
     .string()
-    .describe("The message after applying the specified formatting mode."),
+    .describe('The message after applying the specified formatting mode.'),
   repeatedMessage: z
     .string()
-    .describe("The formatted message repeated the specified number of times."),
-  mode: z.enum(ECHO_MODES).describe("The formatting mode that was applied."),
+    .describe('The formatted message repeated the specified number of times.'),
+  mode: z.enum(ECHO_MODES).describe('The formatting mode that was applied.'),
   repeatCount: z
     .number()
     .int()
     .min(1)
-    .describe("The number of times the message was repeated."),
+    .describe('The number of times the message was repeated.'),
   timestamp: z
     .string()
     .datetime()
     .optional()
     .describe(
-      "Optional ISO 8601 timestamp of when the response was generated.",
+      'Optional ISO 8601 timestamp of when the response was generated.',
     ),
 });
 
@@ -181,31 +181,31 @@ export async function echoToolLogic(
   params: EchoToolInput,
   context: RequestContext,
 ): Promise<EchoToolResponse> {
-  logger.debug("Processing echo message logic.", {
+  logger.debug('Processing echo message logic.', {
     ...context,
     toolInput: params,
   });
 
   // The logic layer MUST throw a structured error on failure.
-  if (params.message === "fail") {
+  if (params.message === 'fail') {
     throw new McpError(
       BaseErrorCode.VALIDATION_ERROR,
       "Deliberate failure triggered: the message was 'fail'.",
-      { toolName: "echo_message" },
+      { toolName: 'echo_message' },
     );
   }
 
   let formattedMessage = params.message;
   switch (params.mode) {
-    case "uppercase":
+    case 'uppercase':
       formattedMessage = params.message.toUpperCase();
       break;
-    case "lowercase":
+    case 'lowercase':
       formattedMessage = params.message.toLowerCase();
       break;
   }
 
-  const repeatedMessage = Array(params.repeat).fill(formattedMessage).join(" ");
+  const repeatedMessage = Array(params.repeat).fill(formattedMessage).join(' ');
 
   const response: EchoToolResponse = {
     originalMessage: params.message,
@@ -219,7 +219,7 @@ export async function echoToolLogic(
     response.timestamp = new Date().toISOString();
   }
 
-  logger.debug("Echo message processed successfully.", {
+  logger.debug('Echo message processed successfully.', {
     ...context,
     responseSummary: {
       messageLength: response.repeatedMessage.length,
