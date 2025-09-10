@@ -380,7 +380,7 @@ Interaction with any external service (e.g., database, third-party API) shall be
 
 **Immutability:** Functional approaches and immutable data structures are the required standard to prevent side effects. State mutation must be justified and localized.
 
-**Formatting:** All code must be formatted using Prettier (npm run format) prior to being committed. This will be enforced by CI.
+**Formatting:** All code must be formatted using Prettier (`bun run format`) prior to being committed. This will be enforced by CI.
 
 ## VI. Security Mandates
 
@@ -489,10 +489,10 @@ vi.mock("../logic.js", () => ({ echoToolLogic: vi.fn() }));
 
 **I. Running Tests**
 
-- Use the following npm scripts to run tests:
-  - `npm test`: Run all tests once.
-  - `npm test:watch`: Run tests in watch mode for development.
-  - `npm test:coverage`: Run all tests and generate a coverage report.
+- Use the following Bun scripts to run tests:
+  - `bun run test`: Run all tests once.
+  - `bun run test:watch`: Run tests in watch mode for development.
+  - `bun run test:coverage`: Run all tests and generate a coverage report.
 
 **J. Critical Testing Requirements**
 

@@ -842,7 +842,7 @@
   - Upgraded Google Gemini SDK from `@google/generative-ai` (`^0.24.1`) to `@google/genai` (`^1.0.1`) in `package.json` and `package-lock.json`.
 - **Services**:
   - Refactored `OpenRouterProvider` (`src/services/llm-providers/openRouter/openRouterProvider.ts`) to utilize the new `llmFactory.ts` for client initialization.
-  - Updated default LLM model in configuration (`src/config/index.ts`) from `google/gemini-2.5-flash-preview:thinking` to `google/gemini-2.5-flash-preview-05-20`.
+  - Updated default LLM model in configuration (`src/config/index.ts`) to `google/gemini-2.5-flash`.
 - **Documentation**:
   - Updated `README.md` to reflect the new LLM Provider Factory, removal of the standalone Gemini service, and configuration changes.
   - Updated `docs/tree.md` to show `llmFactory.ts` and the removal of the old `geminiAPI` directory.

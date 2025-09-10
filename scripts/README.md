@@ -10,10 +10,10 @@ Here's a summary of the available scripts:
 
 | Script File             | Purpose Summary                                                                       | Key Usage Example(s)                                                                                                |
 | ----------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `clean.ts`              | Cleans build artifacts and temporary directories (e.g., `dist`, `logs` by default).   | `npm run rebuild` (cleans then builds) <br> `ts-node --esm scripts/clean.ts [custom_dirs...]` (direct/custom clean) |
-| `fetch-openapi-spec.ts` | Fetches an OpenAPI specification from a URL and saves it locally as YAML & JSON.      | `npm run fetch-spec -- <url> <output_base_path>` <br> `npm run fetch-spec -- --help`                                |
-| `make-executable.ts`    | Makes specified files executable (`chmod +x`) on Unix-like systems. No-op on Windows. | Part of `npm run build` <br> `ts-node --esm scripts/make-executable.ts [files...]` (direct/custom)                  |
-| `tree.ts`               | Generates a visual tree of the project's directory structure as a markdown file.      | `npm run tree` <br> `npm run tree -- [output.md] --depth=N`                                                         |
+| `clean.ts`              | Cleans build artifacts and temporary directories (e.g., `dist`, `logs` by default).   | `bun run rebuild` (cleans then builds) <br> `ts-node --esm scripts/clean.ts [custom_dirs...]` (direct/custom clean) |
+| `fetch-openapi-spec.ts` | Fetches an OpenAPI specification from a URL and saves it locally as YAML & JSON.      | `bun run fetch-spec -- <url> <output_base_path>` <br> `bun run fetch-spec -- --help`                                |
+| `make-executable.ts`    | Makes specified files executable (`chmod +x`) on Unix-like systems. No-op on Windows. | Part of `bun run build` <br> `ts-node --esm scripts/make-executable.ts [files...]` (direct/custom)                  |
+| `tree.ts`               | Generates a visual tree of the project's directory structure as a markdown file.      | `bun run tree` <br> `bun run tree -- [output.md] --depth=N`                                                         |
 
 Below are more detailed descriptions for each script.
 
@@ -29,7 +29,7 @@ This script is used to clean build artifacts and temporary directories. By defau
 To clean default directories (`dist`, `logs`) as part of a full rebuild:
 
 ```bash
-npm run rebuild
+bun run rebuild
 ```
 
 To clean default directories (`dist`, `logs`) directly:
@@ -38,7 +38,7 @@ To clean default directories (`dist`, `logs`) directly:
 ts-node --esm scripts/clean.ts
 ```
 
-(Or, if you add a dedicated `clean` script to `package.json`: `npm run clean`)
+(Or, if you add a dedicated `clean` script to `package.json`: `bun run clean`)
 
 To clean custom directories (e.g., `temp`, `coverage`) directly:
 
@@ -51,7 +51,7 @@ This script is used as part of the `rebuild` script in `package.json`:
 
 ```json
 "scripts": {
-  "rebuild": "ts-node --esm scripts/clean.ts && npm run build"
+"rebuild": "ts-node --esm scripts/clean.ts && bun run build"
 }
 ```
 
@@ -72,28 +72,28 @@ This script fetches an OpenAPI specification (in YAML or JSON format) from a giv
 
 **Usage:**
 
-You can run this script via the `npm run fetch-spec` command defined in `package.json`.
+You can run this script via the `bun run fetch-spec` command defined in `package.json`.
 The script requires a URL (base or direct to spec file) and an output base path (relative to the project root).
 
 **Example 1: Fetching from a base URL and saving:**
 
 ```bash
-npm run fetch-spec -- https://api.example.com/v1 docs/api/my_api
-# Note: Use '--' to pass arguments to the script when using npm run
+bun run fetch-spec -- https://api.example.com/v1 docs/api/my_api
+# Note: Use '--' to pass arguments to the script when using bun run
 ```
 
 **Example 2: Fetching from a direct file URL:**
 This will attempt to fetch from `https://petstore3.swagger.io/api/v3/openapi.json` and save the spec to `docs/api/petstore_v3.yaml` and `docs/api/petstore_v3.json`.
 
 ```bash
-npm run fetch-spec -- https://petstore3.swagger.io/api/v3/openapi.json docs/api/petstore_v3
+bun run fetch-spec -- https://petstore3.swagger.io/api/v3/openapi.json docs/api/petstore_v3
 ```
 
 **Help:**
 For more details, run:
 
 ```bash
-npm run fetch-spec -- --help
+bun run fetch-spec -- --help
 ```
 
 ---
@@ -108,7 +108,7 @@ This utility script makes specified files executable (i.e., applies `chmod +x`) 
 This script is typically run as part of the build process:
 
 ```bash
-npm run build
+bun run build
 ```
 
 The `build` script in `package.json` calls `make-executable.ts` for `dist/index.js` after `tsc` compilation.
@@ -150,18 +150,18 @@ This script generates a visual tree representation of the project's directory st
 To generate the tree with default settings (output to `docs/tree.md`, unlimited depth):
 
 ```bash
-npm run tree
+bun run tree
 ```
 
 To specify a custom output path and/or limit the depth:
 
 ```bash
-npm run tree -- ./documentation/structure.md --depth=3
-# Note: Use '--' to pass arguments to the script when using npm run
+bun run tree -- ./documentation/structure.md --depth=3
+# Note: Use '--' to pass arguments to the script when using bun run
 ```
 
 **Options:**
-(When using `npm run tree -- <options>` or `ts-node --esm scripts/tree.ts <options>`)
+(When using `bun run tree -- <options>` or `ts-node --esm scripts/tree.ts <options>`)
 
 - `[output-path]`: Custom file path for the tree output (relative to project root). Default: `docs/tree.md`.
 - `--depth=<number>`: Maximum directory depth to display. Default: unlimited.

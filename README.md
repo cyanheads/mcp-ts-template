@@ -50,10 +50,10 @@ Launch your MCP server development environment in minutes.
     cd mcp-ts-template
     ```
 
-2.  **Install Dependencies**
+2.  **Install Dependencies (Bun)**
 
     ```bash
-    npm install
+    bun install
     ```
 
 3.  **Configure Environment**
@@ -66,7 +66,7 @@ Launch your MCP server development environment in minutes.
 4.  **Build the Project**
 
     ```bash
-    npm run build
+    bun run build
     ```
 
 5.  **Run the Server**
@@ -74,12 +74,12 @@ Launch your MCP server development environment in minutes.
     - **STDIO Transport**: Ideal for local development or when the server is a child process.
 
       ```bash
-      npm run start:server
+      bun run start:stdio
       ```
 
     - **HTTP Transport**: For network-accessible deployments.
       ```bash
-      npm run start:server:http
+      bun run start:http
       # Server now running at http://127.0.0.1:3010
       ```
 
