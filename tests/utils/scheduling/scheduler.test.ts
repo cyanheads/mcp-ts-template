@@ -2,13 +2,13 @@
  * @fileoverview Tests for the SchedulerService singleton and job management functionality.
  * @module tests/utils/scheduling/scheduler.test
  */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { SchedulerService } from "../../../src/utils/scheduling/scheduler.js";
-import { logger } from "../../../src/utils/internal/index.js";
+import { logger } from '../../../src/utils/internal/index.js';
+import { SchedulerService } from '../../../src/utils/scheduling/scheduler.js';
 
 // Mock only the utilities, keep node-cron real for validation
-vi.mock("../../../src/utils/internal/index.js", () => ({
+vi.mock('../../../src/utils/internal/index.js', () => ({
   logger: {
     info: vi.fn(),
     warning: vi.fn(),
@@ -16,18 +16,18 @@ vi.mock("../../../src/utils/internal/index.js", () => ({
   },
 }));
 
-vi.mock("../../../src/utils/internal/requestContext.js", () => ({
+vi.mock('../../../src/utils/internal/requestContext.js', () => ({
   requestContextService: {
     createRequestContext: vi.fn(() => ({
-      requestId: "test-request-id",
+      requestId: 'test-request-id',
       timestamp: new Date().toISOString(),
-      jobId: "test-job",
-      schedule: "* * * * *",
+      jobId: 'test-job',
+      schedule: '* * * * *',
     })),
   },
 }));
 
-describe("SchedulerService", () => {
+describe('SchedulerService', () => {
   let scheduler: SchedulerService;
   let mockTaskFunction: ReturnType<typeof vi.fn>;
 
@@ -69,8 +69,8 @@ describe("SchedulerService", () => {
       undefined;
   });
 
-  describe("Singleton Pattern", () => {
-    it("should return the same instance when getInstance is called multiple times", () => {
+  describe('Singleton Pattern', () => {
+    it('should return the same instance when getInstance is called multiple times', () => {
       const instance1 = SchedulerService.getInstance();
       const instance2 = SchedulerService.getInstance();
 
@@ -78,22 +78,22 @@ describe("SchedulerService", () => {
       expect(instance1).toBe(scheduler);
     });
 
-    it("should initialize logger on first instantiation", () => {
+    it('should initialize logger on first instantiation', () => {
       expect(logger.info).toHaveBeenCalledWith(
-        "SchedulerService initialized.",
+        'SchedulerService initialized.',
         expect.objectContaining({
-          requestId: "scheduler-init",
+          requestId: 'scheduler-init',
           timestamp: expect.any(String),
         }),
       );
     });
   });
 
-  describe("schedule", () => {
-    it("should successfully schedule a new job with valid cron pattern", () => {
-      const jobId = "test-job-1";
-      const schedule = "0 0 * * *"; // Daily at midnight
-      const description = "Test daily job";
+  describe('schedule', () => {
+    it('should successfully schedule a new job with valid cron pattern', () => {
+      const jobId = 'test-job-1';
+      const schedule = '0 0 * * *'; // Daily at midnight
+      const description = 'Test daily job';
 
       const job = scheduler.schedule(
         jobId,
@@ -119,22 +119,22 @@ describe("SchedulerService", () => {
       );
     });
 
-    it("should throw error when scheduling job with duplicate ID", () => {
-      const jobId = "duplicate-job";
-      const schedule = "0 0 * * *";
-      const description = "First job";
+    it('should throw error when scheduling job with duplicate ID', () => {
+      const jobId = 'duplicate-job';
+      const schedule = '0 0 * * *';
+      const description = 'First job';
 
       scheduler.schedule(jobId, schedule, mockTaskFunction, description);
 
       expect(() => {
-        scheduler.schedule(jobId, schedule, mockTaskFunction, "Second job");
+        scheduler.schedule(jobId, schedule, mockTaskFunction, 'Second job');
       }).toThrow(`Job with ID '${jobId}' already exists.`);
     });
 
-    it("should throw error when providing invalid cron schedule", () => {
-      const jobId = "invalid-schedule-job";
-      const invalidSchedule = "invalid cron pattern";
-      const description = "Job with invalid schedule";
+    it('should throw error when providing invalid cron schedule', () => {
+      const jobId = 'invalid-schedule-job';
+      const invalidSchedule = 'invalid cron pattern';
+      const description = 'Job with invalid schedule';
 
       expect(() => {
         scheduler.schedule(
@@ -146,13 +146,13 @@ describe("SchedulerService", () => {
       }).toThrow(`Invalid cron schedule: ${invalidSchedule}`);
     });
 
-    it("should validate different cron patterns correctly", () => {
+    it('should validate different cron patterns correctly', () => {
       const validSchedules = [
-        "* * * * *", // Every minute
-        "0 0 * * *", // Daily at midnight
-        "0 0 * * 0", // Weekly on Sunday
-        "0 0 1 * *", // Monthly on 1st
-        "*/5 * * * *", // Every 5 minutes
+        '* * * * *', // Every minute
+        '0 0 * * *', // Daily at midnight
+        '0 0 * * 0', // Weekly on Sunday
+        '0 0 1 * *', // Monthly on 1st
+        '*/5 * * * *', // Every 5 minutes
       ];
 
       validSchedules.forEach((schedule, index) => {
@@ -169,18 +169,18 @@ describe("SchedulerService", () => {
     });
   });
 
-  describe("start", () => {
-    it("should start an existing job successfully", () => {
-      const jobId = "startable-job";
+  describe('start', () => {
+    it('should start an existing job successfully', () => {
+      const jobId = 'startable-job';
       const job = scheduler.schedule(
         jobId,
-        "0 0 * * *",
+        '0 0 * * *',
         mockTaskFunction,
-        "Startable job",
+        'Startable job',
       );
 
       // Mock the task start method
-      const startSpy = vi.spyOn(job.task, "start").mockImplementation(() => {});
+      const startSpy = vi.spyOn(job.task, 'start').mockImplementation(() => {});
 
       scheduler.start(jobId);
 
@@ -196,8 +196,8 @@ describe("SchedulerService", () => {
       startSpy.mockRestore();
     });
 
-    it("should throw error when starting non-existent job", () => {
-      const nonExistentJobId = "non-existent-job";
+    it('should throw error when starting non-existent job', () => {
+      const nonExistentJobId = 'non-existent-job';
 
       expect(() => {
         scheduler.start(nonExistentJobId);
@@ -205,18 +205,18 @@ describe("SchedulerService", () => {
     });
   });
 
-  describe("stop", () => {
-    it("should stop an existing job successfully", () => {
-      const jobId = "stoppable-job";
+  describe('stop', () => {
+    it('should stop an existing job successfully', () => {
+      const jobId = 'stoppable-job';
       const job = scheduler.schedule(
         jobId,
-        "0 0 * * *",
+        '0 0 * * *',
         mockTaskFunction,
-        "Stoppable job",
+        'Stoppable job',
       );
 
       // Mock the task stop method
-      const stopSpy = vi.spyOn(job.task, "stop").mockImplementation(() => {});
+      const stopSpy = vi.spyOn(job.task, 'stop').mockImplementation(() => {});
 
       scheduler.stop(jobId);
 
@@ -232,8 +232,8 @@ describe("SchedulerService", () => {
       stopSpy.mockRestore();
     });
 
-    it("should throw error when stopping non-existent job", () => {
-      const nonExistentJobId = "non-existent-job";
+    it('should throw error when stopping non-existent job', () => {
+      const nonExistentJobId = 'non-existent-job';
 
       expect(() => {
         scheduler.stop(nonExistentJobId);
@@ -241,18 +241,18 @@ describe("SchedulerService", () => {
     });
   });
 
-  describe("remove", () => {
-    it("should remove an existing job successfully", () => {
-      const jobId = "removable-job";
+  describe('remove', () => {
+    it('should remove an existing job successfully', () => {
+      const jobId = 'removable-job';
       const job = scheduler.schedule(
         jobId,
-        "0 0 * * *",
+        '0 0 * * *',
         mockTaskFunction,
-        "Removable job",
+        'Removable job',
       );
 
       // Mock the task stop method
-      const stopSpy = vi.spyOn(job.task, "stop").mockImplementation(() => {});
+      const stopSpy = vi.spyOn(job.task, 'stop').mockImplementation(() => {});
 
       expect(scheduler.listJobs()).toHaveLength(1);
 
@@ -271,8 +271,8 @@ describe("SchedulerService", () => {
       stopSpy.mockRestore();
     });
 
-    it("should throw error when removing non-existent job", () => {
-      const nonExistentJobId = "non-existent-job";
+    it('should throw error when removing non-existent job', () => {
+      const nonExistentJobId = 'non-existent-job';
 
       expect(() => {
         scheduler.remove(nonExistentJobId);
@@ -280,27 +280,27 @@ describe("SchedulerService", () => {
     });
   });
 
-  describe("listJobs", () => {
-    it("should return empty array when no jobs are scheduled", () => {
+  describe('listJobs', () => {
+    it('should return empty array when no jobs are scheduled', () => {
       const jobs = scheduler.listJobs();
       expect(jobs).toEqual([]);
     });
 
-    it("should return all scheduled jobs", () => {
-      const job1Id = "list-job-1";
-      const job2Id = "list-job-2";
+    it('should return all scheduled jobs', () => {
+      const job1Id = 'list-job-1';
+      const job2Id = 'list-job-2';
 
       const job1 = scheduler.schedule(
         job1Id,
-        "0 0 * * *",
+        '0 0 * * *',
         mockTaskFunction,
-        "First job",
+        'First job',
       );
       const job2 = scheduler.schedule(
         job2Id,
-        "0 12 * * *",
+        '0 12 * * *',
         mockTaskFunction,
-        "Second job",
+        'Second job',
       );
 
       const jobs = scheduler.listJobs();
@@ -310,13 +310,13 @@ describe("SchedulerService", () => {
       expect(jobs).toContainEqual(job2);
     });
 
-    it("should reflect job state changes in listed jobs", () => {
-      const jobId = "state-tracking-job";
+    it('should reflect job state changes in listed jobs', () => {
+      const jobId = 'state-tracking-job';
       scheduler.schedule(
         jobId,
-        "0 0 * * *",
+        '0 0 * * *',
         mockTaskFunction,
-        "State tracking job",
+        'State tracking job',
       );
 
       const jobsBefore = scheduler.listJobs();
@@ -331,32 +331,32 @@ describe("SchedulerService", () => {
     });
   });
 
-  describe("Integration with node-cron", () => {
-    it("should use real cron validation for schedule patterns", () => {
+  describe('Integration with node-cron', () => {
+    it('should use real cron validation for schedule patterns', () => {
       // Test that we're actually using node-cron's validation
       expect(() => {
-        scheduler.schedule("test-job", "invalid", mockTaskFunction, "Test");
-      }).toThrow("Invalid cron schedule: invalid");
+        scheduler.schedule('test-job', 'invalid', mockTaskFunction, 'Test');
+      }).toThrow('Invalid cron schedule: invalid');
 
       // Verify valid patterns work
       expect(() => {
-        scheduler.schedule("valid-job", "0 0 * * *", mockTaskFunction, "Valid");
+        scheduler.schedule('valid-job', '0 0 * * *', mockTaskFunction, 'Valid');
       }).not.toThrow();
     });
 
-    it("should create actual ScheduledTask objects", () => {
+    it('should create actual ScheduledTask objects', () => {
       const job = scheduler.schedule(
-        "task-test",
-        "0 0 * * *",
+        'task-test',
+        '0 0 * * *',
         mockTaskFunction,
-        "Task test",
+        'Task test',
       );
 
       // Verify the task has node-cron ScheduledTask methods
-      expect(job.task).toHaveProperty("start");
-      expect(job.task).toHaveProperty("stop");
-      expect(typeof job.task.start).toBe("function");
-      expect(typeof job.task.stop).toBe("function");
+      expect(job.task).toHaveProperty('start');
+      expect(job.task).toHaveProperty('stop');
+      expect(typeof job.task.start).toBe('function');
+      expect(typeof job.task.stop).toBe('function');
     });
   });
 });

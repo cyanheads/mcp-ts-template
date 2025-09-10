@@ -3,16 +3,17 @@
  * @module tests/utils/internal/logger.test
  */
 import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
   type Mock,
-} from "vitest";
-import type winston from "winston";
-import type { Logger as LoggerType } from "../../../src/utils/internal/logger";
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+import type winston from 'winston';
+
+import type { Logger as LoggerType } from '../../../src/utils/internal/logger';
 
 // Define stable mock functions for logger methods at the top level
 const mockLog = vi.fn();
@@ -26,7 +27,7 @@ const mockWinstonLogger = {
   add: mockAdd,
   remove: mockRemove,
   info: mockInfo,
-  level: "debug",
+  level: 'debug',
   transports: [],
 };
 
@@ -34,7 +35,7 @@ const mockInteractionLogger = {
   info: mockInteractionInfo,
 };
 
-describe("Logger", () => {
+describe('Logger', () => {
   let loggerInstance: LoggerType;
   let winstonMock: typeof winston;
   let Logger: typeof LoggerType;
@@ -44,7 +45,7 @@ describe("Logger", () => {
     vi.resetModules();
 
     // 2. Mock dependencies using vi.doMock to prevent hoisting issues
-    vi.doMock("../../../src/utils/scheduling/scheduler.ts", () => ({
+    vi.doMock('../../../src/utils/scheduling/scheduler.ts', () => ({
       SchedulerService: {
         getInstance: vi.fn(() => ({
           // Mock any methods that might be called during initialization
@@ -52,14 +53,14 @@ describe("Logger", () => {
       },
     }));
 
-    vi.doMock("../../../src/config/index.js", () => ({
+    vi.doMock('../../../src/config/index.js', () => ({
       config: {
-        logsPath: "/tmp/test-logs",
-        mcpServerName: "test-server",
+        logsPath: '/tmp/test-logs',
+        mcpServerName: 'test-server',
       },
     }));
 
-    vi.doMock("winston", () => {
+    vi.doMock('winston', () => {
       const createLogger = vi.fn();
       const mockWinstonModule = {
         createLogger,
@@ -84,8 +85,8 @@ describe("Logger", () => {
     });
 
     // 3. Dynamically import modules AFTER mocks are in place
-    winstonMock = (await import("winston")).default;
-    const LoggerModule = await import("../../../src/utils/internal/logger");
+    winstonMock = (await import('winston')).default;
+    const LoggerModule = await import('../../../src/utils/internal/logger');
     Logger = LoggerModule.Logger;
 
     // 4. Set up the mock implementation for createLogger using call-order-specific values
@@ -98,60 +99,60 @@ describe("Logger", () => {
 
     // 6. Get the fresh logger instance and initialize it
     loggerInstance = Logger.getInstance();
-    await loggerInstance.initialize("debug");
+    await loggerInstance.initialize('debug');
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it("should be a singleton", () => {
+  it('should be a singleton', () => {
     const anotherInstance = Logger.getInstance();
     expect(loggerInstance).toBe(anotherInstance);
   });
 
-  it("should initialize correctly by creating two loggers", () => {
+  it('should initialize correctly by creating two loggers', () => {
     expect(winstonMock.createLogger).toHaveBeenCalledTimes(2);
   });
 
-  it("should log a debug message", () => {
-    loggerInstance.debug("test debug");
-    expect(mockLog).toHaveBeenCalledWith("debug", "test debug", {});
+  it('should log a debug message', () => {
+    loggerInstance.debug('test debug');
+    expect(mockLog).toHaveBeenCalledWith('debug', 'test debug', {});
   });
 
-  it("should not log messages below the current level", () => {
-    loggerInstance.setLevel("info");
+  it('should not log messages below the current level', () => {
+    loggerInstance.setLevel('info');
     vi.clearAllMocks(); // Clear mocks after setLevel's own logging
-    loggerInstance.debug("this should not be logged");
+    loggerInstance.debug('this should not be logged');
     expect(mockLog).not.toHaveBeenCalled();
   });
 
-  it("should change log level dynamically", () => {
-    loggerInstance.setLevel("warning");
+  it('should change log level dynamically', () => {
+    loggerInstance.setLevel('warning');
     vi.clearAllMocks(); // Clear mocks after setLevel's own logging
-    loggerInstance.info("not logged");
-    loggerInstance.warning("logged");
+    loggerInstance.info('not logged');
+    loggerInstance.warning('logged');
     expect(mockLog).toHaveBeenCalledOnce();
-    expect(mockLog).toHaveBeenCalledWith("warn", "logged", {});
+    expect(mockLog).toHaveBeenCalledWith('warn', 'logged', {});
   });
 
-  it("should send an MCP notification if a sender is set", () => {
+  it('should send an MCP notification if a sender is set', () => {
     const sender = vi.fn();
     loggerInstance.setMcpNotificationSender(sender);
     vi.clearAllMocks(); // Clear mocks after setMcpNotificationSender's own logging
-    loggerInstance.info("test info");
+    loggerInstance.info('test info');
     expect(sender).toHaveBeenCalledWith(
-      "info",
-      { message: "test info" },
-      "test-server",
+      'info',
+      { message: 'test info' },
+      'test-server',
     );
   });
 
-  it("should log an interaction", () => {
-    loggerInstance.logInteraction("testInteraction", { data: "test" });
+  it('should log an interaction', () => {
+    loggerInstance.logInteraction('testInteraction', { data: 'test' });
     expect(mockInteractionInfo).toHaveBeenCalledWith({
-      interactionName: "testInteraction",
-      data: "test",
+      interactionName: 'testInteraction',
+      data: 'test',
     });
   });
 });

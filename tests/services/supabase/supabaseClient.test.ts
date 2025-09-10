@@ -2,22 +2,22 @@
  * @fileoverview Tests for the Supabase client singleton.
  * @module tests/services/supabase/supabaseClient.test
  */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   JsonRpcErrorCode,
   McpError,
-} from "../../../src/types-global/errors.js";
+} from '../../../src/types-global/errors.js';
 
 // Mock the supabase-js library
 const mockCreateClient = vi.fn((_url, _key) => ({
   from: vi.fn(),
 }));
-vi.mock("@supabase/supabase-js", () => ({
+vi.mock('@supabase/supabase-js', () => ({
   createClient: mockCreateClient,
 }));
 
-describe("Supabase Client", () => {
+describe('Supabase Client', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -27,120 +27,120 @@ describe("Supabase Client", () => {
     vi.resetModules();
   });
 
-  it("should initialize both clients when all config is present", async () => {
-    vi.doMock("../../../src/config/index.js", () => ({
+  it('should initialize both clients when all config is present', async () => {
+    vi.doMock('../../../src/config/index.js', () => ({
       config: {
         supabase: {
-          url: "https://test.supabase.co",
-          anonKey: "test-anon-key",
-          serviceRoleKey: "test-service-role-key",
+          url: 'https://test.supabase.co',
+          anonKey: 'test-anon-key',
+          serviceRoleKey: 'test-service-role-key',
         },
       },
     }));
 
     const { getSupabaseClient, getSupabaseAdminClient } = await import(
-      "../../../src/storage/providers/supabase/supabaseClient.js"
+      '../../../src/storage/providers/supabase/supabaseClient.js'
     );
     getSupabaseClient();
     getSupabaseAdminClient();
 
     expect(mockCreateClient).toHaveBeenCalledTimes(2);
     expect(mockCreateClient).toHaveBeenCalledWith(
-      "https://test.supabase.co",
-      "test-anon-key",
+      'https://test.supabase.co',
+      'test-anon-key',
       expect.any(Object),
     );
     expect(mockCreateClient).toHaveBeenCalledWith(
-      "https://test.supabase.co",
-      "test-service-role-key",
+      'https://test.supabase.co',
+      'test-service-role-key',
       expect.any(Object),
     );
   });
 
-  it("should return the initialized Supabase client", async () => {
-    vi.doMock("../../../src/config/index.js", () => ({
+  it('should return the initialized Supabase client', async () => {
+    vi.doMock('../../../src/config/index.js', () => ({
       config: {
         supabase: {
-          url: "https://test.supabase.co",
-          anonKey: "test-anon-key",
-          serviceRoleKey: "test-service-role-key",
+          url: 'https://test.supabase.co',
+          anonKey: 'test-anon-key',
+          serviceRoleKey: 'test-service-role-key',
         },
       },
     }));
 
     const { getSupabaseClient } = await import(
-      "../../../src/storage/providers/supabase/supabaseClient.js"
+      '../../../src/storage/providers/supabase/supabaseClient.js'
     );
     const client = getSupabaseClient();
     expect(client).toBeDefined();
-    expect(client.from).toBeTypeOf("function");
+    expect(client.from).toBeTypeOf('function');
   });
 
-  it("should return the initialized Supabase admin client", async () => {
-    vi.doMock("../../../src/config/index.js", () => ({
+  it('should return the initialized Supabase admin client', async () => {
+    vi.doMock('../../../src/config/index.js', () => ({
       config: {
         supabase: {
-          url: "https://test.supabase.co",
-          anonKey: "test-anon-key",
-          serviceRoleKey: "test-service-role-key",
+          url: 'https://test.supabase.co',
+          anonKey: 'test-anon-key',
+          serviceRoleKey: 'test-service-role-key',
         },
       },
     }));
 
     const { getSupabaseAdminClient } = await import(
-      "../../../src/storage/providers/supabase/supabaseClient.js"
+      '../../../src/storage/providers/supabase/supabaseClient.js'
     );
     const adminClient = getSupabaseAdminClient();
     expect(adminClient).toBeDefined();
-    expect(adminClient.from).toBeTypeOf("function");
+    expect(adminClient.from).toBeTypeOf('function');
   });
 
-  it("should throw an error if the client is not initialized", async () => {
-    vi.doMock("../../../src/config/index.js", () => ({
+  it('should throw an error if the client is not initialized', async () => {
+    vi.doMock('../../../src/config/index.js', () => ({
       config: { supabase: {} },
     }));
 
     const { getSupabaseClient } = await import(
-      "../../../src/storage/providers/supabase/supabaseClient.js"
+      '../../../src/storage/providers/supabase/supabaseClient.js'
     );
 
     try {
       getSupabaseClient();
       // Fail test if no error is thrown
-      expect.fail("Expected getSupabaseClient to throw an error");
+      expect.fail('Expected getSupabaseClient to throw an error');
     } catch (error) {
       const mcpError = error as McpError;
-      expect(mcpError.name).toBe("McpError");
+      expect(mcpError.name).toBe('McpError');
       expect(mcpError.code).toBe(JsonRpcErrorCode.ConfigurationError);
-      expect(mcpError.message).toContain("Supabase URL or anon key is missing");
+      expect(mcpError.message).toContain('Supabase URL or anon key is missing');
     }
   });
 
-  it("should throw an error if the admin client is not initialized", async () => {
-    vi.doMock("../../../src/config/index.js", () => ({
+  it('should throw an error if the admin client is not initialized', async () => {
+    vi.doMock('../../../src/config/index.js', () => ({
       config: {
         supabase: {
-          url: "https://test.supabase.co",
-          anonKey: "test-anon-key",
+          url: 'https://test.supabase.co',
+          anonKey: 'test-anon-key',
           // Missing serviceRoleKey
         },
       },
     }));
 
     const { getSupabaseAdminClient } = await import(
-      "../../../src/storage/providers/supabase/supabaseClient.js"
+      '../../../src/storage/providers/supabase/supabaseClient.js'
     );
 
     try {
       getSupabaseAdminClient();
       // Fail test if no error is thrown
-      expect.fail("Expected getSupabaseAdminClient to throw an error");
+      expect.fail('Expected getSupabaseAdminClient to throw an error');
     } catch (error) {
       const mcpError = error as McpError;
-      expect(mcpError.name).toBe("McpError");
+      expect(mcpError.name).toBe('McpError');
       expect(mcpError.code).toBe(JsonRpcErrorCode.ConfigurationError);
       expect(mcpError.message).toContain(
-        "Supabase URL or service role key is missing",
+        'Supabase URL or service role key is missing',
       );
     }
   });

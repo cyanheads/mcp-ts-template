@@ -1,35 +1,35 @@
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from 'msw';
 
-const mockCatImage = Buffer.from("mock-cat-image-data");
-const HTTPBIN_BASE = "https://httpbin.org";
+const mockCatImage = Buffer.from('mock-cat-image-data');
+const HTTPBIN_BASE = 'https://httpbin.org';
 
 export const handlers = [
   // Mock for successful cat image fetch
-  http.get("https://cataas.com/cat", () => {
+  http.get('https://cataas.com/cat', () => {
     return new HttpResponse(mockCatImage, {
       status: 200,
       headers: {
-        "Content-Type": "image/jpeg",
-        "Content-Length": mockCatImage.length.toString(),
+        'Content-Type': 'image/jpeg',
+        'Content-Length': mockCatImage.length.toString(),
       },
     });
   }),
 
   // Mock for successful chat completion
-  http.post("https://openrouter.ai/api/v1/chat/completions", async () => {
+  http.post('https://openrouter.ai/api/v1/chat/completions', async () => {
     return HttpResponse.json({
-      id: "chatcmpl-123",
-      object: "chat.completion",
+      id: 'chatcmpl-123',
+      object: 'chat.completion',
       created: 1677652288,
-      model: "google/gemini-2.5-flash",
+      model: 'google/gemini-2.5-flash',
       choices: [
         {
           index: 0,
           message: {
-            role: "assistant",
-            content: "Hello!",
+            role: 'assistant',
+            content: 'Hello!',
           },
-          finish_reason: "stop",
+          finish_reason: 'stop',
         },
       ],
       usage: {
@@ -41,21 +41,21 @@ export const handlers = [
   }),
 
   // Mock for fetchWithTimeout test
-  http.get("https://api.example.com/data", () => {
-    return HttpResponse.json({ data: "test" });
+  http.get('https://api.example.com/data', () => {
+    return HttpResponse.json({ data: 'test' });
   }),
 
   // Mocks for httpbin.org endpoints
   http.get(`${HTTPBIN_BASE}/json`, () => {
     return HttpResponse.json({
       slideshow: {
-        author: "Yours Truly",
-        date: "date of publication",
+        author: 'Yours Truly',
+        date: 'date of publication',
         slides: [
-          { title: "Wake up to WonderWidgets!", type: "all" },
-          { title: "Overview", type: "all" },
+          { title: 'Wake up to WonderWidgets!', type: 'all' },
+          { title: 'Overview', type: 'all' },
         ],
-        title: "Sample Slide Show",
+        title: 'Sample Slide Show',
       },
     });
   }),
@@ -75,49 +75,49 @@ export const handlers = [
     const body = await request.json();
     return HttpResponse.json({
       json: body,
-      headers: { "Content-Type": "application/json" },
+      headers: { 'Content-Type': 'application/json' },
     });
   }),
 
   // Mock for network error
-  http.get("https://invalid-domain-that-does-not-exist.com/", () => {
+  http.get('https://invalid-domain-that-does-not-exist.com/', () => {
     return HttpResponse.error();
   }),
 ];
 
 export const errorHandlers = {
   unauthorized: http.post(
-    "https://openrouter.ai/api/v1/chat/completions",
+    'https://openrouter.ai/api/v1/chat/completions',
     () => {
       return new HttpResponse(
-        JSON.stringify({ error: { message: "Incorrect API key provided" } }),
+        JSON.stringify({ error: { message: 'Incorrect API key provided' } }),
         {
           status: 401,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     },
   ),
   rateLimited: http.post(
-    "https://openrouter.ai/api/v1/chat/completions",
+    'https://openrouter.ai/api/v1/chat/completions',
     () => {
       return new HttpResponse(
-        JSON.stringify({ error: { message: "Rate limit exceeded" } }),
+        JSON.stringify({ error: { message: 'Rate limit exceeded' } }),
         {
           status: 429,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     },
   ),
   internalError: http.post(
-    "https://openrouter.ai/api/v1/chat/completions",
+    'https://openrouter.ai/api/v1/chat/completions',
     () => {
       return new HttpResponse(
-        JSON.stringify({ error: { message: "Internal server error" } }),
+        JSON.stringify({ error: { message: 'Internal server error' } }),
         {
           status: 500,
-          headers: { "Content-Type": "application/json" },
+          headers: { 'Content-Type': 'application/json' },
         },
       );
     },
@@ -125,10 +125,10 @@ export const errorHandlers = {
 };
 
 export const catImageErrorHandlers = {
-  internalError: http.get("https://cataas.com/cat", () => {
+  internalError: http.get('https://cataas.com/cat', () => {
     return new HttpResponse(null, {
       status: 500,
-      statusText: "Internal Server Error",
+      statusText: 'Internal Server Error',
     });
   }),
 };

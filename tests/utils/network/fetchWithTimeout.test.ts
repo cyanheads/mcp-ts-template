@@ -3,20 +3,21 @@
  * @module tests/utils/network/fetchWithTimeout.test
  */
 import {
-  describe,
-  it,
-  expect,
-  beforeAll,
-  afterEach,
   afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
   vi,
-} from "vitest";
-import { fetchWithTimeout } from "../../../src/utils/network/fetchWithTimeout";
-import { requestContextService } from "../../../src/utils";
-import { McpError, JsonRpcErrorCode } from "../../../src/types-global/errors";
-import { server } from "../../mocks/server";
+} from 'vitest';
 
-vi.mock("../../../src/utils/scheduling/scheduler.ts", () => ({
+import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors';
+import { requestContextService } from '../../../src/utils';
+import { fetchWithTimeout } from '../../../src/utils/network/fetchWithTimeout';
+import { server } from '../../mocks/server';
+
+vi.mock('../../../src/utils/scheduling/scheduler.ts', () => ({
   SchedulerService: {
     getInstance: vi.fn(() => ({
       // Mock any methods that might be called during initialization
@@ -25,17 +26,17 @@ vi.mock("../../../src/utils/scheduling/scheduler.ts", () => ({
 }));
 
 // Using httpbin.org for real HTTP testing
-const HTTPBIN_BASE = "https://httpbin.org";
+const HTTPBIN_BASE = 'https://httpbin.org';
 
-describe("fetchWithTimeout", () => {
-  beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+describe('fetchWithTimeout', () => {
+  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
   afterEach(() => server.resetHandlers());
   afterAll(() => server.close());
   const parentRequestContext = requestContextService.createRequestContext({
-    toolName: "test-parent",
+    toolName: 'test-parent',
   });
 
-  it("should successfully fetch data within the timeout", async () => {
+  it('should successfully fetch data within the timeout', async () => {
     const response = await fetchWithTimeout(
       `${HTTPBIN_BASE}/json`,
       10000,
@@ -44,10 +45,10 @@ describe("fetchWithTimeout", () => {
     const data = await response.json();
 
     expect(response.ok).toBe(true);
-    expect(data).toHaveProperty("slideshow");
+    expect(data).toHaveProperty('slideshow');
   });
 
-  it("should throw a timeout error if the request takes too long", async () => {
+  it('should throw a timeout error if the request takes too long', async () => {
     // httpbin.org/delay/2 takes 2 seconds, but we'll timeout after 1 second
     await expect(
       fetchWithTimeout(`${HTTPBIN_BASE}/delay/2`, 1000, parentRequestContext),
@@ -62,11 +63,11 @@ describe("fetchWithTimeout", () => {
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.code).toBe(JsonRpcErrorCode.Timeout);
-      expect(mcpError.message).toContain("timed out");
+      expect(mcpError.message).toContain('timed out');
     }
   });
 
-  it("should handle HTTP error status codes gracefully", async () => {
+  it('should handle HTTP error status codes gracefully', async () => {
     await expect(
       fetchWithTimeout(
         `${HTTPBIN_BASE}/status/500`,
@@ -76,11 +77,11 @@ describe("fetchWithTimeout", () => {
     ).rejects.toThrow(McpError);
   });
 
-  it("should throw an McpError for network errors", async () => {
+  it('should throw an McpError for network errors', async () => {
     // Use an invalid URL to trigger a network error
     await expect(
       fetchWithTimeout(
-        "https://invalid-domain-that-does-not-exist.com",
+        'https://invalid-domain-that-does-not-exist.com',
         5000,
         parentRequestContext,
       ),
@@ -88,27 +89,27 @@ describe("fetchWithTimeout", () => {
 
     try {
       await fetchWithTimeout(
-        "https://invalid-domain-that-does-not-exist.com",
+        'https://invalid-domain-that-does-not-exist.com',
         5000,
         parentRequestContext,
       );
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.code).toBe(JsonRpcErrorCode.ServiceUnavailable);
-      expect(mcpError.message).toContain("Network error");
+      expect(mcpError.message).toContain('Network error');
     }
   });
 
-  it("should handle POST requests correctly", async () => {
-    const requestBody = { key: "value", test: true };
+  it('should handle POST requests correctly', async () => {
+    const requestBody = { key: 'value', test: true };
 
     const response = await fetchWithTimeout(
       `${HTTPBIN_BASE}/post`,
       10000,
       parentRequestContext,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       },
     );
@@ -117,6 +118,6 @@ describe("fetchWithTimeout", () => {
 
     expect(response.ok).toBe(true);
     expect(responseData.json).toEqual(requestBody);
-    expect(responseData.headers["Content-Type"]).toBe("application/json");
+    expect(responseData.headers['Content-Type']).toBe('application/json');
   });
 });

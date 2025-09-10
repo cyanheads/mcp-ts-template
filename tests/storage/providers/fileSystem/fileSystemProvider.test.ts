@@ -2,22 +2,22 @@
  * @fileoverview Integration tests for the FileSystemProvider.
  * @module tests/storage/providers/fileSystem/fileSystemProvider.test
  */
+import { rm } from 'fs/promises';
+import path from 'path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { FileSystemProvider } from "../../../../src/storage/providers/fileSystem/fileSystemProvider.js";
-import { storageProviderTests } from "../../storageProviderCompliance.js";
-import { rm } from "fs/promises";
-import path from "path";
+import { FileSystemProvider } from '../../../../src/storage/providers/fileSystem/fileSystemProvider.js';
 import {
   JsonRpcErrorCode,
   McpError,
-} from "../../../../src/types-global/errors.js";
-import { requestContextService } from "../../../../src/utils/index.js";
+} from '../../../../src/types-global/errors.js';
+import { requestContextService } from '../../../../src/utils/index.js';
+import { storageProviderTests } from '../../storageProviderCompliance.js';
 
 const TEST_STORAGE_PATH = path.resolve(
   process.cwd(),
-  ".storage",
-  "test-storage",
+  '.storage',
+  'test-storage',
 );
 
 // Setup and Teardown for file system operations
@@ -33,15 +33,15 @@ const teardown = async () => {
 // Run the compliance tests for FileSystemProvider
 storageProviderTests(
   () => new FileSystemProvider(TEST_STORAGE_PATH),
-  "FileSystemProvider",
+  'FileSystemProvider',
   setup,
   teardown,
 );
 
 // Add specific tests for FileSystemProvider
-describe("FileSystemProvider Specific Tests", () => {
+describe('FileSystemProvider Specific Tests', () => {
   const context = requestContextService.createRequestContext({
-    operation: "test",
+    operation: 'test',
   });
 
   beforeEach(async () => {
@@ -52,19 +52,19 @@ describe("FileSystemProvider Specific Tests", () => {
     await teardown();
   });
 
-  it("should throw an error for an invalid storage path", () => {
-    expect(() => new FileSystemProvider("")).toThrow(
+  it('should throw an error for an invalid storage path', () => {
+    expect(() => new FileSystemProvider('')).toThrow(
       new McpError(
         JsonRpcErrorCode.ConfigurationError,
-        "FileSystemProvider requires a valid storagePath.",
+        'FileSystemProvider requires a valid storagePath.',
       ),
     );
   });
 
-  it("should correctly sanitize and use complex keys", async () => {
+  it('should correctly sanitize and use complex keys', async () => {
     const provider = new FileSystemProvider(TEST_STORAGE_PATH);
-    const complexKey = "user:123/profile?query=string#hash";
-    const value = { name: "test" };
+    const complexKey = 'user:123/profile?query=string#hash';
+    const value = { name: 'test' };
     await provider.set(complexKey, value, context);
     const result = await provider.get(complexKey, context);
     expect(result).toEqual(value);

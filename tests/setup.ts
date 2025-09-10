@@ -1,4 +1,4 @@
-import { beforeAll, afterEach, afterAll } from "vitest";
+import { afterAll, afterEach, beforeAll } from 'vitest';
 
 // Global test setup without MSW - tests use real APIs or isolated MSW servers
 beforeAll(() => {
