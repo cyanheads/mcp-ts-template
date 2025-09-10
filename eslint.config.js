@@ -2,12 +2,21 @@ import pluginJs from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+// Merge browser + node globals and normalize keys
 const combinedGlobals = { ...globals.browser, ...globals.node };
 const trimmedGlobals = Object.fromEntries(
   Object.entries(combinedGlobals).map(([key, value]) => [key.trim(), value]),
 );
 
+// Paths used by type-aware linting
+const tsProjectFiles = [
+  './tsconfig.json',
+  './tsconfig.vitest.json',
+  './tsconfig.typedoc.json',
+];
+
 export default [
+  // Ignore common build/test artifacts
   {
     ignores: [
       'coverage/',
@@ -18,10 +27,39 @@ export default [
       '**/.wrangler/',
     ],
   },
-  { languageOptions: { globals: trimmedGlobals } },
-  pluginJs.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
+
+  // JavaScript files: apply JS recommended rules and globals
   {
+    files: ['**/*.{js,cjs,mjs}'],
+    ...pluginJs.configs.recommended,
+    languageOptions: {
+      ...(pluginJs.configs.recommended.languageOptions ?? {}),
+      globals: trimmedGlobals,
+    },
+  },
+
+  // TypeScript files: enable type-aware linting with proper parserOptions
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        project: tsProjectFiles,
+        tsconfigRootDir: new URL('.', import.meta.url).pathname,
+        sourceType: 'module',
+      },
+      globals: trimmedGlobals,
+    },
+  },
+  // Apply TypeScript recommended type-checked configs only to TS files
+  ...tseslint.configs.recommendedTypeChecked.map((cfg) => ({
+    files: ['**/*.{ts,tsx}'],
+    ...cfg,
+  })),
+
+  // Repo-specific TypeScript rule tweaks
+  {
+    files: ['**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',
