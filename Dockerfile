@@ -1,26 +1,26 @@
-# ---- Build Stage ----
-# Use a modern, secure Node.js Alpine image.
-# Alpine is lightweight, which reduces the attack surface.
-FROM node:23-alpine AS build
+########################
+# Build Stage (Bun)
+########################
+FROM oven/bun:1 AS build
 
-# Set the working directory inside the container.
 WORKDIR /usr/src/app
 
-# Copy package definitions to leverage Docker layer caching.
-COPY package.json package-lock.json* ./
+# Copy dependency manifests first for better layer caching
+COPY package.json bun.lock* ./
 
-# Install all npm dependencies. `npm ci` is used for reproducible builds.
-RUN npm ci
+# Install dependencies with a frozen lockfile for reproducible builds
+RUN bun install --frozen-lockfile
 
-# Copy the rest of the application source code.
+# Copy the rest of the source code
 COPY . .
 
-# Compile TypeScript to JavaScript.
-RUN npm run build
+# Compile TypeScript to JavaScript
+RUN bun run build
 
-# ---- Production Stage ----
-# Start from a fresh, minimal Node.js Alpine image for the final image.
-FROM node:23-alpine AS production
+########################
+# Production Stage (Bun)
+########################
+FROM oven/bun:1 AS production
 
 WORKDIR /usr/src/app
 
@@ -28,13 +28,14 @@ WORKDIR /usr/src/app
 ENV NODE_ENV=production
 
 # Create a non-root user and group for enhanced security.
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN addgroup --system appgroup \
+  && adduser --system --ingroup appgroup appuser
 
 # Create and set permissions for the log directory.
-RUN mkdir -p /var/log/mcp-ts-template && chown -R appuser:appgroup /var/log/mcp-ts-template
+RUN mkdir -p /var/log/mcp-ts-template \
+  && chown -R appuser:appgroup /var/log/mcp-ts-template
 
-# Copy build artifacts from the build stage.
-# This includes the compiled code and production node_modules.
+# Copy build artifacts and production dependencies from the build stage.
 COPY --from=build /usr/src/app/dist ./dist
 COPY --from=build /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/package.json ./
@@ -43,7 +44,6 @@ COPY --from=build /usr/src/app/package.json ./
 USER appuser
 
 # Expose the port the server will listen on.
-# The PORT variable is typically provided by the deployment environment (e.g., Smithery).
 ENV MCP_HTTP_PORT=${PORT:-3017}
 EXPOSE ${MCP_HTTP_PORT}
 
@@ -56,5 +56,5 @@ ENV LOGS_DIR=/var/log/mcp-ts-template
 ENV MCP_AUTH_MODE=none
 ENV MCP_FORCE_CONSOLE_LOGGING=true
 
-# The command to start the server.
-CMD ["node", "dist/index.js"]
+# Start the server with Bun runtime
+CMD ["bun", "dist/index.js"]
