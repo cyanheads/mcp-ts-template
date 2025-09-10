@@ -3,9 +3,9 @@
  * @module src/mcp-server/resources/echoResource/logic
  * @see {@link src/mcp-server/resources/echoResource/registration.ts} for the handler and registration logic.
  */
+import { z } from 'zod';
 
-import { z } from "zod";
-import { logger, type RequestContext } from "../../../utils/index.js";
+import { type RequestContext, logger } from '../../../utils/index.js';
 
 /**
  * Zod schema defining expected query parameters for the echo resource.
@@ -15,7 +15,7 @@ export const EchoResourceQuerySchema = z.object({
     .string()
     .optional()
     .describe(
-      "Optional message to echo back in the response. If not provided, a default may be used or derived from the path.",
+      'Optional message to echo back in the response. If not provided, a default may be used or derived from the path.',
     ),
 });
 
@@ -47,11 +47,11 @@ export async function echoResourceLogic(
 ): Promise<EchoResourceResponsePayload> {
   // The message can come from a query parameter or the path itself.
   // For a URI like `echo://my-message?param=1`, `hostname` is `my-message`.
-  const messageFromPath = uri.hostname || uri.pathname.replace(/^\/+/g, "");
+  const messageFromPath = uri.hostname || uri.pathname.replace(/^\/+/g, '');
   const messageToEcho =
-    params.message || messageFromPath || "Default echo message";
+    params.message || messageFromPath || 'Default echo message';
 
-  logger.debug("Processing echo resource logic.", {
+  logger.debug('Processing echo resource logic.', {
     ...context,
     resourceUri: uri.href,
     extractedMessage: messageToEcho,
@@ -63,7 +63,7 @@ export async function echoResourceLogic(
     requestUri: uri.href,
   };
 
-  logger.debug("Echo resource processed successfully.", {
+  logger.debug('Echo resource processed successfully.', {
     ...context,
     responsePayloadSummary: {
       messageLength: responsePayload.message.length,

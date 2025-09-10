@@ -3,23 +3,23 @@
  * @module src/mcp-server/resources/echoResource/registration.ts
  * @see {@link src/mcp-server/resources/echoResource/logic.ts} for the core business logic and schemas.
  */
-
 import {
   McpServer,
   ResourceTemplate,
-} from "@modelcontextprotocol/sdk/server/mcp.js";
+} from '@modelcontextprotocol/sdk/server/mcp.js';
 import type {
   ListResourcesResult,
   ReadResourceResult,
-} from "@modelcontextprotocol/sdk/types.js";
-import { JsonRpcErrorCode } from "../../../types-global/errors.js";
+} from '@modelcontextprotocol/sdk/types.js';
+
+import { JsonRpcErrorCode } from '../../../types-global/errors.js';
 import {
   ErrorHandler,
-  logger,
   RequestContext,
+  logger,
   requestContextService,
-} from "../../../utils/index.js";
-import { echoResourceLogic, EchoResourceParams } from "./logic.js";
+} from '../../../utils/index.js';
+import { EchoResourceParams, echoResourceLogic } from './logic.js';
 
 /**
  * Registers the 'echo' resource and its handlers with the provided MCP server instance.
@@ -29,10 +29,10 @@ import { echoResourceLogic, EchoResourceParams } from "./logic.js";
 export const registerEchoResource = async (
   server: McpServer,
 ): Promise<void> => {
-  const resourceName = "echo-resource";
+  const resourceName = 'echo-resource';
   const registrationContext: RequestContext =
     requestContextService.createRequestContext({
-      operation: "RegisterResource",
+      operation: 'RegisterResource',
       additionalContext: { resourceName },
     });
 
@@ -40,14 +40,14 @@ export const registerEchoResource = async (
 
   await ErrorHandler.tryCatch(
     async () => {
-      const template = new ResourceTemplate("echo://{message}", {
+      const template = new ResourceTemplate('echo://{message}', {
         list: async (): Promise<ListResourcesResult> => {
           return {
             resources: [
               {
-                uri: "echo://hello",
-                name: "Default Echo Message",
-                description: "A simple echo resource example.",
+                uri: 'echo://hello',
+                name: 'Default Echo Message',
+                description: 'A simple echo resource example.',
               },
             ],
           };
@@ -58,10 +58,10 @@ export const registerEchoResource = async (
         resourceName,
         template,
         {
-          name: "Echo Message Resource",
-          description: "A simple echo resource that returns a message.",
-          mimeType: "application/json",
-          examples: [{ name: "Basic echo", uri: "echo://hello" }],
+          name: 'Echo Message Resource',
+          description: 'A simple echo resource that returns a message.',
+          mimeType: 'application/json',
+          examples: [{ name: 'Basic echo', uri: 'echo://hello' }],
         },
         async (
           uri: URL,
@@ -69,14 +69,14 @@ export const registerEchoResource = async (
           callContext: Record<string, unknown>,
         ): Promise<ReadResourceResult> => {
           const sessionId =
-            typeof callContext?.sessionId === "string"
+            typeof callContext?.sessionId === 'string'
               ? callContext.sessionId
               : undefined;
 
           const handlerContext: RequestContext =
             requestContextService.createRequestContext({
               parentContext: callContext,
-              operation: "HandleResourceRead",
+              operation: 'HandleResourceRead',
               additionalContext: {
                 resourceUri: uri.href,
                 sessionId,
@@ -97,14 +97,14 @@ export const registerEchoResource = async (
                   // Use a direct string for application/json content.
                   // The SDK handles encoding appropriately.
                   text: JSON.stringify(responseData),
-                  mimeType: "application/json",
+                  mimeType: 'application/json',
                 },
               ],
             };
           } catch (error) {
             // Re-throw to be caught by the SDK's top-level error handler
             throw ErrorHandler.handleError(error, {
-              operation: "echoResourceReadHandler",
+              operation: 'echoResourceReadHandler',
               context: handlerContext,
               input: { uri: uri.href, params },
             });

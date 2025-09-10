@@ -4,22 +4,22 @@
  * performance measurement, and response formatting for tool handlers.
  * @module src/mcp-server/tools/utils/toolHandlerFactory
  */
-
 import type {
   CallToolResult,
   ContentBlock,
-} from "@modelcontextprotocol/sdk/types.js";
-import { McpError } from "../../../types-global/errors.js";
+} from '@modelcontextprotocol/sdk/types.js';
+
+import { McpError } from '../../../types-global/errors.js';
 import {
   ErrorHandler,
-  measureToolExecution,
   RequestContext,
+  measureToolExecution,
   requestContextService,
-} from "../../../utils/index.js";
+} from '../../../utils/index.js';
 
 // Default formatter for successful responses
 const defaultResponseFormatter = (result: unknown): ContentBlock[] => [
-  { type: "text", text: JSON.stringify(result, null, 2) },
+  { type: 'text', text: JSON.stringify(result, null, 2) },
 ];
 
 export type ToolHandlerFactoryOptions<
@@ -49,13 +49,13 @@ export function createMcpToolHandler<
     callContext: Record<string, unknown>,
   ): Promise<CallToolResult> => {
     const sessionId =
-      typeof callContext?.sessionId === "string"
+      typeof callContext?.sessionId === 'string'
         ? callContext.sessionId
         : undefined;
 
     const handlerContext = requestContextService.createRequestContext({
       parentContext: callContext,
-      operation: "HandleToolRequest",
+      operation: 'HandleToolRequest',
       additionalContext: { toolName, sessionId, input },
     });
 
@@ -79,7 +79,7 @@ export function createMcpToolHandler<
 
       return {
         isError: true,
-        content: [{ type: "text", text: `Error: ${mcpError.message}` }],
+        content: [{ type: 'text', text: `Error: ${mcpError.message}` }],
         structuredContent: {
           code: mcpError.code,
           message: mcpError.message,

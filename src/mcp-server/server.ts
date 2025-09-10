@@ -13,23 +13,23 @@
  * - Transports: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx
  * @module src/mcp-server/server
  */
+import { ServerType } from '@hono/node-server';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import http from 'http';
+import { ZodObject, ZodRawShape } from 'zod';
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ServerType } from "@hono/node-server";
-import http from "http";
-import { ZodObject, ZodRawShape } from "zod";
-import { TransportManager } from "./transports/core/transportTypes.js";
-import { config } from "../config/index.js";
-import { JsonRpcErrorCode } from "../types-global/errors.js";
-import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
-import { registerEchoResource } from "./resources/echoResource/index.js";
-import { catFactTool } from "./tools/definitions/cat-fact.tool.js";
-import { echoTool } from "./tools/definitions/echo.tool.js";
-import { imageTestTool } from "./tools/definitions/image-test.tool.js";
-import { ToolDefinition } from "./tools/utils/toolDefinition.js";
-import { createMcpToolHandler } from "./tools/utils/toolHandlerFactory.js";
-import { startHttpTransport } from "./transports/http/index.js";
-import { startStdioTransport } from "./transports/stdio/index.js";
+import { config } from '../config/index.js';
+import { JsonRpcErrorCode } from '../types-global/errors.js';
+import { ErrorHandler, logger, requestContextService } from '../utils/index.js';
+import { registerEchoResource } from './resources/echoResource/index.js';
+import { catFactTool } from './tools/definitions/cat-fact.tool.js';
+import { echoTool } from './tools/definitions/echo.tool.js';
+import { imageTestTool } from './tools/definitions/image-test.tool.js';
+import { ToolDefinition } from './tools/utils/toolDefinition.js';
+import { createMcpToolHandler } from './tools/utils/toolHandlerFactory.js';
+import { TransportManager } from './transports/core/transportTypes.js';
+import { startHttpTransport } from './transports/http/index.js';
+import { startStdioTransport } from './transports/stdio/index.js';
 
 /**
  * A type-safe helper function to register a single tool definition.
@@ -46,7 +46,7 @@ import { startStdioTransport } from "./transports/stdio/index.js";
  * @returns A formatted title string.
  */
 function deriveTitleFromName(name: string): string {
-  return name.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  return name.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 async function registerTool<
@@ -57,7 +57,7 @@ async function registerTool<
   tool: ToolDefinition<TInputSchema, TOutputSchema>,
 ): Promise<void> {
   const registrationContext = requestContextService.createRequestContext({
-    operation: "RegisterTool",
+    operation: 'RegisterTool',
     toolName: tool.name,
   });
 
@@ -110,9 +110,9 @@ async function registerTool<
  */
 export async function createMcpServerInstance(): Promise<McpServer> {
   const context = requestContextService.createRequestContext({
-    operation: "createMcpServerInstance",
+    operation: 'createMcpServerInstance',
   });
-  logger.info("Initializing MCP server instance", context);
+  logger.info('Initializing MCP server instance', context);
 
   requestContextService.configure({
     appName: config.mcpServerName,
@@ -136,7 +136,7 @@ export async function createMcpServerInstance(): Promise<McpServer> {
   );
 
   try {
-    logger.debug("Registering resources and tools...", context);
+    logger.debug('Registering resources and tools...', context);
     await registerEchoResource(server);
 
     // Register all tools in a type-safe manner
@@ -144,9 +144,9 @@ export async function createMcpServerInstance(): Promise<McpServer> {
     await registerTool(server, catFactTool);
     await registerTool(server, imageTestTool);
 
-    logger.info("Resources and tools registered successfully", context);
+    logger.info('Resources and tools registered successfully', context);
   } catch (err) {
-    logger.error("Failed to register resources/tools", {
+    logger.error('Failed to register resources/tools', {
       ...context,
       error: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : undefined,
@@ -170,12 +170,12 @@ async function startTransport(): Promise<
 > {
   const transportType = config.mcpTransportType;
   const context = requestContextService.createRequestContext({
-    operation: "startTransport",
+    operation: 'startTransport',
     transport: transportType,
   });
   logger.info(`Starting transport: ${transportType}`, context);
 
-  if (transportType === "http") {
+  if (transportType === 'http') {
     const { server, transportManager } = await startHttpTransport(
       createMcpServerInstance,
       context,
@@ -183,7 +183,7 @@ async function startTransport(): Promise<
     return { server, transportManager };
   }
 
-  if (transportType === "stdio") {
+  if (transportType === 'stdio') {
     const server = await createMcpServerInstance();
     await startStdioTransport(server, context);
     return { server, transportManager: undefined };
@@ -206,17 +206,17 @@ export async function initializeAndStartServer(): Promise<
   | { server: McpServer; transportManager: undefined }
 > {
   const context = requestContextService.createRequestContext({
-    operation: "initializeAndStartServer",
+    operation: 'initializeAndStartServer',
   });
-  logger.info("MCP Server initialization sequence started.", context);
+  logger.info('MCP Server initialization sequence started.', context);
   try {
     const result = await startTransport();
     logger.info(
-      "MCP Server initialization sequence completed successfully.",
+      'MCP Server initialization sequence completed successfully.',
       context,
     );
     if (
-      "transportManager" in result &&
+      'transportManager' in result &&
       result.transportManager &&
       result.server instanceof http.Server
     ) {
@@ -230,18 +230,18 @@ export async function initializeAndStartServer(): Promise<
       transportManager: undefined,
     };
   } catch (err) {
-    logger.crit("Critical error during MCP server initialization.", {
+    logger.crit('Critical error during MCP server initialization.', {
       ...context,
       error: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : undefined,
     });
     ErrorHandler.handleError(err, {
       ...context,
-      operation: "initializeAndStartServer_Catch",
+      operation: 'initializeAndStartServer_Catch',
       critical: true,
     });
     logger.info(
-      "Exiting process due to critical initialization error.",
+      'Exiting process due to critical initialization error.',
       context,
     );
     process.exit(1);

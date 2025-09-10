@@ -11,4 +11,4 @@
  * @module src/mcp-server/resources/echoResource/index
  */
 
-export { registerEchoResource } from "./registration.js";
+export { registerEchoResource } from './registration.js';

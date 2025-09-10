@@ -4,10 +4,10 @@
  * and logic in a consistent, self-contained format, aligned with MCP specifications.
  * @module src/mcp-server/tools/utils/toolDefinition
  */
+import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
+import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import type { ContentBlock } from "@modelcontextprotocol/sdk/types.js";
-import type { RequestContext } from "../../../utils/index.js";
-import type { z, ZodObject, ZodRawShape } from "zod";
+import type { RequestContext } from '../../../utils/index.js';
 
 /**
  * Defines the annotations that provide hints about a tool's behavior.
