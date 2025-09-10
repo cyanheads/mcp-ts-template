@@ -39,12 +39,13 @@ Step 1 — File Location
 
 - Place tools in `src/mcp-server/tools/definitions/`.
 - Name files `[tool-name].tool.ts`.
-- Use `src/mcp-server/tools/definitions/echo.tool.ts` as the reference template.
+- Use `src/mcp-server/tools/definitions/template-echo-message.tool.ts` as the reference template.
 
 Step 2 — Define the ToolDefinition
 Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 
 - name: Programmatic tool name (e.g., `"get_weather_forecast"`).
+- title (optional): Human-readable display name used by UIs; preferred over name when present.
 - description: Clear, LLM-facing description.
 - inputSchema: Zod `z.object({ ... })` for parameters. Every field must have `.describe()`.
 - outputSchema: Zod `z.object({ ... })` describing success output.
@@ -57,65 +58,145 @@ Step 3 — Register the Tool
 - Edit `src/mcp-server/server.ts` and import the new tool.
 - Register it using the existing helper: `await registerTool(server, yourNewTool);`.
   The helper constructs the handler via `createMcpToolHandler` and registers schemas and annotations.
+  Title precedence at registration: `tool.title ?? tool.annotations?.title ?? deriveTitleFromName(tool.name)`.
 
-Example (Echo Tool)
+Example src/mcp-server/tools/definitions/template-echo-message.tool.ts
 
 ```ts
 /**
- * @fileoverview The complete definition for the 'echo_message' tool.
+ * @fileoverview Complete, declarative definition for the 'template_echo_message' tool.
+ * Emphasizes a clean, top‑down flow with configurable metadata at the top,
+ * schema definitions next, pure logic, and finally the exported ToolDefinition.
  * @module src/mcp-server/tools/definitions/echo.tool
  */
+import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
-import { RequestContext, logger } from '../../../utils/index.js';
-import { ToolDefinition } from '../utils/toolDefinition.js';
+import { type RequestContext, logger } from '../../../utils/index.js';
+import type {
+  ToolAnnotations,
+  ToolDefinition,
+} from '../utils/toolDefinition.js';
 
+// Configurable metadata and constants
+// -----------------------------------
+/**
+ * Programmatic tool name (must be unique).
+ * Naming convention (recommended): <server-prefix>_<action>_<object>
+ * - Use a short, stable server prefix for discoverability across servers.
+ * - Use lowercase snake_case.
+ * - Examples: 'template_echo_message', 'template_cat_fact'.
+ */
+const TOOL_NAME = 'template_echo_message';
+/** Optional human-readable title used by UIs. */
+const TOOL_TITLE = 'Echo Message';
+/**
+ * LLM-facing description of the tool.
+ * Guidance:
+ * - Be descriptive but concise (aim for 1–2 sentences).
+ * - Write from the LLM's perspective to optimize tool selection.
+ * - State purpose, primary inputs, notable constraints, and side effects.
+ * - Mention any requirements (auth, permissions, online access) and limits
+ *   (rate limits, size constraints, expected latency) if critically applicable.
+ * - Note determinism/idempotency and external-world interactions when relevant.
+ * - Avoid implementation details; focus on the observable behavior and contract.
+ */
+const TOOL_DESCRIPTION =
+  'Echoes a message back with optional formatting and repetition.';
+/**
+ * UI/behavior hints for clients. All supported options:
+ * - title?: string — Optional human display name (UI hint).
+ * - readOnlyHint?: boolean — True if tool does not modify environment.
+ * - destructiveHint?: boolean — If not read-only, set true if updates can be destructive. Default true.
+ * - idempotentHint?: boolean — If not read-only, true if repeat calls with same args have no additional effect.
+ * - openWorldHint?: boolean — True if tool may interact with an open, external world (e.g., web search). Default true.
+ *
+ * Note: These are hints only. Clients should not rely on them for safety guarantees.
+ */
+const TOOL_ANNOTATIONS: ToolAnnotations = {
+  readOnlyHint: true,
+  idempotentHint: true,
+  openWorldHint: false,
+};
+
+/** Supported formatting modes. */
 const ECHO_MODES = ['standard', 'uppercase', 'lowercase'] as const;
-const TEST_ERROR_TRIGGER_MESSAGE = 'fail';
+/** Default mode when not provided. */
+const DEFAULT_MODE: (typeof ECHO_MODES)[number] = 'standard';
+/** Default repeat count. */
+const DEFAULT_REPEAT = 1;
+/** Default includeTimestamp behavior. */
+const DEFAULT_INCLUDE_TIMESTAMP = false;
+/** Special input which deliberately triggers a failure for testing. */
+export const TEST_ERROR_TRIGGER_MESSAGE = 'TRIGGER_ERROR';
 
-const InputSchema = z.object({
-  message: z
-    .string()
-    .min(1)
-    .max(1000)
-    .describe(
-      `The message to echo back. To trigger a test error, pass '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
-    ),
-  mode: z
-    .enum(ECHO_MODES)
-    .default('standard')
-    .describe('Case formatting for the message.'),
-  repeat: z
-    .number()
-    .int()
-    .min(1)
-    .max(10)
-    .default(1)
-    .describe('Times to repeat the message.'),
-  includeTimestamp: z
-    .boolean()
-    .default(true)
-    .describe('Include ISO 8601 timestamp in the response.'),
-});
+//
+// Schemas (input and output)
+// --------------------------
+const InputSchema = z
+  .object({
+    message: z
+      .string()
+      .min(1, 'Message cannot be empty.')
+      .max(1000, 'Message cannot exceed 1000 characters.')
+      .describe(
+        `The message to echo back. To trigger a test error, provide '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
+      ),
+    mode: z
+      .enum(ECHO_MODES)
+      .default(DEFAULT_MODE)
+      .describe(
+        "How to format the message ('standard' | 'uppercase' | 'lowercase').",
+      ),
+    repeat: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .default(DEFAULT_REPEAT)
+      .describe('Number of times to repeat the formatted message.'),
+    includeTimestamp: z
+      .boolean()
+      .default(DEFAULT_INCLUDE_TIMESTAMP)
+      .describe('Whether to include an ISO 8601 timestamp in the response.'),
+  })
+  .describe('Echo a message with optional formatting and repetition.');
 
-const OutputSchema = z.object({
-  originalMessage: z.string().describe('Original input message.'),
-  formattedMessage: z.string().describe('Message after formatting.'),
-  repeatedMessage: z.string().describe('Final repeated output.'),
-  mode: z.enum(ECHO_MODES).describe('Applied formatting mode.'),
-  repeatCount: z.number().int().describe('Repeat count used.'),
-  timestamp: z
-    .string()
-    .datetime()
-    .optional()
-    .describe('Optional ISO timestamp.'),
-});
+const OutputSchema = z
+  .object({
+    originalMessage: z
+      .string()
+      .describe('The original message provided in the input.'),
+    formattedMessage: z
+      .string()
+      .describe('The message after applying the specified formatting.'),
+    repeatedMessage: z
+      .string()
+      .describe('The final message repeated the requested number of times.'),
+    mode: z.enum(ECHO_MODES).describe('The formatting mode that was applied.'),
+    repeatCount: z
+      .number()
+      .int()
+      .min(1)
+      .describe('The number of times the message was repeated.'),
+    timestamp: z
+      .string()
+      .datetime()
+      .optional()
+      .describe(
+        'Optional ISO 8601 timestamp of when the response was generated.',
+      ),
+  })
+  .describe('Echo tool response payload.');
 
 type EchoToolInput = z.infer<typeof InputSchema>;
 type EchoToolResponse = z.infer<typeof OutputSchema>;
 
-async function echoToolLogic(
+//
+// Pure business logic (no try/catch; throw McpError on failure)
+// -------------------------------------------------------------
+function echoToolLogic(
   input: EchoToolInput,
   context: RequestContext,
 ): Promise<EchoToolResponse> {
@@ -125,44 +206,137 @@ async function echoToolLogic(
   });
 
   if (input.message === TEST_ERROR_TRIGGER_MESSAGE) {
+    const errorData: Record<string, unknown> = {
+      requestId: context.requestId,
+    };
+    if (typeof (context as Record<string, unknown>).traceId === 'string') {
+      errorData.traceId = (context as Record<string, unknown>)
+        .traceId as string;
+    }
     throw new McpError(
       JsonRpcErrorCode.ValidationError,
       'Deliberate failure triggered.',
+      errorData,
     );
   }
 
-  const base =
+  const formattedMessage =
     input.mode === 'uppercase'
       ? input.message.toUpperCase()
       : input.mode === 'lowercase'
         ? input.message.toLowerCase()
         : input.message;
 
-  const repeatedMessage = Array(input.repeat).fill(base).join(' ');
+  const repeatedMessage = Array(input.repeat).fill(formattedMessage).join(' ');
 
-  const result: EchoToolResponse = {
+  const response: EchoToolResponse = {
     originalMessage: input.message,
-    formattedMessage: base,
+    formattedMessage,
     repeatedMessage,
     mode: input.mode,
     repeatCount: input.repeat,
+    ...(input.includeTimestamp && { timestamp: new Date().toISOString() }),
   };
-  if (input.includeTimestamp) result.timestamp = new Date().toISOString();
-  return result;
+
+  return Promise.resolve(response);
 }
 
+/**
+ * Formats a concise human-readable summary while structuredContent carries the full payload.
+ */
+function responseFormatter(result: EchoToolResponse): ContentBlock[] {
+  const preview =
+    result.repeatedMessage.length > 200
+      ? `${result.repeatedMessage.slice(0, 197)}…`
+      : result.repeatedMessage;
+  const lines = [
+    `Echo (mode=${result.mode}, repeat=${result.repeatCount})`,
+    preview,
+    result.timestamp ? `timestamp=${result.timestamp}` : undefined,
+  ].filter(Boolean) as string[];
+
+  return [
+    {
+      type: 'text',
+      text: lines.join('\n'),
+    },
+  ];
+}
+
+/**
+ * The complete tool definition for the echo tool.
+ */
 export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
   {
-    name: 'echo_message',
-    description: 'Echoes a message with optional formatting and repetition.',
+    name: TOOL_NAME,
+    title: TOOL_TITLE,
+    description: TOOL_DESCRIPTION,
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
-    annotations: { readOnlyHint: true, openWorldHint: false },
+    annotations: TOOL_ANNOTATIONS,
     logic: echoToolLogic,
+    responseFormatter,
   };
 ```
 
-Note: For binary or image outputs, provide a `responseFormatter` that returns `ContentBlock[]` (see `image-test.tool.ts`).
+Note: For binary or image outputs, provide a `responseFormatter` that returns `ContentBlock[]` (see `template-image-test.tool.ts`).
+
+---
+
+## IV. Resource Development Workflow
+
+This mirrors the tools pattern with a definition-based approach and a generic registrar.
+
+Step 1 — File Location
+
+- Place resources in `src/mcp-server/resources/definitions/`.
+- Name files `[resource-name].resource.ts`.
+
+Step 2 — Define the ResourceDefinition
+Export a single `const` of type `ResourceDefinition` with:
+
+- name: Programmatic resource name (e.g., `"echo-resource"`).
+- description: What the resource returns/do.
+- uriTemplate: e.g., `"echo://{message}"`.
+- paramsSchema: Zod `z.object({ ... })` validating route/template params; every field should have `.describe()`.
+- outputSchema (recommended): Zod `z.object({ ... })` describing the returned payload.
+- logic: `(uri, params, context) => { ... }` pure logic; no try/catch; throw `McpError` on failure.
+- annotations (optional): Hints like `{ readOnlyHint, openWorldHint }`.
+- examples (optional): `{ name, uri }[]` to aid discovery.
+- list (optional): A function returning `ListResourcesResult` for discovery.
+- responseFormatter (optional): Map logic result to `ReadResourceResult.contents` for custom mime output.
+
+References
+
+- Definition: `src/mcp-server/resources/utils/resourceDefinition.ts`
+- Registrar: `src/mcp-server/resources/utils/resourceHandlerFactory.ts` (`registerResource`)
+- Example: `src/mcp-server/resources/definitions/echo.resource.ts`
+
+Step 3 — Register the Resource
+
+- Edit `src/mcp-server/server.ts` and import your definition.
+- Register it directly (mirrors tools):
+
+```ts
+import { myResourceDefinition } from './resources/definitions/my.resource.js';
+import { registerResource } from './resources/utils/resourceHandlerFactory.js';
+
+await registerResource(server, myResourceDefinition);
+```
+
+Handler Responsibilities (Implicit)
+
+- Creates `RequestContext` via `requestContextService`.
+- Validates params with your Zod schema.
+- Formats success output (default JSON) or uses your `responseFormatter`.
+- Handles errors via `ErrorHandler.handleError`.
+
+Logic Responsibilities (Explicit)
+
+- Pure, stateless function. No `try...catch`.
+- Throw `McpError` on failure.
+- Use `storageService` for storage access; never `fs` directly.
+- Log with `logger` and pass along `context`.
 
 ---
 
@@ -198,6 +372,16 @@ Use these singletons/utilities; do not reimplement them. They are logging/trace 
 
 - measureToolExecution (src/utils/internal/performance.ts): Tool execution metrics wrapper.
   - Note: Invoked by the standardized handler; you do not call it directly from tool logic.
+
+---
+
+## V. Checks & Workflow Commands
+
+- Quick all-in-one checks (lint + typecheck): `bun run devcheck`
+  - Use this (sparingly) after making changes.
+- Format code: `bun run format`
+
+Always prefer `bun run devcheck` to catch issues early.
 
 ---
 

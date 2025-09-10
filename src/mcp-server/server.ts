@@ -21,10 +21,11 @@ import { ZodObject, ZodRawShape } from 'zod';
 import { config } from '../config/index.js';
 import { JsonRpcErrorCode } from '../types-global/errors.js';
 import { ErrorHandler, logger, requestContextService } from '../utils/index.js';
-import { registerEchoResource } from './resources/echoResource/index.js';
-import { catFactTool } from './tools/definitions/cat-fact.tool.js';
-import { echoTool } from './tools/definitions/echo.tool.js';
-import { imageTestTool } from './tools/definitions/image-test.tool.js';
+import { echoResourceDefinition } from './resources/definitions/echo.resource.js';
+import { registerResource } from './resources/utils/resourceHandlerFactory.js';
+import { catFactTool } from './tools/definitions/template-cat-fact.tool.js';
+import { echoTool } from './tools/definitions/template-echo-message.tool.js';
+import { imageTestTool } from './tools/definitions/template-image-test.tool.js';
 import { ToolDefinition } from './tools/utils/toolDefinition.js';
 import { createMcpToolHandler } from './tools/utils/toolHandlerFactory.js';
 import { TransportManager } from './transports/core/transportTypes.js';
@@ -41,7 +42,7 @@ import { startStdioTransport } from './transports/stdio/index.js';
  */
 /**
  * Derives a human-readable title from a tool's programmatic name.
- * e.g., 'get_random_cat_fact' becomes 'Get Random Cat Fact'.
+ * e.g., 'get_cat_fact' becomes 'Get Cat Fact'.
  * @param name The tool name.
  * @returns A formatted title string.
  */
@@ -73,13 +74,17 @@ async function registerTool<
         }),
       });
 
-      const title = tool.title ?? deriveTitleFromName(tool.name);
+      // Title precedence should respect author intent first, then annotations, then a derived fallback
+      // matching SDK guidance (title → annotations.title → name).
+      const title =
+        tool.title ?? tool.annotations?.title ?? deriveTitleFromName(tool.name);
 
       server.registerTool(
         tool.name,
         {
           title,
           description: tool.description,
+          // Zod: pass the object shape so the SDK can convert to JSON Schema
           inputSchema: tool.inputSchema.shape,
           outputSchema: tool.outputSchema.shape,
           ...(tool.annotations && { annotations: tool.annotations }),
@@ -137,9 +142,10 @@ export async function createMcpServerInstance(): Promise<McpServer> {
 
   try {
     logger.debug('Registering resources and tools...', context);
-    await registerEchoResource(server);
+    // Register resources
+    await registerResource(server, echoResourceDefinition);
 
-    // Register all tools in a type-safe manner
+    // Register all tools
     await registerTool(server, echoTool);
     await registerTool(server, catFactTool);
     await registerTool(server, imageTestTool);

@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-08-31 21:44:43
+Generated on: 2025-09-10 02:26:57
 
 ```
 mcp-ts-template
@@ -8,8 +8,29 @@ mcp-ts-template
 │   └── AGENTS.md
 ├── .github
 │   ├── workflows
-│   │   └── publish.yml
+│   │   ├── publish.yml
+│   │   └── sync-agents-md.yml
 │   └── FUNDING.yml
+├── .husky
+│   ├── _
+│   │   ├── .gitignore
+│   │   ├── applypatch-msg
+│   │   ├── commit-msg
+│   │   ├── h
+│   │   ├── husky.sh
+│   │   ├── post-applypatch
+│   │   ├── post-checkout
+│   │   ├── post-commit
+│   │   ├── post-merge
+│   │   ├── post-rewrite
+│   │   ├── pre-applypatch
+│   │   ├── pre-auto-gc
+│   │   ├── pre-commit
+│   │   ├── pre-merge-commit
+│   │   ├── pre-push
+│   │   ├── pre-rebase
+│   │   └── prepare-commit-msg
+│   └── pre-commit
 ├── .storage
 ├── .vscode
 │   └── settings.json
@@ -20,6 +41,7 @@ mcp-ts-template
 │   └── tree.md
 ├── scripts
 │   ├── clean.ts
+│   ├── devcheck.ts
 │   ├── devdocs.ts
 │   ├── fetch-openapi-spec.ts
 │   ├── make-executable.ts
@@ -30,15 +52,16 @@ mcp-ts-template
 │   │   └── index.ts
 │   ├── mcp-server
 │   │   ├── resources
-│   │   │   └── echoResource
-│   │   │       ├── index.ts
-│   │   │       ├── logic.ts
-│   │   │       └── registration.ts
+│   │   │   ├── definitions
+│   │   │   │   └── echo.resource.ts
+│   │   │   └── utils
+│   │   │       ├── resourceDefinition.ts
+│   │   │       └── resourceHandlerFactory.ts
 │   │   ├── tools
 │   │   │   ├── definitions
-│   │   │   │   ├── cat-fact.tool.ts
-│   │   │   │   ├── echo.tool.ts
-│   │   │   │   └── image-test.tool.ts
+│   │   │   │   ├── template-cat-fact.tool.ts
+│   │   │   │   ├── template-echo-message.tool.ts
+│   │   │   │   └── template-image-test.tool.ts
 │   │   │   └── utils
 │   │   │       ├── toolDefinition.ts
 │   │   │       └── toolHandlerFactory.ts
@@ -124,23 +147,25 @@ mcp-ts-template
 │   └── index.ts
 ├── tests
 │   ├── mcp-server
-│   │   ├── transports
-│   │   │   ├── auth
-│   │   │   │   ├── lib
-│   │   │   │   │   └── authUtils.test.ts
-│   │   │   │   ├── strategies
-│   │   │   │   │   ├── jwtStrategy.test.ts
-│   │   │   │   │   └── oauthStrategy.test.ts
-│   │   │   │   └── auth.test.ts
-│   │   │   └── stdio
-│   │   │       └── stdioTransport.test.ts
-│   │   └── server.test.ts
+│   │   ├── resources
+│   │   ├── tools
+│   │   └── transports
+│   │       ├── auth
+│   │       │   ├── lib
+│   │       │   │   └── authUtils.test.ts
+│   │       │   ├── strategies
+│   │       │   │   ├── jwtStrategy.test.ts
+│   │       │   │   └── oauthStrategy.test.ts
+│   │       │   └── auth.test.ts
+│   │       ├── core
+│   │       ├── http
+│   │       └── stdio
+│   │           └── stdioTransport.test.ts
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts
 │   ├── services
 │   │   ├── llm-providers
-│   │   │   └── openRouterProvider.test.ts
 │   │   └── supabase
 │   │       └── supabaseClient.test.ts
 │   ├── storage
@@ -174,12 +199,14 @@ mcp-ts-template
 ├── .env.example
 ├── .gitignore
 ├── .ncurc.json
+├── .prettierrc.json
+├── AGENTS.md
+├── bun.lock
 ├── CHANGELOG.md
 ├── CLAUDE.md
 ├── Dockerfile
 ├── eslint.config.js
 ├── LICENSE
-├── package-lock.json
 ├── package.json
 ├── README.md
 ├── repomix.config.json
