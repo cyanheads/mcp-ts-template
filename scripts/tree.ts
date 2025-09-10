@@ -10,7 +10,7 @@
  *
  * @example
  * // Generate tree with default settings:
- * // npm run tree
+ * // bun run tree
  *
  * @example
  * // Specify custom output path and depth:

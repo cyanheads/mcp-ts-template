@@ -11,11 +11,11 @@
  * // Add to package.json:
  * // "scripts": {
  * //   "clean": "ts-node --esm scripts/clean.ts",
- * //   "rebuild": "npm run clean && npm run build"
+ * //   "rebuild": "bun run clean && bun run build"
  * // }
  *
  * // Run with default directories:
- * // npm run clean
+ * // bun run clean
  *
  * // Run with custom directories:
  * // ts-node --esm scripts/clean.ts temp coverage
