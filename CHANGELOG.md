@@ -14,12 +14,6 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
   - **Single-File Tool Definitions**: All tools (`echo`, `cat-fact`, `image-test`) are now defined in a single file within `src/mcp-server/tools/definitions/`. This replaces the previous `logic.ts`, `registration.ts`, and `index.ts` structure for each tool.
   - **Type-Safe Registration**: Implemented a new type-safe `registerTool` helper function in `src/mcp-server/server.ts` that uses the `ToolDefinition` to correctly register the tool and its handler.
 
-### Changed
-
-- **Documentation**: Overhauled `README.md` to feature a more modern, scannable design and updated content. Moved the developer mandate to a new `AGENTS.md` file to better align with agent-based development workflows. (ee77911)
-- **Documentation**: Formalized the "Agent Protocol & Architectural Mandate" and aligned internal docs (`CLAUDE.md`, `.clinerules/AGENTS.md`) with the declarative tool pattern and error-handling invariants (logic throws, handler catches).
-- **Code Quality**: Applied formatting and minor code quality improvements across several tool definitions and utilities. (7e6cf63)
-
 ### Removed
 
 - **Legacy Tool Structure**: Deleted all legacy tool files, including the `logic.ts`, `registration.ts`, and `index.ts` files for `echoTool`, `catFactFetcher`, and `imageTest`.
@@ -28,6 +22,9 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 
 ### Changed
 
+- **Documentation**: Overhauled `README.md` to feature a more modern, scannable design and updated content. Moved the developer mandate to a new `AGENTS.md` file to better align with agent-based development workflows. (ee77911)
+- **Documentation**: Formalized the "Agent Protocol & Architectural Mandate" and aligned internal docs (`CLAUDE.md`, `.clinerules/AGENTS.md`) with the declarative tool pattern and error-handling invariants (logic throws, handler catches).
+- **Code Quality**: Applied formatting and minor code quality improvements across several tool definitions and utilities. (7e6cf63)
 - **Transport Layer**: Refactored `StatefulTransportManager` and `StatelessTransportManager` to use a new `_processRequestWithBridge` method in the base class, centralizing request handling and stream management.
 - **Auth**: Consolidated auth type definitions and refined middleware; improved JWT and OAuth strategies for clearer flows and stronger typing (`authFactory`, `authMiddleware`, `authUtils`, `jwtStrategy`, `oauthStrategy`).
 - **LLM Provider**: Overhauled `OpenRouterProvider` to be more robust, with constructor-based configuration and improved parameter handling. (32f4c38)
@@ -49,6 +46,11 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 - **Tests**: Updated and expanded tests to reflect new patterns across transports, auth, storage providers, metrics, network, parsing, scheduling, and security utilities; refined `vitest.config.ts`.
 - **Documentation**: Updated `README.md`, `CLAUDE.md`, and `scripts/README.md`; tidied `changelog/archive1.md`. (18d4cda)
 
+- **Type Safety & Error Handling**: Hardened non-`Error` inputs in `ErrorHandler.getErrorMessage`; added safer JSON-RPC id extraction in `httpErrorHandler`; improved error wrapping and propagation in HTTP transport startup and port checks; standardized string conversions for unknown values across factories/providers.
+- **Async Discipline**: Converted trivial async functions to sync where appropriate (echo resource logic, date parser); eliminated floating promises by using `void` in scheduler, transport manager, and developer scripts; ensured interval cleanup invocations are awaited via `void` semantics.
+- **Configuration Parsing**: Strengthened `package.json` parsing in the config loader with unknown-typed deserialization and guards for `name`, `version`, and `description`.
+- **Tools**: Minor no-op `await Promise.resolve()` in `echo.tool` logic to satisfy linting without affecting purity or behavior.
+
 ### Added
 
 - **Formatting**: Introduced `.prettierrc.json` for consistent repository formatting. (f301041)
@@ -60,3 +62,6 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 ### Fixed
 
 - **Storage**: The Supabase storage provider's `list` method now correctly filters out expired items, ensuring that only active key-value pairs are returned. (77d7ba5)
+- **HTTP Transport**: Startup and port check errors are now wrapped and rejected as proper `Error` instances, improving reliability and log fidelity. Also uses `c.header` for security headers to align with Hono best practices.
+- **Scheduler**: Start/stop/remove operations no longer create unhandled promise rejections by explicitly using `void` on promise-returning calls.
+- **Error Mapping**: Avoids unsafe index access on `ERROR_TYPE_MAPPINGS` and improves fallbacks for unstringifiable errors, ensuring stable error codes and messages.
