@@ -16,28 +16,28 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 
 ### Changed
 
-- **Documentation**: Overhauled `README.md` to feature a more modern, scannable design and updated content. Moved the developer mandate to a new `AGENTS.md` file to better align with agent-based development workflows.
-- **Code Quality**: Applied formatting and minor code quality improvements across several tool definitions and utilities.
+- **Documentation**: Overhauled `README.md` to feature a more modern, scannable design and updated content. Moved the developer mandate to a new `AGENTS.md` file to better align with agent-based development workflows. (ee77911)
+- **Code Quality**: Applied formatting and minor code quality improvements across several tool definitions and utilities. (7e6cf63)
 
 ### Removed
 
 - **Legacy Tool Structure**: Deleted all legacy tool files, including the `logic.ts`, `registration.ts`, and `index.ts` files for `echoTool`, `catFactFetcher`, and `imageTest`.
-- **Legacy `.clinerules`**: Deleted the now-redundant `.clinerules/clinerules.md` in favor of the new `AGENTS.md`.
+- **Legacy `.clinerules`**: Deleted the now-redundant `.clinerules/clinerules.md` in favor of the new `AGENTS.md`. (ee77911)
 - **Obsolete Tests**: Removed all tests related to the legacy tool registration pattern (`tests/mcp-server/tools/`).
 
 ### Changed
 
 - **Transport Layer**: Refactored `StatefulTransportManager` and `StatelessTransportManager` to use a new `_processRequestWithBridge` method in the base class, centralizing request handling and stream management.
-- **LLM Provider**: Overhauled `OpenRouterProvider` to be more robust, with constructor-based configuration and improved parameter handling.
-- **Configuration**: Enhanced the configuration system to include package description and more detailed settings for OAuth and storage providers.
-- **Developer Scripts**: Significantly improved the `devdocs.ts` script for better prompt generation and reliability.
+- **LLM Provider**: Overhauled `OpenRouterProvider` to be more robust, with constructor-based configuration and improved parameter handling. (32f4c38)
+- **Configuration**: Enhanced the configuration system to include package description and more detailed settings for OAuth and storage providers. (15ce967)
+- **Developer Scripts**: Significantly improved the `devdocs.ts` script for better prompt generation and reliability. (297fa4e)
 - **Logging**: The `Logger` class now uses overloaded methods for high-severity logs (`error`, `crit`, etc.) for more flexible error reporting.
-- **Build & Type Safety**: Upgraded the project's build and linting configurations for enhanced type safety and stricter code quality checks.
-  - Enabled type-aware linting rules (`@typescript-eslint/no-floating-promises`, `@typescript-eslint/no-misused-promises`).
-  - Activated `exactOptionalPropertyTypes` in `tsconfig.json` to prevent bugs related to optional properties.
-- **Core Refactoring**: Refactored object creation patterns across the application to be compliant with `exactOptionalPropertyTypes`. This improves robustness by ensuring optional properties are handled correctly and consistently, particularly in auth strategies, transport managers, and storage providers.
-- **Server Lifecycle**: Introduced a `TransportManager` to handle the lifecycle of transport-related resources, ensuring graceful shutdown of stateful sessions (e.g., in HTTP transport) and preventing resource leaks. The main application entry point (`index.ts`) and server startup sequence were refactored to support this.
-- **HTTP Middleware**: Aligned the MCP transport middleware with Hono v4 by removing the deprecated `createMiddleware` factory, improving compatibility and future-proofing the transport layer.
+- **Build & Type Safety**: Upgraded the project's build and linting configurations for enhanced type safety and stricter code quality checks. (15ce967)
+  - Enabled type-aware linting rules (`@typescript-eslint/no-floating-promises`, `@typescript-eslint/no-misused-promises`). (15ce967)
+  - Activated `exactOptionalPropertyTypes` in `tsconfig.json` to prevent bugs related to optional properties. (15ce967)
+- **Core Refactoring**: Refactored object creation patterns across the application to be compliant with `exactOptionalPropertyTypes`. This improves robustness by ensuring optional properties are handled correctly and consistently, particularly in auth strategies, transport managers, and storage providers. (0265bcd)
+- **Server Lifecycle**: Introduced a `TransportManager` to handle the lifecycle of transport-related resources, ensuring graceful shutdown of stateful sessions (e.g., in HTTP transport) and preventing resource leaks. The main application entry point (`index.ts`) and server startup sequence were refactored to support this. (df3643f)
+- **HTTP Middleware**: Aligned the MCP transport middleware with Hono v4 by removing the deprecated `createMiddleware` factory, improving compatibility and future-proofing the transport layer. (32f4c38)
 - **CI/CD**: Tweaked `.github/workflows/publish.yml` to improve publish reliability and alignment with the 2.0.0 pipeline. (f301041)
 - **Configuration**: Updated `Dockerfile` and `eslint.config.js`; refreshed `smithery.yaml` for current tool and publishing settings. (f301041)
 - **Build**: Standardized on Bun lockfiles by adding `bun.lock` and updating `package.json` (replacing `package-lock.json`). (26e66a8)
@@ -51,4 +51,4 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 
 ### Fixed
 
-- **Storage**: The Supabase storage provider's `list` method now correctly filters out expired items, ensuring that only active key-value pairs are returned.
+- **Storage**: The Supabase storage provider's `list` method now correctly filters out expired items, ensuring that only active key-value pairs are returned. (77d7ba5)
