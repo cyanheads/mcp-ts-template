@@ -3,10 +3,11 @@
  * It supports configurable time windows, request limits, and automatic cleanup of expired entries.
  * @module src/utils/security/rateLimiter
  */
-import { trace } from "@opentelemetry/api";
-import { config } from "../../config/index.js";
-import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
-import { logger, RequestContext, requestContextService } from "../index.js";
+import { trace } from '@opentelemetry/api';
+
+import { config } from '../../config/index.js';
+import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
+import { RequestContext, logger, requestContextService } from '../index.js';
 
 /**
  * Defines configuration options for the {@link RateLimiter}.
@@ -60,7 +61,7 @@ export class RateLimiter {
     windowMs: 15 * 60 * 1000, // 15 minutes
     maxRequests: 100,
     errorMessage:
-      "Rate limit exceeded. Please try again in {waitTime} seconds.",
+      'Rate limit exceeded. Please try again in {waitTime} seconds.',
     skipInDevelopment: false,
     cleanupInterval: 5 * 60 * 1000, // 5 minutes
   };
@@ -115,7 +116,7 @@ export class RateLimiter {
 
     if (expiredCount > 0) {
       const logContext = requestContextService.createRequestContext({
-        operation: "RateLimiter.cleanupExpiredEntries",
+        operation: 'RateLimiter.cleanupExpiredEntries',
         additionalContext: {
           cleanedCount: expiredCount,
           totalRemainingAfterClean: this.limits.size,
@@ -153,9 +154,9 @@ export class RateLimiter {
   public reset(): void {
     this.limits.clear();
     const logContext = requestContextService.createRequestContext({
-      operation: "RateLimiter.reset",
+      operation: 'RateLimiter.reset',
     });
-    logger.debug("Rate limiter reset, all limits cleared", logContext);
+    logger.debug('Rate limiter reset, all limits cleared', logContext);
   }
 
   /**
@@ -168,17 +169,17 @@ export class RateLimiter {
    */
   public check(key: string, context?: RequestContext): void {
     const activeSpan = trace.getActiveSpan();
-    activeSpan?.setAttribute("mcp.rate_limit.checked", true);
+    activeSpan?.setAttribute('mcp.rate_limit.checked', true);
 
-    if (this.config.skipInDevelopment && config.environment === "development") {
-      activeSpan?.setAttribute("mcp.rate_limit.skipped", "development");
+    if (this.config.skipInDevelopment && config.environment === 'development') {
+      activeSpan?.setAttribute('mcp.rate_limit.skipped', 'development');
       return;
     }
 
     const limitKey = this.config.keyGenerator
       ? this.config.keyGenerator(key, context)
       : key;
-    activeSpan?.setAttribute("mcp.rate_limit.key", limitKey);
+    activeSpan?.setAttribute('mcp.rate_limit.key', limitKey);
 
     const now = Date.now();
     let entry = this.limits.get(limitKey);
@@ -195,19 +196,19 @@ export class RateLimiter {
 
     const remaining = Math.max(0, this.config.maxRequests - entry.count);
     activeSpan?.setAttributes({
-      "mcp.rate_limit.limit": this.config.maxRequests,
-      "mcp.rate_limit.count": entry.count,
-      "mcp.rate_limit.remaining": remaining,
+      'mcp.rate_limit.limit': this.config.maxRequests,
+      'mcp.rate_limit.count': entry.count,
+      'mcp.rate_limit.remaining': remaining,
     });
 
     if (entry.count > this.config.maxRequests) {
       const waitTime = Math.ceil((entry.resetTime - now) / 1000);
       const errorMessage = (
         this.config.errorMessage || RateLimiter.DEFAULT_CONFIG.errorMessage!
-      ).replace("{waitTime}", waitTime.toString());
+      ).replace('{waitTime}', waitTime.toString());
 
-      activeSpan?.addEvent("rate_limit_exceeded", {
-        "mcp.rate_limit.wait_time_seconds": waitTime,
+      activeSpan?.addEvent('rate_limit_exceeded', {
+        'mcp.rate_limit.wait_time_seconds': waitTime,
       });
 
       throw new McpError(JsonRpcErrorCode.RateLimited, errorMessage, {

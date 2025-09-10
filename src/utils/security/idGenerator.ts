@@ -9,8 +9,10 @@
  * during application startup.
  * @module src/utils/security/idGenerator
  */
-import { randomUUID as cryptoRandomUUID, randomBytes } from "crypto";
-import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
+import { randomUUID as cryptoRandomUUID, randomBytes } from 'crypto';
+
+import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
+
 // Removed: import { logger, requestContextService } from "../index.js";
 
 /**
@@ -39,12 +41,12 @@ export class IdGenerator {
    * Default character set for the random part of the ID.
    * @private
    */
-  private static DEFAULT_CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  private static DEFAULT_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   /**
    * Default separator character between prefix and random part.
    * @private
    */
-  private static DEFAULT_SEPARATOR = "_";
+  private static DEFAULT_SEPARATOR = '_';
   /**
    * Default length for the random part of the ID.
    * @private
@@ -106,7 +108,7 @@ export class IdGenerator {
     length: number = IdGenerator.DEFAULT_LENGTH,
     charset: string = IdGenerator.DEFAULT_CHARSET,
   ): string {
-    let result = "";
+    let result = '';
     // Determine the largest multiple of charset.length that is less than or equal to 256
     // This is the threshold for rejection sampling to avoid bias.
     const maxValidByteValue = Math.floor(256 / charset.length) * charset.length;
@@ -196,7 +198,7 @@ export class IdGenerator {
 
     // Build regex character class from the charset
     // Escape characters that have special meaning inside a regex character class `[]`
-    const escapedCharsetForClass = charset.replace(/[[\]\\^-]/g, "\\$&");
+    const escapedCharsetForClass = charset.replace(/[[\]\\^-]/g, '\\$&');
     const charsetRegexPart = `[${escapedCharsetForClass}]`;
 
     const pattern = new RegExp(
@@ -212,7 +214,7 @@ export class IdGenerator {
    * @private
    */
   private escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   /**
@@ -317,7 +319,7 @@ export const generateRequestContextId = (): string => {
     length: number,
     charset: string,
   ): string => {
-    let result = "";
+    let result = '';
     const maxValidByteValue = Math.floor(256 / charset.length) * charset.length;
 
     while (result.length < length) {
@@ -335,7 +337,7 @@ export const generateRequestContextId = (): string => {
     return result;
   };
 
-  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   const part1 = generateSecureRandomString(5, charset);
   const part2 = generateSecureRandomString(5, charset);
   return `${part1}-${part2}`;

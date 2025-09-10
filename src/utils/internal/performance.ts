@@ -4,16 +4,16 @@
  * execution time, and log a structured metrics event.
  * @module src/utils/internal/performance
  */
+import { SpanStatusCode, trace } from '@opentelemetry/api';
 
-import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { config } from '../../config/index.js';
+import { McpError } from '../../types-global/errors.js';
 import {
   ATTR_CODE_FUNCTION,
   ATTR_CODE_NAMESPACE,
-} from "../telemetry/semconv.js";
-import { config } from "../../config/index.js";
-import { McpError } from "../../types-global/errors.js";
-import { logger } from "./logger.js";
-import { RequestContext } from "./requestContext.js";
+} from '../telemetry/semconv.js';
+import { logger } from './logger.js';
+import { RequestContext } from './requestContext.js';
 
 /**
  * Calculates the size of a payload in bytes.
@@ -25,7 +25,7 @@ function getPayloadSize(payload: unknown): number {
   if (!payload) return 0;
   try {
     const stringified = JSON.stringify(payload);
-    return Buffer.byteLength(stringified, "utf8");
+    return Buffer.byteLength(stringified, 'utf8');
   } catch {
     return 0; // Could not stringify
   }
@@ -56,8 +56,8 @@ export async function measureToolExecution<T>(
   return tracer.startActiveSpan(`tool_execution:${toolName}`, async (span) => {
     span.setAttributes({
       [ATTR_CODE_FUNCTION]: toolName,
-      [ATTR_CODE_NAMESPACE]: "mcp-tools",
-      "mcp.tool.input_bytes": getPayloadSize(inputPayload),
+      [ATTR_CODE_NAMESPACE]: 'mcp-tools',
+      'mcp.tool.input_bytes': getPayloadSize(inputPayload),
     });
 
     const startTime = process.hrtime.bigint();
@@ -70,15 +70,15 @@ export async function measureToolExecution<T>(
       isSuccess = true;
       outputPayload = result;
       span.setStatus({ code: SpanStatusCode.OK });
-      span.setAttribute("mcp.tool.output_bytes", getPayloadSize(outputPayload));
+      span.setAttribute('mcp.tool.output_bytes', getPayloadSize(outputPayload));
       return result;
     } catch (error) {
       if (error instanceof McpError) {
         errorCode = String(error.code);
       } else if (error instanceof Error) {
-        errorCode = "UNHANDLED_ERROR";
+        errorCode = 'UNHANDLED_ERROR';
       } else {
-        errorCode = "UNKNOWN_ERROR";
+        errorCode = 'UNKNOWN_ERROR';
       }
 
       if (error instanceof Error) {
@@ -95,16 +95,16 @@ export async function measureToolExecution<T>(
       const durationMs = Number(endTime - startTime) / 1_000_000;
 
       span.setAttributes({
-        "mcp.tool.duration_ms": parseFloat(durationMs.toFixed(2)),
-        "mcp.tool.success": isSuccess,
+        'mcp.tool.duration_ms': parseFloat(durationMs.toFixed(2)),
+        'mcp.tool.success': isSuccess,
       });
       if (errorCode) {
-        span.setAttribute("mcp.tool.error_code", errorCode);
+        span.setAttribute('mcp.tool.error_code', errorCode);
       }
 
       span.end();
 
-      logger.info("Tool execution finished.", {
+      logger.info('Tool execution finished.', {
         ...context,
         metrics: {
           durationMs: parseFloat(durationMs.toFixed(2)),

@@ -2,16 +2,17 @@
  * @fileoverview Provides a utility function to make fetch requests with a specified timeout.
  * @module src/utils/network/fetchWithTimeout
  */
-
-import { logger } from "../internal/logger.js"; // Adjusted import path
-import type { RequestContext } from "../internal/requestContext.js"; // Adjusted import path
-import { McpError, JsonRpcErrorCode } from "../../types-global/errors.js";
+// Adjusted import path
+import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
+import { logger } from '../internal/logger.js';
+// Adjusted import path
+import type { RequestContext } from '../internal/requestContext.js';
 
 /**
  * Options for the fetchWithTimeout utility.
  * Extends standard RequestInit but omits 'signal' as it's handled internally.
  */
-export type FetchWithTimeoutOptions = Omit<RequestInit, "signal">;
+export type FetchWithTimeoutOptions = Omit<RequestInit, 'signal'>;
 
 /**
  * Fetches a resource with a specified timeout.
@@ -33,7 +34,7 @@ export async function fetchWithTimeout(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   const urlString = url.toString();
-  const operationDescription = `fetch ${options?.method || "GET"} ${urlString}`;
+  const operationDescription = `fetch ${options?.method || 'GET'} ${urlString}`;
 
   logger.debug(
     `Attempting ${operationDescription} with ${timeoutMs}ms timeout.`,
@@ -50,7 +51,7 @@ export async function fetchWithTimeout(
     if (!response.ok) {
       const errorBody = await response
         .text()
-        .catch(() => "Could not read response body");
+        .catch(() => 'Could not read response body');
       logger.error(
         `Fetch failed for ${urlString} with status ${response.status}.`,
         {
@@ -58,7 +59,7 @@ export async function fetchWithTimeout(
           statusCode: response.status,
           statusText: response.statusText,
           responseBody: errorBody,
-          errorSource: "FetchHttpError",
+          errorSource: 'FetchHttpError',
         },
       );
       throw new McpError(
@@ -80,15 +81,15 @@ export async function fetchWithTimeout(
     return response;
   } catch (error) {
     clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === "AbortError") {
+    if (error instanceof Error && error.name === 'AbortError') {
       logger.error(`${operationDescription} timed out after ${timeoutMs}ms.`, {
         ...context,
-        errorSource: "FetchTimeout",
+        errorSource: 'FetchTimeout',
       });
       throw new McpError(
         JsonRpcErrorCode.Timeout,
         `${operationDescription} timed out.`,
-        { ...context, errorSource: "FetchTimeout" },
+        { ...context, errorSource: 'FetchTimeout' },
       );
     }
 
@@ -98,8 +99,8 @@ export async function fetchWithTimeout(
       `Network error during ${operationDescription}: ${errorMessage}`,
       {
         ...context,
-        originalErrorName: error instanceof Error ? error.name : "UnknownError",
-        errorSource: "FetchNetworkError",
+        originalErrorName: error instanceof Error ? error.name : 'UnknownError',
+        errorSource: 'FetchNetworkError',
       },
     );
 
@@ -113,8 +114,8 @@ export async function fetchWithTimeout(
       `Network error during ${operationDescription}: ${errorMessage}`,
       {
         ...context,
-        originalErrorName: error instanceof Error ? error.name : "UnknownError",
-        errorSource: "FetchNetworkErrorWrapper",
+        originalErrorName: error instanceof Error ? error.name : 'UnknownError',
+        errorSource: 'FetchNetworkErrorWrapper',
       },
     );
   }

@@ -3,5 +3,5 @@
  * @module src/utils/network/index
  */
 
-export * from "./fetchWithTimeout.js";
-export type { FetchWithTimeoutOptions } from "./fetchWithTimeout.js"; // Explicitly re-exporting type
+export * from './fetchWithTimeout.js';
+export type { FetchWithTimeoutOptions } from './fetchWithTimeout.js'; // Explicitly re-exporting type

@@ -5,11 +5,12 @@
  * @module src/utils/parsing/jsonParser
  */
 import {
-  parse as parsePartialJson,
   Allow as PartialJsonAllow,
-} from "partial-json";
-import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
-import { logger, RequestContext, requestContextService } from "../index.js";
+  parse as parsePartialJson,
+} from 'partial-json';
+
+import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
+import { RequestContext, logger, requestContextService } from '../index.js';
 
 /**
  * Enum mirroring `partial-json`'s `Allow` constants. These specify
@@ -70,21 +71,21 @@ export class JsonParser {
     const match = jsonString.match(thinkBlockRegex);
 
     if (match) {
-      const thinkContent = match[1]?.trim() ?? "";
-      const restOfString = match[2] ?? "";
+      const thinkContent = match[1]?.trim() ?? '';
+      const restOfString = match[2] ?? '';
 
       const logContext =
         context ||
         requestContextService.createRequestContext({
-          operation: "JsonParser.thinkBlock",
+          operation: 'JsonParser.thinkBlock',
         });
       if (thinkContent) {
-        logger.debug("LLM <think> block detected and logged.", {
+        logger.debug('LLM <think> block detected and logged.', {
           ...logContext,
           thinkContent,
         });
       } else {
-        logger.debug("Empty LLM <think> block detected.", logContext);
+        logger.debug('Empty LLM <think> block detected.', logContext);
       }
       stringToParse = restOfString;
     }
@@ -94,7 +95,7 @@ export class JsonParser {
     if (!stringToParse) {
       throw new McpError(
         JsonRpcErrorCode.ValidationError,
-        "JSON string is empty after removing <think> block and trimming.",
+        'JSON string is empty after removing <think> block and trimming.',
         context,
       );
     }
@@ -106,9 +107,9 @@ export class JsonParser {
       const errorLogContext =
         context ||
         requestContextService.createRequestContext({
-          operation: "JsonParser.parseError",
+          operation: 'JsonParser.parseError',
         });
-      logger.error("Failed to parse JSON content.", {
+      logger.error('Failed to parse JSON content.', {
         ...errorLogContext,
         errorDetails: error.message,
         contentAttempted: stringToParse.substring(0, 200),
@@ -121,7 +122,7 @@ export class JsonParser {
           ...context,
           originalContentSample:
             stringToParse.substring(0, 200) +
-            (stringToParse.length > 200 ? "..." : ""),
+            (stringToParse.length > 200 ? '...' : ''),
           rawError: error instanceof Error ? error.stack : String(error),
         },
       );

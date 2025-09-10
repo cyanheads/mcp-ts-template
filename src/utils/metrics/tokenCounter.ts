@@ -5,17 +5,18 @@
  * when interacting with language models.
  * @module src/utils/metrics/tokenCounter
  */
-import { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { encoding_for_model, Tiktoken, TiktokenModel } from "tiktoken";
-import { JsonRpcErrorCode } from "../../types-global/errors.js";
-import { ErrorHandler, logger, RequestContext } from "../index.js";
+import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { Tiktoken, TiktokenModel, encoding_for_model } from 'tiktoken';
+
+import { JsonRpcErrorCode } from '../../types-global/errors.js';
+import { ErrorHandler, RequestContext, logger } from '../index.js';
 
 /**
  * The specific Tiktoken model used for all tokenization operations in this module.
  * This ensures consistent token counting.
  * @private
  */
-const TOKENIZATION_MODEL: TiktokenModel = "gpt-4o";
+const TOKENIZATION_MODEL: TiktokenModel = 'gpt-4o';
 
 /**
  * Calculates the number of tokens for a given text string using the
@@ -43,9 +44,9 @@ export async function countTokens(
       }
     },
     {
-      operation: "countTokens",
+      operation: 'countTokens',
       ...(context && { context }),
-      input: { textSample: text.substring(0, 50) + "..." },
+      input: { textSample: text.substring(0, 50) + '...' },
       errorCode: JsonRpcErrorCode.InternalError,
     },
   );
@@ -83,11 +84,11 @@ export async function countChatTokens(
           num_tokens += tokens_per_message;
           num_tokens += encoding.encode(message.role).length;
 
-          if (typeof message.content === "string") {
+          if (typeof message.content === 'string') {
             num_tokens += encoding.encode(message.content).length;
           } else if (Array.isArray(message.content)) {
             for (const part of message.content) {
-              if (part.type === "text") {
+              if (part.type === 'text') {
                 num_tokens += encoding.encode(part.text).length;
               } else {
                 logger.warning(
@@ -98,18 +99,18 @@ export async function countChatTokens(
             }
           }
 
-          if ("name" in message && message.name) {
+          if ('name' in message && message.name) {
             num_tokens += tokens_per_name;
             num_tokens += encoding.encode(message.name).length;
           }
 
           if (
-            message.role === "assistant" &&
-            "tool_calls" in message &&
+            message.role === 'assistant' &&
+            'tool_calls' in message &&
             message.tool_calls
           ) {
             for (const tool_call of message.tool_calls) {
-              if (tool_call.type === "function") {
+              if (tool_call.type === 'function') {
                 if (tool_call.function?.name) {
                   num_tokens += encoding.encode(tool_call.function.name).length;
                 }
@@ -123,8 +124,8 @@ export async function countChatTokens(
           }
 
           if (
-            message.role === "tool" &&
-            "tool_call_id" in message &&
+            message.role === 'tool' &&
+            'tool_call_id' in message &&
             message.tool_call_id
           ) {
             num_tokens += encoding.encode(message.tool_call_id).length;
@@ -137,7 +138,7 @@ export async function countChatTokens(
       }
     },
     {
-      operation: "countChatTokens",
+      operation: 'countChatTokens',
       ...(context && { context }),
       input: { messageCount: messages.length },
       errorCode: JsonRpcErrorCode.InternalError,

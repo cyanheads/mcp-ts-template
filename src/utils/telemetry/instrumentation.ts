@@ -5,27 +5,28 @@
  * It handles both the initialization (startup) and graceful shutdown of the SDK.
  * @module src/utils/telemetry/instrumentation
  */
-import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
-import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
-import { WinstonInstrumentation } from "@opentelemetry/instrumentation-winston";
-import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import { resourceFromAttributes } from "@opentelemetry/resources";
-import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
-import { NodeSDK } from "@opentelemetry/sdk-node";
+import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
   ReadableSpan,
   SpanProcessor,
   TraceIdRatioBasedSampler,
-} from "@opentelemetry/sdk-trace-node";
+} from '@opentelemetry/sdk-trace-node';
 import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
-} from "@opentelemetry/semantic-conventions/incubating";
-import path from "path";
-import winston from "winston";
-import { config } from "../../config/index.js";
+} from '@opentelemetry/semantic-conventions/incubating';
+import path from 'path';
+import winston from 'winston';
+
+import { config } from '../../config/index.js';
 
 export let sdk: NodeSDK | null = null;
 
@@ -39,7 +40,7 @@ if (config.openTelemetry.enabled) {
       if (!logsDir) {
         if (process.stdout.isTTY) {
           console.error(
-            "OpenTelemetry Diagnostics: Log directory not available. Diagnostics will be written to console only.",
+            'OpenTelemetry Diagnostics: Log directory not available. Diagnostics will be written to console only.',
           );
         }
         this.winstonLogger = winston.createLogger({
@@ -56,7 +57,7 @@ if (config.openTelemetry.enabled) {
         ),
         transports: [
           new winston.transports.File({
-            filename: path.join(logsDir, "opentelemetry.log"),
+            filename: path.join(logsDir, 'opentelemetry.log'),
             maxsize: 5 * 1024 * 1024,
             maxFiles: 3,
           }),
@@ -90,7 +91,7 @@ if (config.openTelemetry.enabled) {
       const logsDir = config.logsPath;
       if (!logsDir) {
         diag.error(
-          "[FileSpanProcessor] Cannot initialize: logsPath is not available.",
+          '[FileSpanProcessor] Cannot initialize: logsPath is not available.',
         );
         this.traceLogger = winston.createLogger({ silent: true });
         return;
@@ -99,7 +100,7 @@ if (config.openTelemetry.enabled) {
         format: winston.format.json(),
         transports: [
           new winston.transports.File({
-            filename: path.join(logsDir, "traces.log"),
+            filename: path.join(logsDir, 'traces.log'),
             maxsize: 10 * 1024 * 1024, // 10MB
             maxFiles: 5,
           }),
@@ -128,7 +129,7 @@ if (config.openTelemetry.enabled) {
     }
     shutdown(): Promise<void> {
       return new Promise((resolve) =>
-        this.traceLogger.on("finish", resolve).end(),
+        this.traceLogger.on('finish', resolve).end(),
       );
     }
   }
@@ -141,7 +142,7 @@ if (config.openTelemetry.enabled) {
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: config.openTelemetry.serviceName,
       [ATTR_SERVICE_VERSION]: config.openTelemetry.serviceVersion,
-      "deployment.environment.name": config.environment,
+      'deployment.environment.name': config.environment,
     });
 
     let spanProcessor: SpanProcessor;
@@ -155,7 +156,7 @@ if (config.openTelemetry.enabled) {
       spanProcessor = new BatchSpanProcessor(traceExporter);
     } else {
       diag.info(
-        "No OTLP endpoint configured. Using FileSpanProcessor for local trace logging.",
+        'No OTLP endpoint configured. Using FileSpanProcessor for local trace logging.',
       );
       spanProcessor = new FileSpanProcessor();
     }
@@ -176,11 +177,11 @@ if (config.openTelemetry.enabled) {
       sampler: new TraceIdRatioBasedSampler(config.openTelemetry.samplingRatio),
       instrumentations: [
         getNodeAutoInstrumentations({
-          "@opentelemetry/instrumentation-http": {
+          '@opentelemetry/instrumentation-http': {
             enabled: true,
-            ignoreIncomingRequestHook: (req) => req.url === "/healthz",
+            ignoreIncomingRequestHook: (req) => req.url === '/healthz',
           },
-          "@opentelemetry/instrumentation-fs": { enabled: false },
+          '@opentelemetry/instrumentation-fs': { enabled: false },
         }),
         new WinstonInstrumentation({
           enabled: true,
@@ -193,7 +194,7 @@ if (config.openTelemetry.enabled) {
       `OpenTelemetry initialized for ${config.openTelemetry.serviceName} v${config.openTelemetry.serviceVersion}`,
     );
   } catch (error) {
-    diag.error("Error initializing OpenTelemetry", error);
+    diag.error('Error initializing OpenTelemetry', error);
     process.exit(1);
   }
 }
@@ -206,7 +207,7 @@ export async function shutdownOpenTelemetry() {
   if (sdk) {
     await sdk
       .shutdown()
-      .then(() => diag.info("OpenTelemetry terminated"))
-      .catch((error) => diag.error("Error terminating OpenTelemetry", error));
+      .then(() => diag.info('OpenTelemetry terminated'))
+      .catch((error) => diag.error('Error terminating OpenTelemetry', error));
   }
 }

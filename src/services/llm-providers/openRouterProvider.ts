@@ -5,24 +5,25 @@
  * execute the core API interactions and throw structured errors.
  * @module src/services/llm-providers/openRouterProvider
  */
-import OpenAI from "openai";
+import OpenAI from 'openai';
 import {
   ChatCompletion,
   ChatCompletionChunk,
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionCreateParamsStreaming,
-} from "openai/resources/chat/completions";
-import { Stream } from "openai/streaming";
-import { config } from "../../config/index.js";
-import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
-import { ErrorHandler } from "../../utils/internal/errorHandler.js";
-import { logger } from "../../utils/internal/logger.js";
+} from 'openai/resources/chat/completions';
+import { Stream } from 'openai/streaming';
+
+import { config } from '../../config/index.js';
+import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
+import { ErrorHandler } from '../../utils/internal/errorHandler.js';
+import { logger } from '../../utils/internal/logger.js';
 import {
   RequestContext,
   requestContextService,
-} from "../../utils/internal/requestContext.js";
-import { rateLimiter } from "../../utils/security/rateLimiter.js";
-import { sanitization } from "../../utils/security/sanitization.js";
+} from '../../utils/internal/requestContext.js';
+import { rateLimiter } from '../../utils/security/rateLimiter.js';
+import { sanitization } from '../../utils/security/sanitization.js';
 
 // Note: OpenRouter recommends setting HTTP-Referer (e.g., config.openrouterAppUrl)
 // and X-Title (e.g., config.openrouterAppName) headers.
@@ -48,7 +49,7 @@ export type OpenRouterChatParams = (
   min_p?: number;
   transforms?: string[];
   models?: string[];
-  route?: "fallback";
+  route?: 'fallback';
   provider?: Record<string, unknown>;
 };
 
@@ -59,7 +60,7 @@ async function _openRouterChatCompletionLogic(
   params: OpenRouterChatParams,
   context: RequestContext,
 ): Promise<ChatCompletion | Stream<ChatCompletionChunk>> {
-  logger.logInteraction("OpenRouterRequest", {
+  logger.logInteraction('OpenRouterRequest', {
     context,
     request: params,
   });
@@ -75,7 +76,7 @@ async function _openRouterChatCompletionLogic(
       params as unknown as ChatCompletionCreateParamsNonStreaming,
     );
 
-    logger.logInteraction("OpenRouterResponse", {
+    logger.logInteraction('OpenRouterResponse', {
       context,
       response,
       streaming: false,
@@ -84,7 +85,7 @@ async function _openRouterChatCompletionLogic(
     return response;
   } catch (e: unknown) {
     const error = e as Error & { status?: number; cause?: unknown };
-    logger.logInteraction("OpenRouterError", {
+    logger.logInteraction('OpenRouterError', {
       context,
       error: {
         message: error.message,
@@ -119,7 +120,7 @@ async function _openRouterChatCompletionLogic(
     }
     throw new McpError(
       JsonRpcErrorCode.InternalError,
-      `OpenRouter API error (${error.status || "unknown status"}): ${
+      `OpenRouter API error (${error.status || 'unknown status'}): ${
         error.message
       }`,
       errorDetails,
@@ -142,33 +143,33 @@ export class OpenRouterProvider {
 
   constructor(
     options: OpenRouterClientOptions,
-    defaultParams: OpenRouterProvider["defaultParams"],
+    defaultParams: OpenRouterProvider['defaultParams'],
   ) {
     const context = requestContextService.createRequestContext({
-      operation: "OpenRouterProvider.constructor",
+      operation: 'OpenRouterProvider.constructor',
     });
 
     try {
       this.client = new OpenAI({
-        baseURL: options.baseURL || "https://openrouter.ai/api/v1",
+        baseURL: options.baseURL || 'https://openrouter.ai/api/v1',
         apiKey: options.apiKey,
         defaultHeaders: {
-          "HTTP-Referer": options.siteUrl,
-          "X-Title": options.siteName,
+          'HTTP-Referer': options.siteUrl,
+          'X-Title': options.siteName,
         },
         maxRetries: 0,
       });
       this.defaultParams = defaultParams;
-      logger.info("OpenRouter provider instance created and ready.", context);
+      logger.info('OpenRouter provider instance created and ready.', context);
     } catch (e: unknown) {
       const error = e as Error;
-      logger.error("Failed to construct OpenRouter client", {
+      logger.error('Failed to construct OpenRouter client', {
         ...context,
         error: error.message,
       });
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
-        "Failed to construct OpenRouter client. Please check the configuration.",
+        'Failed to construct OpenRouter client. Please check the configuration.',
         { cause: error },
       );
     }
@@ -238,12 +239,12 @@ export class OpenRouterProvider {
     params: OpenRouterChatParams,
     context: RequestContext,
   ): Promise<ChatCompletion | Stream<ChatCompletionChunk>> {
-    const operation = "OpenRouterProvider.chatCompletion";
+    const operation = 'OpenRouterProvider.chatCompletion';
     const sanitizedParams = sanitization.sanitizeForLogging(params);
 
     return await ErrorHandler.tryCatch(
       async () => {
-        const rateLimitKey = context.requestId || "openrouter_default_key";
+        const rateLimitKey = context.requestId || 'openrouter_default_key';
         rateLimiter.check(rateLimitKey, context);
 
         const finalApiParams = this._prepareApiParameters(
@@ -276,7 +277,7 @@ export class OpenRouterProvider {
           yield chunk;
         }
       } finally {
-        logger.logInteraction("OpenRouterResponse", {
+        logger.logInteraction('OpenRouterResponse', {
           context,
           response: chunks,
           streaming: true,
@@ -295,12 +296,12 @@ export class OpenRouterProvider {
  */
 function createOpenRouterProvider(): OpenRouterProvider {
   const opContext = requestContextService.createRequestContext({
-    operation: "createOpenRouterProvider",
+    operation: 'createOpenRouterProvider',
   });
   if (!config.openrouterApiKey) {
     throw new McpError(
       JsonRpcErrorCode.ConfigurationError,
-      "OpenRouter API key (OPENROUTER_API_KEY) is not configured.",
+      'OpenRouter API key (OPENROUTER_API_KEY) is not configured.',
       opContext,
     );
   }

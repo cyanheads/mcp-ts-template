@@ -4,9 +4,9 @@
  * the MCP server's core logic from specific transport implementations like HTTP or stdio.
  * @module src/mcp-server/transports/core/transportTypes
  */
+import type { IncomingHttpHeaders } from 'http';
 
-import type { IncomingHttpHeaders } from "http";
-import { RequestContext } from "../../../utils/index.js";
+import { RequestContext } from '../../../utils/index.js';
 
 /**
  * Defines the set of valid HTTP status codes that the transport layer can return.
@@ -39,7 +39,7 @@ interface BaseTransportResponse {
  * Suitable for small, non-streamed responses.
  */
 export interface BufferedTransportResponse extends BaseTransportResponse {
-  type: "buffered";
+  type: 'buffered';
   body: unknown;
 }
 
@@ -48,7 +48,7 @@ export interface BufferedTransportResponse extends BaseTransportResponse {
  * Essential for handling large or chunked responses efficiently without high memory usage.
  */
 export interface StreamingTransportResponse extends BaseTransportResponse {
-  type: "stream";
+  type: 'stream';
   stream: ReadableStream<Uint8Array>;
 }
 

@@ -6,19 +6,18 @@
  * shutdown on process signals or unhandled errors.
  * @module src/index
  */
-
 // IMPORTANT: This line MUST be the first import to ensure OpenTelemetry is
 // initialized before any other modules are loaded.
-import { shutdownOpenTelemetry } from "./utils/telemetry/instrumentation.js";
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import http from 'http';
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import http from "http";
-import { config } from "./config/index.js";
-import { TransportManager } from "./mcp-server/transports/core/transportTypes.js";
-import { initializeAndStartServer } from "./mcp-server/server.js";
-import { createStorageProvider, storageService } from "./storage/index.js";
-import { requestContextService } from "./utils/index.js";
-import { logger, McpLogLevel } from "./utils/internal/logger.js";
+import { config } from './config/index.js';
+import { initializeAndStartServer } from './mcp-server/server.js';
+import { TransportManager } from './mcp-server/transports/core/transportTypes.js';
+import { createStorageProvider, storageService } from './storage/index.js';
+import { requestContextService } from './utils/index.js';
+import { McpLogLevel, logger } from './utils/internal/logger.js';
+import { shutdownOpenTelemetry } from './utils/telemetry/instrumentation.js';
 
 let mcpStdioServer: McpServer | undefined;
 let actualHttpServer: http.Server | undefined;
@@ -26,7 +25,7 @@ let transportManager: TransportManager | undefined; // <-- Add this line
 
 const shutdown = async (signal: string): Promise<void> => {
   const shutdownContext = requestContextService.createRequestContext({
-    operation: "ServerShutdown",
+    operation: 'ServerShutdown',
     triggerEvent: signal,
   });
 
@@ -41,29 +40,29 @@ const shutdown = async (signal: string): Promise<void> => {
 
     // Shut down the transport manager to clean up sessions
     if (transportManager) {
-      logger.info("Shutting down transport manager...", shutdownContext);
+      logger.info('Shutting down transport manager...', shutdownContext);
       await transportManager.shutdown();
-      logger.info("Transport manager shut down successfully.", shutdownContext);
+      logger.info('Transport manager shut down successfully.', shutdownContext);
     }
 
     let closePromise: Promise<void> = Promise.resolve();
     const transportType = config.mcpTransportType;
 
-    if (transportType === "stdio" && mcpStdioServer) {
+    if (transportType === 'stdio' && mcpStdioServer) {
       logger.info(
-        "Attempting to close main MCP server (STDIO)...",
+        'Attempting to close main MCP server (STDIO)...',
         shutdownContext,
       );
       closePromise = mcpStdioServer.close();
-    } else if (transportType === "http" && actualHttpServer) {
-      logger.info("Attempting to close HTTP server...", shutdownContext);
+    } else if (transportType === 'http' && actualHttpServer) {
+      logger.info('Attempting to close HTTP server...', shutdownContext);
       closePromise = new Promise((resolve, reject) => {
         actualHttpServer!.close((err) => {
           if (err) {
-            logger.error("Error closing HTTP server.", err, shutdownContext);
+            logger.error('Error closing HTTP server.', err, shutdownContext);
             return reject(err);
           }
-          logger.info("HTTP server closed successfully.", shutdownContext);
+          logger.info('HTTP server closed successfully.', shutdownContext);
           resolve();
         });
       });
@@ -71,13 +70,13 @@ const shutdown = async (signal: string): Promise<void> => {
 
     await closePromise;
     logger.info(
-      "Graceful shutdown completed successfully. Exiting.",
+      'Graceful shutdown completed successfully. Exiting.',
       shutdownContext,
     );
     process.exit(0);
   } catch (error) {
     logger.error(
-      "Critical error during shutdown process.",
+      'Critical error during shutdown process.',
       error as Error,
       shutdownContext,
     );
@@ -87,18 +86,18 @@ const shutdown = async (signal: string): Promise<void> => {
 
 const start = async (): Promise<void> => {
   const validMcpLogLevels: McpLogLevel[] = [
-    "debug",
-    "info",
-    "notice",
-    "warning",
-    "error",
-    "crit",
-    "alert",
-    "emerg",
+    'debug',
+    'info',
+    'notice',
+    'warning',
+    'error',
+    'crit',
+    'alert',
+    'emerg',
   ];
   const initialLogLevelConfig = config.logLevel;
 
-  let validatedMcpLogLevel: McpLogLevel = "info";
+  let validatedMcpLogLevel: McpLogLevel = 'info';
   if (validMcpLogLevels.includes(initialLogLevelConfig as McpLogLevel)) {
     validatedMcpLogLevel = initialLogLevelConfig as McpLogLevel;
   } else {
@@ -112,7 +111,7 @@ const start = async (): Promise<void> => {
   await logger.initialize(validatedMcpLogLevel);
   logger.info(
     `Logger initialized. Effective MCP logging level: ${validatedMcpLogLevel}.`,
-    requestContextService.createRequestContext({ operation: "LoggerInit" }),
+    requestContextService.createRequestContext({ operation: 'LoggerInit' }),
   );
 
   // Initialize Storage Service
@@ -121,13 +120,13 @@ const start = async (): Promise<void> => {
     storageService.initialize(storageProvider);
     logger.info(
       `Storage service initialized with provider: ${config.storage.providerType}`,
-      requestContextService.createRequestContext({ operation: "StorageInit" }),
+      requestContextService.createRequestContext({ operation: 'StorageInit' }),
     );
   } catch (error) {
     logger.fatal(
-      "Failed to initialize storage service.",
+      'Failed to initialize storage service.',
       error as Error,
-      requestContextService.createRequestContext({ operation: "StorageInit" }),
+      requestContextService.createRequestContext({ operation: 'StorageInit' }),
     );
     process.exit(1);
   }
@@ -149,14 +148,14 @@ const start = async (): Promise<void> => {
     const serverInstanceOrHttpBundle = await initializeAndStartServer();
 
     if (
-      transportType === "http" &&
-      "server" in serverInstanceOrHttpBundle &&
-      "transportManager" in serverInstanceOrHttpBundle
+      transportType === 'http' &&
+      'server' in serverInstanceOrHttpBundle &&
+      'transportManager' in serverInstanceOrHttpBundle
     ) {
       actualHttpServer = serverInstanceOrHttpBundle.server as http.Server;
       transportManager =
         serverInstanceOrHttpBundle.transportManager as TransportManager;
-    } else if (transportType === "stdio") {
+    } else if (transportType === 'stdio') {
       const bundle = serverInstanceOrHttpBundle as {
         server: McpServer;
         transportManager: undefined;
@@ -170,27 +169,27 @@ const start = async (): Promise<void> => {
       startupContext,
     );
 
-    process.on("SIGTERM", () => void shutdown("SIGTERM"));
-    process.on("SIGINT", () => void shutdown("SIGINT"));
-    process.on("uncaughtException", (error: Error) => {
+    process.on('SIGTERM', () => void shutdown('SIGTERM'));
+    process.on('SIGINT', () => void shutdown('SIGINT'));
+    process.on('uncaughtException', (error: Error) => {
       logger.fatal(
-        "FATAL: Uncaught exception detected.",
+        'FATAL: Uncaught exception detected.',
         error,
         startupContext,
       );
-      void shutdown("uncaughtException");
+      void shutdown('uncaughtException');
     });
-    process.on("unhandledRejection", (reason: unknown) => {
+    process.on('unhandledRejection', (reason: unknown) => {
       logger.fatal(
-        "FATAL: Unhandled promise rejection detected.",
+        'FATAL: Unhandled promise rejection detected.',
         reason as Error,
         startupContext,
       );
-      void shutdown("unhandledRejection");
+      void shutdown('unhandledRejection');
     });
   } catch (error) {
     logger.fatal(
-      "CRITICAL ERROR DURING STARTUP.",
+      'CRITICAL ERROR DURING STARTUP.',
       error as Error,
       startupContext,
     );
@@ -204,7 +203,7 @@ void (async () => {
     await start();
   } catch (error) {
     if (process.stdout.isTTY) {
-      console.error("[GLOBAL CATCH] A fatal, unhandled error occurred:", error);
+      console.error('[GLOBAL CATCH] A fatal, unhandled error occurred:', error);
     }
     process.exit(1);
   }

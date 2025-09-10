@@ -5,8 +5,7 @@
  * consistency and clarity for both server-side operations and client-side error handling.
  * @module src/types-global/errors
  */
-
-import { z } from "zod";
+import { z } from 'zod';
 
 /**
  * Defines JSON-RPC 2.0 error codes, including standard and implementation-defined codes.
@@ -75,7 +74,7 @@ export class McpError extends Error {
     if (data) {
       this.data = data;
     }
-    this.name = "McpError";
+    this.name = 'McpError';
 
     // Maintain a proper prototype chain.
     Object.setPrototypeOf(this, McpError.prototype);
@@ -104,15 +103,15 @@ export const ErrorSchema = z
      */
     code: z
       .nativeEnum(JsonRpcErrorCode)
-      .describe("Standardized error code from JsonRpcErrorCode enum"),
+      .describe('Standardized error code from JsonRpcErrorCode enum'),
     /**
      * A human-readable, descriptive message explaining the error.
      * This field is required and provides context to developers or users.
      */
     message: z
       .string()
-      .min(1, "Error message cannot be empty.")
-      .describe("Detailed human-readable error message"),
+      .min(1, 'Error message cannot be empty.')
+      .describe('Detailed human-readable error message'),
     /**
      * Optional. A record containing additional structured data or context about the error,
      * conforming to the JSON-RPC 2.0 `data` field.
@@ -121,11 +120,11 @@ export const ErrorSchema = z
       .record(z.unknown())
       .optional()
       .describe(
-        "Optional structured data providing more context about the error",
+        'Optional structured data providing more context about the error',
       ),
   })
   .describe(
-    "Schema for validating structured error objects, ensuring consistency in error reporting.",
+    'Schema for validating structured error objects, ensuring consistency in error reporting.',
   );
 
 /**

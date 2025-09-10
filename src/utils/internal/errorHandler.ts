@@ -5,11 +5,12 @@
  * offers static methods for consistent error processing, logging, and transformation.
  * @module src/utils/internal/errorHandler
  */
-import { SpanStatusCode, trace } from "@opentelemetry/api";
-import { JsonRpcErrorCode, McpError } from "../../types-global/errors.js";
-import { generateUUID, sanitizeInputForLogging } from "../index.js";
-import { logger } from "./logger.js";
-import { RequestContext } from "./requestContext.js";
+import { SpanStatusCode, trace } from '@opentelemetry/api';
+
+import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
+import { generateUUID, sanitizeInputForLogging } from '../index.js';
+import { logger } from './logger.js';
+import { RequestContext } from './requestContext.js';
 
 /**
  * Defines a generic structure for providing context with errors.
@@ -199,13 +200,13 @@ const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
  */
 function createSafeRegex(pattern: string | RegExp): RegExp {
   if (pattern instanceof RegExp) {
-    let flags = pattern.flags.replace("g", "");
-    if (!flags.includes("i")) {
-      flags += "i";
+    let flags = pattern.flags.replace('g', '');
+    if (!flags.includes('i')) {
+      flags += 'i';
     }
     return new RegExp(pattern.source, flags);
   }
-  return new RegExp(pattern, "i");
+  return new RegExp(pattern, 'i');
 }
 
 /**
@@ -216,20 +217,20 @@ function createSafeRegex(pattern: string | RegExp): RegExp {
  */
 function getErrorName(error: unknown): string {
   if (error instanceof Error) {
-    return error.name || "Error";
+    return error.name || 'Error';
   }
   if (error === null) {
-    return "NullValueEncountered";
+    return 'NullValueEncountered';
   }
   if (error === undefined) {
-    return "UndefinedValueEncountered";
+    return 'UndefinedValueEncountered';
   }
   if (
-    typeof error === "object" &&
+    typeof error === 'object' &&
     error !== null &&
     error.constructor &&
-    typeof error.constructor.name === "string" &&
-    error.constructor.name !== "Object"
+    typeof error.constructor.name === 'string' &&
+    error.constructor.name !== 'Object'
   ) {
     return `${error.constructor.name}Encountered`;
   }
@@ -247,26 +248,26 @@ function getErrorMessage(error: unknown): string {
     return error.message;
   }
   if (error === null) {
-    return "Null value encountered as error";
+    return 'Null value encountered as error';
   }
   if (error === undefined) {
-    return "Undefined value encountered as error";
+    return 'Undefined value encountered as error';
   }
-  if (typeof error === "string") {
+  if (typeof error === 'string') {
     return error;
   }
   try {
     const str = String(error);
-    if (str === "[object Object]" && error !== null) {
+    if (str === '[object Object]' && error !== null) {
       try {
         return `Non-Error object encountered: ${JSON.stringify(error)}`;
       } catch {
-        return `Unstringifyable non-Error object encountered (constructor: ${error.constructor?.name || "Unknown"})`;
+        return `Unstringifyable non-Error object encountered (constructor: ${error.constructor?.name || 'Unknown'})`;
       }
     }
     return str;
   } catch (e) {
-    return `Error converting error to string: ${e instanceof Error ? e.message : "Unknown conversion error"}`;
+    return `Error converting error to string: ${e instanceof Error ? e.message : 'Unknown conversion error'}`;
   }
 }
 
@@ -350,7 +351,7 @@ export class ErrorHandler {
 
     const errorDataSeed =
       error instanceof McpError &&
-      typeof error.data === "object" &&
+      typeof error.data === 'object' &&
       error.data !== null
         ? { ...error.data }
         : {};
@@ -399,12 +400,12 @@ export class ErrorHandler {
     }
 
     const logRequestId =
-      typeof context.requestId === "string" && context.requestId
+      typeof context.requestId === 'string' && context.requestId
         ? context.requestId
         : generateUUID();
 
     const logTimestamp =
-      typeof context.timestamp === "string" && context.timestamp
+      typeof context.timestamp === 'string' && context.timestamp
         ? context.timestamp
         : new Date().toISOString();
 
@@ -419,7 +420,7 @@ export class ErrorHandler {
       finalErrorType: getErrorName(finalError),
       ...Object.fromEntries(
         Object.entries(context).filter(
-          ([key]) => key !== "requestId" && key !== "timestamp",
+          ([key]) => key !== 'requestId' && key !== 'timestamp',
         ),
       ),
     };
@@ -490,7 +491,7 @@ export class ErrorHandler {
         code: error.code,
         message: error.message,
         data:
-          typeof error.data === "object" && error.data !== null
+          typeof error.data === 'object' && error.data !== null
             ? error.data
             : {},
       };
@@ -500,7 +501,7 @@ export class ErrorHandler {
       return {
         code: ErrorHandler.determineErrorCode(error),
         message: error.message,
-        data: { errorType: error.name || "Error" },
+        data: { errorType: error.name || 'Error' },
       };
     }
 
@@ -535,7 +536,7 @@ export class ErrorHandler {
    */
   public static async tryCatch<T>(
     fn: () => Promise<T> | T,
-    options: Omit<ErrorHandlerOptions, "rethrow">,
+    options: Omit<ErrorHandlerOptions, 'rethrow'>,
   ): Promise<T> {
     try {
       return await Promise.resolve(fn());

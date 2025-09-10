@@ -5,10 +5,10 @@
  * propagation for distributed tracing.
  * @module src/utils/internal/requestContext
  */
+import { trace } from '@opentelemetry/api';
 
-import { trace } from "@opentelemetry/api";
-import { generateRequestContextId } from "../index.js";
-import { logger } from "./logger.js";
+import { generateRequestContextId } from '../index.js';
+import { logger } from './logger.js';
 
 /**
  * Defines the core structure for context information associated with a request or operation.
@@ -102,10 +102,10 @@ const requestContextServiceInstance = {
       ...config,
     };
     const logContext = this.createRequestContext({
-      operation: "RequestContextService.configure",
+      operation: 'RequestContextService.configure',
       additionalContext: { newConfigState: { ...this.config } },
     });
-    logger.debug("RequestContextService configuration updated", logContext);
+    logger.debug('RequestContextService configuration updated', logContext);
     return { ...this.config };
   },
 
@@ -140,12 +140,12 @@ const requestContextServiceInstance = {
       params as CreateRequestContextParams;
 
     const inheritedContext =
-      parentContext && typeof parentContext === "object"
+      parentContext && typeof parentContext === 'object'
         ? { ...parentContext }
         : {};
 
     const requestId =
-      typeof inheritedContext.requestId === "string" &&
+      typeof inheritedContext.requestId === 'string' &&
       inheritedContext.requestId
         ? inheritedContext.requestId
         : generateRequestContextId();
@@ -156,10 +156,10 @@ const requestContextServiceInstance = {
       ...rest, // Spread any other properties from the params object
       requestId,
       timestamp,
-      ...(additionalContext && typeof additionalContext === "object"
+      ...(additionalContext && typeof additionalContext === 'object'
         ? additionalContext
         : {}),
-      ...(operation && typeof operation === "string" ? { operation } : {}),
+      ...(operation && typeof operation === 'string' ? { operation } : {}),
     };
 
     // --- OpenTelemetry Integration ---
