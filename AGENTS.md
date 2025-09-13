@@ -394,8 +394,8 @@ The following utilities are still available for direct use:
 - External Dependencies: Encapsulate API clients/providers under `src/services/`.
 - Validation: Inputs are validated via Zod `inputSchema`; your `logic` receives typed, safe `input`.
 - Secrets: Access through the `config` module only; never hard‑code.
-- Formatting: Run `npm run format` before finishing any task.
-- Testing: Add/extend Vitest integration tests under `tests/`, following existing structure.
+- Formatting: Run `bun run devcheck` before finishing any task.
+- Testing: Add unit tests under `tests/` and integration tests under `tests/integration/`. Follow the existing structure for each test type.
 
 ---
 
@@ -406,4 +406,4 @@ The following utilities are still available for direct use:
 - Use `logger` (preferably injected) with `RequestContext` in every meaningful operation.
 - Use injected `StorageService` for all persistence.
 - Register the tool in `src/mcp-server/tools/definitions/index.ts`.
-- If applicable, add tests in `tests/`; run `bun test:coverage`.
+- If applicable, add tests in `tests/` (for unit) or `tests/integration/` (for integration) and run the relevant coverage command.
