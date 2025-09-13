@@ -1,1 +1,1 @@
-bun run devcheck --no-deps
+bun run devcheck --no-deps --husky-hook

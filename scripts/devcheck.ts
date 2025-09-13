@@ -69,17 +69,24 @@ const ALL_CHECKS: Check[] = [
 ];
 
 // --- Core Logic ---
-function parseArgs(args: string[]): { flags: Set<string>; noFix: boolean } {
+function parseArgs(args: string[]): {
+  flags: Set<string>;
+  noFix: boolean;
+  isHuskyHook: boolean;
+} {
   const flags = new Set<string>();
   let noFix = false;
+  let isHuskyHook = false;
   for (const arg of args) {
     if (arg === '--no-fix') {
       noFix = true;
+    } else if (arg === '--husky-hook') {
+      isHuskyHook = true;
     } else {
       flags.add(arg);
     }
   }
-  return { flags, noFix };
+  return { flags, noFix, isHuskyHook };
 }
 
 function runCheck(
@@ -117,8 +124,6 @@ function runCheck(
     const startTime = Date.now();
     exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
       const duration = Date.now() - startTime;
-      // In fix mode, Prettier exits with code 0 even if it makes changes.
-      // We rely on its stdout to know if files were changed.
       const exitCode = error?.code ?? 0;
 
       if (exitCode === 0) {
@@ -138,6 +143,21 @@ function runCheck(
         stderr: stderr.trim(),
         duration,
       });
+    });
+  });
+}
+
+function execAsync(
+  command: string,
+  options: { cwd: string },
+): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    exec(command, options, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(`Command failed: ${command}\n${stderr}`));
+        return;
+      }
+      resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
     });
   });
 }
@@ -198,22 +218,87 @@ function printSummary(results: CommandResult[], noFix: boolean): boolean {
 }
 
 async function main() {
-  const { flags, noFix } = parseArgs(process.argv.slice(2));
-  const modeMessage = noFix
-    ? `${c.dim}(Read-only mode)${c.reset}`
-    : `${c.magenta}(Auto-fixing mode)${c.reset}`;
+  const { flags, noFix, isHuskyHook } = parseArgs(process.argv.slice(2));
+  const modeMessage = isHuskyHook
+    ? `${c.magenta}(Husky Pre-commit Hook)${c.reset}`
+    : noFix
+      ? `${c.dim}(Read-only mode)${c.reset}`
+      : `${c.magenta}(Auto-fixing mode)${c.reset}`;
 
   console.log(
     `${c.bold}🚀 Kicking off comprehensive checks... ${modeMessage}${c.reset}\n`,
   );
 
+  let stagedFilesBefore: string[] = [];
+  if (isHuskyHook) {
+    try {
+      console.log(
+        `${c.bold}${c.magenta}🔍 Husky hook: Capturing staged files...${c.reset}`,
+      );
+      const { stdout } = await execAsync('git diff --name-only --cached', {
+        cwd: rootDir,
+      });
+      stagedFilesBefore = stdout.split('\n').filter(Boolean);
+      if (stagedFilesBefore.length > 0) {
+        console.log(
+          `${c.dim}   Staged files: ${stagedFilesBefore.join(', ')}${c.reset}\n`,
+        );
+      } else {
+        console.log(`${c.dim}   No files staged.${c.reset}\n`);
+      }
+    } catch (_error) {
+      console.error(
+        `${c.red}Error capturing staged files: Shell command failed`,
+      );
+      process.exit(1);
+    }
+  }
+
   const checksToRun = ALL_CHECKS.map((check) =>
-    runCheck(check, flags.has(check.flag), noFix),
+    runCheck(check, flags.has(check.flag), noFix || isHuskyHook),
   );
 
   const results = await Promise.all(checksToRun);
 
-  const overallSuccess = printSummary(results, noFix);
+  const overallSuccess = printSummary(results, noFix || isHuskyHook);
+
+  if (isHuskyHook && overallSuccess) {
+    try {
+      console.log(
+        `\n${c.bold}${c.magenta}✨ Husky hook: Checking for auto-formatted staged files...${c.reset}`,
+      );
+      const { stdout: gitStatus } = await execAsync('git status --porcelain', {
+        cwd: rootDir,
+      });
+      const modifiedFiles = gitStatus
+        .split('\n')
+        .filter((line) => line.startsWith(' M'))
+        .map((line) => line.substring(3));
+
+      const filesToReStage = stagedFilesBefore.filter((file) =>
+        modifiedFiles.includes(file),
+      );
+
+      if (filesToReStage.length > 0) {
+        console.log(
+          `${c.yellow}   Re-staging ${filesToReStage.length} files modified by a fixer...${c.reset}`,
+        );
+        for (const file of filesToReStage) {
+          console.log(`${c.dim}     $ git add ${file}${c.reset}`);
+          await execAsync(`git add ${file}`, { cwd: rootDir });
+        }
+        console.log(`${c.green}   ✓ Successfully re-staged files.${c.reset}`);
+      } else {
+        console.log(`${c.green}   ✓ No staged files were modified.${c.reset}`);
+      }
+    } catch (error) {
+      console.error(
+        `${c.red}Error re-staging files: Shell command failed`,
+        error,
+      );
+      process.exit(1);
+    }
+  }
 
   if (overallSuccess) {
     console.log(

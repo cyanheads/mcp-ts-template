@@ -18,7 +18,8 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 
 ### Fixed
 
-- **Pre-commit Hook**: Modified the `.husky/pre-commit` hook to run `bun run devcheck --no-deps`. This prevents the hook from failing due to outdated dependency checks, which are not critical for a pre-commit verification and can be handled separately.
+- **Pre-commit Hook**: Modified the `.husky/pre-commit` hook to run `bun run devcheck --no-deps --husky-hook`. This prevents the hook from failing due to outdated dependency checks and ensures that any files auto-formatted during the pre-commit phase are automatically re-staged.
+- **Husky Workflow**: Added a `--husky-hook` flag to the `devcheck.ts` script. When active, it captures the list of staged files, runs formatters, and then automatically re-stages any of those files that were modified, ensuring a clean working directory after the commit.
 
 ## [2.0.0-alpha.3] - 2025-09-12
 
