@@ -5,7 +5,7 @@
  * @module src/storage/providers/supabase/supabaseProvider
  */
 import { ErrorHandler, RequestContext, logger } from '../../../utils/index.js';
-import {
+import type {
   IStorageProvider,
   StorageOptions,
 } from '../../core/IStorageProvider.js';

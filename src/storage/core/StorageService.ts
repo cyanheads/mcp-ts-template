@@ -6,7 +6,7 @@
  * @module src/storage/StorageService
  */
 import { RequestContext } from '../../utils/index.js';
-import { IStorageProvider, StorageOptions } from './IStorageProvider.js';
+import type { IStorageProvider, StorageOptions } from './IStorageProvider.js';
 
 class StorageService implements IStorageProvider {
   private provider: IStorageProvider | null = null;

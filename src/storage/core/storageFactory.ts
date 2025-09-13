@@ -10,7 +10,7 @@ import { logger, requestContextService } from '../../utils/index.js';
 import { FileSystemProvider } from '../providers/fileSystem/fileSystemProvider.js';
 import { InMemoryProvider } from '../providers/inMemory/inMemoryProvider.js';
 import { SupabaseProvider } from '../providers/supabase/supabaseProvider.js';
-import { IStorageProvider } from './IStorageProvider.js';
+import type { IStorageProvider } from './IStorageProvider.js';
 
 export function createStorageProvider(): IStorageProvider {
   const context = requestContextService.createRequestContext({

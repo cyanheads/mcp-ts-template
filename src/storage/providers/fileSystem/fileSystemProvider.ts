@@ -10,7 +10,7 @@ import path from 'path';
 
 import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
 import { ErrorHandler, RequestContext, logger } from '../../../utils/index.js';
-import {
+import type {
   IStorageProvider,
   StorageOptions,
 } from '../../core/IStorageProvider.js';

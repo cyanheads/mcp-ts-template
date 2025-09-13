@@ -19,7 +19,7 @@ import { randomUUID } from 'node:crypto';
 import { inject, injectable } from 'tsyringe';
 
 import { CreateMcpServerInstance } from '../../../container/index.js';
-import { IStorageProvider } from '../../../storage/index.js';
+import type { IStorageProvider } from '../../../storage/index.js';
 import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
 import {
   ErrorHandler,
