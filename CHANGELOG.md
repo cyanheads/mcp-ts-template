@@ -7,14 +7,17 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 ## [2.0.0-alpha.4] - 2025-09-12
 
 ### Added
+
 - **Declarative Tool & Resource Registration**: Implemented barrel exports (`index.ts`) in `src/mcp-server/tools/definitions/` and `src/mcp-server/resources/definitions/` to create central arrays (`allToolDefinitions`, `allResourceDefinitions`). This allows `tool-registration.ts` and `resource-registration.ts` to loop over the arrays, automating the registration process and removing the need for manual imports of each new definition.
 - **Improved `devcheck.ts` Script**: Significantly enhanced the `devcheck.ts` script with more detailed, colorful logging, command-line flags (`--no-lint`, `--no-types`, etc.) for skipping specific checks, and an auto-fix mode (`--no-fix` disables it). The summary now provides duration for each check and offers contextual tips for fixing failures.
 
 ### Changed
+
 - **Decoupled DI in Transport Layer**: Refactored `AutoTransportManager` and `httpTransport` to receive `StatefulTransportManager` and `StatelessTransportManager` via dependency injection, removing direct instantiation and the `createMcpServerFn` dependency. This fully decouples the transport layer from the server creation logic.
 - **Dependency Updates**: Upgraded various `@opentelemetry/*` packages and other dependencies to their latest versions, as reflected in `bun.lock` and `package.json`.
 
 ### Fixed
+
 - **Pre-commit Hook**: Modified the `.husky/pre-commit` hook to run `bun run devcheck --no-deps`. This prevents the hook from failing due to outdated dependency checks, which are not critical for a pre-commit verification and can be handled separately.
 
 ## [2.0.0-alpha.3] - 2025-09-12
