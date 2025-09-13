@@ -109,7 +109,15 @@ Every operation is traceable from end to end without any manual setup.
 
 ### 3. Declarative, Self-Contained Components
 
-Tools and resources are defined declaratively in single, self-contained files. This makes the system highly modular and easy to reason about. The server discovers and registers these components at startup, handling all the necessary boilerplate.
+Tools and resources are defined declaratively in single, self-contained files. This makes the system highly modular and easy to reason about.
+
+### 4. Dependency Injection for Maximum Decoupling
+
+The entire architecture is built around a Dependency Injection (DI) container (`tsyringe`).
+
+- **Centralized Container**: All services, providers, and managers are registered in a central DI container, configured in `src/container/`.
+- **Inversion of Control**: Components never create their own dependencies. Instead, they receive them via constructor injection, making them highly testable and decoupled.
+- **Auto-Registration**: Tool and resource definitions are automatically discovered and registered with the container from barrel exports, eliminating manual wiring.
 
 ---
 
@@ -123,11 +131,12 @@ Tools and resources are defined declaratively in single, self-contained files. T
 ├── scripts/             # --> Helper scripts for development (cleaning, docs, etc.).
 ├── src/
 │   ├── config/          # --> Application configuration (Zod schemas, loader).
+│   ├── container/       # --> Dependency Injection container setup and registrations.
 │   ├── mcp-server/
-│   │   ├── resources/   # --> Resource definitions (e.g., echoResource).
-│   │   ├── tools/       # --> Tool definitions and utilities.
+│   │   ├── resources/   # --> Declarative resource definitions.
+│   │   ├── tools/       # --> Declarative tool definitions.
 │   │   ├── transports/  # --> HTTP and STDIO transport layers, including auth.
-│   │   └── server.ts    # --> Core McpServer setup and component registration.
+│   │   └── server.ts    # --> Core McpServer setup (resolves components from DI).
 │   ├── services/        # --> Clients for external services (e.g., LLM providers).
 │   ├── storage/         # --> Abstracted storage layer and providers.
 │   ├── types-global/    # --> Global TypeScript types (e.g., McpError).
@@ -139,21 +148,28 @@ Tools and resources are defined declaratively in single, self-contained files. T
 
 ### Adding a New Tool
 
-1.  Create a new file: `src/mcp-server/tools/definitions/my-new-tool.tool.ts`.
-2.  Use `echo.tool.ts` or `cat-fact.tool.ts` as a template.
-3.  Define your `InputSchema` and `OutputSchema` using **Zod**.
-4.  Write your core business logic in an `async` function.
-5.  Export a `ToolDefinition` object containing the name, schemas, and logic.
-6.  Import and register your new tool in `src/mcp-server/server.ts`.
+1.  **Create the Definition**: Create a new file at `src/mcp-server/tools/definitions/my-new-tool.tool.ts`. Use an existing tool as a template.
+2.  **Define the Tool**: Export a single `const` of type `ToolDefinition` containing the name, Zod schemas, and pure business logic.
+3.  **Register via Barrel Export**: Open `src/mcp-server/tools/definitions/index.ts` and add your new tool definition to the `allToolDefinitions` array.
 
-The framework will automatically handle the rest: validation, error handling, performance metrics, and registration with the MCP server.
+```ts
+// src/mcp-server/tools/definitions/index.ts
+import { myNewTool } from './my-new-tool.tool.js';
+// ... other imports
+export const allToolDefinitions = [
+  // ... other tools
+  myNewTool,
+];
+```
+
+That's it. The DI container automatically discovers and registers all tools from this array at startup.
 
 ### Adding a New Storage Provider
 
-1.  Create a new provider class that implements the `IStorageProvider` interface from `src/storage/core/IStorageProvider.ts`.
-2.  Add your new provider type to the `enum` in `src/config/index.ts`.
-3.  Add a case for your provider in the `createStorageProvider` function in `src/storage/core/storageFactory.ts`.
-4.  Set the `STORAGE_PROVIDER_TYPE` environment variable to your new provider's name.
+1.  **Create Provider**: Create a new class under `src/storage/providers/` that implements the `IStorageProvider` interface.
+2.  **Register in DI**: Open `src/container/registrations/core.ts`. In the `registerStorage` function, add a condition to register your new provider based on the `STORAGE_PROVIDER_TYPE` from the config.
+3.  **Update Config**: Add your new provider's name to the `StorageProviderType` enum in `src/config/index.ts`.
+4.  **Set Environment Variable**: In your `.env` file, set `STORAGE_PROVIDER_TYPE` to your new provider's name.
 
 ---
 
