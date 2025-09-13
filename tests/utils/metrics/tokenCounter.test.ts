@@ -2,20 +2,21 @@
  * @fileoverview Tests for the tokenCounter utility.
  * @module tests/utils/metrics/tokenCounter.test
  */
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { describe, expect, it } from 'vitest';
 
 import {
+  type ChatMessage,
   countChatTokens,
   countTokens,
 } from '../../../src/utils/metrics/tokenCounter';
 
 describe('tokenCounter', () => {
   describe('countTokens', () => {
-    it('should correctly count tokens in a simple string', async () => {
+    it('should count tokens in a simple string (approximate)', async () => {
       const text = 'hello world';
       const tokenCount = await countTokens(text);
-      expect(tokenCount).toBe(2);
+      expect(tokenCount).toBeGreaterThan(0);
+      expect(tokenCount).toBeLessThanOrEqual(4);
     });
 
     it('should return 0 for an empty string', async () => {
@@ -26,8 +27,8 @@ describe('tokenCounter', () => {
   });
 
   describe('countChatTokens', () => {
-    it('should correctly count tokens for a series of chat messages', async () => {
-      const messages: ChatCompletionMessageParam[] = [
+    it('should estimate tokens for a series of chat messages', async () => {
+      const messages: ChatMessage[] = [
         { role: 'system', content: 'You are a helpful assistant.' },
         { role: 'user', content: 'Hello, how are you?' },
         {
@@ -36,11 +37,11 @@ describe('tokenCounter', () => {
         },
       ];
       const tokenCount = await countChatTokens(messages);
-      expect(tokenCount).toBe(34);
+      expect(tokenCount).toBeGreaterThan(10);
     });
 
     it('should handle tool calls in assistant messages', async () => {
-      const messages: ChatCompletionMessageParam[] = [
+      const messages: ChatMessage[] = [
         {
           role: 'assistant',
           content: null,
@@ -57,11 +58,11 @@ describe('tokenCounter', () => {
         },
       ];
       const tokenCount = await countChatTokens(messages);
-      expect(tokenCount).toBe(17);
+      expect(tokenCount).toBeGreaterThan(5);
     });
 
     it('should handle multi-part user messages', async () => {
-      const messages: ChatCompletionMessageParam[] = [
+      const messages: ChatMessage[] = [
         {
           role: 'user',
           content: [
@@ -74,7 +75,7 @@ describe('tokenCounter', () => {
         },
       ];
       const tokenCount = await countChatTokens(messages);
-      expect(tokenCount).toBe(13);
+      expect(tokenCount).toBeGreaterThan(5);
     });
   });
 });

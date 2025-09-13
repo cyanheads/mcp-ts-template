@@ -2,30 +2,25 @@
  * @fileoverview Tests for the JsonParser utility.
  * @module tests/utils/parsing/jsonParser.test
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors';
 import { logger, requestContextService } from '../../../src/utils';
 import { Allow, JsonParser } from '../../../src/utils/parsing/jsonParser';
 
-// Mock the logger to spy on its methods
-vi.mock('../../../src/utils/internal/logger.js', () => ({
-  logger: {
-    debug: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    warning: vi.fn(),
-  },
-}));
-
 describe('JsonParser', () => {
-  const parser = new JsonParser();
-  const context = requestContextService.createRequestContext({
-    toolName: 'test-json-parser',
-  });
+  let parser: JsonParser;
+  let context: ReturnType<typeof requestContextService.createRequestContext>;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    parser = new JsonParser();
+    context = requestContextService.createRequestContext({
+      toolName: 'test-json-parser',
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('should parse a valid, complete JSON string', () => {
@@ -47,31 +42,34 @@ describe('JsonParser', () => {
   });
 
   it('should handle a <think> block and parse the remaining JSON', () => {
+    const debugSpy = vi.spyOn(logger, 'debug');
     const stringWithThinkBlock =
       '<think>This is a thought.</think>  {"key": "value"}';
     const result = parser.parse(stringWithThinkBlock, Allow.ALL, context);
     expect(result).toEqual({ key: 'value' });
-    expect(logger.debug).toHaveBeenCalledWith(
+    expect(debugSpy).toHaveBeenCalledWith(
       'LLM <think> block detected and logged.',
       expect.objectContaining({ thinkContent: 'This is a thought.' }),
     );
   });
 
   it('should handle an empty <think> block and log it', () => {
+    const debugSpy = vi.spyOn(logger, 'debug');
     const stringWithEmptyThinkBlock = '<think></think>{"key": "value"}';
     const result = parser.parse(stringWithEmptyThinkBlock, Allow.ALL, context);
     expect(result).toEqual({ key: 'value' });
-    expect(logger.debug).toHaveBeenCalledWith(
+    expect(debugSpy).toHaveBeenCalledWith(
       'Empty LLM <think> block detected.',
       expect.any(Object),
     );
   });
 
   it('should create its own context for logging if none is provided', () => {
+    const debugSpy = vi.spyOn(logger, 'debug');
     const stringWithThinkBlock =
       '<think>No context here.</think>{"key": "value"}';
     parser.parse(stringWithThinkBlock);
-    expect(logger.debug).toHaveBeenCalledWith(
+    expect(debugSpy).toHaveBeenCalledWith(
       'LLM <think> block detected and logged.',
       expect.objectContaining({ operation: 'JsonParser.thinkBlock' }),
     );
@@ -117,6 +115,7 @@ describe('JsonParser', () => {
   });
 
   it('should wrap a parsing error in McpError and log it', () => {
+    const errorSpy = vi.spyOn(logger, 'error');
     const invalidJson = 'this is not json'; // Unambiguously invalid JSON
     expect(() => parser.parse(invalidJson, Allow.ALL, context)).toThrow(
       McpError,
@@ -127,7 +126,7 @@ describe('JsonParser', () => {
       const mcpError = error as McpError;
       expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
       expect(mcpError.message).toContain('Failed to parse JSON');
-      expect(logger.error).toHaveBeenCalledWith(
+      expect(errorSpy).toHaveBeenCalledWith(
         'Failed to parse JSON content.',
         expect.any(Object),
       );

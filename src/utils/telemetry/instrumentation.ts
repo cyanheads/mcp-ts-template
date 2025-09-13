@@ -205,6 +205,15 @@ if (config.openTelemetry.enabled) {
  */
 export async function shutdownOpenTelemetry() {
   if (sdk) {
+    // Attempt to flush any pending spans/metrics before shutdown
+    const maybeSdk = sdk as unknown as { forceFlush?: () => Promise<void> };
+    if (maybeSdk && typeof maybeSdk.forceFlush === 'function') {
+      try {
+        await maybeSdk.forceFlush();
+      } catch (e) {
+        diag.warn('Error force-flushing OpenTelemetry before shutdown', e);
+      }
+    }
     await sdk
       .shutdown()
       .then(() => diag.info('OpenTelemetry terminated'))

@@ -6,18 +6,18 @@
  * shutdown on process signals or unhandled errors.
  * @module src/index
  */
-// IMPORTANT: This line MUST be the first import to ensure OpenTelemetry is
-// initialized before any other modules are loaded.
+// IMPORTANT: This import MUST be first to initialize OpenTelemetry
+// before any other modules are loaded. Use package subpath for env mapping.
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import http from 'http';
+import { McpLogLevel, logger } from 'mcp-ts-template/utils/internal/logger.js';
+import { shutdownOpenTelemetry } from 'mcp-ts-template/utils/telemetry/instrumentation.js';
 
 import { config } from './config/index.js';
 import { initializeAndStartServer } from './mcp-server/server.js';
 import { TransportManager } from './mcp-server/transports/core/transportTypes.js';
 import { createStorageProvider, storageService } from './storage/index.js';
 import { requestContextService } from './utils/index.js';
-import { McpLogLevel, logger } from './utils/internal/logger.js';
-import { shutdownOpenTelemetry } from './utils/telemetry/instrumentation.js';
 
 let mcpStdioServer: McpServer | undefined;
 let actualHttpServer: http.Server | undefined;
@@ -37,6 +37,8 @@ const shutdown = async (signal: string): Promise<void> => {
   try {
     // Shutdown OpenTelemetry first to ensure buffered telemetry is sent
     await shutdownOpenTelemetry();
+    // Close logger transports to flush logs
+    await logger.close();
 
     // Shut down the transport manager to clean up sessions
     if (transportManager) {
@@ -80,6 +82,9 @@ const shutdown = async (signal: string): Promise<void> => {
       error as Error,
       shutdownContext,
     );
+    try {
+      await logger.close();
+    } catch {}
     process.exit(1);
   }
 };

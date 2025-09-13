@@ -1,141 +1,168 @@
 /**
- * @fileoverview Provides utility functions for counting tokens in text and chat messages
- * using the `tiktoken` library, specifically configured for 'gpt-4o' tokenization.
- * These functions are essential for managing token limits and estimating costs
- * when interacting with language models.
+ * @fileoverview Lightweight, dependency-free token counters with model-configurable heuristics.
+ * This avoids native/WASM dependencies (e.g., tiktoken) while providing a stable extension point
+ * to adjust per-model tokenization and overhead later.
  * @module src/utils/metrics/tokenCounter
  */
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { Tiktoken, TiktokenModel, encoding_for_model } from 'tiktoken';
-
 import { JsonRpcErrorCode } from '../../types-global/errors.js';
 import { ErrorHandler, RequestContext, logger } from '../index.js';
 
-/**
- * The specific Tiktoken model used for all tokenization operations in this module.
- * This ensures consistent token counting.
- * @private
- */
-const TOKENIZATION_MODEL: TiktokenModel = 'gpt-4o';
+/** Minimal chat message shape to stay provider-agnostic. */
+export type ChatMessage = {
+  role: string;
+  content:
+    | string
+    | Array<{ type: string; text?: string; [k: string]: unknown }>
+    | null;
+  name?: string;
+  tool_calls?: Array<{
+    id?: string;
+    type?: string;
+    function?: { name?: string; arguments?: string };
+  }> | null;
+  tool_call_id?: string | null;
+};
 
-/**
- * Calculates the number of tokens for a given text string using the
- * tokenizer specified by `TOKENIZATION_MODEL`.
- * Wraps tokenization in `ErrorHandler.tryCatch` for robust error management.
- *
- * @param text - The input text to tokenize.
- * @param context - Optional request context for logging and error handling.
- * @returns A promise that resolves with the number of tokens in the text.
- * @throws {McpError} If tokenization fails.
- */
+/** Heuristic model schema. Extend as needed per model. */
+export interface ModelHeuristics {
+  charsPerToken: number; // average chars per token; ~4 for English
+  tokensPerMessage: number; // message overhead
+  tokensPerName: number; // extra if name present
+  replyPrimer: number; // priming tokens for assistant reply
+}
+
+const DEFAULT_MODEL = 'gpt-4o';
+
+// Known heuristics; tweak as you calibrate
+const HEURISTICS: Record<string, ModelHeuristics> = {
+  'gpt-4o': {
+    charsPerToken: 4,
+    tokensPerMessage: 3,
+    tokensPerName: 1,
+    replyPrimer: 3,
+  },
+  'gpt-4o-mini': {
+    charsPerToken: 4,
+    tokensPerMessage: 3,
+    tokensPerName: 1,
+    replyPrimer: 3,
+  },
+  default: {
+    charsPerToken: 4,
+    tokensPerMessage: 3,
+    tokensPerName: 1,
+    replyPrimer: 3,
+  },
+};
+
+function getModelHeuristics(model?: string): ModelHeuristics {
+  const key = (model ?? DEFAULT_MODEL).toLowerCase();
+  const found = HEURISTICS[key];
+  return (found ?? HEURISTICS.default) as ModelHeuristics;
+}
+
+function nonEmptyString(s: unknown): s is string {
+  return typeof s === 'string' && s.length > 0;
+}
+
+function approxTokenCount(text: string, charsPerToken: number): number {
+  if (!text) return 0;
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) return 0;
+  return Math.ceil(normalized.length / Math.max(1, charsPerToken));
+}
+
 export async function countTokens(
   text: string,
   context?: RequestContext,
+  model?: string,
 ): Promise<number> {
   return ErrorHandler.tryCatch(
     () => {
-      let encoding: Tiktoken | null = null;
-      try {
-        encoding = encoding_for_model(TOKENIZATION_MODEL);
-        const tokens = encoding.encode(text);
-        return tokens.length;
-      } finally {
-        encoding?.free();
-      }
+      const h: ModelHeuristics = getModelHeuristics(model);
+      return approxTokenCount(text ?? '', h.charsPerToken);
     },
     {
       operation: 'countTokens',
       ...(context && { context }),
-      input: { textSample: text.substring(0, 50) + '...' },
+      input: {
+        textSample: nonEmptyString(text)
+          ? text.length > 53
+            ? `${text.slice(0, 50)}...`
+            : text
+          : '',
+      },
       errorCode: JsonRpcErrorCode.InternalError,
     },
   );
 }
 
-/**
- * Calculates the estimated number of tokens for an array of chat messages.
- * Uses the tokenizer specified by `TOKENIZATION_MODEL` and accounts for
- * special tokens and message overhead according to OpenAI's guidelines.
- *
- * For multi-part content, only text parts are currently tokenized.
- *
- * Reference: {@link https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb}
- *
- * @param messages - An array of chat messages.
- * @param context - Optional request context for logging and error handling.
- * @returns A promise that resolves with the estimated total number of tokens.
- * @throws {McpError} If tokenization fails.
- */
 export async function countChatTokens(
-  messages: ReadonlyArray<ChatCompletionMessageParam>,
+  messages: ReadonlyArray<ChatMessage>,
   context?: RequestContext,
+  model?: string,
 ): Promise<number> {
   return ErrorHandler.tryCatch(
     () => {
-      let encoding: Tiktoken | null = null;
-      let num_tokens = 0;
-      try {
-        encoding = encoding_for_model(TOKENIZATION_MODEL);
+      const h: ModelHeuristics = getModelHeuristics(model);
+      let tokens = 0;
 
-        const tokens_per_message = 3; // For gpt-4o, gpt-4, gpt-3.5-turbo
-        const tokens_per_name = 1; // For gpt-4o, gpt-4, gpt-3.5-turbo
+      for (const message of messages) {
+        tokens += h.tokensPerMessage;
 
-        for (const message of messages) {
-          num_tokens += tokens_per_message;
-          num_tokens += encoding.encode(message.role).length;
+        // role contribution (very small; approximate as 1)
+        tokens += 1;
 
-          if (typeof message.content === 'string') {
-            num_tokens += encoding.encode(message.content).length;
-          } else if (Array.isArray(message.content)) {
-            for (const part of message.content) {
-              if (part.type === 'text') {
-                num_tokens += encoding.encode(part.text).length;
-              } else {
-                logger.warning(
-                  `Non-text content part found (type: ${part.type}), token count contribution ignored.`,
-                  context,
+        // content
+        if (typeof message.content === 'string') {
+          tokens += approxTokenCount(message.content, h.charsPerToken);
+        } else if (Array.isArray(message.content)) {
+          for (const part of message.content) {
+            if (part && part.type === 'text' && nonEmptyString(part.text)) {
+              tokens += approxTokenCount(part.text, h.charsPerToken);
+            } else if (part) {
+              logger.warning(
+                `Non-text content part found (type: ${String(part.type)}), token count contribution ignored.`,
+                context,
+              );
+            }
+          }
+        }
+
+        // optional name
+        if (message.name) {
+          tokens += h.tokensPerName;
+          tokens += approxTokenCount(message.name, h.charsPerToken);
+        }
+
+        // assistant tool calls
+        if (message.role === 'assistant' && Array.isArray(message.tool_calls)) {
+          for (const toolCall of message.tool_calls) {
+            if (toolCall?.type === 'function') {
+              if (toolCall.function?.name) {
+                tokens += approxTokenCount(
+                  toolCall.function.name,
+                  h.charsPerToken,
+                );
+              }
+              if (toolCall.function?.arguments) {
+                tokens += approxTokenCount(
+                  toolCall.function.arguments,
+                  h.charsPerToken,
                 );
               }
             }
           }
-
-          if ('name' in message && message.name) {
-            num_tokens += tokens_per_name;
-            num_tokens += encoding.encode(message.name).length;
-          }
-
-          if (
-            message.role === 'assistant' &&
-            'tool_calls' in message &&
-            message.tool_calls
-          ) {
-            for (const tool_call of message.tool_calls) {
-              if (tool_call.type === 'function') {
-                if (tool_call.function?.name) {
-                  num_tokens += encoding.encode(tool_call.function.name).length;
-                }
-                if (tool_call.function?.arguments) {
-                  num_tokens += encoding.encode(
-                    tool_call.function.arguments,
-                  ).length;
-                }
-              }
-            }
-          }
-
-          if (
-            message.role === 'tool' &&
-            'tool_call_id' in message &&
-            message.tool_call_id
-          ) {
-            num_tokens += encoding.encode(message.tool_call_id).length;
-          }
         }
-        num_tokens += 3; // Every reply is primed with <|start|>assistant<|message|>
-        return num_tokens;
-      } finally {
-        encoding?.free();
+
+        // tool message id
+        if (message.role === 'tool' && message.tool_call_id) {
+          tokens += approxTokenCount(message.tool_call_id, h.charsPerToken);
+        }
       }
+
+      tokens += h.replyPrimer;
+      return tokens;
     },
     {
       operation: 'countChatTokens',
@@ -145,3 +172,5 @@ export async function countChatTokens(
     },
   );
 }
+// Intentionally no generic helpers; the return above asserts to satisfy
+// TypeScript with noUncheckedIndexedAccess while remaining safe at runtime.

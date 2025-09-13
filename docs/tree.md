@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-10 02:26:57
+Generated on: 2025-09-13 03:02:54
 
 ```
 mcp-ts-template
@@ -36,7 +36,6 @@ mcp-ts-template
 │   └── settings.json
 ├── changelog
 │   └── archive1.md
-├── coverage
 ├── docs
 │   └── tree.md
 ├── scripts
@@ -118,12 +117,15 @@ mcp-ts-template
 │   ├── utils
 │   │   ├── internal
 │   │   │   ├── errorHandler.ts
+│   │   │   ├── health.ts
 │   │   │   ├── index.ts
 │   │   │   ├── logger.ts
 │   │   │   ├── performance.ts
-│   │   │   └── requestContext.ts
+│   │   │   ├── requestContext.ts
+│   │   │   └── runtime.ts
 │   │   ├── metrics
 │   │   │   ├── index.ts
+│   │   │   ├── registry.ts
 │   │   │   └── tokenCounter.ts
 │   │   ├── network
 │   │   │   ├── fetchWithTimeout.ts
@@ -141,8 +143,10 @@ mcp-ts-template
 │   │   │   ├── rateLimiter.ts
 │   │   │   └── sanitization.ts
 │   │   ├── telemetry
+│   │   │   ├── index.ts
 │   │   │   ├── instrumentation.ts
-│   │   │   └── semconv.ts
+│   │   │   ├── semconv.ts
+│   │   │   └── trace.ts
 │   │   └── index.ts
 │   └── index.ts
 ├── tests

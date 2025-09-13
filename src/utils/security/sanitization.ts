@@ -82,16 +82,19 @@ export class Sanitization {
     'password',
     'token',
     'secret',
-    'key',
     'apiKey',
     'auth',
     'credential',
     'jwt',
     'ssn',
-    'credit',
-    'card',
     'cvv',
     'authorization',
+    'cookie',
+    'clientsecret',
+    'client_secret',
+    'private_key',
+    'privatekey',
+    'x-api-key',
   ];
 
   /**
@@ -100,40 +103,61 @@ export class Sanitization {
    */
   private defaultHtmlSanitizeConfig: HtmlSanitizeConfig = {
     allowedTags: [
+      // === Structure & Sectioning ===
+      'div',
+      'span',
+      'p',
+      'br',
+      'hr',
+      'header',
+      'footer',
+      'nav',
+      'article',
+      'section',
+      'aside',
+      // === Headings & Text Content ===
       'h1',
       'h2',
       'h3',
       'h4',
       'h5',
       'h6',
-      'p',
-      'a',
+      'strong',
+      'em',
+      'b',
+      'i',
+      'strike',
+      'blockquote',
+      // === Code ===
+      'code',
+      'pre',
+      // === Lists ===
       'ul',
       'ol',
       'li',
-      'b',
-      'i',
-      'strong',
-      'em',
-      'strike',
-      'code',
-      'hr',
-      'br',
-      'div',
+      // === Tables ===
       'table',
       'thead',
       'tbody',
       'tr',
       'th',
       'td',
-      'pre',
+      // === Media & Links ===
+      'a',
+      'img',
+      'figure',
+      'figcaption',
     ],
     allowedAttributes: {
-      a: ['href', 'name', 'target'],
-      img: ['src', 'alt', 'title', 'width', 'height'],
-      '*': ['class', 'id', 'style'],
+      a: ['href', 'name', 'target', 'rel', 'title'],
+      img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
+      // Allow data attributes, class, id, and style on all tags
+      '*': ['class', 'id', 'style', 'data-*'],
+      // Table-specific attributes
+      th: ['scope'],
+      td: ['colspan', 'rowspan'],
     },
-    preserveComments: false,
+    preserveComments: true,
   };
 
   /** @private */

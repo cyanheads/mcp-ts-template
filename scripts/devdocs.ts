@@ -3,12 +3,11 @@
  * This script combines a repository file tree with 'repomix' output for specified files,
  * wraps it in a detailed prompt, and copies the result to the clipboard.
  *
- * To run: bun run devdocs -- <file1> <file2> ...
- * Example: bun run devdocs -- src/
+ * To run: npm run devdocs -- <file1> <file2> ...
+ * Example: npm run devdocs -- src/
  */
 import { execSync } from 'child_process';
 import * as fs from 'fs';
-// Avoid minimist to keep types safe under strict lint rules
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -70,7 +69,12 @@ const runCommand = (command: string, inheritStdio = true): string | void => {
       return result?.toString().trim();
     }
   } catch (error) {
-    console.error(`Error executing command: "${command}"`, error);
+    console.error(`Error executing command: "${command}"`);
+    if (error instanceof Error) {
+      console.error(error.stack || error.message);
+    } else {
+      console.error(String(error));
+    }
     throw error;
   }
 };
@@ -98,13 +102,13 @@ const generateFileTree = (rootDir: string): string => {
   log('Generating file tree...');
   const treeScriptPath = path.resolve(rootDir, 'scripts', 'tree.ts');
   const treeDocPath = path.resolve(rootDir, 'docs', 'tree.md');
-  runCommand(`bunx tsx "${treeScriptPath}"`);
+  runCommand(`npx tsx "${treeScriptPath}"`);
   log(`File tree generated at ${path.relative(rootDir, treeDocPath)}`);
   return fs.readFileSync(treeDocPath, 'utf-8');
 };
 
 const getRepomixOutputs = (filePaths: string[]): string => {
-  const allOutputs: string[] = filePaths
+  const allOutputs = filePaths
     .map((filePath) => {
       if (!fs.existsSync(filePath)) {
         log(
@@ -114,7 +118,7 @@ const getRepomixOutputs = (filePaths: string[]): string => {
       }
       log(`Running repomix on ${filePath}...`);
       // Use '-o -' to pipe repomix output to stdout
-      const output = runCommand(`bunx repomix "${filePath}" -o -`, false);
+      const output = runCommand(`npx repomix "${filePath}" -o -`, false);
       if (output) {
         log('Repomix analysis complete.');
         return output;
@@ -122,7 +126,7 @@ const getRepomixOutputs = (filePaths: string[]): string => {
       log(`Warning: Repomix produced no output for ${filePath}. Skipping.`);
       return null;
     })
-    .filter((v): v is string => typeof v === 'string');
+    .filter(Boolean);
 
   return allOutputs.join('\n\n---\n\n');
 };
@@ -188,10 +192,10 @@ const createDevDocsFile = (
 
 // --- Main Execution ---
 
-const main = (): void => {
-  const argv = process.argv.slice(2);
-  const includeRules = argv.includes('--include-rules');
-  const filePaths: string[] = argv.filter((a) => !a.startsWith('--'));
+const main = () => {
+  const rawArgs = process.argv.slice(2);
+  const includeRules = rawArgs.includes('--include-rules');
+  const filePaths = rawArgs.filter((arg) => !arg.startsWith('--'));
 
   if (filePaths.length === 0) {
     log('Error: Please provide at least one file path for repomix.');
@@ -227,9 +231,13 @@ const main = (): void => {
     copyToClipboard(devDocsPath);
 
     log('All tasks completed successfully.');
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('\nAn unexpected error occurred. Aborting.', errorMessage);
+  } catch (error) {
+    console.error('\nAn unexpected error occurred. Aborting.');
+    if (error instanceof Error) {
+      console.error(error.stack || error.message);
+    } else {
+      console.error(String(error));
+    }
     process.exit(1);
   }
 };

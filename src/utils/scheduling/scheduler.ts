@@ -34,10 +34,9 @@ export class SchedulerService {
 
   /** @private */
   private constructor() {
-    logger.info('SchedulerService initialized.', {
-      requestId: 'scheduler-init',
-      timestamp: new Date().toISOString(),
-    });
+    // The constructor is intentionally left empty to prevent instantiation with 'new'.
+    // Logging has been removed from here to break a circular dependency
+    // with the logger, which was causing a ReferenceError on startup.
   }
 
   /**

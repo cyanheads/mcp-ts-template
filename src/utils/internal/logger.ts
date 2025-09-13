@@ -1,8 +1,7 @@
 /**
- * @fileoverview Provides a singleton Logger class that wraps Winston for file logging
- * and supports sending MCP (Model Context Protocol) `notifications/message`.
- * It handles different log levels compliant with RFC 5424 and MCP specifications,
- * and includes features like automatic context sanitization and rate limiting.
+ * @fileoverview Winston-backed singleton logger with MCP notifications.
+ * RFC5424 level mapping, sanitized structured meta, rate limiting, and
+ * clean shutdown. Console transport auto-enables in debug + TTY.
  * @module src/utils/internal/logger
  */
 import path from 'path';
@@ -170,14 +169,20 @@ export class Logger {
   >();
   private suppressedMessages = new Map<string, number>();
 
+  private cleanupTimer?: ReturnType<typeof setInterval>;
+
   private readonly MCP_NOTIFICATION_STACK_TRACE_MAX_LENGTH = 1024;
   private readonly LOG_FILE_MAX_SIZE = 5 * 1024 * 1024; // 5MB
   private readonly LOG_MAX_FILES = 5;
 
   /** @private */
   private constructor() {
-    // Periodically flush suppressed message counts
-    setInterval(() => this.flushSuppressedMessages(), this.rateLimitWindow);
+    // Periodically flush suppressed message counts; do not keep process alive
+    this.cleanupTimer = setInterval(
+      () => this.flushSuppressedMessages(),
+      this.rateLimitWindow,
+    );
+    this.cleanupTimer.unref?.();
   }
 
   /**
@@ -226,7 +231,11 @@ export class Logger {
           ...fileTransportOptions,
         }),
       );
-    } else if (process.stdout.isTTY) {
+    } else if (
+      typeof process !== 'undefined' &&
+      process.stdout &&
+      process.stdout.isTTY
+    ) {
       console.warn(
         'File logging disabled as logsPath is not configured or invalid.',
       );
@@ -292,6 +301,10 @@ export class Logger {
     });
   }
 
+  public isInitialized(): boolean {
+    return this.initialized;
+  }
+
   public setLevel(newLevel: McpLogLevel): void {
     const setLevelContext: RequestContext = {
       loggerSetup: true,
@@ -299,7 +312,11 @@ export class Logger {
       timestamp: new Date().toISOString(),
     };
     if (!this.ensureInitialized()) {
-      if (process.stdout.isTTY) {
+      if (
+        typeof process !== 'undefined' &&
+        process.stdout &&
+        process.stdout.isTTY
+      ) {
         console.error('Cannot set level: Logger not initialized.');
       }
       return;
@@ -329,6 +346,43 @@ export class Logger {
     }
   }
 
+  /**
+   * Flushes transports and clears internal timers. Call during shutdown.
+   */
+  public close(): Promise<void> {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      // Remove property to satisfy exactOptionalPropertyTypes
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore-next-line
+      delete this.cleanupTimer;
+    }
+    // Flush any suppressed info before transports close
+    this.flushSuppressedMessages();
+
+    const maybeClose = (t: unknown): void => {
+      const closable = t as { close?: () => void };
+      if (closable && typeof closable.close === 'function') {
+        try {
+          closable.close();
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    const closeTransports = (lg?: winston.Logger) => {
+      const transports = (lg?.transports ?? []) as unknown as Array<{
+        close?: () => void;
+      }>;
+      transports.forEach((t) => maybeClose(t));
+    };
+
+    closeTransports(this.winstonLogger);
+    closeTransports(this.interactionLogger);
+    return Promise.resolve();
+  }
+
   private _configureConsoleTransport(): {
     enabled: boolean;
     message: string | null;
@@ -344,7 +398,10 @@ export class Logger {
       (t) => t instanceof winston.transports.Console,
     );
     const shouldHaveConsole =
-      this.currentMcpLevel === 'debug' && process.stdout.isTTY;
+      this.currentMcpLevel === 'debug' &&
+      typeof process !== 'undefined' &&
+      !!process.stdout &&
+      !!process.stdout.isTTY;
     let message: string | null = null;
 
     if (shouldHaveConsole && !consoleTransport) {
@@ -370,7 +427,7 @@ export class Logger {
   }
 
   public static resetForTesting(): void {
-    if (process.env.NODE_ENV !== 'test') {
+    if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test') {
       console.warn(
         'Warning: `resetForTesting` should only be called in a test environment.',
       );
@@ -381,7 +438,11 @@ export class Logger {
 
   private ensureInitialized(): boolean {
     if (!this.initialized || !this.winstonLogger) {
-      if (process.stdout.isTTY) {
+      if (
+        typeof process !== 'undefined' &&
+        process.stdout &&
+        process.stdout.isTTY
+      ) {
         console.warn('Logger not initialized; message dropped.');
       }
       return false;

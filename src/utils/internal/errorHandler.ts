@@ -1,8 +1,7 @@
 /**
- * @fileoverview This module provides utilities for robust error handling.
- * It defines structures for error context, options for handling errors,
- * and mappings for classifying errors. The main `ErrorHandler` class
- * offers static methods for consistent error processing, logging, and transformation.
+ * @fileoverview Robust, trace-aware error handling utilities.
+ * Classifies, maps, and formats errors with sanitized context. Integrates
+ * OpenTelemetry status/exception recording but avoids manual spans elsewhere.
  * @module src/utils/internal/errorHandler
  */
 import { SpanStatusCode, trace } from '@opentelemetry/api';
@@ -147,6 +146,7 @@ const ERROR_TYPE_MAPPINGS: Readonly<Record<string, JsonRpcErrorCode>> = {
   RangeError: JsonRpcErrorCode.ValidationError,
   URIError: JsonRpcErrorCode.ValidationError,
   EvalError: JsonRpcErrorCode.InternalError,
+  AggregateError: JsonRpcErrorCode.InternalError,
 };
 
 /**
@@ -186,8 +186,16 @@ const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
     errorCode: JsonRpcErrorCode.Timeout,
   },
   {
+    pattern: /abort(ed)?|cancell?ed/i,
+    errorCode: JsonRpcErrorCode.Timeout,
+  },
+  {
     pattern: /service unavailable|bad gateway|gateway timeout|upstream error/i,
     errorCode: JsonRpcErrorCode.ServiceUnavailable,
+  },
+  {
+    pattern: /zod|zoderror|schema validation/i,
+    errorCode: JsonRpcErrorCode.ValidationError,
   },
 ];
 
@@ -245,6 +253,18 @@ function getErrorName(error: unknown): string {
  */
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
+    // AggregateError should surface combined messages succinctly
+    if (
+      'errors' in error &&
+      Array.isArray((error as unknown as { errors: unknown[] }).errors)
+    ) {
+      const inner = (error as unknown as { errors: unknown[] }).errors
+        .map((e) => (e instanceof Error ? e.message : String(e)))
+        .filter(Boolean)
+        .slice(0, 3)
+        .join('; ');
+      return inner ? `${error.message}: ${inner}` : error.message;
+    }
     return error.message;
   }
   if (error === null) {
@@ -318,6 +338,15 @@ export class ErrorHandler {
         return mapping.errorCode;
       }
     }
+    // Special-case common platform errors
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      (error as { name?: string }).name === 'AbortError'
+    ) {
+      return JsonRpcErrorCode.Timeout;
+    }
     return JsonRpcErrorCode.InternalError;
   }
 
@@ -386,6 +415,25 @@ export class ErrorHandler {
     }
 
     const cause = error instanceof Error ? error : undefined;
+    const rootCause = (() => {
+      let current: unknown = cause;
+      let depth = 0;
+      while (
+        current &&
+        current instanceof Error &&
+        current.cause &&
+        depth < 5
+      ) {
+        current = current.cause as unknown;
+        depth += 1;
+      }
+      return current instanceof Error
+        ? { name: current.name, message: current.message }
+        : undefined;
+    })();
+    if (rootCause) {
+      consolidatedData['rootCause'] = rootCause;
+    }
 
     if (error instanceof McpError) {
       loggedErrorCode = error.code;
@@ -425,7 +473,9 @@ export class ErrorHandler {
         ? context.timestamp
         : new Date().toISOString();
 
-    const logPayload: Record<string, unknown> = {
+    const stack =
+      finalError instanceof Error ? finalError.stack : originalStack;
+    const logContext: RequestContext = {
       requestId: logRequestId,
       timestamp: logTimestamp,
       operation,
@@ -439,25 +489,16 @@ export class ErrorHandler {
           ([key]) => key !== 'requestId' && key !== 'timestamp',
         ),
       ),
+      errorData:
+        finalError instanceof McpError && finalError.data
+          ? finalError.data
+          : consolidatedData,
+      ...(includeStack && stack ? { stack } : {}),
     };
-
-    if (finalError instanceof McpError && finalError.data) {
-      logPayload.errorData = finalError.data;
-    } else {
-      logPayload.errorData = consolidatedData;
-    }
-
-    if (includeStack) {
-      const stack =
-        finalError instanceof Error ? finalError.stack : originalStack;
-      if (stack) {
-        logPayload.stack = stack;
-      }
-    }
 
     logger.error(
       `Error in ${operation}: ${finalError.message || originalErrorMessage}`,
-      logPayload as unknown as RequestContext, // Cast to RequestContext for logger compatibility
+      logContext,
     );
 
     if (rethrow) {

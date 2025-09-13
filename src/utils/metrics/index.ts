@@ -6,3 +6,4 @@
  */
 
 export * from './tokenCounter.js';
+export * from './registry.js';
