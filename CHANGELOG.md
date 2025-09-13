@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.0-alpha.6] - 2025-09-13
+
+### Refactored
+
+- **DI Container**: Re-organized DI container registration into modular files under `src/container/registrations/` for core, MCP, and transport services. This improves separation of concerns and makes the container configuration more scannable and maintainable.
+
+### Changed
+
+- **Dependencies**: Updated `bun.lock` and `package.json` with the latest dependency versions.
+
 ## [2.0.0-alpha.5] - 2025-09-13
 
 ### Refactored
