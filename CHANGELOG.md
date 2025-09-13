@@ -4,7 +4,34 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
-## [2.0.0-v2] - 2025-09-12
+## [2.0.0-03] - 2025-09-12
+
+### BREAKING CHANGE
+
+- **Architectural Refactor: Dependency Injection with `tsyringe`**: The entire application architecture was refactored to use a Dependency Injection (DI) container (`tsyringe`). This is a fundamental shift from manual instantiation and singletons to a more robust, maintainable, and testable architecture. All major components, including services, providers, transports, and strategies, are now resolved through the container.
+
+### Added
+
+- **Dependency Injection Container**: Introduced `tsyringe` for managing object lifecycles and dependencies. A central container is configured in `src/container/index.ts` with registration tokens in `src/container/tokens.ts`.
+- **Modular Registration**: Created `src/mcp-server/tools/tool-registration.ts` and `src/mcp-server/resources/resource-registration.ts` to modularize tool and resource registration with the DI container.
+- **`ILlmProvider` Interface**: Added `src/services/llm-providers/ILlmProvider.ts` to define a standard contract for LLM providers, enabling easier swapping of implementations.
+- **New `clinerules`**: Added a new `.clinerules/clinerules.md` file to replace the old `AGENTS.md`.
+
+### Changed
+
+- **Application Bootstrap**: The main entry point (`src/index.ts`) now initializes the DI container to bootstrap the application.
+- **Server Initialization**: `src/mcp-server/server.ts` now resolves tool and resource definitions from the container instead of importing them directly.
+- **Transport Layer**: `StatefulTransportManager` and `httpTransport` are now managed by the container. The `TransportManager` is resolved via a token (`TransportManagerToken`).
+- **Authentication**: Authentication strategies (`JwtStrategy`, `OauthStrategy`) are now injectable classes that receive their dependencies (config, logger) via the constructor.
+- **Services Refactoring**: Core services like `OpenRouterProvider` and `RateLimiter` have been refactored into injectable classes, receiving dependencies from the container.
+- **Configuration & Logging**: The application `config` and `logger` are now registered as values in the container and injected into dependent classes.
+
+### Removed
+
+- **Legacy `AGENTS.md`**: Deleted the old `AGENTS.md` and `.github/workflows/sync-agents-md.yml` as they are replaced by the new `.clinerules/clinerules.md`.
+- **Manual Instantiation**: Removed manual singleton creation for services like `openRouterProvider` and `rateLimiter`.
+
+## [2.0.0-02] - 2025-09-12
 
 ### Added
 

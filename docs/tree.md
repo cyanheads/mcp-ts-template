@@ -1,15 +1,14 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-13 03:02:54
+Generated on: 2025-09-13 04:29:04
 
 ```
 mcp-ts-template
 ├── .clinerules
-│   └── AGENTS.md
+│   └── clinerules.md
 ├── .github
 │   ├── workflows
-│   │   ├── publish.yml
-│   │   └── sync-agents-md.yml
+│   │   └── publish.yml
 │   └── FUNDING.yml
 ├── .husky
 │   ├── _
@@ -49,21 +48,26 @@ mcp-ts-template
 ├── src
 │   ├── config
 │   │   └── index.ts
+│   ├── container
+│   │   ├── index.ts
+│   │   └── tokens.ts
 │   ├── mcp-server
 │   │   ├── resources
 │   │   │   ├── definitions
 │   │   │   │   └── echo.resource.ts
-│   │   │   └── utils
-│   │   │       ├── resourceDefinition.ts
-│   │   │       └── resourceHandlerFactory.ts
+│   │   │   ├── utils
+│   │   │   │   ├── resourceDefinition.ts
+│   │   │   │   └── resourceHandlerFactory.ts
+│   │   │   └── resource-registration.ts
 │   │   ├── tools
 │   │   │   ├── definitions
 │   │   │   │   ├── template-cat-fact.tool.ts
 │   │   │   │   ├── template-echo-message.tool.ts
 │   │   │   │   └── template-image-test.tool.ts
-│   │   │   └── utils
-│   │   │       ├── toolDefinition.ts
-│   │   │       └── toolHandlerFactory.ts
+│   │   │   ├── utils
+│   │   │   │   ├── toolDefinition.ts
+│   │   │   │   └── toolHandlerFactory.ts
+│   │   │   └── tool-registration.ts
 │   │   ├── transports
 │   │   │   ├── auth
 │   │   │   │   ├── lib
@@ -81,6 +85,7 @@ mcp-ts-template
 │   │   │   │   ├── baseTransportManager.ts
 │   │   │   │   ├── headerUtils.ts
 │   │   │   │   ├── honoNodeBridge.ts
+│   │   │   │   ├── index.ts
 │   │   │   │   ├── statefulTransportManager.ts
 │   │   │   │   ├── statelessTransportManager.ts
 │   │   │   │   └── transportTypes.ts
@@ -96,6 +101,7 @@ mcp-ts-template
 │   │   └── server.ts
 │   ├── services
 │   │   └── llm-providers
+│   │       ├── ILlmProvider.ts
 │   │       └── openRouterProvider.ts
 │   ├── storage
 │   │   ├── core

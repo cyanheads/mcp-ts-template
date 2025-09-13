@@ -31,7 +31,28 @@ This document defines the operational rules for contributing to this codebase. F
 
 ---
 
-## II. Tool Development Workflow
+## II. Architectural Philosophy: Pragmatic SOLID
+
+SOLID principles are the foundation for building maintainable, decoupled, and testable systems. They are not rigid laws, but a toolkit for making sound architectural decisions. The guiding question should always be: **"Does this design help build and maintain the system effectively?"**
+
+This is complemented by other core principles:
+- **KISS (Keep It Simple, Stupid):** Avoid over-engineering to satisfy a principle. The simplest code is often the most maintainable.
+- **YAGNI (You Ain't Gonna Need It):** Defer building complex abstractions until they are necessary.
+- **Composition over Inheritance:** This is the preferred approach, as it naturally leads to more flexible and decoupled systems.
+
+### Modern Interpretation of SOLID
+
+| Principle | The Goal |
+| :--- | :--- |
+| **S** - Single Responsibility | **Group code that changes together.** A class or module should be cohesive and focused on a single concept, actor, or domain in the system. |
+| **O** - Open/Closed | **Make it easy to add new features without breaking existing ones.** Use abstractions like interfaces, plugins, and middleware to allow for extension. |
+| **L** - Liskov Substitution | **Your abstractions must not be leaky or surprising.** Subtypes must be substitutable for their base types without altering the correctness of the program. |
+| **I** - Interface Segregation | **Keep interfaces small and focused.** Do not force clients to depend on methods they do not use. This is key to modular, service-oriented design. |
+| **D** - Dependency Inversion | **Depend on abstractions, not on concrete details.** This is the core idea behind Dependency Injection and is absolutely critical for testability and decoupling. |
+
+---
+
+## III. Tool Development Workflow
 
 This is the only approved workflow for authoring or modifying tools.
 
