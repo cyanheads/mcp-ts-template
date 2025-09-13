@@ -31,7 +31,29 @@ This document defines the operational rules for contributing to this codebase. F
 
 ---
 
-## II. Tool Development Workflow
+## II. Architectural Philosophy: Pragmatic SOLID
+
+SOLID principles are the foundation for building maintainable, decoupled, and testable systems. They are not rigid laws, but a toolkit for making sound architectural decisions. The guiding question should always be: **"Does this design help build and maintain the system effectively?"**
+
+This is complemented by other core principles:
+
+- **KISS (Keep It Simple, Stupid):** Avoid over-engineering to satisfy a principle. The simplest code is often the most maintainable.
+- **YAGNI (You Ain't Gonna Need It):** Defer building complex abstractions until they are necessary.
+- **Composition over Inheritance:** This is the preferred approach, as it naturally leads to more flexible and decoupled systems.
+
+### Modern Interpretation of SOLID
+
+| Principle                     | The Goal                                                                                                                                                          |
+| :---------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **S** - Single Responsibility | **Group code that changes together.** A class or module should be cohesive and focused on a single concept, actor, or domain in the system.                       |
+| **O** - Open/Closed           | **Make it easy to add new features without breaking existing ones.** Use abstractions like interfaces, plugins, and middleware to allow for extension.            |
+| **L** - Liskov Substitution   | **Your abstractions must not be leaky or surprising.** Subtypes must be substitutable for their base types without altering the correctness of the program.       |
+| **I** - Interface Segregation | **Keep interfaces small and focused.** Do not force clients to depend on methods they do not use. This is key to modular, service-oriented design.                |
+| **D** - Dependency Inversion  | **Depend on abstractions, not on concrete details.** This is the core idea behind Dependency Injection and is absolutely critical for testability and decoupling. |
+
+---
+
+## III. Tool Development Workflow
 
 This is the only approved workflow for authoring or modifying tools.
 
@@ -53,12 +75,13 @@ Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 - annotations (optional): Hints like `{ readOnlyHint, openWorldHint }`.
 - responseFormatter (optional): Map successful output to `ContentBlock[]` when non-JSON output is preferred (e.g., images).
 
-Step 3 — Register the Tool
+Step 3 — Register the Tool with the DI Container
 
-- Edit `src/mcp-server/server.ts` and import the new tool.
-- Register it using the existing helper: `await registerTool(server, yourNewTool);`.
-  The helper constructs the handler via `createMcpToolHandler` and registers schemas and annotations.
-  Title precedence at registration: `tool.title ?? tool.annotations?.title ?? deriveTitleFromName(tool.name)`.
+- Open `src/mcp-server/tools/tool-registration.ts`.
+- Import your new tool definition.
+- Add it to the container using `container.register(ToolDefinitions, { useValue: yourNewTool });`.
+
+This is the **only** place you need to register your new tool. The DI container and server will handle the rest.
 
 Example src/mcp-server/tools/definitions/template-echo-message.tool.ts
 
@@ -285,7 +308,7 @@ Note: For binary or image outputs, provide a `responseFormatter` that returns `C
 
 ## IV. Resource Development Workflow
 
-This mirrors the tools pattern with a definition-based approach and a generic registrar.
+This mirrors the tools pattern with a definition-based approach.
 
 Step 1 — File Location
 
@@ -293,36 +316,13 @@ Step 1 — File Location
 - Name files `[resource-name].resource.ts`.
 
 Step 2 — Define the ResourceDefinition
-Export a single `const` of type `ResourceDefinition` with:
+Export a single `const` of type `ResourceDefinition` with the required properties (name, description, logic, etc.).
 
-- name: Programmatic resource name (e.g., `"echo-resource"`).
-- description: What the resource returns/do.
-- uriTemplate: e.g., `"echo://{message}"`.
-- paramsSchema: Zod `z.object({ ... })` validating route/template params; every field should have `.describe()`.
-- outputSchema (recommended): Zod `z.object({ ... })` describing the returned payload.
-- logic: `(uri, params, context) => { ... }` pure logic; no try/catch; throw `McpError` on failure.
-- annotations (optional): Hints like `{ readOnlyHint, openWorldHint }`.
-- examples (optional): `{ name, uri }[]` to aid discovery.
-- list (optional): A function returning `ListResourcesResult` for discovery.
-- responseFormatter (optional): Map logic result to `ReadResourceResult.contents` for custom mime output.
+Step 3 — Register the Resource with the DI Container
 
-References
-
-- Definition: `src/mcp-server/resources/utils/resourceDefinition.ts`
-- Registrar: `src/mcp-server/resources/utils/resourceHandlerFactory.ts` (`registerResource`)
-- Example: `src/mcp-server/resources/definitions/echo.resource.ts`
-
-Step 3 — Register the Resource
-
-- Edit `src/mcp-server/server.ts` and import your definition.
-- Register it directly (mirrors tools):
-
-```ts
-import { myResourceDefinition } from './resources/definitions/my.resource.js';
-import { registerResource } from './resources/utils/resourceHandlerFactory.js';
-
-await registerResource(server, myResourceDefinition);
-```
+- Open `src/mcp-server/resources/resource-registration.ts`.
+- Import your new resource definition.
+- Add it to the container using `container.register(ResourceDefinitions, { useValue: yourNewResource });`.
 
 Handler Responsibilities (Implicit)
 
@@ -340,42 +340,32 @@ Logic Responsibilities (Explicit)
 
 ---
 
-## III. Core Services & Utilities
+## V. Core Services & Utilities (via DI)
 
-Use these singletons/utilities; do not reimplement them. They are logging/trace aware.
+All core services are managed by the DI container. **Do not create instances manually.** Inject them into your classes' constructors using `tsyringe`'s `@injectable()` and `@inject()` decorators.
 
-- requestContextService (src/utils/internal/requestContext.ts): Create and manage `RequestContext`.
-  - Usage: `const context = requestContextService.createRequestContext({ operation: "MyOp" });`
-  - Rule: Start every operation by creating a context and pass it down.
+- **`ILlmProvider`**: Interface for LLM-related operations.
+  - **Token**: `LlmProvider`
+  - **Usage**: `@inject(LlmProvider) private llmProvider: ILlmProvider`
+- **`StorageService`**: Abstraction for persistence.
+  - **Token**: `StorageService`
+  - **Usage**: `@inject(StorageService) private storageService: StorageService`
+- **`RateLimiter`**: Service for rate-limiting operations.
+  - **Token**: `RateLimiterService`
+  - **Usage**: `@inject(RateLimiterService) private rateLimiter: RateLimiter`
 
-- logger (src/utils/internal/logger.ts): Centralized, structured logging.
-  - Usage: `logger.info("Message", context)` or `logger.info("Message", { ...context, extra })`.
-  - Rule: Never use `console.log`.
+The following utilities are still available for direct use:
 
-- ErrorHandler.tryCatch (src/utils/internal/errorHandler.ts): Robust wrapper for fallible operations outside tool logic.
-  - Usage: `await ErrorHandler.tryCatch(async () => { ... }, { operation: "MyOp", context });`
-  - Rule: Use in services/providers and bootstrapping; tool logic is already handled by the handler.
-
-- storageService (src/storage/core/StorageService.ts): Abstraction over configured storage provider.
-  - Usage: `await storageService.set(key, value, context)`; also `get`, `delete`, `list`.
-  - Rule: Never access storage directly.
-
-- openRouterProvider (src/services/llm-providers/openRouterProvider.ts): OpenRouter LLM gateway client.
-  - Usage: `await openRouterProvider.chatCompletion(params, context)`.
-
-- sanitization (src/utils/security/sanitization.ts): Input/path sanitization helpers.
-  - Usage: `sanitization.sanitizeHtml(str)`, `sanitization.sanitizePath(path)`.
-  - Rule: Sanitize untrusted input.
-
-- rateLimiter (src/utils/security/rateLimiter.ts): Rate limiting utility.
-  - Usage: `rateLimiter.check(identifier, context)` on public/resource-heavy flows.
+- `requestContextService` (src/utils/internal/requestContext.ts)
+- `ErrorHandler.tryCatch` (src/utils/internal/errorHandler.ts)
+- `sanitization` (src/utils/security/sanitization.ts)
 
 - measureToolExecution (src/utils/internal/performance.ts): Tool execution metrics wrapper.
   - Note: Invoked by the standardized handler; you do not call it directly from tool logic.
 
 ---
 
-## V. Checks & Workflow Commands
+## VI. Checks & Workflow Commands
 
 - Quick all-in-one checks (lint + typecheck): `bun run devcheck`
   - Use this (sparingly) after making changes.
@@ -385,7 +375,7 @@ Always prefer `bun run devcheck` to catch issues early.
 
 ---
 
-## IV. Code Quality & Security
+## VII. Code Quality & Security
 
 - JSDoc: Every file starts with `@fileoverview` and `@module`. Document all exported APIs.
 - Immutability: Prefer functional patterns; avoid reassignments.
@@ -397,12 +387,11 @@ Always prefer `bun run devcheck` to catch issues early.
 
 ---
 
-## V. Quick Checklist
+## VIII. Quick Checklist
 
-- Implement tool in `src/mcp-server/tools/definitions/[name].tool.ts` using the echo tool as a template.
+- Implement tool in `src/mcp-server/tools/definitions/[name].tool.ts`.
 - Keep logic pure; throw `McpError` for failures. No `try...catch` inside logic.
-- Use `logger` with `RequestContext` in every meaningful operation.
-- Use `storageService` for all persistence.
-- Add `annotations` and a `responseFormatter` when needed (e.g., images).
-- Register via `registerTool(server, myTool)` in `src/mcp-server/server.ts`.
-- Add tests in `tests/`; run `npm run test` and `npm run format`.
+- Use `logger` (preferably injected) with `RequestContext` in every meaningful operation.
+- Use injected `StorageService` for all persistence.
+- Register the tool in `src/mcp-server/tools/tool-registration.ts`.
+- Add tests in `tests/`; run `bun run test` and `bun run format`.
