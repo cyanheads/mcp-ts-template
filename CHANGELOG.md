@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.0-v2] - 2025-09-12
+
+### Added
+
+- **Health & Runtime Utils**: Introduced `src/utils/internal/health.ts` for health checks and `src/utils/internal/runtime.ts` for runtime assertions. (d3a1cdb)
+- **Metrics Registry**: Added `src/utils/metrics/registry.ts` to manage and register metrics collectors. (d3a1cdb)
+- **Centralized Telemetry**: Created `src/utils/telemetry/index.ts` and `src/utils/telemetry/trace.ts` to centralize OpenTelemetry tracing logic. (d3a1cdb)
+
+### Changed
+
+- **Core Refactoring**: Completed significant refactoring across the internal utility stack (`errorHandler`, `logger`, `performance`) and metrics (`tokenCounter`) to improve robustness, context propagation, and observability. This aligns with our full-stack observability goals and hardens the core infrastructure. (d3a1cdb)
+- **Async Hygiene & Error Handling**: Systematically hardened error handling, improved asynchronous discipline by eliminating floating promises, and strengthened type safety across transports, utilities, and scripts. (d3a1cdb)
+- **Linting**: Refined the ESLint flat configuration to correctly scope type-aware rules for TypeScript files, improving build-time checks. (d3a1cdb)
+- **Dependencies**: Updated `bun.lock`, `package.json`, and `tsconfig.json` to reflect the latest changes and ensure a consistent build environment. (d3a1cdb)
+
+### Docs
+
+- **Tree**: Updated `docs/tree.md` to reflect the new file structure. (d3a1cdb)
+- **Developer Documentation**: Improved `scripts/devdocs.ts` script for better reliability. (d3a1cdb)
+
 ## [2.0.0] - 2025-08-31
 
 ### BREAKING CHANGE
