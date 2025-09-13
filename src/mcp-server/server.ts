@@ -17,96 +17,14 @@ import { ServerType } from '@hono/node-server';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import http from 'http';
 import { container } from 'tsyringe';
-import { ZodObject, ZodRawShape } from 'zod';
 
 import { config } from '../config/index.js';
-import {
-  ResourceDefinitions,
-  ToolDefinitions,
-} from '../container/index.js';
-import { JsonRpcErrorCode } from '../types-global/errors.js';
 import { ErrorHandler, logger, requestContextService } from '../utils/index.js';
-import { ResourceDefinition } from './resources/utils/resourceDefinition.js';
-import { registerResource } from './resources/utils/resourceHandlerFactory.js';
-import { ToolDefinition } from './tools/utils/toolDefinition.js';
-import { createMcpToolHandler } from './tools/utils/toolHandlerFactory.js';
+import { ResourceRegistry } from './resources/resource-registration.js';
+import { ToolRegistry } from './tools/tool-registration.js';
 import { TransportManager } from './transports/core/transportTypes.js';
 import { startHttpTransport } from './transports/http/index.js';
 import { startStdioTransport } from './transports/stdio/index.js';
-
-/**
- * A type-safe helper function to register a single tool definition.
- * It creates a handler and registers the tool with the server,
- * ensuring that the generic types for the handler and the tool definition match.
- *
- * @param server The McpServer instance.
- * @param tool The ToolDefinition object to register.
- */
-/**
- * Derives a human-readable title from a tool's programmatic name.
- * e.g., 'get_cat_fact' becomes 'Get Cat Fact'.
- * @param name The tool name.
- * @returns A formatted title string.
- */
-function deriveTitleFromName(name: string): string {
-  return name.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-async function registerTool<
-  TInputSchema extends ZodObject<ZodRawShape>,
-  TOutputSchema extends ZodObject<ZodRawShape>,
->(
-  server: McpServer,
-  tool: ToolDefinition<TInputSchema, TOutputSchema>,
-): Promise<void> {
-  const registrationContext = requestContextService.createRequestContext({
-    operation: 'RegisterTool',
-    toolName: tool.name,
-  });
-
-  logger.debug(`Registering tool: '${tool.name}'`, registrationContext);
-
-  await ErrorHandler.tryCatch(
-    () => {
-      const handler = createMcpToolHandler({
-        toolName: tool.name,
-        logic: tool.logic,
-        ...(tool.responseFormatter && {
-          responseFormatter: tool.responseFormatter,
-        }),
-      });
-
-      // Title precedence should respect author intent first, then annotations, then a derived fallback
-      // matching SDK guidance (title → annotations.title → name).
-      const title =
-        tool.title ?? tool.annotations?.title ?? deriveTitleFromName(tool.name);
-
-      server.registerTool(
-        tool.name,
-        {
-          title,
-          description: tool.description,
-          // Zod: pass the object shape so the SDK can convert to JSON Schema
-          inputSchema: tool.inputSchema.shape,
-          outputSchema: tool.outputSchema.shape,
-          ...(tool.annotations && { annotations: tool.annotations }),
-        },
-        handler,
-      );
-
-      logger.notice(
-        `Tool '${tool.name}' registered successfully.`,
-        registrationContext,
-      );
-    },
-    {
-      operation: `RegisteringTool_${tool.name}`,
-      context: registrationContext,
-      errorCode: JsonRpcErrorCode.InitializationFailed,
-      critical: true,
-    },
-  );
-}
 
 /**
  * Creates and configures a new instance of the `McpServer`.
@@ -144,26 +62,14 @@ export async function createMcpServerInstance(): Promise<McpServer> {
   );
 
   try {
-    logger.debug('Registering resources and tools from DI container...', context);
+    logger.debug('Registering resources and tools via registries...', context);
 
-    // Resolve all registered resources from the container
-    const resourceDefs = container.resolveAll<
-      ResourceDefinition<
-        ZodObject<ZodRawShape>,
-        ZodObject<ZodRawShape> | undefined
-      >
-    >(ResourceDefinitions);
-    for (const resourceDef of resourceDefs) {
-      await registerResource(server, resourceDef);
-    }
+    // Resolve and use the new registry services
+    const toolRegistry = container.resolve(ToolRegistry);
+    await toolRegistry.registerAll(server);
 
-    // Resolve all registered tools from the container
-    const toolDefs = container.resolveAll<
-      ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>
-    >(ToolDefinitions);
-    for (const toolDef of toolDefs) {
-      await registerTool(server, toolDef);
-    }
+    const resourceRegistry = container.resolve(ResourceRegistry);
+    await resourceRegistry.registerAll(server);
 
     logger.info('Resources and tools registered successfully', context);
   } catch (err) {

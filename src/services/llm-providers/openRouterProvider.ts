@@ -101,7 +101,10 @@ export class OpenRouterProvider implements ILlmProvider {
         minP: this.config.llmDefaultMinP,
       };
 
-      this.logger.info('OpenRouter provider instance created and ready.', context);
+      this.logger.info(
+        'OpenRouter provider instance created and ready.',
+        context,
+      );
     } catch (e: unknown) {
       const error = e as Error;
       this.logger.error('Failed to construct OpenRouter client', {
@@ -115,7 +118,7 @@ export class OpenRouterProvider implements ILlmProvider {
       );
     }
   }
-  
+
   // --- PRIVATE METHODS ---
 
   private _prepareApiParameters(params: OpenRouterChatParams) {
@@ -131,9 +134,15 @@ export class OpenRouterProvider implements ILlmProvider {
     return {
       ...rest,
       model: model || this.defaultParams.model,
-      temperature: temperature === null ? undefined : temperature ?? this.defaultParams.temperature,
-      top_p: topP === null ? undefined : topP ?? this.defaultParams.topP,
-      max_tokens: maxTokens === null ? undefined : maxTokens ?? this.defaultParams.maxTokens,
+      temperature:
+        temperature === null
+          ? undefined
+          : (temperature ?? this.defaultParams.temperature),
+      top_p: topP === null ? undefined : (topP ?? this.defaultParams.topP),
+      max_tokens:
+        maxTokens === null
+          ? undefined
+          : (maxTokens ?? this.defaultParams.maxTokens),
       ...(typeof stream === 'boolean' && { stream }),
     };
   }

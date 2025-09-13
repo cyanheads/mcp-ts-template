@@ -12,10 +12,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import http from 'http';
 import { McpLogLevel, logger } from 'mcp-ts-template/utils/internal/logger.js';
 import { shutdownOpenTelemetry } from 'mcp-ts-template/utils/telemetry/instrumentation.js';
-import 'reflect-metadata'; // Must be first for tsyringe
+import 'reflect-metadata';
+
+// Must be first for tsyringe
 
 import { config as appConfigType } from './config/index.js';
-import container, { AppConfig } from './container/index.js'; // Import container instance and token
+import container, { AppConfig } from './container/index.js';
+// Import container instance and token
 import { initializeAndStartServer } from './mcp-server/server.js';
 import { TransportManager } from './mcp-server/transports/core/transportTypes.js';
 import { requestContextService } from './utils/index.js';
@@ -126,6 +129,7 @@ const start = async (): Promise<void> => {
   }
 
   await logger.initialize(validatedMcpLogLevel);
+
   logger.info(
     `Logger initialized. Effective MCP logging level: ${validatedMcpLogLevel}.`,
     requestContextService.createRequestContext({ operation: 'LoggerInit' }),

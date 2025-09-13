@@ -6,13 +6,21 @@
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import 'reflect-metadata';
-import { container, Lifecycle } from 'tsyringe';
+import { Lifecycle, container } from 'tsyringe';
 
 import { config } from '../config/index.js';
-import { registerResources } from '../mcp-server/resources/resource-registration.js';
-import { createMcpServerInstance } from '../mcp-server/server.js';
-import { registerTools } from '../mcp-server/tools/tool-registration.js';
 import {
+  ResourceRegistry,
+  registerResources,
+} from '../mcp-server/resources/resource-registration.js';
+import { createMcpServerInstance } from '../mcp-server/server.js';
+import {
+  ToolRegistry,
+  registerTools,
+} from '../mcp-server/tools/tool-registration.js';
+import {
+  AutoTransportManager,
+  // Import the new manager
   StatefulTransportManager,
   StatelessTransportManager,
   TransportManager,
@@ -22,7 +30,6 @@ import { OpenRouterProvider } from '../services/llm-providers/openRouterProvider
 import { createStorageProvider, storageService } from '../storage/index.js';
 import { logger } from '../utils/index.js';
 import { RateLimiter } from '../utils/security/rateLimiter.js';
-
 import {
   AppConfig,
   CreateMcpServerInstance,
@@ -30,7 +37,7 @@ import {
   Logger,
   RateLimiterService,
   StorageService,
-  TransportManagerToken
+  TransportManagerToken,
 } from './tokens.js';
 
 // --- Injection Tokens ---
@@ -51,7 +58,9 @@ storageService.initialize(storageProvider);
 container.register(StorageService, { useValue: storageService });
 
 // LLM Provider (register the class against the interface token)
-container.register<ILlmProvider>(LlmProvider, { useClass: OpenRouterProvider });
+container.register<ILlmProvider>(LlmProvider, {
+  useClass: OpenRouterProvider,
+});
 
 // Register RateLimiter as a singleton service
 container.register<RateLimiter>(
@@ -60,28 +69,45 @@ container.register<RateLimiter>(
   { lifecycle: Lifecycle.Singleton },
 );
 
-// --- Register Transport Manager based on config ---
+// --- Register Registries ---
+container.registerSingleton(ToolRegistry);
+container.registerSingleton(ResourceRegistry);
+
+// --- Register Transport Managers (Concrete Classes) ---
+container.register(StatelessTransportManager, {
+  useFactory: (c) =>
+    new StatelessTransportManager(
+      c.resolve<() => Promise<McpServer>>(CreateMcpServerInstance),
+    ),
+});
+
+container.register(StatefulTransportManager, {
+  useFactory: (c) => {
+    const appConfig = c.resolve<typeof config>(AppConfig);
+    return new StatefulTransportManager(
+      c.resolve<() => Promise<McpServer>>(CreateMcpServerInstance),
+      {
+        staleSessionTimeoutMs: appConfig.mcpStatefulSessionStaleTimeoutMs,
+        mcpHttpEndpointPath: appConfig.mcpHttpEndpointPath,
+      },
+    );
+  },
+});
+
+container.register(AutoTransportManager, { useClass: AutoTransportManager });
+
+// --- Register Transport Manager Token (Abstract Interface) ---
 container.register<TransportManager>(TransportManagerToken, {
   useFactory: (c) => {
     const appConfig = c.resolve<typeof config>(AppConfig);
-    const createMcpFn = c.resolve<() => Promise<McpServer>>(
-      CreateMcpServerInstance,
-    );
-
     switch (appConfig.mcpSessionMode) {
       case 'stateless':
-        return new StatelessTransportManager(createMcpFn);
+        return c.resolve(StatelessTransportManager);
       case 'stateful':
+        return c.resolve(StatefulTransportManager);
       case 'auto':
       default:
-        return new StatefulTransportManager(
-          createMcpFn,
-          {
-            staleSessionTimeoutMs: appConfig.mcpStatefulSessionStaleTimeoutMs,
-            mcpHttpEndpointPath: appConfig.mcpHttpEndpointPath,
-          },
-          appConfig.mcpSessionMode,
-        );
+        return c.resolve(AutoTransportManager);
     }
   },
 });

@@ -5,6 +5,7 @@
  * @module src/mcp-server/transports/core
  */
 
+export * from './autoTransportManager.js';
 export * from './statefulTransportManager.js';
 export * from './statelessTransportManager.js';
 export * from './transportTypes.js';

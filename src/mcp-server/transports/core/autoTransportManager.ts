@@ -1,0 +1,87 @@
+/**
+ * @fileoverview Implements an 'auto' mode transport manager for the MCP SDK.
+ * This manager acts as a router, delegating requests to either a stateful or
+ * stateless handler based on the request content (e.g., presence of an
+ * `initialize` method).
+ * @module src/mcp-server/transports/core/autoTransportManager
+ */
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import type { IncomingHttpHeaders } from 'http';
+import { inject, injectable } from 'tsyringe';
+
+import {
+  AppConfig,
+  CreateMcpServerInstance,
+} from '../../../container/index.js';
+import { config as ConfigType } from '../../../config/index.js';
+import { RequestContext } from '../../../utils/index.js';
+import { StatefulTransportManager } from './statefulTransportManager.js';
+import { StatelessTransportManager } from './statelessTransportManager.js';
+import {
+  IStatefulTransportManager,
+  TransportManager,
+  TransportResponse,
+} from './transportTypes.js';
+
+@injectable()
+export class AutoTransportManager implements TransportManager {
+  private readonly statefulManager: IStatefulTransportManager;
+  private readonly createMcpServerFn: () => Promise<McpServer>;
+
+  constructor(
+    @inject(CreateMcpServerInstance)
+    createMcpServerFn: () => Promise<McpServer>,
+    @inject(AppConfig) private appConfig: typeof ConfigType,
+  ) {
+    this.createMcpServerFn = createMcpServerFn;
+    // The stateful manager is used to handle all session-based interactions.
+    this.statefulManager = new StatefulTransportManager(createMcpServerFn, {
+      staleSessionTimeoutMs: this.appConfig.mcpStatefulSessionStaleTimeoutMs,
+      mcpHttpEndpointPath: this.appConfig.mcpHttpEndpointPath,
+    });
+  }
+
+  /**
+   * Handles an incoming request by routing it to the appropriate handler.
+   * @param headers The incoming request headers.
+   * @param body The parsed body of the request.
+   * @param context The request context for logging and tracing.
+   * @param sessionId An optional session identifier.
+   * @returns A promise that resolves to a TransportResponse object.
+   */
+  public async handleRequest(
+    headers: IncomingHttpHeaders,
+    body: unknown,
+    context: RequestContext,
+    sessionId?: string,
+  ): Promise<TransportResponse> {
+    // If it's an initialization request, always start a new stateful session.
+    if (isInitializeRequest(body)) {
+      return this.statefulManager.initializeAndHandle(headers, body, context);
+    }
+
+    // If a session ID is provided, delegate to the stateful manager.
+    if (sessionId) {
+      return this.statefulManager.handleRequest(
+        headers,
+        body,
+        context,
+        sessionId,
+      );
+    }
+
+    // Otherwise, handle it as a one-off stateless request.
+    const statelessManager = new StatelessTransportManager(
+      this.createMcpServerFn,
+    );
+    return statelessManager.handleRequest(headers, body, context);
+  }
+
+  /**
+   * Gracefully shuts down the underlying stateful manager.
+   */
+  public async shutdown(): Promise<void> {
+    await this.statefulManager.shutdown();
+  }
+}

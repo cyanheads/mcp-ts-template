@@ -14,20 +14,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./utils/internal/logger.js": {
-      "types": "./dist/utils/internal/logger.d.ts",
-      "browser": "./dist/utils/internal/logger.worker.js",
-      "worker": "./dist/utils/internal/logger.worker.js",
-      "node": "./dist/utils/internal/logger.js",
-      "default": "./dist/utils/internal/logger.js"
-    },
-    "./utils/telemetry/instrumentation.js": {
-      "types": "./dist/utils/telemetry/instrumentation.d.ts",
-      "browser": "./dist/utils/telemetry/instrumentation.worker.js",
-      "worker": "./dist/utils/telemetry/instrumentation.worker.js",
-      "node": "./dist/utils/telemetry/instrumentation.js",
-      "default": "./dist/utils/telemetry/instrumentation.js"
     }
   },
   "type": "module",
@@ -60,7 +46,7 @@
     "typecheck": "tsc --noEmit",
     "tree": "tsx scripts/tree.ts",
     "fetch-spec": "tsx scripts/fetch-openapi-spec.ts",
-    "format": "prettier --write \"**/*.{ts,js,json,md,html,css}\"",
+    "format": "bunx prettier --write \"**/*.{ts,js,json,md,html,css}\"",
     "prepare": "husky",
     "inspector": "bunx mcp-inspector --config mcp.json --server mcp-ts-template",
     "db:duckdb-example": "MCP_LOG_LEVEL=debug tsc && node dist/storage/duckdbExample.js",
@@ -72,7 +58,6 @@
     "prepublishOnly": "bun run typecheck && bun run lint && bun run test && bun run build"
   },
   "dependencies": {
-    "@duckdb/node-api": "^1.3.2-alpha.26",
     "@hono/node-server": "^1.19.2",
     "@modelcontextprotocol/sdk": "^1.18.0",
     "@opentelemetry/instrumentation-winston": "^0.48.1",
@@ -96,9 +81,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@anatine/zod-mock": "^3.14.0",
     "@eslint/js": "^9.35.0",
-    "@faker-js/faker": "^9.9.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.62.2",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.203.0",
@@ -108,13 +91,11 @@
     "@opentelemetry/sdk-node": "^0.203.0",
     "@opentelemetry/sdk-trace-node": "^2.1.0",
     "@opentelemetry/semantic-conventions": "^1.37.0",
-    "@trivago/prettier-plugin-sort-imports": "^5.2.2",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.3.3",
     "@types/node-cron": "^3.0.11",
     "@types/sanitize-html": "^2.16.0",
     "@types/validator": "13.15.2",
-    "@vitest/coverage-v8": "^3.2.4",
     "depcheck": "^1.4.7",
     "eslint": "^9.35.0",
     "globals": "^16.4.0",
@@ -171,5 +152,10 @@
   ],
   "engines": {
     "node": ">=20.0.0"
+  },
+  "depcheck": {
+    "ignores": [
+      "mcp-ts-template"
+    ]
   }
 }

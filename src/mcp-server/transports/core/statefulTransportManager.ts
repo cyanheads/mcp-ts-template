@@ -68,7 +68,6 @@ export class StatefulTransportManager
     @inject(CreateMcpServerInstance)
     createServerInstanceFn: () => Promise<McpServer>,
     private options: StatefulTransportOptions,
-    private mode: 'stateful' | 'auto' = 'auto',
   ) {
     super(createServerInstanceFn);
     const context = requestContextService.createRequestContext({
@@ -302,7 +301,9 @@ export class StatefulTransportManager
    * Returns the configured session mode of the manager.
    */
   getMode(): 'stateful' | 'auto' {
-    return this.mode;
+    // This class now only represents 'stateful' mode. The 'auto' logic
+    // is handled by the AutoTransportManager.
+    return 'stateful';
   }
 
   /**

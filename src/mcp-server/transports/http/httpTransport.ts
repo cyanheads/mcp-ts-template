@@ -25,10 +25,7 @@ import {
   requestContextService,
 } from '../../../utils/index.js';
 import { createAuthMiddleware, createAuthStrategy } from '../auth/index.js';
-import {
-  StatefulTransportManager,
-  TransportManager
-} from '../core/index.js';
+import { StatefulTransportManager, TransportManager } from '../core/index.js';
 import { httpErrorHandler } from './httpErrorHandler.js';
 import { HonoNodeBindings } from './httpTypes.js';
 import { mcpTransportMiddleware } from './mcpTransportMiddleware.js';
@@ -56,7 +53,9 @@ async function isPortInUse(
   return new Promise((resolve) => {
     const tempServer = http.createServer();
     tempServer
-      .once('error', (err: NodeJS.ErrnoException) => resolve(err.code === 'EADDRINUSE'))
+      .once('error', (err: NodeJS.ErrnoException) =>
+        resolve(err.code === 'EADDRINUSE'),
+      )
       .once('listening', () => tempServer.close(() => resolve(false)))
       .listen(port, host);
   });
@@ -69,13 +68,21 @@ function startHttpServerWithRetry(
   maxRetries: number,
   parentContext: RequestContext,
 ): Promise<ServerType> {
-  const startContext = { ...parentContext, operation: 'startHttpServerWithRetry' };
-  logger.info(`Attempting to start HTTP server on port ${initialPort} with ${maxRetries} retries.`, startContext);
+  const startContext = {
+    ...parentContext,
+    operation: 'startHttpServerWithRetry',
+  };
+  logger.info(
+    `Attempting to start HTTP server on port ${initialPort} with ${maxRetries} retries.`,
+    startContext,
+  );
 
   return new Promise((resolve, reject) => {
     const tryBind = (port: number, attempt: number) => {
       if (attempt > maxRetries + 1) {
-        const error = new Error(`Failed to bind to any port after ${maxRetries} retries.`);
+        const error = new Error(
+          `Failed to bind to any port after ${maxRetries} retries.`,
+        );
         logger.fatal(error.message, { ...startContext, port, attempt });
         return reject(error);
       }
@@ -83,24 +90,47 @@ function startHttpServerWithRetry(
       isPortInUse(port, host, { ...startContext, port, attempt })
         .then((inUse) => {
           if (inUse) {
-            logger.warning(`Port ${port} is in use, retrying...`, { ...startContext, port, attempt });
-            setTimeout(() => tryBind(port + 1, attempt + 1), config.mcpHttpPortRetryDelayMs);
+            logger.warning(`Port ${port} is in use, retrying...`, {
+              ...startContext,
+              port,
+              attempt,
+            });
+            setTimeout(
+              () => tryBind(port + 1, attempt + 1),
+              config.mcpHttpPortRetryDelayMs,
+            );
             return;
           }
 
           try {
-            const serverInstance = serve({ fetch: app.fetch, port, hostname: host }, (info) => {
-              const serverAddress = `http://${info.address}:${info.port}${MCP_ENDPOINT_PATH}`;
-              logger.info(`HTTP transport listening at ${serverAddress}`, { ...startContext, port, address: serverAddress });
-              if (process.stdout.isTTY) console.log(`\n🚀 MCP Server running at: ${serverAddress}`);
-            });
+            const serverInstance = serve(
+              { fetch: app.fetch, port, hostname: host },
+              (info) => {
+                const serverAddress = `http://${info.address}:${info.port}${MCP_ENDPOINT_PATH}`;
+                logger.info(`HTTP transport listening at ${serverAddress}`, {
+                  ...startContext,
+                  port,
+                  address: serverAddress,
+                });
+                if (process.stdout.isTTY)
+                  console.log(`\n🚀 MCP Server running at: ${serverAddress}`);
+              },
+            );
             resolve(serverInstance);
           } catch (err: unknown) {
-            logger.warning(`Binding attempt failed for port ${port}, retrying...`, { ...startContext, port, attempt, error: String(err) });
-            setTimeout(() => tryBind(port + 1, attempt + 1), config.mcpHttpPortRetryDelayMs);
+            logger.warning(
+              `Binding attempt failed for port ${port}, retrying...`,
+              { ...startContext, port, attempt, error: String(err) },
+            );
+            setTimeout(
+              () => tryBind(port + 1, attempt + 1),
+              config.mcpHttpPortRetryDelayMs,
+            );
           }
         })
-        .catch((err) => reject(err instanceof Error ? err : new Error(String(err))));
+        .catch((err) =>
+          reject(err instanceof Error ? err : new Error(String(err))),
+        );
     };
 
     tryBind(initialPort, 1);
@@ -111,19 +141,34 @@ export function createHttpApp(
   parentContext: RequestContext,
 ): Hono<{ Bindings: HonoNodeBindings }> {
   const app = new Hono<{ Bindings: HonoNodeBindings }>();
-  const transportContext = { ...parentContext, component: 'HttpTransportSetup' };
+  const transportContext = {
+    ...parentContext,
+    component: 'HttpTransportSetup',
+  };
   logger.info('Creating Hono HTTP application.', transportContext);
 
-  const transportManager = container.resolve<TransportManager>(TransportManagerToken);
-  const createServerInstanceFn = container.resolve<() => Promise<McpServer>>(CreateMcpServerInstance);
+  const transportManager = container.resolve<TransportManager>(
+    TransportManagerToken,
+  );
+  const createServerInstanceFn = container.resolve<() => Promise<McpServer>>(
+    CreateMcpServerInstance,
+  );
   const rateLimiter = container.resolve<RateLimiter>(RateLimiterService);
 
-  app.use('*', cors({
-    origin: config.mcpAllowedOrigins || [],
-    allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Mcp-Session-Id', 'Last-Event-ID', 'Authorization'],
-    credentials: true,
-  }));
+  app.use(
+    '*',
+    cors({
+      origin: config.mcpAllowedOrigins || [],
+      allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+      allowHeaders: [
+        'Content-Type',
+        'Mcp-Session-Id',
+        'Last-Event-ID',
+        'Authorization',
+      ],
+      credentials: true,
+    }),
+  );
 
   app.use('*', (c, next) => {
     c.header('X-Content-Type-Options', 'nosniff');
@@ -132,12 +177,18 @@ export function createHttpApp(
 
   app.use(MCP_ENDPOINT_PATH, async (c, next) => {
     const clientIp = getClientIp(c);
-    const context = requestContextService.createRequestContext({ operation: 'httpRateLimitCheck', ipAddress: clientIp });
+    const context = requestContextService.createRequestContext({
+      operation: 'httpRateLimitCheck',
+      ipAddress: clientIp,
+    });
     try {
       rateLimiter.check(clientIp, context);
       logger.debug('Rate limit check passed.', context);
     } catch (error) {
-      logger.warning('Rate limit check failed.', { ...context, error: error instanceof Error ? error.message : String(error) });
+      logger.warning('Rate limit check failed.', {
+        ...context,
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
     await next();
@@ -154,9 +205,15 @@ export function createHttpApp(
 
   app.get(MCP_ENDPOINT_PATH, (c) => {
     if (c.req.header('mcp-session-id')) {
-      return c.text('GET requests to existing sessions are not supported.', 405);
+      return c.text(
+        'GET requests to existing sessions are not supported.',
+        405,
+      );
     }
-    const selectedSessionMode = transportManager instanceof StatefulTransportManager ? transportManager.getMode() : config.mcpSessionMode;
+    const selectedSessionMode =
+      transportManager instanceof StatefulTransportManager
+        ? transportManager.getMode()
+        : config.mcpSessionMode;
     return c.json({
       status: 'ok',
       server: { name: config.mcpServerName, version: config.mcpServerVersion },
@@ -164,23 +221,34 @@ export function createHttpApp(
     });
   });
 
-  app.post(MCP_ENDPOINT_PATH, mcpTransportMiddleware(transportManager, createServerInstanceFn), (c) => {
-    const response = c.get('mcpResponse');
-    if (response.sessionId) c.header('Mcp-Session-Id', response.sessionId);
-    response.headers.forEach((v, k) => c.header(k, v));
-    c.status(response.statusCode);
-    if (response.type === 'stream') {
-      return stream(c, (s) => s.pipe(response.stream));
-    }
-    // By exclusion, response must be 'buffered' here
-    return c.json(response.body ?? {});
-  });
+  app.post(
+    MCP_ENDPOINT_PATH,
+    mcpTransportMiddleware(transportManager, createServerInstanceFn),
+    (c) => {
+      const response = c.get('mcpResponse');
+      if (response.sessionId) c.header('Mcp-Session-Id', response.sessionId);
+      response.headers.forEach((v, k) => c.header(k, v));
+      c.status(response.statusCode);
+      if (response.type === 'stream') {
+        return stream(c, (s) => s.pipe(response.stream));
+      }
+      // By exclusion, response must be 'buffered' here
+      return c.json(response.body ?? {});
+    },
+  );
 
   app.delete(MCP_ENDPOINT_PATH, async (c) => {
     const sessionId = c.req.header('mcp-session-id');
-    const context = requestContextService.createRequestContext({ ...transportContext, operation: 'handleDeleteRequest', sessionId });
+    const context = requestContextService.createRequestContext({
+      ...transportContext,
+      operation: 'handleDeleteRequest',
+      sessionId,
+    });
     if (sessionId && transportManager instanceof StatefulTransportManager) {
-      const response = await transportManager.handleDeleteRequest(sessionId, context);
+      const response = await transportManager.handleDeleteRequest(
+        sessionId,
+        context,
+      );
       if (response.type === 'buffered') {
         return c.json(response.body ?? {}, response.statusCode);
       }
@@ -201,13 +269,24 @@ export async function startHttpTransport(
   server: ServerType;
   transportManager: TransportManager;
 }> {
-  const transportContext = { ...parentContext, component: 'HttpTransportStart' };
+  const transportContext = {
+    ...parentContext,
+    component: 'HttpTransportStart',
+  };
   logger.info('Starting HTTP transport.', transportContext);
 
   const app = createHttpApp(transportContext);
-  const transportManager = container.resolve<TransportManager>(TransportManagerToken);
+  const transportManager = container.resolve<TransportManager>(
+    TransportManagerToken,
+  );
 
-  const server = await startHttpServerWithRetry(app, HTTP_PORT, HTTP_HOST, config.mcpHttpMaxPortRetries, transportContext);
+  const server = await startHttpServerWithRetry(
+    app,
+    HTTP_PORT,
+    HTTP_HOST,
+    config.mcpHttpMaxPortRetries,
+    transportContext,
+  );
 
   logger.info('HTTP transport started successfully.', transportContext);
   return { app, server, transportManager };

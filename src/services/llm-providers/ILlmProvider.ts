@@ -3,8 +3,12 @@
  * This contract ensures that any LLM service implementation can be used interchangeably.
  * @module src/services/llm-providers/ILlmProvider
  */
-import type { ChatCompletion, ChatCompletionChunk } from 'openai/resources/chat/completions';
+import type {
+  ChatCompletion,
+  ChatCompletionChunk,
+} from 'openai/resources/chat/completions';
 import type { Stream } from 'openai/streaming';
+
 import type { RequestContext } from '../../utils/index.js';
 import type { OpenRouterChatParams } from './openRouterProvider.js';
 
