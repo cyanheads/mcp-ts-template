@@ -75,13 +75,27 @@ Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 - annotations (optional): Hints like `{ readOnlyHint, openWorldHint }`.
 - responseFormatter (optional): Map successful output to `ContentBlock[]` when non-JSON output is preferred (e.g., images).
 
-Step 3 — Register the Tool with the DI Container
+Step 3 — Register the Tool via Barrel Export
 
-- Open `src/mcp-server/tools/tool-registration.ts`.
-- Import your new tool definition.
-- Add it to the container using `container.register(ToolDefinitions, { useValue: yourNewTool });`.
+- Open `src/mcp-server/tools/definitions/index.ts`.
+- Import your new tool definition and add it to the `allToolDefinitions` array.
 
-This is the **only** place you need to register your new tool. The DI container and server will handle the rest.
+```ts
+// src/mcp-server/tools/definitions/index.ts
+import { catFactTool } from './template-cat-fact.tool.js';
+import { echoTool } from './template-echo-message.tool.js';
+import { imageTestTool } from './template-image-test.tool.js';
+// Import your new tool above
+
+export const allToolDefinitions = [
+  catFactTool,
+  echoTool,
+  imageTestTool,
+  // Add your new tool here
+];
+```
+
+The DI container automatically loops through this array (`tool-registration.ts`), so no other registration step is needed.
 
 Example src/mcp-server/tools/definitions/template-echo-message.tool.ts
 
@@ -318,11 +332,12 @@ Step 1 — File Location
 Step 2 — Define the ResourceDefinition
 Export a single `const` of type `ResourceDefinition` with the required properties (name, description, logic, etc.).
 
-Step 3 — Register the Resource with the DI Container
+Step 3 — Register the Resource via Barrel Export
 
-- Open `src/mcp-server/resources/resource-registration.ts`.
-- Import your new resource definition.
-- Add it to the container using `container.register(ResourceDefinitions, { useValue: yourNewResource });`.
+- Open `src/mcp-server/resources/definitions/index.ts`.
+- Import your new resource definition and add it to the `allResourceDefinitions` array.
+
+The DI container automatically registers all definitions from this array.
 
 Handler Responsibilities (Implicit)
 
@@ -342,7 +357,7 @@ Logic Responsibilities (Explicit)
 
 ## V. Core Services & Utilities (via DI)
 
-All core services are managed by the DI container. **Do not create instances manually.** Inject them into your classes' constructors using `tsyringe`'s `@injectable()` and `@inject()` decorators.
+All core services are managed by the DI container. **Do not create instances manually.** The container is configured in `src/container/index.ts`, which composes registrations from modules in `src/container/registrations/`. Inject services into your classes' constructors using `tsyringe`'s `@injectable()` and `@inject()` decorators.
 
 - **`ILlmProvider`**: Interface for LLM-related operations.
   - **Token**: `LlmProvider`
@@ -393,5 +408,5 @@ Always prefer `bun run devcheck` to catch issues early.
 - Keep logic pure; throw `McpError` for failures. No `try...catch` inside logic.
 - Use `logger` (preferably injected) with `RequestContext` in every meaningful operation.
 - Use injected `StorageService` for all persistence.
-- Register the tool in `src/mcp-server/tools/tool-registration.ts`.
+- Register the tool in `src/mcp-server/tools/definitions/index.ts`.
 - Add tests in `tests/`; run `bun run test` and `bun run format`.
