@@ -57,7 +57,10 @@ export class OauthStrategy implements AuthStrategy {
         cooldownDuration: this.config.oauthJwksCooldownMs,
         timeoutDuration: this.config.oauthJwksTimeoutMs,
       });
-      this.logger.info(`JWKS client initialized for URL: ${jwksUrl.href}`, context);
+      this.logger.info(
+        `JWKS client initialized for URL: ${jwksUrl.href}`,
+        context,
+      );
     } catch (error) {
       this.logger.fatal('Failed to initialize JWKS client.', {
         ...context,
@@ -108,7 +111,10 @@ export class OauthStrategy implements AuthStrategy {
       const clientId =
         typeof payload.client_id === 'string' ? payload.client_id : undefined;
       if (!clientId) {
-        this.logger.warning("Invalid token: missing 'client_id' claim.", context);
+        this.logger.warning(
+          "Invalid token: missing 'client_id' claim.",
+          context,
+        );
         throw new McpError(
           JsonRpcErrorCode.Unauthorized,
           "Token must contain a 'client_id' claim.",

@@ -4,6 +4,7 @@
  * clean shutdown. Console transport auto-enables in debug + TTY.
  * @module src/utils/internal/logger
  */
+import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import winston from 'winston';
 import TransportStream from 'winston-transport';
@@ -220,17 +221,29 @@ export class Logger {
     };
 
     if (resolvedLogsDir) {
-      transports.push(
-        new winston.transports.File({
-          filename: path.join(resolvedLogsDir, 'error.log'),
-          level: 'error',
-          ...fileTransportOptions,
-        }),
-        new winston.transports.File({
-          filename: path.join(resolvedLogsDir, 'combined.log'),
-          ...fileTransportOptions,
-        }),
-      );
+      try {
+        if (!existsSync(resolvedLogsDir)) {
+          mkdirSync(resolvedLogsDir, { recursive: true });
+        }
+        transports.push(
+          new winston.transports.File({
+            filename: path.join(resolvedLogsDir, 'error.log'),
+            level: 'error',
+            ...fileTransportOptions,
+          }),
+          new winston.transports.File({
+            filename: path.join(resolvedLogsDir, 'combined.log'),
+            ...fileTransportOptions,
+          }),
+        );
+      } catch (err) {
+        if (process.stdout.isTTY) {
+          const error = err instanceof Error ? err : new Error(String(err));
+          console.error(
+            `[Logger Init] Failed to create or access logs directory: ${resolvedLogsDir}. File logging disabled. Error: ${error.message}`,
+          );
+        }
+      }
     } else if (
       typeof process !== 'undefined' &&
       process.stdout &&
@@ -247,7 +260,7 @@ export class Logger {
       exitOnError: false,
     });
 
-    if (resolvedLogsDir) {
+    if (resolvedLogsDir && transports.length > 0) {
       this.interactionLogger = winston.createLogger({
         format: winston.format.combine(
           winston.format.timestamp(),

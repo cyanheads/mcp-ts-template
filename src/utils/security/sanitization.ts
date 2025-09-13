@@ -83,7 +83,6 @@ export class Sanitization {
     'token',
     'secret',
     'apiKey',
-    'auth',
     'credential',
     'jwt',
     'ssn',

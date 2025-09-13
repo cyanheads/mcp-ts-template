@@ -7,7 +7,7 @@
  * @module src/config/index
  */
 import dotenv from 'dotenv';
-import { existsSync, mkdirSync, readFileSync, statSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import path, { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
@@ -99,153 +99,80 @@ const loadPackageJson = (): {
 
 const pkg = loadPackageJson();
 
-const ensureDirectory = (
-  dirPath: string,
-  rootDir: string,
-  dirName: string,
-): string | null => {
-  const resolvedDirPath = path.isAbsolute(dirPath)
-    ? dirPath
-    : path.resolve(rootDir, dirPath);
-  if (
-    !resolvedDirPath.startsWith(rootDir + path.sep) &&
-    resolvedDirPath !== rootDir
-  ) {
-    if (process.stdout.isTTY) {
-      console.error(
-        `Error: ${dirName} path "${dirPath}" resolves to "${resolvedDirPath}", which is outside the project boundary "${rootDir}".`,
-      );
-    }
-    return null;
-  }
-  if (!existsSync(resolvedDirPath)) {
-    try {
-      mkdirSync(resolvedDirPath, { recursive: true });
-      if (process.stdout.isTTY) {
-        console.log(`Created ${dirName} directory: ${resolvedDirPath}`);
-      }
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      if (process.stdout.isTTY) {
-        console.error(
-          `Error creating ${dirName} directory at ${resolvedDirPath}: ${errorMessage}`,
-        );
-      }
-      return null;
-    }
-  } else {
-    try {
-      const stats = statSync(resolvedDirPath);
-      if (!stats.isDirectory()) {
-        if (process.stdout.isTTY) {
-          console.error(
-            `Error: ${dirName} path ${resolvedDirPath} exists but is not a directory.`,
-          );
-        }
-        return null;
-      }
-    } catch (statError: unknown) {
-      if (process.stdout.isTTY) {
-        const statErrorMessage =
-          statError instanceof Error ? statError.message : String(statError);
-        console.error(
-          `Error accessing ${dirName} path ${resolvedDirPath}: ${statErrorMessage}`,
-        );
-      }
-      return null;
-    }
-  }
-  return resolvedDirPath;
-};
-
-const ConfigSchema = z
-  .object({
-    pkg: z.object({
-      name: z.string(),
-      version: z.string(),
-      description: z.string(),
-    }),
-    mcpServerName: z.string(),
-    mcpServerVersion: z.string(),
-    mcpServerDescription: z.string().optional(),
-    logLevel: z.string().default('debug'),
-    logsPath: z.string(),
-    environment: z.string().default('development'),
-    mcpTransportType: z.enum(['stdio', 'http']).default('stdio'),
-    mcpSessionMode: z.enum(['stateless', 'stateful', 'auto']).default('auto'),
-    mcpHttpPort: z.coerce.number().default(3010),
-    mcpHttpHost: z.string().default('127.0.0.1'),
-    mcpHttpEndpointPath: z.string().default('/mcp'),
-    mcpHttpMaxPortRetries: z.coerce.number().default(15),
-    mcpHttpPortRetryDelayMs: z.coerce.number().default(50),
-    mcpStatefulSessionStaleTimeoutMs: z.coerce.number().default(1_800_000),
-    mcpAllowedOrigins: z.array(z.string()).optional(),
-    mcpAuthSecretKey: z.string().optional(),
-    mcpAuthMode: z.enum(['jwt', 'oauth', 'none']).default('none'),
-    oauthIssuerUrl: z.string().url().optional(),
-    oauthJwksUri: z.string().url().optional(),
-    oauthAudience: z.string().optional(),
-    oauthJwksCooldownMs: z.coerce.number().default(300_000), // 5 minutes
-    oauthJwksTimeoutMs: z.coerce.number().default(5_000), // 5 seconds
-    devMcpClientId: z.string().optional(),
-    devMcpScopes: z.array(z.string()).optional(),
-    openrouterAppUrl: z.string().default('http://localhost:3000'),
-    openrouterAppName: z.string(),
-    openrouterApiKey: z.string().optional(),
-    llmDefaultModel: z.string().default('google/gemini-2.5-flash'),
-    llmDefaultTemperature: z.coerce.number().optional(),
-    llmDefaultTopP: z.coerce.number().optional(),
-    llmDefaultMaxTokens: z.coerce.number().optional(),
-    llmDefaultTopK: z.coerce.number().optional(),
-    llmDefaultMinP: z.coerce.number().optional(),
-    oauthProxy: z
-      .object({
-        authorizationUrl: z.string().url().optional(),
-        tokenUrl: z.string().url().optional(),
-        revocationUrl: z.string().url().optional(),
-        issuerUrl: z.string().url().optional(),
-        serviceDocumentationUrl: z.string().url().optional(),
-        defaultClientRedirectUris: z.array(z.string()).optional(),
-      })
-      .optional(),
-    supabase: z
-      .object({
-        url: z.string().url(),
-        anonKey: z.string(),
-        serviceRoleKey: z.string().optional(),
-      })
-      .optional(),
-    storage: z.object({
-      providerType: z
-        .enum(['in-memory', 'filesystem', 'supabase'])
-        .default('in-memory'),
-      filesystemPath: z.string().optional(),
-    }),
-    openTelemetry: z.object({
-      enabled: z.coerce.boolean().default(false),
-      serviceName: z.string(),
-      serviceVersion: z.string(),
-      tracesEndpoint: z.string().url().optional(),
-      metricsEndpoint: z.string().url().optional(),
-      samplingRatio: z.coerce.number().default(1.0),
-      logLevel: z
-        .enum(['NONE', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'VERBOSE', 'ALL'])
-        .default('INFO'),
-    }),
-  })
-  .transform((data) => {
-    const logsPath = ensureDirectory(data.logsPath, projectRoot, 'logs');
-    const filesystemPath =
-      data.storage.providerType === 'filesystem' && data.storage.filesystemPath
-        ? ensureDirectory(data.storage.filesystemPath, projectRoot, 'storage')
-        : data.storage.filesystemPath;
-
-    return {
-      ...data,
-      logsPath,
-      storage: { ...data.storage, filesystemPath },
-    };
-  });
+const ConfigSchema = z.object({
+  pkg: z.object({
+    name: z.string(),
+    version: z.string(),
+    description: z.string(),
+  }),
+  mcpServerName: z.string(),
+  mcpServerVersion: z.string(),
+  mcpServerDescription: z.string().optional(),
+  logLevel: z.string().default('debug'),
+  logsPath: z.string(),
+  environment: z.string().default('development'),
+  mcpTransportType: z.enum(['stdio', 'http']).default('stdio'),
+  mcpSessionMode: z.enum(['stateless', 'stateful', 'auto']).default('auto'),
+  mcpHttpPort: z.coerce.number().default(3010),
+  mcpHttpHost: z.string().default('127.0.0.1'),
+  mcpHttpEndpointPath: z.string().default('/mcp'),
+  mcpHttpMaxPortRetries: z.coerce.number().default(15),
+  mcpHttpPortRetryDelayMs: z.coerce.number().default(50),
+  mcpStatefulSessionStaleTimeoutMs: z.coerce.number().default(1_800_000),
+  mcpAllowedOrigins: z.array(z.string()).optional(),
+  mcpAuthSecretKey: z.string().optional(),
+  mcpAuthMode: z.enum(['jwt', 'oauth', 'none']).default('none'),
+  oauthIssuerUrl: z.string().url().optional(),
+  oauthJwksUri: z.string().url().optional(),
+  oauthAudience: z.string().optional(),
+  oauthJwksCooldownMs: z.coerce.number().default(300_000), // 5 minutes
+  oauthJwksTimeoutMs: z.coerce.number().default(5_000), // 5 seconds
+  devMcpClientId: z.string().optional(),
+  devMcpScopes: z.array(z.string()).optional(),
+  openrouterAppUrl: z.string().default('http://localhost:3000'),
+  openrouterAppName: z.string(),
+  openrouterApiKey: z.string().optional(),
+  llmDefaultModel: z.string().default('google/gemini-2.5-flash'),
+  llmDefaultTemperature: z.coerce.number().optional(),
+  llmDefaultTopP: z.coerce.number().optional(),
+  llmDefaultMaxTokens: z.coerce.number().optional(),
+  llmDefaultTopK: z.coerce.number().optional(),
+  llmDefaultMinP: z.coerce.number().optional(),
+  oauthProxy: z
+    .object({
+      authorizationUrl: z.string().url().optional(),
+      tokenUrl: z.string().url().optional(),
+      revocationUrl: z.string().url().optional(),
+      issuerUrl: z.string().url().optional(),
+      serviceDocumentationUrl: z.string().url().optional(),
+      defaultClientRedirectUris: z.array(z.string()).optional(),
+    })
+    .optional(),
+  supabase: z
+    .object({
+      url: z.string().url(),
+      anonKey: z.string(),
+      serviceRoleKey: z.string().optional(),
+    })
+    .optional(),
+  storage: z.object({
+    providerType: z
+      .enum(['in-memory', 'filesystem', 'supabase'])
+      .default('in-memory'),
+    filesystemPath: z.string().optional(),
+  }),
+  openTelemetry: z.object({
+    enabled: z.coerce.boolean().default(false),
+    serviceName: z.string(),
+    serviceVersion: z.string(),
+    tracesEndpoint: z.string().url().optional(),
+    metricsEndpoint: z.string().url().optional(),
+    samplingRatio: z.coerce.number().default(1.0),
+    logLevel: z
+      .enum(['NONE', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'VERBOSE', 'ALL'])
+      .default('INFO'),
+  }),
+});
 
 const parseConfig = () => {
   const env = process.env;
