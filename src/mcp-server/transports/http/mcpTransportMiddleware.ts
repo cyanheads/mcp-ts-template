@@ -5,7 +5,6 @@
  * response for Hono to send.
  * @module src/mcp-server/transports/http/mcpTransportMiddleware
  */
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { MiddlewareHandler } from 'hono';
 import { IncomingHttpHeaders } from 'http';
 
@@ -34,7 +33,6 @@ type McpMiddlewareEnv = {
 
 export const mcpTransportMiddleware = (
   transportManager: TransportManager,
-  _createServerInstanceFn: () => Promise<McpServer>, // This is now unused
 ): MiddlewareHandler<McpMiddlewareEnv & { Bindings: HonoNodeBindings }> => {
   return async (c, next) => {
     const sessionId = c.req.header('mcp-session-id');

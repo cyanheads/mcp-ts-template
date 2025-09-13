@@ -5,7 +5,6 @@
  * @module src/mcp-server/transports/http/httpTransport
  */
 import { ServerType, serve } from '@hono/node-server';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Context, Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { stream } from 'hono/streaming';
@@ -14,7 +13,6 @@ import { container } from 'tsyringe';
 
 import { config } from '../../../config/index.js';
 import {
-  CreateMcpServerInstance,
   RateLimiterService,
   TransportManagerToken,
 } from '../../../container/index.js';
@@ -150,9 +148,6 @@ export function createHttpApp(
   const transportManager = container.resolve<TransportManager>(
     TransportManagerToken,
   );
-  const createServerInstanceFn = container.resolve<() => Promise<McpServer>>(
-    CreateMcpServerInstance,
-  );
   const rateLimiter = container.resolve<RateLimiter>(RateLimiterService);
 
   app.use(
@@ -221,21 +216,17 @@ export function createHttpApp(
     });
   });
 
-  app.post(
-    MCP_ENDPOINT_PATH,
-    mcpTransportMiddleware(transportManager, createServerInstanceFn),
-    (c) => {
-      const response = c.get('mcpResponse');
-      if (response.sessionId) c.header('Mcp-Session-Id', response.sessionId);
-      response.headers.forEach((v, k) => c.header(k, v));
-      c.status(response.statusCode);
-      if (response.type === 'stream') {
-        return stream(c, (s) => s.pipe(response.stream));
-      }
-      // By exclusion, response must be 'buffered' here
-      return c.json(response.body ?? {});
-    },
-  );
+  app.post(MCP_ENDPOINT_PATH, mcpTransportMiddleware(transportManager), (c) => {
+    const response = c.get('mcpResponse');
+    if (response.sessionId) c.header('Mcp-Session-Id', response.sessionId);
+    response.headers.forEach((v, k) => c.header(k, v));
+    c.status(response.statusCode);
+    if (response.type === 'stream') {
+      return stream(c, (s) => s.pipe(response.stream));
+    }
+    // By exclusion, response must be 'buffered' here
+    return c.json(response.body ?? {});
+  });
 
   app.delete(MCP_ENDPOINT_PATH, async (c) => {
     const sessionId = c.req.header('mcp-session-id');

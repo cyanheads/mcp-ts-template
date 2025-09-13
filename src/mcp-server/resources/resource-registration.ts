@@ -10,7 +10,7 @@ import { ZodObject, ZodRawShape } from 'zod';
 
 import { ResourceDefinitions } from '../../container/index.js';
 import { logger, requestContextService } from '../../utils/index.js';
-import { echoResourceDefinition } from './definitions/echo.resource.js';
+import { allResourceDefinitions } from './definitions/index.js';
 import { type ResourceDefinition } from './utils/resourceDefinition.js';
 import { registerResource } from './utils/resourceHandlerFactory.js';
 
@@ -49,7 +49,8 @@ export class ResourceRegistry {
  * @param {DependencyContainer} container - The tsyringe container instance to register resources with.
  */
 export const registerResources = (container: DependencyContainer): void => {
-  container.register(ResourceDefinitions, {
-    useValue: echoResourceDefinition,
-  });
+  // ADD: New automated registration loop
+  for (const resource of allResourceDefinitions) {
+    container.register(ResourceDefinitions, { useValue: resource });
+  }
 };

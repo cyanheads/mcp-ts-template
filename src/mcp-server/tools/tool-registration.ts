@@ -15,9 +15,7 @@ import {
   logger,
   requestContextService,
 } from '../../utils/index.js';
-import { catFactTool } from './definitions/template-cat-fact.tool.js';
-import { echoTool } from './definitions/template-echo-message.tool.js';
-import { imageTestTool } from './definitions/template-image-test.tool.js';
+import { allToolDefinitions } from './definitions/index.js';
 import { type ToolDefinition } from './utils/toolDefinition.js';
 import { createMcpToolHandler } from './utils/toolHandlerFactory.js';
 
@@ -114,7 +112,8 @@ export class ToolRegistry {
  * @param {DependencyContainer} container - The tsyringe container instance to register tools with.
  */
 export const registerTools = (container: DependencyContainer): void => {
-  container.register(ToolDefinitions, { useValue: echoTool });
-  container.register(ToolDefinitions, { useValue: catFactTool });
-  container.register(ToolDefinitions, { useValue: imageTestTool });
+  // ADD: New automated registration loop
+  for (const tool of allToolDefinitions) {
+    container.register(ToolDefinitions, { useValue: tool });
+  }
 };

@@ -5,16 +5,10 @@
  * `initialize` method).
  * @module src/mcp-server/transports/core/autoTransportManager
  */
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { IncomingHttpHeaders } from 'http';
 import { inject, injectable } from 'tsyringe';
 
-import {
-  AppConfig,
-  CreateMcpServerInstance,
-} from '../../../container/index.js';
-import { config as ConfigType } from '../../../config/index.js';
 import { RequestContext } from '../../../utils/index.js';
 import { StatefulTransportManager } from './statefulTransportManager.js';
 import { StatelessTransportManager } from './statelessTransportManager.js';
@@ -26,21 +20,13 @@ import {
 
 @injectable()
 export class AutoTransportManager implements TransportManager {
-  private readonly statefulManager: IStatefulTransportManager;
-  private readonly createMcpServerFn: () => Promise<McpServer>;
-
   constructor(
-    @inject(CreateMcpServerInstance)
-    createMcpServerFn: () => Promise<McpServer>,
-    @inject(AppConfig) private appConfig: typeof ConfigType,
-  ) {
-    this.createMcpServerFn = createMcpServerFn;
-    // The stateful manager is used to handle all session-based interactions.
-    this.statefulManager = new StatefulTransportManager(createMcpServerFn, {
-      staleSessionTimeoutMs: this.appConfig.mcpStatefulSessionStaleTimeoutMs,
-      mcpHttpEndpointPath: this.appConfig.mcpHttpEndpointPath,
-    });
-  }
+    // Inject the concrete managers. The container will resolve them.
+    @inject(StatefulTransportManager)
+    private statefulManager: IStatefulTransportManager,
+    @inject(StatelessTransportManager)
+    private statelessManager: StatelessTransportManager,
+  ) {}
 
   /**
    * Handles an incoming request by routing it to the appropriate handler.
@@ -70,12 +56,10 @@ export class AutoTransportManager implements TransportManager {
         sessionId,
       );
     }
-
     // Otherwise, handle it as a one-off stateless request.
-    const statelessManager = new StatelessTransportManager(
-      this.createMcpServerFn,
-    );
-    return statelessManager.handleRequest(headers, body, context);
+
+    // Use the injected stateless manager.
+    return this.statelessManager.handleRequest(headers, body, context);
   }
 
   /**
