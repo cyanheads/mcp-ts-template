@@ -384,9 +384,6 @@ The following utilities are still available for direct use:
 
 - Quick all-in-one checks (lint + typecheck): `bun run devcheck`
   - Use this (sparingly) after making changes.
-- Format code: `bun run format`
-
-Always prefer `bun run devcheck` to catch issues early.
 
 ---
 
@@ -409,4 +406,4 @@ Always prefer `bun run devcheck` to catch issues early.
 - Use `logger` (preferably injected) with `RequestContext` in every meaningful operation.
 - Use injected `StorageService` for all persistence.
 - Register the tool in `src/mcp-server/tools/definitions/index.ts`.
-- Add tests in `tests/`; run `bun run test` and `bun run format`.
+- If applicable, add tests in `tests/`; run `bun run test`.
