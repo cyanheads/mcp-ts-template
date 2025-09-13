@@ -266,4 +266,6 @@ const parseConfig = () => {
   return parsedConfig.data;
 };
 
-export const config = parseConfig();
+const config = parseConfig();
+
+export { config, parseConfig, type ConfigSchema };

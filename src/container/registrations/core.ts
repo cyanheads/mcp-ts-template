@@ -5,7 +5,7 @@
  * @module src/container/registrations/core
  */
 import { container, Lifecycle } from 'tsyringe';
-import { config } from '../../config/index.js';
+import { parseConfig } from '../../config/index.js';
 import { ILlmProvider } from '../../services/llm-providers/ILlmProvider.js';
 import { OpenRouterProvider } from '../../services/llm-providers/openRouterProvider.js';
 import { createStorageProvider, storageService } from '../../storage/index.js';
@@ -23,7 +23,8 @@ import {
  * Registers core application services and values with the tsyringe container.
  */
 export const registerCoreServices = () => {
-  // Configuration (as a static value)
+  // Configuration (parsed and registered as a static value)
+  const config = parseConfig();
   container.register(AppConfig, { useValue: config });
 
   // Logger (as a static value)
