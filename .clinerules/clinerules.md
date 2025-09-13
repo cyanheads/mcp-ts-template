@@ -406,4 +406,4 @@ The following utilities are still available for direct use:
 - Use `logger` (preferably injected) with `RequestContext` in every meaningful operation.
 - Use injected `StorageService` for all persistence.
 - Register the tool in `src/mcp-server/tools/definitions/index.ts`.
-- If applicable, add tests in `tests/`; run `bun run test`.
+- If applicable, add tests in `tests/`; run `bun test:coverage`.

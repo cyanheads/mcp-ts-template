@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-13 07:08:41
+Generated on: 2025-09-13 09:30:45
 
 ```
 mcp-ts-template
@@ -31,6 +31,10 @@ mcp-ts-template
 │   ├── config
 │   │   └── index.ts
 │   ├── container
+│   │   ├── registrations
+│   │   │   ├── core.ts
+│   │   │   ├── mcp.ts
+│   │   │   └── transports.ts
 │   │   ├── index.ts
 │   │   └── tokens.ts
 │   ├── mcp-server
@@ -142,52 +146,47 @@ mcp-ts-template
 │   │   └── index.ts
 │   └── index.ts
 ├── tests
+│   ├── integration
+│   │   ├── config
+│   │   │   └── config.test.ts
+│   │   ├── mcp-server
+│   │   │   └── tools
+│   │   ├── utils
+│   │   │   └── internal
+│   │   │       ├── errorHandler.test.ts
+│   │   │       └── logger.test.ts
+│   │   └── setup.integration.ts
 │   ├── mcp-server
 │   │   ├── resources
 │   │   ├── tools
 │   │   └── transports
 │   │       ├── auth
-│   │       │   ├── lib
-│   │       │   │   └── authUtils.test.ts
-│   │       │   ├── strategies
-│   │       │   │   ├── jwtStrategy.test.ts
-│   │       │   │   └── oauthStrategy.test.ts
-│   │       │   └── auth.test.ts
+│   │       │   └── lib
 │   │       ├── core
 │   │       ├── http
 │   │       └── stdio
-│   │           └── stdioTransport.test.ts
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts
 │   ├── services
 │   │   ├── llm-providers
 │   │   └── supabase
-│   │       └── supabaseClient.test.ts
 │   ├── storage
 │   │   ├── providers
 │   │   │   ├── fileSystem
-│   │   │   │   └── fileSystemProvider.test.ts
 │   │   │   └── inMemory
 │   │   │       └── inMemoryProvider.test.ts
 │   │   └── storageProviderCompliance.ts
 │   ├── utils
 │   │   ├── internal
-│   │   │   ├── errorHandler.test.ts
-│   │   │   ├── logger.test.ts
-│   │   │   └── requestContext.test.ts
 │   │   ├── metrics
 │   │   │   └── tokenCounter.test.ts
 │   │   ├── network
-│   │   │   └── fetchWithTimeout.test.ts
 │   │   ├── parsing
-│   │   │   ├── dateParser.test.ts
 │   │   │   └── jsonParser.test.ts
 │   │   ├── scheduling
-│   │   │   └── scheduler.test.ts
 │   │   ├── security
 │   │   │   ├── idGenerator.test.ts
-│   │   │   ├── rateLimiter.test.ts
 │   │   │   └── sanitization.test.ts
 │   │   └── telemetry
 │   └── setup.ts
@@ -198,6 +197,7 @@ mcp-ts-template
 ├── .prettierrc.json
 ├── AGENTS.md
 ├── bun.lock
+├── bunfig.toml
 ├── CHANGELOG.md
 ├── CLAUDE.md
 ├── Dockerfile
@@ -212,7 +212,8 @@ mcp-ts-template
 ├── tsconfig.vitest.json
 ├── tsdoc.json
 ├── typedoc.json
-└── vitest.config.ts
+├── vitest.config.ts
+└── vitest.integration.config.ts
 ```
 
 _Note: This tree excludes files and directories matched by .gitignore and default patterns._

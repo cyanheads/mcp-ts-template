@@ -642,19 +642,29 @@ export class Sanitization {
       return;
     }
 
+    const normalize = (str: string): string =>
+      str.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normalizedSensitiveSet = new Set(
+      this.sensitiveFields.map((f) => normalize(f)).filter(Boolean),
+    );
+    const wordSensitiveSet = new Set(
+      this.sensitiveFields.map((f) => f.toLowerCase()).filter(Boolean),
+    );
+
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const value = (obj as Record<string, unknown>)[key];
-
-        // Split camelCase and snake_case/kebab-case keys into words
+        const normalizedKey = normalize(key);
+        // Split into words for token-based matching (camelCase, snake_case, kebab-case)
         const keyWords = key
-          .replace(/([A-Z])/g, ' $1') // Add space before uppercase letters
+          .replace(/([A-Z])/g, ' $1')
           .toLowerCase()
-          .split(/[\s_-]+/); // Split by space, underscore, or hyphen
+          .split(/[\s_-]+/)
+          .filter(Boolean);
 
-        const isSensitive = keyWords.some((word) =>
-          this.sensitiveFields.includes(word),
-        );
+        const isExactSensitive = normalizedSensitiveSet.has(normalizedKey);
+        const isWordSensitive = keyWords.some((w) => wordSensitiveSet.has(w));
+        const isSensitive = isExactSensitive || isWordSensitive;
 
         if (isSensitive) {
           (obj as Record<string, unknown>)[key] = '[REDACTED]';

@@ -13,12 +13,6 @@ import { config } from '../../config/index.js';
 import { sanitizeInputForLogging } from '../security/sanitization.js';
 import { RequestContext } from './requestContext.js';
 
-/**
- * Defines the supported logging levels based on RFC 5424 Syslog severity levels,
- * as used by the Model Context Protocol (MCP).
- * Levels are: 'debug'(7), 'info'(6), 'notice'(5), 'warning'(4), 'error'(3), 'crit'(2), 'alert'(1), 'emerg'(0).
- * Lower numeric values indicate higher severity.
- */
 export type McpLogLevel =
   | 'debug'
   | 'info'
@@ -29,10 +23,6 @@ export type McpLogLevel =
   | 'alert'
   | 'emerg';
 
-/**
- * Numeric severity mapping for MCP log levels (lower is more severe).
- * @private
- */
 const mcpLevelSeverity: Record<McpLogLevel, number> = {
   emerg: 0,
   alert: 1,
@@ -44,10 +34,6 @@ const mcpLevelSeverity: Record<McpLogLevel, number> = {
   debug: 7,
 };
 
-/**
- * Maps MCP log levels to Winston's core levels for file logging.
- * @private
- */
 const mcpToWinstonLevel: Record<
   McpLogLevel,
   'debug' | 'info' | 'warn' | 'error'
@@ -62,20 +48,12 @@ const mcpToWinstonLevel: Record<
   emerg: 'error',
 };
 
-/**
- * Interface for a more structured error object, primarily for formatting console logs.
- * @private
- */
 interface ErrorWithMessageAndStack {
   message?: string;
   stack?: string;
   [key: string]: unknown;
 }
 
-/**
- * Interface for the payload of an MCP log notification.
- * This structure is used when sending log data via MCP `notifications/message`.
- */
 export interface McpLogPayload {
   message: string;
   context?: RequestContext;
@@ -86,29 +64,14 @@ export interface McpLogPayload {
   [key: string]: unknown;
 }
 
-/**
- * Type for the `data` parameter of the `McpNotificationSender` function.
- */
 export type McpNotificationData = McpLogPayload | Record<string, unknown>;
 
-/**
- * Defines the signature for a function that can send MCP log notifications.
- * This function is typically provided by the MCP server instance.
- * @param level - The severity level of the log message.
- * @param data - The payload of the log notification.
- * @param loggerName - An optional name or identifier for the logger/server.
- */
 export type McpNotificationSender = (
   level: McpLogLevel,
   data: McpNotificationData,
   loggerName?: string,
 ) => void;
 
-/**
- * Creates the Winston console log format.
- * @returns The Winston log format for console output.
- * @private
- */
 function createWinstonConsoleFormat(): winston.Logform.Format {
   return winston.format.combine(
     winston.format.colorize(),
@@ -148,37 +111,27 @@ function createWinstonConsoleFormat(): winston.Logform.Format {
   );
 }
 
-/**
- * Singleton Logger class that wraps Winston for robust logging.
- * Supports file logging, conditional console logging, and MCP notifications.
- */
 export class Logger {
   private static instance: Logger;
   private winstonLogger?: winston.Logger;
   private interactionLogger?: winston.Logger;
   private initialized = false;
-  private mcpNotificationSender?: McpNotificationSender;
+  private mcpNotificationSender: McpNotificationSender | undefined;
   private currentMcpLevel: McpLogLevel = 'info';
   private currentWinstonLevel: 'debug' | 'info' | 'warn' | 'error' = 'info';
-
-  // Rate limiting state
-  private rateLimitThreshold = 10; // Max 10 identical messages
-  private rateLimitWindow = 60000; // within 1 minute
+  private rateLimitThreshold = 10;
+  private rateLimitWindow = 60000;
   private messageCounts = new Map<
     string,
     { count: number; firstSeen: number }
   >();
   private suppressedMessages = new Map<string, number>();
-
   private cleanupTimer?: ReturnType<typeof setInterval>;
-
   private readonly MCP_NOTIFICATION_STACK_TRACE_MAX_LENGTH = 1024;
   private readonly LOG_FILE_MAX_SIZE = 5 * 1024 * 1024; // 5MB
   private readonly LOG_MAX_FILES = 5;
 
-  /** @private */
   private constructor() {
-    // Periodically flush suppressed message counts; do not keep process alive
     this.cleanupTimer = setInterval(
       () => this.flushSuppressedMessages(),
       this.rateLimitWindow,
@@ -186,11 +139,6 @@ export class Logger {
     this.cleanupTimer.unref?.();
   }
 
-  /**
-   * Initializes the Winston logger instance.
-   * Should be called once at application startup.
-   * @param level - The initial minimum MCP log level.
-   */
   public initialize(level: McpLogLevel = 'info'): Promise<void> {
     if (this.initialized) {
       this.warning('Logger already initialized.', {
@@ -200,18 +148,15 @@ export class Logger {
       });
       return Promise.resolve();
     }
-
     this.initialized = true;
     this.currentMcpLevel = level;
     this.currentWinstonLevel = mcpToWinstonLevel[level];
-
     const resolvedLogsDir = config.logsPath;
     const fileFormat = winston.format.combine(
       winston.format.timestamp(),
       winston.format.errors({ stack: true }),
       winston.format.json(),
     );
-
     const transports: TransportStream[] = [];
     const fileTransportOptions = {
       format: fileFormat,
@@ -219,7 +164,6 @@ export class Logger {
       maxFiles: this.LOG_MAX_FILES,
       tailable: true,
     };
-
     if (resolvedLogsDir) {
       try {
         if (!existsSync(resolvedLogsDir)) {
@@ -253,13 +197,11 @@ export class Logger {
         'File logging disabled as logsPath is not configured or invalid.',
       );
     }
-
     this.winstonLogger = winston.createLogger({
       level: this.currentWinstonLevel,
       transports,
       exitOnError: false,
     });
-
     if (resolvedLogsDir && transports.length > 0) {
       this.interactionLogger = winston.createLogger({
         format: winston.format.combine(
@@ -274,18 +216,15 @@ export class Logger {
         ],
       });
     }
-
     const consoleStatus = this._configureConsoleTransport();
     const initialContext: RequestContext = {
       loggerSetup: true,
       requestId: 'logger-init-deferred',
       timestamp: new Date().toISOString(),
     };
-
     if (consoleStatus.message) {
       this.info(consoleStatus.message, initialContext);
     }
-
     this.info(
       `Logger initialized. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${consoleStatus.enabled ? 'enabled' : 'disabled'}`,
       {
@@ -301,11 +240,7 @@ export class Logger {
   public setMcpNotificationSender(
     sender: McpNotificationSender | undefined,
   ): void {
-    if (sender) {
-      this.mcpNotificationSender = sender;
-    } else {
-      delete this.mcpNotificationSender;
-    }
+    this.mcpNotificationSender = sender;
     const status = sender ? 'enabled' : 'disabled';
     this.info(`MCP notification sending ${status}.`, {
       loggerSetup: true,
@@ -341,16 +276,13 @@ export class Logger {
       );
       return;
     }
-
     const oldLevel = this.currentMcpLevel;
     this.currentMcpLevel = newLevel;
     this.currentWinstonLevel = mcpToWinstonLevel[newLevel];
     if (this.winstonLogger) {
       this.winstonLogger.level = this.currentWinstonLevel;
     }
-
     const consoleStatus = this._configureConsoleTransport();
-
     if (oldLevel !== newLevel) {
       this.info(
         `Log level changed. File logging level: ${this.currentWinstonLevel}. MCP logging level: ${this.currentMcpLevel}. Console logging: ${consoleStatus.enabled ? 'enabled' : 'disabled'}`,
@@ -359,41 +291,47 @@ export class Logger {
     }
   }
 
-  /**
-   * Flushes transports and clears internal timers. Call during shutdown.
-   */
   public close(): Promise<void> {
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-      // Remove property to satisfy exactOptionalPropertyTypes
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore-next-line
-      delete this.cleanupTimer;
-    }
-    // Flush any suppressed info before transports close
-    this.flushSuppressedMessages();
-
-    const maybeClose = (t: unknown): void => {
-      const closable = t as { close?: () => void };
-      if (closable && typeof closable.close === 'function') {
-        try {
-          closable.close();
-        } catch {
-          // ignore
-        }
+    return new Promise((resolve) => {
+      if (this.cleanupTimer) {
+        clearInterval(this.cleanupTimer);
+        delete this.cleanupTimer;
       }
-    };
+      this.flushSuppressedMessages();
 
-    const closeTransports = (lg?: winston.Logger) => {
-      const transports = (lg?.transports ?? []) as unknown as Array<{
-        close?: () => void;
-      }>;
-      transports.forEach((t) => maybeClose(t));
-    };
+      const loggers = [this.winstonLogger, this.interactionLogger].filter(
+        (lg): lg is winston.Logger => !!lg,
+      );
 
-    closeTransports(this.winstonLogger);
-    closeTransports(this.interactionLogger);
-    return Promise.resolve();
+      if (loggers.length === 0) {
+        return resolve();
+      }
+
+      let closedCount = 0;
+      const totalTransports = loggers.reduce(
+        (acc, lg) => acc + lg.transports.length,
+        0,
+      );
+
+      if (totalTransports === 0) {
+        return resolve();
+      }
+
+      const onClosed = () => {
+        closedCount++;
+        if (closedCount >= totalTransports) {
+          this.initialized = false;
+          resolve();
+        }
+      };
+
+      loggers.forEach((lg) => {
+        lg.transports.forEach((transport) => {
+          transport.once('finish', onClosed);
+        });
+        lg.end();
+      });
+    });
   }
 
   private _configureConsoleTransport(): {
@@ -406,7 +344,6 @@ export class Logger {
         message: 'Cannot configure console: Winston logger not initialized.',
       };
     }
-
     const consoleTransport = this.winstonLogger.transports.find(
       (t) => t instanceof winston.transports.Console,
     );
@@ -416,7 +353,6 @@ export class Logger {
       !!process.stdout &&
       !!process.stdout.isTTY;
     let message: string | null = null;
-
     if (shouldHaveConsole && !consoleTransport) {
       this.winstonLogger.add(
         new winston.transports.Console({
@@ -466,7 +402,6 @@ export class Logger {
   private isRateLimited(message: string): boolean {
     const now = Date.now();
     const entry = this.messageCounts.get(message);
-
     if (entry) {
       if (now - entry.firstSeen > this.rateLimitWindow) {
         this.messageCounts.set(message, { count: 1, firstSeen: now });
@@ -518,7 +453,6 @@ export class Logger {
     if (this.isRateLimited(msg)) {
       return;
     }
-
     const sanitizedContext = context
       ? (sanitizeInputForLogging(context) as RequestContext)
       : undefined;
@@ -526,13 +460,11 @@ export class Logger {
       ? { ...sanitizedContext }
       : {};
     const winstonLevel = mcpToWinstonLevel[level];
-
     if (error) {
       this.winstonLogger!.log(winstonLevel, msg, { ...logData, error });
     } else {
       this.winstonLogger!.log(winstonLevel, msg, logData);
     }
-
     if (this.mcpNotificationSender) {
       const mcpDataPayload: McpLogPayload = { message: msg };
       if (sanitizedContext) {
@@ -581,7 +513,6 @@ export class Logger {
     this.log('warning', msg, context);
   }
 
-  // Overloaded methods for high-severity logs
   public error(msg: string, context: RequestContext): void;
   public error(msg: string, error: Error, context?: RequestContext): void;
   public error(
