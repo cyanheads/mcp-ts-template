@@ -107,7 +107,7 @@ export interface TransportManager {
 /**
  * Extends the base TransportManager with operations specific to stateful sessions.
  */
-export interface StatefulTransportManager extends TransportManager {
+export interface IStatefulTransportManager extends TransportManager {
   /**
    * Initializes a new stateful session and handles the first request.
    * @param headers The incoming request headers.

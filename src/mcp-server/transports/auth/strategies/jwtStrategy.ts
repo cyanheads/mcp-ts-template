@@ -6,33 +6,41 @@
  * @module src/mcp-server/transports/auth/strategies/JwtStrategy
  */
 import { jwtVerify } from 'jose';
+import { injectable, inject } from 'tsyringe';
 
-import { config } from '../../../../config/index.js';
+import { config as ConfigType } from '../../../../config/index.js';
+import { AppConfig, Logger } from '../../../../container/tokens.js';
 import { JsonRpcErrorCode, McpError } from '../../../../types-global/errors.js';
 import {
   ErrorHandler,
-  logger,
+  logger as LoggerType,
   requestContextService,
 } from '../../../../utils/index.js';
 import type { AuthInfo } from '../lib/authTypes.js';
 import type { AuthStrategy } from './authStrategy.js';
 
+@injectable()
 export class JwtStrategy implements AuthStrategy {
   private readonly secretKey: Uint8Array | null;
   private readonly env: string;
+  private readonly devMcpClientId: string;
+  private readonly devMcpScopes: string[];
 
   constructor(
-    env: string = config.environment,
-    secretKey: string | undefined = config.mcpAuthSecretKey,
+    @inject(AppConfig) private config: typeof ConfigType,
+    @inject(Logger) private logger: typeof LoggerType,
   ) {
     const context = requestContextService.createRequestContext({
       operation: 'JwtStrategy.constructor',
     });
-    logger.debug('Initializing JwtStrategy...', context);
-    this.env = env;
+    this.logger.debug('Initializing JwtStrategy...', context);
+    this.env = this.config.environment;
+    this.devMcpClientId = this.config.devMcpClientId || 'dev-client-id';
+    this.devMcpScopes = this.config.devMcpScopes || ['dev-scope'];
+    const secretKey = this.config.mcpAuthSecretKey;
 
     if (this.env === 'production' && !secretKey) {
-      logger.fatal(
+      this.logger.fatal(
         'CRITICAL: MCP_AUTH_SECRET_KEY is not set in production for JWT auth.',
         context,
       );
@@ -42,13 +50,13 @@ export class JwtStrategy implements AuthStrategy {
         context,
       );
     } else if (!secretKey) {
-      logger.warning(
+      this.logger.warning(
         'MCP_AUTH_SECRET_KEY is not set. JWT auth will be bypassed (DEV ONLY).',
         context,
       );
       this.secretKey = null;
     } else {
-      logger.info('JWT secret key loaded successfully.', context);
+      this.logger.info('JWT secret key loaded successfully.', context);
       this.secretKey = new TextEncoder().encode(secretKey);
     }
   }
@@ -57,23 +65,23 @@ export class JwtStrategy implements AuthStrategy {
     const context = requestContextService.createRequestContext({
       operation: 'JwtStrategy.verify',
     });
-    logger.debug('Attempting to verify JWT.', context);
+    this.logger.debug('Attempting to verify JWT.', context);
 
     // Handle development mode bypass
     if (!this.secretKey) {
       if (this.env !== 'production') {
-        logger.warning(
+        this.logger.warning(
           'Bypassing JWT verification: No secret key (DEV ONLY).',
           context,
         );
         return {
           token: 'dev-mode-placeholder-token',
-          clientId: config.devMcpClientId || 'dev-client-id',
-          scopes: config.devMcpScopes || ['dev-scope'],
+          clientId: this.devMcpClientId,
+          scopes: this.devMcpScopes,
         };
       }
       // This path is defensive. The constructor should prevent this state in production.
-      logger.crit('Auth secret key is missing in production.', context);
+      this.logger.crit('Auth secret key is missing in production.', context);
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
         'Auth secret key is missing in production. This indicates a server configuration error.',
@@ -83,7 +91,7 @@ export class JwtStrategy implements AuthStrategy {
 
     try {
       const { payload: decoded } = await jwtVerify(token, this.secretKey);
-      logger.debug('JWT signature verified successfully.', {
+      this.logger.debug('JWT signature verified successfully.', {
         ...context,
         claims: decoded,
       });
@@ -96,7 +104,7 @@ export class JwtStrategy implements AuthStrategy {
             : undefined;
 
       if (!clientId) {
-        logger.warning(
+        this.logger.warning(
           "Invalid token: missing 'cid' or 'client_id' claim.",
           context,
         );
@@ -118,7 +126,7 @@ export class JwtStrategy implements AuthStrategy {
       }
 
       if (scopes.length === 0) {
-        logger.warning(
+        this.logger.warning(
           "Invalid token: missing or empty 'scp' or 'scope' claim.",
           context,
         );
@@ -135,7 +143,7 @@ export class JwtStrategy implements AuthStrategy {
         scopes,
         ...(decoded.sub && { subject: decoded.sub }),
       };
-      logger.info('JWT verification successful.', {
+      this.logger.info('JWT verification successful.', {
         ...context,
         clientId,
         scopes,
@@ -152,7 +160,7 @@ export class JwtStrategy implements AuthStrategy {
           ? 'Token has expired.'
           : 'Token verification failed.';
 
-      logger.warning(`JWT verification failed: ${message}`, {
+      this.logger.warning(`JWT verification failed: ${message}`, {
         ...context,
         errorName: error instanceof Error ? error.name : 'Unknown',
       });

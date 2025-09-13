@@ -18,7 +18,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { IncomingHttpHeaders } from 'http';
 import { randomUUID } from 'node:crypto';
+import { injectable, inject } from 'tsyringe';
 
+import { CreateMcpServerInstance } from '../../../container/index.js';
 import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
 import {
   ErrorHandler,
@@ -29,7 +31,7 @@ import {
 import { BaseTransportManager } from './baseTransportManager.js';
 import {
   HttpStatusCode,
-  StatefulTransportManager as IStatefulTransportManager,
+  IStatefulTransportManager,
   TransportResponse,
   TransportSession,
 } from './transportTypes.js';
@@ -45,6 +47,7 @@ export interface StatefulTransportOptions {
 /**
  * Manages persistent, stateful MCP sessions.
  */
+@injectable()
 export class StatefulTransportManager
   extends BaseTransportManager
   implements IStatefulTransportManager
@@ -56,21 +59,18 @@ export class StatefulTransportManager
   private readonly servers = new Map<string, McpServer>();
   private readonly sessions = new Map<string, TransportSession>();
   private readonly garbageCollector: NodeJS.Timeout;
-  private readonly options: StatefulTransportOptions;
-  private readonly mode: 'stateful' | 'auto';
 
   /**
    * @param createServerInstanceFn - A factory function to create new McpServer instances.
    * @param options - Configuration options for the manager.
    */
   constructor(
+    @inject(CreateMcpServerInstance)
     createServerInstanceFn: () => Promise<McpServer>,
-    options: StatefulTransportOptions,
-    mode: 'stateful' | 'auto' = 'auto',
+    private options: StatefulTransportOptions,
+    private mode: 'stateful' | 'auto' = 'auto',
   ) {
     super(createServerInstanceFn);
-    this.options = options;
-    this.mode = mode;
     const context = requestContextService.createRequestContext({
       operation: 'StatefulTransportManager.constructor',
     });

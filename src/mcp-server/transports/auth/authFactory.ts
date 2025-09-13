@@ -4,11 +4,18 @@
  * authentication strategy, promoting loose coupling and easy extensibility.
  * @module src/mcp-server/transports/auth/authFactory
  */
+import { container } from 'tsyringe';
+
 import { config } from '../../../config/index.js';
 import { logger, requestContextService } from '../../../utils/index.js';
 import { AuthStrategy } from './strategies/authStrategy.js';
 import { JwtStrategy } from './strategies/jwtStrategy.js';
 import { OauthStrategy } from './strategies/oauthStrategy.js';
+
+// Register strategies in the container.
+// The container will manage their lifecycle and dependencies.
+container.register(JwtStrategy, { useClass: JwtStrategy });
+container.register(OauthStrategy, { useClass: OauthStrategy });
 
 /**
  * Creates and returns an authentication strategy instance based on the
@@ -27,11 +34,11 @@ export function createAuthStrategy(): AuthStrategy | null {
 
   switch (config.mcpAuthMode) {
     case 'jwt':
-      logger.debug('Instantiating JWT authentication strategy.', context);
-      return new JwtStrategy();
+      logger.debug('Resolving JWT strategy from container.', context);
+      return container.resolve(JwtStrategy);
     case 'oauth':
-      logger.debug('Instantiating OAuth authentication strategy.', context);
-      return new OauthStrategy();
+      logger.debug('Resolving OAuth strategy from container.', context);
+      return container.resolve(OauthStrategy);
     case 'none':
       logger.info("Authentication is disabled ('none' mode).", context);
       return null; // No authentication

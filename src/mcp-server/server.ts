@@ -16,16 +16,18 @@
 import { ServerType } from '@hono/node-server';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import http from 'http';
+import { container } from 'tsyringe';
 import { ZodObject, ZodRawShape } from 'zod';
 
 import { config } from '../config/index.js';
+import {
+  ResourceDefinitions,
+  ToolDefinitions,
+} from '../container/index.js';
 import { JsonRpcErrorCode } from '../types-global/errors.js';
 import { ErrorHandler, logger, requestContextService } from '../utils/index.js';
-import { echoResourceDefinition } from './resources/definitions/echo.resource.js';
+import { ResourceDefinition } from './resources/utils/resourceDefinition.js';
 import { registerResource } from './resources/utils/resourceHandlerFactory.js';
-import { catFactTool } from './tools/definitions/template-cat-fact.tool.js';
-import { echoTool } from './tools/definitions/template-echo-message.tool.js';
-import { imageTestTool } from './tools/definitions/template-image-test.tool.js';
 import { ToolDefinition } from './tools/utils/toolDefinition.js';
 import { createMcpToolHandler } from './tools/utils/toolHandlerFactory.js';
 import { TransportManager } from './transports/core/transportTypes.js';
@@ -108,6 +110,7 @@ async function registerTool<
 
 /**
  * Creates and configures a new instance of the `McpServer`.
+ * This function now resolves tool and resource definitions from the DI container.
  *
  * @returns A promise resolving with the configured `McpServer` instance.
  * @throws {McpError} If any resource or tool registration fails.
@@ -141,14 +144,26 @@ export async function createMcpServerInstance(): Promise<McpServer> {
   );
 
   try {
-    logger.debug('Registering resources and tools...', context);
-    // Register resources
-    await registerResource(server, echoResourceDefinition);
+    logger.debug('Registering resources and tools from DI container...', context);
 
-    // Register all tools
-    await registerTool(server, echoTool);
-    await registerTool(server, catFactTool);
-    await registerTool(server, imageTestTool);
+    // Resolve all registered resources from the container
+    const resourceDefs = container.resolveAll<
+      ResourceDefinition<
+        ZodObject<ZodRawShape>,
+        ZodObject<ZodRawShape> | undefined
+      >
+    >(ResourceDefinitions);
+    for (const resourceDef of resourceDefs) {
+      await registerResource(server, resourceDef);
+    }
+
+    // Resolve all registered tools from the container
+    const toolDefs = container.resolveAll<
+      ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>
+    >(ToolDefinitions);
+    for (const toolDef of toolDefs) {
+      await registerTool(server, toolDef);
+    }
 
     logger.info('Resources and tools registered successfully', context);
   } catch (err) {
@@ -182,10 +197,7 @@ async function startTransport(): Promise<
   logger.info(`Starting transport: ${transportType}`, context);
 
   if (transportType === 'http') {
-    const { server, transportManager } = await startHttpTransport(
-      createMcpServerInstance,
-      context,
-    );
+    const { server, transportManager } = await startHttpTransport(context);
     return { server, transportManager };
   }
 

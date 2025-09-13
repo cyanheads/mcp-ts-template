@@ -12,18 +12,28 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import http from 'http';
 import { McpLogLevel, logger } from 'mcp-ts-template/utils/internal/logger.js';
 import { shutdownOpenTelemetry } from 'mcp-ts-template/utils/telemetry/instrumentation.js';
+import 'reflect-metadata'; // Must be first for tsyringe
 
-import { config } from './config/index.js';
+import { config as appConfigType } from './config/index.js';
+import container, { AppConfig } from './container/index.js'; // Import container instance and token
 import { initializeAndStartServer } from './mcp-server/server.js';
 import { TransportManager } from './mcp-server/transports/core/transportTypes.js';
-import { createStorageProvider, storageService } from './storage/index.js';
 import { requestContextService } from './utils/index.js';
+
+// Resolve config from the container at module scope to make it globally available
+const config = container.resolve<typeof appConfigType>(AppConfig);
 
 let mcpStdioServer: McpServer | undefined;
 let actualHttpServer: http.Server | undefined;
-let transportManager: TransportManager | undefined; // <-- Add this line
+let transportManager: TransportManager | undefined;
+let isShuttingDown = false;
 
 const shutdown = async (signal: string): Promise<void> => {
+  if (isShuttingDown) {
+    return;
+  }
+  isShuttingDown = true;
+
   const shutdownContext = requestContextService.createRequestContext({
     operation: 'ServerShutdown',
     triggerEvent: signal,
@@ -35,18 +45,6 @@ const shutdown = async (signal: string): Promise<void> => {
   );
 
   try {
-    // Shutdown OpenTelemetry first to ensure buffered telemetry is sent
-    await shutdownOpenTelemetry();
-    // Close logger transports to flush logs
-    await logger.close();
-
-    // Shut down the transport manager to clean up sessions
-    if (transportManager) {
-      logger.info('Shutting down transport manager...', shutdownContext);
-      await transportManager.shutdown();
-      logger.info('Transport manager shut down successfully.', shutdownContext);
-    }
-
     let closePromise: Promise<void> = Promise.resolve();
     const transportType = config.mcpTransportType;
 
@@ -71,10 +69,22 @@ const shutdown = async (signal: string): Promise<void> => {
     }
 
     await closePromise;
+
+    if (transportManager) {
+      logger.info('Shutting down transport manager...', shutdownContext);
+      await transportManager.shutdown();
+      logger.info('Transport manager shut down successfully.', shutdownContext);
+    }
+
     logger.info(
       'Graceful shutdown completed successfully. Exiting.',
       shutdownContext,
     );
+
+    // Shutdown OpenTelemetry and logger last to ensure all telemetry and logs are sent.
+    await shutdownOpenTelemetry();
+    await logger.close();
+
     process.exit(0);
   } catch (error) {
     logger.error(
@@ -84,7 +94,9 @@ const shutdown = async (signal: string): Promise<void> => {
     );
     try {
       await logger.close();
-    } catch {}
+    } catch (_e) {
+      // Ignore errors during final logger close attempt
+    }
     process.exit(1);
   }
 };
@@ -119,22 +131,11 @@ const start = async (): Promise<void> => {
     requestContextService.createRequestContext({ operation: 'LoggerInit' }),
   );
 
-  // Initialize Storage Service
-  try {
-    const storageProvider = createStorageProvider();
-    storageService.initialize(storageProvider);
-    logger.info(
-      `Storage service initialized with provider: ${config.storage.providerType}`,
-      requestContextService.createRequestContext({ operation: 'StorageInit' }),
-    );
-  } catch (error) {
-    logger.fatal(
-      'Failed to initialize storage service.',
-      error as Error,
-      requestContextService.createRequestContext({ operation: 'StorageInit' }),
-    );
-    process.exit(1);
-  }
+  // Storage Service is now initialized in the container
+  logger.info(
+    `Storage service initialized with provider: ${config.storage.providerType}`,
+    requestContextService.createRequestContext({ operation: 'StorageInit' }),
+  );
 
   const transportType = config.mcpTransportType;
   const startupContext = requestContextService.createRequestContext({
