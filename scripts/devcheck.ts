@@ -255,12 +255,12 @@ async function main() {
   }
 
   const checksToRun = ALL_CHECKS.map((check) =>
-    runCheck(check, flags.has(check.flag), noFix || isHuskyHook),
+    runCheck(check, flags.has(check.flag), noFix),
   );
 
   const results = await Promise.all(checksToRun);
 
-  const overallSuccess = printSummary(results, noFix || isHuskyHook);
+  const overallSuccess = printSummary(results, noFix);
 
   if (isHuskyHook && overallSuccess) {
     try {
