@@ -131,11 +131,4 @@ export interface IStatefulTransportManager extends TransportManager {
     sessionId: string,
     context: RequestContext,
   ): Promise<TransportResponse>;
-
-  /**
-   * Retrieves information about a specific session.
-   * @param sessionId The ID of the session to retrieve.
-   * @returns A TransportSession object if the session exists, otherwise undefined.
-   */
-  getSession(sessionId: string): TransportSession | undefined;
 }

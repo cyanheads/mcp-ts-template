@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-13 05:55:26
+Generated on: 2025-09-13 07:08:41
 
 ```
 mcp-ts-template
@@ -36,13 +36,15 @@ mcp-ts-template
 │   ├── mcp-server
 │   │   ├── resources
 │   │   │   ├── definitions
-│   │   │   │   └── echo.resource.ts
+│   │   │   │   ├── echo.resource.ts
+│   │   │   │   └── index.ts
 │   │   │   ├── utils
 │   │   │   │   ├── resourceDefinition.ts
 │   │   │   │   └── resourceHandlerFactory.ts
 │   │   │   └── resource-registration.ts
 │   │   ├── tools
 │   │   │   ├── definitions
+│   │   │   │   ├── index.ts
 │   │   │   │   ├── template-cat-fact.tool.ts
 │   │   │   │   ├── template-echo-message.tool.ts
 │   │   │   │   └── template-image-test.tool.ts
@@ -55,7 +57,8 @@ mcp-ts-template
 │   │   │   │   ├── lib
 │   │   │   │   │   ├── authContext.ts
 │   │   │   │   │   ├── authTypes.ts
-│   │   │   │   │   └── authUtils.ts
+│   │   │   │   │   ├── authUtils.ts
+│   │   │   │   │   └── withAuth.ts
 │   │   │   │   ├── strategies
 │   │   │   │   │   ├── authStrategy.ts
 │   │   │   │   │   ├── jwtStrategy.ts

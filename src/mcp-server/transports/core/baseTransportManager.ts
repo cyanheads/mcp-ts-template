@@ -14,7 +14,7 @@ import {
 } from '../../../utils/index.js';
 import { convertNodeHeadersToWebHeaders } from './headerUtils.js';
 import { HonoStreamResponse } from './honoNodeBridge.js';
-import {
+import type {
   HttpStatusCode,
   TransportManager,
   TransportResponse,

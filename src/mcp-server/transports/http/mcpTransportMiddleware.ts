@@ -9,7 +9,10 @@ import { MiddlewareHandler } from 'hono';
 import { IncomingHttpHeaders } from 'http';
 
 import { requestContextService } from '../../../utils/index.js';
-import { TransportManager, TransportResponse } from '../core/transportTypes.js';
+import type {
+  TransportManager,
+  TransportResponse,
+} from '../core/transportTypes.js';
 import { HonoNodeBindings } from './httpTypes.js';
 
 /**

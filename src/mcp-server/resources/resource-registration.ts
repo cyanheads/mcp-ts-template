@@ -49,7 +49,6 @@ export class ResourceRegistry {
  * @param {DependencyContainer} container - The tsyringe container instance to register resources with.
  */
 export const registerResources = (container: DependencyContainer): void => {
-  // ADD: New automated registration loop
   for (const resource of allResourceDefinitions) {
     container.register(ResourceDefinitions, { useValue: resource });
   }

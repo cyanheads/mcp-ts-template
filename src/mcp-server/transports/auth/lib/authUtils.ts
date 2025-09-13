@@ -9,15 +9,13 @@ import { authContext } from './authContext.js';
 
 /**
  * Checks if the current authentication context contains all the specified scopes.
- * This function is designed to be called within tool or resource handlers to
- * enforce scope-based access control. It retrieves the authentication information
- * from `authContext` (AsyncLocalStorage).
+ * If no authentication context is found (i.e., auth is disabled), it defaults
+ * to allowing the operation, making it suitable for templates and demos.
+ * If auth is enabled, it strictly enforces scope checks.
  *
  * @param requiredScopes - An array of scope strings that are mandatory for the operation.
- * @throws {McpError} Throws an error with `JsonRpcErrorCode.InternalError` if the
- *   authentication context is missing, which indicates a server configuration issue.
- * @throws {McpError} Throws an error with `JsonRpcErrorCode.Forbidden` if one or
- *   more required scopes are not present in the validated token.
+ * @throws {McpError} Throws an error with `JsonRpcErrorCode.Forbidden` if authentication
+ *   is active and one or more required scopes are not present in the validated token.
  */
 export function withRequiredScopes(requiredScopes: string[]): void {
   const operationName = 'withRequiredScopesCheck';
@@ -26,25 +24,18 @@ export function withRequiredScopes(requiredScopes: string[]): void {
     additionalContext: { requiredScopes },
   });
 
-  logger.debug('Performing scope authorization check.', initialContext);
-
   const store = authContext.getStore();
 
+  // If no auth store is found, it means auth is not configured. Default to allowed for template usability.
   if (!store || !store.authInfo) {
-    logger.crit(
-      'Authentication context is missing in withRequiredScopes. This is a server configuration error.',
+    logger.debug(
+      'No authentication context found. Defaulting to allowed for demonstration purposes.',
       initialContext,
     );
-    // This is a server-side logic error; the auth middleware should always populate this.
-    throw new McpError(
-      JsonRpcErrorCode.InternalError,
-      'Authentication context is missing. This indicates a server configuration error.',
-      {
-        ...initialContext,
-        error: 'AuthStore not found in AsyncLocalStorage.',
-      },
-    );
+    return;
   }
+
+  logger.debug('Performing scope authorization check.', initialContext);
 
   const { scopes: grantedScopes, clientId, subject } = store.authInfo;
   const grantedScopeSet = new Set(grantedScopes);

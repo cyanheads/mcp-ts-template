@@ -7,6 +7,7 @@
 import { z } from 'zod';
 
 import { type RequestContext, logger } from '../../../utils/index.js';
+import { withResourceAuth } from '../../transports/auth/lib/withAuth.js';
 import { type ResourceDefinition } from '../utils/resourceDefinition.js';
 
 const ParamsSchema = z
@@ -90,5 +91,5 @@ export const echoResourceDefinition: ResourceDefinition<
       },
     ],
   }),
-  logic: echoLogic,
+  logic: withResourceAuth(['resource:echo:read'], echoLogic),
 };

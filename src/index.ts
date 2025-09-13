@@ -6,21 +6,21 @@
  * shutdown on process signals or unhandled errors.
  * @module src/index
  */
-// IMPORTANT: This import MUST be first to initialize OpenTelemetry
-// before any other modules are loaded. Use package subpath for env mapping.
+// Must be first for tsyringe (decorators metadata)
+import 'reflect-metadata';
+// IMPORTANT: OpenTelemetry instrumentation MUST load before other app modules
+// so that it can patch libraries. Keep this at the very top (after polyfills).
+import { shutdownOpenTelemetry } from 'mcp-ts-template/utils/telemetry/instrumentation.js';
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import http from 'http';
 import { McpLogLevel, logger } from 'mcp-ts-template/utils/internal/logger.js';
-import { shutdownOpenTelemetry } from 'mcp-ts-template/utils/telemetry/instrumentation.js';
-import 'reflect-metadata';
-
-// Must be first for tsyringe
 
 import { config as appConfigType } from './config/index.js';
 import container, { AppConfig } from './container/index.js';
 // Import container instance and token
 import { initializeAndStartServer } from './mcp-server/server.js';
-import { TransportManager } from './mcp-server/transports/core/transportTypes.js';
+import type { TransportManager } from './mcp-server/transports/core/transportTypes.js';
 import { requestContextService } from './utils/index.js';
 
 // Resolve config from the container at module scope to make it globally available

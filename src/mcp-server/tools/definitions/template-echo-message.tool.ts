@@ -13,6 +13,7 @@ import type {
   ToolAnnotations,
   ToolDefinition,
 } from '../utils/toolDefinition.js';
+import { withAuth } from '../../transports/auth/lib/withAuth.js';
 
 // Configurable metadata and constants
 // -----------------------------------
@@ -131,7 +132,7 @@ type EchoToolResponse = z.infer<typeof OutputSchema>;
 //
 // Pure business logic (no try/catch; throw McpError on failure)
 // -------------------------------------------------------------
-function echoToolLogic(
+async function echoToolLogic(
   input: EchoToolInput,
   context: RequestContext,
 ): Promise<EchoToolResponse> {
@@ -209,6 +210,6 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     annotations: TOOL_ANNOTATIONS,
-    logic: echoToolLogic,
+    logic: withAuth(['tool:echo:read'], echoToolLogic),
     responseFormatter,
   };

@@ -85,6 +85,7 @@ container.register(StatefulTransportManager, {
   useFactory: (c) => {
     const appConfig = c.resolve<typeof config>(AppConfig);
     return new StatefulTransportManager(
+      storageService,
       c.resolve<() => Promise<McpServer>>(CreateMcpServerInstance),
       {
         staleSessionTimeoutMs: appConfig.mcpStatefulSessionStaleTimeoutMs,

@@ -5,6 +5,6 @@
  * @module src/storage
  */
 
-export * from './core/IStorageProvider.js';
-export * from './core/StorageService.js';
-export * from './core/storageFactory.js';
+export { IStorageProvider, StorageOptions } from './core/IStorageProvider.js';
+export { createStorageProvider } from './core/storageFactory.js';
+export { storageService } from './core/StorageService.js';

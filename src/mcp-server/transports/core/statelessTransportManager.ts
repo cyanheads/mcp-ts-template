@@ -26,7 +26,7 @@ import {
   requestContextService,
 } from '../../../utils/index.js';
 import { BaseTransportManager } from './baseTransportManager.js';
-import { TransportResponse } from './transportTypes.js';
+import type { TransportResponse } from './transportTypes.js';
 
 /**
  * Manages ephemeral, single-request MCP operations.

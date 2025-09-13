@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.0-alpha.5] - 2025-09-13
+
+### Refactored
+
+- **Declarative Auto-Registration**: Implemented fully declarative, auto-registering tool and resource definitions. Developers now only need to create a definition file; the system handles registration automatically, removing manual registration steps.
+- **Distributed Session Management**: Re-architected `StatefulTransportManager` to use a distributed storage provider for session management instead of in-memory maps. This enables horizontal scaling without requiring sticky sessions.
+
+### Feature
+
+- **Declarative Authorization**: Introduced `withAuth` and `withResourceAuth` higher-order functions to declaratively add scope-based authorization to tool and resource logic, centralizing access control.
+- **Enhanced Auth Utilities**: Improved `withRequiredScopes` to default to an open/permissive mode when authentication is disabled, simplifying the experience for template users while maintaining strict checks when auth is active.
+
+### Fixed
+
+- **Build Script**: Corrected the `build` script in `package.json` to `tsc -b` for proper composite project builds.
+- **Resource/Tool Registration**: Refined barrel exports and registration loops to be more robust.
+
 ## [2.0.0-alpha.4] - 2025-09-12
 
 ### Added

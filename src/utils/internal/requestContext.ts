@@ -11,6 +11,19 @@ import { generateRequestContextId } from '../index.js';
 import { logger } from './logger.js';
 
 /**
+ * Defines the structure of the authentication-related context, typically
+ * decoded from a JWT.
+ */
+export interface AuthContext {
+  /** The subject (user) identifier. */
+  sub: string;
+  /** An array of granted permissions (scopes). */
+  scopes: string[];
+  /** Other properties from the token payload. */
+  [key: string]: unknown;
+}
+
+/**
  * Defines the core structure for context information associated with a request or operation.
  * This is fundamental for logging, tracing, and passing operational data.
  */
@@ -25,6 +38,11 @@ export interface RequestContext {
    * ISO 8601 timestamp indicating when the context was created.
    */
   timestamp: string;
+
+  /**
+   * Optional authentication context, present if the request was authenticated.
+   */
+  auth?: AuthContext;
 
   /**
    * Allows arbitrary key-value pairs for specific context needs.

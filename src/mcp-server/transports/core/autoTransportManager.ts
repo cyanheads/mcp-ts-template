@@ -12,7 +12,7 @@ import { inject, injectable } from 'tsyringe';
 import { RequestContext } from '../../../utils/index.js';
 import { StatefulTransportManager } from './statefulTransportManager.js';
 import { StatelessTransportManager } from './statelessTransportManager.js';
-import {
+import type {
   IStatefulTransportManager,
   TransportManager,
   TransportResponse,

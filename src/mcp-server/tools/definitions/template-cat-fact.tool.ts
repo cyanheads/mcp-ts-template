@@ -13,6 +13,7 @@ import {
   fetchWithTimeout,
   logger,
 } from '../../../utils/index.js';
+import { withAuth } from '../../transports/auth/lib/withAuth.js';
 import type {
   ToolAnnotations,
   ToolDefinition,
@@ -186,6 +187,6 @@ export const catFactTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: TOOL_ANNOTATIONS,
-  logic: catFactToolLogic,
+  logic: withAuth(['tool:cat_fact:read'], catFactToolLogic),
   responseFormatter,
 };

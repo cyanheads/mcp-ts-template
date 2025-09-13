@@ -112,7 +112,6 @@ export class ToolRegistry {
  * @param {DependencyContainer} container - The tsyringe container instance to register tools with.
  */
 export const registerTools = (container: DependencyContainer): void => {
-  // ADD: New automated registration loop
   for (const tool of allToolDefinitions) {
     container.register(ToolDefinitions, { useValue: tool });
   }

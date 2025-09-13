@@ -22,7 +22,7 @@ import { config } from '../config/index.js';
 import { ErrorHandler, logger, requestContextService } from '../utils/index.js';
 import { ResourceRegistry } from './resources/resource-registration.js';
 import { ToolRegistry } from './tools/tool-registration.js';
-import { TransportManager } from './transports/core/transportTypes.js';
+import type { TransportManager } from './transports/core/transportTypes.js';
 import { startHttpTransport } from './transports/http/index.js';
 import { startStdioTransport } from './transports/stdio/index.js';
 

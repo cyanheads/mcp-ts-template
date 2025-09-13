@@ -26,8 +26,7 @@
   },
   "homepage": "https://github.com/cyanheads/mcp-ts-template#readme",
   "scripts": {
-    "build": "tsc",
-    "postbuild": "tsx scripts/make-executable.ts dist/index.js",
+    "build": "tsc -b",
     "start": "bun dist/index.js",
     "start:stdio": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=stdio bun dist/index.js",
     "start:http": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=http bun dist/index.js",
@@ -98,6 +97,7 @@
     "@types/validator": "13.15.3",
     "depcheck": "^1.4.7",
     "eslint": "^9.35.0",
+    "glob": "^11.0.3",
     "globals": "^16.4.0",
     "husky": "^9.1.7",
     "msw": "^2.11.2",

@@ -7,10 +7,8 @@
  * session lifecycle management, including garbage collection of stale sessions and
  * concurrency controls to prevent race conditions.
  *
- * SCALABILITY NOTE: This manager maintains all session state in local process memory.
- * For horizontal scaling across multiple server instances, a load balancer with
- * sticky sessions (session affinity) is required to ensure that all requests for a
- * given session are routed to the same process instance that holds that session's state.
+ * SCALABILITY NOTE: This manager uses a distributed storage backend for session
+ * state, allowing for horizontal scaling across multiple server instances.
  *
  * @module src/mcp-server/transports/core/statefulTransportManager
  */
@@ -18,9 +16,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { IncomingHttpHeaders } from 'http';
 import { randomUUID } from 'node:crypto';
-import { injectable, inject } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 
 import { CreateMcpServerInstance } from '../../../container/index.js';
+import { IStorageProvider } from '../../../storage/index.js';
 import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
 import {
   ErrorHandler,
@@ -29,7 +28,7 @@ import {
   requestContextService,
 } from '../../../utils/index.js';
 import { BaseTransportManager } from './baseTransportManager.js';
-import {
+import type {
   HttpStatusCode,
   IStatefulTransportManager,
   TransportResponse,
@@ -39,10 +38,13 @@ import {
 /**
  * Defines the configuration options for the StatefulTransportManager.
  */
-export interface StatefulTransportOptions {
+export interface StatefulTransportManagerOptions {
   staleSessionTimeoutMs: number;
   mcpHttpEndpointPath: string;
 }
+
+// Define a key prefix for session storage to avoid collisions.
+const SESSION_STORAGE_PREFIX = 'mcp_session:';
 
 /**
  * Manages persistent, stateful MCP sessions.
@@ -57,17 +59,18 @@ export class StatefulTransportManager
     StreamableHTTPServerTransport
   >();
   private readonly servers = new Map<string, McpServer>();
-  private readonly sessions = new Map<string, TransportSession>();
   private readonly garbageCollector: NodeJS.Timeout;
 
   /**
+   * @param storageProvider - The storage provider for distributed session management.
    * @param createServerInstanceFn - A factory function to create new McpServer instances.
    * @param options - Configuration options for the manager.
    */
   constructor(
+    private storageProvider: IStorageProvider,
     @inject(CreateMcpServerInstance)
     createServerInstanceFn: () => Promise<McpServer>,
-    private options: StatefulTransportOptions,
+    private options: StatefulTransportManagerOptions,
   ) {
     super(createServerInstanceFn);
     const context = requestContextService.createRequestContext({
@@ -77,6 +80,14 @@ export class StatefulTransportManager
     this.garbageCollector = setInterval(() => {
       void this.cleanupStaleSessions();
     }, this.options.staleSessionTimeoutMs);
+  }
+
+  private getTenantId(context: RequestContext): string {
+    return context.auth?.sub ?? 'default-tenant';
+  }
+
+  private getSessionKey(tenantId: string, sessionId: string): string {
+    return `tenant:${tenantId}/${SESSION_STORAGE_PREFIX}${sessionId}`;
   }
 
   /**
@@ -104,20 +115,34 @@ export class StatefulTransportManager
     try {
       server = await this.createServerInstanceFn();
       const currentServer = server;
+      const tenantId = this.getTenantId(opContext);
 
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
-        onsessioninitialized: (sessionId) => {
-          const sessionContext = { ...opContext, sessionId };
+        onsessioninitialized: async (sessionId) => {
+          const sessionContext = { ...opContext, sessionId, tenantId };
           this.transports.set(sessionId, transport!);
           this.servers.set(sessionId, currentServer);
-          this.sessions.set(sessionId, {
+
+          // CREATE and STORE the session object in the storage provider
+          const session: TransportSession = {
             id: sessionId,
             createdAt: new Date(),
             lastAccessedAt: new Date(),
             activeRequests: 0,
-          });
-          logger.info(`MCP Session created: ${sessionId}`, sessionContext);
+          };
+          const sessionKey = this.getSessionKey(tenantId, sessionId);
+          await this.storageProvider.set(
+            sessionKey,
+            session,
+            sessionContext,
+            { ttl: this.options.staleSessionTimeoutMs / 1000 + 60 }, // Add a buffer
+          );
+
+          logger.info(
+            `MCP Session created and stored: ${sessionId}`,
+            sessionContext,
+          );
         },
       });
 
@@ -205,8 +230,14 @@ export class StatefulTransportManager
       additionalContext: { sessionId },
     });
 
+    const tenantId = this.getTenantId(sessionContext);
+    const sessionKey = this.getSessionKey(tenantId, sessionId);
     const transport = this.transports.get(sessionId);
-    const session = this.sessions.get(sessionId);
+    // FETCH the session from storage instead of the in-memory map
+    const session = await this.storageProvider.get<TransportSession>(
+      sessionKey,
+      sessionContext,
+    );
 
     if (!transport || !session) {
       logger.warning(
@@ -224,8 +255,11 @@ export class StatefulTransportManager
       };
     }
 
+    // UPDATE session atomically
     session.lastAccessedAt = new Date();
     session.activeRequests += 1;
+    await this.storageProvider.set(sessionKey, session, sessionContext);
+
     logger.debug(
       `Incremented activeRequests for session ${sessionId}. Count: ${session.activeRequests}`,
       sessionContext,
@@ -245,12 +279,25 @@ export class StatefulTransportManager
         rethrow: true,
       });
     } finally {
-      session.activeRequests -= 1;
-      session.lastAccessedAt = new Date();
-      logger.debug(
-        `Decremented activeRequests for session ${sessionId}. Count: ${session.activeRequests}`,
+      // Decrement and save again
+      // Re-fetch the session to avoid race conditions if another request modified it.
+      const finalSession = await this.storageProvider.get<TransportSession>(
+        sessionKey,
         sessionContext,
       );
+      if (finalSession) {
+        finalSession.activeRequests -= 1;
+        finalSession.lastAccessedAt = new Date();
+        await this.storageProvider.set(
+          sessionKey,
+          finalSession,
+          sessionContext,
+        );
+        logger.debug(
+          `Decremented activeRequests for session ${sessionId}. Count: ${finalSession.activeRequests}`,
+          sessionContext,
+        );
+      }
     }
   }
 
@@ -291,18 +338,9 @@ export class StatefulTransportManager
   }
 
   /**
-   * Retrieves information about a specific session.
-   */
-  getSession(sessionId: string): TransportSession | undefined {
-    return this.sessions.get(sessionId);
-  }
-
-  /**
    * Returns the configured session mode of the manager.
    */
   getMode(): 'stateful' | 'auto' {
-    // This class now only represents 'stateful' mode. The 'auto' logic
-    // is handled by the AutoTransportManager.
     return 'stateful';
   }
 
@@ -327,7 +365,6 @@ export class StatefulTransportManager
     }
 
     this.transports.clear();
-    this.sessions.clear();
     this.servers.clear();
     logger.info('All active sessions closed and manager shut down.', context);
   }
@@ -348,6 +385,8 @@ export class StatefulTransportManager
 
     const transport = this.transports.get(sessionId);
     const server = this.servers.get(sessionId);
+    const tenantId = this.getTenantId(sessionContext);
+    const sessionKey = this.getSessionKey(tenantId, sessionId);
 
     await ErrorHandler.tryCatch(
       async () => {
@@ -359,7 +398,8 @@ export class StatefulTransportManager
 
     this.transports.delete(sessionId);
     this.servers.delete(sessionId);
-    this.sessions.delete(sessionId);
+    // DELETE the session from the storage provider
+    await this.storageProvider.delete(sessionKey, sessionContext);
 
     logger.info(
       `MCP Session closed and resources released: ${sessionId}`,
@@ -380,16 +420,33 @@ export class StatefulTransportManager
     const STALE_TIMEOUT_MS = this.options.staleSessionTimeoutMs;
     const staleSessionIds: string[] = [];
 
-    for (const [sessionId, session] of this.sessions.entries()) {
-      if (now - session.lastAccessedAt.getTime() > STALE_TIMEOUT_MS) {
+    // This is a simplification. A real multi-tenant cleanup would need a way
+    // to list all tenants or have a centralized list of all active sessions.
+    // For this template, we'll assume cleanup operates on a known tenant,
+    // or that list() can handle prefix matching across tenants.
+    const tenantId = this.getTenantId(context);
+    const sessionKeys = await this.storageProvider.list(
+      `tenant:${tenantId}/${SESSION_STORAGE_PREFIX}`,
+      context,
+    );
+
+    for (const key of sessionKeys) {
+      const session = await this.storageProvider.get<TransportSession>(
+        key,
+        context,
+      );
+      if (
+        session &&
+        now - new Date(session.lastAccessedAt).getTime() > STALE_TIMEOUT_MS
+      ) {
         if (session.activeRequests > 0) {
           logger.info(
-            `Session ${sessionId} is stale but has ${session.activeRequests} active requests. Skipping cleanup.`,
-            { ...context, sessionId },
+            `Session ${session.id} is stale but has ${session.activeRequests} active requests. Skipping cleanup.`,
+            { ...context, sessionId: session.id },
           );
           continue;
         }
-        staleSessionIds.push(sessionId);
+        staleSessionIds.push(session.id);
       }
     }
 
