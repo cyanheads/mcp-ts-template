@@ -63,6 +63,7 @@ const DEFAULT_IGNORE_PATTERNS: string[] = [
   'dist',
   'build',
   'logs',
+  '.husky/_',
 ];
 
 /**

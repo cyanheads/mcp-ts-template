@@ -22,8 +22,7 @@
       "coverage/",
       "docs/",
       "repomix.config.json",
-      "scripts/",
-      "tests/"
+      ".husky/_"
     ]
   },
   "security": {
