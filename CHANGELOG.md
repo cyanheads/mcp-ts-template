@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.0-alpha.7] - 2025-09-13
+
+### Feature
+
+- **Bun Test Integration**: Overhauled the testing framework to be compatible with Bun's built-in test runner (`bun test`). This removes the direct dependency on Vitest's runner and related plugins.
+  - Introduced a `tests/setup.ts` compatibility layer, preloaded via `bunfig.toml`, to shim `vi.mock` and other Vitest APIs.
+  - Split test execution into unit (`bun test`) and integration (`bun test:integration`) suites with separate `vitest.config.ts` and `vitest.integration.config.ts` files.
+  - Added new integration tests for core utilities like `config`, `logger`, and `errorHandler`.
+
+### Refactored
+
+- **Storage Layer**: Updated the storage service and providers to prefer type-only imports (`import type`) for interfaces like `IStorageProvider`. This hardens the architecture by enforcing a clean separation between type definitions and their concrete implementations.
+- **Auth Strategy**: Decoupled `OauthStrategy` from the dependency injection container by removing `@inject` decorators. It now consumes the singleton `config` and `logger` directly, simplifying its instantiation.
+- **Logger**: Refined the `Logger` service for more reliable shutdown and cleanup logic, improving resource management.
+
+### Fixed
+
+- **Sanitization Utility**: Enhanced the sensitive field sanitization logic to use a more robust, normalized key-matching algorithm, providing more accurate redaction of secrets in logs.
+
+### Docs
+
+- **Developer Mandates**: Updated `AGENTS.md` and `.clinerules/clinerules.md` to reflect the new DI-free and barrel-export-based registration for tools and resources.
+
 ## [2.0.0-alpha.6] - 2025-09-13
 
 ### Refactored
