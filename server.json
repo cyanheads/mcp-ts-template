@@ -25,6 +25,15 @@
           "value": "start:stdio"
         }
       ],
+      "environment_variables": [
+        {
+          "name": "MCP_LOG_LEVEL",
+          "description": "Sets the minimum log level for output (e.g., 'debug', 'info', 'warn').",
+          "format": "string",
+          "is_required": false,
+          "default": "info"
+        }
+      ],
       "transport": {
         "type": "stdio"
       }
@@ -52,6 +61,20 @@
           "format": "string",
           "is_required": false,
           "default": "3010"
+        },
+        {
+          "name": "MCP_AUTH_MODE",
+          "description": "Authentication mode to use: 'none', 'jwt', or 'oauth'.",
+          "format": "string",
+          "is_required": false,
+          "default": "none"
+        },
+        {
+          "name": "MCP_LOG_LEVEL",
+          "description": "Sets the minimum log level for output (e.g., 'debug', 'info', 'warn').",
+          "format": "string",
+          "is_required": false,
+          "default": "info"
         }
       ],
       "transport": {

@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "mcpName": "io.github.cyanheads/mcp-ts-template",
   "description": "The definitive, production-grade template for building powerful and scalable Model Context Protocol (MCP) servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.",
   "main": "dist/index.js",
@@ -57,7 +57,8 @@
     "test:unit": "bun test tests/unit",
     "test:integration": "INTEGRATION=1 bun test tests/integration",
     "audit": "bun audit",
-    "audit:fix": "bun audit --fix"
+    "audit:fix": "bun audit --fix",
+    "validate-server": "bun scripts/validate-mcp-publish-schema.ts"
   },
   "resolutions": {
     "@hono/node-server": "1.19.2",
