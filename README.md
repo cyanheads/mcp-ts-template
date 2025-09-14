@@ -9,7 +9,7 @@
   [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
   [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
   [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-^5.5-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/)
   <br />
 
 </div>
@@ -18,7 +18,7 @@
 
 **`mcp-ts-template`** is more than just a template; it's a feature-rich, production-ready framework for building robust, observable, and secure MCP servers. It provides a solid architectural foundation, handling the complex plumbing of a modern backend system so you can focus entirely on creating powerful tools and resources for AI agents.
 
-Provides an LLM-Optimized **[AGENTS.md](./.AGENTS.md)** for your coding agents, ensuring best practices are followed from the start.
+This project is designed to be **AI-agent-friendly**, providing an LLM-optimized **[AGENTS.md](./AGENTS.md)** and detailed rules in **[.clinerules/clinerules.md](./.clinerules/clinerules.md)** to ensure your coding agents adhere to best practices from the start.
 
 ## ✨ Core Features
 
@@ -35,13 +35,17 @@ This template is packed with production-grade features designed for high-perform
 | **Abstracted Storage Layer**        | A flexible, provider-based storage service (`IStorageProvider`) with ready-to-use backends for **In-Memory**, **Filesystem**, and **Supabase**.                      |
 | **Comprehensive Utilities**         | A rich set of internal utilities for logging (`Winston`), rate-limiting, security sanitization, ID generation, cron scheduling, and network requests.                |
 | **Integration-First Testing**       | Pre-configured with **Vitest** and **`msw`** for writing meaningful integration tests that reflect real-world usage, ensuring reliability from end to end.           |
-| **Agent-Ready Design**              | Includes detailed `.clinerules` to guide developer LLM agents, ensuring they adhere to the project's architectural standards from day one.                           |
+| **Agent-Ready Design**              | Includes detailed guidance in `AGENTS.md` and `.clinerules/` to direct developer LLM agents, ensuring they adhere to the project's architectural standards.          |
 
 ---
 
 ## 🚀 Getting Started
 
-Launch your MCP server development environment in minutes.
+### Prerequisites
+
+- [Bun](https://bun.sh/) (v1.2.0 or higher)
+
+### Installation
 
 1.  **Clone the Repository**
 
@@ -50,7 +54,7 @@ Launch your MCP server development environment in minutes.
     cd mcp-ts-template
     ```
 
-2.  **Install Dependencies (Bun)**
+2.  **Install Dependencies**
 
     ```bash
     bun install
@@ -69,19 +73,45 @@ Launch your MCP server development environment in minutes.
     bun run build
     ```
 
-5.  **Run the Server**
-    You can run the server in two primary modes:
-    - **STDIO Transport**: Ideal for local development or when the server is a child process.
+---
 
-      ```bash
-      bun run start:stdio
-      ```
+## 🏃 Running the Server
 
-    - **HTTP Transport**: For network-accessible deployments.
-      ```bash
-      bun run start:http
-      # Server now running at http://127.0.0.1:3010
-      ```
+You can run the server in several modes for development and production.
+
+### Standard Transports
+
+- **STDIO Transport**: Ideal for local development or when the server is a child process.
+  ```bash
+  bun run start:stdio
+  ```
+- **HTTP Transport**: For network-accessible deployments.
+  ```bash
+  bun run start:http
+  # Server now running at http://127.0.0.1:3010
+  ```
+
+### Development with Hot-Reloading
+
+- Use the `dev:*` scripts to run the server with hot-reloading powered by Bun.
+  ```bash
+  bun run dev:http
+  # Or for stdio
+  bun run dev:stdio
+  ```
+
+### Docker
+
+- Build and run the server in a containerized environment.
+
+  ```bash
+  # 1. Build the Docker image
+  docker build -t mcp-ts-template .
+
+  # 2. Run the container
+  # Be sure to pass your environment variables
+  docker run --rm -it -p 3010:3010 --env-file .env mcp-ts-template
+  ```
 
 ---
 
@@ -127,21 +157,23 @@ The entire architecture is built around a Dependency Injection (DI) container (`
 .
 ├── .clinerules/         # --> Rules and mandates for LLM-based development agents.
 ├── .github/             # --> GitHub Actions workflows (e.g., CI/CD).
-├── .vscode/             # --> Recommended VS Code settings.
 ├── scripts/             # --> Helper scripts for development (cleaning, docs, etc.).
 ├── src/
 │   ├── config/          # --> Application configuration (Zod schemas, loader).
 │   ├── container/       # --> Dependency Injection container setup and registrations.
 │   ├── mcp-server/
-│   │   ├── resources/   # --> Declarative resource definitions.
-│   │   ├── tools/       # --> Declarative tool definitions.
+│   │   ├── resources/   # --> Declarative resource definitions (*.resource.ts).
+│   │   ├── tools/       # --> Declarative tool definitions (*.tool.ts).
 │   │   ├── transports/  # --> HTTP and STDIO transport layers, including auth.
 │   │   └── server.ts    # --> Core McpServer setup (resolves components from DI).
 │   ├── services/        # --> Clients for external services (e.g., LLM providers).
 │   ├── storage/         # --> Abstracted storage layer and providers.
 │   ├── types-global/    # --> Global TypeScript types (e.g., McpError).
 │   └── utils/           # --> Core utilities (logger, error handler, security).
-└── tests/               # --> Vitest integration and unit tests.
+├── tests/               # --> Vitest integration and unit tests.
+├── .env.example         # --> Example environment variables.
+├── AGENTS.md            # --> Detailed architectural guide for LLM agents.
+└── Dockerfile           # --> For building and running the server in a container.
 ```
 
 ## 🔧 Extending the Template
@@ -167,29 +199,49 @@ That's it. The DI container automatically discovers and registers all tools from
 ### Adding a New Storage Provider
 
 1.  **Create Provider**: Create a new class under `src/storage/providers/` that implements the `IStorageProvider` interface.
-2.  **Register in DI**: Open `src/container/registrations/core.ts`. In the `registerStorage` function, add a condition to register your new provider based on the `STORAGE_PROVIDER_TYPE` from the config.
-3.  **Update Config**: Add your new provider's name to the `StorageProviderType` enum in `src/config/index.ts`.
+2.  **Add to Factory**: Open `src/storage/core/storageFactory.ts`. Add a case to the `switch` statement to instantiate your new provider based on the `STORAGE_PROVIDER_TYPE` from the config.
+3.  **Update Config Schema**: Add your new provider's name to the `StorageProviderType` enum in `src/config/index.ts`.
 4.  **Set Environment Variable**: In your `.env` file, set `STORAGE_PROVIDER_TYPE` to your new provider's name.
 
 ---
 
 ## ⚙️ Configuration
 
-The server is configured via environment variables, loaded and validated by the `config` module (`src/config/index.ts`).
+The server is configured via environment variables, loaded and validated by `src/config/index.ts`. Copy `.env.example` to `.env` and fill in the required values.
 
-1.  Copy `.env.example` to `.env`.
-2.  Fill in the required values for your setup.
-
-Key environment variables include:
-
-- `MCP_TRANSPORT_TYPE`: `stdio` or `http`.
-- `MCP_SESSION_MODE`: `stateless` or `stateful`.
-- `MCP_AUTH_MODE`: `none`, `jwt`, or `oauth`.
-- `STORAGE_PROVIDER_TYPE`: `in-memory`, `filesystem`, or `supabase`.
-- `OTEL_ENABLED`: Set to `true` to enable OpenTelemetry.
-- `OPENROUTER_API_KEY`: API key for the OpenRouter LLM service.
+| Variable                    | Description                                                  | Default      |
+| :-------------------------- | :----------------------------------------------------------- | :----------- |
+| `MCP_TRANSPORT_TYPE`        | Transport to use: `stdio` or `http`.                         | `http`       |
+| `MCP_SESSION_MODE`          | HTTP session mode: `stateless`, `stateful`, or `auto`.       | `auto`       |
+| `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.              | `none`       |
+| `MCP_LOG_LEVEL`             | Minimum log level: `debug`, `info`, `warning`, `error`, etc. | `debug`      |
+| `LOGS_DIR`                  | Directory for log files.                                     | `logs/`      |
+| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`.      | `filesystem` |
+| `STORAGE_FILESYSTEM_PATH`   | Path for the filesystem storage provider.                    | `./.storage` |
+| `OPENROUTER_API_KEY`        | API key for the OpenRouter LLM service.                      | ` `          |
+| `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                       | `false`      |
+| `MCP_AUTH_SECRET_KEY`       | Secret key for signing JWTs (required for `jwt` auth mode).  | ` `          |
+| `SUPABASE_URL`              | URL for your Supabase project.                               | ` `          |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key for Supabase admin tasks.                   | ` `          |
 
 Refer to **`.env.example`** for a complete list of configurable options.
+
+## 📜 Available Scripts
+
+Key scripts available in `package.json`:
+
+| Script                  | Description                                                             |
+| :---------------------- | :---------------------------------------------------------------------- |
+| `bun run build`         | Compiles the TypeScript source code to JavaScript in `dist/`.           |
+| `bun run start:http`    | Starts the compiled server using the HTTP transport.                    |
+| `bun run start:stdio`   | Starts the compiled server using the STDIO transport.                   |
+| `bun run dev:http`      | Runs the server in development mode with hot-reloading (HTTP).          |
+| `bun run test`          | Runs all unit and integration tests with Vitest.                        |
+| `bun run test:coverage` | Runs all tests and generates a code coverage report.                    |
+| `bun run devcheck`      | A comprehensive check that runs linting, type-checking, and formatting. |
+| `bun run format`        | Automatically formats all code with Prettier.                           |
+| `bun run lint`          | Lints the codebase with ESLint.                                         |
+| `bun run typecheck`     | Checks the project for TypeScript errors.                               |
 
 ## 🤝 Contributing
 

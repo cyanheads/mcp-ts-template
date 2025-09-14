@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-14 06:42:03
+Generated on: 2025-09-14 07:11:58
 
 ```
 mcp-ts-template
@@ -18,7 +18,6 @@ mcp-ts-template
 ├── changelog
 │   └── archive1.md
 ├── docs
-│   ├── all-files.md
 │   └── tree.md
 ├── scripts
 │   ├── clean.ts
@@ -26,7 +25,6 @@ mcp-ts-template
 │   ├── devdocs.ts
 │   ├── fetch-openapi-spec.ts
 │   ├── make-executable.ts
-│   ├── README.md
 │   └── tree.ts
 ├── src
 │   ├── config

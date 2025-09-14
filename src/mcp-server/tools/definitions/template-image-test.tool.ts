@@ -19,21 +19,57 @@ import type {
   ToolDefinition,
 } from '@/mcp-server/tools/utils/toolDefinition.js';
 
-// Configurable metadata and constants
-// -----------------------------------
+/**
+ * Programmatic tool name (must be unique).
+ * Naming convention (recommended): <server-prefix>_<action>_<object>
+ * - Use a short, stable server prefix for discoverability across servers.
+ * - Use lowercase snake_case.
+ * - Examples: 'template_echo_message', 'template_cat_fact'.
+ */
 const TOOL_NAME = 'template_image_test';
+/** --------------------------------------------------------- */
+
+/** Human-readable title used by UIs. */
 const TOOL_TITLE = 'Fetch Image Test';
+/** --------------------------------------------------------- */
+
+/**
+ * LLM-facing description of the tool.
+ * Guidance:
+ * - Be descriptive but concise (aim for 1–2 sentences).
+ * - Write from the LLM's perspective to optimize tool selection.
+ * - State purpose, primary inputs, notable constraints, and side effects.
+ * - Mention any requirements (auth, permissions, online access) and limits
+ *   (rate limits, size constraints, expected latency) if critically applicable.
+ * - Note determinism/idempotency and external-world interactions when relevant.
+ * - Avoid implementation details; focus on the observable behavior and contract.
+ */
 const TOOL_DESCRIPTION =
   'Fetches a random cat image and returns it base64-encoded with the MIME type. Useful for testing image handling.';
+/** --------------------------------------------------------- */
 
+/**
+ * UI/behavior hints for clients. All supported options:
+ * - title?: string — Human display name (UI hint).
+ * - readOnlyHint?: boolean — True if tool does not modify environment.
+ * - destructiveHint?: boolean — If not read-only, set true if updates can be destructive. Default true.
+ * - idempotentHint?: boolean — If not read-only, true if repeat calls with same args have no additional effect.
+ * - openWorldHint?: boolean — True if tool may interact with an open, external world (e.e., web search). Default true.
+ *
+ * Note: These are hints only. Clients should not rely on them for safety guarantees.
+ */
 const TOOL_ANNOTATIONS: ToolAnnotations = {
   readOnlyHint: true,
   openWorldHint: true,
 };
+/** --------------------------------------------------------- */
 
 // External API details
 const CAT_API_URL = 'https://cataas.com/cat';
 const API_TIMEOUT_MS = 5000;
+
+// API response validation
+// No external API used for this tool that requires schema validation based on an external response.
 
 //
 // Schemas (input and output)

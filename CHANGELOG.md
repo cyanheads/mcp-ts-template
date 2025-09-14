@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.0-alpha.11] - 2025-09-14
+
+### Changed
+
+- **Documentation**: Refined formatting and updated content in `AGENTS.md` and `.clinerules/clinerules.md` to align with the latest tool/resource development workflows and architectural mandates.
+- **Project Structure**: Updated `README.md` with current TypeScript version, enhanced descriptions for agent-friendly design, expanded sections on server execution and configuration.
+- **Tool Definitions**: Clarified metadata comments and updated import paths in `template-cat-fact.tool.ts`, `template-echo-message.tool.ts`, and `template-image-test.tool.ts` to conform to the declarative tool pattern.
+
+### Removed
+
+- **Documentation**: Deleted `docs/all-files.md` and `scripts/README.md` as they are no longer needed.
+
 ## [2.0.0-alpha.10] - 2025-09-13
 
 ### Changed

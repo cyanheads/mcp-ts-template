@@ -2,21 +2,19 @@
  * @fileoverview Complete, declarative definition for the 'template_echo_message' tool.
  * Emphasizes a clean, top‑down flow with configurable metadata at the top,
  * schema definitions next, pure logic, and finally the exported ToolDefinition.
- * @module src/mcp-server/tools/definitions/echo.tool
+ * @module src/mcp-server/tools/definitions/template-echo-message.tool
  */
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { type RequestContext, logger } from '@/utils/index.js';
 import type {
   ToolAnnotations,
   ToolDefinition,
 } from '@/mcp-server/tools/utils/toolDefinition.js';
 import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { type RequestContext, logger } from '@/utils/index.js';
 
-// Configurable metadata and constants
-// -----------------------------------
 /**
  * Programmatic tool name (must be unique).
  * Naming convention (recommended): <server-prefix>_<action>_<object>
@@ -25,8 +23,12 @@ import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
  * - Examples: 'template_echo_message', 'template_cat_fact'.
  */
 const TOOL_NAME = 'template_echo_message';
-/** Optional human-readable title used by UIs. */
+/** --------------------------------------------------------- */
+
+/** Human-readable title used by UIs. */
 const TOOL_TITLE = 'Echo Message';
+/** --------------------------------------------------------- */
+
 /**
  * LLM-facing description of the tool.
  * Guidance:
@@ -40,9 +42,11 @@ const TOOL_TITLE = 'Echo Message';
  */
 const TOOL_DESCRIPTION =
   'Echoes a message back with optional formatting and repetition.';
+/** --------------------------------------------------------- */
+
 /**
  * UI/behavior hints for clients. All supported options:
- * - title?: string — Optional human display name (UI hint).
+ * - title?: string — Human display name (UI hint).
  * - readOnlyHint?: boolean — True if tool does not modify environment.
  * - destructiveHint?: boolean — If not read-only, set true if updates can be destructive. Default true.
  * - idempotentHint?: boolean — If not read-only, true if repeat calls with same args have no additional effect.
@@ -55,6 +59,7 @@ const TOOL_ANNOTATIONS: ToolAnnotations = {
   idempotentHint: true,
   openWorldHint: false,
 };
+/** --------------------------------------------------------- */
 
 /** Supported formatting modes. */
 const ECHO_MODES = ['standard', 'uppercase', 'lowercase'] as const;

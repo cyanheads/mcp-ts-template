@@ -7,40 +7,63 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
+import type {
+  ToolAnnotations,
+  ToolDefinition,
+} from '@/mcp-server/tools/utils/toolDefinition.js';
+import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   type RequestContext,
   fetchWithTimeout,
   logger,
 } from '@/utils/index.js';
-import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import type {
-  ToolAnnotations,
-  ToolDefinition,
-} from '@/mcp-server/tools/utils/toolDefinition.js';
 
-// Configurable metadata and constants
-// -----------------------------------
 /**
  * Programmatic tool name (must be unique).
  * Naming convention (recommended): <server-prefix>_<action>_<object>
- * Example: 'template_cat_fact'.
+ * - Use a short, stable server prefix for discoverability across servers.
+ * - Use lowercase snake_case.
+ * - Examples: 'template_echo_message', 'template_cat_fact'.
  */
 const TOOL_NAME = 'template_cat_fact';
-/** Optional human-readable title used by UIs. */
-const TOOL_TITLE = 'Random Cat Fact';
+/** --------------------------------------------------------- */
+
+/** Human-readable title used by UIs. */
+const TOOL_TITLE = 'template_cat_fact';
+/** --------------------------------------------------------- */
+
 /**
- * Concise LLM-facing description of the tool behavior and constraints.
+ * LLM-facing description of the tool.
+ * Guidance:
+ * - Be descriptive but concise (aim for 1–2 sentences).
+ * - Write from the LLM's perspective to optimize tool selection.
+ * - State purpose, primary inputs, notable constraints, and side effects.
+ * - Mention any requirements (auth, permissions, online access) and limits
+ *   (rate limits, size constraints, expected latency) if critically applicable.
+ * - Note determinism/idempotency and external-world interactions when relevant.
+ * - Avoid implementation details; focus on the observable behavior and contract.
  */
 const TOOL_DESCRIPTION =
   'Fetches a random cat fact from a public API with an optional maximum length.';
+/** --------------------------------------------------------- */
 
-/** UI/behavior hints for clients. */
+/**
+ * UI/behavior hints for clients. All supported options:
+ * - title?: string — Human display name (UI hint).
+ * - readOnlyHint?: boolean — True if tool does not modify environment.
+ * - destructiveHint?: boolean — If not read-only, set true if updates can be destructive. Default true.
+ * - idempotentHint?: boolean — If not read-only, true if repeat calls with same args have no additional effect.
+ * - openWorldHint?: boolean — True if tool may interact with an open, external world (e.g., web search). Default true.
+ *
+ * Note: These are hints only. Clients should not rely on them for safety guarantees.
+ */
 const TOOL_ANNOTATIONS: ToolAnnotations = {
   readOnlyHint: true,
   openWorldHint: true,
   idempotentHint: true,
 };
+/** --------------------------------------------------------- */
 
 // External API details
 const CAT_FACT_API_URL = 'https://catfact.ninja/fact';

@@ -1,7 +1,7 @@
 # Agent Protocol & Architectural Mandate
 
-Version: 2.0.0
-Target Project: `mcp-ts-template`
+**Version:** 2.0.0
+**Target Project:** `mcp-ts-template`
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
@@ -9,25 +9,25 @@ This document defines the operational rules for contributing to this codebase. F
 
 ## I. Core Principles (Non‑Negotiable)
 
-1. The Logic Throws, The Handler Catches
-   - Your Task (logic): Implement pure, stateless business logic inside the `logic` function on a `ToolDefinition`. Do not add `try...catch` here.
-   - On Failure: Throw `new McpError(...)` with the appropriate `JsonRpcErrorCode` and context.
-   - Framework’s Job (Handler): The standardized handler created by `createMcpToolHandler` (in `src/mcp-server/tools/utils/toolHandlerFactory.ts`) wraps your logic, manages `RequestContext`, measures execution via `measureToolExecution`, formats the response, and handles errors.
+1.  **The Logic Throws, The Handler Catches**
+    - **Your Task (Logic):** Implement pure, stateless business logic inside the `logic` function of a `ToolDefinition`. **Do not add `try...catch` here.**
+    - **On Failure:** You must throw `new McpError(...)` with the appropriate `JsonRpcErrorCode` and context.
+    - **Framework’s Job (Handler):** The standardized handler created by `createMcpToolHandler` wraps your logic, manages `RequestContext`, measures execution via `measureToolExecution`, formats the response, and is the sole location for catching errors.
 
-2. Full‑Stack Observability
-   - Tracing: OpenTelemetry is preconfigured; your logs and errors are correlated to traces automatically.
-   - Performance: `measureToolExecution` records duration, success, payload sizes, and error codes.
-   - No Manual Instrumentation: Do not add custom tracing; use the provided utilities and logging.
+2.  **Full‑Stack Observability**
+    - **Tracing:** OpenTelemetry is preconfigured; your logs and errors are automatically correlated to traces.
+    - **Performance:** `measureToolExecution` automatically records duration, success, payload sizes, and error codes for every tool call.
+    - **No Manual Instrumentation:** Do not add custom tracing or spans; use the provided utilities and structured logging.
 
-3. Structured, Traceable Operations
-   - Always accept a `RequestContext` as the last parameter of any significant operation.
-   - Pass the same `context` through your entire call stack for continuity.
-   - Use the global `logger` for all logging; include the `context` in every log call.
+3.  **Structured, Traceable Operations**
+    - Always accept a `RequestContext` as the last parameter of any significant operation.
+    - Pass the _same_ `context` through your entire call stack for continuity.
+    - Use the global `logger` for all logging; include the `context` in every log call.
 
-4. Decoupled Storage
-   - Never access storage backends directly.
-   - Always use `storageService` for `get`, `set`, `delete`, and `list` operations.
-   - The concrete provider is configured via environment variables and initialized at startup.
+4.  **Decoupled Storage**
+    - Never access storage backends (e.g., `fs`, `supabase-js`) directly from tool logic.
+    - **Always use `storageService`** for all `get`, `set`, `delete`, and `list` operations.
+    - The concrete provider is configured via environment variables and initialized at startup.
 
 ---
 
@@ -57,67 +57,70 @@ This is complemented by other core principles:
 
 This is the only approved workflow for authoring or modifying tools.
 
-Step 1 — File Location
+#### Step 1 — File Location
 
-- Place tools in `src/mcp-server/tools/definitions/`.
+- Place new tools in `src/mcp-server/tools/definitions/`.
 - Name files `[tool-name].tool.ts`.
 - Use `src/mcp-server/tools/definitions/template-echo-message.tool.ts` as the reference template.
 
-Step 2 — Define the ToolDefinition
+#### Step 2 — Define the ToolDefinition
+
 Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 
-- name: Programmatic tool name (e.g., `"get_weather_forecast"`).
-- title (optional): Human-readable display name used by UIs; preferred over name when present.
-- description: Clear, LLM-facing description.
-- inputSchema: Zod `z.object({ ... })` for parameters. Every field must have `.describe()`.
-- outputSchema: Zod `z.object({ ... })` describing success output.
-- logic: `async (input, context) => { ... }` pure business logic; throws `McpError` on failure.
-- annotations (optional): Hints like `{ readOnlyHint, openWorldHint }`.
-- responseFormatter (optional): Map successful output to `ContentBlock[]` when non-JSON output is preferred (e.g., images).
+- `name`: Programmatic tool name (e.g., `"get_weather_forecast"`).
+- `title` (optional): Human-readable display name used by UIs.
+- `description`: Clear, LLM-facing description of what the tool does.
+- `inputSchema`: A Zod `z.object({ ... })` for parameters. **Every field must have a `.describe()` statement.**
+- `outputSchema`: A Zod `z.object({ ... })` describing the structure of a successful output.
+- `logic`: The `async (input, context) => { ... }` function containing the pure business logic.
+- `annotations` (optional): Behavioral hints like `{ readOnlyHint, openWorldHint }`.
+- `responseFormatter` (optional): A function to map successful output to `ContentBlock[]` for non-JSON or complex outputs (e.g., images, rich text).
 
-Step 3 — Register the Tool via Barrel Export
+#### Step 2.5 — Apply Authorization (Mandatory for most tools)
 
-- Open `src/mcp-server/tools/definitions/index.ts`.
-- Import your new tool definition and add it to the `allToolDefinitions` array.
+- Wrap your `logic` function with the `withAuth` higher-order function to enforce scope-based access control.
+- Provide an array of required scopes (e.g., `['tool:echo:read']`).
 
 ```ts
-// src/mcp-server/tools/definitions/index.ts
-import { catFactTool } from './template-cat-fact.tool.js';
-import { echoTool } from './template-echo-message.tool.js';
-import { imageTestTool } from './template-image-test.tool.js';
-// Import your new tool above
+// Correct way to assign the logic property with authorization
+import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 
-export const allToolDefinitions = [
-  catFactTool,
-  echoTool,
-  imageTestTool,
-  // Add your new tool here
-];
+// ... inside your ToolDefinition
+logic: withAuth(['tool:echo:read'], echoToolLogic),
 ```
 
-The DI container automatically loops through this array (`tool-registration.ts`), so no other registration step is needed.
+#### Step 3 — Register the Tool via Barrel Export
 
-Example src/mcp-server/tools/definitions/template-echo-message.tool.ts
+1.  Open `src/mcp-server/tools/definitions/index.ts`.
+2.  Import your new tool definition.
+3.  Add it to the `allToolDefinitions` array.
+
+The DI container automatically discovers and registers all tools from this array. No other registration step is needed.
+
+#### Canonical Example: `template-cat-fact.tool.ts`
 
 ```ts
 /**
- * @fileoverview Complete, declarative definition for the 'template_echo_message' tool.
- * Emphasizes a clean, top‑down flow with configurable metadata at the top,
- * schema definitions next, pure logic, and finally the exported ToolDefinition.
- * @module src/mcp-server/tools/definitions/echo.tool
+ * @fileoverview Complete, declarative definition for the 'template_cat_fact' tool.
+ * Mirrors the updated tool structure used by the echo tool: metadata constants,
+ * Zod schemas, pure logic (no try/catch), and an optional response formatter.
+ * @module src/mcp-server/tools/definitions/template-cat-fact.tool
  */
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
-import { type RequestContext, logger } from '../../../utils/index.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import {
+  type RequestContext,
+  fetchWithTimeout,
+  logger,
+} from '@/utils/index.js';
+import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import type {
   ToolAnnotations,
   ToolDefinition,
-} from '../utils/toolDefinition.js';
+} from '@/mcp-server/tools/utils/toolDefinition.js';
 
-// Configurable metadata and constants
-// -----------------------------------
 /**
  * Programmatic tool name (must be unique).
  * Naming convention (recommended): <server-prefix>_<action>_<object>
@@ -125,9 +128,13 @@ import type {
  * - Use lowercase snake_case.
  * - Examples: 'template_echo_message', 'template_cat_fact'.
  */
-const TOOL_NAME = 'template_echo_message';
-/** Optional human-readable title used by UIs. */
-const TOOL_TITLE = 'Echo Message';
+const TOOL_NAME = 'template_cat_fact';
+/** --------------------------------------------------------- */
+
+/** Human-readable title used by UIs. */
+const TOOL_TITLE = 'template_cat_fact';
+/** --------------------------------------------------------- */
+
 /**
  * LLM-facing description of the tool.
  * Guidance:
@@ -140,10 +147,12 @@ const TOOL_TITLE = 'Echo Message';
  * - Avoid implementation details; focus on the observable behavior and contract.
  */
 const TOOL_DESCRIPTION =
-  'Echoes a message back with optional formatting and repetition.';
+  'Fetches a random cat fact from a public API with an optional maximum length.';
+/** --------------------------------------------------------- */
+
 /**
  * UI/behavior hints for clients. All supported options:
- * - title?: string — Optional human display name (UI hint).
+ * - title?: string — Human display name (UI hint).
  * - readOnlyHint?: boolean — True if tool does not modify environment.
  * - destructiveHint?: boolean — If not read-only, set true if updates can be destructive. Default true.
  * - idempotentHint?: boolean — If not read-only, true if repeat calls with same args have no additional effect.
@@ -153,259 +162,240 @@ const TOOL_DESCRIPTION =
  */
 const TOOL_ANNOTATIONS: ToolAnnotations = {
   readOnlyHint: true,
+  openWorldHint: true,
   idempotentHint: true,
-  openWorldHint: false,
 };
+/** --------------------------------------------------------- */
 
-/** Supported formatting modes. */
-const ECHO_MODES = ['standard', 'uppercase', 'lowercase'] as const;
-/** Default mode when not provided. */
-const DEFAULT_MODE: (typeof ECHO_MODES)[number] = 'standard';
-/** Default repeat count. */
-const DEFAULT_REPEAT = 1;
-/** Default includeTimestamp behavior. */
-const DEFAULT_INCLUDE_TIMESTAMP = false;
-/** Special input which deliberately triggers a failure for testing. */
-export const TEST_ERROR_TRIGGER_MESSAGE = 'TRIGGER_ERROR';
+// External API details
+const CAT_FACT_API_URL = 'https://catfact.ninja/fact';
+const CAT_FACT_API_TIMEOUT_MS = 5000;
+
+// API response validation
+const CatFactApiSchema = z.object({
+  fact: z.string(),
+  length: z.number(),
+});
 
 //
 // Schemas (input and output)
 // --------------------------
 const InputSchema = z
   .object({
-    message: z
-      .string()
-      .min(1, 'Message cannot be empty.')
-      .max(1000, 'Message cannot exceed 1000 characters.')
-      .describe(
-        `The message to echo back. To trigger a test error, provide '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
-      ),
-    mode: z
-      .enum(ECHO_MODES)
-      .default(DEFAULT_MODE)
-      .describe(
-        "How to format the message ('standard' | 'uppercase' | 'lowercase').",
-      ),
-    repeat: z
+    maxLength: z
       .number()
-      .int()
-      .min(1)
-      .max(5)
-      .default(DEFAULT_REPEAT)
-      .describe('Number of times to repeat the formatted message.'),
-    includeTimestamp: z
-      .boolean()
-      .default(DEFAULT_INCLUDE_TIMESTAMP)
-      .describe('Whether to include an ISO 8601 timestamp in the response.'),
+      .int('Max length must be an integer.')
+      .min(1, 'Max length must be at least 1.')
+      .optional()
+      .describe(
+        'Optional: The maximum character length of the cat fact to retrieve.',
+      ),
   })
-  .describe('Echo a message with optional formatting and repetition.');
+  .describe('Parameters for fetching a random cat fact.');
 
 const OutputSchema = z
   .object({
-    originalMessage: z
-      .string()
-      .describe('The original message provided in the input.'),
-    formattedMessage: z
-      .string()
-      .describe('The message after applying the specified formatting.'),
-    repeatedMessage: z
-      .string()
-      .describe('The final message repeated the requested number of times.'),
-    mode: z.enum(ECHO_MODES).describe('The formatting mode that was applied.'),
-    repeatCount: z
+    fact: z.string().describe('The retrieved cat fact.'),
+    length: z.number().int().describe('The character length of the cat fact.'),
+    requestedMaxLength: z
       .number()
       .int()
-      .min(1)
-      .describe('The number of times the message was repeated.'),
+      .optional()
+      .describe('The maximum length that was requested for the fact.'),
     timestamp: z
       .string()
       .datetime()
-      .optional()
-      .describe(
-        'Optional ISO 8601 timestamp of when the response was generated.',
-      ),
+      .describe('ISO 8601 timestamp of when the response was generated.'),
   })
-  .describe('Echo tool response payload.');
+  .describe('Cat fact tool response payload.');
 
-type EchoToolInput = z.infer<typeof InputSchema>;
-type EchoToolResponse = z.infer<typeof OutputSchema>;
+type CatFactToolInput = z.infer<typeof InputSchema>;
+type CatFactToolResponse = z.infer<typeof OutputSchema>;
 
 //
 // Pure business logic (no try/catch; throw McpError on failure)
 // -------------------------------------------------------------
-function echoToolLogic(
-  input: EchoToolInput,
+async function catFactToolLogic(
+  input: CatFactToolInput,
   context: RequestContext,
-): Promise<EchoToolResponse> {
-  logger.debug('Processing echo message logic.', {
+): Promise<CatFactToolResponse> {
+  logger.debug('Processing template_cat_fact logic.', {
     ...context,
     toolInput: input,
   });
 
-  if (input.message === TEST_ERROR_TRIGGER_MESSAGE) {
-    const errorData: Record<string, unknown> = {
-      requestId: context.requestId,
-    };
-    if (typeof (context as Record<string, unknown>).traceId === 'string') {
-      errorData.traceId = (context as Record<string, unknown>)
-        .traceId as string;
-    }
+  const url =
+    input.maxLength !== undefined
+      ? `${CAT_FACT_API_URL}?max_length=${input.maxLength}`
+      : CAT_FACT_API_URL;
+
+  logger.info(`Fetching random cat fact from: ${url}`, context);
+
+  const response = await fetchWithTimeout(
+    url,
+    CAT_FACT_API_TIMEOUT_MS,
+    context,
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => undefined);
     throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      'Deliberate failure triggered.',
-      errorData,
+      JsonRpcErrorCode.ServiceUnavailable,
+      `Cat Fact API request failed: ${response.status} ${response.statusText}`,
+      {
+        requestId: context.requestId,
+        httpStatusCode: response.status,
+        responseBody: errorText,
+      },
     );
   }
 
-  const formattedMessage =
-    input.mode === 'uppercase'
-      ? input.message.toUpperCase()
-      : input.mode === 'lowercase'
-        ? input.message.toLowerCase()
-        : input.message;
+  const rawData = await response.json();
+  const parsed = CatFactApiSchema.safeParse(rawData);
+  if (!parsed.success) {
+    logger.error('Cat Fact API response validation failed', {
+      ...context,
+      receivedData: rawData,
+      issues: parsed.error.issues,
+    });
+    throw new McpError(
+      JsonRpcErrorCode.ServiceUnavailable,
+      'Cat Fact API returned unexpected data format.',
+      {
+        requestId: context.requestId,
+        issues: parsed.error.issues,
+      },
+    );
+  }
 
-  const repeatedMessage = Array(input.repeat).fill(formattedMessage).join(' ');
-
-  const response: EchoToolResponse = {
-    originalMessage: input.message,
-    formattedMessage,
-    repeatedMessage,
-    mode: input.mode,
-    repeatCount: input.repeat,
-    ...(input.includeTimestamp && { timestamp: new Date().toISOString() }),
+  const data = parsed.data;
+  const toolResponse: CatFactToolResponse = {
+    fact: data.fact,
+    length: data.length,
+    requestedMaxLength: input.maxLength,
+    timestamp: new Date().toISOString(),
   };
 
-  return Promise.resolve(response);
+  logger.notice('Random cat fact fetched and processed successfully.', {
+    ...context,
+    factLength: toolResponse.length,
+  });
+
+  return toolResponse;
 }
 
 /**
  * Formats a concise human-readable summary while structuredContent carries the full payload.
  */
-function responseFormatter(result: EchoToolResponse): ContentBlock[] {
+function responseFormatter(result: CatFactToolResponse): ContentBlock[] {
+  const maxPart =
+    typeof result.requestedMaxLength === 'number'
+      ? `, max<=${result.requestedMaxLength}`
+      : '';
+  const header = `Cat Fact (length=${result.length}${maxPart})`;
   const preview =
-    result.repeatedMessage.length > 200
-      ? `${result.repeatedMessage.slice(0, 197)}…`
-      : result.repeatedMessage;
-  const lines = [
-    `Echo (mode=${result.mode}, repeat=${result.repeatCount})`,
-    preview,
-    result.timestamp ? `timestamp=${result.timestamp}` : undefined,
-  ].filter(Boolean) as string[];
-
-  return [
-    {
-      type: 'text',
-      text: lines.join('\n'),
-    },
-  ];
+    result.fact.length > 300 ? `${result.fact.slice(0, 297)}…` : result.fact;
+  const lines = [header, preview, `timestamp=${result.timestamp}`];
+  return [{ type: 'text', text: lines.filter(Boolean).join('\n') }];
 }
 
 /**
- * The complete tool definition for the echo tool.
+ * The complete tool definition for the cat fact tool.
  */
-export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
-  {
-    name: TOOL_NAME,
-    title: TOOL_TITLE,
-    description: TOOL_DESCRIPTION,
-    inputSchema: InputSchema,
-    outputSchema: OutputSchema,
-    annotations: TOOL_ANNOTATIONS,
-    logic: echoToolLogic,
-    responseFormatter,
-  };
+export const catFactTool: ToolDefinition<
+  typeof InputSchema,
+  typeof OutputSchema
+> = {
+  name: TOOL_NAME,
+  title: TOOL_TITLE,
+  description: TOOL_DESCRIPTION,
+  inputSchema: InputSchema,
+  outputSchema: OutputSchema,
+  annotations: TOOL_ANNOTATIONS,
+  logic: withAuth(['tool:cat_fact:read'], catFactToolLogic),
+  responseFormatter,
+};
 ```
-
-Note: For binary or image outputs, provide a `responseFormatter` that returns `ContentBlock[]` (see `template-image-test.tool.ts`).
 
 ---
 
 ## IV. Resource Development Workflow
 
-This mirrors the tools pattern with a definition-based approach.
+This mirrors the tool pattern. Use `src/mcp-server/resources/definitions/echo.resource.ts` as your template.
 
-Step 1 — File Location
-
-- Place resources in `src/mcp-server/resources/definitions/`.
-- Name files `[resource-name].resource.ts`.
-
-Step 2 — Define the ResourceDefinition
-Export a single `const` of type `ResourceDefinition` with the required properties (name, description, logic, etc.).
-
-Step 3 — Register the Resource via Barrel Export
-
-- Open `src/mcp-server/resources/definitions/index.ts`.
-- Import your new resource definition and add it to the `allResourceDefinitions` array.
-
-The DI container automatically registers all definitions from this array.
-
-Handler Responsibilities (Implicit)
-
-- Creates `RequestContext` via `requestContextService`.
-- Validates params with your Zod schema.
-- Formats success output (default JSON) or uses your `responseFormatter`.
-- Handles errors via `ErrorHandler.handleError`.
-
-Logic Responsibilities (Explicit)
-
-- Pure, stateless function. No `try...catch`.
-- Throw `McpError` on failure.
-- Use `storageService` for storage access; never `fs` directly.
-- Log with `logger` and pass along `context`.
+1.  **File Location**: `src/mcp-server/resources/definitions/[name].resource.ts`.
+2.  **Define**: Export a `const` of type `ResourceDefinition`.
+3.  **Authorize**: Wrap your `logic` function with `withResourceAuth(['scope:here'], yourResourceLogic)`.
+4.  **Register**: Add the definition to the `allResourceDefinitions` array in `src/mcp-server/resources/definitions/index.ts`.
 
 ---
 
-## V. Core Services & Utilities (via DI)
+## V. Core Services & Utilities
 
-All core services are managed by the DI container. **Do not create instances manually.** The container is configured in `src/container/index.ts`, which composes registrations from modules in `src/container/registrations/`. Inject services into your classes' constructors using `tsyringe`'s `@injectable()` and `@inject()` decorators.
+#### DI-Managed Services
 
-- **`ILlmProvider`**: Interface for LLM-related operations.
+All core services are managed by the DI container (`tsyringe`). **Inject them into class constructors; do not create instances manually.**
+
+- **`ILlmProvider`**: Interface for LLM operations.
   - **Token**: `LlmProvider`
   - **Usage**: `@inject(LlmProvider) private llmProvider: ILlmProvider`
 - **`StorageService`**: Abstraction for persistence.
   - **Token**: `StorageService`
-  - **Usage**: `@inject(StorageService) private storageService: StorageService`
-- **`RateLimiter`**: Service for rate-limiting operations.
+  - **Usage**: `@inject(StorageService) private storage: IStorageProvider`
+- **`RateLimiter`**: Service for rate-limiting.
   - **Token**: `RateLimiterService`
   - **Usage**: `@inject(RateLimiterService) private rateLimiter: RateLimiter`
+- **`Logger`**: The Winston logger instance.
+  - **Token**: `Logger`
+  - **Usage (in injectable classes)**: `@inject(Logger) private logger: typeof logger`
 
-The following utilities are still available for direct use:
+#### Directly Imported Utilities
 
-- `requestContextService` (src/utils/internal/requestContext.ts)
-- `ErrorHandler.tryCatch` (src/utils/internal/errorHandler.ts)
-- `sanitization` (src/utils/security/sanitization.ts)
+For non-class-based logic (like tool `logic` functions), import these singletons directly:
 
-- measureToolExecution (src/utils/internal/performance.ts): Tool execution metrics wrapper.
-  - Note: Invoked by the standardized handler; you do not call it directly from tool logic.
+- `logger` from `src/utils/index.js`
+- `requestContextService` from `src/utils/index.js`
+- `ErrorHandler.tryCatch` from `src/utils/index.js`
+- `sanitization` from `src/utils/index.js`
 
 ---
 
 ## VI. Checks & Workflow Commands
 
-- Quick all-in-one checks (lint + typecheck): `bun run devcheck`
-  - Use this (sparingly) after making changes.
-- Run unit tests: `bun test`
-- Run integration tests: `bun test:integration`
+Use these scripts from `package.json` to maintain code quality and run the server.
+
+| Script                 | Description                                                         |
+| :--------------------- | :------------------------------------------------------------------ |
+| `bun run devcheck`     | **Run this often.** Comprehensive check (lint, type-check, format). |
+| `bun run dev:http`     | Runs the server with hot-reloading (HTTP).                          |
+| `bun run format`       | Automatically formats all code with Prettier.                       |
+| `bun run lint`         | Lints the codebase with ESLint to find issues.                      |
+| `bun run typecheck`    | Checks the project for TypeScript errors without compiling.         |
+| `bun test`             | Runs all unit and integration tests.                                |
+| `bun test:integration` | Runs only the integration tests located in `tests/integration/`.    |
 
 ---
 
 ## VII. Code Quality & Security
 
-- JSDoc: Every file starts with `@fileoverview` and `@module`. Document all exported APIs.
-- Immutability: Prefer functional patterns; avoid reassignments.
-- External Dependencies: Encapsulate API clients/providers under `src/services/`.
-- Validation: Inputs are validated via Zod `inputSchema`; your `logic` receives typed, safe `input`.
-- Secrets: Access through the `config` module only; never hard‑code.
-- Formatting: Run `bun run devcheck` before finishing any task.
-- Testing: Add unit tests under `tests/unit/` and integration tests under `tests/integration/`. Follow the existing structure for each test type.
+- **JSDoc**: Every file must start with `@fileoverview` and `@module`. Document all exported APIs.
+- **Authentication & Authorization**: Protect tools and resources by wrapping their `logic` functions with `withAuth` or `withResourceAuth` and specifying the required scopes.
+- **Validation**: All inputs are validated via your Zod `inputSchema`. Your `logic` function receives typed, safe `input`.
+- **Secrets**: Access secrets _only_ through the `config` module. Never hard-code credentials.
+- **Formatting, Linting, & Type Checking**: Run `bun run devcheck` before finishing any task to ensure consistency.
 
 ---
 
 ## VIII. Quick Checklist
 
-- Implement tool in `src/mcp-server/tools/definitions/[name].tool.ts`.
-- Keep logic pure; throw `McpError` for failures. No `try...catch` inside logic.
-- Use `logger` (preferably injected) with `RequestContext` in every meaningful operation.
-- Use injected `StorageService` for all persistence.
-- Register the tool in `src/mcp-server/tools/definitions/index.ts`.
-- If applicable, add tests in `tests/unit/` or `tests/integration/` and run `bun test` or `bun test:integration`.
+Before completing your task, ensure you have:
+
+- [ ] Implemented the tool/resource logic in a `*.tool.ts` or `*.resource.ts` file.
+- [ ] Kept the `logic` function pure (no `try...catch`).
+- [ ] Thrown a structured `McpError` for any failures within the logic.
+- [ ] Applied authorization using `withAuth` or `withResourceAuth`.
+- [ ] Used the `logger` with a `RequestContext` for all significant operations.
+- [ ] Used the injected `StorageService` for all persistence needs.
+- [ ] Registered the new definition in the corresponding `index.ts` barrel file.
+- [ ] Added or updated tests in `tests/` and confirmed they pass with `bun test`.
+- [ ] Run `bun run devcheck` to ensure code quality, formatting, and linting are correct.
