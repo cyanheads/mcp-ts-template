@@ -13,7 +13,7 @@
       "registry_type": "npm",
       "registry_base_url": "https://registry.npmjs.org",
       "identifier": "mcp-ts-template",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "runtime_hint": "bun",
       "package_arguments": [
         {
@@ -42,7 +42,7 @@
       "registry_type": "npm",
       "registry_base_url": "https://registry.npmjs.org",
       "identifier": "mcp-ts-template",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "runtime_hint": "bun",
       "package_arguments": [
         {

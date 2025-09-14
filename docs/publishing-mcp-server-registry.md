@@ -2,13 +2,52 @@
 
 This guide provides step-by-step instructions on how to publish your MCP server, based on the `mcp-ts-template`, to the official MCP registry.
 
+The recommended method is to use the all-in-one `publish-mcp` script included in this template. It automates the entire workflow, from version synchronization and validation to committing and publishing.
+
 ## Prerequisites
 
-1.  **MCP Publisher CLI**: You need the `mcp-publisher` command-line tool. If you don't have it, install it using one of the methods from the [official publishing guide](https://github.com/modelcontextprotocol/registry/blob/main/docs/guides/publishing/publish-server.md#step-1-install-the-publisher-cli). (i.e. `brew install mcp-publisher`)
+- **MCP Publisher CLI**: You need the `mcp-publisher` command-line tool. If you don't have it, install it using one of the methods from the [official publishing guide](https://github.com/modelcontextprotocol/registry/blob/main/docs/guides/publishing/publish-server.md#step-1-install-the-publisher-cli). (i.e. `brew install mcp-publisher`)
+- **[Bun](https://bun.sh/)**: Ensure you have Bun v1.2.0 or higher installed. The script uses Bun to execute.
+- **GitHub Account**: Publishing to an `io.github.*` namespace requires you to authenticate with a corresponding GitHub account. The script will guide you through this.
 
-2.  **GitHub Account**: Publishing to an `io.github.*` namespace requires you to authenticate with a corresponding GitHub account. Ensure you are logged into the correct account before proceeding. (`mcp-publisher login github`)
+## The Recommended Method: The All-in-One `publish-mcp` Script
 
-## Step 1: Review and Align Configuration
+This is the easiest and most reliable way to publish your server.
+
+### Step 1: Run the Script
+
+From the root of the project, simply run:
+
+```bash
+bun run publish-mcp
+```
+
+The script will handle all the necessary steps, including prompting you to log in with GitHub via your browser.
+
+### What the Script Does Automatically
+
+1.  **Syncs Metadata**: Reads `package.json` and updates the `version` and `mcpName` fields in `server.json`.
+2.  **Validates Schema**: Validates the updated `server.json` against the official MCP server schema.
+3.  **Auto-Commits**: Creates a `git commit` for the `server.json` version bump.
+4.  **Handles Authentication**: Kicks off the `mcp-publisher login github` command and waits for you to complete it.
+5.  **Publishes**: Runs `mcp-publisher publish` to finalize the process.
+
+### Advanced Control with Flags
+
+You can customize the script's behavior with flags:
+
+-   `--validate-only`: Syncs and validates, then stops. Perfect for a pre-flight check.
+-   `--no-commit`: Skips the automatic Git commit step.
+-   `--publish-only`: Skips local file changes and proceeds directly to login and publish.
+-   `--sync-only`: Only syncs versions from `package.json` to `server.json`, then stops.
+
+---
+
+## Manual Fallback Workflow
+
+If you need to perform each step manually, or wish to understand the process under the hood, you can follow these steps.
+
+### Step 1: Review and Align Configuration
 
 Before publishing, it's crucial to ensure that your server's configuration is consistent across the project. This prevents validation errors and ensures clients receive the correct metadata.
 
@@ -32,18 +71,15 @@ Review the following files:
 
 This project includes a script to validate your `server.json` against the official MCP schema. This helps catch errors before you attempt to publish.
 
-Run the validation script from the project root:
+Run the validation using the all-in-one script with the `--validate-only` flag:
 
 ```bash
-bun run scripts/validate-mcp-publish-schema.ts
+bun run publish-mcp --validate-only
 ```
 
-If the script runs successfully, you'll see a confirmation message:
-`✅ server.json is valid!`
+This command will first sync the versions from `package.json` and then validate the resulting `server.json`.
 
-If you see errors, address the issues reported in the output before proceeding.
-
-## Step 3: Authenticate with the MCP Registry
+### Step 3: Authenticate with the MCP Registry
 
 Since the server name follows the `io.github.*` namespace, you must authenticate using GitHub. If you chose a different namespace (e.g., a custom domain), follow the appropriate authentication method outlined in the [official documentation](https://github.com/modelcontextprotocol/registry/blob/main/docs/guides/publishing/publish-server.md#step-4-authenticate).
 

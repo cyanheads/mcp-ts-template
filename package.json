@@ -58,7 +58,7 @@
     "test:integration": "INTEGRATION=1 bun test tests/integration",
     "audit": "bun audit",
     "audit:fix": "bun audit --fix",
-    "validate-server": "bun scripts/validate-mcp-publish-schema.ts"
+    "publish-mcp": "bun scripts/validate-mcp-publish-schema.ts"
   },
   "resolutions": {
     "@hono/node-server": "1.19.2",

@@ -43,20 +43,17 @@ This template is packed with production-grade features designed for high-perform
 ### Installation
 
 1.  **Clone the Repository**
-
     ```bash
     git clone https://github.com/cyanheads/mcp-ts-template.git
     cd mcp-ts-template
     ```
 
 2.  **Install Dependencies**
-
     ```bash
     bun install
     ```
 
 3.  **Build the Project**
-
     ```bash
     bun build # or bun rebuild
     ```
@@ -196,16 +193,16 @@ Refer to **`.env.example`** for a complete list of configurable options.
 
 Key scripts available in `package.json`:
 
-| Script                    | Description                                                                           |
-| :------------------------ | :------------------------------------------------------------------------------------ |
-| `bun run devdocs`         | Generates a comprehensive development documentation prompt for AI analysis.           |
-| `bun run rebuild`         | Clears logs, cache, and compiles the TypeScript source code to JavaScript in `dist/`. |
-| `bun run start:http`      | Starts the compiled server using the HTTP transport.                                  |
-| `bun run start:stdio`     | Starts the compiled server using the STDIO transport.                                 |
-| `bun run test`            | Runs all unit and integration tests with Vitest.                                      |
-| `bun run test:coverage`   | Runs all tests and generates a code coverage report.                                  |
-| `bun run devcheck`        | A comprehensive script that runs linting, type-checking, and formatting.              |
-| `bun run validate-server` | Validates your `server.json` manifest against the official MCP registry schema.       |
+| Script                 | Description                                                                                                    |
+| :--------------------- | :------------------------------------------------------------------------------------------------------------- |
+| `bun run devdocs`      | Generates a comprehensive development documentation prompt for AI analysis.                                    |
+| `bun run rebuild`      | Clears logs, cache, and compiles the TypeScript source code to JavaScript in `dist/`.                          |
+| `bun run start:http`   | Starts the compiled server using the HTTP transport.                                                           |
+| `bun run start:stdio`  | Starts the compiled server using the STDIO transport.                                                          |
+| `bun run test`         | Runs all unit and integration tests with Vitest.                                                               |
+| `bun run test:coverage`| Runs all tests and generates a code coverage report.                                                           |
+| `bun run devcheck`     | A comprehensive script that runs linting, type-checking, and formatting.                                       |
+| `bun run publish-mcp`  | **(Recommended)** An all-in-one script to sync, validate, commit, and publish your server to the MCP Registry. |
 
 You can find these scripts in the `scripts/` directory.
 
@@ -213,20 +210,36 @@ You can find these scripts in the `scripts/` directory.
 
 ## 📦 Publishing to the MCP Registry
 
-This template is configured for easy publishing to the public [MCP Registry](https://modelcontext.com/registry), making your server discoverable by any MCP-compatible client.
+This template is configured for easy publishing to the public [MCP Registry](https://modelcontext.com/registry), making your server discoverable by any MCP-compatible client. The recommended method is to use the all-in-one publishing script.
 
-For a complete walkthrough, including setting up authentication and using the publisher CLI, please refer to my detailed guide:
+For a complete walkthrough, including alternative methods and CI/CD automation, please refer to the detailed guide:
 
 **[➡️ How to Publish Your MCP Server](./docs/publishing-mcp-server-registry.md)**
 
-### Quick Steps & Validation
+### The Easy Way: All-in-One Publish Script
 
-1.  **Update Your Details**: Make sure `package.json` and `server.json` reflect your server's name, version, and your `io.github.*` namespace.
-2.  **Validate Locally**: Before attempting to publish, always run the local validation script to catch schema errors:
+This template includes a powerful script that automates the entire publishing workflow—from syncing versions and validating schemas to committing changes and publishing.
+
+1.  **Ensure you are on the `main` branch with no uncommitted changes.**
+2.  **Run the script:**
     ```bash
-    bun run validate-server
+    bun run publish-mcp
     ```
-3.  **Publish**: Authenticate with the publisher CLI (`mcp-publisher login github`) and then publish your server (`mcp-publisher publish`).
+
+The script will guide you through the process, including pausing for you to complete the GitHub browser login.
+
+### Script Flags for More Control
+
+The script also supports flags for more granular control:
+
+-   `--validate-only`: Syncs metadata, validates `server.json`, then stops.
+-   `--no-commit`: Skips the automatic Git commit step.
+-   `--publish-only`: Skips local file changes and proceeds directly to publishing.
+
+Example:
+```bash
+bun run publish-mcp --validate-only
+```
 
 This template also includes a GitHub Actions workflow (`.github/workflows/publish-mcp.yml`) that can be configured to automate this process whenever you push a new Git tag.
 
