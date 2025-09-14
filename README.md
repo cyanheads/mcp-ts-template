@@ -5,7 +5,7 @@
   <h1>Model Context Protocol (MCP) TypeScript Server Template</h1>
   <p><b>The definitive, production-grade template for building powerful and scalable Model Context Protocol servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.</b></p>
   
-  [![Version](https://img.shields.io/badge/Version-2.0.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.1.8-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-73.99%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
+  [![Version](https://img.shields.io/badge/Version-2.0.1-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.1.8-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-73.99%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
 
 </div>
 
@@ -196,17 +196,34 @@ Refer to **`.env.example`** for a complete list of configurable options.
 
 Key scripts available in `package.json`:
 
-| Script                  | Description                                                                           |
-| :---------------------- | :------------------------------------------------------------------------------------ |
-| `bun run devdocs`       | Generates a comprehensive development documentation prompt for AI analysis.           |
-| `bun run rebuild`       | Clears logs, cache, and compiles the TypeScript source code to JavaScript in `dist/`. |
-| `bun run start:http`    | Starts the compiled server using the HTTP transport.                                  |
-| `bun run start:stdio`   | Starts the compiled server using the STDIO transport.                                 |
-| `bun run test`          | Runs all unit and integration tests with Vitest.                                      |
-| `bun run test:coverage` | Runs all tests and generates a code coverage report.                                  |
-| `bun run devcheck`      | A comprehensive script that runs linting, type-checking, and formatting.              |
+| Script                     | Description                                                                           |
+| :------------------------- | :------------------------------------------------------------------------------------ |
+| `bun run devdocs`          | Generates a comprehensive development documentation prompt for AI analysis.           |
+| `bun run rebuild`          | Clears logs, cache, and compiles the TypeScript source code to JavaScript in `dist/`. |
+| `bun run start:http`       | Starts the compiled server using the HTTP transport.                                  |
+| `bun run start:stdio`      | Starts the compiled server using the STDIO transport.                                 |
+| `bun run test`             | Runs all unit and integration tests with Vitest.                                      |
+| `bun run test:coverage`    | Runs all tests and generates a code coverage report.                                  |
+| `bun run devcheck`         | A comprehensive script that runs linting, type-checking, and formatting.              |
+| `bun run validate-publish` | Validates your `server.json` manifest against the official MCP registry schema.       |
 
 You can find these scripts in the `scripts/` directory.
+
+---
+
+## 📦 Publishing to the MCP Registry
+
+This template includes a GitHub Actions workflow (`.github/workflows/publish-mcp.yml`) that automates publishing your server to the public [MCP Registry](https://modelcontext.com/registry).
+
+### How It Works
+
+1.  **Tag a Release**: Publishing is triggered whenever you push a new Git tag that follows the pattern `v*` (e.g., `v1.0.0`, `v2.1.3`).
+2.  **Workflow Execution**: The Action logs into the MCP Registry using GitHub OIDC, validates the `server.json` manifest, and then publishes the package.
+3.  **Validation**: Before publishing, it is highly recommended to run the local validation script to catch any schema errors early:
+    `bash
+bun run validate-publish
+`
+    This ensures that your `server.json` is compliant with the registry's requirements.
 
 ## 🤝 Contributing
 

@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.1] - 2025-09-14
+
+### Feature
+
+- **MCP Registry Publishing**:
+  - Added a new GitHub Actions workflow (`.github/workflows/publish-mcp.yml`) to automatically publish the server to the official MCP Registry when a new version tag is pushed.
+  - Introduced a `server.json` manifest file, which is required for the MCP registry to discover and understand how to run the server.
+  - Added a validation script (`scripts/validate-mcp-publish-schema.ts`) to ensure `server.json` conforms to the official schema.
+  - Updated `package.json` with the `mcpName` field and bumped the version to `2.0.1`.
+- **Dockerfile Enhancements**:
+  - Optimized the Dockerfile for smaller and more secure production builds by using the `bun:1-slim` base image.
+  - Added the `io.modelcontextprotocol.server.name` OCI label required for MCP registry validation.
+  - Improved environment variable handling and now uses the built-in non-root `bun` user.
+
 ## [2.0.0] - 2025-09-14
 
 ### BREAKING CHANGE
