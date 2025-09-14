@@ -63,8 +63,8 @@ const ALL_CHECKS: Check[] = [
   {
     name: 'Dependencies',
     flag: '--no-deps',
-    checkCommand: 'bunx ncu --format group --errorLevel 2',
-    tip: `Run ${c.bold}bunx ncu -u${c.dim} to upgrade dependencies.`,
+    checkCommand: 'bun update --dry-run',
+    tip: `Run ${c.bold}bun update${c.dim} to upgrade dependencies.`,
   },
 ];
 
@@ -89,7 +89,44 @@ function parseArgs(args: string[]): {
   return { flags, noFix, isHuskyHook };
 }
 
-function runCheck(
+function execAsync(
+  command: string,
+  options: { cwd: string },
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
+  return new Promise((resolve) => {
+    exec(command, options, (error, stdout, stderr) => {
+      resolve({
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        code: error?.code ?? 0,
+      });
+    });
+  });
+}
+
+async function checkDependencies(): Promise<{
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}> {
+  const { stdout, stderr, code } = await execAsync('bun update --dry-run', {
+    cwd: rootDir,
+  });
+
+  if (code === 0) {
+    // If the command exits with 0, it means no updates are available.
+    return { exitCode: 0, stdout, stderr };
+  } else {
+    // A non-zero exit code means updates are available, which we treat as a "failure" for this check.
+    return {
+      exitCode: 1,
+      stdout: stdout || 'Dependencies are not up to date.',
+      stderr,
+    };
+  }
+}
+
+async function runCheck(
   check: Check,
   skipped: boolean,
   noFix: boolean,
@@ -120,46 +157,39 @@ function runCheck(
   );
   console.log(`   $ ${command}${c.reset}\n`);
 
-  return new Promise((resolve) => {
-    const startTime = Date.now();
-    exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
-      const duration = Date.now() - startTime;
-      const exitCode = error?.code ?? 0;
+  const startTime = Date.now();
+  let result: {
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+  };
 
-      if (exitCode === 0) {
-        console.log(
-          `${c.bold}${c.green}✅ ${c.yellow}${name}${c.green} ${mode} finished successfully in ${duration}ms.${c.reset}\n`,
-        );
-      } else {
-        console.log(
-          `${c.bold}${c.red}❌ ${c.yellow}${name}${c.red} ${mode} failed with exit code ${exitCode} in ${duration}ms.${c.reset}\n`,
-        );
-      }
+  if (name === 'Dependencies') {
+    result = await checkDependencies();
+  } else {
+    const { stdout, stderr, code } = await execAsync(command, { cwd: rootDir });
+    result = { exitCode: code ?? 1, stdout, stderr };
+  }
 
-      resolve({
-        ...baseResult,
-        exitCode,
-        stdout: stdout.trim(),
-        stderr: stderr.trim(),
-        duration,
-      });
-    });
-  });
-}
+  const duration = Date.now() - startTime;
 
-function execAsync(
-  command: string,
-  options: { cwd: string },
-): Promise<{ stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    exec(command, options, (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(`Command failed: ${command}\n${stderr}`));
-        return;
-      }
-      resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
-    });
-  });
+  if (result.exitCode === 0) {
+    console.log(
+      `${c.bold}${c.green}✅ ${c.yellow}${name}${c.green} ${mode} finished successfully in ${duration}ms.${c.reset}\n`,
+    );
+  } else {
+    console.log(
+      `${c.bold}${c.red}❌ ${c.yellow}${name}${c.red} ${mode} failed with exit code ${result.exitCode} in ${duration}ms.${c.reset}\n`,
+    );
+  }
+
+  return {
+    ...baseResult,
+    exitCode: result.exitCode,
+    stdout: result.stdout.trim(),
+    stderr: result.stderr.trim(),
+    duration,
+  };
 }
 
 function printSummary(results: CommandResult[], noFix: boolean): boolean {
@@ -169,7 +199,15 @@ function printSummary(results: CommandResult[], noFix: boolean): boolean {
   let overallSuccess = true;
   const failedChecks: Check[] = [];
 
+  // Use a Set to only show unique check names in the summary
+  const processedChecks = new Set<string>();
+
   results.forEach((result) => {
+    if (processedChecks.has(result.name)) {
+      return;
+    }
+    processedChecks.add(result.name);
+
     let status: string;
     if (result.skipped) {
       status = `${c.yellow}⚪ SKIPPED${c.reset}`;
@@ -178,9 +216,8 @@ function printSummary(results: CommandResult[], noFix: boolean): boolean {
     } else {
       status = `${c.red}❌ FAILED${c.reset}`;
       overallSuccess = false;
-      failedChecks.push(
-        ALL_CHECKS.find((check) => check.name === result.name)!,
-      );
+      const foundCheck = ALL_CHECKS.find((check) => check.name === result.name);
+      if (foundCheck) failedChecks.push(foundCheck);
     }
 
     const durationStr = `${c.dim}(${result.duration}ms)${c.reset}`;
@@ -254,7 +291,13 @@ async function main() {
     }
   }
 
-  const checksToRun = ALL_CHECKS.map((check) =>
+  // Remove duplicate checks
+  const uniqueChecks = ALL_CHECKS.filter(
+    (check, index, self) =>
+      index === self.findIndex((c) => c.name === check.name),
+  );
+
+  const checksToRun = uniqueChecks.map((check) =>
     runCheck(check, flags.has(check.flag), noFix),
   );
 
