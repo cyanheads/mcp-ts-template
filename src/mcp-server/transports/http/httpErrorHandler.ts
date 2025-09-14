@@ -5,16 +5,12 @@
  * formats them into a consistent JSON-RPC error response.
  * @module src/mcp-server/transports/httpErrorHandler
  */
-import { Context } from 'hono';
-import { StatusCode } from 'hono/utils/http-status';
+import type { Context } from 'hono';
+import type { StatusCode } from 'hono/utils/http-status';
 
-import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
-import {
-  ErrorHandler,
-  logger,
-  requestContextService,
-} from '../../../utils/index.js';
-import { HonoNodeBindings } from './httpTypes.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
+import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 
 /**
  * A centralized error handling middleware for Hono.

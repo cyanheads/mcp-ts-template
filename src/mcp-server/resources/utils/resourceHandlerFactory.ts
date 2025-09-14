@@ -11,14 +11,14 @@ import {
 import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import { JsonRpcErrorCode } from '../../../types-global/errors.js';
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import {
   ErrorHandler,
-  RequestContext,
+  type RequestContext,
   logger,
   requestContextService,
-} from '../../../utils/index.js';
-import type { ResourceDefinition } from './resourceDefinition.js';
+} from '@/utils/index.js';
+import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 
 /** Default formatter producing a single JSON text content block. */
 function defaultResponseFormatter(

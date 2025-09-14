@@ -4,10 +4,10 @@
  * defining, starting, stopping, and listing recurring tasks within the application.
  * @module src/utils/scheduling/scheduler
  */
-import cron, { ScheduledTask, createTask } from 'node-cron';
+import cron, { type ScheduledTask, createTask } from 'node-cron';
 
-import { RequestContext, logger } from '../internal/index.js';
-import { requestContextService } from '../internal/requestContext.js';
+import { type RequestContext, logger } from '@/utils/internal/index.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Represents a scheduled job managed by the SchedulerService.

@@ -2,8 +2,8 @@
  * @fileoverview Higher-order functions for declarative, scope-based authorization.
  * @module src/mcp-server/transports/auth/lib/withAuth
  */
-import { withRequiredScopes } from './authUtils.js';
-import type { RequestContext } from '../../../../utils/index.js';
+import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
+import type { RequestContext } from '@/utils/index.js';
 
 /**
  * A higher-order function that wraps a **tool's** logic function with a

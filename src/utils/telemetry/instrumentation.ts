@@ -15,8 +15,8 @@ import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
-  ReadableSpan,
-  SpanProcessor,
+  type ReadableSpan,
+  type SpanProcessor,
   TraceIdRatioBasedSampler,
 } from '@opentelemetry/sdk-trace-node';
 import {
@@ -26,7 +26,7 @@ import {
 import path from 'path';
 import winston from 'winston';
 
-import { config } from '../../config/index.js';
+import { config } from '@/config/index.js';
 
 export let sdk: NodeSDK | null = null;
 
@@ -137,7 +137,9 @@ if (config.openTelemetry.enabled) {
   try {
     const otelLogLevel =
       DiagLogLevel[config.openTelemetry.logLevel] ?? DiagLogLevel.INFO;
-    diag.setLogger(new OtelDiagnosticLogger(otelLogLevel), otelLogLevel);
+    diag.setLogger(new OtelDiagnosticLogger(otelLogLevel), {
+      logLevel: otelLogLevel,
+    });
 
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: config.openTelemetry.serviceName,

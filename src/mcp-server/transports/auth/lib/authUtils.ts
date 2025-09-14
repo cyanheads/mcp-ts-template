@@ -3,9 +3,9 @@
  * checking token scopes against required permissions for a given operation.
  * @module src/mcp-server/transports/auth/core/authUtils
  */
-import { JsonRpcErrorCode, McpError } from '../../../../types-global/errors.js';
-import { logger, requestContextService } from '../../../../utils/index.js';
-import { authContext } from './authContext.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger, requestContextService } from '@/utils/index.js';
+import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 
 /**
  * Checks if the current authentication context contains all the specified scopes.

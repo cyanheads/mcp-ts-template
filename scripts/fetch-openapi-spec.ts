@@ -178,6 +178,10 @@ function parseSpec(data: string, contentType: string | null): object | null {
  * parses it, and saves it to the specified output paths in both YAML and JSON formats.
  */
 async function fetchAndProcessSpec(): Promise<void> {
+  if (!urlArg) {
+    console.error('URL argument is missing.');
+    process.exit(1);
+  }
   let fetchedResult: { data: string; contentType: string | null } | null = null;
   const potentialUrls: string[] = [urlArg];
 

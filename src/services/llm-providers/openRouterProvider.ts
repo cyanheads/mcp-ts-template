@@ -6,30 +6,27 @@
  */
 import OpenAI from 'openai';
 import {
-  ChatCompletion,
-  ChatCompletionChunk,
-  ChatCompletionCreateParamsNonStreaming,
-  ChatCompletionCreateParamsStreaming,
+  type ChatCompletion,
+  type ChatCompletionChunk,
 } from 'openai/resources/chat/completions';
 import { Stream } from 'openai/streaming';
 import { inject, injectable } from 'tsyringe';
 
-import { config as ConfigType } from '../../config/index.js';
+import { config as ConfigType } from '@/config/index.js';
+import { AppConfig, Logger, RateLimiterService } from '@/container/index.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { ErrorHandler } from '@/utils/internal/errorHandler.js';
+import { logger as LoggerType } from '@/utils/internal/logger.js';
 import {
-  AppConfig,
-  Logger,
-  RateLimiterService,
-} from '../../container/index.js';
-import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
-import { ErrorHandler } from '../../utils/internal/errorHandler.js';
-import { logger as LoggerType } from '../../utils/internal/logger.js';
-import {
-  RequestContext,
+  type RequestContext,
   requestContextService,
-} from '../../utils/internal/requestContext.js';
-import { RateLimiter } from '../../utils/security/rateLimiter.js';
-import { sanitization } from '../../utils/security/sanitization.js';
-import { ILlmProvider } from './ILlmProvider.js';
+} from '@/utils/internal/requestContext.js';
+import { RateLimiter } from '@/utils/security/rateLimiter.js';
+import { sanitization } from '@/utils/security/sanitization.js';
+import type {
+  ILlmProvider,
+  OpenRouterChatParams,
+} from '@/services/llm-providers/ILlmProvider.js';
 
 export interface OpenRouterClientOptions {
   apiKey: string;
@@ -37,10 +34,6 @@ export interface OpenRouterClientOptions {
   siteUrl?: string;
   siteName?: string;
 }
-
-export type OpenRouterChatParams =
-  | ChatCompletionCreateParamsNonStreaming
-  | ChatCompletionCreateParamsStreaming;
 
 @injectable()
 export class OpenRouterProvider implements ILlmProvider {
@@ -200,12 +193,14 @@ export class OpenRouterProvider implements ILlmProvider {
     context: RequestContext,
   ): Promise<AsyncIterable<ChatCompletionChunk>> {
     const streamParams = { ...params, stream: true };
-    const response = await this.chatCompletion(streamParams, context);
-    const responseStream = response as Stream<ChatCompletionChunk>;
+    const responseStream = (await this.chatCompletion(
+      streamParams,
+      context,
+    )) as Stream<ChatCompletionChunk>;
 
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
-    async function* loggingStream(): AsyncGenerator<ChatCompletionChunk> {
+    const loggingStream = async function* (
+      this: OpenRouterProvider,
+    ): AsyncGenerator<ChatCompletionChunk> {
       const chunks: ChatCompletionChunk[] = [];
       try {
         for await (const chunk of responseStream) {
@@ -213,14 +208,14 @@ export class OpenRouterProvider implements ILlmProvider {
           yield chunk;
         }
       } finally {
-        self.logger.logInteraction('OpenRouterResponse', {
+        this.logger.logInteraction('OpenRouterResponse', {
           context,
           response: chunks,
           streaming: true,
         });
       }
-    }
+    }.bind(this)();
 
-    return loggingStream();
+    return loggingStream;
   }
 }

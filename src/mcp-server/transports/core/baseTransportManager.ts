@@ -8,17 +8,17 @@ import type { IncomingHttpHeaders, ServerResponse } from 'http';
 import { Readable } from 'stream';
 
 import {
-  RequestContext,
+  type RequestContext,
   logger,
   requestContextService,
-} from '../../../utils/index.js';
-import { convertNodeHeadersToWebHeaders } from './headerUtils.js';
-import { HonoStreamResponse } from './honoNodeBridge.js';
+} from '@/utils/index.js';
+import { convertNodeHeadersToWebHeaders } from '@/mcp-server/transports/core/headerUtils.js';
+import { HonoStreamResponse } from '@/mcp-server/transports/core/honoNodeBridge.js';
 import type {
   HttpStatusCode,
   TransportManager,
   TransportResponse,
-} from './transportTypes.js';
+} from '@/mcp-server/transports/core/transportTypes.js';
 
 /**
  * Abstract base class for transport managers, providing common functionality.

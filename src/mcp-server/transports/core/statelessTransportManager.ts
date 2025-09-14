@@ -17,16 +17,16 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { IncomingHttpHeaders } from 'http';
 
-import { config } from '../../../config/index.js';
+import { config } from '@/config/index.js';
 import {
   ErrorHandler,
-  RequestContext,
+  type RequestContext,
   idGenerator,
   logger,
   requestContextService,
-} from '../../../utils/index.js';
-import { BaseTransportManager } from './baseTransportManager.js';
-import type { TransportResponse } from './transportTypes.js';
+} from '@/utils/index.js';
+import { BaseTransportManager } from '@/mcp-server/transports/core/baseTransportManager.js';
+import type { TransportResponse } from '@/mcp-server/transports/core/transportTypes.js';
 
 /**
  * Manages ephemeral, single-request MCP operations.

@@ -18,6 +18,7 @@
     "./*": "./dist/*"
   },
   "type": "module",
+  "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cyanheads/mcp-ts-template.git"
@@ -32,14 +33,14 @@
     "start:stdio": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=stdio bun dist/index.js",
     "start:http": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=http bun dist/index.js",
     "start:agent": "MCP_LOG_LEVEL=debug bun dist/agent/cli/boot.js",
-    "dev": "tsx --watch src/index.ts",
-    "dev:stdio": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=stdio tsx --watch src/index.ts",
-    "dev:http": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=http tsx --watch src/index.ts",
-    "dev:agent": "MCP_LOG_LEVEL=debug tsx --watch src/agent/cli/boot.ts",
-    "devdocs": "tsx scripts/devdocs.ts",
-    "devcheck": "tsx scripts/devcheck.ts",
-    "rebuild": "tsx scripts/clean.ts && bun run build",
-    "docs:generate": "typedoc --tsconfig ./tsconfig.typedoc.json",
+    "dev": "bun --watch src/index.ts",
+    "dev:stdio": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=stdio bun --watch src/index.ts",
+    "dev:http": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=http bun --watch src/index.ts",
+    "dev:agent": "MCP_LOG_LEVEL=debug bun --watch src/agent/cli/boot.ts",
+    "devdocs": "bun run scripts/devdocs.ts",
+    "devcheck": "bun run scripts/devcheck.ts",
+    "rebuild": "bun run scripts/clean.ts && bun run build",
+    "docs:generate": "typedoc",
     "depcheck": "bunx depcheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -52,10 +53,18 @@
     "db:duckdb-example": "MCP_LOG_LEVEL=debug tsc && node dist/storage/duckdbExample.js",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
-    "test:integration": "INTEGRATION=1 bun test tests/integration --coverage",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "INTEGRATION=1 bun test tests/integration",
     "audit": "bun audit",
-    "audit:fix": "bun audit --fix",
-    "prepublishOnly": "bun run typecheck && bun run lint && bun run test && bun run build"
+    "audit:fix": "bun audit --fix"
+  },
+  "resolutions": {
+    "@hono/node-server": "1.19.2",
+    "chrono-node": "2.8.4",
+    "dotenv": "16.6.1",
+    "hono": "4.9.7",
+    "zod": "3.25.76",
+    "typescript": "5.9.2"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.2",
@@ -74,6 +83,7 @@
     "partial-json": "^0.1.7",
     "reflect-metadata": "^0.2.2",
     "sanitize-html": "^2.17.0",
+    "tslib": "^2.8.1",
     "tsyringe": "^4.10.0",
     "validator": "13.15.15",
     "winston": "^3.17.0",
@@ -85,6 +95,7 @@
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.64.1",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.205.0",
+    "typescript-eslint": "8.43.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
     "@opentelemetry/resources": "^2.1.0",
     "@opentelemetry/sdk-metrics": "^2.1.0",
@@ -99,6 +110,7 @@
     "@vitest/coverage-v8": "3.2.4",
     "depcheck": "^1.4.7",
     "eslint": "^9.35.0",
+    "eslint-import-resolver-typescript": "^4.4.4",
     "glob": "^11.0.3",
     "globals": "^16.4.0",
     "husky": "^9.1.7",
@@ -107,7 +119,6 @@
     "tsx": "^4.20.5",
     "typedoc": "^0.28.12",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.43.0",
     "vite": "^7.1.5",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4"
@@ -152,7 +163,9 @@
       "url": "https://www.buymeacoffee.com/cyanheads"
     }
   ],
+  "packageManager": "bun@1.2.21",
   "engines": {
+    "bun": ">=1.2.0",
     "node": ">=20.0.0"
   },
   "depcheck": {

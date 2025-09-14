@@ -5,7 +5,7 @@
  */
 import { context as otContext, propagation, trace } from '@opentelemetry/api';
 
-import { RequestContext } from '../internal/requestContext.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 /**
  * Builds a W3C `traceparent` header value from the provided RequestContext

@@ -6,11 +6,11 @@
  */
 import { container } from 'tsyringe';
 
-import { config } from '../../../config/index.js';
-import { logger, requestContextService } from '../../../utils/index.js';
-import { AuthStrategy } from './strategies/authStrategy.js';
-import { JwtStrategy } from './strategies/jwtStrategy.js';
-import { OauthStrategy } from './strategies/oauthStrategy.js';
+import { config } from '@/config/index.js';
+import { logger, requestContextService } from '@/utils/index.js';
+import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
+import { JwtStrategy } from '@/mcp-server/transports/auth/strategies/jwtStrategy.js';
+import { OauthStrategy } from '@/mcp-server/transports/auth/strategies/oauthStrategy.js';
 
 // Register strategies in the container.
 // The container will manage their lifecycle and dependencies.

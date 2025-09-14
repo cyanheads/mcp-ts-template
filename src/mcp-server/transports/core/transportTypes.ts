@@ -6,7 +6,7 @@
  */
 import type { IncomingHttpHeaders } from 'http';
 
-import { RequestContext } from '../../../utils/index.js';
+import type { RequestContext } from '@/utils/index.js';
 
 /**
  * Defines the set of valid HTTP status codes that the transport layer can return.

@@ -5,19 +5,15 @@
  * @module src/mcp-server/tools/tool-registration
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { DependencyContainer, injectable, injectAll } from 'tsyringe';
-import { ZodObject, ZodRawShape } from 'zod';
+import { type DependencyContainer, injectable, injectAll } from 'tsyringe';
+import { ZodObject, type ZodRawShape } from 'zod';
 
-import { ToolDefinitions } from '../../container/index.js';
-import { JsonRpcErrorCode } from '../../types-global/errors.js';
-import {
-  ErrorHandler,
-  logger,
-  requestContextService,
-} from '../../utils/index.js';
-import { allToolDefinitions } from './definitions/index.js';
-import { type ToolDefinition } from './utils/toolDefinition.js';
-import { createMcpToolHandler } from './utils/toolHandlerFactory.js';
+import { ToolDefinitions } from '@/container/index.js';
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
+import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
+import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
+import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
+import { createMcpToolHandler } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
 
 @injectable()
 export class ToolRegistry {

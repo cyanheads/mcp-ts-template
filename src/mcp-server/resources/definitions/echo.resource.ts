@@ -6,9 +6,9 @@
  */
 import { z } from 'zod';
 
-import { type RequestContext, logger } from '../../../utils/index.js';
-import { withResourceAuth } from '../../transports/auth/lib/withAuth.js';
-import { type ResourceDefinition } from '../utils/resourceDefinition.js';
+import { type RequestContext, logger } from '@/utils/index.js';
+import { withResourceAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import { type ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 
 const ParamsSchema = z
   .object({

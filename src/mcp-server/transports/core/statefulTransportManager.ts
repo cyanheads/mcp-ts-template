@@ -18,22 +18,22 @@ import type { IncomingHttpHeaders } from 'http';
 import { randomUUID } from 'node:crypto';
 import { inject, injectable } from 'tsyringe';
 
-import { CreateMcpServerInstance } from '../../../container/index.js';
-import type { IStorageProvider } from '../../../storage/index.js';
-import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
+import { CreateMcpServerInstance } from '@/container/index.js';
+import type { IStorageProvider } from '@/storage/index.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   ErrorHandler,
-  RequestContext,
+  type RequestContext,
   logger,
   requestContextService,
-} from '../../../utils/index.js';
-import { BaseTransportManager } from './baseTransportManager.js';
+} from '@/utils/index.js';
+import { BaseTransportManager } from '@/mcp-server/transports/core/baseTransportManager.js';
 import type {
   HttpStatusCode,
   IStatefulTransportManager,
   TransportResponse,
   TransportSession,
-} from './transportTypes.js';
+} from '@/mcp-server/transports/core/transportTypes.js';
 
 /**
  * Defines the configuration options for the StatefulTransportManager.

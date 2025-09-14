@@ -5,9 +5,9 @@
  */
 import { diag } from '@opentelemetry/api';
 
-import { config } from '../../config/index.js';
-import { logger } from './logger.js';
-import { runtimeCaps } from './runtime.js';
+import { config } from '@/config/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { runtimeCaps } from '@/utils/internal/runtime.js';
 
 export interface HealthSnapshot {
   app: { name: string; version: string; environment: string };

@@ -6,13 +6,5 @@
   "singleQuote": true,
   "trailingComma": "all",
   "bracketSpacing": true,
-  "arrowParens": "always",
-  "overrides": [
-    {
-      "files": "*.ts",
-      "options": {
-        "parser": "typescript"
-      }
-    }
-  ]
+  "arrowParens": "always"
 }

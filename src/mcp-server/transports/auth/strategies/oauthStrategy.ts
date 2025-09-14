@@ -4,17 +4,13 @@
  * JWTs against a remote JSON Web Key Set (JWKS), as is common in OAuth 2.1 flows.
  * @module src/mcp-server/transports/auth/strategies/OauthStrategy
  */
-import { JWTVerifyResult, createRemoteJWKSet, jwtVerify } from 'jose';
+import { type JWTVerifyResult, createRemoteJWKSet, jwtVerify } from 'jose';
 
-import { config } from '../../../../config/index.js';
-import { JsonRpcErrorCode, McpError } from '../../../../types-global/errors.js';
-import {
-  ErrorHandler,
-  logger,
-  requestContextService,
-} from '../../../../utils/index.js';
-import type { AuthInfo } from '../lib/authTypes.js';
-import type { AuthStrategy } from './authStrategy.js';
+import { config } from '@/config/index.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
+import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
+import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 
 export class OauthStrategy implements AuthStrategy {
   private readonly jwks: ReturnType<typeof createRemoteJWKSet>;

@@ -9,14 +9,14 @@ import { container } from 'tsyringe';
 import {
   ResourceRegistry,
   registerResources,
-} from '../../mcp-server/resources/resource-registration.js';
-import { createMcpServerInstance } from '../../mcp-server/server.js';
+} from '@/mcp-server/resources/resource-registration.js';
+import { createMcpServerInstance } from '@/mcp-server/server.js';
 import {
   ToolRegistry,
   registerTools,
-} from '../../mcp-server/tools/tool-registration.js';
-import { logger } from '../../utils/index.js';
-import { CreateMcpServerInstance } from '../tokens.js';
+} from '@/mcp-server/tools/tool-registration.js';
+import { logger } from '@/utils/index.js';
+import { CreateMcpServerInstance } from '@/container/tokens.js';
 
 /**
  * Registers MCP-related services and factories with the tsyringe container.

@@ -5,19 +5,19 @@
  * @module src/container/registrations/core
  */
 import { container, Lifecycle } from 'tsyringe';
-import { parseConfig } from '../../config/index.js';
-import { ILlmProvider } from '../../services/llm-providers/ILlmProvider.js';
-import { OpenRouterProvider } from '../../services/llm-providers/openRouterProvider.js';
-import { createStorageProvider, storageService } from '../../storage/index.js';
-import { logger } from '../../utils/index.js';
-import { RateLimiter } from '../../utils/security/rateLimiter.js';
+import { parseConfig } from '@/config/index.js';
+import type { ILlmProvider } from '@/services/llm-providers/ILlmProvider.js';
+import { OpenRouterProvider } from '@/services/llm-providers/openRouterProvider.js';
+import { createStorageProvider, storageService } from '@/storage/index.js';
+import { logger } from '@/utils/index.js';
+import { RateLimiter } from '@/utils/security/rateLimiter.js';
 import {
   AppConfig,
   LlmProvider,
   Logger,
   RateLimiterService,
   StorageService,
-} from '../tokens.js';
+} from '@/container/tokens.js';
 
 /**
  * Registers core application services and values with the tsyringe container.

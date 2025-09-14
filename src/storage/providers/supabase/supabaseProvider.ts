@@ -4,13 +4,13 @@
  * Assumes a table with columns: `key` (text), `value` (jsonb), and `expires_at` (timestamptz).
  * @module src/storage/providers/supabase/supabaseProvider
  */
-import { ErrorHandler, RequestContext, logger } from '../../../utils/index.js';
+import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
 import type {
   IStorageProvider,
   StorageOptions,
-} from '../../core/IStorageProvider.js';
-import { Json } from './supabase.types.js';
-import { getSupabaseAdminClient } from './supabaseClient.js';
+} from '@/storage/core/IStorageProvider.js';
+import type { Json } from '@/storage/providers/supabase/supabase.types.js';
+import { getSupabaseAdminClient } from '@/storage/providers/supabase/supabaseClient.js';
 
 const TABLE_NAME = 'kv_store';
 

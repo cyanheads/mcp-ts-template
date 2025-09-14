@@ -13,7 +13,7 @@ import {
   metrics,
 } from '@opentelemetry/api';
 
-import { config } from '../../config/index.js';
+import { config } from '@/config/index.js';
 
 type CounterMap = Map<string, Counter>;
 type HistogramMap = Map<string, Histogram>;

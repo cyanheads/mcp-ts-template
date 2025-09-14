@@ -9,9 +9,9 @@ import path from 'path';
 import winston from 'winston';
 import TransportStream from 'winston-transport';
 
-import { config } from '../../config/index.js';
-import { sanitizeInputForLogging } from '../security/sanitization.js';
-import { RequestContext } from './requestContext.js';
+import { config } from '@/config/index.js';
+import { sanitizeInputForLogging } from '@/utils/security/sanitization.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 export type McpLogLevel =
   | 'debug'

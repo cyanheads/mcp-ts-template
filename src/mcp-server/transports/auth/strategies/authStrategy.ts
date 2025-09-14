@@ -5,7 +5,7 @@
  * interchangeably by the core authentication middleware.
  * @module src/mcp-server/transports/auth/strategies/AuthStrategy
  */
-import type { AuthInfo } from '../lib/authTypes.js';
+import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 
 export interface AuthStrategy {
   /**

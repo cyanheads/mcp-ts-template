@@ -4,29 +4,35 @@
  * capabilities with the Model Context Protocol SDK's transport layer.
  * @module src/mcp-server/transports/http/httpTransport
  */
-import { ServerType, serve } from '@hono/node-server';
-import { Context, Hono } from 'hono';
+import { type ServerType, serve } from '@hono/node-server';
+import { type Context, Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { stream } from 'hono/streaming';
 import http from 'http';
 import { container } from 'tsyringe';
 
-import { config } from '../../../config/index.js';
+import { config } from '@/config/index.js';
 import {
   RateLimiterService,
   TransportManagerToken,
-} from '../../../container/index.js';
+} from '@/container/index.js';
 import {
   RateLimiter,
-  RequestContext,
+  type RequestContext,
   logger,
   requestContextService,
-} from '../../../utils/index.js';
-import { createAuthMiddleware, createAuthStrategy } from '../auth/index.js';
-import { StatefulTransportManager, TransportManager } from '../core/index.js';
-import { httpErrorHandler } from './httpErrorHandler.js';
-import { HonoNodeBindings } from './httpTypes.js';
-import { mcpTransportMiddleware } from './mcpTransportMiddleware.js';
+} from '@/utils/index.js';
+import {
+  createAuthMiddleware,
+  createAuthStrategy,
+} from '@/mcp-server/transports/auth/index.js';
+import {
+  StatefulTransportManager,
+  type TransportManager,
+} from '@/mcp-server/transports/core/index.js';
+import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
+import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
+import { mcpTransportMiddleware } from '@/mcp-server/transports/http/mcpTransportMiddleware.js';
 
 const HTTP_PORT = config.mcpHttpPort;
 const HTTP_HOST = config.mcpHttpHost;

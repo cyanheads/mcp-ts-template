@@ -8,14 +8,10 @@
 import type { HttpBindings } from '@hono/node-server';
 import type { Context, Next } from 'hono';
 
-import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
-import {
-  ErrorHandler,
-  logger,
-  requestContextService,
-} from '../../../utils/index.js';
-import { authContext } from './lib/authContext.js';
-import type { AuthStrategy } from './strategies/authStrategy.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
+import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
+import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 
 /**
  * Creates a Hono middleware function that enforces authentication using a given strategy.

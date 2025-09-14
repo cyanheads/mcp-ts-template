@@ -8,9 +8,9 @@
 import 'reflect-metadata';
 import { container } from 'tsyringe';
 
-import { registerCoreServices } from './registrations/core.js';
-import { registerMcpServices } from './registrations/mcp.js';
-import { registerTransportServices } from './registrations/transports.js';
+import { registerCoreServices } from '@/container/registrations/core.js';
+import { registerMcpServices } from '@/container/registrations/mcp.js';
+import { registerTransportServices } from '@/container/registrations/transports.js';
 
 // --- Register all services by calling modular registration functions ---
 registerCoreServices();
@@ -18,5 +18,5 @@ registerMcpServices();
 registerTransportServices();
 
 // --- Export DI tokens and the configured container ---
-export * from './tokens.js';
+export * from '@/container/tokens.js';
 export default container;

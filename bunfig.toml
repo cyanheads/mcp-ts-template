@@ -1,2 +1,19 @@
+# Bunfig: Centralized configuration for Bun behavior
+# For more options, see: https://bun.sh/docs/runtime/bunfig
+
+[install]
+# 'auto' = "fallback": Prioritize local node_modules. Bun will only install if a module is missing.
+auto = "fallback"
+# Set to 'true' in CI/prod to ensure exact dependency versions are installed.
+frozenLockfile = false
+
+[run]
+# When true, scripts running 'node' (e.g., from a dependency) will transparently use 'bun' instead.
+# Set to false if you need to enforce a strict Node.js runtime for a specific script.
+bun = true
+
 [test]
+# Preload the setup file to ensure 'reflect-metadata' is imported before tests run.
 preload = ["./tests/setup.ts"]
+# Enable test coverage reporting. Reporters and ignore patterns will be set in 'package.json' scripts.
+coverage = true

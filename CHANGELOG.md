@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
-## [2.0.0-alpha.7] - 2025-09-13
+## [2.0.0-alpha.8] - 2025-09-13
 
 ### Feature
 

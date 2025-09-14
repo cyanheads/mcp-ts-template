@@ -8,10 +8,10 @@
  */
 import { SupabaseClient, createClient } from '@supabase/supabase-js';
 
-import { config } from '../../../config/index.js';
-import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
-import { logger, requestContextService } from '../../../utils/index.js';
-import { Database } from './supabase.types.js';
+import { config } from '@/config/index.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger, requestContextService } from '@/utils/index.js';
+import type { Database } from '@/storage/providers/supabase/supabase.types.js';
 
 let supabase: SupabaseClient<Database> | null = null;
 let supabaseAdmin: SupabaseClient<Database> | null = null;

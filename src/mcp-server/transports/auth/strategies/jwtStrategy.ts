@@ -8,16 +8,16 @@
 import { jwtVerify } from 'jose';
 import { injectable, inject } from 'tsyringe';
 
-import { config as ConfigType } from '../../../../config/index.js';
-import { AppConfig, Logger } from '../../../../container/tokens.js';
-import { JsonRpcErrorCode, McpError } from '../../../../types-global/errors.js';
+import { config as ConfigType } from '@/config/index.js';
+import { AppConfig, Logger } from '@/container/tokens.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   ErrorHandler,
   logger as LoggerType,
   requestContextService,
-} from '../../../../utils/index.js';
-import type { AuthInfo } from '../lib/authTypes.js';
-import type { AuthStrategy } from './authStrategy.js';
+} from '@/utils/index.js';
+import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
+import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 
 @injectable()
 export class JwtStrategy implements AuthStrategy {

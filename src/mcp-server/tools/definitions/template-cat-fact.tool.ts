@@ -7,17 +7,17 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { JsonRpcErrorCode, McpError } from '../../../types-global/errors.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   type RequestContext,
   fetchWithTimeout,
   logger,
-} from '../../../utils/index.js';
-import { withAuth } from '../../transports/auth/lib/withAuth.js';
+} from '@/utils/index.js';
+import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import type {
   ToolAnnotations,
   ToolDefinition,
-} from '../utils/toolDefinition.js';
+} from '@/mcp-server/tools/utils/toolDefinition.js';
 
 // Configurable metadata and constants
 // -----------------------------------

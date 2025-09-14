@@ -20,7 +20,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { ErrorHandler, RequestContext, logger } from '../../../utils/index.js';
+import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
 
 /**
  * Connects a given `McpServer` instance to the Stdio transport.

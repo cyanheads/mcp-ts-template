@@ -7,20 +7,20 @@
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { container } from 'tsyringe';
-import { config } from '../../config/index.js';
+import { config } from '@/config/index.js';
 import {
   AutoTransportManager,
   StatefulTransportManager,
   StatelessTransportManager,
-  TransportManager,
-} from '../../mcp-server/transports/core/index.js';
-import { storageService } from '../../storage/index.js';
-import { logger } from '../../utils/index.js';
+  type TransportManager,
+} from '@/mcp-server/transports/core/index.js';
+import { storageService } from '@/storage/index.js';
+import { logger } from '@/utils/index.js';
 import {
   AppConfig,
   CreateMcpServerInstance,
   TransportManagerToken,
-} from '../tokens.js';
+} from '@/container/tokens.js';
 
 /**
  * Registers all transport-related managers and resolves the correct one.

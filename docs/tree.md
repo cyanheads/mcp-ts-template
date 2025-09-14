@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-13 09:30:45
+Generated on: 2025-09-14 05:39:31
 
 ```
 mcp-ts-template
@@ -18,6 +18,7 @@ mcp-ts-template
 ├── changelog
 │   └── archive1.md
 ├── docs
+│   ├── all-files.md
 │   └── tree.md
 ├── scripts
 │   ├── clean.ts
@@ -156,44 +157,27 @@ mcp-ts-template
 │   │   │       ├── errorHandler.test.ts
 │   │   │       └── logger.test.ts
 │   │   └── setup.integration.ts
-│   ├── mcp-server
-│   │   ├── resources
-│   │   ├── tools
-│   │   └── transports
-│   │       ├── auth
-│   │       │   └── lib
-│   │       ├── core
-│   │       ├── http
-│   │       └── stdio
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts
-│   ├── services
-│   │   ├── llm-providers
-│   │   └── supabase
 │   ├── storage
 │   │   ├── providers
-│   │   │   ├── fileSystem
 │   │   │   └── inMemory
 │   │   │       └── inMemoryProvider.test.ts
 │   │   └── storageProviderCompliance.ts
 │   ├── utils
-│   │   ├── internal
 │   │   ├── metrics
 │   │   │   └── tokenCounter.test.ts
-│   │   ├── network
 │   │   ├── parsing
 │   │   │   └── jsonParser.test.ts
-│   │   ├── scheduling
-│   │   ├── security
-│   │   │   ├── idGenerator.test.ts
-│   │   │   └── sanitization.test.ts
-│   │   └── telemetry
+│   │   └── security
+│   │       ├── idGenerator.test.ts
+│   │       └── sanitization.test.ts
 │   └── setup.ts
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
-├── .ncurc.json
+├── .prettierignore
 ├── .prettierrc.json
 ├── AGENTS.md
 ├── bun.lock
@@ -208,12 +192,9 @@ mcp-ts-template
 ├── repomix.config.json
 ├── smithery.yaml
 ├── tsconfig.json
-├── tsconfig.typedoc.json
-├── tsconfig.vitest.json
+├── tsconfig.test.json
 ├── tsdoc.json
-├── typedoc.json
-├── vitest.config.ts
-└── vitest.integration.config.ts
+└── typedoc.json
 ```
 
 _Note: This tree excludes files and directories matched by .gitignore and default patterns._

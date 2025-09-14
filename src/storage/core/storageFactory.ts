@@ -4,13 +4,13 @@
  * storage backend to be selected via environment variables.
  * @module src/storage/storageFactory
  */
-import { config } from '../../config/index.js';
-import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
-import { logger, requestContextService } from '../../utils/index.js';
-import { FileSystemProvider } from '../providers/fileSystem/fileSystemProvider.js';
-import { InMemoryProvider } from '../providers/inMemory/inMemoryProvider.js';
-import { SupabaseProvider } from '../providers/supabase/supabaseProvider.js';
-import type { IStorageProvider } from './IStorageProvider.js';
+import { config } from '@/config/index.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger, requestContextService } from '@/utils/index.js';
+import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
+import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
+import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
+import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 
 export function createStorageProvider(): IStorageProvider {
   const context = requestContextService.createRequestContext({

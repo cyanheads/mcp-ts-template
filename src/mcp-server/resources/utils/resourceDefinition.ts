@@ -10,7 +10,7 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import type { RequestContext } from '../../../utils/index.js';
+import type { RequestContext } from '@/utils/index.js';
 
 /**
  * Optional UI/display hints for resources.

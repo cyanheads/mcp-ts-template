@@ -11,6 +11,8 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
 
     // Module interop for CommonJS compatibility
     "esModuleInterop": true,
@@ -18,7 +20,7 @@
 
     // Output configuration
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -53,11 +55,12 @@
     "allowJs": false,
     "baseUrl": ".",
     "paths": {
-      "mcp-ts-template/*": ["src/*"]
+      "@/*": ["src/*"],
+      "tests/*": ["tests/*"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
+  "include": ["src/**/*", "scripts/**/*"],
+  "exclude": ["node_modules", "dist", "tests", "**/*.test.ts", "**/*.spec.ts"],
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"

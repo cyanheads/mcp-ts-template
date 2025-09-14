@@ -7,7 +7,7 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import type { RequestContext } from '../../../utils/index.js';
+import type { RequestContext } from '@/utils/index.js';
 
 /**
  * Defines the annotations that provide hints about a tool's behavior.

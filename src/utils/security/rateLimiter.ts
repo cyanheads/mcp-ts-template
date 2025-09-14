@@ -4,16 +4,16 @@
  * @module src/utils/security/rateLimiter
  */
 import { trace } from '@opentelemetry/api';
-import { injectable, inject } from 'tsyringe';
+import { inject, injectable } from 'tsyringe';
 
-import { config as ConfigType } from '../../config/index.js';
-import { AppConfig, Logger } from '../../container/tokens.js';
-import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
+import { config as ConfigType } from '@/config/index.js';
+import { AppConfig, Logger } from '@/container/tokens.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
-  RequestContext,
+  type RequestContext,
   logger as LoggerType,
   requestContextService,
-} from '../index.js';
+} from '@/utils/index.js';
 
 /**
  * Defines configuration options for the {@link RateLimiter}.

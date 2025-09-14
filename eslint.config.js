@@ -8,13 +8,6 @@ const trimmedGlobals = Object.fromEntries(
   Object.entries(combinedGlobals).map(([key, value]) => [key.trim(), value]),
 );
 
-// Paths used by type-aware linting
-const tsProjectFiles = [
-  './tsconfig.json',
-  './tsconfig.vitest.json',
-  './tsconfig.typedoc.json',
-];
-
 export default [
   // Ignore common build/test artifacts
   {
@@ -44,7 +37,7 @@ export default [
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        project: tsProjectFiles,
+        projectService: true,
         tsconfigRootDir: new URL('.', import.meta.url).pathname,
         sourceType: 'module',
       },

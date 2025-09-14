@@ -3,10 +3,10 @@
  * @module src/utils/network/fetchWithTimeout
  */
 // Adjusted import path
-import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
-import { logger } from '../internal/logger.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger } from '@/utils/internal/logger.js';
 // Adjusted import path
-import type { RequestContext } from '../internal/requestContext.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 /**
  * Options for the fetchWithTimeout utility.

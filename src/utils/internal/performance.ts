@@ -7,8 +7,8 @@
  */
 import { SpanStatusCode, trace } from '@opentelemetry/api';
 
-import { config } from '../../config/index.js';
-import { McpError } from '../../types-global/errors.js';
+import { config } from '@/config/index.js';
+import { McpError } from '@/types-global/errors.js';
 import {
   ATTR_CODE_FUNCTION,
   ATTR_CODE_NAMESPACE,
@@ -23,9 +23,9 @@ import {
   ATTR_MCP_TOOL_MEMORY_RSS_DELTA,
   ATTR_MCP_TOOL_OUTPUT_BYTES,
   ATTR_MCP_TOOL_SUCCESS,
-} from '../telemetry/semconv.js';
-import { logger } from './logger.js';
-import { RequestContext } from './requestContext.js';
+} from '@/utils/telemetry/semconv.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 const toBytes = (payload: unknown): number => {
   if (payload == null) return 0;

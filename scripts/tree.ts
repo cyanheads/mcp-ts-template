@@ -45,7 +45,7 @@ Options:
 
 args.forEach((arg) => {
   if (arg.startsWith('--depth=')) {
-    const depthValue = parseInt(arg.split('=')[1], 10);
+    const depthValue = parseInt(arg.split('=')[1] ?? '', 10);
     if (!isNaN(depthValue) && depthValue >= 0) {
       maxDepthArg = depthValue;
     } else {
@@ -167,6 +167,7 @@ async function generateTree(
 
   for (let i = 0; i < filteredEntries.length; i++) {
     const entry = filteredEntries[i];
+    if (!entry) continue;
     const isLastEntry = i === filteredEntries.length - 1;
     const connector = isLastEntry ? '└── ' : '├── ';
     const newPrefix = prefix + (isLastEntry ? '    ' : '│   ');

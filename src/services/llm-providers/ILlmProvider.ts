@@ -6,11 +6,16 @@
 import type {
   ChatCompletion,
   ChatCompletionChunk,
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionCreateParamsStreaming,
 } from 'openai/resources/chat/completions';
 import type { Stream } from 'openai/streaming';
 
-import type { RequestContext } from '../../utils/index.js';
-import type { OpenRouterChatParams } from './openRouterProvider.js';
+import type { RequestContext } from '@/utils/index.js';
+
+export type OpenRouterChatParams =
+  | ChatCompletionCreateParamsNonStreaming
+  | ChatCompletionCreateParamsStreaming;
 
 export interface ILlmProvider {
   /**

@@ -9,14 +9,14 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { IncomingHttpHeaders } from 'http';
 import { inject, injectable } from 'tsyringe';
 
-import { RequestContext } from '../../../utils/index.js';
-import { StatefulTransportManager } from './statefulTransportManager.js';
-import { StatelessTransportManager } from './statelessTransportManager.js';
+import type { RequestContext } from '@/utils/index.js';
+import { StatefulTransportManager } from '@/mcp-server/transports/core/statefulTransportManager.js';
+import { StatelessTransportManager } from '@/mcp-server/transports/core/statelessTransportManager.js';
 import type {
   IStatefulTransportManager,
   TransportManager,
   TransportResponse,
-} from './transportTypes.js';
+} from '@/mcp-server/transports/core/transportTypes.js';
 
 @injectable()
 export class AutoTransportManager implements TransportManager {

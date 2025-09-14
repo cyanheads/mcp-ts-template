@@ -4,11 +4,11 @@
  * Supports TTL (Time-To-Live) for entries.
  * @module src/storage/providers/inMemory/inMemoryProvider
  */
-import { RequestContext, logger } from '../../../utils/index.js';
+import { type RequestContext, logger } from '@/utils/index.js';
 import type {
   IStorageProvider,
   StorageOptions,
-} from '../../core/IStorageProvider.js';
+} from '@/storage/core/IStorageProvider.js';
 
 interface InMemoryStoreEntry {
   value: unknown;

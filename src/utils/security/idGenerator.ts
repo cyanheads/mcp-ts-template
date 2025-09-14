@@ -11,7 +11,7 @@
  */
 import { randomUUID as cryptoRandomUUID, randomBytes } from 'crypto';
 
-import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 
 // Removed: import { logger, requestContextService } from "../index.js";
 

@@ -8,8 +8,8 @@ import path from 'path';
 import sanitizeHtml from 'sanitize-html';
 import validator from 'validator';
 
-import { JsonRpcErrorCode, McpError } from '../../types-global/errors.js';
-import { logger, requestContextService } from '../index.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger, requestContextService } from '@/utils/index.js';
 
 /**
  * Defines options for path sanitization to control how file paths are processed and validated.

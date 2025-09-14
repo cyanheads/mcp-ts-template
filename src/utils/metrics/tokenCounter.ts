@@ -4,8 +4,8 @@
  * to adjust per-model tokenization and overhead later.
  * @module src/utils/metrics/tokenCounter
  */
-import { JsonRpcErrorCode } from '../../types-global/errors.js';
-import { ErrorHandler, RequestContext, logger } from '../index.js';
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
+import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
 
 /** Minimal chat message shape to stay provider-agnostic. */
 export type ChatMessage = {

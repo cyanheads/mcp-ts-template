@@ -7,8 +7,8 @@
  */
 import { trace } from '@opentelemetry/api';
 
-import { generateRequestContextId } from '../index.js';
-import { logger } from './logger.js';
+import { generateRequestContextId } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
 
 /**
  * Defines the structure of the authentication-related context, typically
@@ -182,10 +182,12 @@ const requestContextServiceInstance = {
 
     // --- OpenTelemetry Integration ---
     const activeSpan = trace.getActiveSpan();
-    if (activeSpan) {
+    if (activeSpan && typeof activeSpan.spanContext === 'function') {
       const spanContext = activeSpan.spanContext();
-      context.traceId = spanContext.traceId;
-      context.spanId = spanContext.spanId;
+      if (spanContext) {
+        context.traceId = spanContext.traceId;
+        context.spanId = spanContext.spanId;
+      }
     }
     // --- End OpenTelemetry Integration ---
 

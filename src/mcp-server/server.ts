@@ -13,18 +13,18 @@
  * - Transports: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx
  * @module src/mcp-server/server
  */
-import { ServerType } from '@hono/node-server';
+import type { ServerType } from '@hono/node-server';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import http from 'http';
 import { container } from 'tsyringe';
 
-import { config } from '../config/index.js';
-import { ErrorHandler, logger, requestContextService } from '../utils/index.js';
-import { ResourceRegistry } from './resources/resource-registration.js';
-import { ToolRegistry } from './tools/tool-registration.js';
-import type { TransportManager } from './transports/core/transportTypes.js';
-import { startHttpTransport } from './transports/http/index.js';
-import { startStdioTransport } from './transports/stdio/index.js';
+import { config } from '@/config/index.js';
+import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
+import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
+import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
+import type { TransportManager } from '@/mcp-server/transports/core/transportTypes.js';
+import { startHttpTransport } from '@/mcp-server/transports/http/index.js';
+import { startStdioTransport } from '@/mcp-server/transports/stdio/index.js';
 
 /**
  * Creates and configures a new instance of the `McpServer`.

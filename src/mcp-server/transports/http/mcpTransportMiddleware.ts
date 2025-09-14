@@ -5,15 +5,15 @@
  * response for Hono to send.
  * @module src/mcp-server/transports/http/mcpTransportMiddleware
  */
-import { MiddlewareHandler } from 'hono';
-import { IncomingHttpHeaders } from 'http';
+import type { MiddlewareHandler } from 'hono';
+import type { IncomingHttpHeaders } from 'http';
 
-import { requestContextService } from '../../../utils/index.js';
+import { requestContextService } from '@/utils/index.js';
 import type {
   TransportManager,
   TransportResponse,
-} from '../core/transportTypes.js';
-import { HonoNodeBindings } from './httpTypes.js';
+} from '@/mcp-server/transports/core/transportTypes.js';
+import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 
 /**
  * Converts a Fetch API Headers object to Node.js IncomingHttpHeaders.
