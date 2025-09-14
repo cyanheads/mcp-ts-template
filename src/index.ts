@@ -6,15 +6,12 @@
  * shutdown on process signals or unhandled errors.
  * @module src/index
  */
-// Must be first for tsyringe (decorators metadata)
-import 'reflect-metadata';
-// IMPORTANT: OpenTelemetry instrumentation MUST load before other app modules
-// so that it can patch libraries. Keep this at the very top (after polyfills).
 import { shutdownOpenTelemetry } from '@/utils/telemetry/instrumentation.js';
+import 'reflect-metadata';
 
+import { type McpLogLevel, logger } from '@/utils/internal/logger.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import http from 'http';
-import { type McpLogLevel, logger } from '@/utils/internal/logger.js';
 
 import { config as appConfigType } from '@/config/index.js';
 import container, { AppConfig } from '@/container/index.js';

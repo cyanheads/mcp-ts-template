@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.0-alpha.10] - 2025-09-13
+
+### Changed
+
+- **Build Process**: Transitioned from `tsc` to `bun build` for our primary build process, enhancing build times and simplifying configuration. This includes updates to `package.json` scripts and related dependency adjustments (`bun.lock`, `tsup`, `tsc-alias`).
+- **Configuration Robustness**: Significantly improved configuration loading in `src/config/index.ts` by introducing `emptyStringAsUndefined` preprocessing and setting more intelligent default values, making the server more resilient to missing environment variables.
+- **OpenTelemetry Instrumentation**: Refined OpenTelemetry initialization and shutdown in `src/utils/telemetry/instrumentation.ts`. Added checks for multiple initializations, included warnings for unconfigured OTLP endpoints, and made error handling more graceful to prevent application crashes.
+- **Dependency Updates**: Updated various dependencies to their latest versions for improved stability and security.
+- **Application Entry Point**: Reordered imports in `src/index.ts` to ensure OpenTelemetry instrumentation loads optimally, and updated logger import paths.
+
 ## [2.0.0-alpha.9] - 2025-09-13
 
 ### Refactored

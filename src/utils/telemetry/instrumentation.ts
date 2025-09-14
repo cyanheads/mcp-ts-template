@@ -30,7 +30,12 @@ import { config } from '@/config/index.js';
 
 export let sdk: NodeSDK | null = null;
 
-if (config.openTelemetry.enabled) {
+// A flag to ensure we only try to initialize once.
+let isOtelInitialized = false;
+
+if (config.openTelemetry.enabled && !isOtelInitialized) {
+  isOtelInitialized = true;
+
   // --- Custom Diagnostic Logger for OpenTelemetry ---
   class OtelDiagnosticLogger extends DiagConsoleLogger {
     private winstonLogger: winston.Logger;
@@ -83,6 +88,7 @@ if (config.openTelemetry.enabled) {
 
   /**
    * A custom SpanProcessor that writes ended spans to a log file using Winston.
+   * This is used as a fallback when no OTLP endpoint is configured.
    */
   class FileSpanProcessor implements SpanProcessor {
     private traceLogger: winston.Logger;
@@ -141,6 +147,15 @@ if (config.openTelemetry.enabled) {
       logLevel: otelLogLevel,
     });
 
+    const tracesEndpoint = config.openTelemetry.tracesEndpoint;
+    const metricsEndpoint = config.openTelemetry.metricsEndpoint;
+
+    if (!tracesEndpoint && !metricsEndpoint) {
+      diag.warn(
+        'OTEL_ENABLED is true, but no OTLP endpoint for traces or metrics is configured. OpenTelemetry will use local file logging for traces and will not export metrics. To enable OTLP export, set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT and/or OTEL_EXPORTER_OTLP_METRICS_ENDPOINT.',
+      );
+    }
+
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: config.openTelemetry.serviceName,
       [ATTR_SERVICE_VERSION]: config.openTelemetry.serviceVersion,
@@ -148,26 +163,20 @@ if (config.openTelemetry.enabled) {
     });
 
     let spanProcessor: SpanProcessor;
-    if (config.openTelemetry.tracesEndpoint) {
-      diag.info(
-        `Using OTLP exporter for traces, endpoint: ${config.openTelemetry.tracesEndpoint}`,
-      );
-      const traceExporter = new OTLPTraceExporter({
-        url: config.openTelemetry.tracesEndpoint,
-      });
+    if (tracesEndpoint) {
+      diag.info(`Using OTLP exporter for traces, endpoint: ${tracesEndpoint}`);
+      const traceExporter = new OTLPTraceExporter({ url: tracesEndpoint });
       spanProcessor = new BatchSpanProcessor(traceExporter);
     } else {
       diag.info(
-        'No OTLP endpoint configured. Using FileSpanProcessor for local trace logging.',
+        'No OTLP traces endpoint configured. Using FileSpanProcessor for local trace logging only.',
       );
       spanProcessor = new FileSpanProcessor();
     }
 
-    const metricReader = config.openTelemetry.metricsEndpoint
+    const metricReader = metricsEndpoint
       ? new PeriodicExportingMetricReader({
-          exporter: new OTLPMetricExporter({
-            url: config.openTelemetry.metricsEndpoint,
-          }),
+          exporter: new OTLPMetricExporter({ url: metricsEndpoint }),
           exportIntervalMillis: 15000,
         })
       : undefined;
@@ -197,7 +206,8 @@ if (config.openTelemetry.enabled) {
     );
   } catch (error) {
     diag.error('Error initializing OpenTelemetry', error);
-    process.exit(1);
+    // Do not exit process here, allow the app to run without telemetry.
+    sdk = null;
   }
 }
 
@@ -207,18 +217,11 @@ if (config.openTelemetry.enabled) {
  */
 export async function shutdownOpenTelemetry() {
   if (sdk) {
-    // Attempt to flush any pending spans/metrics before shutdown
-    const maybeSdk = sdk as unknown as { forceFlush?: () => Promise<void> };
-    if (maybeSdk && typeof maybeSdk.forceFlush === 'function') {
-      try {
-        await maybeSdk.forceFlush();
-      } catch (e) {
-        diag.warn('Error force-flushing OpenTelemetry before shutdown', e);
-      }
+    try {
+      await sdk.shutdown();
+      diag.info('OpenTelemetry terminated successfully.');
+    } catch (error) {
+      diag.error('Error terminating OpenTelemetry', error);
     }
-    await sdk
-      .shutdown()
-      .then(() => diag.info('OpenTelemetry terminated'))
-      .catch((error) => diag.error('Error terminating OpenTelemetry', error));
   }
 }

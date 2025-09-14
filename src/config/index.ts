@@ -58,9 +58,9 @@ const loadPackageJson = (): {
 } => {
   const pkgPath = join(projectRoot, 'package.json');
   const fallback = {
-    name: 'mcp-ts-template',
+    name: '[Fallback] mcp-ts-template',
     version: '1.0.0',
-    description: 'Shits broken',
+    description: '[Fallback] A TypeScript template for MCP servers.',
   };
   if (!existsSync(pkgPath)) {
     if (process.stdout.isTTY) {
@@ -99,20 +99,36 @@ const loadPackageJson = (): {
 
 const pkg = loadPackageJson();
 
+const emptyStringAsUndefined = (val: unknown) => {
+  if (typeof val === 'string' && val.trim() === '') {
+    return undefined;
+  }
+  return val;
+};
+
 const ConfigSchema = z.object({
   pkg: z.object({
     name: z.string(),
     version: z.string(),
     description: z.string(),
   }),
-  mcpServerName: z.string(),
-  mcpServerVersion: z.string(),
-  mcpServerDescription: z.string().optional(),
-  logLevel: z.string().default('debug'),
-  logsPath: z.string(),
-  environment: z.string().default('development'),
-  mcpTransportType: z.enum(['stdio', 'http']).default('stdio'),
-  mcpSessionMode: z.enum(['stateless', 'stateful', 'auto']).default('auto'),
+  mcpServerName: z.string().default(pkg.name),
+  mcpServerVersion: z.string().default(pkg.version),
+  mcpServerDescription: z.string().default(pkg.description).optional(),
+  logLevel: z.preprocess(emptyStringAsUndefined, z.string().default('debug')),
+  logsPath: z.string().default(path.join(projectRoot, 'logs')),
+  environment: z.preprocess(
+    emptyStringAsUndefined,
+    z.string().default('development'),
+  ),
+  mcpTransportType: z.preprocess(
+    emptyStringAsUndefined,
+    z.enum(['stdio', 'http']).default('stdio'),
+  ),
+  mcpSessionMode: z.preprocess(
+    emptyStringAsUndefined,
+    z.enum(['stateless', 'stateful', 'auto']).default('auto'),
+  ),
   mcpHttpPort: z.coerce.number().default(3010),
   mcpHttpHost: z.string().default('127.0.0.1'),
   mcpHttpEndpointPath: z.string().default('/mcp'),
@@ -121,7 +137,10 @@ const ConfigSchema = z.object({
   mcpStatefulSessionStaleTimeoutMs: z.coerce.number().default(1_800_000),
   mcpAllowedOrigins: z.array(z.string()).optional(),
   mcpAuthSecretKey: z.string().optional(),
-  mcpAuthMode: z.enum(['jwt', 'oauth', 'none']).default('none'),
+  mcpAuthMode: z.preprocess(
+    emptyStringAsUndefined,
+    z.enum(['jwt', 'oauth', 'none']).default('none'),
+  ),
   oauthIssuerUrl: z.string().url().optional(),
   oauthJwksUri: z.string().url().optional(),
   oauthAudience: z.string().optional(),
@@ -130,7 +149,7 @@ const ConfigSchema = z.object({
   devMcpClientId: z.string().optional(),
   devMcpScopes: z.array(z.string()).optional(),
   openrouterAppUrl: z.string().default('http://localhost:3000'),
-  openrouterAppName: z.string(),
+  openrouterAppName: z.string().default(pkg.name),
   openrouterApiKey: z.string().optional(),
   llmDefaultModel: z.string().default('google/gemini-2.5-flash'),
   llmDefaultTemperature: z.coerce.number().optional(),
@@ -156,21 +175,25 @@ const ConfigSchema = z.object({
     })
     .optional(),
   storage: z.object({
-    providerType: z
-      .enum(['in-memory', 'filesystem', 'supabase'])
-      .default('in-memory'),
-    filesystemPath: z.string().optional(),
+    providerType: z.preprocess(
+      emptyStringAsUndefined,
+      z.enum(['in-memory', 'filesystem', 'supabase']).default('in-memory'),
+    ),
+    filesystemPath: z.string().default('./.storage'),
   }),
   openTelemetry: z.object({
     enabled: z.coerce.boolean().default(false),
-    serviceName: z.string(),
-    serviceVersion: z.string(),
+    serviceName: z.string().default(pkg.name),
+    serviceVersion: z.string().default(pkg.version),
     tracesEndpoint: z.string().url().optional(),
     metricsEndpoint: z.string().url().optional(),
     samplingRatio: z.coerce.number().default(1.0),
-    logLevel: z
-      .enum(['NONE', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'VERBOSE', 'ALL'])
-      .default('INFO'),
+    logLevel: z.preprocess(
+      emptyStringAsUndefined,
+      z
+        .enum(['NONE', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'VERBOSE', 'ALL'])
+        .default('INFO'),
+    ),
   }),
 });
 
@@ -178,11 +201,11 @@ const parseConfig = () => {
   const env = process.env;
   const rawConfig = {
     pkg,
-    mcpServerName: env.MCP_SERVER_NAME || pkg.name,
-    mcpServerVersion: env.MCP_SERVER_VERSION || pkg.version,
-    mcpServerDescription: env.MCP_SERVER_DESCRIPTION || pkg.description,
+    mcpServerName: env.MCP_SERVER_NAME,
+    mcpServerVersion: env.MCP_SERVER_VERSION,
+    mcpServerDescription: env.MCP_SERVER_DESCRIPTION,
     logLevel: env.MCP_LOG_LEVEL,
-    logsPath: env.LOGS_DIR || path.join(projectRoot, 'logs'),
+    logsPath: env.LOGS_DIR,
     environment: env.NODE_ENV,
     mcpTransportType: env.MCP_TRANSPORT_TYPE,
     mcpSessionMode: env.MCP_SESSION_MODE,
@@ -205,7 +228,7 @@ const parseConfig = () => {
     devMcpClientId: env.DEV_MCP_CLIENT_ID,
     devMcpScopes: env.DEV_MCP_SCOPES?.split(',').map((s) => s.trim()),
     openrouterAppUrl: env.OPENROUTER_APP_URL,
-    openrouterAppName: env.OPENROUTER_APP_NAME || pkg.name || 'mcp-ts-template',
+    openrouterAppName: env.OPENROUTER_APP_NAME,
     openrouterApiKey: env.OPENROUTER_API_KEY,
     llmDefaultModel: env.LLM_DEFAULT_MODEL,
     llmDefaultTemperature: env.LLM_DEFAULT_TEMPERATURE,
@@ -237,13 +260,12 @@ const parseConfig = () => {
         : undefined,
     storage: {
       providerType: env.STORAGE_PROVIDER_TYPE,
-      filesystemPath: env.STORAGE_FILESYSTEM_PATH || './.storage',
+      filesystemPath: env.STORAGE_FILESYSTEM_PATH,
     },
     openTelemetry: {
       enabled: env.OTEL_ENABLED,
-      serviceName: env.OTEL_SERVICE_NAME || env.MCP_SERVER_NAME || pkg.name,
-      serviceVersion:
-        env.OTEL_SERVICE_VERSION || env.MCP_SERVER_VERSION || pkg.version,
+      serviceName: env.OTEL_SERVICE_NAME,
+      serviceVersion: env.OTEL_SERVICE_VERSION,
       tracesEndpoint: env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
       metricsEndpoint: env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT,
       samplingRatio: env.OTEL_TRACES_SAMPLER_ARG,
