@@ -384,6 +384,7 @@ The following utilities are still available for direct use:
 
 - Quick all-in-one checks (lint + typecheck): `bun run devcheck`
   - Use this (sparingly) after making changes.
+- Run unit tests: `bun test`
 
 ---
 
@@ -395,7 +396,7 @@ The following utilities are still available for direct use:
 - Validation: Inputs are validated via Zod `inputSchema`; your `logic` receives typed, safe `input`.
 - Secrets: Access through the `config` module only; never hard‑code.
 - Formatting: Run `bun run devcheck` before finishing any task.
-- Testing: Add unit tests under `tests/` and integration tests under `tests/integration/`. Follow the existing structure for each test type.
+- Testing: Add unit tests under `tests/unit/` and integration tests under `tests/integration/`. Mirror the existing src/ structure for each test type.
 
 ---
 
@@ -406,4 +407,4 @@ The following utilities are still available for direct use:
 - Use `logger` (preferably injected) with `RequestContext` in every meaningful operation.
 - Use injected `StorageService` for all persistence.
 - Register the tool in `src/mcp-server/tools/definitions/index.ts`.
-- If applicable, add tests in `tests/` (for unit) or `tests/integration/` (for integration) and run the relevant coverage command.
+- If applicable, add tests in `tests/unit/` or `tests/integration/` and run `bun test`.
