@@ -185,3 +185,9 @@ duckdata/
 .claude
 data/
 docs/devdocs.md
+
+# =============================================================================
+# MCP REGISTRY
+# =============================================================================
+.mcpregistry_github_token
+.mcpregistry_registry_token

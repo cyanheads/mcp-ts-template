@@ -1,10 +1,12 @@
 import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
 
 async function validateServerJson() {
   const ajv = new Ajv({ strict: false });
+  addFormats(ajv);
   const schemaUrl =
     'https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json';
   const dataPath = path.resolve(process.cwd(), 'server.json');
