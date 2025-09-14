@@ -50,6 +50,7 @@
         "glob": "^11.0.3",
         "globals": "^16.4.0",
         "husky": "^9.1.7",
+        "is-ci": "^3.0.1",
         "msw": "^2.11.2",
         "prettier": "^3.6.2",
         "tsx": "^4.20.5",
@@ -705,6 +706,8 @@
 
     "chrono-node": ["chrono-node@2.8.4", "", { "dependencies": { "dayjs": "^1.10.0" } }, "sha512-F+Rq88qF3H2dwjnFrl3TZrn5v4ZO57XxeQ+AhuL1C685So1hdUV/hT/q8Ja5UbmPYEZfx8VrxFDa72Dgldcxpg=="],
 
+    "ci-info": ["ci-info@3.9.0", "", {}, "sha512-NIxF55hv4nSqQswkAeiOi1r83xy8JldOFDTWiug55KBu9Jnblncd2U6ViHmYgHf01TPZS77NJBhBMKdWj9HQMQ=="],
+
     "cjs-module-lexer": ["cjs-module-lexer@1.4.3", "", {}, "sha512-9z8TZaGM1pfswYeXrUpzPrkx8UnWYdhJclsiYMm6x/w5+nN+8Tf/LnAgfLGQCm59qAOxU8WwHEq2vNwF6i4j+Q=="],
 
     "cli-width": ["cli-width@4.1.0", "", {}, "sha512-ouuZd4/dm2Sw5Gmqy6bGyNNNe1qt9RpmxveLSO7KcgsTnU7RXfsw+/bukWGo1abgBiMAic068rclZsO4IWmmxQ=="],
@@ -1016,6 +1019,8 @@
     "is-bun-module": ["is-bun-module@2.0.0", "", { "dependencies": { "semver": "^7.7.1" } }, "sha512-gNCGbnnnnFAUGKeZ9PdbyeGYJqewpmc2aKHUEMO5nQPWU9lOmv7jcmQIv+qHD8fXW6W7qfuCwX4rY9LNRjXrkQ=="],
 
     "is-callable": ["is-callable@1.2.7", "", {}, "sha512-1BC0BVFhS/p0qtw6enp8e+8OD0UrK0oFLztSjNzhcKA3WDuJxxAPXzPuPtKkjEY9UUoEWlX/8fgKeu2S8i9JTA=="],
+
+    "is-ci": ["is-ci@3.0.1", "", { "dependencies": { "ci-info": "^3.2.0" }, "bin": { "is-ci": "bin.js" } }, "sha512-ZYvCgrefwqoQ6yTyYUbQu64HsITZ3NfKX1lzaEYdkTDcfKzzCI/wthRRYKkdjHKFVgNiXKAKm65Zo1pk2as/QQ=="],
 
     "is-core-module": ["is-core-module@2.16.1", "", { "dependencies": { "hasown": "^2.0.2" } }, "sha512-UfoeMA6fIJ8wTYFEUjelnaGI67v6+N7qXJEvQuIGa99l4xsCruSYOVSQ0uPANn4dAzm8lkYPaKLrrijLq7x23w=="],
 

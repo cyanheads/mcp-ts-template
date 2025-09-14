@@ -48,7 +48,7 @@
     "tree": "bun run scripts/tree.ts",
     "fetch-spec": "bun run scripts/fetch-openapi-spec.ts",
     "format": "bun run prettier --write \"**/*.{ts,js,json,md,html,css}\"",
-    "prepare": "husky",
+    "prepare": "is-ci || husky",
     "inspector": "bunx mcp-inspector --config mcp.json --server mcp-ts-template",
     "db:duckdb-example": "MCP_LOG_LEVEL=debug tsc && node dist/storage/duckdbExample.js",
     "test": "bun test",
@@ -88,8 +88,7 @@
     "validator": "13.15.15",
     "winston": "^3.17.0",
     "winston-transport": "^4.9.0",
-    "zod": "^3.25.76",
-    "husky": "^9.1.7"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
@@ -113,6 +112,8 @@
     "eslint-import-resolver-typescript": "^4.4.4",
     "glob": "^11.0.3",
     "globals": "^16.4.0",
+    "husky": "^9.1.7",
+    "is-ci": "^3.0.1",
     "msw": "^2.11.2",
     "prettier": "^3.6.2",
     "tsx": "^4.20.5",
