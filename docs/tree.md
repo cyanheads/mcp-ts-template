@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-14 07:11:58
+Generated on: 2025-09-14 08:33:17
 
 ```
 mcp-ts-template
@@ -8,6 +8,7 @@ mcp-ts-template
 │   └── clinerules.md
 ├── .github
 │   ├── workflows
+│   │   ├── publish-mcp.yml
 │   │   └── publish.yml
 │   └── FUNDING.yml
 ├── .husky
@@ -25,7 +26,8 @@ mcp-ts-template
 │   ├── devdocs.ts
 │   ├── fetch-openapi-spec.ts
 │   ├── make-executable.ts
-│   └── tree.ts
+│   ├── tree.ts
+│   └── validate-mcp-publish-schema.ts
 ├── src
 │   ├── config
 │   │   └── index.ts
@@ -188,6 +190,7 @@ mcp-ts-template
 ├── package.json
 ├── README.md
 ├── repomix.config.json
+├── server.json
 ├── smithery.yaml
 ├── tsconfig.json
 ├── tsconfig.test.json

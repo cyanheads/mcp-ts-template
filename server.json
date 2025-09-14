@@ -1,0 +1,63 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.cyanheads/mcp-ts-template",
+  "description": "A production-grade TypeScript template for scalable MCP servers with built-in observability.",
+  "status": "active",
+  "repository": {
+    "url": "https://github.com/cyanheads/mcp-ts-template",
+    "source": "github"
+  },
+  "version": "2.0.1",
+  "packages": [
+    {
+      "registry_type": "npm",
+      "registry_base_url": "https://registry.npmjs.org",
+      "identifier": "mcp-ts-template",
+      "version": "2.0.1",
+      "runtime_hint": "bun",
+      "package_arguments": [
+        {
+          "type": "positional",
+          "value": "run"
+        },
+        {
+          "type": "positional",
+          "value": "start:stdio"
+        }
+      ],
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registry_type": "npm",
+      "registry_base_url": "https://registry.npmjs.org",
+      "identifier": "mcp-ts-template",
+      "version": "2.0.1",
+      "runtime_hint": "bun",
+      "package_arguments": [
+        {
+          "type": "positional",
+          "value": "run"
+        },
+        {
+          "type": "positional",
+          "value": "start:http"
+        }
+      ],
+      "environment_variables": [
+        {
+          "name": "MCP_HTTP_PORT",
+          "description": "The port to run the HTTP server on.",
+          "format": "string",
+          "is_required": false,
+          "default": "3010"
+        }
+      ],
+      "transport": {
+        "type": "streamable-http",
+        "url": "http://0.0.0.0:{MCP_HTTP_PORT}/mcp"
+      }
+    }
+  ]
+}
