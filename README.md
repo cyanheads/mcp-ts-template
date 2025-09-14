@@ -5,12 +5,7 @@
   <h1>MCP TypeScript Server Template</h1>
   <p><b>The definitive, production-grade starting point for building powerful and scalable Model Context Protocol (MCP) servers.</b></p>
   
-  [![Version](https://img.shields.io/badge/Version-2.0.0-blue.svg?style=flat-square)](./CHANGELOG.md)
-  [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx)
-  [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
-  [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/)
-  <br />
+  [![Version](https://img.shields.io/badge/Version-2.0.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.1.8-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-73.99%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
 
 </div>
 
@@ -60,17 +55,10 @@ This template is packed with production-grade features designed for high-perform
     bun install
     ```
 
-3.  **Configure Environment**
-    Copy the example environment file and fill in any necessary values (e.g., API keys).
+3.  **Build the Project**
 
     ```bash
-    cp .env.example .env
-    ```
-
-4.  **Build the Project**
-
-    ```bash
-    bun run build
+    bun build # or bun rebuild
     ```
 
 ---
@@ -89,28 +77,6 @@ You can run the server in several modes for development and production.
   ```bash
   bun run start:http
   # Server now running at http://127.0.0.1:3010
-  ```
-
-### Development with Hot-Reloading
-
-- Use the `dev:*` scripts to run the server with hot-reloading powered by Bun.
-  ```bash
-  bun run dev:http
-  # Or for stdio
-  bun run dev:stdio
-  ```
-
-### Docker
-
-- Build and run the server in a containerized environment.
-
-  ```bash
-  # 1. Build the Docker image
-  docker build -t mcp-ts-template .
-
-  # 2. Run the container
-  # Be sure to pass your environment variables
-  docker run --rm -it -p 3010:3010 --env-file .env mcp-ts-template
   ```
 
 ---
@@ -230,18 +196,17 @@ Refer to **`.env.example`** for a complete list of configurable options.
 
 Key scripts available in `package.json`:
 
-| Script                  | Description                                                             |
-| :---------------------- | :---------------------------------------------------------------------- |
-| `bun run build`         | Compiles the TypeScript source code to JavaScript in `dist/`.           |
-| `bun run start:http`    | Starts the compiled server using the HTTP transport.                    |
-| `bun run start:stdio`   | Starts the compiled server using the STDIO transport.                   |
-| `bun run dev:http`      | Runs the server in development mode with hot-reloading (HTTP).          |
-| `bun run test`          | Runs all unit and integration tests with Vitest.                        |
-| `bun run test:coverage` | Runs all tests and generates a code coverage report.                    |
-| `bun run devcheck`      | A comprehensive check that runs linting, type-checking, and formatting. |
-| `bun run format`        | Automatically formats all code with Prettier.                           |
-| `bun run lint`          | Lints the codebase with ESLint.                                         |
-| `bun run typecheck`     | Checks the project for TypeScript errors.                               |
+| Script                  | Description                                                                           |
+| :---------------------- | :------------------------------------------------------------------------------------ |
+| `bun run devdocs`       | Generates a comprehensive development documentation prompt for AI analysis.           |
+| `bun run rebuild`       | Clears logs, cache, and compiles the TypeScript source code to JavaScript in `dist/`. |
+| `bun run start:http`    | Starts the compiled server using the HTTP transport.                                  |
+| `bun run start:stdio`   | Starts the compiled server using the STDIO transport.                                 |
+| `bun run test`          | Runs all unit and integration tests with Vitest.                                      |
+| `bun run test:coverage` | Runs all tests and generates a code coverage report.                                  |
+| `bun run devcheck`      | A comprehensive script that runs linting, type-checking, and formatting.              |
+
+You can find these scripts in the `scripts/` directory.
 
 ## 🤝 Contributing
 
