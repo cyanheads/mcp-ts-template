@@ -43,12 +43,14 @@ This template is packed with production-grade features designed for high-perform
 ### Installation
 
 1.  **Clone the Repository**
+
     ```bash
     git clone https://github.com/cyanheads/mcp-ts-template.git
     cd mcp-ts-template
     ```
 
 2.  **Install Dependencies**
+
     ```bash
     bun install
     ```
@@ -193,16 +195,16 @@ Refer to **`.env.example`** for a complete list of configurable options.
 
 Key scripts available in `package.json`:
 
-| Script                 | Description                                                                                                    |
-| :--------------------- | :------------------------------------------------------------------------------------------------------------- |
-| `bun run devdocs`      | Generates a comprehensive development documentation prompt for AI analysis.                                    |
-| `bun run rebuild`      | Clears logs, cache, and compiles the TypeScript source code to JavaScript in `dist/`.                          |
-| `bun run start:http`   | Starts the compiled server using the HTTP transport.                                                           |
-| `bun run start:stdio`  | Starts the compiled server using the STDIO transport.                                                          |
-| `bun run test`         | Runs all unit and integration tests with Vitest.                                                               |
-| `bun run test:coverage`| Runs all tests and generates a code coverage report.                                                           |
-| `bun run devcheck`     | A comprehensive script that runs linting, type-checking, and formatting.                                       |
-| `bun run publish-mcp`  | **(Recommended)** An all-in-one script to sync, validate, commit, and publish your server to the MCP Registry. |
+| Script                  | Description                                                                                                    |
+| :---------------------- | :------------------------------------------------------------------------------------------------------------- |
+| `bun run devdocs`       | Generates a comprehensive development documentation prompt for AI analysis.                                    |
+| `bun run rebuild`       | Clears logs, cache, and compiles the TypeScript source code to JavaScript in `dist/`.                          |
+| `bun run start:http`    | Starts the compiled server using the HTTP transport.                                                           |
+| `bun run start:stdio`   | Starts the compiled server using the STDIO transport.                                                          |
+| `bun run test`          | Runs all unit and integration tests with Vitest.                                                               |
+| `bun run test:coverage` | Runs all tests and generates a code coverage report.                                                           |
+| `bun run devcheck`      | A comprehensive script that runs linting, type-checking, and formatting.                                       |
+| `bun run publish-mcp`   | **(Recommended)** An all-in-one script to sync, validate, commit, and publish your server to the MCP Registry. |
 
 You can find these scripts in the `scripts/` directory.
 
@@ -232,11 +234,12 @@ The script will guide you through the process, including pausing for you to comp
 
 The script also supports flags for more granular control:
 
--   `--validate-only`: Syncs metadata, validates `server.json`, then stops.
--   `--no-commit`: Skips the automatic Git commit step.
--   `--publish-only`: Skips local file changes and proceeds directly to publishing.
+- `--validate-only`: Syncs metadata, validates `server.json`, then stops.
+- `--no-commit`: Skips the automatic Git commit step.
+- `--publish-only`: Skips local file changes and proceeds directly to publishing.
 
 Example:
+
 ```bash
 bun run publish-mcp --validate-only
 ```
