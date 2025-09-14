@@ -2,8 +2,8 @@
   <br />
   <img src="https://raw.githubusercontent.com/modelcontextprotocol/brand-assets/main/mcp-icon-dark-bg.png" alt="MCP Logo" width="140" />
   <br />
-  <h1>MCP TypeScript Server Template</h1>
-  <p><b>The definitive, production-grade starting point for building powerful and scalable Model Context Protocol (MCP) servers.</b></p>
+  <h1>Model Context Protocol (MCP) TypeScript Server Template</h1>
+  <p><b>The definitive, production-grade template for building powerful and scalable Model Context Protocol servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.</b></p>
   
   [![Version](https://img.shields.io/badge/Version-2.0.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.1.8-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-73.99%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
 
@@ -11,7 +11,7 @@
 
 ---
 
-**`mcp-ts-template`** is more than just a template; it's a feature-rich, production-ready framework for building robust, observable, and secure MCP servers. It provides a solid architectural foundation, handling the complex plumbing of a modern backend system so you can focus entirely on creating powerful tools and resources for AI agents.
+**`mcp-ts-template`** is more than just a template; it's a feature-rich, production-ready framework for building robust, observable, and secure MCP servers, providing a solid architectural foundation so you can focus entirely on creating powerful tools and resources for AI agents.
 
 This project is designed to be **AI-agent-friendly**, providing an LLM-optimized **[AGENTS.md](./AGENTS.md)** and detailed rules in **[.clinerules/clinerules.md](./.clinerules/clinerules.md)** to ensure your coding agents adhere to best practices from the start.
 
