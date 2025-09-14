@@ -125,6 +125,7 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 - **Obsolete Tests**: Removed tests tied to the old patterns, including `tests/mcp-server/server.test.ts` and `tests/services/llm-providers/openRouterProvider.test.ts`.
 
 ### Docs
+
 - **Developer Mandates**: Updated `AGENTS.md` and `.clinerules/clinerules.md` to reflect the new DI-free and barrel-export-based registration for tools and resources.
 - **Tree**: Updated `docs/tree.md` to reflect the new file structure.
 - **Developer Documentation**: Improved `scripts/devdocs.ts` script for better reliability.
