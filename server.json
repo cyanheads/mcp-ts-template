@@ -56,7 +56,7 @@
       ],
       "transport": {
         "type": "streamable-http",
-        "url": "http://0.0.0.0:{MCP_HTTP_PORT}/mcp"
+        "url": "http://localhost:{MCP_HTTP_PORT}/mcp"
       }
     }
   ]
