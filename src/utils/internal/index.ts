@@ -6,9 +6,9 @@
  */
 
 export * from './errorHandler.js';
-// Use package subpath to leverage conditional exports for logger
-export * from 'mcp-ts-template/utils/internal/logger.js';
+export * from './health.js';
+export * from './logger.js';
 export * from './performance.js';
 export * from './requestContext.js';
 export * from './runtime.js';
-export * from './health.js';
+

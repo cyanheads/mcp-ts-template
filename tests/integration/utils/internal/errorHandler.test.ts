@@ -20,10 +20,10 @@ import {
   McpError,
 } from '../../../../src/types-global/errors.js';
 import { ErrorHandler } from '../../../../src/utils/internal/errorHandler.js';
-import { Logger } from '../../../../src/utils/internal/logger.js';
+import { logger, Logger } from '../../../../src/utils/internal/logger.js';
 
-// Spy on the logger's methods by targeting the prototype
-const errorSpy = vi.spyOn(Logger.prototype, 'error');
+// Spy on the actual logger instance's error method
+const errorSpy = vi.spyOn(logger, 'error');
 
 // Mock OpenTelemetry
 const mockSpan = {
@@ -35,15 +35,11 @@ const getActiveSpanSpy = vi.spyOn(trace, 'getActiveSpan');
 describe('ErrorHandler', () => {
   beforeAll(async () => {
     // Initialize the logger once for all tests in this file
-    const { logger } = await import('../../../../src/utils/internal/logger.js');
     await logger.initialize('debug');
   });
 
   afterAll(async () => {
     // Close the logger once after all tests have run
-    const { logger, Logger } = await import(
-      '../../../../src/utils/internal/logger.js'
-    );
     await logger.close();
     Logger.resetForTesting();
   });

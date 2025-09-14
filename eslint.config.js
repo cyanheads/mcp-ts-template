@@ -31,9 +31,9 @@ export default [
     },
   },
 
-  // TypeScript files: enable type-aware linting with proper parserOptions
+  // Source files: enable full type-aware linting
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}'],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
@@ -44,15 +44,37 @@ export default [
       globals: trimmedGlobals,
     },
   },
-  // Apply TypeScript recommended type-checked configs only to TS files
+  // Apply TypeScript recommended type-checked configs ONLY to source files
   ...tseslint.configs.recommendedTypeChecked.map((cfg) => ({
-    files: ['**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}'],
     ...cfg,
   })),
 
-  // Repo-specific TypeScript rule tweaks
+  // Script files: apply basic TS parsing without project service
+  // Manually compose a lighter config for scripts to avoid project service issues
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['scripts/**/*.ts'],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        sourceType: 'module',
+      },
+      globals: trimmedGlobals,
+    },
+    plugins: {
+      '@typescript-eslint': tseslint.plugin,
+    },
+    rules: {
+      // Start with base rules and add recommended rules
+      ...tseslint.configs.base.rules,
+      ...tseslint.configs.eslintRecommended.rules,
+      ...tseslint.configs.recommended.rules,
+    },
+  },
+
+  // Repo-specific TypeScript rule tweaks (applied to all TS files)
+  {
+    files: ['src/**/*.{ts,tsx}', 'scripts/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',

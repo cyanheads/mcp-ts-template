@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.0-alpha.9] - 2025-09-13
+
+### Refactored
+
+- **Build Configuration**: Refined the TypeScript build process by setting `rootDir` to `src` and adjusting `include`/`exclude` paths in `tsconfig.json`. This provides a stricter, more conventional build setup.
+- **Module Imports**: Simplified internal module imports in `src/utils/internal/index.ts` to use relative paths instead of package subpaths, improving module resolution consistency.
+
 ## [2.0.0-alpha.8] - 2025-09-13
 
 ### Feature
