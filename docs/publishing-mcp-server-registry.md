@@ -26,7 +26,7 @@ The script will handle all the necessary steps, including prompting you to log i
 
 ### What the Script Does Automatically
 
-1.  **Syncs Metadata**: Reads `package.json` and updates the `version` and `mcpName` fields in `server.json`.
+1.  **Syncs Metadata**: Reads `package.json` and updates the `version` and `mcpName` fields in `server.json` (and applies the version to all entries in `packages`).
 2.  **Validates Schema**: Validates the updated `server.json` against the official MCP server schema.
 3.  **Auto-Commits**: Creates a `git commit` for the `server.json` version bump.
 4.  **Handles Authentication**: Kicks off the `mcp-publisher login github` command and waits for you to complete it.
@@ -36,10 +36,10 @@ The script will handle all the necessary steps, including prompting you to log i
 
 You can customize the script's behavior with flags:
 
--   `--validate-only`: Syncs and validates, then stops. Perfect for a pre-flight check.
--   `--no-commit`: Skips the automatic Git commit step.
--   `--publish-only`: Skips local file changes and proceeds directly to login and publish.
--   `--sync-only`: Only syncs versions from `package.json` to `server.json`, then stops.
+- `--validate-only`: Syncs and validates, then stops. Perfect for a pre-flight check.
+- `--no-commit`: Skips the automatic Git commit step.
+- `--publish-only`: Skips local file changes and proceeds directly to login and publish.
+- `--sync-only`: Only syncs versions from `package.json` to `server.json`, then stops.
 
 ---
 
@@ -54,18 +54,32 @@ Before publishing, it's crucial to ensure that your server's configuration is co
 Review the following files:
 
 1.  **`package.json`**:
-    *   Verify that the `version` matches the intended release version.
-    *   Update the `name` of your package if you have renamed it.
-    *   Update the `mcpName` field to reflect your desired server name (e.g., `io.github.your-username/your-server-name`). This name must be unique in the registry.
+    - Verify that the `version` matches the intended release version.
+    - Update the `name` of your package if you have renamed it.
+    - Update the `mcpName` field to reflect your desired server name (e.g., `io.github.your-username/your-server-name`). This name must be unique in the registry.
 
 2.  **`server.json`**:
-    *   Update the `name` to match the `mcpName` in your `package.json`.
-    *   Ensure the `version` matches the one in `package.json`.
-    *   Check that the `packages.identifier` field matches the `name` in your `package.json`.
-    *   Verify that the `packages.version` also matches the version in `package.json`.
+    - Update the `name` to match the `mcpName` in your `package.json`.
+    - Ensure the `version` matches the one in `package.json`.
+    - Check that the `packages.identifier` field matches the `name` in your `package.json`.
+    - Verify that the `packages.version` also matches the version in `package.json`.
+    - Add a `website_url` pointing to your project homepage or README (recommended for discoverability).
+    - Consider adding `repository.id` (e.g., GitHub repo ID) for registry safety. You can obtain it with: `gh api repos/<owner>/<repo> --jq '.id'`.
+    - Prefer HTTP transport URL templating so clients can override host/port/path without editing JSON, for example:
+      ```json
+      {
+        "type": "streamable-http",
+        "url": "http://{MCP_HTTP_HOST}:{MCP_HTTP_PORT}{MCP_HTTP_ENDPOINT_PATH}"
+      }
+      ```
+      Provide corresponding entries in `packages[].environment_variables` such as `MCP_HTTP_HOST`, `MCP_HTTP_PORT`, and `MCP_HTTP_ENDPOINT_PATH` with sensible defaults.
 
 3.  **`src/config/index.ts`**:
-    *   Look for any default values that might affect the server's runtime behavior, such as `mcpHttpPort`. The default HTTP port is currently `3010`. If you've configured a different port via environment variables for your deployment, ensure your `server.json` reflects that.
+    - Look for any default values that might affect the server's runtime behavior, such as `mcpHttpPort`. The default HTTP port is currently `3010`. If you've configured a different port via environment variables for your deployment, ensure your `server.json` reflects that.
+
+### Environment Variable Precedence (Important)
+
+Depending on how you start the server, environment variables set in `package.json` scripts can override values provided via `server.json`'s `environment_variables`. For example, this template sets `MCP_LOG_LEVEL=debug` in `start:*` scripts. If you want `server.json` to be the source of truth for those values, remove or adjust the hardcoded env vars in scripts, or invoke the runtime directly (e.g., `bun ./dist/index.js`) and allow client-provided values to take effect.
 
 ## Step 2: Validate the `server.json` Schema
 
@@ -104,6 +118,7 @@ mcp-publisher publish
 The publisher CLI will read your `server.json`, perform server-side validation against the package registry (NPM, in this case), and, if successful, add your server entry to the MCP registry.
 
 You should see a confirmation upon success:
+
 ```
 ✓ Successfully published
 ```
@@ -118,6 +133,7 @@ curl "https://registry.modelcontextprotocol.io/v0/servers?search=io.github.your-
 ```
 
 For example, this template server is located at:
+
 ```bash
 curl "https://registry.modelcontextprotocol.io/v0/servers?search=io.github.cyanheads/mcp-ts-template"
 ```

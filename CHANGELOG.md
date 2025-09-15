@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.3] - 2025-09-15
+
+### Changed
+- **Dependencies**: Updated `axios`, `@types/node`, and `typedoc` to their latest versions.
+- **Documentation**: Improved the MCP registry publishing guide (`docs/publishing-mcp-server-registry.md`) with more detailed instructions, environment variable precedence warnings, and best practices for transport URLs.
+- **Build Script**: The `scripts/validate-mcp-publish-schema.ts` script was enhanced to include a post-publication verification step, which polls the registry to confirm the server is live.
+
+
 ## [2.0.1] - 2025-09-14
 
 ### Feature
