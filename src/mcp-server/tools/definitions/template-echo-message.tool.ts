@@ -11,7 +11,7 @@ import type {
   ToolAnnotations,
   ToolDefinition,
 } from '@/mcp-server/tools/utils/toolDefinition.js';
-import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { type RequestContext, logger } from '@/utils/index.js';
 
@@ -215,6 +215,6 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     annotations: TOOL_ANNOTATIONS,
-    logic: withAuth(['tool:echo:read'], echoToolLogic),
+    logic: withToolAuth(['tool:echo:read'], echoToolLogic),
     responseFormatter,
   };

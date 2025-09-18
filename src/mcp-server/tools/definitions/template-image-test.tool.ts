@@ -13,7 +13,7 @@ import {
   fetchWithTimeout,
   logger,
 } from '@/utils/index.js';
-import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import type {
   ToolAnnotations,
   ToolDefinition,
@@ -175,6 +175,6 @@ export const imageTestTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: TOOL_ANNOTATIONS,
-  logic: withAuth(['tool:image_test:read'], imageTestToolLogic),
+  logic: withToolAuth(['tool:image_test:read'], imageTestToolLogic),
   responseFormatter,
 };

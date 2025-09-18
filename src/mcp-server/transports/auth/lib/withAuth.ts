@@ -13,7 +13,7 @@ import type { RequestContext } from '@/utils/index.js';
  * @param {Function} logicFn The core tool logic function to execute if authorization succeeds.
  * @returns A new async function that performs the auth check before executing the logic.
  */
-export function withAuth<TInput, TOutput>(
+export function withToolAuth<TInput, TOutput>(
   requiredScopes: string[],
   logicFn: (
     input: TInput,

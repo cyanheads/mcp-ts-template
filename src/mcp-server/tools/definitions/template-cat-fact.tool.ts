@@ -11,7 +11,7 @@ import type {
   ToolAnnotations,
   ToolDefinition,
 } from '@/mcp-server/tools/utils/toolDefinition.js';
-import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   type RequestContext,
@@ -210,6 +210,6 @@ export const catFactTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: TOOL_ANNOTATIONS,
-  logic: withAuth(['tool:cat_fact:read'], catFactToolLogic),
+  logic: withToolAuth(['tool:cat_fact:read'], catFactToolLogic),
   responseFormatter,
 };

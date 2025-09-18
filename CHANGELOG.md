@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.4] - 2025-09-18
+
+### Refactored
+
+- **DI & Storage**: Decoupled `StorageService` from its static, singleton-based instantiation and integrated it into the `tsyringe` dependency injection container. Core services now resolve `StorageService` through the container, improving testability and adherence to IoC principles.
+- **Authorization**: Renamed the `withAuth` higher-order function to `withToolAuth` to create a more explicit and discoverable API for applying authorization to tool logic.
+- **`FileSystemProvider`**: Simplified the `FileSystemProvider` by removing redundant key sanitization and expiration logic, delegating that responsibility to a higher-level caching layer. This change streamlines the provider's focus to core file I/O operations.
+
+### Changed
+
+- **Dependencies**: Bumped the project version to `2.0.4` across `package.json` and `server.json`.
+
 ## [2.0.3] - 2025-09-15
 
 ### Changed

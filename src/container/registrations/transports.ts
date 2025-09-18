@@ -14,13 +14,14 @@ import {
   StatelessTransportManager,
   type TransportManager,
 } from '@/mcp-server/transports/core/index.js';
-import { storageService } from '@/storage/index.js';
 import { logger } from '@/utils/index.js';
 import {
   AppConfig,
   CreateMcpServerInstance,
+  StorageService,
   TransportManagerToken,
 } from '@/container/tokens.js';
+import { type StorageService as StorageServiceClass } from '@/storage/core/StorageService.js';
 
 /**
  * Registers all transport-related managers and resolves the correct one.
@@ -37,8 +38,10 @@ export const registerTransportServices = () => {
   container.register(StatefulTransportManager, {
     useFactory: (c) => {
       const appConfig = c.resolve<typeof config>(AppConfig);
+      // + Resolve StorageService from the container
+      const storageSvc = c.resolve<StorageServiceClass>(StorageService);
       return new StatefulTransportManager(
-        storageService,
+        storageSvc, // + Use the resolved instance
         c.resolve<() => Promise<McpServer>>(CreateMcpServerInstance),
         {
           staleSessionTimeoutMs: appConfig.mcpStatefulSessionStaleTimeoutMs,

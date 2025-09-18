@@ -8,17 +8,9 @@ import { existsSync, mkdirSync } from 'fs';
 import { readFile, readdir, rm, writeFile } from 'fs/promises';
 import path from 'path';
 
+import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
-import type {
-  IStorageProvider,
-  StorageOptions,
-} from '@/storage/core/IStorageProvider.js';
-
-interface FileStoreEntry {
-  value: unknown;
-  expiresAt?: number;
-}
+import { ErrorHandler, type RequestContext } from '@/utils/index.js';
 
 export class FileSystemProvider implements IStorageProvider {
   private readonly storagePath: string;
@@ -36,14 +28,8 @@ export class FileSystemProvider implements IStorageProvider {
     }
   }
 
-  private sanitizeKey(key: string): string {
-    // Use Base64 URL-safe encoding for robustness to prevent collisions.
-    return Buffer.from(key).toString('base64url');
-  }
-
   private getFilePath(key: string): string {
-    const sanitizedKey = this.sanitizeKey(key);
-    const filePath = path.join(this.storagePath, `${sanitizedKey}.json`);
+    const filePath = path.join(this.storagePath, key);
     // Final check to ensure it's within the storage path
     if (!path.resolve(filePath).startsWith(this.storagePath)) {
       throw new McpError(
@@ -60,17 +46,7 @@ export class FileSystemProvider implements IStorageProvider {
       async () => {
         try {
           const data = await readFile(filePath, 'utf-8');
-          const entry = JSON.parse(data) as FileStoreEntry;
-
-          if (entry.expiresAt && Date.now() > entry.expiresAt) {
-            await this.delete(key, context);
-            logger.debug(
-              `[FileSystemProvider] Key expired and removed: ${key}`,
-              context,
-            );
-            return null;
-          }
-          return entry.value as T;
+          return JSON.parse(data) as T;
         } catch (error) {
           if (
             error instanceof Error &&
@@ -90,19 +66,15 @@ export class FileSystemProvider implements IStorageProvider {
     key: string,
     value: unknown,
     context: RequestContext,
-    options?: StorageOptions,
   ): Promise<void> {
     const filePath = this.getFilePath(key);
     return ErrorHandler.tryCatch(
       async () => {
-        const expiresAt = options?.ttl
-          ? Date.now() + options.ttl * 1000
-          : undefined;
-        const entry: FileStoreEntry = {
-          value,
-          ...(expiresAt && { expiresAt }),
-        };
-        await writeFile(filePath, JSON.stringify(entry), 'utf-8');
+        const content =
+          typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+        // Ensure the directory exists before writing the file
+        mkdirSync(path.dirname(filePath), { recursive: true });
+        await writeFile(filePath, content, 'utf-8');
       },
       { operation: 'FileSystemProvider.set', context, input: { key } },
     );
@@ -134,23 +106,7 @@ export class FileSystemProvider implements IStorageProvider {
     return ErrorHandler.tryCatch(
       async () => {
         const files = await readdir(this.storagePath);
-        const keys: string[] = [];
-        for (const file of files) {
-          if (file.endsWith('.json')) {
-            const originalKey = Buffer.from(
-              file.slice(0, -5),
-              'base64url',
-            ).toString('utf8');
-            if (originalKey.startsWith(prefix)) {
-              // Check for expiration before adding to the list
-              const value = await this.get(originalKey, context);
-              if (value !== null) {
-                keys.push(originalKey);
-              }
-            }
-          }
-        }
-        return keys;
+        return files.filter((file) => file.startsWith(prefix));
       },
       { operation: 'FileSystemProvider.list', context, input: { prefix } },
     );

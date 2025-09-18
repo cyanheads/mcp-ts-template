@@ -8,7 +8,8 @@ import { container, Lifecycle } from 'tsyringe';
 import { parseConfig } from '@/config/index.js';
 import type { ILlmProvider } from '@/services/llm-providers/ILlmProvider.js';
 import { OpenRouterProvider } from '@/services/llm-providers/openRouterProvider.js';
-import { createStorageProvider, storageService } from '@/storage/index.js';
+import { createStorageProvider } from '@/storage/index.js';
+import { StorageService as StorageServiceClass } from '@/storage/core/StorageService.js';
 import { logger } from '@/utils/index.js';
 import { RateLimiter } from '@/utils/security/rateLimiter.js';
 import {
@@ -30,10 +31,20 @@ export const registerCoreServices = () => {
   // Logger (as a static value)
   container.register(Logger, { useValue: logger });
 
-  // Storage Service (initialized and registered as a singleton)
+  // --- Refactored Storage Service Registration ---
+  // Register StorageService as a singleton. The container will instantiate it.
+  container.register<StorageServiceClass>(
+    StorageService,
+    { useClass: StorageServiceClass },
+    { lifecycle: Lifecycle.Singleton },
+  );
+
+  // Resolve the singleton instance to initialize it.
+  const storageServiceInstance =
+    container.resolve<StorageServiceClass>(StorageService);
   const storageProvider = createStorageProvider();
-  storageService.initialize(storageProvider);
-  container.register(StorageService, { useValue: storageService });
+  storageServiceInstance.initialize(storageProvider);
+  // --- End Refactor ---
 
   // LLM Provider (register the class against the interface token)
   container.register<ILlmProvider>(LlmProvider, {

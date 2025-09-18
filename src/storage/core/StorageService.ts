@@ -5,13 +5,15 @@
  * at startup with a concrete provider instance created by the `storageFactory`.
  * @module src/storage/StorageService
  */
+import { injectable } from 'tsyringe';
 import type { RequestContext } from '@/utils/index.js';
 import type {
   IStorageProvider,
   StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
 
-class StorageService implements IStorageProvider {
+@injectable()
+export class StorageService implements IStorageProvider {
   private provider: IStorageProvider | null = null;
 
   public initialize(provider: IStorageProvider) {
@@ -48,5 +50,3 @@ class StorageService implements IStorageProvider {
     return this.getProvider().list(prefix, context);
   }
 }
-
-export const storageService = new StorageService();
