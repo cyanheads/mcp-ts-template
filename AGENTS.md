@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.0.2
+**Version:** 2.0.4
 **Target Project:** `mcp-ts-template`
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
@@ -26,7 +26,7 @@ This document defines the operational rules for contributing to this codebase. F
 
 4.  **Decoupled Storage**
     - Never access storage backends (e.g., `fs`, `supabase-js`) directly from tool logic.
-    - **Always use `storageService`** for all `get`, `set`, `delete`, and `list` operations.
+    - **Always use the `StorageService`**, injected via the DI container, for all persistence operations.
     - The concrete provider is configured via environment variables and initialized at startup.
 
 ---
@@ -78,15 +78,15 @@ Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 
 #### Step 2.5 — Apply Authorization (Mandatory for most tools)
 
-- Wrap your `logic` function with the `withAuth` higher-order function to enforce scope-based access control.
+- Wrap your `logic` function with the `withToolAuth` higher-order function to enforce scope-based access control.
 - Provide an array of required scopes (e.g., `['tool:echo:read']`).
 
 ```ts
 // Correct way to assign the logic property with authorization
-import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 
 // ... inside your ToolDefinition
-logic: withAuth(['tool:echo:read'], echoToolLogic),
+logic: withToolAuth(['tool:echo:read'], echoToolLogic),
 ```
 
 #### Step 3 — Register the Tool via Barrel Export
@@ -115,7 +115,7 @@ import {
   fetchWithTimeout,
   logger,
 } from '@/utils/index.js';
-import { withAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import type {
   ToolAnnotations,
   ToolDefinition,
@@ -312,7 +312,7 @@ export const catFactTool: ToolDefinition<
   inputSchema: InputSchema,
   outputSchema: OutputSchema,
   annotations: TOOL_ANNOTATIONS,
-  logic: withAuth(['tool:cat_fact:read'], catFactToolLogic),
+  logic: withToolAuth(['tool:cat_fact:read'], catFactToolLogic),
   responseFormatter,
 };
 ```
@@ -341,7 +341,7 @@ All core services are managed by the DI container (`tsyringe`). **Inject them in
   - **Usage**: `@inject(LlmProvider) private llmProvider: ILlmProvider`
 - **`StorageService`**: Abstraction for persistence.
   - **Token**: `StorageService`
-  - **Usage**: `@inject(StorageService) private storage: IStorageProvider`
+  - **Usage**: `@inject(StorageService) private storage: StorageService`
 - **`RateLimiter`**: Service for rate-limiting.
   - **Token**: `RateLimiterService`
   - **Usage**: `@inject(RateLimiterService) private rateLimiter: RateLimiter`
@@ -379,7 +379,7 @@ Use these scripts from `package.json` to maintain code quality and run the serve
 ## VII. Code Quality & Security
 
 - **JSDoc**: Every file must start with `@fileoverview` and `@module`. Document all exported APIs.
-- **Authentication & Authorization**: Protect tools and resources by wrapping their `logic` functions with `withAuth` or `withResourceAuth` and specifying the required scopes.
+- **Authentication & Authorization**: Protect tools and resources by wrapping their `logic` functions with `withToolAuth` or `withResourceAuth` and specifying the required scopes.
 - **Validation**: All inputs are validated via your Zod `inputSchema`. Your `logic` function receives typed, safe `input`.
 - **Secrets**: Access secrets _only_ through the `config` module. Never hard-code credentials.
 - **Formatting, Linting, & Type Checking**: Run `bun run devcheck` before finishing any task to ensure consistency.
@@ -408,7 +408,7 @@ Before completing your task, ensure you have:
 - [ ] Implemented the tool/resource logic in a `*.tool.ts` or `*.resource.ts` file.
 - [ ] Kept the `logic` function pure (no `try...catch`).
 - [ ] Thrown a structured `McpError` for any failures within the logic.
-- [ ] Applied authorization using `withAuth` or `withResourceAuth`.
+- [ ] Applied authorization using `withToolAuth` or `withResourceAuth`.
 - [ ] Used the `logger` with a `RequestContext` for all significant operations.
 - [ ] Used the injected `StorageService` for all persistence needs.
 - [ ] Registered the new definition in the corresponding `index.ts` barrel file.
