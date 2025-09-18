@@ -4,7 +4,7 @@
  * storage backend to be selected via environment variables.
  * @module src/storage/storageFactory
  */
-import { config } from '@/config/index.js';
+import type { ConfigSchema } from '@/config/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger, requestContextService } from '@/utils/index.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
@@ -12,20 +12,22 @@ import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
 import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 
-export function createStorageProvider(): IStorageProvider {
+/**
+ * Creates and returns a storage provider instance based on the provided configuration.
+ *
+ * @param config - The application configuration object, typically resolved
+ *                 from the DI container.
+ * @returns An instance of a class that implements the IStorageProvider interface.
+ * @throws {McpError} If the configuration is missing required values for the
+ *         selected provider.
+ */
+export function createStorageProvider(
+  config: ReturnType<typeof ConfigSchema.parse>,
+): IStorageProvider {
   const context = requestContextService.createRequestContext({
     operation: 'createStorageProvider',
   });
   const providerType = config.storage.providerType;
-
-  if (!providerType) {
-    // This should not happen if the Zod default is working, but it satisfies TS and is a good safeguard.
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
-      `Storage provider type is not defined. Check your environment configuration.`,
-      context,
-    );
-  }
 
   logger.info(`Creating storage provider of type: ${providerType}`, context);
 
@@ -49,10 +51,10 @@ export function createStorageProvider(): IStorageProvider {
           context,
         );
       }
+      // Note: The SupabaseProvider internally resolves the config from the DI container again.
+      // This is a known pattern to avoid passing config details through multiple layers.
       return new SupabaseProvider();
     default: {
-      // This code is unreachable if the Zod schema has a default value,
-      // but it's good practice for exhaustiveness checking.
       const exhaustiveCheck: never = providerType;
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,

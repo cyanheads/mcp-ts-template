@@ -15,6 +15,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { IncomingHttpHeaders } from 'http';
+import type { ReadableStream } from 'node:stream/web';
 import { randomUUID } from 'node:crypto';
 import { inject, injectable } from 'tsyringe';
 
@@ -54,11 +55,6 @@ export class StatefulTransportManager
   extends BaseTransportManager
   implements IStatefulTransportManager
 {
-  private readonly transports = new Map<
-    string,
-    StreamableHTTPServerTransport
-  >();
-  private readonly servers = new Map<string, McpServer>();
   private readonly garbageCollector: NodeJS.Timeout;
 
   /**
@@ -92,11 +88,7 @@ export class StatefulTransportManager
 
   /**
    * Initializes a new stateful session and handles the first request.
-   *
-   * @param headers - The incoming request headers.
-   * @param body - The parsed body of the request.
-   * @param context - The request context.
-   * @returns A promise resolving to a streaming TransportResponse with a session ID.
+   * The server and transport instances are ephemeral and exist only for this request.
    */
   async initializeAndHandle(
     headers: IncomingHttpHeaders,
@@ -109,22 +101,15 @@ export class StatefulTransportManager
     });
     logger.debug('Initializing new stateful session.', opContext);
 
-    let server: McpServer | undefined;
+    const server = await this.createServerInstanceFn();
+    const tenantId = this.getTenantId(opContext);
     let transport: StreamableHTTPServerTransport | undefined;
 
     try {
-      server = await this.createServerInstanceFn();
-      const currentServer = server;
-      const tenantId = this.getTenantId(opContext);
-
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: async (sessionId) => {
           const sessionContext = { ...opContext, sessionId, tenantId };
-          this.transports.set(sessionId, transport!);
-          this.servers.set(sessionId, currentServer);
-
-          // CREATE and STORE the session object in the storage provider
           const session: TransportSession = {
             id: sessionId,
             createdAt: new Date(),
@@ -132,13 +117,9 @@ export class StatefulTransportManager
             activeRequests: 0,
           };
           const sessionKey = this.getSessionKey(tenantId, sessionId);
-          await this.storageProvider.set(
-            sessionKey,
-            session,
-            sessionContext,
-            { ttl: this.options.staleSessionTimeoutMs / 1000 + 60 }, // Add a buffer
-          );
-
+          await this.storageProvider.set(sessionKey, session, sessionContext, {
+            ttl: this.options.staleSessionTimeoutMs / 1000 + 60,
+          });
           logger.info(
             `MCP Session created and stored: ${sessionId}`,
             sessionContext,
@@ -146,60 +127,54 @@ export class StatefulTransportManager
         },
       });
 
-      transport.onclose = () => {
-        const sessionId = transport!.sessionId;
-        if (sessionId) {
-          const closeContext = { ...opContext, sessionId };
-          this.closeSession(sessionId, closeContext).catch((err) =>
-            logger.error(
-              `Error during transport.onclose cleanup for session ${sessionId}`,
-              err instanceof Error ? err : new Error(String(err)),
-              closeContext,
-            ),
-          );
-        }
-      };
-
       await server.connect(transport);
-      logger.debug('Server connected, handling initial request.', opContext);
 
-      return await this._processRequestWithBridge(
+      const response = await this._processRequestWithBridge(
         transport,
         headers,
         body,
         this.options.mcpHttpEndpointPath,
       );
-    } catch (error) {
-      const logContext = { ...opContext, error: String(error) };
-      if (error instanceof Error) {
-        logger.error(
-          'Failed to initialize stateful session. Cleaning up orphaned resources.',
-          error,
-          logContext,
+
+      // Since this is a self-contained operation, ensure cleanup.
+      // We can adapt the deferred cleanup logic from StatelessTransportManager.
+      if (response.type === 'stream') {
+        this.setupDeferredCleanup(
+          response.stream,
+          server,
+          transport,
+          opContext,
         );
       } else {
-        logger.error(
-          'Failed to initialize stateful session with non-error object. Cleaning up orphaned resources.',
-          logContext,
-        );
+        // For buffered responses, cleanup can happen immediately.
+        await transport.close();
+        await server.close();
       }
 
-      const sessionInitialized =
-        transport?.sessionId && this.transports.has(transport.sessionId);
-      if (!sessionInitialized) {
-        void (async () => {
-          await ErrorHandler.tryCatch(
-            async () => {
-              if (transport) await transport.close();
-              if (server) await server.close();
-            },
-            {
-              operation: 'initializeAndHandle.cleanupOrphaned',
-              context: opContext,
-            },
+      return response;
+    } catch (error) {
+      // Cleanup on error
+      if (transport)
+        await transport
+          .close()
+          .catch((e) =>
+            logger.error(
+              'Error closing transport on failure',
+              e as Error,
+              opContext,
+            ),
           );
-        })();
-      }
+      if (server)
+        await server
+          .close()
+          .catch((e) =>
+            logger.error(
+              'Error closing server on failure',
+              e as Error,
+              opContext,
+            ),
+          );
+
       throw ErrorHandler.handleError(error, {
         operation: opContext.operation as string,
         context: opContext,
@@ -230,16 +205,15 @@ export class StatefulTransportManager
       additionalContext: { sessionId },
     });
 
+    // 1. Validate session existence and update timestamp
     const tenantId = this.getTenantId(sessionContext);
     const sessionKey = this.getSessionKey(tenantId, sessionId);
-    const transport = this.transports.get(sessionId);
-    // FETCH the session from storage instead of the in-memory map
     const session = await this.storageProvider.get<TransportSession>(
       sessionKey,
       sessionContext,
     );
 
-    if (!transport || !session) {
+    if (!session) {
       logger.warning(
         `Request for non-existent session: ${sessionId}`,
         sessionContext,
@@ -255,54 +229,72 @@ export class StatefulTransportManager
       };
     }
 
-    // UPDATE session atomically
+    // Update lastAccessedAt
     session.lastAccessedAt = new Date();
-    session.activeRequests += 1;
     await this.storageProvider.set(sessionKey, session, sessionContext);
 
-    logger.debug(
-      `Incremented activeRequests for session ${sessionId}. Count: ${session.activeRequests}`,
-      sessionContext,
-    );
+    // 2. Create ephemeral server and transport for this request
+    const server = await this.createServerInstanceFn();
+    const transport = new StreamableHTTPServerTransport({
+      // IMPORTANT: We must re-use the existing session ID
+      sessionIdGenerator: () => sessionId,
+      onsessioninitialized: () => {}, // No-op as session is already initialized
+    });
 
     try {
-      return await this._processRequestWithBridge(
+      await server.connect(transport);
+
+      const response = await this._processRequestWithBridge(
         transport,
         headers,
         body,
         this.options.mcpHttpEndpointPath,
       );
+
+      // Use the same deferred cleanup pattern
+      if (response.type === 'stream') {
+        this.setupDeferredCleanup(
+          response.stream,
+          server,
+          transport,
+          sessionContext,
+        );
+      } else {
+        await transport.close();
+        await server.close();
+      }
+
+      return response;
     } catch (error) {
+      // Cleanup on error
+      await transport
+        .close()
+        .catch((e) =>
+          logger.error(
+            'Error closing transport on failure',
+            e as Error,
+            sessionContext,
+          ),
+        );
+      await server
+        .close()
+        .catch((e) =>
+          logger.error(
+            'Error closing server on failure',
+            e as Error,
+            sessionContext,
+          ),
+        );
       throw ErrorHandler.handleError(error, {
         operation: sessionContext.operation as string,
         context: sessionContext,
         rethrow: true,
       });
-    } finally {
-      // Decrement and save again
-      // Re-fetch the session to avoid race conditions if another request modified it.
-      const finalSession = await this.storageProvider.get<TransportSession>(
-        sessionKey,
-        sessionContext,
-      );
-      if (finalSession) {
-        finalSession.activeRequests -= 1;
-        finalSession.lastAccessedAt = new Date();
-        await this.storageProvider.set(
-          sessionKey,
-          finalSession,
-          sessionContext,
-        );
-        logger.debug(
-          `Decremented activeRequests for session ${sessionId}. Count: ${finalSession.activeRequests}`,
-          sessionContext,
-        );
-      }
     }
   }
 
   /**
-   * Handles a request to explicitly delete a session.
+   * Handles a request to explicitly delete a session from storage.
    */
   async handleDeleteRequest(
     sessionId: string,
@@ -315,7 +307,14 @@ export class StatefulTransportManager
     });
     logger.info(`Attempting to delete session: ${sessionId}`, sessionContext);
 
-    if (!this.transports.has(sessionId)) {
+    const tenantId = this.getTenantId(sessionContext);
+    const sessionKey = this.getSessionKey(tenantId, sessionId);
+    const deleted = await this.storageProvider.delete(
+      sessionKey,
+      sessionContext,
+    );
+
+    if (!deleted) {
       logger.warning(
         `Attempted to delete non-existent session: ${sessionId}`,
         sessionContext,
@@ -326,8 +325,6 @@ export class StatefulTransportManager
         sessionContext,
       );
     }
-
-    await this.closeSession(sessionId, sessionContext);
 
     return {
       type: 'buffered',
@@ -345,8 +342,9 @@ export class StatefulTransportManager
   }
 
   /**
-   * Gracefully shuts down the manager, closing all active sessions.
+   * Gracefully shuts down the manager.
    */
+  // eslint-disable-next-line @typescript-eslint/require-await
   async shutdown(): Promise<void> {
     const context = requestContextService.createRequestContext({
       operation: 'StatefulTransportManager.shutdown',
@@ -354,57 +352,76 @@ export class StatefulTransportManager
     logger.info('Shutting down stateful transport manager...', context);
     clearInterval(this.garbageCollector);
     logger.debug('Garbage collector stopped.', context);
-
-    const sessionIds = Array.from(this.transports.keys());
-    if (sessionIds.length > 0) {
-      logger.info(`Closing ${sessionIds.length} active sessions.`, context);
-      const closePromises = sessionIds.map((sessionId) =>
-        this.closeSession(sessionId, context),
-      );
-      await Promise.all(closePromises);
-    }
-
-    this.transports.clear();
-    this.servers.clear();
-    logger.info('All active sessions closed and manager shut down.', context);
+    logger.info(
+      'Stateful manager shut down. Session cleanup is handled by storage provider TTLs.',
+      context,
+    );
   }
 
-  /**
-   * Closes a single session and releases its associated resources.
-   */
-  private async closeSession(
-    sessionId: string,
+  private setupDeferredCleanup(
+    stream: ReadableStream<Uint8Array>,
+    server: McpServer,
+    transport: StreamableHTTPServerTransport,
     context: RequestContext,
-  ): Promise<void> {
-    const sessionContext = requestContextService.createRequestContext({
-      parentContext: context,
-      operation: 'StatefulTransportManager.closeSession',
-      additionalContext: { sessionId },
-    });
-    logger.debug(`Closing session: ${sessionId}`, sessionContext);
+  ): void {
+    let cleanedUp = false;
+    const cleanupFn = (error?: Error) => {
+      if (cleanedUp) return;
+      cleanedUp = true;
 
-    const transport = this.transports.get(sessionId);
-    const server = this.servers.get(sessionId);
-    const tenantId = this.getTenantId(sessionContext);
-    const sessionKey = this.getSessionKey(tenantId, sessionId);
+      if (error) {
+        logger.warning('Stream ended with an error, proceeding to cleanup.', {
+          ...context,
+          error: error.message,
+        });
+      }
+      // Cleanup is fire-and-forget.
+      this.cleanup(server, transport, context);
+    };
 
-    await ErrorHandler.tryCatch(
-      async () => {
-        if (transport) await transport.close();
-        if (server) await server.close();
-      },
-      { operation: 'closeSession.cleanup', context: sessionContext },
-    );
+    // Use a reader to reliably detect stream closure/error
+    const reader = stream.getReader();
+    const processStream = async () => {
+      try {
+        while (true) {
+          const { done } = await reader.read();
+          if (done) break;
+        }
+      } catch (err) {
+        cleanupFn(err instanceof Error ? err : new Error(String(err)));
+      } finally {
+        cleanupFn();
+        reader.releaseLock();
+      }
+    };
 
-    this.transports.delete(sessionId);
-    this.servers.delete(sessionId);
-    // DELETE the session from the storage provider
-    await this.storageProvider.delete(sessionKey, sessionContext);
+    void processStream();
+  }
 
-    logger.info(
-      `MCP Session closed and resources released: ${sessionId}`,
-      sessionContext,
-    );
+  private cleanup(
+    server: McpServer | undefined,
+    transport: StreamableHTTPServerTransport | undefined,
+    context: RequestContext,
+  ): void {
+    const opContext = {
+      ...context,
+      operation: 'StatefulTransportManager.cleanup',
+    };
+    logger.debug('Scheduling cleanup for ephemeral resources.', opContext);
+
+    void Promise.all([transport?.close(), server?.close()])
+      .then(() => {
+        logger.debug('Ephemeral resources cleaned up successfully.', opContext);
+      })
+      .catch((cleanupError) => {
+        logger.warning('Error during stateless resource cleanup.', {
+          ...opContext,
+          error:
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : String(cleanupError),
+        });
+      });
   }
 
   /**
@@ -416,61 +433,61 @@ export class StatefulTransportManager
     });
     logger.debug('Running stale session cleanup...', context);
 
+    // This method is now simpler: it just deletes expired records from storage.
+    // The actual complexity depends on the IStorageProvider implementation.
+    // For a provider with native TTL support (like Redis), this might be a no-op.
+    // For others, it might involve listing keys and checking expiry.
+
+    // We assume the storageProvider's 'delete' and 'get' handle expiration logic,
+    // or that a separate process cleans up expired records.
+    // For providers without built-in TTL, we iterate and check.
+
     const now = Date.now();
     const STALE_TIMEOUT_MS = this.options.staleSessionTimeoutMs;
-    const staleSessionIds: string[] = [];
+    let checkedCount = 0;
+    let deletedCount = 0;
 
     // This is a simplification. A real multi-tenant cleanup would need a way
     // to list all tenants or have a centralized list of all active sessions.
-    // For this template, we'll assume cleanup operates on a known tenant,
-    // or that list() can handle prefix matching across tenants.
-    const tenantId = this.getTenantId(context);
-    const sessionKeys = await this.storageProvider.list(
-      `tenant:${tenantId}/${SESSION_STORAGE_PREFIX}`,
+    const allSessionKeys = await this.storageProvider.list(
+      SESSION_STORAGE_PREFIX,
       context,
     );
 
-    for (const key of sessionKeys) {
+    for (const key of allSessionKeys) {
+      checkedCount++;
       const session = await this.storageProvider.get<TransportSession>(
         key,
         context,
       );
-      if (
-        session &&
-        now - new Date(session.lastAccessedAt).getTime() > STALE_TIMEOUT_MS
-      ) {
-        if (session.activeRequests > 0) {
-          logger.info(
-            `Session ${session.id} is stale but has ${session.activeRequests} active requests. Skipping cleanup.`,
-            { ...context, sessionId: session.id },
-          );
-          continue;
+      if (session) {
+        const isStale =
+          now - new Date(session.lastAccessedAt).getTime() > STALE_TIMEOUT_MS;
+        if (isStale) {
+          if (session.activeRequests > 0) {
+            logger.info(
+              `Session ${session.id} is stale but has active requests. Skipping.`,
+              { ...context, sessionId: session.id },
+            );
+            continue;
+          }
+          await this.storageProvider.delete(key, context);
+          deletedCount++;
+          logger.info(`Deleted stale session: ${session.id}`, {
+            ...context,
+            sessionId: session.id,
+          });
         }
-        staleSessionIds.push(session.id);
       }
     }
 
-    if (staleSessionIds.length > 0) {
+    if (checkedCount > 0) {
       logger.info(
-        `Found ${staleSessionIds.length} stale sessions. Closing concurrently.`,
-        context,
-      );
-      const closePromises = staleSessionIds.map((sessionId) =>
-        this.closeSession(sessionId, context).catch((err) => {
-          logger.error(
-            `Error during concurrent stale session cleanup for ${sessionId}`,
-            err instanceof Error ? err : new Error(String(err)),
-            { ...context, sessionId },
-          );
-        }),
-      );
-      await Promise.all(closePromises);
-      logger.info(
-        `Stale session cleanup complete. Closed ${staleSessionIds.length} sessions.`,
+        `Stale session cleanup complete. Checked ${checkedCount} keys, deleted ${deletedCount} sessions.`,
         context,
       );
     } else {
-      logger.debug('No stale sessions found.', context);
+      logger.debug('No sessions found to cleanup.', context);
     }
   }
 }

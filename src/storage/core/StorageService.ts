@@ -1,11 +1,12 @@
 /**
  * @fileoverview Provides a singleton service for interacting with the application's storage layer.
  * This service acts as a proxy to the configured storage provider, ensuring a consistent
- * interface for all storage operations throughout the application. It must be initialized
- * at startup with a concrete provider instance created by the `storageFactory`.
- * @module src/storage/StorageService
+ * interface for all storage operations throughout the application. It receives its concrete
+ * provider via dependency injection.
+ * @module src/storage/core/StorageService
  */
-import { injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
+import { StorageProvider } from '@/container/tokens.js';
 import type { RequestContext } from '@/utils/index.js';
 import type {
   IStorageProvider,
@@ -14,23 +15,10 @@ import type {
 
 @injectable()
 export class StorageService implements IStorageProvider {
-  private provider: IStorageProvider | null = null;
-
-  public initialize(provider: IStorageProvider) {
-    this.provider = provider;
-  }
-
-  private getProvider(): IStorageProvider {
-    if (!this.provider) {
-      throw new Error(
-        'StorageService has not been initialized. Call initialize() first.',
-      );
-    }
-    return this.provider;
-  }
+  constructor(@inject(StorageProvider) private provider: IStorageProvider) {}
 
   get<T>(key: string, context: RequestContext): Promise<T | null> {
-    return this.getProvider().get(key, context);
+    return this.provider.get(key, context);
   }
 
   set(
@@ -39,14 +27,14 @@ export class StorageService implements IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
-    return this.getProvider().set(key, value, context, options);
+    return this.provider.set(key, value, context, options);
   }
 
   delete(key: string, context: RequestContext): Promise<boolean> {
-    return this.getProvider().delete(key, context);
+    return this.provider.delete(key, context);
   }
 
   list(prefix: string, context: RequestContext): Promise<string[]> {
-    return this.getProvider().list(prefix, context);
+    return this.provider.list(prefix, context);
   }
 }

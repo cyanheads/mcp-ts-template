@@ -13,6 +13,7 @@ import {
   fetchWithTimeout,
   logger,
 } from '@/utils/index.js';
+import { arrayBufferToBase64 } from '@/utils/internal/encoding.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import type {
   ToolAnnotations,
@@ -124,8 +125,7 @@ async function imageTestToolLogic(
   }
 
   const arrayBuf = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuf);
-  if (buffer.byteLength === 0) {
+  if (arrayBuf.byteLength === 0) {
     throw new McpError(
       JsonRpcErrorCode.ServiceUnavailable,
       'Image API returned an empty payload.',
@@ -136,14 +136,14 @@ async function imageTestToolLogic(
   const mimeType = response.headers.get('content-type') || 'image/jpeg';
 
   const result: ImageTestToolResponse = {
-    data: buffer.toString('base64'),
+    data: arrayBufferToBase64(arrayBuf),
     mimeType,
   };
 
   logger.notice('Image fetched and encoded successfully.', {
     ...context,
     mimeType,
-    byteLength: buffer.byteLength,
+    byteLength: arrayBuf.byteLength,
   });
 
   return result;

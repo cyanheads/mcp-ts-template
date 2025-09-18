@@ -9,6 +9,7 @@
 export const AppConfig = Symbol('AppConfig');
 export const Logger = Symbol('Logger');
 export const StorageService = Symbol('StorageService');
+export const StorageProvider = Symbol('IStorageProvider');
 export const LlmProvider = Symbol('ILlmProvider');
 export const ToolDefinitions = Symbol('ToolDefinitions');
 export const ResourceDefinitions = Symbol('ResourceDefinitions');

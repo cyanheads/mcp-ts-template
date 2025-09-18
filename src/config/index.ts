@@ -1,104 +1,18 @@
 /**
  * @fileoverview Loads, validates, and exports application configuration.
  * This module centralizes configuration management, sourcing values from
- * environment variables and `package.json`. It uses Zod for schema validation
- * to ensure type safety and correctness of configuration parameters.
+ * environment variables. It uses Zod for schema validation to ensure type safety
+ * and correctness of configuration parameters, and is designed to be
+ * environment-agnostic (e.g., Node.js, Cloudflare Workers).
  *
  * @module src/config/index
  */
 import dotenv from 'dotenv';
-import { existsSync, readFileSync } from 'fs';
-import path, { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 import { z } from 'zod';
 
 dotenv.config();
 
-// --- Determine Project Root ---
-const findProjectRoot = (startDir: string): string => {
-  let currentDir = startDir;
-  if (path.basename(currentDir) === 'dist') {
-    currentDir = path.dirname(currentDir);
-  }
-  while (true) {
-    const packageJsonPath = join(currentDir, 'package.json');
-    if (existsSync(packageJsonPath)) {
-      return currentDir;
-    }
-    const parentDir = dirname(currentDir);
-    if (parentDir === currentDir) {
-      throw new Error(
-        `Could not find project root (package.json) starting from ${startDir}`,
-      );
-    }
-    currentDir = parentDir;
-  }
-};
-
-let projectRoot: string;
-try {
-  const currentModuleDir = dirname(fileURLToPath(import.meta.url));
-  projectRoot = findProjectRoot(currentModuleDir);
-} catch (error: unknown) {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  console.error(`FATAL: Error determining project root: ${errorMessage}`);
-  projectRoot = process.cwd();
-  if (process.stdout.isTTY) {
-    console.warn(
-      `Warning: Using process.cwd() (${projectRoot}) as fallback project root.`,
-    );
-  }
-}
-// --- End Determine Project Root ---
-
-const loadPackageJson = (): {
-  name: string;
-  version: string;
-  description: string;
-} => {
-  const pkgPath = join(projectRoot, 'package.json');
-  const fallback = {
-    name: '[Fallback] mcp-ts-template',
-    version: '1.0.0',
-    description: '[Fallback] A TypeScript template for MCP servers.',
-  };
-  if (!existsSync(pkgPath)) {
-    if (process.stdout.isTTY) {
-      console.warn(
-        `Warning: package.json not found at ${pkgPath}. Using fallback values.`,
-      );
-    }
-    return fallback;
-  }
-  try {
-    const fileContents = readFileSync(pkgPath, 'utf-8');
-    const parsed: unknown = JSON.parse(fileContents);
-    if (parsed && typeof parsed === 'object') {
-      const obj = parsed as Record<string, unknown>;
-      return {
-        name: typeof obj.name === 'string' ? obj.name : fallback.name,
-        version:
-          typeof obj.version === 'string' ? obj.version : fallback.version,
-        description:
-          typeof obj.description === 'string'
-            ? obj.description
-            : fallback.description,
-      };
-    }
-    return fallback;
-  } catch (error) {
-    if (process.stdout.isTTY) {
-      console.error(
-        'Warning: Could not read or parse package.json. Using hardcoded defaults.',
-        error,
-      );
-    }
-    return fallback;
-  }
-};
-
-const pkg = loadPackageJson();
-
+// --- Helper Functions ---
 const emptyStringAsUndefined = (val: unknown) => {
   if (typeof val === 'string' && val.trim() === '') {
     return undefined;
@@ -106,17 +20,19 @@ const emptyStringAsUndefined = (val: unknown) => {
   return val;
 };
 
+// --- Schema Definition ---
 const ConfigSchema = z.object({
+  // Package information sourced from environment variables
   pkg: z.object({
-    name: z.string(),
-    version: z.string(),
-    description: z.string(),
+    name: z.string().default('mcp-ts-template'),
+    version: z.string().default('1.0.0'),
+    description: z.string().default('A TypeScript template for MCP servers.'),
   }),
-  mcpServerName: z.string().default(pkg.name),
-  mcpServerVersion: z.string().default(pkg.version),
-  mcpServerDescription: z.string().default(pkg.description).optional(),
+  mcpServerName: z.string(), // Will be derived from pkg.name
+  mcpServerVersion: z.string(), // Will be derived from pkg.version
+  mcpServerDescription: z.string().optional(), // Will be derived from pkg.description
   logLevel: z.preprocess(emptyStringAsUndefined, z.string().default('debug')),
-  logsPath: z.string().default(path.join(projectRoot, 'logs')),
+  logsPath: z.string().optional(), // Made optional as it's Node-specific
   environment: z.preprocess(
     emptyStringAsUndefined,
     z.string().default('development'),
@@ -149,7 +65,7 @@ const ConfigSchema = z.object({
   devMcpClientId: z.string().optional(),
   devMcpScopes: z.array(z.string()).optional(),
   openrouterAppUrl: z.string().default('http://localhost:3000'),
-  openrouterAppName: z.string().default(pkg.name),
+  openrouterAppName: z.string().default('mcp-ts-template'),
   openrouterApiKey: z.string().optional(),
   llmDefaultModel: z.string().default('google/gemini-2.5-flash'),
   llmDefaultTemperature: z.coerce.number().optional(),
@@ -179,12 +95,12 @@ const ConfigSchema = z.object({
       emptyStringAsUndefined,
       z.enum(['in-memory', 'filesystem', 'supabase']).default('in-memory'),
     ),
-    filesystemPath: z.string().default('./.storage'),
+    filesystemPath: z.string().default('./.storage'), // This remains, but will only be used if providerType is 'filesystem'
   }),
   openTelemetry: z.object({
     enabled: z.coerce.boolean().default(false),
-    serviceName: z.string().default(pkg.name),
-    serviceVersion: z.string().default(pkg.version),
+    serviceName: z.string().default('mcp-ts-template'),
+    serviceVersion: z.string().default('1.0.0'),
     tracesEndpoint: z.string().url().optional(),
     metricsEndpoint: z.string().url().optional(),
     samplingRatio: z.coerce.number().default(1.0),
@@ -197,15 +113,18 @@ const ConfigSchema = z.object({
   }),
 });
 
+// --- Parsing Logic ---
 const parseConfig = () => {
   const env = process.env;
+
   const rawConfig = {
-    pkg,
-    mcpServerName: env.MCP_SERVER_NAME,
-    mcpServerVersion: env.MCP_SERVER_VERSION,
-    mcpServerDescription: env.MCP_SERVER_DESCRIPTION,
+    pkg: {
+      name: env.PACKAGE_NAME,
+      version: env.PACKAGE_VERSION,
+      description: env.PACKAGE_DESCRIPTION,
+    },
     logLevel: env.MCP_LOG_LEVEL,
-    logsPath: env.LOGS_DIR,
+    logsPath: env.LOGS_DIR, // This can remain; usage should be guarded
     environment: env.NODE_ENV,
     mcpTransportType: env.MCP_TRANSPORT_TYPE,
     mcpSessionMode: env.MCP_SESSION_MODE,
@@ -271,11 +190,39 @@ const parseConfig = () => {
       samplingRatio: env.OTEL_TRACES_SAMPLER_ARG,
       logLevel: env.OTEL_LOG_LEVEL,
     },
+    // The following fields will be derived and are not directly from env
+    mcpServerName: env.MCP_SERVER_NAME,
+    mcpServerVersion: env.MCP_SERVER_VERSION,
+    mcpServerDescription: env.MCP_SERVER_DESCRIPTION,
   };
 
-  const parsedConfig = ConfigSchema.safeParse(rawConfig);
+  // Use a temporary schema to parse package info and provide defaults
+  const pkgSchema = z.object({
+    name: z.string().default('mcp-ts-template'),
+    version: z.string().default('1.0.0'),
+    description: z.string().default('A TypeScript template for MCP servers.'),
+  });
+  const parsedPkg = pkgSchema.parse(rawConfig.pkg);
+
+  // Now add the derived values to the main rawConfig object to be parsed
+  const finalRawConfig = {
+    ...rawConfig,
+    pkg: parsedPkg,
+    mcpServerName: env.MCP_SERVER_NAME ?? parsedPkg.name,
+    mcpServerVersion: env.MCP_SERVER_VERSION ?? parsedPkg.version,
+    mcpServerDescription: env.MCP_SERVER_DESCRIPTION ?? parsedPkg.description,
+    openTelemetry: {
+      ...rawConfig.openTelemetry,
+      serviceName: env.OTEL_SERVICE_NAME ?? parsedPkg.name,
+      serviceVersion: env.OTEL_SERVICE_VERSION ?? parsedPkg.version,
+    },
+    openrouterAppName: env.OPENROUTER_APP_NAME ?? parsedPkg.name,
+  };
+
+  const parsedConfig = ConfigSchema.safeParse(finalRawConfig);
 
   if (!parsedConfig.success) {
+    // Keep existing error handling
     if (process.stdout.isTTY) {
       console.error(
         '❌ Invalid configuration found. Please check your environment variables.',

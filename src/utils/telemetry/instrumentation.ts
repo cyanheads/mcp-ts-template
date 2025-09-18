@@ -141,11 +141,10 @@ if (config.openTelemetry.enabled && !isOtelInitialized) {
   }
 
   try {
-    const otelLogLevel =
-      DiagLogLevel[config.openTelemetry.logLevel] ?? DiagLogLevel.INFO;
-    diag.setLogger(new OtelDiagnosticLogger(otelLogLevel), {
-      logLevel: otelLogLevel,
-    });
+    const otelLogLevelString =
+      config.openTelemetry.logLevel.toUpperCase() as keyof typeof DiagLogLevel;
+    const otelLogLevel = DiagLogLevel[otelLogLevelString] ?? DiagLogLevel.INFO;
+    diag.setLogger(new OtelDiagnosticLogger(otelLogLevel), otelLogLevel);
 
     const tracesEndpoint = config.openTelemetry.tracesEndpoint;
     const metricsEndpoint = config.openTelemetry.metricsEndpoint;
