@@ -7,9 +7,9 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 ## [2.0.5] - 2025-09-18
 
 ### Changed
+
 - **Major Refactoring**: Replaced the custom transport management system (`StatefulTransportManager`, `StatelessTransportManager`, `AutoTransportManager`) with the official `@hono/mcp` package. This simplifies the architecture, removes significant maintenance overhead, and aligns the project with standard practices for Hono-based MCP servers.
 - Updated multiple dependencies to their latest versions, including the MCP SDK, Hono, and TypeScript types.
-
 
 ## [2.0.4] - 2025-09-18
 
