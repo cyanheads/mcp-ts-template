@@ -17,7 +17,6 @@ import { config as appConfigType } from '@/config/index.js';
 import container, { AppConfig } from '@/container/index.js';
 // Import container instance and token
 import { initializeAndStartServer } from '@/mcp-server/server.js';
-import type { TransportManager } from '@/mcp-server/transports/core/transportTypes.js';
 import { requestContextService } from '@/utils/index.js';
 
 // Resolve config from the container at module scope to make it globally available
@@ -25,7 +24,6 @@ const config = container.resolve<typeof appConfigType>(AppConfig);
 
 let mcpStdioServer: McpServer | undefined;
 let actualHttpServer: http.Server | undefined;
-let transportManager: TransportManager | undefined;
 let isShuttingDown = false;
 
 const shutdown = async (signal: string): Promise<void> => {
@@ -69,12 +67,6 @@ const shutdown = async (signal: string): Promise<void> => {
     }
 
     await closePromise;
-
-    if (transportManager) {
-      logger.info('Shutting down transport manager...', shutdownContext);
-      await transportManager.shutdown();
-      logger.info('Transport manager shut down successfully.', shutdownContext);
-    }
 
     logger.info(
       'Graceful shutdown completed successfully. Exiting.',
@@ -152,23 +144,12 @@ const start = async (): Promise<void> => {
   );
 
   try {
-    const serverInstanceOrHttpBundle = await initializeAndStartServer();
+    const { server } = await initializeAndStartServer();
 
-    if (
-      transportType === 'http' &&
-      'server' in serverInstanceOrHttpBundle &&
-      'transportManager' in serverInstanceOrHttpBundle
-    ) {
-      actualHttpServer = serverInstanceOrHttpBundle.server as http.Server;
-      transportManager =
-        serverInstanceOrHttpBundle.transportManager as TransportManager;
+    if (transportType === 'http') {
+      actualHttpServer = server as http.Server;
     } else if (transportType === 'stdio') {
-      const bundle = serverInstanceOrHttpBundle as {
-        server: McpServer;
-        transportManager: undefined;
-      };
-      mcpStdioServer = bundle.server;
-      // Note: Stdio transport is stateless and its manager doesn't need explicit shutdown here.
+      mcpStdioServer = server as McpServer;
     }
 
     logger.info(

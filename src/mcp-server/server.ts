@@ -15,15 +15,13 @@
  */
 import type { ServerType } from '@hono/node-server';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import http from 'http';
 import { container } from 'tsyringe';
 
 import { config } from '@/config/index.js';
 import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
-import type { TransportManager } from '@/mcp-server/transports/core/transportTypes.js';
-import { startHttpTransport } from '@/mcp-server/transports/http/index.js';
+import { startHttpTransport } from '@/mcp-server/transports/http/httpTransport.js';
 import { startStdioTransport } from '@/mcp-server/transports/stdio/index.js';
 
 /**
@@ -92,8 +90,7 @@ export async function createMcpServerInstance(): Promise<McpServer> {
  * @private
  */
 async function startTransport(): Promise<
-  | { server: ServerType; transportManager: TransportManager }
-  | { server: McpServer; transportManager: undefined }
+  { server: ServerType } | { server: McpServer }
 > {
   const transportType = config.mcpTransportType;
   const context = requestContextService.createRequestContext({
@@ -103,14 +100,16 @@ async function startTransport(): Promise<
   logger.info(`Starting transport: ${transportType}`, context);
 
   if (transportType === 'http') {
-    const { server, transportManager } = await startHttpTransport(context);
-    return { server, transportManager };
+    // Create the MCP Server instance once and pass it to the transport.
+    const mcpServer = await createMcpServerInstance();
+    const { server } = await startHttpTransport(mcpServer, context);
+    return { server };
   }
 
   if (transportType === 'stdio') {
     const server = await createMcpServerInstance();
     await startStdioTransport(server, context);
-    return { server, transportManager: undefined };
+    return { server };
   }
 
   logger.crit(
@@ -126,8 +125,7 @@ async function startTransport(): Promise<
  * Main application entry point. Initializes and starts the MCP server.
  */
 export async function initializeAndStartServer(): Promise<
-  | { server: ServerType; transportManager: TransportManager }
-  | { server: McpServer; transportManager: undefined }
+  { server: ServerType } | { server: McpServer }
 > {
   const context = requestContextService.createRequestContext({
     operation: 'initializeAndStartServer',
@@ -139,20 +137,7 @@ export async function initializeAndStartServer(): Promise<
       'MCP Server initialization sequence completed successfully.',
       context,
     );
-    if (
-      'transportManager' in result &&
-      result.transportManager &&
-      result.server instanceof http.Server
-    ) {
-      return {
-        server: result.server as ServerType,
-        transportManager: result.transportManager,
-      };
-    }
-    return {
-      server: result.server as McpServer,
-      transportManager: undefined,
-    };
+    return result;
   } catch (err) {
     logger.crit('Critical error during MCP server initialization.', {
       ...context,
