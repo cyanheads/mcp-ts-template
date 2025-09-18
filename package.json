@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "mcpName": "io.github.cyanheads/mcp-ts-template",
   "description": "The definitive, production-grade template for building powerful and scalable Model Context Protocol (MCP) servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.",
   "main": "dist/index.js",
@@ -69,8 +69,9 @@
     "typescript": "5.9.2"
   },
   "dependencies": {
+    "@hono/mcp": "^0.1.4",
     "@hono/node-server": "^1.19.2",
-    "@modelcontextprotocol/sdk": "^1.18.0",
+    "@modelcontextprotocol/sdk": "^1.18.1",
     "@opentelemetry/instrumentation-winston": "^0.50.0",
     "@supabase/supabase-js": "^2.57.4",
     "axios": "^1.12.2",
@@ -81,7 +82,7 @@
     "jose": "^6.1.0",
     "js-yaml": "^4.1.0",
     "node-cron": "^4.2.1",
-    "openai": "^5.20.2",
+    "openai": "^5.21.0",
     "partial-json": "^0.1.7",
     "reflect-metadata": "^0.2.2",
     "sanitize-html": "^2.17.0",
@@ -104,7 +105,7 @@
     "@opentelemetry/sdk-trace-node": "^2.1.0",
     "@opentelemetry/semantic-conventions": "^1.37.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^24.4.0",
+    "@types/node": "^24.5.2",
     "@types/node-cron": "^3.0.11",
     "@types/sanitize-html": "^2.16.0",
     "@types/validator": "13.15.3",
@@ -124,7 +125,7 @@
     "typedoc": "^0.28.13",
     "typescript": "^5.9.2",
     "typescript-eslint": "8.43.0",
-    "vite": "^7.1.5",
+    "vite": "^7.1.6",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4"
   },

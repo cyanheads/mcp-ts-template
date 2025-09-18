@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-18 20:28:33
+Generated on: 2025-09-18 23:21:47
 
 ```
 mcp-ts-template
@@ -35,8 +35,7 @@ mcp-ts-template
 │   ├── container
 │   │   ├── registrations
 │   │   │   ├── core.ts
-│   │   │   ├── mcp.ts
-│   │   │   └── transports.ts
+│   │   │   └── mcp.ts
 │   │   ├── index.ts
 │   │   └── tokens.ts
 │   ├── mcp-server
@@ -72,21 +71,11 @@ mcp-ts-template
 │   │   │   │   ├── authFactory.ts
 │   │   │   │   ├── authMiddleware.ts
 │   │   │   │   └── index.ts
-│   │   │   ├── core
-│   │   │   │   ├── autoTransportManager.ts
-│   │   │   │   ├── baseTransportManager.ts
-│   │   │   │   ├── headerUtils.ts
-│   │   │   │   ├── honoNodeBridge.ts
-│   │   │   │   ├── index.ts
-│   │   │   │   ├── statefulTransportManager.ts
-│   │   │   │   ├── statelessTransportManager.ts
-│   │   │   │   └── transportTypes.ts
 │   │   │   ├── http
 │   │   │   │   ├── httpErrorHandler.ts
 │   │   │   │   ├── httpTransport.ts
 │   │   │   │   ├── httpTypes.ts
-│   │   │   │   ├── index.ts
-│   │   │   │   └── mcpTransportMiddleware.ts
+│   │   │   │   └── index.ts
 │   │   │   └── stdio
 │   │   │       ├── index.ts
 │   │   │       └── stdioTransport.ts
@@ -114,6 +103,7 @@ mcp-ts-template
 │   │   └── errors.ts
 │   ├── utils
 │   │   ├── internal
+│   │   │   ├── encoding.ts
 │   │   │   ├── errorHandler.ts
 │   │   │   ├── health.ts
 │   │   │   ├── index.ts
