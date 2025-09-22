@@ -28,6 +28,7 @@ export function storageProviderTests(
     const testContext = requestContextService.createRequestContext({
       operation: 'storage-compliance-test',
     });
+    const tenantId = 'test-tenant';
 
     // Use fake timers to test TTL
     beforeEach(() => {
@@ -42,51 +43,52 @@ export function storageProviderTests(
     it('should set and get a string value', async () => {
       const key = 'test-string';
       const value = 'hello world';
-      await provider.set(key, value, testContext);
-      const retrieved = await provider.get<string>(key, testContext);
+      await provider.set(tenantId, key, value, testContext);
+      const retrieved = await provider.get<string>(tenantId, key, testContext);
       expect(retrieved).toBe(value);
     });
 
     it('should set and get a number value', async () => {
       const key = 'test-number';
       const value = 12345;
-      await provider.set(key, value, testContext);
-      const retrieved = await provider.get<number>(key, testContext);
+      await provider.set(tenantId, key, value, testContext);
+      const retrieved = await provider.get<number>(tenantId, key, testContext);
       expect(retrieved).toBe(value);
     });
 
     it('should set and get a complex object', async () => {
       const key = 'test-object';
       const value = { a: 1, b: { c: 'nested' }, d: [1, 2, 3] };
-      await provider.set(key, value, testContext);
-      const retrieved = await provider.get<typeof value>(key, testContext);
+      await provider.set(tenantId, key, value, testContext);
+      const retrieved = await provider.get<typeof value>(tenantId, key, testContext);
       expect(retrieved).toEqual(value);
     });
 
     it('should return null for a non-existent key', async () => {
-      const retrieved = await provider.get('non-existent-key', testContext);
+      const retrieved = await provider.get(tenantId, 'non-existent-key', testContext);
       expect(retrieved).toBeNull();
     });
 
     it('should overwrite an existing value', async () => {
       const key = 'test-overwrite';
-      await provider.set(key, 'initial', testContext);
-      await provider.set(key, 'overwritten', testContext);
-      const retrieved = await provider.get<string>(key, testContext);
+      await provider.set(tenantId, key, 'initial', testContext);
+      await provider.set(tenantId, key, 'overwritten', testContext);
+      const retrieved = await provider.get<string>(tenantId, key, testContext);
       expect(retrieved).toBe('overwritten');
     });
 
     it('should delete a key and return true', async () => {
       const key = 'test-delete';
-      await provider.set(key, 'to-be-deleted', testContext);
-      const wasDeleted = await provider.delete(key, testContext);
+      await provider.set(tenantId, key, 'to-be-deleted', testContext);
+      const wasDeleted = await provider.delete(tenantId, key, testContext);
       expect(wasDeleted).toBe(true);
-      const retrieved = await provider.get(key, testContext);
+      const retrieved = await provider.get(tenantId, key, testContext);
       expect(retrieved).toBeNull();
     });
 
     it('should return false when deleting a non-existent key', async () => {
       const wasDeleted = await provider.delete(
+        tenantId,
         'non-existent-delete',
         testContext,
       );
@@ -94,18 +96,18 @@ export function storageProviderTests(
     });
 
     it('should list keys matching a prefix', async () => {
-      await provider.set('prefix:key1', 1, testContext);
-      await provider.set('prefix:key2', 2, testContext);
-      await provider.set('another-prefix:key3', 3, testContext);
+      await provider.set(tenantId, 'prefix:key1', 1, testContext);
+      await provider.set(tenantId, 'prefix:key2', 2, testContext);
+      await provider.set(tenantId, 'another-prefix:key3', 3, testContext);
 
-      const keys = await provider.list('prefix:', testContext);
+      const keys = await provider.list(tenantId, 'prefix:', testContext);
       expect(keys).toHaveLength(2);
       expect(keys).toContain('prefix:key1');
       expect(keys).toContain('prefix:key2');
     });
 
     it('should return an empty array for a prefix that matches no keys', async () => {
-      const keys = await provider.list('no-match:', testContext);
+      const keys = await provider.list(tenantId, 'no-match:', testContext);
       expect(keys).toEqual([]);
     });
 
