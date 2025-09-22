@@ -60,12 +60,20 @@ export function storageProviderTests(
       const key = 'test-object';
       const value = { a: 1, b: { c: 'nested' }, d: [1, 2, 3] };
       await provider.set(tenantId, key, value, testContext);
-      const retrieved = await provider.get<typeof value>(tenantId, key, testContext);
+      const retrieved = await provider.get<typeof value>(
+        tenantId,
+        key,
+        testContext,
+      );
       expect(retrieved).toEqual(value);
     });
 
     it('should return null for a non-existent key', async () => {
-      const retrieved = await provider.get(tenantId, 'non-existent-key', testContext);
+      const retrieved = await provider.get(
+        tenantId,
+        'non-existent-key',
+        testContext,
+      );
       expect(retrieved).toBeNull();
     });
 
