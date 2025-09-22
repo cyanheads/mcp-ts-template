@@ -8,7 +8,20 @@
  * @module src/config/index
  */
 import dotenv from 'dotenv';
+import packageJson from '../../package.json' with { type: 'json' };
 import { z } from 'zod';
+
+type PackageManifest = {
+  name?: string;
+  version?: string;
+  description?: string;
+};
+
+const packageManifest = packageJson as PackageManifest;
+const defaultPackageName = packageManifest.name ?? 'mcp-ts-template';
+const defaultPackageVersion = packageManifest.version ?? '1.0.0';
+const defaultPackageDescription =
+  packageManifest.description ?? 'A TypeScript template for MCP servers.';
 
 dotenv.config();
 
@@ -24,9 +37,9 @@ const emptyStringAsUndefined = (val: unknown) => {
 const ConfigSchema = z.object({
   // Package information sourced from environment variables
   pkg: z.object({
-    name: z.string().default('mcp-ts-template'),
-    version: z.string().default('1.0.0'),
-    description: z.string().default('A TypeScript template for MCP servers.'),
+    name: z.string().default(defaultPackageName),
+    version: z.string().default(defaultPackageVersion),
+    description: z.string().default(defaultPackageDescription),
   }),
   mcpServerName: z.string(), // Will be derived from pkg.name
   mcpServerVersion: z.string(), // Will be derived from pkg.version
@@ -65,7 +78,7 @@ const ConfigSchema = z.object({
   devMcpClientId: z.string().optional(),
   devMcpScopes: z.array(z.string()).optional(),
   openrouterAppUrl: z.string().default('http://localhost:3000'),
-  openrouterAppName: z.string().default('mcp-ts-template'),
+  openrouterAppName: z.string().default(defaultPackageName),
   openrouterApiKey: z.string().optional(),
   llmDefaultModel: z.string().default('google/gemini-2.5-flash'),
   llmDefaultTemperature: z.coerce.number().optional(),
@@ -99,8 +112,8 @@ const ConfigSchema = z.object({
   }),
   openTelemetry: z.object({
     enabled: z.coerce.boolean().default(false),
-    serviceName: z.string().default('mcp-ts-template'),
-    serviceVersion: z.string().default('1.0.0'),
+    serviceName: z.string().default(defaultPackageName),
+    serviceVersion: z.string().default(defaultPackageVersion),
     tracesEndpoint: z.string().url().optional(),
     metricsEndpoint: z.string().url().optional(),
     samplingRatio: z.coerce.number().default(1.0),
@@ -124,7 +137,7 @@ const parseConfig = () => {
       description: env.PACKAGE_DESCRIPTION,
     },
     logLevel: env.MCP_LOG_LEVEL,
-    logsPath: env.LOGS_DIR, // This can remain; usage should be guarded
+    logsPath: env.LOGS_DIR,
     environment: env.NODE_ENV,
     mcpTransportType: env.MCP_TRANSPORT_TYPE,
     mcpSessionMode: env.MCP_SESSION_MODE,
@@ -198,9 +211,11 @@ const parseConfig = () => {
 
   // Use a temporary schema to parse package info and provide defaults
   const pkgSchema = z.object({
-    name: z.string().default('mcp-ts-template'),
-    version: z.string().default('1.0.0'),
-    description: z.string().default('A TypeScript template for MCP servers.'),
+    name: z.string().default(defaultPackageName),
+    version: z.string().default(defaultPackageVersion),
+    description: z
+      .string()
+      .default(defaultPackageDescription),
   });
   const parsedPkg = pkgSchema.parse(rawConfig.pkg);
 
