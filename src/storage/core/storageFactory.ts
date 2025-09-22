@@ -4,13 +4,15 @@
  * storage backend to be selected via environment variables.
  * @module src/storage/storageFactory
  */
+import { container } from 'tsyringe';
+
 import type { ConfigSchema } from '@/config/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
-import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
+import { logger, requestContextService } from '@/utils/index.js';
 
 /**
  * Creates and returns a storage provider instance based on the provided configuration.
@@ -51,9 +53,7 @@ export function createStorageProvider(
           context,
         );
       }
-      // Note: The SupabaseProvider internally resolves the config from the DI container again.
-      // This is a known pattern to avoid passing config details through multiple layers.
-      return new SupabaseProvider();
+      return container.resolve(SupabaseProvider);
     default: {
       const exhaustiveCheck: never = providerType;
       throw new McpError(

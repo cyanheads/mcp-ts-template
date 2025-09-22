@@ -21,16 +21,19 @@ export type Database = {
           key: string;
           value: Json | null;
           expires_at: string | null;
+          tenant_id: string;
         };
         Insert: {
           key: string;
           value: Json | null;
           expires_at?: string | null;
+          tenant_id: string;
         };
         Update: {
           key?: string;
           value?: Json | null;
           expires_at?: string | null;
+          tenant_id?: string;
         };
         Relationships: [];
       };

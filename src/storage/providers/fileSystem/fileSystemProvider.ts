@@ -10,7 +10,11 @@ import path from 'path';
 
 import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { ErrorHandler, type RequestContext } from '@/utils/index.js';
+import {
+  ErrorHandler,
+  sanitization,
+  type RequestContext,
+} from '@/utils/index.js';
 
 export class FileSystemProvider implements IStorageProvider {
   private readonly storagePath: string;
@@ -28,10 +32,31 @@ export class FileSystemProvider implements IStorageProvider {
     }
   }
 
-  private getFilePath(key: string): string {
-    const filePath = path.join(this.storagePath, key);
-    // Final check to ensure it's within the storage path
-    if (!path.resolve(filePath).startsWith(this.storagePath)) {
+  private getTenantPath(tenantId: string): string {
+    const sanitizedTenantId = sanitization.sanitizePath(tenantId, {
+      toPosix: true,
+    }).sanitizedPath;
+    if (sanitizedTenantId.includes('/') || sanitizedTenantId.includes('..')) {
+      throw new McpError(
+        JsonRpcErrorCode.ValidationError,
+        'Invalid tenantId contains path characters.',
+      );
+    }
+    const tenantPath = path.join(this.storagePath, sanitizedTenantId);
+    if (!existsSync(tenantPath)) {
+      mkdirSync(tenantPath, { recursive: true });
+    }
+    return tenantPath;
+  }
+
+  private getFilePath(tenantId: string, key: string): string {
+    const tenantPath = this.getTenantPath(tenantId);
+    const sanitizedKey = sanitization.sanitizePath(key, {
+      rootDir: tenantPath,
+      toPosix: true,
+    }).sanitizedPath;
+    const filePath = path.join(tenantPath, sanitizedKey);
+    if (!path.resolve(filePath).startsWith(path.resolve(tenantPath))) {
       throw new McpError(
         JsonRpcErrorCode.ValidationError,
         'Invalid key results in path traversal attempt.',
@@ -40,8 +65,12 @@ export class FileSystemProvider implements IStorageProvider {
     return filePath;
   }
 
-  async get<T>(key: string, context: RequestContext): Promise<T | null> {
-    const filePath = this.getFilePath(key);
+  async get<T>(
+    tenantId: string,
+    key: string,
+    context: RequestContext,
+  ): Promise<T | null> {
+    const filePath = this.getFilePath(tenantId, key);
     return ErrorHandler.tryCatch(
       async () => {
         try {
@@ -58,16 +87,21 @@ export class FileSystemProvider implements IStorageProvider {
           throw error; // Re-throw other errors
         }
       },
-      { operation: 'FileSystemProvider.get', context, input: { key } },
+      {
+        operation: 'FileSystemProvider.get',
+        context,
+        input: { tenantId, key },
+      },
     );
   }
 
   async set(
+    tenantId: string,
     key: string,
     value: unknown,
     context: RequestContext,
   ): Promise<void> {
-    const filePath = this.getFilePath(key);
+    const filePath = this.getFilePath(tenantId, key);
     return ErrorHandler.tryCatch(
       async () => {
         const content =
@@ -76,12 +110,20 @@ export class FileSystemProvider implements IStorageProvider {
         mkdirSync(path.dirname(filePath), { recursive: true });
         await writeFile(filePath, content, 'utf-8');
       },
-      { operation: 'FileSystemProvider.set', context, input: { key } },
+      {
+        operation: 'FileSystemProvider.set',
+        context,
+        input: { tenantId, key },
+      },
     );
   }
 
-  async delete(key: string, context: RequestContext): Promise<boolean> {
-    const filePath = this.getFilePath(key);
+  async delete(
+    tenantId: string,
+    key: string,
+    context: RequestContext,
+  ): Promise<boolean> {
+    const filePath = this.getFilePath(tenantId, key);
     return ErrorHandler.tryCatch(
       async () => {
         try {
@@ -98,17 +140,30 @@ export class FileSystemProvider implements IStorageProvider {
           throw error;
         }
       },
-      { operation: 'FileSystemProvider.delete', context, input: { key } },
+      {
+        operation: 'FileSystemProvider.delete',
+        context,
+        input: { tenantId, key },
+      },
     );
   }
 
-  async list(prefix: string, context: RequestContext): Promise<string[]> {
+  async list(
+    tenantId: string,
+    prefix: string,
+    context: RequestContext,
+  ): Promise<string[]> {
     return ErrorHandler.tryCatch(
       async () => {
-        const files = await readdir(this.storagePath);
+        const tenantPath = this.getTenantPath(tenantId);
+        const files = await readdir(tenantPath);
         return files.filter((file) => file.startsWith(prefix));
       },
-      { operation: 'FileSystemProvider.list', context, input: { prefix } },
+      {
+        operation: 'FileSystemProvider.list',
+        context,
+        input: { tenantId, prefix },
+      },
     );
   }
 }

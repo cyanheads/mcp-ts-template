@@ -10,6 +10,8 @@ import type { AuthInfo as SdkAuthInfo } from '@modelcontextprotocol/sdk/server/a
  */
 export type AuthInfo = SdkAuthInfo & {
   subject?: string;
+  /** The unique identifier for the tenant associated with this authentication context. */
+  tenantId?: string;
 };
 
 // The declaration for `http.IncomingMessage` is no longer needed here,

@@ -16,3 +16,4 @@ export const ResourceDefinitions = Symbol('ResourceDefinitions');
 export const CreateMcpServerInstance = Symbol('CreateMcpServerInstance');
 export const RateLimiterService = Symbol('RateLimiterService');
 export const TransportManagerToken = Symbol('TransportManager');
+export const SupabaseAdminClient = Symbol('SupabaseAdminClient');

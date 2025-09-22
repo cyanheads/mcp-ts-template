@@ -7,6 +7,7 @@
  */
 import { trace } from '@opentelemetry/api';
 
+import { authContext as alsAuthContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import { generateRequestContextId } from '@/utils/index.js';
 import { logger } from '@/utils/internal/logger.js';
 
@@ -38,6 +39,12 @@ export interface RequestContext {
    * ISO 8601 timestamp indicating when the context was created.
    */
   timestamp: string;
+
+  /**
+   * The unique identifier for the tenant making the request.
+   * This is essential for multi-tenancy and data isolation.
+   */
+  tenantId?: string;
 
   /**
    * Optional authentication context, present if the request was authenticated.
@@ -162,6 +169,19 @@ const requestContextServiceInstance = {
         ? { ...parentContext }
         : {};
 
+    let inheritedTenantId: string | undefined;
+    if (
+      inheritedContext &&
+      typeof inheritedContext === 'object' &&
+      'tenantId' in inheritedContext &&
+      typeof (inheritedContext as { tenantId?: unknown }).tenantId === 'string'
+    ) {
+      inheritedTenantId = (inheritedContext as { tenantId: string }).tenantId;
+    }
+
+    const authStore = alsAuthContext.getStore();
+    const tenantIdFromAuth = authStore?.authInfo?.tenantId;
+
     const requestId =
       typeof inheritedContext.requestId === 'string' &&
       inheritedContext.requestId
@@ -169,11 +189,30 @@ const requestContextServiceInstance = {
         : generateRequestContextId();
     const timestamp = new Date().toISOString();
 
+    const restTenantId =
+      typeof (rest as { tenantId?: unknown }).tenantId === 'string'
+        ? (rest as { tenantId: string }).tenantId
+        : undefined;
+
+    const additionalTenantId =
+      additionalContext &&
+      typeof additionalContext === 'object' &&
+      typeof (additionalContext as { tenantId?: unknown }).tenantId === 'string'
+        ? (additionalContext as { tenantId: string }).tenantId
+        : undefined;
+
+    const resolvedTenantId =
+      additionalTenantId ??
+      restTenantId ??
+      inheritedTenantId ??
+      tenantIdFromAuth;
+
     const context: RequestContext = {
       ...inheritedContext,
       ...rest, // Spread any other properties from the params object
       requestId,
       timestamp,
+      ...(resolvedTenantId ? { tenantId: resolvedTenantId } : {}),
       ...(additionalContext && typeof additionalContext === 'object'
         ? additionalContext
         : {}),

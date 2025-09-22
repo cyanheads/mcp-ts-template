@@ -4,28 +4,45 @@
  * Assumes a table with columns: `key` (text), `value` (jsonb), and `expires_at` (timestamptz).
  * @module src/storage/providers/supabase/supabaseProvider
  */
-import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
+import { inject, injectable } from 'tsyringe';
+
+import { SupabaseClient } from '@supabase/supabase-js';
+
+import { SupabaseAdminClient } from '@/container/tokens.js';
 import type {
   IStorageProvider,
   StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
-import type { Json } from '@/storage/providers/supabase/supabase.types.js';
-import { getSupabaseAdminClient } from '@/storage/providers/supabase/supabaseClient.js';
+import type {
+  Json,
+  Database,
+} from '@/storage/providers/supabase/supabase.types.js';
+import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
 
 const TABLE_NAME = 'kv_store';
 
+@injectable()
 export class SupabaseProvider implements IStorageProvider {
+  constructor(
+    @inject(SupabaseAdminClient)
+    private readonly client: SupabaseClient<Database>,
+  ) {}
+
   private getClient() {
-    // Use the admin client to bypass RLS for this internal service
-    return getSupabaseAdminClient();
+    return this.client;
   }
 
-  async get<T>(key: string, context: RequestContext): Promise<T | null> {
+  async get<T>(
+    tenantId: string,
+    key: string,
+    context: RequestContext,
+  ): Promise<T | null> {
     return ErrorHandler.tryCatch(
       async () => {
         const { data, error } = await this.getClient()
           .from(TABLE_NAME)
           .select('value, expires_at')
+          .eq('tenant_id', tenantId)
           .eq('key', key)
           .single();
 
@@ -41,9 +58,9 @@ export class SupabaseProvider implements IStorageProvider {
           data.expires_at &&
           new Date(data.expires_at).getTime() < Date.now()
         ) {
-          await this.delete(key, context);
+          await this.delete(tenantId, key, context);
           logger.debug(
-            `[SupabaseProvider] Key expired and removed: ${key}`,
+            `[SupabaseProvider] Key expired and removed: ${key} for tenant: ${tenantId}`,
             context,
           );
           return null;
@@ -51,11 +68,16 @@ export class SupabaseProvider implements IStorageProvider {
 
         return data.value as T;
       },
-      { operation: 'SupabaseProvider.get', context, input: { key } },
+      {
+        operation: 'SupabaseProvider.get',
+        context,
+        input: { tenantId, key },
+      },
     );
   }
 
   async set(
+    tenantId: string,
     key: string,
     value: unknown,
     context: RequestContext,
@@ -69,30 +91,52 @@ export class SupabaseProvider implements IStorageProvider {
 
         const { error } = await this.getClient()
           .from(TABLE_NAME)
-          .upsert({ key, value: value as Json, expires_at });
+          .upsert({
+            tenant_id: tenantId,
+            key,
+            value: value as Json,
+            expires_at,
+          });
 
         if (error) throw error;
       },
-      { operation: 'SupabaseProvider.set', context, input: { key } },
+      {
+        operation: 'SupabaseProvider.set',
+        context,
+        input: { tenantId, key },
+      },
     );
   }
 
-  async delete(key: string, context: RequestContext): Promise<boolean> {
+  async delete(
+    tenantId: string,
+    key: string,
+    context: RequestContext,
+  ): Promise<boolean> {
     return ErrorHandler.tryCatch(
       async () => {
         const { error, count } = await this.getClient()
           .from(TABLE_NAME)
           .delete({ count: 'exact' })
+          .eq('tenant_id', tenantId)
           .eq('key', key);
 
         if (error) throw error;
         return (count ?? 0) > 0;
       },
-      { operation: 'SupabaseProvider.delete', context, input: { key } },
+      {
+        operation: 'SupabaseProvider.delete',
+        context,
+        input: { tenantId, key },
+      },
     );
   }
 
-  async list(prefix: string, context: RequestContext): Promise<string[]> {
+  async list(
+    tenantId: string,
+    prefix: string,
+    context: RequestContext,
+  ): Promise<string[]> {
     return ErrorHandler.tryCatch(
       async () => {
         const now = new Date().toISOString();
@@ -100,6 +144,7 @@ export class SupabaseProvider implements IStorageProvider {
         const { data, error } = await this.getClient()
           .from(TABLE_NAME)
           .select('key')
+          .eq('tenant_id', tenantId)
           .like('key', `${prefix}%`)
           // Add a filter to only include non-expired items.
           // It selects rows where expires_at is NULL OR expires_at is in the future.
@@ -108,7 +153,11 @@ export class SupabaseProvider implements IStorageProvider {
         if (error) throw error;
         return data?.map((item) => item.key) ?? [];
       },
-      { operation: 'SupabaseProvider.list', context, input: { prefix } },
+      {
+        operation: 'SupabaseProvider.list',
+        context,
+        input: { tenantId, prefix },
+      },
     );
   }
 }

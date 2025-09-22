@@ -24,11 +24,16 @@ export interface StorageOptions {
 export interface IStorageProvider {
   /**
    * Retrieves a value from the storage.
+   * @param tenantId The unique identifier for the tenant.
    * @param key The unique key for the item.
    * @param context The request context for logging and tracing.
    * @returns A promise that resolves to the stored value, or null if not found.
    */
-  get<T>(key: string, context: RequestContext): Promise<T | null>;
+  get<T>(
+    tenantId: string,
+    key: string,
+    context: RequestContext,
+  ): Promise<T | null>;
 
   /**
    * Stores a value in the storage.
@@ -39,6 +44,7 @@ export interface IStorageProvider {
    * @returns A promise that resolves when the operation is complete.
    */
   set(
+    tenantId: string,
     key: string,
     value: unknown,
     context: RequestContext,
@@ -51,7 +57,11 @@ export interface IStorageProvider {
    * @param context The request context for logging and tracing.
    * @returns A promise that resolves to true if the item was deleted, false if not found.
    */
-  delete(key: string, context: RequestContext): Promise<boolean>;
+  delete(
+    tenantId: string,
+    key: string,
+    context: RequestContext,
+  ): Promise<boolean>;
 
   /**
    * Lists all keys that match a given prefix.
@@ -60,5 +70,9 @@ export interface IStorageProvider {
    * @param context The request context for logging and tracing.
    * @returns A promise that resolves to an array of matching keys.
    */
-  list(prefix: string, context: RequestContext): Promise<string[]>;
+  list(
+    tenantId: string,
+    prefix: string,
+    context: RequestContext,
+  ): Promise<string[]>;
 }

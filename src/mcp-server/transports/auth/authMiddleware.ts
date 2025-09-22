@@ -67,6 +67,7 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
 
       const authLogContext = {
         ...context,
+        ...(authInfo.tenantId ? { tenantId: authInfo.tenantId } : {}),
         clientId: authInfo.clientId,
         subject: authInfo.subject,
         scopes: authInfo.scopes,

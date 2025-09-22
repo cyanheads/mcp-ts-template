@@ -137,16 +137,21 @@ export class JwtStrategy implements AuthStrategy {
         );
       }
 
+      const tenantId =
+        typeof decoded.tid === 'string' ? decoded.tid : undefined;
+
       const authInfo: AuthInfo = {
         token,
         clientId,
         scopes,
         ...(decoded.sub && { subject: decoded.sub }),
+        ...(tenantId && { tenantId }),
       };
       this.logger.info('JWT verification successful.', {
         ...context,
         clientId,
         scopes,
+        ...(tenantId ? { tenantId } : {}),
       });
       return authInfo;
     } catch (error) {
