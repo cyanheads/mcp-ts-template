@@ -8,8 +8,8 @@
  * @module src/config/index
  */
 import dotenv from 'dotenv';
-import packageJson from '../../package.json' with { type: 'json' };
 import { z } from 'zod';
+import packageJson from '../../package.json' with { type: 'json' };
 
 type PackageManifest = {
   name?: string;
@@ -18,10 +18,11 @@ type PackageManifest = {
 };
 
 const packageManifest = packageJson as PackageManifest;
-const defaultPackageName = packageManifest.name ?? 'mcp-ts-template';
-const defaultPackageVersion = packageManifest.version ?? '1.0.0';
-const defaultPackageDescription =
-  packageManifest.description ?? 'A TypeScript template for MCP servers.';
+const hasFileSystemAccess =
+  typeof process !== 'undefined' &&
+  typeof process.versions === 'object' &&
+  process.versions !== null &&
+  typeof process.versions.node === 'string';
 
 dotenv.config();
 
@@ -37,9 +38,9 @@ const emptyStringAsUndefined = (val: unknown) => {
 const ConfigSchema = z.object({
   // Package information sourced from environment variables
   pkg: z.object({
-    name: z.string().default(defaultPackageName),
-    version: z.string().default(defaultPackageVersion),
-    description: z.string().default(defaultPackageDescription),
+    name: z.string(),
+    version: z.string(),
+    description: z.string().optional(),
   }),
   mcpServerName: z.string(), // Will be derived from pkg.name
   mcpServerVersion: z.string(), // Will be derived from pkg.version
@@ -78,7 +79,7 @@ const ConfigSchema = z.object({
   devMcpClientId: z.string().optional(),
   devMcpScopes: z.array(z.string()).optional(),
   openrouterAppUrl: z.string().default('http://localhost:3000'),
-  openrouterAppName: z.string().default(defaultPackageName),
+  openrouterAppName: z.string(),
   openrouterApiKey: z.string().optional(),
   llmDefaultModel: z.string().default('google/gemini-2.5-flash'),
   llmDefaultTemperature: z.coerce.number().optional(),
@@ -112,8 +113,8 @@ const ConfigSchema = z.object({
   }),
   openTelemetry: z.object({
     enabled: z.coerce.boolean().default(false),
-    serviceName: z.string().default(defaultPackageName),
-    serviceVersion: z.string().default(defaultPackageVersion),
+    serviceName: z.string(),
+    serviceVersion: z.string(),
     tracesEndpoint: z.string().url().optional(),
     metricsEndpoint: z.string().url().optional(),
     samplingRatio: z.coerce.number().default(1.0),
@@ -132,9 +133,9 @@ const parseConfig = () => {
 
   const rawConfig = {
     pkg: {
-      name: env.PACKAGE_NAME,
-      version: env.PACKAGE_VERSION,
-      description: env.PACKAGE_DESCRIPTION,
+      name: env.PACKAGE_NAME ?? packageManifest.name,
+      version: env.PACKAGE_VERSION ?? packageManifest.version,
+      description: env.PACKAGE_DESCRIPTION ?? packageManifest.description,
     },
     logLevel: env.MCP_LOG_LEVEL,
     logsPath: env.LOGS_DIR,
@@ -211,11 +212,9 @@ const parseConfig = () => {
 
   // Use a temporary schema to parse package info and provide defaults
   const pkgSchema = z.object({
-    name: z.string().default(defaultPackageName),
-    version: z.string().default(defaultPackageVersion),
-    description: z
-      .string()
-      .default(defaultPackageDescription),
+    name: z.string(),
+    version: z.string(),
+    description: z.string().optional(),
   });
   const parsedPkg = pkgSchema.parse(rawConfig.pkg);
 
@@ -223,6 +222,7 @@ const parseConfig = () => {
   const finalRawConfig = {
     ...rawConfig,
     pkg: parsedPkg,
+    logsPath: rawConfig.logsPath ?? (hasFileSystemAccess ? 'logs' : undefined),
     mcpServerName: env.MCP_SERVER_NAME ?? parsedPkg.name,
     mcpServerVersion: env.MCP_SERVER_VERSION ?? parsedPkg.version,
     mcpServerDescription: env.MCP_SERVER_DESCRIPTION ?? parsedPkg.description,
