@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.6] - 2025-09-22
+
+### BREAKING CHANGE
+
+- Storage providers are now tenant-scoped. The `IStorageProvider` interface methods require a `tenantId` parameter for `get`, `set`, `delete`, and `list`. `StorageService` enforces presence of `tenantId` via `RequestContext`.
+
+### Feature
+
+- Multi-tenancy across storage and auth:
+  - Add `tenantId` to `AuthInfo` and propagate into `RequestContext` (via ALS auth store). Include `tenantId` in auth logs.
+  - Filesystem provider segregates data per-tenant using sanitized directory paths.
+  - In-memory provider uses per-tenant maps with lazy TTL cleanup.
+  - Supabase provider uses a `tenant_id` column and an admin client injected via DI; operations are filtered by `tenant_id`.
+  - DI: Register `SupabaseAdminClient` token and factory in the container; resolve `SupabaseProvider` via DI in `storageFactory`.
+
+### Refactored
+
+- Config: derive `pkg.name`/`pkg.version`/`pkg.description` from `package.json` with env overrides; remove baked-in defaults for pkg/telemetry, set `openrouterAppName` from `pkg.name`, add FS-availability guard for `logsPath`, and reorder imports to satisfy linting.
+
+### Changed
+
+- Dependencies bumped:
+  - `openai` to `^5.22.0`
+  - `@eslint/js` to `^9.36.0`
+  - `eslint` to `^9.36.0`
+  - `msw` to `^2.11.3`
+  - `vite` to `^7.1.7`
+- Versions:
+  - `package.json` version to `2.0.6`
+  - `server.json` manifest version fields to `2.0.5`
+
+### Removed
+
+- Deleted legacy `src/storage/providers/supabase/supabaseClient.ts`.
+
+### Docs
+
+- Regenerated `docs/tree.md`.
+
 ## [2.0.5] - 2025-09-18
 
 ### Changed
