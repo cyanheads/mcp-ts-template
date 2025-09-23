@@ -1,0 +1,118 @@
+/**
+ * @fileoverview Unit tests for the performance measurement helper.
+ * @module tests/utils/internal/performance.test
+ */
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from 'vitest';
+import { SpanStatusCode, trace } from '@opentelemetry/api';
+
+import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors';
+import { measureToolExecution } from '../../../src/utils/internal/performance';
+import { logger } from '../../../src/utils/internal/logger';
+
+describe('measureToolExecution', () => {
+  const span = {
+    setAttributes: vi.fn(),
+    setAttribute: vi.fn(),
+    setStatus: vi.fn(),
+    recordException: vi.fn(),
+    end: vi.fn(),
+  };
+  const tracer = {
+    startActiveSpan: vi.fn(async (_name, callback) => callback(span as never)),
+  };
+  const tracerSpy = vi.spyOn(trace, 'getTracer');
+  const memoryUsageSpy = vi.spyOn(process, 'memoryUsage');
+  let infoSpy: MockInstance;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tracerSpy.mockReturnValue(tracer as never);
+    memoryUsageSpy.mockReset();
+    infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    infoSpy.mockRestore();
+  });
+
+  afterAll(() => {
+    tracerSpy.mockRestore();
+    memoryUsageSpy.mockRestore();
+  });
+
+  it('records success metrics and returns the tool result', async () => {
+    memoryUsageSpy
+      .mockReturnValueOnce({ rss: 1000, heapUsed: 400 } as NodeJS.MemoryUsage)
+      .mockReturnValueOnce({ rss: 1600, heapUsed: 700 } as NodeJS.MemoryUsage);
+
+    const result = await measureToolExecution(
+      async () => ({ message: 'ok' }),
+      {
+        toolName: 'test-tool',
+        requestId: 'req-1',
+        timestamp: new Date().toISOString(),
+      },
+      { input: 'value' },
+    );
+
+    expect(result).toEqual({ message: 'ok' });
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    const [, logMeta] = infoSpy.mock.calls[0];
+    expect(logMeta.metrics.isSuccess).toBe(true);
+    expect(logMeta.metrics.errorCode).toBeUndefined();
+    expect(span.setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.OK });
+    expect(span.setAttributes).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        'mcp.tool.duration_ms': expect.any(Number),
+        'mcp.tool.success': true,
+      }),
+    );
+    expect(span.end).toHaveBeenCalled();
+  });
+
+  it('captures error metadata and rethrows the original McpError', async () => {
+    const failure = new McpError(JsonRpcErrorCode.InternalError, 'boom');
+
+    memoryUsageSpy
+      .mockReturnValueOnce({ rss: 500, heapUsed: 250 } as NodeJS.MemoryUsage)
+      .mockReturnValueOnce({ rss: 560, heapUsed: 290 } as NodeJS.MemoryUsage);
+
+    await expect(
+      measureToolExecution(
+        async () => {
+          throw failure;
+        },
+        {
+          toolName: 'failing-tool',
+          requestId: 'req-2',
+          timestamp: new Date().toISOString(),
+        },
+        { payload: 'data' },
+      ),
+    ).rejects.toBe(failure);
+
+    expect(span.recordException).toHaveBeenCalledWith(failure);
+    expect(span.setStatus).toHaveBeenCalledWith({
+      code: SpanStatusCode.ERROR,
+      message: 'boom',
+    });
+    expect(span.setAttribute).toHaveBeenCalledWith(
+      'mcp.tool.error_code',
+      String(JsonRpcErrorCode.InternalError),
+    );
+    const [, logMeta] = infoSpy.mock.calls[0];
+    expect(logMeta.metrics.isSuccess).toBe(false);
+    expect(logMeta.metrics.errorCode).toBe(
+      String(JsonRpcErrorCode.InternalError),
+    );
+  });
+});
