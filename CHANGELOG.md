@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.7] - 2025-09-23
+
+### Changed
+
+- Bumped project version to `2.0.7`.
+- Dependencies:
+  - `openai` to `^5.23.0`.
+
+### Configuration
+
+- `server.json` manifest:
+  - Added `MCP_HTTP_HOST` (default `127.0.0.1`).
+  - Added `MCP_HTTP_ENDPOINT_PATH` (default `/mcp`).
+
+### Refactored
+
+- Logger:
+  - Suppress console transport when running in test environment to reduce noisy output.
+  - Minor import reordering for type-only clarity.
+- Scheduler:
+  - Switched to explicit named imports from `node-cron` (`validate`, `createTask`) and updated internal usage for clarity and testability.
+
+### Tests
+
+- Added comprehensive unit tests across core utilities and internals:
+  - `ErrorHandler` (additional branches, mapping/default factory paths, stack inclusion, and McpError preservation).
+  - `health` snapshot utility.
+  - `performance` measurement helper (`measureToolExecution` success and error paths).
+  - `requestContext` service creation/merge/trace metadata behavior.
+  - `metrics/registry` (counters, histograms, caching, disabled mode).
+  - `network/fetchWithTimeout` (success, HTTP errors, timeouts, network errors).
+  - `parsing/dateParser` (basic and detailed parsing, error wrapping).
+  - `scheduling/scheduler` (validation, lifecycle, overlap prevention, error capture).
+  - `security/rateLimiter` (limits, development skip, cleanup and reset).
+- Test setup: ensure `NODE_ENV=test` in `tests/setup.ts` so logger suppresses noisy warnings during tests.
+
+### Docs
+
+- Regenerated `docs/tree.md` to reflect new files and structure.
+
 ## [2.0.6] - 2025-09-22
 
 ### BREAKING CHANGE
