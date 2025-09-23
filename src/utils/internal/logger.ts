@@ -10,8 +10,8 @@ import winston from 'winston';
 import TransportStream from 'winston-transport';
 
 import { config } from '@/config/index.js';
-import { sanitizeInputForLogging } from '@/utils/security/sanitization.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { sanitizeInputForLogging } from '@/utils/security/sanitization.js';
 
 export type McpLogLevel =
   | 'debug'
@@ -351,7 +351,8 @@ export class Logger {
       this.currentMcpLevel === 'debug' &&
       typeof process !== 'undefined' &&
       !!process.stdout &&
-      !!process.stdout.isTTY;
+      !!process.stdout.isTTY &&
+      config.environment !== 'test';
     let message: string | null = null;
     if (shouldHaveConsole && !consoleTransport) {
       this.winstonLogger.add(
@@ -387,7 +388,13 @@ export class Logger {
 
   private ensureInitialized(): boolean {
     if (!this.initialized || !this.winstonLogger) {
+      // Suppress noisy console warnings during tests to keep test output clean.
+      const isTestEnv =
+        typeof process !== 'undefined' &&
+        typeof process.env !== 'undefined' &&
+        process.env.NODE_ENV === 'test';
       if (
+        !isTestEnv &&
         typeof process !== 'undefined' &&
         process.stdout &&
         process.stdout.isTTY
