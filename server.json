@@ -56,11 +56,25 @@
       ],
       "environment_variables": [
         {
+          "name": "MCP_HTTP_HOST",
+          "description": "The hostname for the HTTP server.",
+          "format": "string",
+          "is_required": false,
+          "default": "127.0.0.1"
+        },
+        {
           "name": "MCP_HTTP_PORT",
           "description": "The port to run the HTTP server on.",
           "format": "string",
           "is_required": false,
           "default": "3010"
+        },
+        {
+          "name": "MCP_HTTP_ENDPOINT_PATH",
+          "description": "The endpoint path for the MCP server.",
+          "format": "string",
+          "is_required": false,
+          "default": "/mcp"
         },
         {
           "name": "MCP_AUTH_MODE",
