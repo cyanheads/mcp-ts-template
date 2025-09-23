@@ -4,6 +4,11 @@ import 'reflect-metadata';
 
 import { beforeAll, afterAll, afterEach, vi } from 'vitest';
 
+// Ensure test env so logger suppresses noisy warnings
+if (typeof process !== 'undefined' && process.env && !process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'test';
+}
+
 // Patch Vitest API gaps when running under Bun's test runner
 // - Alias vi.mock to vi.module
 // - Provide minimal timer shims if missing
