@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-22 19:17:51
+Generated on: 2025-09-23 21:18:30
 
 ```
 mcp-ts-template
@@ -8,7 +8,6 @@ mcp-ts-template
 │   └── clinerules.md
 ├── .github
 │   ├── workflows
-│   │   ├── publish-mcp.yml
 │   │   └── publish.yml
 │   └── FUNDING.yml
 ├── .husky
@@ -96,7 +95,6 @@ mcp-ts-template
 │   │   │   │   └── inMemoryProvider.ts
 │   │   │   └── supabase
 │   │   │       ├── supabase.types.ts
-│   │   │       ├── supabaseClient.ts
 │   │   │       └── supabaseProvider.ts
 │   │   └── index.ts
 │   ├── types-global
@@ -157,12 +155,24 @@ mcp-ts-template
 │   │   │       └── inMemoryProvider.test.ts
 │   │   └── storageProviderCompliance.ts
 │   ├── utils
+│   │   ├── internal
+│   │   │   ├── errorHandler.unit.test.ts
+│   │   │   ├── health.test.ts
+│   │   │   ├── performance.test.ts
+│   │   │   └── requestContext.test.ts
 │   │   ├── metrics
+│   │   │   ├── registry.test.ts
 │   │   │   └── tokenCounter.test.ts
+│   │   ├── network
+│   │   │   └── fetchWithTimeout.test.ts
 │   │   ├── parsing
+│   │   │   ├── dateParser.test.ts
 │   │   │   └── jsonParser.test.ts
+│   │   ├── scheduling
+│   │   │   └── scheduler.test.ts
 │   │   └── security
 │   │       ├── idGenerator.test.ts
+│   │       ├── rateLimiter.test.ts
 │   │       └── sanitization.test.ts
 │   └── setup.ts
 ├── .dockerignore
