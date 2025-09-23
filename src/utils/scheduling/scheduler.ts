@@ -4,7 +4,11 @@
  * defining, starting, stopping, and listing recurring tasks within the application.
  * @module src/utils/scheduling/scheduler
  */
-import cron, { type ScheduledTask, createTask } from 'node-cron';
+import {
+  validate as cronValidate,
+  createTask as cronCreateTask,
+  type ScheduledTask,
+} from 'node-cron';
 
 import { type RequestContext, logger } from '@/utils/internal/index.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
@@ -69,11 +73,11 @@ export class SchedulerService {
       throw new Error(`Job with ID '${id}' already exists.`);
     }
 
-    if (!cron.validate(schedule)) {
+    if (!cronValidate(schedule)) {
       throw new Error(`Invalid cron schedule: ${schedule}`);
     }
 
-    const task = createTask(schedule, async () => {
+    const task = cronCreateTask(schedule, async () => {
       const job = this.jobs.get(id);
       if (job && job.isRunning) {
         logger.warning(
