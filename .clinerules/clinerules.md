@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.0.8
+**Version:** 2.1.0
 **Target Project:** `mcp-ts-template`
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
