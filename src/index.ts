@@ -9,18 +9,21 @@
 import { shutdownOpenTelemetry } from '@/utils/telemetry/instrumentation.js';
 import 'reflect-metadata';
 
+import {
+  initializePerformance_Hrt,
+  requestContextService,
+} from '@/utils/index.js';
 import { type McpLogLevel, logger } from '@/utils/internal/logger.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import http from 'http';
 
 import { config as appConfigType } from '@/config/index.js';
-import container, { AppConfig } from '@/container/index.js';
-// Import container instance and token
-import { initializeAndStartServer } from '@/mcp-server/server.js';
-import { requestContextService } from '@/utils/index.js';
+import container, { AppConfig, composeContainer } from '@/container/index.js';
 
-// Resolve config from the container at module scope to make it globally available
-const config = container.resolve<typeof appConfigType>(AppConfig);
+import { initializeAndStartServer } from '@/mcp-server/server.js';
+
+// The container is now composed in start(), so we must resolve config there.
+let config: typeof appConfigType;
 
 let mcpStdioServer: McpServer | undefined;
 let actualHttpServer: http.Server | undefined;
@@ -94,6 +97,14 @@ const shutdown = async (signal: string): Promise<void> => {
 };
 
 const start = async (): Promise<void> => {
+  // Initialize DI container first
+  composeContainer();
+  // Now it's safe to resolve dependencies
+  config = container.resolve<typeof appConfigType>(AppConfig);
+
+  // Initialize the high-resolution timer
+  await initializePerformance_Hrt();
+
   const validMcpLogLevels: McpLogLevel[] = [
     'debug',
     'info',

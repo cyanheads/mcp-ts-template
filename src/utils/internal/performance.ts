@@ -6,6 +6,7 @@
  * @module src/utils/internal/performance
  */
 import { SpanStatusCode, trace } from '@opentelemetry/api';
+import type { performance as PerfHooksPerformance } from 'perf_hooks';
 
 import { config } from '@/config/index.js';
 import { McpError } from '@/types-global/errors.js';
@@ -27,6 +28,40 @@ import {
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 
+// Environment-aware high-resolution timer
+let performanceNow: () => number = () => Date.now(); // Fallback
+
+/**
+ * Initializes the high-resolution timer based on the environment.
+ * In a browser-like environment, it uses `globalThis.performance`.
+ * In Node.js, it dynamically imports `perf_hooks`.
+ */
+export async function initializePerformance_Hrt(): Promise<void> {
+  // Use a type assertion to safely access `performance` on `globalThis`,
+  // which is present in browser-like environments (e.g., Cloudflare Workers)
+  // but not in Node.js's default global type.
+  const globalWithPerf = globalThis as {
+    performance?: { now: () => number };
+  };
+
+  if (typeof globalWithPerf.performance?.now === 'function') {
+    performanceNow = () => globalWithPerf.performance!.now();
+  } else {
+    try {
+      const { performance: nodePerformance } = (await import('perf_hooks')) as {
+        performance: typeof PerfHooksPerformance;
+      };
+      performanceNow = () => nodePerformance.now();
+    } catch (_e) {
+      logger.warning(
+        'Could not import perf_hooks, falling back to Date.now() for performance timing.',
+      );
+    }
+  }
+}
+
+export const nowMs = (): number => performanceNow();
+
 const toBytes = (payload: unknown): number => {
   if (payload == null) return 0;
   try {
@@ -45,15 +80,6 @@ const toBytes = (payload: unknown): number => {
   } catch {
     return 0;
   }
-};
-
-const nowMs = (): number => {
-  // Prefer high-resolution time without BigInt math for portability
-  if (typeof globalThis.performance?.now === 'function') {
-    return globalThis.performance.now();
-  }
-  const [s, ns] = process.hrtime();
-  return s * 1000 + ns / 1_000_000;
 };
 
 export async function measureToolExecution<T>(

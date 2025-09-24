@@ -1,7 +1,8 @@
 /**
  * @fileoverview Factory function for creating a storage provider based on application configuration.
  * This module decouples the application from concrete storage implementations, allowing the
- * storage backend to be selected via environment variables.
+ * storage backend to be selected via environment variables. In a serverless environment,
+ * it defaults to `in-memory` to ensure compatibility.
  * @module src/storage/storageFactory
  */
 import { container } from 'tsyringe';
@@ -13,6 +14,9 @@ import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemPro
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
 import { logger, requestContextService } from '@/utils/index.js';
+
+const isServerless =
+  typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
 
 /**
  * Creates and returns a storage provider instance based on the provided configuration.
@@ -29,7 +33,17 @@ export function createStorageProvider(
   const context = requestContextService.createRequestContext({
     operation: 'createStorageProvider',
   });
-  const providerType = config.storage.providerType;
+
+  // In a serverless environment (like Cloudflare Workers), file system access is restricted.
+  // We override the provider to 'in-memory' to ensure the application can run.
+  const providerType = isServerless ? 'in-memory' : config.storage.providerType;
+
+  if (isServerless && config.storage.providerType !== 'in-memory') {
+    logger.warning(
+      `Forcing 'in-memory' storage provider in serverless environment (configured: ${config.storage.providerType}).`,
+      context,
+    );
+  }
 
   logger.info(`Creating storage provider of type: ${providerType}`, context);
 

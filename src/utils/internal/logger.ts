@@ -1,16 +1,18 @@
 /**
  * @fileoverview Pino-backed singleton logger with environment-adaptive output.
  * Implements RFC5424 level mapping, structured context, automatic trace injection via
- * OpenTelemetry, and graceful shutdown.
+ * OpenTelemetry, and graceful shutdown. In a serverless environment (like Cloudflare
+ * Workers), it uses a lightweight console-based logger.
  * @module src/utils/internal/logger
  */
-import fs from 'fs';
-import path from 'path';
-import type { Logger as PinoLogger } from 'pino';
+import type { LevelWithSilent, Logger as PinoLogger } from 'pino';
 import pino from 'pino';
 
 import { config } from '@/config/index.js';
-import type { RequestContext } from '@/utils/internal/requestContext.js';
+import {
+  requestContextService,
+  type RequestContext,
+} from '@/utils/internal/requestContext.js';
 import { sanitization } from '@/utils/security/sanitization.js';
 
 export type McpLogLevel =
@@ -23,8 +25,7 @@ export type McpLogLevel =
   | 'alert'
   | 'emerg';
 
-// Pino levels: trace, debug, info, warn, error, fatal
-const mcpToPinoLevel: Record<McpLogLevel, pino.LevelWithSilent> = {
+const mcpToPinoLevel: Record<McpLogLevel, LevelWithSilent> = {
   emerg: 'fatal',
   alert: 'fatal',
   crit: 'error',
@@ -36,21 +37,23 @@ const mcpToPinoLevel: Record<McpLogLevel, pino.LevelWithSilent> = {
 };
 
 const pinoToMcpLevelSeverity: Record<string, number> = {
-  fatal: 0, // emerg, alert
-  error: 2, // crit, error
-  warn: 4, // warning
-  info: 6, // notice, info
-  debug: 7, // debug
+  fatal: 0,
+  error: 2,
+  warn: 4,
+  info: 6,
+  debug: 7,
 };
 
+const isServerless =
+  typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
+
 export class Logger {
-  private static instance: Logger | undefined;
+  private static readonly instance: Logger = new Logger();
   private pinoLogger?: PinoLogger;
-  private interactionLogger: PinoLogger | undefined;
+  private interactionLogger?: PinoLogger | undefined;
   private initialized = false;
   private currentMcpLevel: McpLogLevel = 'info';
 
-  // Rate limiting state
   private rateLimitThreshold = 10;
   private rateLimitWindow = 60000;
   private messageCounts = new Map<
@@ -58,26 +61,17 @@ export class Logger {
     { count: number; firstSeen: number }
   >();
   private suppressedMessages = new Map<string, number>();
-  private cleanupTimer?: ReturnType<typeof setInterval>;
+  private cleanupTimer?: NodeJS.Timeout;
 
   private constructor() {
-    this.cleanupTimer = setInterval(
-      () => this.flushSuppressedMessages(),
-      this.rateLimitWindow,
-    );
-    this.cleanupTimer.unref?.();
+    // The constructor is now safe to call in a global scope.
   }
 
   public static getInstance(): Logger {
-    if (!Logger.instance) {
-      Logger.instance = new Logger();
-    }
     return Logger.instance;
   }
 
-  private createPinoLogger(level: McpLogLevel): PinoLogger {
-    const isDevelopment = config.environment === 'development';
-    const isTest = config.environment === 'test';
+  private async createPinoLogger(level: McpLogLevel): Promise<PinoLogger> {
     const pinoLevel = mcpToPinoLevel[level] || 'info';
 
     const pinoOptions: pino.LoggerOptions = {
@@ -85,7 +79,7 @@ export class Logger {
       base: {
         env: config.environment,
         version: config.mcpServerVersion,
-        pid: process.pid,
+        pid: !isServerless ? process.pid : undefined,
       },
       redact: {
         paths: sanitization.getSensitivePinoFields(),
@@ -93,25 +87,39 @@ export class Logger {
       },
     };
 
-    const transports: pino.TransportTargetOptions[] = [];
-
-    // Console transport (pretty in dev, json in prod, silent in test)
-    if (isDevelopment) {
-      transports.push({
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          translateTime: 'yyyy-mm-dd HH:MM:ss',
-        },
-      });
-    } else if (!isTest) {
-      transports.push({
-        target: 'pino/file', // Directs to stdout for production
-        options: { destination: 1 },
-      });
+    if (isServerless) {
+      return pino(pinoOptions);
     }
 
-    // File transport for combined logs
+    // Node.js specific transports
+    const { default: fs } = await import('fs');
+    const { default: path } = await import('path');
+
+    const transports: pino.TransportTargetOptions[] = [];
+    const isDevelopment = config.environment === 'development';
+    const isTest = config.environment === 'test';
+
+    if (isDevelopment && !isServerless) {
+      // Try to resolve 'pino-pretty' robustly even when bundled (e.g., Bun/ESM),
+      // falling back to JSON stdout if resolution fails.
+      try {
+        const { createRequire } = await import('node:module');
+        const require = createRequire(import.meta.url);
+        const prettyTarget = require.resolve('pino-pretty');
+        transports.push({
+          target: prettyTarget,
+          options: { colorize: true, translateTime: 'yyyy-mm-dd HH:MM:ss' },
+        });
+      } catch (err) {
+        console.warn(
+          `[Logger Init] Pretty transport unavailable (${err instanceof Error ? err.message : String(err)}); falling back to stdout JSON.`,
+        );
+        transports.push({ target: 'pino/file', options: { destination: 1 } });
+      }
+    } else if (!isTest) {
+      transports.push({ target: 'pino/file', options: { destination: 1 } });
+    }
+
     if (config.logsPath) {
       try {
         if (!fs.existsSync(config.logsPath)) {
@@ -140,14 +148,13 @@ export class Logger {
       }
     }
 
-    return pino({
-      ...pinoOptions,
-      transport: { targets: transports },
-    });
+    return pino({ ...pinoOptions, transport: { targets: transports } });
   }
 
-  private createInteractionLogger(): PinoLogger | undefined {
-    if (!config.logsPath) return undefined;
+  private async createInteractionLogger(): Promise<PinoLogger | undefined> {
+    if (isServerless || !config.logsPath) return undefined;
+
+    const { default: path } = await import('path');
     return pino({
       transport: {
         target: 'pino/file',
@@ -159,29 +166,34 @@ export class Logger {
     });
   }
 
-  public initialize(level: McpLogLevel = 'info'): Promise<void> {
+  public async initialize(level: McpLogLevel = 'info'): Promise<void> {
     if (this.initialized) {
-      this.warning('Logger already initialized.', {
-        requestId: 'logger-reinit',
-        timestamp: new Date().toISOString(),
-      });
-      return Promise.resolve();
+      this.warning(
+        'Logger already initialized.',
+        requestContextService.createRequestContext({
+          operation: 'loggerReinit',
+        }),
+      );
+      return;
+    }
+    this.currentMcpLevel = level;
+    this.pinoLogger = await this.createPinoLogger(level);
+    this.interactionLogger = await this.createInteractionLogger();
+
+    // Start the cleanup timer only after initialization and only in Node.js
+    if (!isServerless && !this.cleanupTimer) {
+      this.cleanupTimer = setInterval(
+        () => this.flushSuppressedMessages(),
+        this.rateLimitWindow,
+      );
+      this.cleanupTimer.unref?.();
     }
 
-    this.currentMcpLevel = level;
-    this.pinoLogger = this.createPinoLogger(level);
-    this.interactionLogger = this.createInteractionLogger();
     this.initialized = true;
-
-    this.info(`Logger initialized. MCP level: ${level}.`, {
-      requestId: 'logger-init',
-      timestamp: new Date().toISOString(),
-    });
-    return Promise.resolve();
-  }
-
-  public isInitialized(): boolean {
-    return this.initialized;
+    this.info(
+      `Logger initialized. MCP level: ${level}.`,
+      requestContextService.createRequestContext({ operation: 'loggerInit' }),
+    );
   }
 
   public setLevel(newLevel: McpLogLevel): void {
@@ -191,76 +203,63 @@ export class Logger {
     }
     this.currentMcpLevel = newLevel;
     this.pinoLogger.level = mcpToPinoLevel[newLevel] || 'info';
-    this.info(`Log level changed to ${newLevel}.`, {
-      requestId: 'logger-set-level',
-      timestamp: new Date().toISOString(),
-    });
+    this.info(
+      `Log level changed to ${newLevel}.`,
+      requestContextService.createRequestContext({
+        operation: 'loggerSetLevel',
+      }),
+    );
   }
 
   public close(): Promise<void> {
-    if (!this.initialized) {
-      return Promise.resolve();
-    }
-
-    this.info('Logger shutting down.', {
-      requestId: 'logger-close',
-      timestamp: new Date().toISOString(),
-    });
-
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-    }
+    if (!this.initialized) return Promise.resolve();
+    this.info(
+      'Logger shutting down.',
+      requestContextService.createRequestContext({ operation: 'loggerClose' }),
+    );
+    if (this.cleanupTimer) clearInterval(this.cleanupTimer);
     this.flushSuppressedMessages();
-
-    // With pino.transport, flushing is handled in a worker thread.
-    // A robust graceful shutdown would require more complex inter-process
-    // communication. For this implementation, we ensure our internal state
-    // is clean and allow the process to exit. The OS buffer will handle most cases.
-    const loggers = [this.pinoLogger, this.interactionLogger].filter(
-      Boolean,
-    ) as PinoLogger[];
-    loggers.forEach((l) => l.flush());
-
+    this.pinoLogger?.flush();
+    this.interactionLogger?.flush();
     this.initialized = false;
     return Promise.resolve();
   }
 
-  // --- Rate Limiting (ported from original) ---
+  public isInitialized(): boolean {
+    return this.initialized;
+  }
+
   private isRateLimited(message: string): boolean {
     const now = Date.now();
     const entry = this.messageCounts.get(message);
-    if (entry) {
-      if (now - entry.firstSeen > this.rateLimitWindow) {
-        this.messageCounts.set(message, { count: 1, firstSeen: now });
-        return false;
-      }
-      entry.count++;
-      if (entry.count > this.rateLimitThreshold) {
-        this.suppressedMessages.set(
-          message,
-          (this.suppressedMessages.get(message) || 0) + 1,
-        );
-        return true;
-      }
-    } else {
+    if (!entry) {
       this.messageCounts.set(message, { count: 1, firstSeen: now });
+      return false;
+    }
+    if (now - entry.firstSeen > this.rateLimitWindow) {
+      this.messageCounts.set(message, { count: 1, firstSeen: now });
+      return false;
+    }
+    entry.count++;
+    if (entry.count > this.rateLimitThreshold) {
+      this.suppressedMessages.set(
+        message,
+        (this.suppressedMessages.get(message) || 0) + 1,
+      );
+      return true;
     }
     return false;
   }
 
   private flushSuppressedMessages(): void {
-    if (this.suppressedMessages.size === 0) {
-      return;
-    }
+    if (this.suppressedMessages.size === 0) return;
     for (const [message, count] of this.suppressedMessages.entries()) {
       this.warning(
         `Log message suppressed ${count} times due to rate limiting.`,
-        {
-          requestId: 'logger-rate-limit-flush',
-          timestamp: new Date().toISOString(),
-          originalMessage: message,
-          rateLimitInfo: true,
-        },
+        requestContextService.createRequestContext({
+          operation: 'loggerRateLimitFlush',
+          additionalContext: { originalMessage: message },
+        }),
       );
     }
     this.suppressedMessages.clear();
@@ -277,30 +276,26 @@ export class Logger {
 
     const pinoLevel = mcpToPinoLevel[level] || 'info';
     const currentPinoLevel = mcpToPinoLevel[this.currentMcpLevel] || 'info';
-    const severity = pinoToMcpLevelSeverity[pinoLevel];
-    const currentSeverity = pinoToMcpLevelSeverity[currentPinoLevel];
+
+    const levelSeverity = pinoToMcpLevelSeverity[pinoLevel];
+    const currentLevelSeverity = pinoToMcpLevelSeverity[currentPinoLevel];
 
     if (
-      typeof severity === 'number' &&
-      typeof currentSeverity === 'number' &&
-      severity > currentSeverity
+      typeof levelSeverity === 'number' &&
+      typeof currentLevelSeverity === 'number' &&
+      levelSeverity > currentLevelSeverity
     ) {
       return;
     }
 
-    if (this.isRateLimited(msg)) {
-      return;
-    }
+    if (this.isRateLimited(msg)) return;
 
     const logObject: Record<string, unknown> = { ...context };
-    if (error) {
-      logObject.err = pino.stdSerializers.err(error);
-    }
+    if (error) logObject.err = pino.stdSerializers.err(error);
 
     this.pinoLogger[pinoLevel](logObject, msg);
   }
 
-  // --- Public Log Methods ---
   public debug(msg: string, context?: RequestContext): void {
     this.log('debug', msg, context);
   }
@@ -313,8 +308,7 @@ export class Logger {
   public warning(msg: string, context?: RequestContext): void {
     this.log('warning', msg, context);
   }
-  public error(msg: string, context: RequestContext): void;
-  public error(msg: string, error: Error, context?: RequestContext): void;
+
   public error(
     msg: string,
     errorOrContext: Error | RequestContext,
@@ -326,9 +320,7 @@ export class Logger {
       errorOrContext instanceof Error ? context : errorOrContext;
     this.log('error', msg, actualContext, errorObj);
   }
-  // Implement crit, alert, emerg, fatal similarly to error...
-  public crit(msg: string, context: RequestContext): void;
-  public crit(msg: string, error: Error, context?: RequestContext): void;
+
   public crit(
     msg: string,
     errorOrContext: Error | RequestContext,
@@ -340,8 +332,7 @@ export class Logger {
       errorOrContext instanceof Error ? context : errorOrContext;
     this.log('crit', msg, actualContext, errorObj);
   }
-  public alert(msg: string, context: RequestContext): void;
-  public alert(msg: string, error: Error, context?: RequestContext): void;
+
   public alert(
     msg: string,
     errorOrContext: Error | RequestContext,
@@ -353,8 +344,7 @@ export class Logger {
       errorOrContext instanceof Error ? context : errorOrContext;
     this.log('alert', msg, actualContext, errorObj);
   }
-  public emerg(msg: string, context: RequestContext): void;
-  public emerg(msg: string, error: Error, context?: RequestContext): void;
+
   public emerg(
     msg: string,
     errorOrContext: Error | RequestContext,
@@ -366,14 +356,13 @@ export class Logger {
       errorOrContext instanceof Error ? context : errorOrContext;
     this.log('emerg', msg, actualContext, errorObj);
   }
-  public fatal(msg: string, context: RequestContext): void;
-  public fatal(msg: string, error: Error, context?: RequestContext): void;
+
   public fatal(
     msg: string,
     errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    this.emerg(msg, errorOrContext as Error, context); // Map fatal to emerg
+    this.emerg(msg, errorOrContext, context);
   }
 
   public logInteraction(
@@ -381,10 +370,11 @@ export class Logger {
     data: Record<string, unknown>,
   ): void {
     if (!this.interactionLogger) {
-      this.warning(
-        'Interaction logger not available. File logging may be disabled.',
-        (data.context || {}) as RequestContext,
-      );
+      if (!isServerless)
+        this.warning(
+          'Interaction logger not available.',
+          (data.context || {}) as RequestContext,
+        );
       return;
     }
     this.interactionLogger.info({ interactionName, ...data });

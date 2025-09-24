@@ -2,7 +2,7 @@
   <h1>mcp-ts-template</h1>
   <p><b>The definitive, production-grade template for building powerful and scalable Model Context Protocol (MCP) servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.</b></p>
   
-  [![Version](https://img.shields.io/badge/Version-2.0.7-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.18.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-96.14%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
+  [![Version](https://img.shields.io/badge/Version-2.1.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.18.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-96.14%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
 
 </div>
 
@@ -75,6 +75,24 @@ You can run the server in several modes for development and production.
   # Server now running at http://127.0.0.1:3010
   ```
 
+### Cloudflare Workers Deployment
+
+This template is optimized for deployment to [Cloudflare Workers](https://workers.cloudflare.com/), a global, serverless execution environment.
+
+1.  **Build the Worker**:
+    ```bash
+    bun run build:worker
+    ```
+
+2.  **Run Locally with Wrangler**:
+    ```bash
+    bun run deploy:dev
+    ```
+
+3.  **Deploy to Cloudflare**:
+    ```bash
+    bun run deploy:prod
+    ```
 ---
 
 ## 🏗️ Architectural Principles
@@ -196,8 +214,11 @@ Key scripts available in `package.json`:
 | :---------------------- | :------------------------------------------------------------------------------------------------------------- |
 | `bun run devdocs`       | Generates a comprehensive development documentation prompt for AI analysis.                                    |
 | `bun run rebuild`       | Clears logs, cache, and compiles the TypeScript source code to JavaScript in `dist/`.                          |
+| `bun run build:worker`  | Builds the server specifically for the Cloudflare Workers runtime.                                               |
 | `bun run start:http`    | Starts the compiled server using the HTTP transport.                                                           |
 | `bun run start:stdio`   | Starts the compiled server using the STDIO transport.                                                          |
+| `bun run deploy:dev`    | Runs the worker locally using the Wrangler CLI for development.                                                |
+| `bun run deploy:prod`   | Deploys the worker to your Cloudflare account.                                                                 |
 | `bun run test`          | Runs all unit and integration tests with Vitest.                                                               |
 | `bun run test:coverage` | Runs all tests and generates a code coverage report.                                                           |
 | `bun run devcheck`      | A comprehensive script that runs linting, type-checking, and formatting.                                       |
@@ -215,33 +236,7 @@ For a complete walkthrough, including alternative methods and CI/CD automation, 
 
 **[➡️ How to Publish Your MCP Server](./docs/publishing-mcp-server-registry.md)**
 
-### The Easy Way: All-in-One Publish Script
 
-This template includes a powerful script that automates the entire publishing workflow—from syncing versions and validating schemas to committing changes and publishing.
-
-1.  **Ensure you are on the `main` branch with no uncommitted changes.**
-2.  **Run the script:**
-    ```bash
-    bun run publish-mcp
-    ```
-
-The script will guide you through the process, including pausing for you to complete the GitHub browser login.
-
-### Script Flags for More Control
-
-The script also supports flags for more granular control:
-
-- `--validate-only`: Syncs metadata, validates `server.json`, then stops.
-- `--no-commit`: Skips the automatic Git commit step.
-- `--publish-only`: Skips local file changes and proceeds directly to publishing.
-
-Example:
-
-```bash
-bun run publish-mcp --validate-only
-```
-
-This template also includes a GitHub Actions workflow (`.github/workflows/publish-mcp.yml`) that can be configured to automate this process whenever you push a new Git tag.
 
 ## 🤝 Contributing
 

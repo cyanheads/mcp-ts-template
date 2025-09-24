@@ -7,16 +7,25 @@
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { type ServerType, serve } from '@hono/node-server';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import http from 'http';
+import { randomUUID } from 'node:crypto';
 
 import { config } from '@/config/index.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 import { type RequestContext, logger } from '@/utils/index.js';
 
+/**
+ * Creates and configures a Hono app wired to an MCP server instance over the
+ * Streamable HTTP transport. This adheres to MCP 2025-03-26 HTTP transport spec.
+ *
+ * Key behaviors:
+ * - Single endpoint (configurable path) accepts both GET (status) and ALL (JSON-RPC).
+ * - CORS is configured using allowed origins from config.
+ * - Errors are routed through a centralized error handler that formats JSON-RPC-compliant errors.
+ */
 export function createHttpApp(
   mcpServer: McpServer,
   parentContext: RequestContext,
@@ -27,6 +36,7 @@ export function createHttpApp(
     component: 'HttpTransportSetup',
   };
 
+  // CORS
   app.use(
     '*',
     cors({
@@ -42,9 +52,14 @@ export function createHttpApp(
       credentials: true,
     }),
   );
+
+  // Centralized error handling
   app.onError(httpErrorHandler);
+
+  // Health
   app.get('/healthz', (c) => c.json({ status: 'ok' }));
 
+  // Status/identity at the same MCP endpoint path for convenience (GET)
   app.get(config.mcpHttpEndpointPath, (c) => {
     return c.json({
       status: 'ok',
@@ -52,28 +67,33 @@ export function createHttpApp(
     });
   });
 
+  // JSON-RPC over HTTP (Streamable)
   app.all(config.mcpHttpEndpointPath, async (c) => {
     logger.debug('Handling MCP request.', {
       ...transportContext,
       path: c.req.path,
+      method: c.req.method,
     });
 
-    const honoTransport = new StreamableHTTPTransport();
+    // Use the official StreamableHTTPTransport and assert a non-optional sessionId for TS (exactOptionalPropertyTypes).
+    // The MCP server's Transport contract requires `sessionId: string`, while Hono's StreamableHTTPTransport has it optional.
+    const transport =
+      new StreamableHTTPTransport() as StreamableHTTPTransport & {
+        sessionId: string;
+      };
+    transport.sessionId = c.req.header('mcp-session-id') ?? randomUUID();
 
-    // Create an adapter that is structurally compatible with the SDK's `Transport`
-    // interface to work around a type incompatibility between @hono/mcp and the
-    // SDK under the project's strict `exactOptionalPropertyTypes` setting.
-    const transportAdapter = {
-      send: (message: JSONRPCMessage) => honoTransport.send(message),
-      close: () => honoTransport.close(),
-      start: async () => {},
-      // Satisfy the `sessionId: string` requirement.
-      sessionId: c.req.header('mcp-session-id') || '',
-    };
-
-    await mcpServer.connect(transportAdapter);
-
-    return honoTransport.handleRequest(c);
+    try {
+      // The `connect` method expects a Transport with a non-optional sessionId.
+      // We ensure it's always a string when creating the transport.
+      await mcpServer.connect(transport);
+      // Let the transport handle the Hono context; it will stream the response.
+      return transport.handleRequest(c);
+    } catch (err) {
+      // Ensure transport is closed on failure; bubble to onError handler.
+      await transport.close?.();
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   });
 
   logger.info('Hono application setup complete.', transportContext);

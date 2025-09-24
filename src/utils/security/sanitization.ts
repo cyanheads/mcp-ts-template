@@ -2,14 +2,29 @@
  * @fileoverview Provides a comprehensive `Sanitization` class for various input cleaning and validation tasks.
  * This module includes utilities for sanitizing HTML, strings, URLs, file paths, JSON, numbers,
  * and for redacting sensitive information from data intended for logging.
+ * The path sanitization utilities are only available in a Node.js environment.
  * @module src/utils/security/sanitization
  */
-import path from 'path';
 import sanitizeHtml from 'sanitize-html';
 import validator from 'validator';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger, requestContextService } from '@/utils/index.js';
+
+const isServerless =
+  typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
+
+// Dynamically import 'path' only in non-serverless environments
+let pathModule: typeof import('path') | undefined;
+if (!isServerless) {
+  import('path')
+    .then((mod) => {
+      pathModule = mod.default;
+    })
+    .catch(() => {
+      // This might happen in some bundlers, but we have the guard.
+    });
+}
 
 /**
  * Defines options for path sanitization to control how file paths are processed and validated.
@@ -373,15 +388,24 @@ export class Sanitization {
 
   /**
    * Sanitizes a file path to prevent path traversal and normalize format.
+   * This method is only available in a Node.js environment.
    * @param input - The file path string to sanitize.
    * @param options - Options to control sanitization behavior.
    * @returns An object with the sanitized path and sanitization metadata.
-   * @throws {McpError} If the path is invalid or unsafe.
+   * @throws {McpError} If the path is invalid, unsafe, or method is called in a non-Node.js environment.
    */
   public sanitizePath(
     input: string,
     options: PathSanitizeOptions = {},
   ): SanitizedPathInfo {
+    if (isServerless || !pathModule) {
+      throw new McpError(
+        JsonRpcErrorCode.InternalError,
+        'File-based path sanitization is not supported in this environment.',
+      );
+    }
+    const path = pathModule;
+
     const originalInput = input;
     const resolvedRootDir = options.rootDir
       ? path.resolve(options.rootDir)

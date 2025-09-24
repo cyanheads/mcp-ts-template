@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-24 07:34:18
+Generated on: 2025-09-24 10:08:08
 
 ```
 mcp-ts-template
@@ -134,7 +134,8 @@ mcp-ts-template
 │   │   │   ├── semconv.ts
 │   │   │   └── trace.ts
 │   │   └── index.ts
-│   └── index.ts
+│   ├── index.ts
+│   └── worker.ts
 ├── tests
 │   ├── integration
 │   │   ├── config
@@ -196,7 +197,8 @@ mcp-ts-template
 ├── tsconfig.json
 ├── tsconfig.test.json
 ├── tsdoc.json
-└── typedoc.json
+├── typedoc.json
+└── wrangler.toml
 ```
 
 _Note: This tree excludes files and directories matched by .gitignore and default patterns._

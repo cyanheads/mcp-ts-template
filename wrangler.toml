@@ -1,0 +1,54 @@
+# The name of your worker.
+name = "mcp-ts-template-worker"
+
+# The main entry point for your worker. Wrangler will build this file.
+main = "src/worker.ts"
+
+# The compatibility date ensures your worker runs on a recent version of the Workers runtime.
+# It's good practice to update this periodically.
+compatibility_date = "2025-09-24"
+
+# Enable Node.js compatibility for Bun and other dependencies.
+compatibility_flags = ["nodejs_compat"]
+
+# Environment variables for your worker.
+# Use `wrangler secret put <NAME>` to add secrets.
+[vars]
+ENVIRONMENT = "production"
+LOG_LEVEL = "info"
+
+# --- SERVICE BINDINGS (Uncomment to use) ---
+
+# Example for KV Storage
+# [[kv_namespaces]]
+# binding = "MY_KV"
+# id = "<your-kv-namespace-id>"
+# preview_id = "<your-preview-kv-namespace-id>"
+
+# Example for R2 Object Storage
+# [[r2_buckets]]
+# binding = "MY_BUCKET"
+# bucket_name = "<your-production-bucket-name>"
+# preview_bucket_name = "<your-preview-bucket-name>"
+
+# Example for D1 Database
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "my-database"
+# database_id = "<your-database-id>"
+# preview_database_id = "<your-preview-database-id>"
+
+# Example for Cloudflare AI
+# [ai]
+# binding = "AI"
+
+# --- ADVANCED CONFIGURATION ---
+
+# Enable observability for better monitoring and debugging.
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+# Example for Cron Triggers to run scheduled tasks.
+# [triggers]
+# crons = ["0 */6 * * *"] # Run every 6 hours

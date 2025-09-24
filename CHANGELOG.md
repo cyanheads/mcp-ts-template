@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.1.0] - 2025-09-24
+
+### Feature
+
+- **Cloudflare Workers Support**: Introduced first-class support for deploying the MCP server to Cloudflare Workers. This includes a new worker-specific entry point (`src/worker.ts`), a `wrangler.toml` configuration file, and updated build scripts (`build:worker`, `deploy:dev`, `deploy:prod`) to enable seamless edge deployments.
+
+### Changed
+
+- **Environment-Aware Architecture**:
+  - Refactored core utilities (`logger`, `storageFactory`, `sanitization`, `performance`) to be environment-aware. They now dynamically adapt to run efficiently in both Node.js and serverless environments like Cloudflare Workers.
+  - The dependency injection container is now composed via a `composeContainer()` function to ensure services are initialized correctly at application startup, regardless of the runtime.
+  - Updated `httpTransport.ts` to improve compatibility with Hono's streamable transport and ensure a non-optional `sessionId` is always present.
+- **Dependencies**: Added `@cloudflare/workers-types` to provide type definitions for the Workers runtime.
+- **Configuration**:
+  - `tsconfig.json` was updated to include Cloudflare Workers types.
+  - Added `wrangler.toml` for Cloudflare deployment configuration.
+- **Documentation**:
+  - Updated `.clinerules/clinerules.md` with new guidance and a checklist for developing and deploying on both local and edge runtimes.
+  - Regenerated `docs/tree.md` to include new worker-related files.
+
 ## [2.0.8] - 2025-09-24
 
 ### BREAKING CHANGE

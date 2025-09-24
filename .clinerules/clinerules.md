@@ -29,6 +29,11 @@ This document defines the operational rules for contributing to this codebase. F
     - **Always use the `StorageService`**, injected via the DI container, for all persistence operations.
     - The concrete provider is configured via environment variables and initialized at startup.
 
+5.  **Local ↔ Edge Runtime Parity**
+    - Every feature must continue to run through the local transports: `bun run dev:stdio` and `bun run dev:http` (and their `start:*` counterparts once built).
+    - Keep the Worker build (`bun run build:worker`) and Wrangler flows (`bunx wrangler dev`, `bunx wrangler deploy`) healthy; guard any non-portable dependencies so the bundle stays edge-compatible.
+    - Prefer runtime-agnostic abstractions (e.g., Hono + `@hono/mcp`, Fetch APIs) so Bun/Node on localhost behaves identically to Cloudflare's Worker runtime.
+
 ---
 
 ## II. Architectural Philosophy: Pragmatic SOLID
@@ -401,7 +406,34 @@ This project has unique documentation and workflows. If the user asks about cert
 
 ---
 
-## IX. Quick Checklist
+## IX. Runtime Targets: Local & Edge
+
+The template must stay portable across local transports and Cloudflare's global edge. Treat both modes as first-class citizens when designing features and workflows.
+
+### Local transports (stdio & HTTP)
+
+- Use `bun run dev:stdio` and `bun run dev:http` during development; parity bugs between transports are regressions.
+- After building (`bun run build`), confirm `bun run start:stdio` and `bun run start:http` still boot with your changes.
+- Avoid relying on host-only features (raw TCP sockets, shelling out to unavailable binaries, etc.). If a capability is required, gate it behind feature detection and provide Worker-safe fallbacks.
+
+### Cloudflare Workers & Pages Functions
+
+- Edge bundles must compile with `bun run build:worker` and execute under `bunx wrangler dev --local` before merging.
+- Set `nodejs_compat` in `wrangler.toml` and use a compatibility date of `2025-09-01` or later so Cloudflare automatically enables Node's HTTP client and server APIs. For earlier dates, explicitly add `enable_nodejs_http_modules` (client helpers) and `enable_nodejs_http_server_modules` (server helpers).
+- Example Worker configuration:
+
+```toml
+compatibility_date = "2025-09-24"
+compatibility_flags = ["nodejs_compat"]
+```
+
+- Cloudflare now supports `node:http`/`node:https` on Workers, so existing Express/Koa-style logic can be wrapped. Prefer Hono with `@hono/mcp` (already bundled) to share routing across Bun/Node and Workers; leverage `httpServerHandler` or `fetch`-first adapters instead of direct socket listeners.
+- Workers cannot open arbitrary ports—`http.createServer().listen()` registers the handler with Cloudflare's router. Ensure any server-style code runs without assuming raw socket handles.
+- When storing state, continue using DI-managed services (for example Durable Objects implementations of `StorageService`) so the same logic works locally and on the edge.
+
+---
+
+## X. Quick Checklist
 
 Before completing your task, ensure you have:
 
@@ -414,3 +446,5 @@ Before completing your task, ensure you have:
 - [ ] Registered the new definition in the corresponding `index.ts` barrel file.
 - [ ] Added or updated tests in `tests/` and confirmed they pass with `bun test`.
 - [ ] Run `bun run devcheck` to ensure code quality, formatting, and linting are correct.
+- [ ] Smoke-test local transports with `bun run dev:stdio` or `bun run dev:http` (and `start:*` scripts post-build).
+- [ ] Validate the Worker bundle (`bun run build:worker`) and `wrangler.toml` compatibility flags before shipping edge-impacting changes.

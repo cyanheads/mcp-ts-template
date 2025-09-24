@@ -3,7 +3,6 @@
  * This avoids heavy checks and focuses on quick signals for status endpoints or logs.
  * @module src/utils/internal/health
  */
-import { diag } from '@opentelemetry/api';
 
 import { config } from '@/config/index.js';
 import { logger } from '@/utils/internal/logger.js';
@@ -39,7 +38,7 @@ export function getHealthSnapshot(): HealthSnapshot {
     },
     telemetry: {
       enabled: Boolean(config.openTelemetry.enabled),
-      diagLevel: (diag as unknown as { level?: number }).level?.toString(),
+      diagLevel: config.openTelemetry.logLevel,
     },
     logging: {
       initialized: logger.isInitialized(),
