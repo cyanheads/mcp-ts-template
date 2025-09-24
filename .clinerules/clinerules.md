@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.0.4
+**Version:** 2.0.8
 **Target Project:** `mcp-ts-template`
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
@@ -345,7 +345,7 @@ All core services are managed by the DI container (`tsyringe`). **Inject them in
 - **`RateLimiter`**: Service for rate-limiting.
   - **Token**: `RateLimiterService`
   - **Usage**: `@inject(RateLimiterService) private rateLimiter: RateLimiter`
-- **`Logger`**: The Winston logger instance.
+- **`Logger`**: The Pino logger instance.
   - **Token**: `Logger`
   - **Usage (in injectable classes)**: `@inject(Logger) private logger: typeof logger`
 
