@@ -93,7 +93,6 @@ export class Sanitization {
     'client_secret',
     'private_key',
     'privatekey',
-    'x-api-key',
   ];
 
   /**
@@ -202,6 +201,14 @@ export class Sanitization {
    */
   public getSensitiveFields(): string[] {
     return [...this.sensitiveFields];
+  }
+
+  /**
+   * Gets a pino-compliant copy of the current list of sensitive field names.
+   * @returns A pino-compliant array of sensitive field names.
+   */
+  public getSensitivePinoFields(): string[] {
+    return this.sensitiveFields.map((field) => field.replace(/[-_]/g, ''));
   }
 
   /**

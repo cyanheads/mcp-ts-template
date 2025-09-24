@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.0.8] - 2025-09-24
+
+### BREAKING CHANGE
+
+- **Logging Abstraction**: The internal logging system has been migrated from `Winston` to `Pino`. This change provides a more performant, structured logging implementation and integrates seamlessly with OpenTelemetry for automatic trace context injection. While the public `logger` API remains largely the same, underlying transport configurations and direct `winston` dependencies are removed.
+
+### Changed
+
+- Migrated `logger.ts` from Winston to Pino for performance and better structured logging, and ability to scale (e.g. Cloudflare Workers).
+- Replaced `winston` and `@opentelemetry/instrumentation-winston` with `pino`, `pino-pretty`, and `@opentelemetry/instrumentation-pino`.
+- Updated `instrumentation.ts` to use `PinoInstrumentation` and inject trace/span IDs into logs automatically.
+
+### Fixed
+
+- Integration tests for the logger (`logger.test.ts`) were updated to work with Pino's JSON output format.
+- Removed `Logger.resetForTesting()` which is no longer needed with the new implementation.
+
+### Docs
+
+- Updated `README.md` to reflect the change from Winston to Pino.
+- Updated `docs/tree.md` with the correct generation date.
+
 ## [2.0.7] - 2025-09-23
 
 ### Changed

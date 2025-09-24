@@ -41,7 +41,6 @@ describe('ErrorHandler', () => {
   afterAll(async () => {
     // Close the logger once after all tests have run
     await logger.close();
-    Logger.resetForTesting();
   });
 
   beforeEach(() => {
