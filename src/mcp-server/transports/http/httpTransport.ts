@@ -63,7 +63,14 @@ export function createHttpApp(
   app.get(config.mcpHttpEndpointPath, (c) => {
     return c.json({
       status: 'ok',
-      server: { name: config.mcpServerName, version: config.mcpServerVersion },
+      server: {
+        name: config.mcpServerName,
+        version: config.mcpServerVersion,
+        description: config.mcpServerDescription,
+        environment: config.environment,
+        transport: config.mcpTransportType,
+        sessionMode: config.mcpSessionMode,
+      },
     });
   });
 

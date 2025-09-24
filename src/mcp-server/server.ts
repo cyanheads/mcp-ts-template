@@ -18,11 +18,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { container } from 'tsyringe';
 
 import { config } from '@/config/index.js';
-import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import { startHttpTransport } from '@/mcp-server/transports/http/httpTransport.js';
 import { startStdioTransport } from '@/mcp-server/transports/stdio/index.js';
+import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
 
 /**
  * Creates and configures a new instance of the `McpServer`.

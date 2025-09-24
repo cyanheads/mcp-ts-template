@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.1.1] - 2025-09-24
+
+### Changed
+
+- Enhanced the HTTP transport's health check endpoint (`/mcp`) to return a more detailed server status object, including description, environment, transport type, and session mode.
+
+### Fixed
+
+- Corrected minor code formatting issues, including import ordering in several files.
+
 ## [2.1.0] - 2025-09-24
 
 ### Feature

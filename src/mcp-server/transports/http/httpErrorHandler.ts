@@ -8,9 +8,9 @@
 import type { Context } from 'hono';
 import type { StatusCode } from 'hono/utils/http-status';
 
+import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
-import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 
 /**
  * A centralized error handling middleware for Hono.

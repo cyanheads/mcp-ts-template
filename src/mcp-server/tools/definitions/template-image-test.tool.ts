@@ -7,6 +7,11 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
+import type {
+  ToolAnnotations,
+  ToolDefinition,
+} from '@/mcp-server/tools/utils/toolDefinition.js';
+import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   type RequestContext,
@@ -14,11 +19,6 @@ import {
   logger,
 } from '@/utils/index.js';
 import { arrayBufferToBase64 } from '@/utils/internal/encoding.js';
-import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import type {
-  ToolAnnotations,
-  ToolDefinition,
-} from '@/mcp-server/tools/utils/toolDefinition.js';
 
 /**
  * Programmatic tool name (must be unique).
