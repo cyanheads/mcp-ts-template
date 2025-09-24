@@ -80,11 +80,13 @@ You can run the server in several modes for development and production.
 This template is optimized for deployment to [Cloudflare Workers](https://workers.cloudflare.com/), a global, serverless execution environment.
 
 1.  **Build the Worker**:
+
     ```bash
     bun run build:worker
     ```
 
 2.  **Run Locally with Wrangler**:
+
     ```bash
     bun run deploy:dev
     ```
@@ -93,6 +95,7 @@ This template is optimized for deployment to [Cloudflare Workers](https://worker
     ```bash
     bun run deploy:prod
     ```
+
 ---
 
 ## 🏗️ Architectural Principles
@@ -214,7 +217,7 @@ Key scripts available in `package.json`:
 | :---------------------- | :------------------------------------------------------------------------------------------------------------- |
 | `bun run devdocs`       | Generates a comprehensive development documentation prompt for AI analysis.                                    |
 | `bun run rebuild`       | Clears logs, cache, and compiles the TypeScript source code to JavaScript in `dist/`.                          |
-| `bun run build:worker`  | Builds the server specifically for the Cloudflare Workers runtime.                                               |
+| `bun run build:worker`  | Builds the server specifically for the Cloudflare Workers runtime.                                             |
 | `bun run start:http`    | Starts the compiled server using the HTTP transport.                                                           |
 | `bun run start:stdio`   | Starts the compiled server using the STDIO transport.                                                          |
 | `bun run deploy:dev`    | Runs the worker locally using the Wrangler CLI for development.                                                |
@@ -235,8 +238,6 @@ This template is configured for easy publishing to the public [MCP Registry](htt
 For a complete walkthrough, including alternative methods and CI/CD automation, please refer to the detailed guide:
 
 **[➡️ How to Publish Your MCP Server](./docs/publishing-mcp-server-registry.md)**
-
-
 
 ## 🤝 Contributing
 
