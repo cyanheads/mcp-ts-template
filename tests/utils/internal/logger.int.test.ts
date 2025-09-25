@@ -6,8 +6,8 @@ import { existsSync, readFileSync, rmSync } from 'fs';
 import path from 'path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { config } from '../../../../src/config/index.js';
-import { Logger } from '../../../../src/utils/internal/logger.js';
+import { config } from '../../../src/config/index.js';
+import { Logger } from '../../../src/utils/internal/logger.js';
 
 const LOGS_DIR = path.join(process.cwd(), 'logs', 'logger-test');
 const COMBINED_LOG_PATH = path.join(LOGS_DIR, 'combined.log');

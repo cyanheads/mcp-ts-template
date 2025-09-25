@@ -97,7 +97,7 @@ export class Logger {
 
     const transports: pino.TransportTargetOptions[] = [];
     const isDevelopment = config.environment === 'development';
-    const isTest = config.environment === 'test';
+    const isTest = config.environment === 'testing';
 
     if (isDevelopment && !isServerless) {
       // Try to resolve 'pino-pretty' robustly even when bundled (e.g., Bun/ESM),

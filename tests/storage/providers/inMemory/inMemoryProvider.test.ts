@@ -5,7 +5,7 @@
  * @module tests/storage/providers/inMemory/inMemoryProvider.test
  */
 import { InMemoryProvider } from '../../../../src/storage/providers/inMemory/inMemoryProvider.js';
-import { storageProviderTests } from '../../storageProviderCompliance.js';
+import { storageProviderTests } from '../../storageProviderCompliance.test.js';
 
 // Run the compliance tests for InMemoryProvider
 storageProviderTests(() => new InMemoryProvider(), 'InMemoryProvider');

@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.1.2] - 2025-09-25
+
+### Refactor
+
+- **Major Test Suite Overhaul**: The entire testing framework has been restructured to align with the `src` directory layout, improving modularity and clarity. Integration tests have been reorganized from a monolithic `integration` directory into `tests/config`, `tests/mcp-server`, and so on. The `storageProviderCompliance` suite has been converted into a proper test file. This change provides a more scalable and intuitive testing foundation.
+
+- **Enhanced `devdocs` Script**: The `devdocs.ts` script for generating AI context has been completely rewritten for robustness. It now uses `execa` for safer command execution, features structured JSON logging, handles arguments with `node:utilparseArgs`, and runs 'repomix' analyses in parallel for improved performance.
+
+- **Improved Configuration Handling**: The core configuration module (`src/config/index.ts`) now includes validation and aliasing for `logLevel`, `environment`, and `storage.providerType`. This allows for more flexible environment variable settings (e.g., `dev` for `development`).
+
+- **Strengthened MCP Resource Handling**: The resource handler factory now includes stricter type checking and validation for resource formatter outputs, ensuring all formatters return a valid `ContentBlock[]` array and preventing runtime errors.
+
+### Chore
+
+- **Dependency Updates**: Updated key dependencies across the project, including `@modelcontextprotocol/sdk`, `@hono/node-server`, `hono`, and `zod` to their latest versions. Added the `repomix` dependency to formalize its use in the developer workflow.
+
 ## [2.1.1] - 2025-09-24
 
 ### Changed

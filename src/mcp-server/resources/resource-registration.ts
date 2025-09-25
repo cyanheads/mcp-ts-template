@@ -9,10 +9,10 @@ import { type DependencyContainer, injectable, injectAll } from 'tsyringe';
 import { ZodObject, type ZodRawShape } from 'zod';
 
 import { ResourceDefinitions } from '@/container/index.js';
-import { logger, requestContextService } from '@/utils/index.js';
 import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
 import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { registerResource } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
+import { logger, requestContextService } from '@/utils/index.js';
 
 @injectable()
 export class ResourceRegistry {

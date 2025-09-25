@@ -64,7 +64,7 @@ export class McpError extends Error {
    */
   constructor(
     code: JsonRpcErrorCode,
-    message: string,
+    message?: string,
     data?: Record<string, unknown>,
     options?: { cause?: unknown },
   ) {
@@ -117,7 +117,7 @@ export const ErrorSchema = z
      * conforming to the JSON-RPC 2.0 `data` field.
      */
     data: z
-      .record(z.unknown())
+      .record(z.string(), z.unknown())
       .optional()
       .describe(
         'Optional structured data providing more context about the error',

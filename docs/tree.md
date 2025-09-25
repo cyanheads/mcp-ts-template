@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-24 10:52:49
+Generated on: 2025-09-25 22:30:00
 
 ```
 mcp-ts-template
@@ -137,16 +137,17 @@ mcp-ts-template
 │   ├── index.ts
 │   └── worker.ts
 ├── tests
-│   ├── integration
-│   │   ├── config
-│   │   │   └── config.test.ts
-│   │   ├── mcp-server
-│   │   │   └── tools
-│   │   ├── utils
-│   │   │   └── internal
-│   │   │       ├── errorHandler.test.ts
-│   │   │       └── logger.test.ts
-│   │   └── setup.integration.ts
+│   ├── config
+│   │   └── index.int.test.ts
+│   ├── mcp-server
+│   │   ├── resources
+│   │   │   └── definitions
+│   │   │       └── echo.resource.test.ts
+│   │   └── tools
+│   │       └── definitions
+│   │           ├── template-cat-fact.tool.test.ts
+│   │           ├── template-echo-message.tool.test.ts
+│   │           └── template-image-test.tool.test.ts
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts
@@ -154,11 +155,13 @@ mcp-ts-template
 │   │   ├── providers
 │   │   │   └── inMemory
 │   │   │       └── inMemoryProvider.test.ts
-│   │   └── storageProviderCompliance.ts
+│   │   └── storageProviderCompliance.test.ts
 │   ├── utils
 │   │   ├── internal
+│   │   │   ├── errorHandler.int.test.ts
 │   │   │   ├── errorHandler.unit.test.ts
 │   │   │   ├── health.test.ts
+│   │   │   ├── logger.int.test.ts
 │   │   │   ├── performance.test.ts
 │   │   │   └── requestContext.test.ts
 │   │   ├── metrics

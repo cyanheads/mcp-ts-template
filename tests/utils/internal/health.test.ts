@@ -11,12 +11,12 @@ import {
   vi,
   type MockInstance,
 } from 'vitest';
-import { diag } from '@opentelemetry/api';
+import { diag, DiagLogLevel } from '@opentelemetry/api';
 
-import { config } from '../../../src/config/index';
-import { getHealthSnapshot } from '../../../src/utils/internal/health';
-import { logger } from '../../../src/utils/internal/logger';
-import { runtimeCaps } from '../../../src/utils/internal/runtime';
+import { config } from '../../../src/config/index.js';
+import { getHealthSnapshot } from '../../../src/utils/internal/health.js';
+import { logger } from '../../../src/utils/internal/logger.js';
+import { runtimeCaps } from '../../../src/utils/internal/runtime.js';
 
 describe('getHealthSnapshot', () => {
   const diagAny = diag as unknown as { level?: number };
@@ -25,7 +25,7 @@ describe('getHealthSnapshot', () => {
 
   beforeEach(() => {
     originalDiagLevel = diagAny.level;
-    diagAny.level = 42;
+    diagAny.level = DiagLogLevel.INFO;
     isInitializedSpy = vi.spyOn(logger, 'isInitialized').mockReturnValue(true);
   });
 
@@ -49,18 +49,23 @@ describe('getHealthSnapshot', () => {
     });
     expect(snapshot.telemetry).toEqual({
       enabled: Boolean(config.openTelemetry.enabled),
-      diagLevel: '42',
+      diagLevel: 'INFO',
     });
     expect(snapshot.logging.initialized).toBe(true);
   });
 
   it('mirrors changes to the logger state and diag level', () => {
-    diagAny.level = undefined;
+    // Temporarily mock the config value for this specific test
+    const originalLogLevel = config.openTelemetry.logLevel;
+    config.openTelemetry.logLevel = 'NONE';
     isInitializedSpy.mockReturnValue(false);
 
     const snapshot = getHealthSnapshot();
 
     expect(snapshot.logging.initialized).toBe(false);
-    expect(snapshot.telemetry.diagLevel).toBeUndefined();
+    expect(snapshot.telemetry.diagLevel).toBe('NONE');
+
+    // Restore original config value
+    config.openTelemetry.logLevel = originalLogLevel;
   });
 });

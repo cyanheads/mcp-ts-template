@@ -18,9 +18,9 @@ import {
 import {
   JsonRpcErrorCode,
   McpError,
-} from '../../../../src/types-global/errors.js';
-import { ErrorHandler } from '../../../../src/utils/internal/errorHandler.js';
-import { logger, Logger } from '../../../../src/utils/internal/logger.js';
+} from '../../../src/types-global/errors.js';
+import { ErrorHandler } from '../../../src/utils/internal/errorHandler.js';
+import { logger, Logger } from '../../../src/utils/internal/logger.js';
 
 // Spy on the actual logger instance's error method
 const errorSpy = vi.spyOn(logger, 'error');

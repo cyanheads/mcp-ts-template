@@ -11,16 +11,21 @@ import {
 import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import { JsonRpcErrorCode } from '@/types-global/errors.js';
+import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   ErrorHandler,
   type RequestContext,
   logger,
   requestContextService,
 } from '@/utils/index.js';
-import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 
 /** Default formatter producing a single JSON text content block. */
+type ResponseFormatter = (
+  result: unknown,
+  meta: { uri: URL; mimeType: string },
+) => ReadResourceResult['contents'];
+
 function defaultResponseFormatter(
   result: unknown,
   meta: { uri: URL; mimeType: string },
@@ -32,6 +37,43 @@ function defaultResponseFormatter(
       mimeType: meta.mimeType,
     },
   ];
+}
+
+function ensureResourceContents(
+  contents: unknown,
+  handlerContext: RequestContext,
+  resourceName: string,
+  uri: URL,
+): ReadResourceResult['contents'] {
+  if (!Array.isArray(contents)) {
+    throw new McpError(
+      JsonRpcErrorCode.InternalError,
+      'Resource formatter must return an array of contents.',
+      {
+        requestId: handlerContext.requestId,
+        resourceName,
+        uri: uri.href,
+      },
+    );
+  }
+
+  // We perform a shallow validation here. A full Zod schema validation would be safer
+  // but might be too slow for every resource call. This is a pragmatic trade-off.
+  for (const item of contents) {
+    if (typeof item !== 'object' || item === null || !('uri' in item)) {
+      throw new McpError(
+        JsonRpcErrorCode.InternalError,
+        'Invalid content block found in resource formatter output. Each item must be an object with a `uri` property.',
+        {
+          requestId: handlerContext.requestId,
+          resourceName,
+          uri: uri.href,
+        },
+      );
+    }
+  }
+
+  return contents as ReadResourceResult['contents'];
 }
 
 /**
@@ -60,7 +102,8 @@ export async function registerResource<
       });
 
       const mimeType = def.mimeType ?? 'application/json';
-      const formatter = def.responseFormatter ?? defaultResponseFormatter;
+      const formatter: ResponseFormatter =
+        def.responseFormatter ?? defaultResponseFormatter;
       const title = def.title ?? resourceName;
 
       server.resource(
@@ -103,10 +146,22 @@ export async function registerResource<
               handlerContext,
             ) as TOutput;
 
-            const contents = formatter(responseData, { uri, mimeType });
-            return { contents };
+            const rawContents: unknown = formatter(responseData, {
+              uri,
+              mimeType,
+            });
+
+            const contents = ensureResourceContents(
+              rawContents,
+              handlerContext,
+              resourceName,
+              uri,
+            );
+
+            const readResult: ReadResourceResult = { contents };
+            return readResult;
           } catch (error) {
-            // Re-throw to be caught by the SDK's top-level error handler
+            // Centralized handler re-throws the error for the SDK to catch
             throw ErrorHandler.handleError(error, {
               operation: `resource:${resourceName}:readHandler`,
               context: handlerContext,

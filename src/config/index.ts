@@ -45,12 +45,43 @@ const ConfigSchema = z.object({
   mcpServerName: z.string(), // Will be derived from pkg.name
   mcpServerVersion: z.string(), // Will be derived from pkg.version
   mcpServerDescription: z.string().optional(), // Will be derived from pkg.description
-  logLevel: z.preprocess(emptyStringAsUndefined, z.string().default('debug')),
+  logLevel: z
+    .preprocess(
+      (val) => {
+        const str = emptyStringAsUndefined(val);
+        if (typeof str === 'string') {
+          const lower = str.toLowerCase();
+          const aliasMap: Record<string, string> = {
+            warning: 'warn',
+            err: 'error',
+            information: 'info',
+          };
+          return aliasMap[lower] ?? lower;
+        }
+        return str;
+      },
+      z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
+    )
+    .default('debug'),
   logsPath: z.string().optional(), // Made optional as it's Node-specific
-  environment: z.preprocess(
-    emptyStringAsUndefined,
-    z.string().default('development'),
-  ),
+  environment: z
+    .preprocess(
+      (val) => {
+        const str = emptyStringAsUndefined(val);
+        if (typeof str === 'string') {
+          const lower = str.toLowerCase();
+          const aliasMap: Record<string, string> = {
+            dev: 'development',
+            prod: 'production',
+            test: 'testing',
+          };
+          return aliasMap[lower] ?? lower;
+        }
+        return str;
+      },
+      z.enum(['development', 'production', 'testing']),
+    )
+    .default('development'),
   mcpTransportType: z.preprocess(
     emptyStringAsUndefined,
     z.enum(['stdio', 'http']).default('stdio'),
@@ -105,10 +136,23 @@ const ConfigSchema = z.object({
     })
     .optional(),
   storage: z.object({
-    providerType: z.preprocess(
-      emptyStringAsUndefined,
-      z.enum(['in-memory', 'filesystem', 'supabase']).default('in-memory'),
-    ),
+    providerType: z
+      .preprocess(
+        (val) => {
+          const str = emptyStringAsUndefined(val);
+          if (typeof str === 'string') {
+            const lower = str.toLowerCase();
+            const aliasMap: Record<string, string> = {
+              mem: 'in-memory',
+              fs: 'filesystem',
+            };
+            return aliasMap[lower] ?? lower;
+          }
+          return str;
+        },
+        z.enum(['in-memory', 'filesystem', 'supabase']),
+      )
+      .default('in-memory'),
     filesystemPath: z.string().default('./.storage'), // This remains, but will only be used if providerType is 'filesystem'
   }),
   openTelemetry: z.object({
@@ -118,12 +162,24 @@ const ConfigSchema = z.object({
     tracesEndpoint: z.string().url().optional(),
     metricsEndpoint: z.string().url().optional(),
     samplingRatio: z.coerce.number().default(1.0),
-    logLevel: z.preprocess(
-      emptyStringAsUndefined,
-      z
-        .enum(['NONE', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'VERBOSE', 'ALL'])
-        .default('INFO'),
-    ),
+    logLevel: z
+      .preprocess(
+        (val) => {
+          const str = emptyStringAsUndefined(val);
+          if (typeof str === 'string') {
+            const lower = str.toLowerCase();
+            const aliasMap: Record<string, string> = {
+              err: 'ERROR',
+              warning: 'WARN',
+              information: 'INFO',
+            };
+            return aliasMap[lower] ?? str.toUpperCase();
+          }
+          return str;
+        },
+        z.enum(['NONE', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'VERBOSE', 'ALL']),
+      )
+      .default('INFO'),
   }),
 });
 
