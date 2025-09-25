@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.1.0
+**Version:** 2.1.1
 **Target Project:** `mcp-ts-template`
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
@@ -36,7 +36,26 @@ This document defines the operational rules for contributing to this codebase. F
 
 ---
 
-## II. Architectural Philosophy: Pragmatic SOLID
+## II. Architectural Overview & Directory Structure
+
+This repository is a template designed for rapid extension. When creating new features or connecting to new services, place files in their designated locations to maintain architectural integrity. This is not just a convention; it is a requirement for keeping the codebase clean, scalable, and easy to navigate.
+
+The core philosophy is **Separation of Concerns** mapped directly to the filesystem.
+
+| Directory                                   | Purpose & Guidance                                                                                                                                                                                                          |
+| :------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`src/mcp-server/tools/definitions/`**     | **MCP Tool Definitions.** This is the primary entry point for adding new capabilities. Each tool must be a self-contained `[tool-name].tool.ts` file. Follow the **Tool Development Workflow** below.                       |
+| **`src/mcp-server/resources/definitions/`** | **MCP Resource Definitions.** For defining new data sources or contexts. Each resource should be in its own `[resource-name].resource.ts` file. Follow the **Resource Development Workflow**.                               |
+| **`src/services/`**                         | **External Service Integrations.** Create clients or SDKs for interacting with third-party APIs here (e.g., a Stripe client, a new weather API connector). These services should be injectable and used by your tool logic. |
+| **`src/storage/providers/`**                | **Storage Provider Implementations.** If you need to add a new persistence backend (e.g., Redis, a specific database), implement the `IStorageProvider` interface here.                                                     |
+| **`src/utils/`**                            | **Global & Cross-Cutting Utilities.** For truly generic, reusable functions that don't fit a specific domain (e.g., advanced array helpers, specialized parsers). Avoid turning this into a junk drawer.                    |
+| **`src/mcp-server/tools/utils/`**           | **Shared Tooling Utilities.** If multiple tools require the same helper function, place it here to avoid duplication. These should be specific to tool operations.                                                          |
+| **`src/container/`**                        | **Dependency Injection.** Service registration and DI container setup. You will only touch this to register new, globally available services.                                                                               |
+| **`tests/`**                                | **Automated Tests.** All new logic requires corresponding tests. The test directory structure mirrors `src/` for easy navigation.                                                                                           |
+
+---
+
+## III. Architectural Philosophy: Pragmatic SOLID
 
 SOLID principles are the foundation for building maintainable, decoupled, and testable systems. They are not rigid laws, but a toolkit for making sound architectural decisions. The guiding question should always be: **"Does this design help build and maintain the system effectively?"**
 
@@ -58,7 +77,7 @@ This is complemented by other core principles:
 
 ---
 
-## III. Tool Development Workflow
+## IV. Tool Development Workflow
 
 This is the only approved workflow for authoring or modifying tools.
 
@@ -96,9 +115,9 @@ logic: withToolAuth(['tool:echo:read'], echoToolLogic),
 
 #### Step 3 — Register the Tool via Barrel Export
 
-1.  Open `src/mcp-server/tools/definitions/index.ts`.
-2.  Import your new tool definition.
-3.  Add it to the `allToolDefinitions` array.
+1. Open `src/mcp-server/tools/definitions/index.ts`.
+2. Import your new tool definition.
+3. Add it to the `allToolDefinitions` array.
 
 The DI container automatically discovers and registers all tools from this array. No other registration step is needed.
 
@@ -324,7 +343,7 @@ export const catFactTool: ToolDefinition<
 
 ---
 
-## IV. Resource Development Workflow
+## V. Resource Development Workflow
 
 This mirrors the tool pattern. Use `src/mcp-server/resources/definitions/echo.resource.ts` as your template.
 
@@ -335,7 +354,7 @@ This mirrors the tool pattern. Use `src/mcp-server/resources/definitions/echo.re
 
 ---
 
-## V. Core Services & Utilities
+## VI. Core Services & Utilities
 
 #### DI-Managed Services
 
@@ -365,7 +384,7 @@ For non-class-based logic (like tool `logic` functions), import these singletons
 
 ---
 
-## VI. Checks & Workflow Commands
+## VII. Checks & Workflow Commands
 
 Use these scripts from `package.json` to maintain code quality and run the server.
 
@@ -381,7 +400,7 @@ Use these scripts from `package.json` to maintain code quality and run the serve
 
 ---
 
-## VII. Code Quality & Security
+## VIII. Code Quality & Security
 
 - **JSDoc**: Every file must start with `@fileoverview` and `@module`. Document all exported APIs.
 - **Authentication & Authorization**: Protect tools and resources by wrapping their `logic` functions with `withToolAuth` or `withResourceAuth` and specifying the required scopes.
@@ -391,7 +410,7 @@ Use these scripts from `package.json` to maintain code quality and run the serve
 
 ---
 
-## VIII. Repo-Specific Context and Guidance
+## IX. Repo-Specific Context and Guidance
 
 This project has unique documentation and workflows. If the user asks about certain topics, use this guidance to provide accurate and helpful responses.
 
@@ -406,7 +425,7 @@ This project has unique documentation and workflows. If the user asks about cert
 
 ---
 
-## IX. Runtime Targets: Local & Edge
+## X. Runtime Targets: Local & Edge
 
 The template must stay portable across local transports and Cloudflare's global edge. Treat both modes as first-class citizens when designing features and workflows.
 
@@ -433,7 +452,7 @@ compatibility_flags = ["nodejs_compat"]
 
 ---
 
-## X. Quick Checklist
+## XI. Quick Checklist
 
 Before completing your task, ensure you have:
 
