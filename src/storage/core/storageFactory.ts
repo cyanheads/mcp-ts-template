@@ -6,6 +6,7 @@
  * @module src/storage/storageFactory
  */
 import { container } from 'tsyringe';
+import type { R2Bucket, KVNamespace } from '@cloudflare/workers-types';
 
 import type { ConfigSchema } from '@/config/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
@@ -13,6 +14,8 @@ import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
+import { R2Provider } from '@/storage/providers/cloudflare/r2Provider.js';
+import { KvProvider } from '@/storage/providers/cloudflare/kvProvider.js';
 import { logger, requestContextService } from '@/utils/index.js';
 
 const isServerless =
@@ -34,15 +37,17 @@ export function createStorageProvider(
     operation: 'createStorageProvider',
   });
 
-  // In a serverless environment (like Cloudflare Workers), file system access is restricted.
-  // We override the provider to 'in-memory' to ensure the application can run.
-  const providerType = isServerless ? 'in-memory' : config.storage.providerType;
+  const providerType = config.storage.providerType;
 
-  if (isServerless && config.storage.providerType !== 'in-memory') {
+  if (
+    isServerless &&
+    !['in-memory', 'cloudflare-r2', 'cloudflare-kv'].includes(providerType)
+  ) {
     logger.warning(
-      `Forcing 'in-memory' storage provider in serverless environment (configured: ${config.storage.providerType}).`,
+      `Forcing 'in-memory' storage provider in serverless environment (configured: ${providerType}).`,
       context,
     );
+    return new InMemoryProvider();
   }
 
   logger.info(`Creating storage provider of type: ${providerType}`, context);
@@ -68,6 +73,28 @@ export function createStorageProvider(
         );
       }
       return container.resolve(SupabaseProvider);
+    case 'cloudflare-r2':
+      if (isServerless) {
+        const bucket = (globalThis as unknown as { R2_BUCKET: R2Bucket })
+          .R2_BUCKET;
+        return new R2Provider(bucket);
+      }
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        'Cloudflare R2 storage is only available in a Cloudflare Worker environment.',
+        context,
+      );
+    case 'cloudflare-kv':
+      if (isServerless) {
+        const kv = (globalThis as unknown as { KV_NAMESPACE: KVNamespace })
+          .KV_NAMESPACE;
+        return new KvProvider(kv);
+      }
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        'Cloudflare KV storage is only available in a Cloudflare Worker environment.',
+        context,
+      );
     default: {
       const exhaustiveCheck: never = providerType;
       throw new McpError(

@@ -150,7 +150,13 @@ const ConfigSchema = z.object({
           }
           return str;
         },
-        z.enum(['in-memory', 'filesystem', 'supabase']),
+        z.enum([
+          'in-memory',
+          'filesystem',
+          'supabase',
+          'cloudflare-r2',
+          'cloudflare-kv',
+        ]),
       )
       .default('in-memory'),
     filesystemPath: z.string().default('./.storage'), // This remains, but will only be used if providerType is 'filesystem'
