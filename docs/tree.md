@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-25 23:54:00
+Generated on: 2025-09-26 01:12:26
 
 ```
 mcp-ts-template
@@ -89,6 +89,10 @@ mcp-ts-template
 │   │   │   ├── storageFactory.ts
 │   │   │   └── StorageService.ts
 │   │   ├── providers
+│   │   │   ├── cloudflare
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── kvProvider.ts
+│   │   │   │   └── r2Provider.ts
 │   │   │   ├── fileSystem
 │   │   │   │   └── fileSystemProvider.ts
 │   │   │   ├── inMemory
@@ -154,6 +158,9 @@ mcp-ts-template
 │   ├── scripts
 │   ├── storage
 │   │   ├── providers
+│   │   │   ├── cloudflare
+│   │   │   │   ├── kvProvider.test.ts
+│   │   │   │   └── r2Provider.test.ts
 │   │   │   └── inMemory
 │   │   │       └── inMemoryProvider.test.ts
 │   │   └── storageProviderCompliance.test.ts

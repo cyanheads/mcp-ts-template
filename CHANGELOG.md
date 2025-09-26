@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.1.4] - 2025-09-26
+
+### Feature
+
+- **Cloudflare Storage Providers**: Added new storage providers for Cloudflare R2 and Cloudflare KV (`src/storage/providers/cloudflare/`). This allows the MCP server to use Cloudflare's edge storage solutions when deployed in a Cloudflare Workers environment. The `storageFactory` (`src/storage/core/storageFactory.ts`) has been updated to dynamically instantiate these providers.
+- **Enhanced Configuration**: The storage configuration in `src/config/index.ts` now accepts `cloudflare-r2` and `cloudflare-kv` as valid provider types.
+
+### Changed
+
+- **Dependencies**: Upgraded `@cloudflare/workers-types` to `4.20250926.0` and `tsx` to `4.20.6`.
+- **Typings**: Improved TypeScript configurations in `tsconfig.json` and `tsconfig.test.json` for better type safety and compatibility with Cloudflare Workers.
+
+### Fixed
+
+- **Test Suite Robustness**: Made numerous fixes across the test suite to improve reliability and type safety. This includes correcting import paths, improving mock implementations, and ensuring proper type inference in test files.
+
 ## [2.1.3] - 2025-09-25
 
 ### Changed
