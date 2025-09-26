@@ -2,7 +2,7 @@
   <h1>mcp-ts-template</h1>
   <p><b>The definitive, production-grade template for building powerful and scalable Model Context Protocol (MCP) servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.</b></p>
   
-  [![Version](https://img.shields.io/badge/Version-2.1.3-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.18.2-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.22-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-88.52%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
+  [![Version](https://img.shields.io/badge/Version-2.1.4-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.18.2-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.22-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-88.52%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
 
 </div>
 
@@ -24,7 +24,7 @@ This template is packed with production-grade features designed for high-perform
 | **Stateful & Stateless Transports** | Choose between **stdio** or **HTTP** transports. The HTTP transport supports both persistent, stateful sessions and ephemeral, stateless requests intelligently.     |
 | **Robust Error Handling**           | A centralized `ErrorHandler` maps all exceptions to standardized `JsonRpcErrorCode`s and automatically correlates them with OpenTelemetry traces for easy debugging. |
 | **Type-Safe & Validated**           | **Zod** is used everywhere for rigorous schema validation of configuration, tool inputs/outputs, and API boundaries, preventing invalid data at the source.          |
-| **Abstracted Storage Layer**        | A flexible, provider-based storage service (`IStorageProvider`) with ready-to-use backends for **In-Memory**, **Filesystem**, and **Supabase**.                      |
+| **Abstracted Storage Layer**        | A flexible, provider-based storage service (`IStorageProvider`) with backends for **In-Memory**, **Filesystem**, **Supabase**, and **Cloudflare (KV/R2)**. |
 | **Comprehensive Utilities**         | A rich set of internal utilities for logging (`Pino`), rate-limiting, security sanitization, ID generation, cron scheduling, and network requests.                   |
 | **Robust Testing Framework**        | Pre-configured with **Vitest** and **`msw`** for writing meaningful integration and unit tests that reflect real-world usage, ensuring reliability from end to end.  |
 | **Agent-Ready Design**              | Includes detailed guidance in `AGENTS.md` and `.clinerules/` to direct developer LLM agents, ensuring they adhere to the project's architectural standards.          |
@@ -199,7 +199,7 @@ The server is configured via environment variables, loaded and validated by `src
 | `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.              | `none`       |
 | `MCP_LOG_LEVEL`             | Minimum log level: `debug`, `info`, `warning`, `error`, etc. | `debug`      |
 | `LOGS_DIR`                  | Directory for log files.                                     | `logs/`      |
-| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`.      | `in-memory`  |
+| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-r2`, `cloudflare-kv`. | `in-memory`  |
 | `STORAGE_FILESYSTEM_PATH`   | Path for the filesystem storage provider.                    | `./.storage` |
 | `OPENROUTER_API_KEY`        | API key for the OpenRouter LLM service.                      | ` `          |
 | `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                       | `false`      |
