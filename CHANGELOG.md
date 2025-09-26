@@ -6,6 +6,10 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 
 ## [2.1.3] - 2025-09-25
 
+### Changed
+
+- **`server.json` Schema Migration**: Migrated `server.json` to the `2025-09-16` schema, updating all field names from snake_case to camelCase to align with the latest MCP registry standards.
+
 ### Refactor
 
 - **`devcheck` Script Overhaul**: The `scripts/devcheck.ts` script has been completely rewritten for improved performance and robustness. It now uses `Bun.spawn` for faster execution, supports auto-fixing via `--no-fix`, and intelligently scans only staged files when run in a git hook. It also includes new checks for TODOs/FIXMEs, security vulnerabilities, and tracked secrets.
