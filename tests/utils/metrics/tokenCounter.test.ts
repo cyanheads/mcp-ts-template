@@ -8,7 +8,7 @@ import {
   type ChatMessage,
   countChatTokens,
   countTokens,
-} from '../../../src/utils/metrics/tokenCounter';
+} from '../../../src/utils/metrics/tokenCounter.js';
 
 describe('tokenCounter', () => {
   describe('countTokens', () => {

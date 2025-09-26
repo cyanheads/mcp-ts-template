@@ -20,7 +20,7 @@ import {
   McpError,
 } from '../../../src/types-global/errors.js';
 import { ErrorHandler } from '../../../src/utils/internal/errorHandler.js';
-import { logger, Logger } from '../../../src/utils/internal/logger.js';
+import { logger } from '../../../src/utils/internal/logger.js';
 
 // Spy on the actual logger instance's error method
 const errorSpy = vi.spyOn(logger, 'error');
@@ -97,7 +97,9 @@ describe('ErrorHandler', () => {
       });
 
       expect(errorSpy).toHaveBeenCalledOnce();
-      const [errorMessage, logContext] = errorSpy.mock.calls[0];
+      const call = errorSpy.mock.calls[0];
+      if (!call) throw new Error('errorSpy was not called');
+      const [errorMessage, logContext] = call;
       expect(errorMessage).toContain(
         'Error in testOperation: Something failed',
       );
@@ -205,7 +207,9 @@ describe('ErrorHandler', () => {
       ).rejects.toThrow(McpError);
 
       expect(errorSpy).toHaveBeenCalledOnce();
-      const [, logContext] = errorSpy.mock.calls[0];
+      const call = errorSpy.mock.calls[0];
+      if (!call) throw new Error('errorSpy was not called');
+      const [, logContext] = call;
       expect(logContext).toMatchObject({
         requestId: 'try-123',
         operation: 'tryCatchFailure',

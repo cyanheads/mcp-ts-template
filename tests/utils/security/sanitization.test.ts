@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors';
-import { sanitization } from '../../../src/utils/security/sanitization';
+import {
+  JsonRpcErrorCode,
+  McpError,
+} from '../../../src/types-global/errors.js';
+import { sanitization } from '../../../src/utils/security/sanitization.js';
 
 describe('Sanitization Utility', () => {
   describe('sanitizeHtml', () => {
@@ -126,7 +129,7 @@ describe('Sanitization Utility', () => {
       const sanitized = sanitization.sanitizeForLogging(
         sensitiveObject,
       ) as Record<string, unknown>;
-      expect((sanitized as Record<string, string>).password).toBe('[REDACTED]');
+      expect(sanitized.password).toBe('[REDACTED]');
       expect(sanitized.session_token).toBe('[REDACTED]');
       expect(sanitized.secretKey).toBe('[REDACTED]');
       expect(sanitized.username).toBe('test');
@@ -143,10 +146,18 @@ describe('Sanitization Utility', () => {
       };
       const sanitized = sanitization.sanitizeForLogging(
         sensitiveObject,
-      ) as Record<string, Record<string, unknown>>;
-      expect(sanitized.credentials.password).toBe('[REDACTED]');
-      expect(sanitized.credentials.session_token).toBe('[REDACTED]');
-      expect(sanitized.nonSensitive).toBe('data');
+      ) as Record<string, unknown>;
+      expect(sanitized).toBeDefined();
+      if (
+        sanitized &&
+        typeof sanitized === 'object' &&
+        'credentials' in sanitized
+      ) {
+        const creds = sanitized.credentials as Record<string, unknown>;
+        expect(creds.password).toBe('[REDACTED]');
+        expect(creds.session_token).toBe('[REDACTED]');
+      }
+      expect((sanitized as Record<string, unknown>).nonSensitive).toBe('data');
     });
 
     it('should not modify non-sensitive keys', () => {
@@ -163,9 +174,32 @@ describe('Sanitization Utility', () => {
       const sanitized = sanitization.sanitizeForLogging(
         sensitiveArray,
       ) as Record<string, unknown>[];
-      expect(sanitized[0].password).toBe('[REDACTED]');
-      expect(sanitized[1].apiKey).toBe('[REDACTED]');
-      expect(sanitized[0].user).toBe('a');
+
+      expect(sanitized).toBeDefined();
+      expect(Array.isArray(sanitized)).toBe(true);
+
+      if (Array.isArray(sanitized)) {
+        expect(sanitized[0]).toBeDefined();
+        expect(sanitized[1]).toBeDefined();
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        expect(sanitized[0]!.password).toBe('[REDACTED]');
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        expect(sanitized[1]!.apiKey).toBe('[REDACTED]');
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        expect(sanitized[0]!.user).toBe('a');
+      }
+    });
+
+    it('should handle edge case where nested property is undefined', () => {
+      const sensitiveObject = {
+        user: 'casey',
+        nonSensitive: 'data',
+      };
+      const sanitized = sanitization.sanitizeForLogging(
+        sensitiveObject,
+      ) as Record<string, unknown>;
+      expect(sanitized).toBeDefined();
+      expect((sanitized as Record<string, unknown>).nonSensitive).toBe('data');
     });
   });
 

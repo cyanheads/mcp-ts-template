@@ -5,9 +5,9 @@
  * storage providers in the system behave consistently.
  * @module tests/storage/storageProviderCompliance
  */
-import { IStorageProvider } from '../../src/storage/core/IStorageProvider.js';
+import type { IStorageProvider } from '../../src/storage/core/IStorageProvider.js';
 import { requestContextService } from '../../src/utils/internal/requestContext.js';
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 /**
  * A factory function that creates a new instance of a storage provider.

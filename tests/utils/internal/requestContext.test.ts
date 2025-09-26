@@ -11,12 +11,12 @@ import {
   vi,
   type MockInstance,
 } from 'vitest';
-import { trace } from '@opentelemetry/api';
+import { trace, type Span } from '@opentelemetry/api';
 
-import * as utilsIndex from '../../../src/utils/index';
-import { logger } from '../../../src/utils/internal/logger';
-import { requestContextService } from '../../../src/utils/internal/requestContext';
-import { authContext } from '../../../src/mcp-server/transports/auth/lib/authContext';
+import * as utilsIndex from '../../../src/utils/index.js';
+import { logger } from '../../../src/utils/internal/logger.js';
+import { requestContextService } from '../../../src/utils/internal/requestContext.js';
+import { authContext } from '../../../src/mcp-server/transports/auth/lib/authContext.js';
 
 describe('requestContextService', () => {
   let debugSpy: MockInstance;
@@ -26,7 +26,9 @@ describe('requestContextService', () => {
 
   beforeEach(() => {
     debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
-    getActiveSpanSpy = vi.spyOn(trace, 'getActiveSpan').mockReturnValue(null);
+    getActiveSpanSpy = vi
+      .spyOn(trace, 'getActiveSpan')
+      .mockReturnValue(undefined as unknown as Span);
     originalConfig = {
       ...(
         requestContextService as unknown as { config: Record<string, unknown> }
@@ -101,9 +103,11 @@ describe('requestContextService', () => {
       authContext.run(
         {
           authInfo: {
-            sub: 'user-1',
+            subject: 'user-1',
             scopes: ['scope:a'],
             tenantId: 'auth-tenant',
+            token: 'test-token',
+            clientId: 'test-client',
           },
         },
         () => {

@@ -4,12 +4,15 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors';
+import {
+  JsonRpcErrorCode,
+  McpError,
+} from '../../../src/types-global/errors.js';
 import {
   IdGenerator,
   generateRequestContextId,
   generateUUID,
-} from '../../../src/utils/security/idGenerator';
+} from '../../../src/utils/security/idGenerator.js';
 
 describe('IdGenerator and UUID', () => {
   describe('generateUUID', () => {

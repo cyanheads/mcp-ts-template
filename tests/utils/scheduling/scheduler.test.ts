@@ -14,7 +14,7 @@ import {
 import { trace } from '@opentelemetry/api';
 import * as cron from 'node-cron';
 
-import { logger } from '../../../src/utils/internal/logger';
+import { logger } from '../../../src/utils/internal/logger.js';
 
 const validateMock = vi.fn(() => true);
 const createTaskMock = vi.fn(
@@ -35,7 +35,8 @@ const createTaskMock = vi.fn(
 let validateSpy: MockInstance;
 let createTaskSpy: MockInstance;
 
-type SchedulerModule = typeof import('../../../src/utils/scheduling/scheduler');
+type SchedulerModule =
+  typeof import('../../../src/utils/scheduling/scheduler.js');
 let schedulerService: SchedulerModule['schedulerService'];
 
 describe('schedulerService', () => {
@@ -62,7 +63,7 @@ describe('schedulerService', () => {
       .mockImplementation(createTaskMock as never);
 
     const module: SchedulerModule = await import(
-      '../../../src/utils/scheduling/scheduler'
+      '../../../src/utils/scheduling/scheduler.js'
     );
     schedulerService = module.schedulerService;
     (

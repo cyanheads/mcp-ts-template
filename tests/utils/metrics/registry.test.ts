@@ -13,8 +13,8 @@ import {
 } from 'vitest';
 import { metrics } from '@opentelemetry/api';
 
-import { config } from '../../../src/config/index';
-import { metricsRegistry } from '../../../src/utils/metrics/registry';
+import { config } from '../../../src/config/index.js';
+import { metricsRegistry } from '../../../src/utils/metrics/registry.js';
 
 describe('metricsRegistry', () => {
   let meter: {

@@ -4,9 +4,12 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors';
-import { logger, requestContextService } from '../../../src/utils';
-import { Allow, JsonParser } from '../../../src/utils/parsing/jsonParser';
+import {
+  JsonRpcErrorCode,
+  McpError,
+} from '../../../src/types-global/errors.js';
+import { logger, requestContextService } from '../../../src/utils/index.js';
+import { Allow, JsonParser } from '../../../src/utils/parsing/jsonParser.js';
 
 describe('JsonParser', () => {
   let parser: JsonParser;

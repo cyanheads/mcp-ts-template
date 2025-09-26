@@ -5,11 +5,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as chrono from 'chrono-node';
 
-import { JsonRpcErrorCode } from '../../../src/types-global/errors';
+import { JsonRpcErrorCode } from '../../../src/types-global/errors.js';
 import {
   parseDateString,
   parseDateStringDetailed,
-} from '../../../src/utils/parsing/dateParser';
+} from '../../../src/utils/parsing/dateParser.js';
 
 const context = {
   requestId: 'date-parser-test',

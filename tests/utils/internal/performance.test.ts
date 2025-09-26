@@ -14,9 +14,12 @@ import {
 } from 'vitest';
 import { SpanStatusCode, trace } from '@opentelemetry/api';
 
-import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors';
-import { measureToolExecution } from '../../../src/utils/internal/performance';
-import { logger } from '../../../src/utils/internal/logger';
+import {
+  JsonRpcErrorCode,
+  McpError,
+} from '../../../src/types-global/errors.js';
+import { measureToolExecution } from '../../../src/utils/internal/performance.js';
+import { logger } from '../../../src/utils/internal/logger.js';
 
 describe('measureToolExecution', () => {
   const span = {
@@ -66,9 +69,11 @@ describe('measureToolExecution', () => {
 
     expect(result).toEqual({ message: 'ok' });
     expect(infoSpy).toHaveBeenCalledTimes(1);
-    const [, logMeta] = infoSpy.mock.calls[0];
-    expect(logMeta.metrics.isSuccess).toBe(true);
-    expect(logMeta.metrics.errorCode).toBeUndefined();
+    const call = infoSpy.mock.calls[0];
+    if (!call) throw new Error('infoSpy was not called');
+    const [, logMeta] = call;
+    expect((logMeta as any).metrics.isSuccess).toBe(true);
+    expect((logMeta as any).metrics.errorCode).toBeUndefined();
     expect(span.setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.OK });
     expect(span.setAttributes).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -109,9 +114,11 @@ describe('measureToolExecution', () => {
       'mcp.tool.error_code',
       String(JsonRpcErrorCode.InternalError),
     );
-    const [, logMeta] = infoSpy.mock.calls[0];
-    expect(logMeta.metrics.isSuccess).toBe(false);
-    expect(logMeta.metrics.errorCode).toBe(
+    const call = infoSpy.mock.calls[0];
+    if (!call) throw new Error('infoSpy was not called');
+    const [, logMeta] = call;
+    expect((logMeta as any).metrics.isSuccess).toBe(false);
+    expect((logMeta as any).metrics.errorCode).toBe(
       String(JsonRpcErrorCode.InternalError),
     );
   });

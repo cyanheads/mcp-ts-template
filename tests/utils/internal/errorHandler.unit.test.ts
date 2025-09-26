@@ -13,9 +13,12 @@ import {
   type MockInstance,
 } from 'vitest';
 
-import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors';
-import { ErrorHandler } from '../../../src/utils/internal/errorHandler';
-import { logger } from '../../../src/utils/internal/logger';
+import {
+  JsonRpcErrorCode,
+  McpError,
+} from '../../../src/types-global/errors.js';
+import { ErrorHandler } from '../../../src/utils/internal/errorHandler.js';
+import { logger } from '../../../src/utils/internal/logger.js';
 
 describe('ErrorHandler (unit)', () => {
   let getActiveSpanSpy: MockInstance;
@@ -61,7 +64,7 @@ describe('ErrorHandler (unit)', () => {
       const result = ErrorHandler.mapError(
         'no-match',
         [],
-        (e) => new TypeError(`Default mapped: ${String(e)}`),
+        (e: unknown) => new TypeError(`Default mapped: ${String(e)}`),
       );
       expect(result).toBeInstanceOf(TypeError);
       expect((result as TypeError).message).toBe('Default mapped: no-match');
@@ -104,7 +107,9 @@ describe('ErrorHandler (unit)', () => {
 
       // Logged context
       expect(errorSpy).toHaveBeenCalledTimes(1);
-      const [msg, ctx] = errorSpy.mock.calls[0];
+      const call = errorSpy.mock.calls[0];
+      if (!call) throw new Error('errorSpy was not called');
+      const [msg, ctx] = call;
       expect(String(msg)).toContain('Error in explicitCodeTest:');
       expect(ctx).toMatchObject({
         requestId: 'rid-1',
@@ -130,7 +135,9 @@ describe('ErrorHandler (unit)', () => {
       expect((final as McpError).code).toBe(JsonRpcErrorCode.InternalError);
 
       expect(errorSpy).toHaveBeenCalledTimes(1);
-      const [, ctx] = errorSpy.mock.calls[0];
+      const call = errorSpy.mock.calls[0];
+      if (!call) throw new Error('errorSpy was not called');
+      const [, ctx] = call;
       const data = (ctx as Record<string, any>).errorData;
       expect(data).toMatchObject({
         originalErrorName: 'McpError',

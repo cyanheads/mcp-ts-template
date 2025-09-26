@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 
 import { echoResourceDefinition } from '../../../../src/mcp-server/resources/definitions/echo.resource.js';
 import { requestContextService } from '../../../../src/utils/index.js';
+import { z } from 'zod';
 
 describe('echoResourceDefinition', () => {
   it('should have the correct name, title, and description', () => {
@@ -27,8 +28,16 @@ describe('echoResourceDefinition', () => {
       context,
     );
 
-    expect(result.message).toBe('test-message');
-    expect(result.requestUri).toBe('echo://test-message');
-    expect(result).toHaveProperty('timestamp');
+    if (!echoResourceDefinition.outputSchema) {
+      throw new Error('Output schema is not defined');
+    }
+
+    const typedResult = result as z.infer<
+      typeof echoResourceDefinition.outputSchema
+    >;
+
+    expect(typedResult.message).toBe('test-message');
+    expect(typedResult.requestUri).toBe('echo://test-message');
+    expect(typedResult).toHaveProperty('timestamp');
   });
 });

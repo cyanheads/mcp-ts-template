@@ -12,22 +12,26 @@ import {
   type MockInstance,
 } from 'vitest';
 import { trace } from '@opentelemetry/api';
+import type { z } from 'zod';
 
-import { JsonRpcErrorCode } from '../../../src/types-global/errors';
-import { config } from '../../../src/config/index';
-import { logger } from '../../../src/utils/internal/logger';
-import { RateLimiter } from '../../../src/utils/security/rateLimiter';
+import { JsonRpcErrorCode } from '../../../src/types-global/errors.js';
+import { logger } from '../../../src/utils/internal/logger.js';
+import type { ConfigSchema } from '../../../src/config/index.js';
+import type { RateLimiter as RateLimiterType } from '../../../src/utils/security/rateLimiter.js';
 
 describe('RateLimiter', () => {
-  let rateLimiter: RateLimiter;
+  let rateLimiter: RateLimiterType;
+  let config: z.infer<typeof ConfigSchema>;
+  let RateLimiter: typeof RateLimiterType;
   let debugSpy: MockInstance;
-  let originalEnv: string;
   let getActiveSpanSpy: MockInstance;
   const spanMock = {
     setAttribute: vi.fn(),
     setAttributes: vi.fn(),
     addEvent: vi.fn(),
   };
+
+  const originalEnv = { ...process.env };
 
   const createLimiter = () => {
     rateLimiter = new RateLimiter(config, logger as never);
@@ -43,10 +47,18 @@ describe('RateLimiter', () => {
     rateLimiter.configure({ cleanupInterval: 0 });
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    process.env = { ...originalEnv };
     vi.clearAllMocks();
-    originalEnv = config.environment;
-    config.environment = 'production';
+    process.env.NODE_ENV = 'production';
+
+    const configModule = await import('../../../src/config/index.js');
+    const rateLimiterModule = await import(
+      '../../../src/utils/security/rateLimiter.js'
+    );
+    config = configModule.config;
+    RateLimiter = rateLimiterModule.RateLimiter;
+
     debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
     getActiveSpanSpy = vi
       .spyOn(trace, 'getActiveSpan')
@@ -61,7 +73,7 @@ describe('RateLimiter', () => {
     if (timer) {
       clearInterval(timer);
     }
-    config.environment = originalEnv;
+    process.env = originalEnv;
     debugSpy.mockRestore();
     getActiveSpanSpy.mockRestore();
   });
@@ -94,9 +106,19 @@ describe('RateLimiter', () => {
     });
   });
 
-  it('skips rate limiting in development when configured to do so', () => {
-    config.environment = 'development';
-    rateLimiter.configure({
+  it('skips rate limiting in development when configured to do so', async () => {
+    process.env.NODE_ENV = 'development';
+    // Re-import modules to get the updated config
+    const configModule = await import('../../../src/config/index.js');
+    const rateLimiterModule = await import(
+      '../../../src/utils/security/rateLimiter.js'
+    );
+    config = configModule.parseConfig(); // Use parseConfig to get a fresh config
+    RateLimiter = rateLimiterModule.RateLimiter;
+
+    // Create a new limiter with the development config
+    const devRateLimiter = new RateLimiter(config, logger as never);
+    devRateLimiter.configure({
       windowMs: 1000,
       maxRequests: 1,
       skipInDevelopment: true,
@@ -108,8 +130,8 @@ describe('RateLimiter', () => {
     };
 
     expect(() => {
-      rateLimiter.check('dev:key', context);
-      rateLimiter.check('dev:key', context);
+      devRateLimiter.check('dev:key', context);
+      devRateLimiter.check('dev:key', context);
     }).not.toThrow();
 
     expect(spanMock.setAttribute).toHaveBeenCalledWith(

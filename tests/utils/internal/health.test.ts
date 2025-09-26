@@ -30,7 +30,9 @@ describe('getHealthSnapshot', () => {
   });
 
   afterEach(() => {
-    diagAny.level = originalDiagLevel;
+    if (originalDiagLevel !== undefined) {
+      diagAny.level = originalDiagLevel;
+    }
     isInitializedSpy.mockRestore();
   });
 

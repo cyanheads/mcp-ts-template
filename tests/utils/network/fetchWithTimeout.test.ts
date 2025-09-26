@@ -12,9 +12,9 @@ import {
   type MockInstance,
 } from 'vitest';
 
-import { JsonRpcErrorCode } from '../../../src/types-global/errors';
-import { fetchWithTimeout } from '../../../src/utils/network/fetchWithTimeout';
-import { logger } from '../../../src/utils/internal/logger';
+import { JsonRpcErrorCode } from '../../../src/types-global/errors.js';
+import { fetchWithTimeout } from '../../../src/utils/network/fetchWithTimeout.js';
+import { logger } from '../../../src/utils/internal/logger.js';
 
 describe('fetchWithTimeout', () => {
   const context = {
