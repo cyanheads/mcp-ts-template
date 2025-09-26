@@ -1,11 +1,11 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-25 22:30:00
+Generated on: 2025-09-25 23:54:00
 
 ```
 mcp-ts-template
 ├── .clinerules
-│   └── clinerules.md
+│   └── AGENTS.md
 ├── .github
 │   ├── workflows
 │   │   └── publish.yml
@@ -151,6 +151,7 @@ mcp-ts-template
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts
+│   ├── scripts
 │   ├── storage
 │   │   ├── providers
 │   │   │   └── inMemory

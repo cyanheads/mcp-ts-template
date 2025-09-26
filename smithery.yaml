@@ -5,8 +5,8 @@ startCommand:
     properties:
       MCP_TRANSPORT_TYPE:
         type: string
-        enum: ["stdio", "http"]
-        default: "stdio"
+        enum: ['stdio', 'http']
+        default: 'stdio'
         description: "MCP communication transport ('stdio' or 'http')."
       MCP_HTTP_PORT:
         type: integer
@@ -14,8 +14,8 @@ startCommand:
         description: "HTTP server port (if MCP_TRANSPORT_TYPE is 'http')."
       MCP_LOG_LEVEL:
         type: string
-        default: "info"
-        description: "Minimum logging level."
+        default: 'info'
+        description: 'Minimum logging level.'
   commandFunction: |
     (config) => ({
       "command": "bunx",

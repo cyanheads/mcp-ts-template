@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.1.3] - 2025-09-25
+
+### Refactor
+
+- **`devcheck` Script Overhaul**: The `scripts/devcheck.ts` script has been completely rewritten for improved performance and robustness. It now uses `Bun.spawn` for faster execution, supports auto-fixing via `--no-fix`, and intelligently scans only staged files when run in a git hook. It also includes new checks for TODOs/FIXMEs, security vulnerabilities, and tracked secrets.
+- **Agent Protocol Files**: Replaced symbolic links for `AGENTS.md` and `CLAUDE.md` with hard links to `.clinerules/AGENTS.md`, ensuring content is identical and directly reflects the source of truth for agent development protocols.
+
+### Chore
+
+- **Dependency Updates**: Upgraded `zod` to `^3.23.8` and added `bun-types` for improved type safety with Bun APIs.
+- **Configuration**: Updated `tsconfig.json` and `tsconfig.test.json` to include `bun-types` and `vitest/globals` for better type inference.
+- **CI/CD**: Refined build and workflow configurations in `.github/workflows/publish.yml`, `.husky/pre-commit`, and `smithery.yaml`.
+
 ## [2.1.2] - 2025-09-25
 
 ### Refactor
@@ -255,13 +268,13 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 - **Auth**: Consolidated auth type definitions and refined middleware; improved JWT and OAuth strategies for clearer flows and stronger typing (`authFactory`, `authMiddleware`, `authUtils`, `jwtStrategy`, `oauthStrategy`).
 - **LLM Provider**: Overhauled `OpenRouterProvider` to be more robust, with constructor-based configuration and improved parameter handling.
 - **Configuration**: Enhanced the configuration system to include package description and more detailed settings for OAuth and storage providers.
-- **Developer Scripts**: Significantly improved the `devdocs.ts` script for better prompt generation and reliability.
+- **Developer Scripts**: Significantly improved the `devdocs.ts` script for better reliability.
 - **Logging**: The `Logger` class now uses overloaded methods for high-severity logs (`error`, `crit`, etc.) for more flexible error reporting.
 - **Build & Type Safety**: Upgraded the project's build and linting configurations for enhanced type safety and stricter code quality checks.
   - Enabled type-aware linting rules (`@typescript-eslint/no-floating-promises`, `@typescript-eslint/no-misused-promises`).
   - Activated `exactOptionalPropertyTypes` in `tsconfig.json` to prevent bugs related to optional properties.
 - **Core Refactoring**: Refactored object creation patterns across the application to be compliant with `exactOptionalPropertyTypes`. This improves robustness by ensuring optional properties are handled correctly and consistently, particularly in auth strategies, transport managers, and storage providers.
-- **Server Lifecycle**: Introduced a `TransportManager` to handle the lifecycle of transport-related resources, ensuring graceful shutdown of stateful sessions (e.g., in HTTP transport) and preventing resource leaks. The main application entry point (`index.ts`) and server startup sequence were refactored to support this.
+- **Server Lifecycle**: Introduced a `TransportManager` to handle the lifecycle of transport-related resources, ensuring graceful shutdown of stateful sessions (e.g., in `HTTP` transport) and preventing resource leaks. The main application entry point (`index.ts`) and server startup sequence were refactored to support this.
 - **HTTP Middleware**: Aligned the MCP transport middleware with Hono v4 by removing the deprecated `createMiddleware` factory, improving compatibility and future-proofing the transport layer.
 - **CI/CD**: Tweaked `.github/workflows/publish.yml` to improve publish reliability and alignment with the 2.0.0 pipeline.
 - **Configuration**: Updated `Dockerfile` and `eslint.config.js`; refreshed `smithery.yaml` for current tool and publishing settings.

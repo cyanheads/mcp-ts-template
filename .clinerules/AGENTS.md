@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.1.2
+**Version:** 2.1.3
 **Target Project:** `mcp-ts-template`
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
@@ -388,14 +388,13 @@ For non-class-based logic (like tool `logic` functions), import these singletons
 
 Use these scripts from `package.json` to maintain code quality and run the server.
 
-| Script             | Description                                                            |
-| :----------------- | :--------------------------------------------------------------------- |
-| `bun rebuild`      | Cleans and rebuilds the project. Run this after changing dependencies. |
-| `bun start:stdio`  | Starts the MCP server using stdio transport (after building).          |
-| `bun start:http`   | Starts the MCP server using HTTP transport (after building).           |
-| `bun run devcheck` | **Run this often.** Comprehensive check (lint, type-check, format).    |
-
-| `bun test` | Runs all unit and integration tests. |
+| Script             | Description                                                                                                                                                             |
+| :----------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun rebuild`      | Cleans and rebuilds the project. Also clears logs. Run this after changing dependencies.                                                                                |
+| `bun start:stdio`  | Starts the MCP server using stdio transport (after building).                                                                                                           |
+| `bun start:http`   | Starts the MCP server using HTTP transport (after building).                                                                                                            |
+| `bun run devcheck` | **Run this often.** Comprehensive check (lint, format, types, security). Use flags like `--no-fix` for read-only, or `--no-lint`, `--no-audit` to skip specific checks. |
+| `bun test`         | Runs all unit and integration tests.                                                                                                                                    |
 
 ---
 
