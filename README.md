@@ -2,7 +2,7 @@
   <h1>mcp-ts-template</h1>
   <p><b>The definitive, production-grade template for building powerful and scalable Model Context Protocol (MCP) servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.</b></p>
   
-  [![Version](https://img.shields.io/badge/Version-2.1.4-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.18.2-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.22-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-88.52%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
+  [![Version](https://img.shields.io/badge/Version-2.1.5-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.18.2-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.22-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-77.29%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
 
 </div>
 
@@ -192,20 +192,20 @@ That's it. The DI container automatically discovers and registers all tools from
 
 The server is configured via environment variables, loaded and validated by `src/config/index.ts`. Copy `.env.example` to `.env` and fill in the required values.
 
-| Variable                    | Description                                                  | Default      |
-| :-------------------------- | :----------------------------------------------------------- | :----------- |
-| `MCP_TRANSPORT_TYPE`        | Transport to use: `stdio` or `http`.                         | `http`       |
-| `MCP_SESSION_MODE`          | HTTP session mode: `stateless`, `stateful`, or `auto`.       | `auto`       |
-| `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.              | `none`       |
-| `MCP_LOG_LEVEL`             | Minimum log level: `debug`, `info`, `warning`, `error`, etc. | `debug`      |
-| `LOGS_DIR`                  | Directory for log files.                                     | `logs/`      |
+| Variable                    | Description                                                                               | Default      |
+| :-------------------------- | :---------------------------------------------------------------------------------------- | :----------- |
+| `MCP_TRANSPORT_TYPE`        | Transport to use: `stdio` or `http`.                                                      | `http`       |
+| `MCP_SESSION_MODE`          | HTTP session mode: `stateless`, `stateful`, or `auto`.                                    | `auto`       |
+| `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.                                           | `none`       |
+| `MCP_LOG_LEVEL`             | Minimum log level: `debug`, `info`, `warning`, `error`, etc.                              | `debug`      |
+| `LOGS_DIR`                  | Directory for log files.                                                                  | `logs/`      |
 | `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-r2`, `cloudflare-kv`. | `in-memory`  |
-| `STORAGE_FILESYSTEM_PATH`   | Path for the filesystem storage provider.                    | `./.storage` |
-| `OPENROUTER_API_KEY`        | API key for the OpenRouter LLM service.                      | ` `          |
-| `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                       | `false`      |
-| `MCP_AUTH_SECRET_KEY`       | Secret key for signing JWTs (required for `jwt` auth mode).  | ` `          |
-| `SUPABASE_URL`              | URL for your Supabase project.                               | ` `          |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key for Supabase admin tasks.                   | ` `          |
+| `STORAGE_FILESYSTEM_PATH`   | Path for the filesystem storage provider.                                                 | `./.storage` |
+| `OPENROUTER_API_KEY`        | API key for the OpenRouter LLM service.                                                   | ` `          |
+| `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                                                    | `false`      |
+| `MCP_AUTH_SECRET_KEY`       | Secret key for signing JWTs (required for `jwt` auth mode).                               | ` `          |
+| `SUPABASE_URL`              | URL for your Supabase project.                                                            | ` `          |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key for Supabase admin tasks.                                                | ` `          |
 
 Refer to **`.env.example`** for a complete list of configurable options.
 

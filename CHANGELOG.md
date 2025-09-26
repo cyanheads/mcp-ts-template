@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.1.5] - 2025-09-26
+
+### Feature
+
+- **Universal Parsing Utilities**: Added a suite of robust parsing utilities in `src/utils/parsing` for CSV, XML, and YAML formats. Each parser (`csvParser`, `xmlParser`, `yamlParser`) is built on a high-performance library (`papaparse`, `fast-xml-parser`, `js-yaml`) and automatically handles optional `<think>...</think>` blocks from LLM outputs, ensuring clean and reliable data extraction.
+
+### Changed
+
+- **Dependencies**: Added `fast-xml-parser`, `papaparse`, `clipboardy` and `execa`. Updated `bun.lock` to reflect the new dependencies.
+- Updated the shebang in `scripts/devcheck.ts` from `#!/usr/bin/env node` to `#!/usr/bin/env bun` to ensure it is always executed with Bun.
+- Version bump to `2.1.5` in `package.json`.
+
 ## [2.1.4] - 2025-09-26
 
 ### Feature

@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-26 01:12:26
+Generated on: 2025-09-26 15:27:43
 
 ```
 mcp-ts-template
@@ -121,9 +121,12 @@ mcp-ts-template
 │   │   │   ├── fetchWithTimeout.ts
 │   │   │   └── index.ts
 │   │   ├── parsing
+│   │   │   ├── csvParser.ts
 │   │   │   ├── dateParser.ts
 │   │   │   ├── index.ts
-│   │   │   └── jsonParser.ts
+│   │   │   ├── jsonParser.ts
+│   │   │   ├── xmlParser.ts
+│   │   │   └── yamlParser.ts
 │   │   ├── scheduling
 │   │   │   ├── index.ts
 │   │   │   └── scheduler.ts

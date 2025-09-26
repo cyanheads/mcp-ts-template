@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /// <reference types="bun-types" />
 /**
  * @fileoverview Comprehensive development script for quality and security checks.
@@ -39,21 +39,21 @@ const createColor =
 
 const c = {
   bold: (s: string | number) =>
-    createColor('\x1b[1m', '\x1b[22m', /\x1b\[22m/g, '\x1b[1m')(s),
+    createColor('\x1b[1m', '\x1b[22m', /\\x1b\[22m/g, '\x1b[1m')(s),
   dim: (s: string | number) =>
-    createColor('\x1b[2m', '\x1b[22m', /\x1b\[22m/g, '\x1b[2m')(s),
+    createColor('\x1b[2m', '\x1b[22m', /\\x1b\[22m/g, '\x1b[2m')(s),
   red: (s: string | number) =>
-    createColor('\x1b[31m', '\x1b[39m', /\x1b\[39m/g, '\x1b[31m')(s),
+    createColor('\x1b[31m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[31m')(s),
   green: (s: string | number) =>
-    createColor('\x1b[32m', '\x1b[39m', /\x1b\[39m/g, '\x1b[32m')(s),
+    createColor('\x1b[32m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[32m')(s),
   yellow: (s: string | number) =>
-    createColor('\x1b[33m', '\x1b[39m', /\x1b\[39m/g, '\x1b[33m')(s),
+    createColor('\x1b[33m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[33m')(s),
   blue: (s: string | number) =>
-    createColor('\x1b[34m', '\x1b[39m', /\x1b\[39m/g, '\x1b[34m')(s),
+    createColor('\x1b[34m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[34m')(s),
   magenta: (s: string | number) =>
-    createColor('\x1b[35m', '\x1b[39m', /\x1b\[39m/g, '\x1b[35m')(s),
+    createColor('\x1b[35m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[35m')(s),
   cyan: (s: string | number) =>
-    createColor('\x1b[36m', '\x1b[39m', /\x1b\[39m/g, '\x1b[36m')(s),
+    createColor('\x1b[36m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[36m')(s),
 };
 
 /** A type alias for the picocolors object. */
