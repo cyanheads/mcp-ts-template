@@ -524,13 +524,29 @@ export class Sanitization {
     try {
       if (typeof input !== 'string')
         throw new Error('Invalid input: expected a JSON string.');
-      if (maxSize !== undefined && Buffer.byteLength(input, 'utf8') > maxSize) {
+
+      // Cross-environment byte length computation
+      const computeBytes = (s: string): number => {
+        if (
+          typeof Buffer !== 'undefined' &&
+          typeof Buffer.byteLength === 'function'
+        ) {
+          return Buffer.byteLength(s, 'utf8');
+        }
+        if (typeof TextEncoder !== 'undefined') {
+          return new TextEncoder().encode(s).length;
+        }
+        return s.length;
+      };
+
+      if (maxSize !== undefined && computeBytes(input) > maxSize) {
         throw new McpError(
           JsonRpcErrorCode.ValidationError,
           `JSON string exceeds maximum allowed size of ${maxSize} bytes.`,
-          { actualSize: Buffer.byteLength(input, 'utf8'), maxSize },
+          { actualSize: computeBytes(input), maxSize },
         );
       }
+
       return JSON.parse(input) as T;
     } catch (error) {
       if (error instanceof McpError) throw error;

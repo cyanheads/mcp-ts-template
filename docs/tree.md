@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-26 15:27:43
+Generated on: 2025-09-27 20:54:27
 
 ```
 mcp-ts-template
@@ -18,6 +18,7 @@ mcp-ts-template
 ├── changelog
 │   └── archive1.md
 ├── docs
+│   ├── mcp-elicitation-summary.md
 │   ├── publishing-mcp-server-registry.md
 │   └── tree.md
 ├── scripts

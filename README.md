@@ -24,7 +24,7 @@ This template is packed with production-grade features designed for high-perform
 | **Stateful & Stateless Transports** | Choose between **stdio** or **HTTP** transports. The HTTP transport supports both persistent, stateful sessions and ephemeral, stateless requests intelligently.     |
 | **Robust Error Handling**           | A centralized `ErrorHandler` maps all exceptions to standardized `JsonRpcErrorCode`s and automatically correlates them with OpenTelemetry traces for easy debugging. |
 | **Type-Safe & Validated**           | **Zod** is used everywhere for rigorous schema validation of configuration, tool inputs/outputs, and API boundaries, preventing invalid data at the source.          |
-| **Abstracted Storage Layer**        | A flexible, provider-based storage service (`IStorageProvider`) with backends for **In-Memory**, **Filesystem**, **Supabase**, and **Cloudflare (KV/R2)**. |
+| **Abstracted Storage Layer**        | A flexible, provider-based storage service (`IStorageProvider`) with backends for **In-Memory**, **Filesystem**, **Supabase**, and **Cloudflare (KV/R2)**.           |
 | **Comprehensive Utilities**         | A rich set of internal utilities for logging (`Pino`), rate-limiting, security sanitization, ID generation, cron scheduling, and network requests.                   |
 | **Robust Testing Framework**        | Pre-configured with **Vitest** and **`msw`** for writing meaningful integration and unit tests that reflect real-world usage, ensuring reliability from end to end.  |
 | **Agent-Ready Design**              | Includes detailed guidance in `AGENTS.md` and `.clinerules/` to direct developer LLM agents, ensuring they adhere to the project's architectural standards.          |

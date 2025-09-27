@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.1.6] - 2025-09-27
+
+### Feature
+
+- **HTTP Transport Security**: Implemented bearer token authentication for the HTTP transport. The server now validates `Authorization` headers and uses a configurable authentication strategy (`none`, `jwt`, `oauth`) to protect the `/mcp` endpoint.
+- **Elicitation Summary**: Added a new document `docs/mcp-elicitation-summary.md` summarizing the MCP Elicitation feature based on the latest specification research. To be integrated into the template in a future release.
+
+### Changed
+
+- **Dependencies**:
+  - Upgraded `openai` to `^5.23.1`.
+  - Upgraded `@cloudflare/workers-types` to `^4.20250927.0`.
+  - Upgraded `hono` to `^4.9.9`.
+- **`devdocs` Script**: The `devdocs.ts` script now automatically ignores dependencies found in the `resolutions` field of `package.json` when running `repomix`, preventing noisy or irrelevant output.
+- **Configuration**: Exported the `AppConfig` type from `src/config/index.ts` to allow other modules to type-check configuration objects.
+- **Sanitization**: The `sanitizeAndValidateJson` utility in `src/utils/security/sanitization.ts` now uses a cross-environment method to compute byte length, ensuring it works correctly in both Node.js and Cloudflare Workers.
+
 ## [2.1.5] - 2025-09-26
 
 ### Feature

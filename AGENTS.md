@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.1.4
+**Version:** 2.1.6
 **Target Project:** `mcp-ts-template`
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
@@ -419,7 +419,7 @@ This project has unique documentation and workflows. If the user asks about cert
 | **"Configuration"** or **"Environment variables"**                   | 1. Refer to `src/config/index.ts` to understand all available configuration options and their default values. <br> 2. Refer to `.env.example` for the list of variable names.                                                                                                                                                                                                                                                                                                                              |
 | **Adding or changing dependencies**                                  | Always use `bun add <package>` or `bun remove <package>`. After any change, run `bun install` to install the new dependencies.                                                                                                                                                                                                                                                                                                                                                                             |
 | **"How to run the server"** or **"Available scripts"**               | Consult the `scripts` section of `package.json` and the **Available Scripts** section of the `README.md` to provide exact `bun run ...` commands.                                                                                                                                                                                                                                                                                                                                                          |
-| **"I need to understand the project"** or **"Analyze the codebase"** | When asked to perform an analysis or a complex implementation on a specific section of the code base, we can use the `devdocs` script to generate a comprehensive context prompt. Run `bun run devdocs -- <path-of-codebase-section-to-focus-on>` to get a full project overview combined with the specific code you need to analyze. This script now features robust error handling, structured logging, and parallel processing for efficiency. The default output will be located at `docs/devdocs.md`. |
+| **"I need to understand the project"** or **"Analyze the codebase"** | When asked to perform an analysis or a complex implementation on a specific section of the code base, we can use the `devdocs` script to generate a comprehensive context prompt. Run `bun run devdocs -- <path-of-codebase-section-to-focus-on>` to get a full project overview combined with the specific code you need to analyze. This script now features robust error handling, structured logging, parallel processing for efficiency, and automatically ignores dependencies from `package.json` resolutions. The default output will be located at `docs/devdocs.md`. |
 
 ---
 

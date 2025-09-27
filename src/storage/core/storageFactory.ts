@@ -8,7 +8,7 @@
 import { container } from 'tsyringe';
 import type { R2Bucket, KVNamespace } from '@cloudflare/workers-types';
 
-import type { ConfigSchema } from '@/config/index.js';
+import type { AppConfig } from '@/config/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
@@ -30,9 +30,7 @@ const isServerless =
  * @throws {McpError} If the configuration is missing required values for the
  *         selected provider.
  */
-export function createStorageProvider(
-  config: ReturnType<typeof ConfigSchema.parse>,
-): IStorageProvider {
+export function createStorageProvider(config: AppConfig): IStorageProvider {
   const context = requestContextService.createRequestContext({
     operation: 'createStorageProvider',
   });

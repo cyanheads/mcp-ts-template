@@ -13,19 +13,15 @@ import http from 'http';
 import { randomUUID } from 'node:crypto';
 
 import { config } from '@/config/index.js';
+import {
+  authContext,
+  createAuthStrategy,
+} from '@/mcp-server/transports/auth/index.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { type RequestContext, logger } from '@/utils/index.js';
 
-/**
- * Creates and configures a Hono app wired to an MCP server instance over the
- * Streamable HTTP transport. This adheres to MCP 2025-03-26 HTTP transport spec.
- *
- * Key behaviors:
- * - Single endpoint (configurable path) accepts both GET (status) and ALL (JSON-RPC).
- * - CORS is configured using allowed origins from config.
- * - Errors are routed through a centralized error handler that formats JSON-RPC-compliant errors.
- */
 export function createHttpApp(
   mcpServer: McpServer,
   parentContext: RequestContext,
@@ -36,11 +32,17 @@ export function createHttpApp(
     component: 'HttpTransportSetup',
   };
 
-  // CORS
+  // CORS (with permissive fallback)
+  const allowedOrigin =
+    Array.isArray(config.mcpAllowedOrigins) &&
+    config.mcpAllowedOrigins.length > 0
+      ? config.mcpAllowedOrigins
+      : '*';
+
   app.use(
     '*',
     cors({
-      origin: config.mcpAllowedOrigins || [],
+      origin: allowedOrigin,
       allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
       allowHeaders: [
         'Content-Type',
@@ -56,10 +58,9 @@ export function createHttpApp(
   // Centralized error handling
   app.onError(httpErrorHandler);
 
-  // Health
+  // Health and GET /mcp status remain unprotected for convenience
   app.get('/healthz', (c) => c.json({ status: 'ok' }));
 
-  // Status/identity at the same MCP endpoint path for convenience (GET)
   app.get(config.mcpHttpEndpointPath, (c) => {
     return c.json({
       status: 'ok',
@@ -74,7 +75,7 @@ export function createHttpApp(
     });
   });
 
-  // JSON-RPC over HTTP (Streamable)
+  // JSON-RPC over HTTP (Streamable) with auth when enabled
   app.all(config.mcpHttpEndpointPath, async (c) => {
     logger.debug('Handling MCP request.', {
       ...transportContext,
@@ -82,22 +83,63 @@ export function createHttpApp(
       method: c.req.method,
     });
 
-    // Use the official StreamableHTTPTransport and assert a non-optional sessionId for TS (exactOptionalPropertyTypes).
-    // The MCP server's Transport contract requires `sessionId: string`, while Hono's StreamableHTTPTransport has it optional.
     const transport =
       new StreamableHTTPTransport() as StreamableHTTPTransport & {
         sessionId: string;
       };
     transport.sessionId = c.req.header('mcp-session-id') ?? randomUUID();
 
-    try {
-      // The `connect` method expects a Transport with a non-optional sessionId.
-      // We ensure it's always a string when creating the transport.
+    const handleRpc = async (): Promise<Response> => {
       await mcpServer.connect(transport);
-      // Let the transport handle the Hono context; it will stream the response.
-      return transport.handleRequest(c);
+      const response = await transport.handleRequest(c);
+      if (response) {
+        return response;
+      }
+      // handleRequest may return undefined for notifications.
+      // Return 204 No Content as per HTTP best practices for such cases.
+      return c.body(null, 204);
+    };
+
+    const protectRpc = config.mcpAuthMode !== 'none';
+
+    try {
+      if (!protectRpc) {
+        return await handleRpc();
+      }
+
+      const authHeader = c.req.header('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        logger.warning(
+          'Authorization header missing or invalid (HTTP JSON-RPC).',
+          {
+            ...transportContext,
+            method: c.req.method,
+            path: c.req.path,
+          },
+        );
+        throw new McpError(
+          JsonRpcErrorCode.Unauthorized,
+          'Missing or invalid Authorization header. Bearer scheme required.',
+          transportContext,
+        );
+      }
+
+      const strategy = createAuthStrategy();
+      if (!strategy) {
+        logger.warning(
+          'Auth mode indicates protection, but no strategy was created. Proceeding unauthenticated.',
+          transportContext,
+        );
+        return await handleRpc();
+      }
+
+      const token = authHeader.substring(7);
+      const authInfo = await strategy.verify(token);
+
+      return await authContext.run({ authInfo }, async () => {
+        return await handleRpc();
+      });
     } catch (err) {
-      // Ensure transport is closed on failure; bubble to onError handler.
       await transport.close?.();
       throw err instanceof Error ? err : new Error(String(err));
     }

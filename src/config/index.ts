@@ -314,4 +314,9 @@ const parseConfig = () => {
 
 const config = parseConfig();
 
-export { config, parseConfig, type ConfigSchema };
+/**
+ * Export the runtime configuration, parser, and schema, plus a static AppConfig type.
+ */
+export type AppConfig = z.infer<typeof ConfigSchema>;
+
+export { config, parseConfig, ConfigSchema };

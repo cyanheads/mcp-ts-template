@@ -2,9 +2,9 @@
  * @fileoverview Tests for the template-cat-fact tool.
  * @module tests/mcp-server/tools/definitions/template-cat-fact.tool.test
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { catFactTool } from '../../../../src/mcp-server/tools/definitions/template-cat-fact.tool.js';
 import { requestContextService } from '../../../../src/utils/index.js';

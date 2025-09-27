@@ -156,7 +156,7 @@ const executeCommand = async (
     });
 
     if (captureOutput) {
-      return result.stdout.trim();
+      return (result.stdout ?? '').trim();
     }
   } catch (error) {
     const message = `Error executing command: "${command} ${args.join(' ')}"`;
@@ -214,8 +214,13 @@ const generateFileTree = async (rootDir: string): Promise<string> => {
 
 /**
  * Runs repomix on the specified file paths concurrently and concatenates the output.
+ * @param filePaths An array of file or directory paths to analyze.
+ * @param ignoredDeps A list of dependency names to ignore during analysis.
  */
-const getRepomixOutputs = async (filePaths: string[]): Promise<string> => {
+const getRepomixOutputs = async (
+  filePaths: string[],
+  ignoredDeps: string[],
+): Promise<string> => {
   // Run tasks in parallel
   const tasks = filePaths.map(async (filePath) => {
     // Check existence relative to CWD (where the script was invoked)
@@ -228,12 +233,17 @@ const getRepomixOutputs = async (filePaths: string[]): Promise<string> => {
 
     logger.info(`Running repomix...`, { filePath });
     try {
+      const repomixArgs = ['repomix', filePath, '-o', '-'];
+      if (ignoredDeps.length > 0) {
+        // According to repomix docs, --ignore accepts a comma-separated list
+        repomixArgs.push('--ignore', ignoredDeps.join(','));
+        logger.info(`Repomix will ignore: ${ignoredDeps.join(', ')}`, {
+          filePath,
+        });
+      }
+
       // Use '-o -' to pipe repomix output to stdout and capture it.
-      const output = await executeCommand(
-        'npx',
-        ['repomix', filePath, '-o', '-'],
-        true,
-      );
+      const output = await executeCommand('npx', repomixArgs, true);
 
       if (output && output.length > 0) {
         logger.info('Repomix analysis complete.', { filePath });
@@ -272,6 +282,39 @@ const getRepomixOutputs = async (filePaths: string[]): Promise<string> => {
   }
 
   return successfulOutputs.join('\n\n---\n\n');
+};
+
+/**
+ * Reads package.json and extracts dependency names from the 'resolutions' field.
+ * @param rootDir The project root directory containing package.json.
+ * @returns An array of dependency names to be ignored.
+ */
+const getIgnoredDependencies = async (rootDir: string): Promise<string[]> => {
+  const packageJsonPath = path.join(rootDir, 'package.json');
+  try {
+    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf-8');
+    const packageJson = JSON.parse(packageJsonContent);
+
+    if (
+      packageJson &&
+      typeof packageJson === 'object' &&
+      'resolutions' in packageJson &&
+      typeof packageJson.resolutions === 'object' &&
+      packageJson.resolutions !== null
+    ) {
+      const resolutions = Object.keys(packageJson.resolutions);
+      logger.info(`Found ${resolutions.length} dependencies in resolutions.`, {
+        dependencies: resolutions,
+      });
+      return resolutions;
+    }
+  } catch (error) {
+    // This is not a fatal error; the script can proceed without ignoring dependencies.
+    logger.warn('Could not read or parse package.json for resolutions.', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  return [];
 };
 
 /**
@@ -465,12 +508,14 @@ const main = async () => {
   const rootDir = await findProjectRoot(scriptDir);
   logger.info(`Project root found at: ${rootDir}`);
 
+  const ignoredDeps = await getIgnoredDependencies(rootDir);
+
   // Run all independent data gathering tasks concurrently (Maximized Parallelism)
   const [treeContent, agentRulesContent, allRepomixOutputs] = await Promise.all(
     [
       generateFileTree(rootDir),
       includeRules ? getAgentRulesContent(rootDir) : Promise.resolve(null),
-      getRepomixOutputs(filePaths),
+      getRepomixOutputs(filePaths, ignoredDeps),
     ],
   );
 
