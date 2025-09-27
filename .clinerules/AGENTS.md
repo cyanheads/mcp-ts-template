@@ -1,7 +1,7 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.1.6
-**Target Project:** `mcp-ts-template`
+**Version:** 2.1.7
+**Target Project:** mcp-ts-template
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
@@ -10,70 +10,69 @@ This document defines the operational rules for contributing to this codebase. F
 ## I. Core Principles (Non‑Negotiable)
 
 1.  **The Logic Throws, The Handler Catches**
-    - **Your Task (Logic):** Implement pure, stateless business logic inside the `logic` function of a `ToolDefinition`. **Do not add `try...catch` here.**
+    - **Your Task (Logic):**
+      - **Tools:** Implement pure, stateless business logic inside the `logic` function of a `ToolDefinition`.
+      - **Resources:** Implement pure, stateless read logic inside the `logic` function of a `ResourceDefinition`.
+      - **Do not add `try...catch` in these logic functions.**
     - **On Failure:** You must throw `new McpError(...)` with the appropriate `JsonRpcErrorCode` and context.
-    - **Framework’s Job (Handler):** The standardized handler created by `createMcpToolHandler` wraps your logic, manages `RequestContext`, measures execution via `measureToolExecution`, formats the response, and is the sole location for catching errors.
+    - **Framework’s Job (Handlers):**
+      - **Tools** are wrapped by `createMcpToolHandler`, which creates the `RequestContext`, measures execution via `measureToolExecution`, formats the response, and is the only place that catches errors.
+      - **Resources** are wrapped by `registerResource` (`resourceHandlerFactory`). The handler validates params, invokes logic, applies `responseFormatter` (defaulting to JSON), and catches errors.
 
 2.  **Full‑Stack Observability**
-    - **Tracing:** OpenTelemetry is preconfigured; your logs and errors are automatically correlated to traces.
+    - **Tracing:** OpenTelemetry is preconfigured. Logs and errors are automatically correlated to traces.
     - **Performance:** `measureToolExecution` automatically records duration, success, payload sizes, and error codes for every tool call.
-    - **No Manual Instrumentation:** Do not add custom tracing or spans; use the provided utilities and structured logging.
+    - **No Manual Instrumentation:** Do not add custom spans in your logic. Use the provided utilities and structured logging. The framework handles the single wrapper span per tool invocation.
 
 3.  **Structured, Traceable Operations**
-    - Always accept a `RequestContext` as the last parameter of any significant operation.
-    - Pass the _same_ `context` through your entire call stack for continuity.
+    - Always accept a `RequestContext` as the last parameter of any significant operation (tools, resources, services).
+    - Pass the _same_ `context` through your call stack for continuity.
     - Use the global `logger` for all logging; include the `context` in every log call.
 
 4.  **Decoupled Storage**
-    - Never access storage backends (e.g., `fs`, `supabase-js`) directly from tool logic.
-    - **Always use the `StorageService`**, injected via the DI container, for all persistence operations.
-    - The concrete provider is configured via environment variables and initialized at startup.
+    - Never directly access persistence backends (`fs`, `supabase-js`, Worker KV/R2) from tool/resource logic.
+    - **Always use the `StorageService`**, injected via DI, for all persistence.
+    - The concrete storage provider is configured via environment variables and initialized at startup.
 
 5.  **Local ↔ Edge Runtime Parity**
-    - Every feature must continue to run through the local transports: `bun run dev:stdio` and `bun run dev:http` (and their `start:*` counterparts once built).
-    - Keep the Worker build (`bun run build:worker`) and Wrangler flows (`bunx wrangler dev`, `bunx wrangler deploy`) healthy; guard any non-portable dependencies so the bundle stays edge-compatible.
-    - Prefer runtime-agnostic abstractions (e.g., Hono + `@hono/mcp`, Fetch APIs) so Bun/Node on localhost behaves identically to Cloudflare's Worker runtime.
+    - All features must work with both local transports (`bun run dev:stdio`, `bun run dev:http`) and the Worker bundle (`bun run build:worker` + `bunx wrangler dev`/`deploy`).
+    - Guard non-portable dependencies so the bundle stays edge-compatible.
+    - Prefer runtime-agnostic abstractions (Hono + `@hono/mcp`, Fetch APIs) to keep Bun/Node on localhost identical to Cloudflare Workers.
 
 ---
 
 ## II. Architectural Overview & Directory Structure
 
-This repository is a template designed for rapid extension. When creating new features or connecting to new services, place files in their designated locations to maintain architectural integrity. This is not just a convention; it is a requirement for keeping the codebase clean, scalable, and easy to navigate.
+Separation of concerns maps directly to the filesystem. Always place files in their designated locations.
 
-The core philosophy is **Separation of Concerns** mapped directly to the filesystem.
-
-| Directory                                   | Purpose & Guidance                                                                                                                                                                                                          |
-| :------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`src/mcp-server/tools/definitions/`**     | **MCP Tool Definitions.** This is the primary entry point for adding new capabilities. Each tool must be a self-contained `[tool-name].tool.ts` file. Follow the **Tool Development Workflow** below.                       |
-| **`src/mcp-server/resources/definitions/`** | **MCP Resource Definitions.** For defining new data sources or contexts. Each resource should be in its own `[resource-name].resource.ts` file. Follow the **Resource Development Workflow**.                               |
-| **`src/services/`**                         | **External Service Integrations.** Create clients or SDKs for interacting with third-party APIs here (e.g., a Stripe client, a new weather API connector). These services should be injectable and used by your tool logic. |
-| **`src/storage/providers/`**                | **Storage Provider Implementations.** If you need to add a new persistence backend (e.g., Redis, a specific database), implement the `IStorageProvider` interface here.                                                     |
-| **`src/utils/`**                            | **Global & Cross-Cutting Utilities.** For truly generic, reusable functions that don't fit a specific domain (e.g., advanced array helpers, specialized parsers). Avoid turning this into a junk drawer.                    |
-| **`src/mcp-server/tools/utils/`**           | **Shared Tooling Utilities.** If multiple tools require the same helper function, place it here to avoid duplication. These should be specific to tool operations.                                                          |
-| **`src/container/`**                        | **Dependency Injection.** Service registration and DI container setup. You will only touch this to register new, globally available services.                                                                               |
-| **`tests/`**                                | **Automated Tests.** All new logic requires corresponding tests. The test directory structure mirrors `src/` for easy navigation.                                                                                           |
+| Directory                                   | Purpose & Guidance                                                                                                                                                                                                                                    |
+| :------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`src/mcp-server/tools/definitions/`**     | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**.                                                                                                                               |
+| **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**.                                                                                                            |
+| **`src/mcp-server/tools/utils/`**           | **Shared tool utilities,** including `ToolDefinition` and tool handler factory.                                                                                                                                                                       |
+| **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                           |
+| **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth. |
+| **`src/services/`**                         | **External service integrations** (e.g., LLM providers).                                                                                                                                                                                              |
+| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv).                                                                                                                                        |
+| **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                               |
+| **`src/utils/`**                            | **Global utilities:** logging, error handling, performance, parsing, network, security, telemetry, scheduling.                                                                                                                                        |
+| **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation.                                                                                                                                                                                       |
 
 ---
 
 ## III. Architectural Philosophy: Pragmatic SOLID
 
-SOLID principles are the foundation for building maintainable, decoupled, and testable systems. They are not rigid laws, but a toolkit for making sound architectural decisions. The guiding question should always be: **"Does this design help build and maintain the system effectively?"**
+- **Single Responsibility:** Group code that changes together.
+- **Open/Closed:** Prefer extension via abstractions (interfaces, plugins/middleware).
+- **Liskov Substitution:** Subtypes must be substitutable without surprises.
+- **Interface Segregation:** Keep interfaces small and focused.
+- **Dependency Inversion:** Depend on abstractions (DI-managed services).
 
-This is complemented by other core principles:
+**Complementary principles:**
 
-- **KISS (Keep It Simple, Stupid):** Avoid over-engineering to satisfy a principle. The simplest code is often the most maintainable.
-- **YAGNI (You Ain't Gonna Need It):** Defer building complex abstractions until they are necessary.
-- **Composition over Inheritance:** This is the preferred approach, as it naturally leads to more flexible and decoupled systems.
-
-### Modern Interpretation of SOLID
-
-| Principle                     | The Goal                                                                                                                                                          |
-| :---------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **S** - Single Responsibility | **Group code that changes together.** A class or module should be cohesive and focused on a single concept, actor, or domain in the system.                       |
-| **O** - Open/Closed           | **Make it easy to add new features without breaking existing ones.** Use abstractions like interfaces, plugins, and middleware to allow for extension.            |
-| **L** - Liskov Substitution   | **Your abstractions must not be leaky or surprising.** Subtypes must be substitutable for their base types without altering the correctness of the program.       |
-| **I** - Interface Segregation | **Keep interfaces small and focused.** Do not force clients to depend on methods they do not use. This is key to modular, service-oriented design.                |
-| **D** - Dependency Inversion  | **Depend on abstractions, not on concrete details.** This is the core idea behind Dependency Injection and is absolutely critical for testability and decoupling. |
+- **KISS:** Favor simplicity.
+- **YAGNI:** Don’t build what you don’t need yet.
+- **Composition over Inheritance:** Prefer composable modules.
 
 ---
 
@@ -91,59 +90,49 @@ This is the only approved workflow for authoring or modifying tools.
 
 Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 
-- `name`: Programmatic tool name (e.g., `"get_weather_forecast"`).
-- `title` (optional): Human-readable display name used by UIs.
+- `name`: Programmatic tool name (`snake_case` is recommended).
+- `title` (optional): Human-readable title for UIs.
 - `description`: Clear, LLM-facing description of what the tool does.
-- `inputSchema`: A Zod `z.object({ ... })` for parameters. **Every field must have a `.describe()` statement.**
-- `outputSchema`: A Zod `z.object({ ... })` describing the structure of a successful output.
-- `logic`: The `async (input, context) => { ... }` function containing the pure business logic.
-- `annotations` (optional): Behavioral hints like `{ readOnlyHint, openWorldHint }`.
-- `responseFormatter` (optional): A function to map successful output to `ContentBlock[]` for non-JSON or complex outputs (e.g., images, rich text).
+- `inputSchema`: A `z.object({ ... })`. **Every field must have a `.describe()`**.
+- `outputSchema`: A `z.object({ ... })` describing the successful output structure.
+- `logic`: `async (input, context) => { ... }` pure business logic. No `try/catch` here. Throw `McpError` on failure.
+- `annotations` (optional): UI/behavior hints such as `readOnlyHint`, `openWorldHint`, and others (flexible dictionary).
+- `responseFormatter` (optional): Map successful output to `ContentBlock[]` for a UI-friendly representation. If omitted, a default JSON string is used.
 
 #### Step 2.5 — Apply Authorization (Mandatory for most tools)
 
-- Wrap your `logic` function with the `withToolAuth` higher-order function to enforce scope-based access control.
-- Provide an array of required scopes (e.g., `['tool:echo:read']`).
+- Wrap `logic` with `withToolAuth`.
+- **Example:**
+  ```ts
+  import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+  // ...
+  logic: withToolAuth(['tool:echo:read'], yourToolLogic),
+  ```
 
-```ts
-// Correct way to assign the logic property with authorization
-import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+#### Step 3 — Register via Barrel Export
 
-// ... inside your ToolDefinition
-logic: withToolAuth(['tool:echo:read'], echoToolLogic),
-```
+- Add your tool to `src/mcp-server/tools/definitions/index.ts` in `allToolDefinitions`.
+- The DI container discovers and registers all tools from that array. No further registration is necessary.
 
-#### Step 3 — Register the Tool via Barrel Export
-
-1. Open `src/mcp-server/tools/definitions/index.ts`.
-2. Import your new tool definition.
-3. Add it to the `allToolDefinitions` array.
-
-The DI container automatically discovers and registers all tools from this array. No other registration step is needed.
-
-#### Canonical Example: `template-cat-fact.tool.ts`
+#### Example Tool Definition:
 
 ```ts
 /**
- * @fileoverview Complete, declarative definition for the 'template_cat_fact' tool.
- * Mirrors the updated tool structure used by the echo tool: metadata constants,
- * Zod schemas, pure logic (no try/catch), and an optional response formatter.
- * @module src/mcp-server/tools/definitions/template-cat-fact.tool
+ * @fileoverview Complete, declarative definition for the 'template_echo_message' tool.
+ * Emphasizes a clean, top‑down flow with configurable metadata at the top,
+ * schema definitions next, pure logic, and finally the exported ToolDefinition.
+ * @module src/mcp-server/tools/definitions/template-echo-message.tool
  */
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  fetchWithTimeout,
-  logger,
-} from '@/utils/index.js';
-import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import type {
   ToolAnnotations,
   ToolDefinition,
 } from '@/mcp-server/tools/utils/toolDefinition.js';
+import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { type RequestContext, logger } from '@/utils/index.js';
 
 /**
  * Programmatic tool name (must be unique).
@@ -152,11 +141,11 @@ import type {
  * - Use lowercase snake_case.
  * - Examples: 'template_echo_message', 'template_cat_fact'.
  */
-const TOOL_NAME = 'template_cat_fact';
+const TOOL_NAME = 'template_echo_message';
 /** --------------------------------------------------------- */
 
 /** Human-readable title used by UIs. */
-const TOOL_TITLE = 'template_cat_fact';
+const TOOL_TITLE = 'Echo Message';
 /** --------------------------------------------------------- */
 
 /**
@@ -171,7 +160,7 @@ const TOOL_TITLE = 'template_cat_fact';
  * - Avoid implementation details; focus on the observable behavior and contract.
  */
 const TOOL_DESCRIPTION =
-  'Fetches a random cat fact from a public API with an optional maximum length.';
+  'Echoes a message back with optional formatting and repetition.';
 /** --------------------------------------------------------- */
 
 /**
@@ -186,282 +175,426 @@ const TOOL_DESCRIPTION =
  */
 const TOOL_ANNOTATIONS: ToolAnnotations = {
   readOnlyHint: true,
-  openWorldHint: true,
   idempotentHint: true,
+  openWorldHint: false,
 };
 /** --------------------------------------------------------- */
 
-// External API details
-const CAT_FACT_API_URL = 'https://catfact.ninja/fact';
-const CAT_FACT_API_TIMEOUT_MS = 5000;
-
-// API response validation
-const CatFactApiSchema = z.object({
-  fact: z.string(),
-  length: z.number(),
-});
+/** Supported formatting modes. */
+const ECHO_MODES = ['standard', 'uppercase', 'lowercase'] as const;
+/** Default mode when not provided. */
+const DEFAULT_MODE: (typeof ECHO_MODES)[number] = 'standard';
+/** Default repeat count. */
+const DEFAULT_REPEAT = 1;
+/** Default includeTimestamp behavior. */
+const DEFAULT_INCLUDE_TIMESTAMP = false;
+/** Special input which deliberately triggers a failure for testing. */
+export const TEST_ERROR_TRIGGER_MESSAGE = 'TRIGGER_ERROR';
 
 //
 // Schemas (input and output)
 // --------------------------
 const InputSchema = z
   .object({
-    maxLength: z
-      .number()
-      .int('Max length must be an integer.')
-      .min(1, 'Max length must be at least 1.')
-      .optional()
+    message: z
+      .string()
+      .min(1, 'Message cannot be empty.')
+      .max(1000, 'Message cannot exceed 1000 characters.')
       .describe(
-        'Optional: The maximum character length of the cat fact to retrieve.',
+        `The message to echo back. To trigger a test error, provide '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
       ),
+    mode: z
+      .enum(ECHO_MODES)
+      .default(DEFAULT_MODE)
+      .describe(
+        "How to format the message ('standard' | 'uppercase' | 'lowercase').",
+      ),
+    repeat: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .default(DEFAULT_REPEAT)
+      .describe('Number of times to repeat the formatted message.'),
+    includeTimestamp: z
+      .boolean()
+      .default(DEFAULT_INCLUDE_TIMESTAMP)
+      .describe('Whether to include an ISO 8601 timestamp in the response.'),
   })
-  .describe('Parameters for fetching a random cat fact.');
+  .describe('Echo a message with optional formatting and repetition.');
 
 const OutputSchema = z
   .object({
-    fact: z.string().describe('The retrieved cat fact.'),
-    length: z.number().int().describe('The character length of the cat fact.'),
-    requestedMaxLength: z
+    originalMessage: z
+      .string()
+      .describe('The original message provided in the input.'),
+    formattedMessage: z
+      .string()
+      .describe('The message after applying the specified formatting.'),
+    repeatedMessage: z
+      .string()
+      .describe('The final message repeated the requested number of times.'),
+    mode: z.enum(ECHO_MODES).describe('The formatting mode that was applied.'),
+    repeatCount: z
       .number()
       .int()
-      .optional()
-      .describe('The maximum length that was requested for the fact.'),
+      .min(1)
+      .describe('The number of times the message was repeated.'),
     timestamp: z
       .string()
       .datetime()
-      .describe('ISO 8601 timestamp of when the response was generated.'),
+      .optional()
+      .describe(
+        'Optional ISO 8601 timestamp of when the response was generated.',
+      ),
   })
-  .describe('Cat fact tool response payload.');
+  .describe('Echo tool response payload.');
 
-type CatFactToolInput = z.infer<typeof InputSchema>;
-type CatFactToolResponse = z.infer<typeof OutputSchema>;
+type EchoToolInput = z.infer<typeof InputSchema>;
+type EchoToolResponse = z.infer<typeof OutputSchema>;
 
 //
 // Pure business logic (no try/catch; throw McpError on failure)
 // -------------------------------------------------------------
-async function catFactToolLogic(
-  input: CatFactToolInput,
+async function echoToolLogic(
+  input: EchoToolInput,
   context: RequestContext,
-): Promise<CatFactToolResponse> {
-  logger.debug('Processing template_cat_fact logic.', {
+): Promise<EchoToolResponse> {
+  logger.debug('Processing echo message logic.', {
     ...context,
     toolInput: input,
   });
 
-  const url =
-    input.maxLength !== undefined
-      ? `${CAT_FACT_API_URL}?max_length=${input.maxLength}`
-      : CAT_FACT_API_URL;
-
-  logger.info(`Fetching random cat fact from: ${url}`, context);
-
-  const response = await fetchWithTimeout(
-    url,
-    CAT_FACT_API_TIMEOUT_MS,
-    context,
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => undefined);
+  if (input.message === TEST_ERROR_TRIGGER_MESSAGE) {
+    const errorData: Record<string, unknown> = {
+      requestId: context.requestId,
+    };
+    if (typeof (context as Record<string, unknown>).traceId === 'string') {
+      errorData.traceId = (context as Record<string, unknown>)
+        .traceId as string;
+    }
     throw new McpError(
-      JsonRpcErrorCode.ServiceUnavailable,
-      `Cat Fact API request failed: ${response.status} ${response.statusText}`,
-      {
-        requestId: context.requestId,
-        httpStatusCode: response.status,
-        responseBody: errorText,
-      },
+      JsonRpcErrorCode.ValidationError,
+      'Deliberate failure triggered.',
+      errorData,
     );
   }
 
-  const rawData = await response.json();
-  const parsed = CatFactApiSchema.safeParse(rawData);
-  if (!parsed.success) {
-    logger.error('Cat Fact API response validation failed', {
-      ...context,
-      receivedData: rawData,
-      issues: parsed.error.issues,
-    });
-    throw new McpError(
-      JsonRpcErrorCode.ServiceUnavailable,
-      'Cat Fact API returned unexpected data format.',
-      {
-        requestId: context.requestId,
-        issues: parsed.error.issues,
-      },
-    );
-  }
+  const formattedMessage =
+    input.mode === 'uppercase'
+      ? input.message.toUpperCase()
+      : input.mode === 'lowercase'
+        ? input.message.toLowerCase()
+        : input.message;
 
-  const data = parsed.data;
-  const toolResponse: CatFactToolResponse = {
-    fact: data.fact,
-    length: data.length,
-    requestedMaxLength: input.maxLength,
-    timestamp: new Date().toISOString(),
+  const repeatedMessage = Array(input.repeat).fill(formattedMessage).join(' ');
+
+  const response: EchoToolResponse = {
+    originalMessage: input.message,
+    formattedMessage,
+    repeatedMessage,
+    mode: input.mode,
+    repeatCount: input.repeat,
+    ...(input.includeTimestamp && { timestamp: new Date().toISOString() }),
   };
 
-  logger.notice('Random cat fact fetched and processed successfully.', {
-    ...context,
-    factLength: toolResponse.length,
-  });
-
-  return toolResponse;
+  return Promise.resolve(response);
 }
 
 /**
  * Formats a concise human-readable summary while structuredContent carries the full payload.
  */
-function responseFormatter(result: CatFactToolResponse): ContentBlock[] {
-  const maxPart =
-    typeof result.requestedMaxLength === 'number'
-      ? `, max<=${result.requestedMaxLength}`
-      : '';
-  const header = `Cat Fact (length=${result.length}${maxPart})`;
+function responseFormatter(result: EchoToolResponse): ContentBlock[] {
   const preview =
-    result.fact.length > 300 ? `${result.fact.slice(0, 297)}…` : result.fact;
-  const lines = [header, preview, `timestamp=${result.timestamp}`];
-  return [{ type: 'text', text: lines.filter(Boolean).join('\n') }];
+    result.repeatedMessage.length > 200
+      ? `${result.repeatedMessage.slice(0, 197)}…`
+      : result.repeatedMessage;
+  const lines = [
+    `Echo (mode=${result.mode}, repeat=${result.repeatCount})`,
+    preview,
+    result.timestamp ? `timestamp=${result.timestamp}` : undefined,
+  ].filter(Boolean) as string[];
+
+  return [
+    {
+      type: 'text',
+      text: lines.join('\n'),
+    },
+  ];
 }
 
 /**
- * The complete tool definition for the cat fact tool.
+ * The complete tool definition for the echo tool.
  */
-export const catFactTool: ToolDefinition<
-  typeof InputSchema,
-  typeof OutputSchema
-> = {
-  name: TOOL_NAME,
-  title: TOOL_TITLE,
-  description: TOOL_DESCRIPTION,
-  inputSchema: InputSchema,
-  outputSchema: OutputSchema,
-  annotations: TOOL_ANNOTATIONS,
-  logic: withToolAuth(['tool:cat_fact:read'], catFactToolLogic),
-  responseFormatter,
-};
+export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
+  {
+    name: TOOL_NAME,
+    title: TOOL_TITLE,
+    description: TOOL_DESCRIPTION,
+    inputSchema: InputSchema,
+    outputSchema: OutputSchema,
+    annotations: TOOL_ANNOTATIONS,
+    logic: withToolAuth(['tool:echo:read'], echoToolLogic),
+    responseFormatter,
+  };
 ```
 
 ---
 
 ## V. Resource Development Workflow
 
-This mirrors the tool pattern. Use `src/mcp-server/resources/definitions/echo.resource.ts` as your template.
+Resources mirror the tool pattern with a declarative `ResourceDefinition`. Use `src/mcp-server/resources/definitions/echo.resource.ts` as the reference template.
 
-1.  **File Location**: `src/mcp-server/resources/definitions/[name].resource.ts`.
-2.  **Define**: Export a `const` of type `ResourceDefinition`.
-3.  **Authorize**: Wrap your `logic` function with `withResourceAuth(['scope:here'], yourResourceLogic)`.
-4.  **Register**: Add the definition to the `allResourceDefinitions` array in `src/mcp-server/resources/definitions/index.ts`.
+#### Step 1 — File Location
+
+- Place new resources in `src/mcp-server/resources/definitions/`.
+- Name files `[resource-name].resource.ts`.
+
+#### Step 2 — Define the ResourceDefinition
+
+Export a single `const` of type `ResourceDefinition` with:
+
+- `name`: Unique programmatic resource name.
+- `title` (optional): Human-readable title for UIs.
+- `description`: Clear, LLM-facing description of what the resource returns.
+- `uriTemplate`: A template like `echo://{message}`.
+- `paramsSchema`: A `z.object({ ... })` for template/route params. **Every field must have a `.describe()`**.
+- `outputSchema` (optional): A `z.object({ ... })` describing output.
+- `mimeType` (optional): Default mime type for the response.
+- `examples` (optional): Helpful discovery samples.
+- `annotations` (optional): UI/behavior hints (flexible dictionary).
+- `list` (optional): Provides `ListResourcesResult` for discovery.
+- `logic`: `(uri, params, context) => { ... }` pure read logic. No `try/catch` here. Throw `McpError` on failure.
+- `responseFormatter` (optional): `(result, { uri, mimeType }) => contents` array. If omitted, a default JSON formatter is used.
+
+**Important:**
+
+- The handler validates params via Zod before invoking `logic`.
+- The `responseFormatter` must return an array of content blocks (`ReadResourceResult['contents']`). The handler performs a shallow validation (each item must be an object with a `uri`).
+- Resource logic can be `async`; the handler `await`s it.
+
+#### Step 2.5 — Apply Authorization
+
+- Wrap `logic` with `withResourceAuth`.
+- **Example:**
+  ```ts
+  import { withResourceAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+  // ...
+  logic: withResourceAuth(['resource:echo:read'], yourResourceLogic),
+  ```
+
+#### Step 3 — Register via Barrel Export
+
+- Add your resource to `src/mcp-server/resources/definitions/index.ts` in `allResourceDefinitions`.
+- The DI container discovers and registers all resources from that array.
 
 ---
 
 ## VI. Core Services & Utilities
 
-#### DI-Managed Services
+#### DI-Managed Services (tokens in `src/container/tokens.ts`)
 
-All core services are managed by the DI container (`tsyringe`). **Inject them into class constructors; do not create instances manually.**
+- **`ILlmProvider`**
+  - **Token:** `LlmProvider`
+  - **Usage:** `@inject(LlmProvider) private llmProvider: ILlmProvider`
+  - **Default impl:** `OpenRouterProvider` (requires `OPENROUTER_API_KEY` and related config)
+- **`StorageService`**
+  - **Token:** `StorageService`
+  - **Usage:** `@inject(StorageService) private storage: StorageService`
+  - **Note:** Requires `context.tenantId`; `StorageService` enforces presence and throws if missing.
+- **`RateLimiter`**
+  - **Token:** `RateLimiterService`
+  - **Usage:** `@inject(RateLimiterService) private rateLimiter: RateLimiter`
+- **`Logger`** (pino-backed singleton)
+  - **Token:** `Logger`
+  - **Usage (in injectable classes):** `@inject(Logger) private logger: typeof logger`
+- **App Config**
+  - **Token:** `AppConfig`
+  - **Usage:** `@inject(AppConfig) private config: typeof configModule`
+- **Supabase Admin Client** (only when needed)
+  - **Token:** `SupabaseAdminClient`
+  - **Usage:** `@inject(SupabaseAdminClient) private client: SupabaseClient<Database>`
+- **Storage Provider** (for DI-only internal wiring)
+  - **Token:** `StorageProvider`
+  - **Usage:** This is injected into `StorageService` (do not inject provider in tools/resources).
+- **`CreateMcpServerInstance`** (factory function)
+  - **Token:** `CreateMcpServerInstance`
+  - **Usage:** Resolved by transports to create/configure the `McpServer`.
 
-- **`ILlmProvider`**: Interface for LLM operations.
-  - **Token**: `LlmProvider`
-  - **Usage**: `@inject(LlmProvider) private llmProvider: ILlmProvider`
-- **`StorageService`**: Abstraction for persistence.
-  - **Token**: `StorageService`
-  - **Usage**: `@inject(StorageService) private storage: StorageService`
-- **`RateLimiter`**: Service for rate-limiting.
-  - **Token**: `RateLimiterService`
-  - **Usage**: `@inject(RateLimiterService) private rateLimiter: RateLimiter`
-- **`Logger`**: The Pino logger instance.
-  - **Token**: `Logger`
-  - **Usage (in injectable classes)**: `@inject(Logger) private logger: typeof logger`
+#### Storage Providers (configured in `src/storage/core/storageFactory.ts`)
 
-#### Directly Imported Utilities
+- Supported values (env `STORAGE_PROVIDER_TYPE`):
+  - `in-memory` (default)
+  - `filesystem` (requires `STORAGE_FILESYSTEM_PATH`, Node only)
+  - `supabase` (requires `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`)
+  - `cloudflare-r2` (Worker-only)
+  - `cloudflare-kv` (Worker-only)
+- In serverless environments (Workers), non-Cloudflare providers are forced to `in-memory`.
+- **Always use `StorageService` from DI to interact with storage.**
 
-For non-class-based logic (like tool `logic` functions), import these singletons directly:
+#### Directly Imported Utilities (for function-style logic)
 
 - `logger` from `src/utils/index.js`
 - `requestContextService` from `src/utils/index.js`
-- `ErrorHandler.tryCatch` from `src/utils/index.js`
+- `ErrorHandler.tryCatch` from `src/utils/index.js` (NOT in tool/resource logic; OK in services or setup code)
 - `sanitization` from `src/utils/index.js`
+- `fetchWithTimeout` from `src/utils/index.js` (for robust network calls with timeouts)
+- `measureToolExecution` from `src/utils/index.js` (used by handlers)
 
 ---
 
-## VII. Checks & Workflow Commands
+## VII. Authentication & Authorization
 
-Use these scripts from `package.json` to maintain code quality and run the server.
+#### HTTP Transport (configurable)
 
-| Script             | Description                                                                                                                                                             |
-| :----------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bun rebuild`      | Cleans and rebuilds the project. Also clears logs. Run this after changing dependencies.                                                                                |
-| `bun start:stdio`  | Starts the MCP server using stdio transport (after building).                                                                                                           |
-| `bun start:http`   | Starts the MCP server using HTTP transport (after building).                                                                                                            |
-| `bun run devcheck` | **Run this often.** Comprehensive check (lint, format, types, security). Use flags like `--no-fix` for read-only, or `--no-lint`, `--no-audit` to skip specific checks. |
-| `bun test`         | Runs all unit and integration tests.                                                                                                                                    |
+- **Modes:** `MCP_AUTH_MODE` = `'none' | 'jwt' | 'oauth'`
+- When not `'none'`, the HTTP `/mcp` endpoint requires a `Bearer` token:
+  - **JWT mode** uses a local secret (`MCP_AUTH_SECRET_KEY`).
+    - In production, the secret is required; startup fails otherwise.
+    - In development without the secret, verification is bypassed for template usability and a dev-mode `AuthInfo` is provided using `DEV_MCP_CLIENT_ID` and `DEV_MCP_SCOPES` (or sane defaults).
+  - **OAuth mode** verifies JSON Web Tokens via a remote JWKS:
+    - Requires `OAUTH_ISSUER_URL` and `OAUTH_AUDIENCE`; optionally `OAUTH_JWKS_URI`.
+- **Extracted claims:**
+  - `clientId`: token claim `'cid'` or `'client_id'`
+  - `scopes`: array claim `'scp'` or space-delimited string `'scope'`
+  - `subject`: `'sub'` (optional)
+  - `tenantId`: `'tid'` (optional; if present, it becomes `context.tenantId` via `requestContextService`)
+- **Scope enforcement inside logic:**
+  - **Always wrap tool/resource logic with `withToolAuth` or `withResourceAuth`.**
+  - If no auth context exists (e.g., auth disabled), the scope check defaults to allowed for development usability.
 
----
+#### STDIO Transport
 
-## VIII. Code Quality & Security
+- Follows MCP spec guidance: no HTTP-based auth flows over stdio.
+- Authorization is expected to be handled by the host application controlling the process.
 
-- **JSDoc**: Every file must start with `@fileoverview` and `@module`. Document all exported APIs.
-- **Authentication & Authorization**: Protect tools and resources by wrapping their `logic` functions with `withToolAuth` or `withResourceAuth` and specifying the required scopes.
-- **Validation**: All inputs are validated via your Zod `inputSchema`. Your `logic` function receives typed, safe `input`.
-- **Secrets**: Access secrets _only_ through the `config` module. Never hard-code credentials.
-- **Formatting, Linting, & Type Checking**: Run `bun run devcheck` before finishing any task to ensure consistency.
+#### CORS and Endpoints
 
----
-
-## IX. Repo-Specific Context and Guidance
-
-This project has unique documentation and workflows. If the user asks about certain topics, use this guidance to provide accurate and helpful responses.
-
-| If the user asks about...                                            | Your primary course of action should be to...                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| :------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **"Publishing the server"** or **"MCP Registry"**                    | 1. Read the primary guide at **`docs/publishing-mcp-server-registry.md`**. <br> 2. Use this guide to answer questions or to perform publishing-related tasks. Do not rely on generic knowledge.                                                                                                                                                                                                                                                                                                            |
-| **"Creating a new tool or resource"**                                | Follow the **Tool Development Workflow** and **Resource Development Workflow** sections outlined in this document. Use an existing definition (e.g., `template-cat-fact.tool.ts`) as a direct template.                                                                                                                                                                                                                                                                                                    |
-| **"Configuration"** or **"Environment variables"**                   | 1. Refer to `src/config/index.ts` to understand all available configuration options and their default values. <br> 2. Refer to `.env.example` for the list of variable names.                                                                                                                                                                                                                                                                                                                              |
-| **Adding or changing dependencies**                                  | Always use `bun add <package>` or `bun remove <package>`. After any change, run `bun install` to install the new dependencies.                                                                                                                                                                                                                                                                                                                                                                             |
-| **"How to run the server"** or **"Available scripts"**               | Consult the `scripts` section of `package.json` and the **Available Scripts** section of the `README.md` to provide exact `bun run ...` commands.                                                                                                                                                                                                                                                                                                                                                          |
-| **"I need to understand the project"** or **"Analyze the codebase"** | When asked to perform an analysis or a complex implementation on a specific section of the code base, we can use the `devdocs` script to generate a comprehensive context prompt. Run `bun run devdocs -- <path-of-codebase-section-to-focus-on>` to get a full project overview combined with the specific code you need to analyze. This script now features robust error handling, structured logging, parallel processing for efficiency, and automatically ignores dependencies from `package.json` resolutions. The default output will be located at `docs/devdocs.md`. |
+- CORS is enabled with allowed origins from `MCP_ALLOWED_ORIGINS` or `'*'` as fallback.
+- `GET /healthz`: unprotected health endpoint.
+- `GET /mcp`: unprotected endpoint returning server identity and config summary.
+- `POST`/`OPTIONS` `/mcp`: JSON-RPC transport; protection enforced when auth mode is not `'none'`.
 
 ---
 
-## X. Runtime Targets: Local & Edge
+## VIII. Transports & Server Lifecycle
 
-The template must stay portable across local transports and Cloudflare's global edge. Treat both modes as first-class citizens when designing features and workflows.
+#### `createMcpServerInstance` (`src/mcp-server/server.ts`)
 
-### Local transports (stdio & HTTP)
+- Initializes `RequestContext` global config.
+- Creates `McpServer` with identity and capabilities (logging, `resources/tools listChanged`).
+- Registers tools and resources via DI-managed registries.
+- Returns a configured `McpServer`.
 
-- Use `bun run dev:stdio` and `bun run dev:http` during development; parity bugs between transports are regressions.
-- After building (`bun run build`), confirm `bun run start:stdio` and `bun run start:http` still boot with your changes.
-- Avoid relying on host-only features (raw TCP sockets, shelling out to unavailable binaries, etc.). If a capability is required, gate it behind feature detection and provide Worker-safe fallbacks.
+#### Transports
 
-### Cloudflare Workers & Pages Functions
+- **stdio:** `startStdioTransport` connects `McpServer` to `StdioServerTransport`.
+- **http:** `createHttpApp` creates a Hono app and attaches `StreamableHTTPTransport` for JSON-RPC, plus health/status routes and CORS. `startHttpTransport` includes robust port binding with retries.
 
-- Edge bundles must compile with `bun run build:worker` and execute under `bunx wrangler dev --local` before merging.
-- Set `nodejs_compat` in `wrangler.toml` and use a compatibility date of `2025-09-01` or later so Cloudflare automatically enables Node's HTTP client and server APIs. For earlier dates, explicitly add `enable_nodejs_http_modules` (client helpers) and `enable_nodejs_http_server_modules` (server helpers).
-- Example Worker configuration:
+#### Worker (Edge)
 
-```toml
-compatibility_date = "2025-09-24"
-compatibility_flags = ["nodejs_compat"]
-```
-
-- Cloudflare now supports `node:http`/`node:https` on Workers, so existing Express/Koa-style logic can be wrapped. Prefer Hono with `@hono/mcp` (already bundled) to share routing across Bun/Node and Workers; leverage `httpServerHandler` or `fetch`-first adapters instead of direct socket listeners.
-- Workers cannot open arbitrary ports—`http.createServer().listen()` registers the handler with Cloudflare's router. Ensure any server-style code runs without assuming raw socket handles.
-- When storing state, continue using DI-managed services (for example Durable Objects implementations of `StorageService`) so the same logic works locally and on the edge.
+- `worker.ts` adapts the same `McpServer` and Hono app to Cloudflare Workers.
+- Sets a `serverless` flag to guide storage provider selection.
+- Uses `requestContextService` and `logger` for structured, traceable startup.
 
 ---
 
-## XI. Quick Checklist
+## IX. Code Style, Validation, and Security
+
+- **JSDoc:** Every file must start with `@fileoverview` and `@module`. Exported APIs must be documented.
+- **Validation:** All inputs are validated via Zod schemas. Ensure every field in schemas has a `.describe()`.
+- **Logging:** Always include `RequestContext`; use `logger.debug/info/notice/warning/error/crit/emerg` appropriately.
+- **Error Handling:** Logic throws `McpError`; handlers catch and standardize. Use `ErrorHandler.tryCatch` in services/infrastructure (not in tool/resource logic).
+- **Secrets:** Access secrets only through `src/config/index.ts`. Never hard-code credentials.
+- **Rate Limiting:** Use DI-injected `RateLimiter` where needed.
+- **Telemetry:** Instrumentation is auto-initialized when enabled. Avoid manual spans.
+
+---
+
+## X. Checks & Workflow Commands
+
+Use scripts from `package.json`:
+
+- `bun rebuild`: cleans and rebuilds; also clears logs. Run after dependency changes.
+- `bun run devcheck`: lint, format, typecheck, security. Use flags like `--no-fix`, `--no-lint`, `--no-audit` to tailor.
+- `bun test`: run unit/integration tests.
+- `bun run dev:stdio` / `bun run dev:http`: run server in development mode.
+- `bun run start:stdio` / `bun run start:http`: run after build.
+- `bun run build:worker`: build Cloudflare Worker bundle.
+
+#### Publishing & Registry
+
+- See `docs/publishing-mcp-server-registry.md` for publishing guidance.
+- Use `scripts/validate-mcp-publish-schema.ts` to validate registry metadata where applicable.
+
+#### `devdocs` Companion
+
+- To generate focused context for a section: `bun run devdocs -- <path>`
+- Output defaults to `docs/devdocs.md`. This improves complex analysis and implementation accuracy.
+
+---
+
+## XI. Configuration & Environment
+
+- All configuration is validated via Zod in `src/config/index.ts`.
+- Derives `serviceName` and `version` from `package.json` if not provided via env.
+- **Key variables:**
+  - **Transport:** `MCP_TRANSPORT_TYPE` (`'stdio'`|`'http'`), `MCP_HTTP_PORT/HOST/PATH`
+  - **Auth:** `MCP_AUTH_MODE` (`'none'`|`'jwt'`|`'oauth'`), `MCP_AUTH_SECRET_KEY` (jwt), `OAUTH_*` (oauth)
+  - **Storage:** `STORAGE_PROVIDER_TYPE` (`'in-memory'`|`'filesystem'`|`'supabase'`|`'cloudflare-r2'`|`'cloudflare-kv'`)
+  - **LLM (OpenRouter):** `OPENROUTER_API_KEY`, `OPENROUTER_APP_URL`, `OPENROUTER_APP_NAME`, `LLM_DEFAULT_*` tuning
+  - **Telemetry:** `OTEL_ENABLED`, `OTEL_SERVICE_NAME`, `OTEL_SERVICE_VERSION`, `OTEL_EXPORTER_OTLP_*`
+
+---
+
+## XII. Local & Edge Targets
+
+- **Local parity:** Ensure both stdio and HTTP transports run and behave identically for your feature.
+- **Worker compatibility:** `bun run build:worker` and `wrangler dev --local` must succeed before merging.
+- `wrangler.toml` should use a `compatibility_date` of `2025-09-01` or later and `nodejs_compat` enabled.
+
+---
+
+## XIII. Quick Checklist
 
 Before completing your task, ensure you have:
 
-- [ ] Implemented the tool/resource logic in a `*.tool.ts` or `*.resource.ts` file.
-- [ ] Kept the `logic` function pure (no `try...catch`).
-- [ ] Thrown a structured `McpError` for any failures within the logic.
-- [ ] Applied authorization using `withToolAuth` or `withResourceAuth`.
-- [ ] Used the `logger` with a `RequestContext` for all significant operations.
-- [ ] Used the injected `StorageService` for all persistence needs.
-- [ ] Registered the new definition in the corresponding `index.ts` barrel file.
-- [ ] Added or updated tests in `tests/` and confirmed they pass with `bun test`.
-- [ ] Run `bun run devcheck` to ensure code quality, formatting, and linting are correct.
-- [ ] Smoke-test local transports with `bun run dev:stdio` or `bun run dev:http` (and `start:*` scripts post-build).
-- [ ] Validate the Worker bundle (`bun run build:worker`) and `wrangler.toml` compatibility flags before shipping edge-impacting changes.
+- [ ] Implemented tool/resource logic in a `*.tool.ts` or `*.resource.ts` file.
+- [ ] Kept `logic` functions pure (no `try...catch`).
+- [ ] Thrown `McpError` for failures within logic (appropriate code and context).
+- [ ] Applied authorization with `withToolAuth` or `withResourceAuth`, specifying required scopes.
+- [ ] Used `logger` with `RequestContext` for all significant operations.
+- [ ] Used `StorageService` (DI) for persistence (never directly access low-level storage backends).
+- [ ] Registered definitions in the corresponding `index.ts` barrel file.
+- [ ] Added or updated tests and confirmed they pass with `bun test`.
+- [ ] Ran `bun run devcheck` to ensure code quality, formatting, and types are correct.
+- [ ] Smoke-tested local transports with `bun run dev:stdio` and `bun run dev:http` (and `start:*` after build).
+- [ ] Validated the Worker bundle (`bun run build:worker`) and `wrangler dev --local` for edge compatibility.
+
+---
+
+## XIV. Canonical Examples
+
+#### Tool (`template-cat-fact`, abridged)
+
+- See `src/mcp-server/tools/definitions/template-cat-fact.tool.ts` for:
+  - Constants (name/title/description/annotations)
+  - Input and output Zod schemas (with `.describe()` on each field)
+  - Pure logic with `McpError` throws and `fetchWithTimeout`
+  - `responseFormatter` returning `ContentBlock[]`
+  - `logic` wrapped with `withToolAuth([...], logicFn)`
+
+#### Resource (`echo` resource, abridged)
+
+- See `src/mcp-server/resources/definitions/echo.resource.ts` for:
+  - `paramsSchema` and `outputSchema`
+  - Pure logic reading from the URI and params
+  - `withResourceAuth([...], logicFn)`
+  - Registration via `allResourceDefinitions` in `index.ts`
+
+#### Notes on Tenancy
+
+- `StorageService` requires `context.tenantId` and throws if missing. In HTTP mode with auth enabled, `tenantId` is extracted from the token claim `tid` and propagated automatically via `requestContextService`.
+- If your feature needs multi-tenant storage access in contexts without authenticated HTTP (e.g., stdio), ensure `context.tenantId` is explicitly provided at the boundary where appropriate.
+
+That’s it. Follow this document precisely to keep the architecture coherent and the system observable, testable, and portable.

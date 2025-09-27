@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.1.7] - 2025-09-27
+
+### Changed
+- **Asynchronous Resource Logic**: The resource handler factory (`resourceHandlerFactory.ts`) now supports `async` logic functions. This allows resources to perform asynchronous operations, such as fetching data from a network, before returning a result.
+- **Documentation**: Major updates to `README.md` & `AGENTS.md` to improve clarity, streamline the development workflow, and reflect the latest architectural patterns, including asynchronous resource handling.
+- **Dependencies**: Upgraded `hono` to `^4.9.9`.
+
+### Fixed
+- Corrected a minor module path typo in the JSDoc for `httpErrorHandler.ts`.
+
 ## [2.1.6] - 2025-09-27
 
 ### Feature

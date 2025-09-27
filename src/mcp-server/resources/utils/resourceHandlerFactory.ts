@@ -115,7 +115,7 @@ export async function registerResource<
           mimeType,
           ...(def.examples && { examples: def.examples }),
         },
-        (uri, params, callContext): ReadResourceResult => {
+        async (uri, params, callContext): Promise<ReadResourceResult> => {
           const sessionId =
             typeof callContext?.sessionId === 'string'
               ? callContext.sessionId
@@ -140,11 +140,11 @@ export async function registerResource<
                 ? z.infer<TOutputSchema>
                 : unknown;
             const parsedParams = def.paramsSchema.parse(params) as TParams;
-            const responseData = def.logic(
+            const responseData = (await def.logic(
               uri,
               parsedParams,
               handlerContext,
-            ) as TOutput;
+            )) as TOutput;
 
             const rawContents: unknown = formatter(responseData, {
               uri,

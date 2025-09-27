@@ -3,7 +3,7 @@
  * This middleware intercepts errors that occur during request processing,
  * standardizes them using the application's ErrorHandler utility, and
  * formats them into a consistent JSON-RPC error response.
- * @module src/mcp-server/transports/httpErrorHandler
+ * @module src/mcp-server/transports/http/httpErrorHandler
  */
 import type { Context } from 'hono';
 import type { StatusCode } from 'hono/utils/http-status';

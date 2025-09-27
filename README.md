@@ -1,248 +1,285 @@
 <div align="center">
   <h1>mcp-ts-template</h1>
-  <p><b>The definitive, production-grade template for building powerful and scalable Model Context Protocol (MCP) servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.</b></p>
-  
-  [![Version](https://img.shields.io/badge/Version-2.1.6-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.18.2-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.22-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-77.29%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
+  <p><b>Production-grade TypeScript template for building Model Context Protocol (MCP) servers. Ships with declarative tools/resources, robust error handling, DI, easy auth, optional OpenTelemetry, and first-class support for both local and edge (Cloudflare Workers) runtimes.</b></p>
+</div>
+
+<div align="center">
+
+[![Version](https://img.shields.io/badge/Version-2.1.7-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.18.2-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.22-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-77.29%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
 
 </div>
 
 ---
 
-**`mcp-ts-template`** is more than just a template; it's a feature-rich, production-ready framework for building robust, observable, and secure MCP servers, providing a solid architectural foundation so you can focus entirely on creating powerful tools and resources for AI agents.
+## ✨ Features
 
-This project is designed to be **AI-agent-friendly**, providing an LLM-optimized **[AGENTS.md](./AGENTS.md)** to ensure your coding agents adhere to best practices from the start.
-
-## ✨ Core Features
-
-This template is packed with production-grade features designed for high-performance, secure, and maintainable MCP servers.
-
-| Feature                             | Description                                                                                                                                                          |
-| :---------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Declarative Tooling**             | Define tools in a single, self-contained file (`*.tool.ts`). The framework handles registration, validation, error handling, and performance metrics automatically.  |
-| **Full Observability**              | Zero-configuration **OpenTelemetry** integration. Get distributed traces and metrics out-of-the-box for all your tools and underlying dependencies (HTTP, DNS).      |
-| **Pluggable Auth**                  | Built-in authentication middleware supporting **JWT** and **OAuth 2.1**. Easily toggle auth modes or extend with new strategies via the `AuthStrategy` interface.    |
-| **Stateful & Stateless Transports** | Choose between **stdio** or **HTTP** transports. The HTTP transport supports both persistent, stateful sessions and ephemeral, stateless requests intelligently.     |
-| **Robust Error Handling**           | A centralized `ErrorHandler` maps all exceptions to standardized `JsonRpcErrorCode`s and automatically correlates them with OpenTelemetry traces for easy debugging. |
-| **Type-Safe & Validated**           | **Zod** is used everywhere for rigorous schema validation of configuration, tool inputs/outputs, and API boundaries, preventing invalid data at the source.          |
-| **Abstracted Storage Layer**        | A flexible, provider-based storage service (`IStorageProvider`) with backends for **In-Memory**, **Filesystem**, **Supabase**, and **Cloudflare (KV/R2)**.           |
-| **Comprehensive Utilities**         | A rich set of internal utilities for logging (`Pino`), rate-limiting, security sanitization, ID generation, cron scheduling, and network requests.                   |
-| **Robust Testing Framework**        | Pre-configured with **Vitest** and **`msw`** for writing meaningful integration and unit tests that reflect real-world usage, ensuring reliability from end to end.  |
-| **Agent-Ready Design**              | Includes detailed guidance in `AGENTS.md` and `.clinerules/` to direct developer LLM agents, ensuring they adhere to the project's architectural standards.          |
-
----
+- **Declarative Tools & Resources**: Define capabilities in single, self-contained files. The framework handles registration and execution.
+- **Robust Error Handling**: A unified `McpError` system ensures consistent, structured error responses across the server.
+- **Pluggable Authentication**: Secure your server with zero-fuss support for `none`, `jwt`, or `oauth` modes.
+- **Abstracted Storage**: Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `Cloudflare KV/R2`) without changing business logic.
+- **Full-Stack Observability**: Get deep insights with structured logging (Pino) and optional, auto-instrumented OpenTelemetry for traces and metrics.
+- **Dependency Injection**: Built with `tsyringe` for a clean, decoupled, and testable architecture.
+- **Edge-Ready**: Write code once and run it seamlessly on your local machine or at the edge on Cloudflare Workers.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) (v1.2.0 or higher)
+- [Bun v1.2.0](https://bun.sh/) or higher.
 
 ### Installation
 
-1.  **Clone the Repository**
-
-    ```bash
+1.  **Clone the repository:**
+    ```sh
     git clone https://github.com/cyanheads/mcp-ts-template.git
+    ```
+2.  **Navigate into the directory:**
+    ```sh
     cd mcp-ts-template
     ```
-
-2.  **Install Dependencies**
-
-    ```bash
+3.  **Install dependencies:**
+    ```sh
     bun install
     ```
 
-3.  **Build the Project**
-    ```bash
-    bun build # or bun rebuild
-    ```
+## 🛠️ Understanding the Template: Tools & Resources
 
----
+This template includes working examples of a tool (`template_echo_message`) and a resource (`echo-resource`). Here’s how they are structured.
 
-## 🏃 Running the Server
+### 1. Example Tool: `template_echo_message`
 
-You can run the server in several modes for development and production.
+This tool echoes back a message with optional formatting. You can find the full source at `src/mcp-server/tools/definitions/template-echo-message.tool.ts`.
 
-### Standard Transports
-
-- **STDIO Transport**: Ideal for local development or when the server is a child process.
-  ```bash
-  bun run start:stdio
-  ```
-- **HTTP Transport**: For network-accessible deployments.
-  ```bash
-  bun run start:http
-  # Server now running at http://127.0.0.1:3010
-  ```
-
-### Cloudflare Workers Deployment
-
-This template is optimized for deployment to [Cloudflare Workers](https://workers.cloudflare.com/), a global, serverless execution environment.
-
-1.  **Build the Worker**:
-
-    ```bash
-    bun run build:worker
-    ```
-
-2.  **Run Locally with Wrangler**:
-
-    ```bash
-    bun run deploy:dev
-    ```
-
-3.  **Deploy to Cloudflare**:
-    ```bash
-    bun run deploy:prod
-    ```
-
----
-
-## 🏗️ Architectural Principles
-
-This template enforces a set of non-negotiable architectural principles to ensure every server built from it is robust, maintainable, and debuggable.
-
-### 1. The "Logic Throws, Handler Catches" Pattern
-
-This is the cornerstone of control flow and error handling. It creates a complete separation between pure business logic and the surrounding infrastructure concerns.
-
-- **Core Logic (`logic`)**: Defined within your `ToolDefinition`, this is a pure, stateless `async` function. It contains only the business logic for the tool. If an operational or validation error occurs, it **must** terminate by `throw`ing a structured `McpError`. It **never** contains a `try...catch` block.
-- **Handler (Auto-Generated)**: The `toolHandlerFactory` automatically wraps your `logic` function in a robust `try...catch` block at runtime. This factory-generated handler is responsible for creating the `RequestContext`, measuring performance with OpenTelemetry, invoking your logic, and catching any thrown errors. It is the _only_ place where errors are caught and formatted into a final `CallToolResult`.
-
-This pattern allows you to write clean, focused business logic while the framework guarantees it's executed within a fully instrumented, safe, and observable context.
-
-### 2. Full-Stack Observability by Default
-
-Every operation is traceable from end to end without any manual setup.
-
-- **OpenTelemetry SDK**: Initialized in `src/utils/telemetry/instrumentation.ts` _before any other module_, it automatically instruments supported I/O operations (HTTP, DNS, etc.).
-- **Trace-Aware Context**: The `requestContextService` automatically injects the active `traceId` and `spanId` into every `RequestContext`.
-- **Error-Trace Correlation**: The central `ErrorHandler` records every handled exception on the active OTel span and sets its status to `ERROR`, ensuring every failure is visible and searchable in your tracing backend.
-- **Performance Spans**: The `measureToolExecution` utility wraps every tool call in a dedicated span, capturing duration, status, and input/output sizes as attributes.
-
-### 3. Declarative, Self-Contained Components
-
-Tools and resources are defined declaratively in single, self-contained files. This makes the system highly modular and easy to reason about.
-
-### 4. Dependency Injection for Maximum Decoupling
-
-The entire architecture is built around a Dependency Injection (DI) container (`tsyringe`).
-
-- **Centralized Container**: All services, providers, and managers are registered in a central DI container, configured in `src/container/`.
-- **Inversion of Control**: Components never create their own dependencies. Instead, they receive them via constructor injection, making them highly testable and decoupled.
-- **Auto-Registration**: Tool and resource definitions are automatically discovered and registered with the container from barrel exports, eliminating manual wiring.
-
----
-
-## 📁 Project Structure
-
-```
-.
-├── .clinerules/         # --> Rules and mandates for LLM-based development agents.
-├── .github/             # --> GitHub Actions workflows (e.g., CI/CD).
-├── scripts/             # --> Helper scripts for development (cleaning, docs, etc.).
-├── src/
-│   ├── config/          # --> Application configuration (Zod schemas, loader).
-│   ├── container/       # --> Dependency Injection container setup and registrations.
-│   ├── mcp-server/
-│   │   ├── resources/   # --> Declarative resource definitions (*.resource.ts).
-│   │   ├── tools/       # --> Declarative tool definitions (*.tool.ts).
-│   │   ├── transports/  # --> HTTP and STDIO transport layers, including auth.
-│   │   └── server.ts    # --> Core McpServer setup (resolves components from DI).
-│   ├── services/        # --> Clients for external services (e.g., LLM providers).
-│   ├── storage/         # --> Abstracted storage layer and providers.
-│   ├── types-global/    # --> Global TypeScript types (e.g., McpError).
-│   └── utils/           # --> Core utilities (logger, error handler, security).
-├── tests/               # --> Vitest integration and unit tests.
-├── .env.example         # --> Example environment variables.
-├── AGENTS.md            # --> Detailed architectural guide for LLM agents.
-└── Dockerfile           # --> For building and running the server in a container.
-```
-
-## 🔧 Extending the Template
-
-### Adding a New Tool
-
-1.  **Create the Definition**: Create a new file at `src/mcp-server/tools/definitions/my-new-tool.tool.ts`. Use an existing tool as a template.
-2.  **Define the Tool**: Export a single `const` of type `ToolDefinition` containing the name, Zod schemas, and pure business logic.
-3.  **Register via Barrel Export**: Open `src/mcp-server/tools/definitions/index.ts` and add your new tool definition to the `allToolDefinitions` array.
+<details>
+<summary>Click to see the `echoTool` definition structure</summary>
 
 ```ts
-// src/mcp-server/tools/definitions/index.ts
-import { myNewTool } from './my-new-tool.tool.js';
-// ... other imports
-export const allToolDefinitions = [
-  // ... other tools
-  myNewTool,
-];
+// Located at: src/mcp-server/tools/definitions/template-echo-message.tool.ts
+import { z } from 'zod';
+import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
+import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import { type RequestContext, logger } from '@/utils/index.js';
+
+// 1. Define Input and Output Schemas with Zod for validation.
+const InputSchema = z.object({
+  message: z.string().min(1).describe('The message to echo back.'),
+  mode: z
+    .enum(['standard', 'uppercase', 'lowercase'])
+    .default('standard')
+    .describe('Formatting mode.'),
+  repeat: z
+    .number()
+    .int()
+    .min(1)
+    .max(5)
+    .default(1)
+    .describe('Number of times to repeat the message.'),
+});
+
+const OutputSchema = z.object({
+  repeatedMessage: z
+    .string()
+    .describe('The final, formatted, and repeated message.'),
+  // ... other fields from the actual file
+});
+
+// 2. Implement the pure business logic for the tool.
+async function echoToolLogic(
+  input: z.infer<typeof InputSchema>,
+  context: RequestContext,
+): Promise<z.infer<typeof OutputSchema>> {
+  // ... logic to format and repeat the message
+  const formattedMessage = input.message.toUpperCase(); // simplified for example
+  const repeatedMessage = Array(input.repeat).fill(formattedMessage).join(' ');
+  return { repeatedMessage };
+}
+
+// 3. Assemble the final Tool Definition.
+export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
+  {
+    name: 'template_echo_message', // The official tool name
+    title: 'Echo Message',
+    description:
+      'Echoes a message back with optional formatting and repetition.',
+    inputSchema: InputSchema,
+    outputSchema: OutputSchema,
+    logic: withToolAuth(['tool:echo:read'], echoToolLogic), // Secure the tool
+  };
 ```
 
-That's it. The DI container automatically discovers and registers all tools from this array at startup.
+The `echoTool` is registered in `src/mcp-server/tools/definitions/index.ts`, making it available to the server on startup.
 
-### Adding a New Storage Provider
+</details>
 
-1.  **Create Provider**: Create a new class under `src/storage/providers/` that implements the `IStorageProvider` interface.
-2.  **Add to Factory**: Open `src/storage/core/storageFactory.ts`. Add a case to the `switch` statement to instantiate your new provider based on the `STORAGE_PROVIDER_TYPE` from the config.
-3.  **Update Config Schema**: Add your new provider's name to the `StorageProviderType` enum in `src/config/index.ts`.
-4.  **Set Environment Variable**: In your `.env` file, set `STORAGE_PROVIDER_TYPE` to your new provider's name.
+### 2. Example Resource: `echo-resource`
 
----
+This resource provides a simple echo response via a URI. The source is located at `src/mcp-server/resources/definitions/echo.resource.ts`.
 
-## ⚙️ Configuration
+<details>
+<summary>Click to see the `echoResourceDefinition` structure</summary>
 
-The server is configured via environment variables, loaded and validated by `src/config/index.ts`. Copy `.env.example` to `.env` and fill in the required values.
+```ts
+// Located at: src/mcp-server/resources/definitions/echo.resource.ts
+import { z } from 'zod';
+import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
+import { withResourceAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import { type RequestContext, logger } from '@/utils/index.js';
 
-| Variable                    | Description                                                                               | Default      |
-| :-------------------------- | :---------------------------------------------------------------------------------------- | :----------- |
-| `MCP_TRANSPORT_TYPE`        | Transport to use: `stdio` or `http`.                                                      | `http`       |
-| `MCP_SESSION_MODE`          | HTTP session mode: `stateless`, `stateful`, or `auto`.                                    | `auto`       |
-| `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.                                           | `none`       |
-| `MCP_LOG_LEVEL`             | Minimum log level: `debug`, `info`, `warning`, `error`, etc.                              | `debug`      |
-| `LOGS_DIR`                  | Directory for log files.                                                                  | `logs/`      |
-| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-r2`, `cloudflare-kv`. | `in-memory`  |
-| `STORAGE_FILESYSTEM_PATH`   | Path for the filesystem storage provider.                                                 | `./.storage` |
-| `OPENROUTER_API_KEY`        | API key for the OpenRouter LLM service.                                                   | ` `          |
-| `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                                                    | `false`      |
-| `MCP_AUTH_SECRET_KEY`       | Secret key for signing JWTs (required for `jwt` auth mode).                               | ` `          |
-| `SUPABASE_URL`              | URL for your Supabase project.                                                            | ` `          |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key for Supabase admin tasks.                                                | ` `          |
+// 1. Define Parameter and Output Schemas.
+const ParamsSchema = z.object({
+  message: z.string().optional().describe('Message to echo from the URI.'),
+});
 
-Refer to **`.env.example`** for a complete list of configurable options.
+const OutputSchema = z.object({
+  message: z.string().describe('The echoed message.'),
+  timestamp: z.string().datetime().describe('Timestamp of the response.'),
+  requestUri: z.string().url().describe('The original request URI.'),
+});
 
-## 📜 Available Scripts
+// 2. Implement the pure read logic for the resource.
+function echoLogic(
+  uri: URL,
+  params: z.infer<typeof ParamsSchema>,
+  context: RequestContext,
+): z.infer<typeof OutputSchema> {
+  const messageToEcho = params.message || uri.hostname || 'Default echo';
+  return {
+    message: messageToEcho,
+    timestamp: new Date().toISOString(),
+    requestUri: uri.href,
+  };
+}
 
-Key scripts available in `package.json`:
+// 3. Assemble the final Resource Definition.
+export const echoResourceDefinition: ResourceDefinition<
+  typeof ParamsSchema,
+  typeof OutputSchema
+> = {
+  name: 'echo-resource', // The official resource name
+  title: 'Echo Message Resource',
+  description: 'A simple echo resource that returns a message.',
+  uriTemplate: 'echo://{message}',
+  paramsSchema: ParamsSchema,
+  outputSchema: OutputSchema,
+  logic: withResourceAuth(['resource:echo:read'], echoLogic), // Secure the resource
+};
+```
 
-| Script                  | Description                                                                                                    |
-| :---------------------- | :------------------------------------------------------------------------------------------------------------- |
-| `bun run devdocs`       | Generates a comprehensive development documentation prompt for AI analysis.                                    |
-| `bun run rebuild`       | Clears logs, cache, and compiles the TypeScript source code to JavaScript in `dist/`.                          |
-| `bun run build:worker`  | Builds the server specifically for the Cloudflare Workers runtime.                                             |
-| `bun run start:http`    | Starts the compiled server using the HTTP transport.                                                           |
-| `bun run start:stdio`   | Starts the compiled server using the STDIO transport.                                                          |
-| `bun run deploy:dev`    | Runs the worker locally using the Wrangler CLI for development.                                                |
-| `bun run deploy:prod`   | Deploys the worker to your Cloudflare account.                                                                 |
-| `bun run test`          | Runs all unit and integration tests with Vitest.                                                               |
-| `bun run test:coverage` | Runs all tests and generates a code coverage report.                                                           |
-| `bun run devcheck`      | A comprehensive script that runs linting, type-checking, and formatting.                                       |
-| `bun run publish-mcp`   | **(Recommended)** An all-in-one script to sync, validate, commit, and publish your server to the MCP Registry. |
+Like the tool, `echoResourceDefinition` is registered in `src/mcp-server/resources/definitions/index.ts`.
 
-You can find these scripts in the `scripts/` directory.
+</details>
 
----
+## ⚙️ Core Concepts
 
-## 📦 Publishing to the MCP Registry
+### Configuration
 
-This template is configured for easy publishing to the public [MCP Registry](https://modelcontext.com/registry), making your server discoverable by any MCP-compatible client. The recommended method is to use the all-in-one publishing script.
+All configuration is centralized and validated at startup in `src/config/index.ts`. Key environment variables in your `.env` file include:
 
-For a complete walkthrough, including alternative methods and CI/CD automation, please refer to the detailed guide:
+| Variable                | Description                                                                    | Default     |
+| :---------------------- | :----------------------------------------------------------------------------- | :---------- |
+| `MCP_TRANSPORT_TYPE`    | The transport to use: `stdio` or `http`.                                       | `http`      |
+| `MCP_HTTP_PORT`         | The port for the HTTP server.                                                  | `3010`      |
+| `MCP_AUTH_MODE`         | Authentication mode: `none`, `jwt`, or `oauth`.                                | `none`      |
+| `STORAGE_PROVIDER_TYPE` | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-kv`, `r2`. | `in-memory` |
+| `OTEL_ENABLED`          | Set to `true` to enable OpenTelemetry.                                         | `false`     |
+| `LOG_LEVEL`             | The minimum level for logging.                                                 | `info`      |
 
-**[➡️ How to Publish Your MCP Server](./docs/publishing-mcp-server-registry.md)**
+### Authentication & Authorization
+
+- **Modes**: `none` (default), `jwt` (requires `MCP_AUTH_SECRET_KEY`), or `oauth` (requires `OAUTH_ISSUER_URL` and `OAUTH_AUDIENCE`).
+- **Enforcement**: Wrap your tool/resource `logic` functions with `withToolAuth([...])` or `withResourceAuth([...])` to enforce scope checks. Scope checks are bypassed for developer convenience when auth mode is `none`.
+
+### Storage
+
+- **Service**: A DI-managed `StorageService` provides a consistent API for persistence. **Never access `fs` or other storage SDKs directly from tool logic.**
+- **Providers**: The default is `in-memory`. Node-only providers include `filesystem`. Edge-compatible providers include `supabase`, `cloudflare-kv`, and `cloudflare-r2`.
+- **Multi-Tenancy**: The `StorageService` requires `context.tenantId`. This is automatically propagated from the `tid` claim in a JWT when auth is enabled.
+
+### Observability
+
+- **Structured Logging**: Pino is integrated out-of-the-box. All logs are JSON and include the `RequestContext`.
+- **OpenTelemetry**: Disabled by default. Enable with `OTEL_ENABLED=true` and configure OTLP endpoints. Traces, metrics (duration, payload sizes), and errors are automatically captured for every tool call.
+
+## ▶️ Running the Server
+
+### Local Development
+
+- **Build and run the production version**:
+
+  ```sh
+  # One-time build
+  bun rebuild
+
+  # Run the built server
+  bun start:http
+  # or
+  bun start:stdio
+  ```
+
+- **Run checks and tests**:
+  ```sh
+  bun devcheck # Lints, formats, type-checks, and more
+  bun test         # Runs the test suite
+  ```
+
+### Cloudflare Workers
+
+1.  **Build the Worker bundle**:
+    ```sh
+    bun build:worker
+    ```
+2.  **Run locally with Wrangler**:
+    ```sh
+    bun deploy:dev
+    ```
+3.  **Deploy to Cloudflare**:
+    `sh
+    bun deploy:prod
+    `
+    > **Note**: The `wrangler.toml` file is pre-configured to enable `nodejs_compat` for best results.
+
+## 📂 Project Structure
+
+| Directory                              | Purpose & Contents                                                                   |
+| :------------------------------------- | :----------------------------------------------------------------------------------- |
+| `src/mcp-server/tools/definitions`     | Your tool definitions (`*.tool.ts`). This is where you add new capabilities.         |
+| `src/mcp-server/resources/definitions` | Your resource definitions (`*.resource.ts`). This is where you add new data sources. |
+| `src/mcp-server/transports`            | Implementations for HTTP and STDIO transports, including auth middleware.            |
+| `src/storage`                          | The `StorageService` abstraction and all storage provider implementations.           |
+| `src/services`                         | Integrations with external services (e.g., the default OpenRouter LLM provider).     |
+| `src/container`                        | Dependency injection container registrations and tokens.                             |
+| `src/utils`                            | Core utilities for logging, error handling, performance, security, and telemetry.    |
+| `src/config`                           | Environment variable parsing and validation with Zod.                                |
+| `tests/`                               | Unit and integration tests, mirroring the `src/` directory structure.                |
+
+## 🧑‍💻 Agent Development Guide
+
+For a strict set of rules when using this template with an AI agent, please refer to **`AGENTS.md`**. Key principles include:
+
+- **Logic Throws, Handlers Catch**: Never use `try/catch` in your tool/resource `logic`. Throw an `McpError` instead.
+- **Pass the Context**: Always pass the `RequestContext` object through your call stack.
+- **Use the Barrel Exports**: Register new tools and resources only in the `index.ts` barrel files.
+
+## ❓ FAQ
+
+- **Does this work with both STDIO and Streamable HTTP?**
+  - Yes. Both transports are first-class citizens. Use `bun run dev:stdio` or `bun run dev:http`.
+- **Can I deploy this to the edge?**
+  - Yes. The template is designed for Cloudflare Workers. Run `bun run build:worker` and deploy with Wrangler.
+- **Do I have to use OpenTelemetry?**
+  - No, it is disabled by default. Enable it by setting `OTEL_ENABLED=true` in your `.env` file.
+- **How do I publish my server to the MCP Registry?**
+  - Follow the step-by-step guide in `docs/publishing-mcp-server-registry.md`.
 
 ## 🤝 Contributing
 
-This is an open-source project. Contributions, issues, and feature requests are welcome. Please feel free to fork the repository, make changes, and open a pull request.
+Issues and pull requests are welcome! If you plan to contribute, please run the local checks and tests before submitting your PR.
 
-## 📄 License
+```sh
+bun run devcheck
+bun test
+```
 
-This project is licensed under the **Apache 2.0 License**. See the [LICENSE](./LICENSE) file for details.
+## 📜 License
+
+This project is licensed under the Apache 2.0 License. See the [LICENSE](./LICENSE) file for details.
