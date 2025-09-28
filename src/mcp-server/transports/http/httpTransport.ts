@@ -15,12 +15,24 @@ import { randomUUID } from 'node:crypto';
 import { config } from '@/config/index.js';
 import {
   authContext,
+  createAuthMiddleware,
   createAuthStrategy,
 } from '@/mcp-server/transports/auth/index.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { type RequestContext, logger } from '@/utils/index.js';
+
+/**
+ * Extends the base StreamableHTTPTransport to include a session ID.
+ */
+class McpSessionTransport extends StreamableHTTPTransport {
+  public sessionId: string;
+
+  constructor(sessionId: string) {
+    super();
+    this.sessionId = sessionId;
+  }
+}
 
 export function createHttpApp(
   mcpServer: McpServer,
@@ -75,7 +87,23 @@ export function createHttpApp(
     });
   });
 
-  // JSON-RPC over HTTP (Streamable) with auth when enabled
+  // Create auth strategy and middleware if auth is enabled
+  const authStrategy = createAuthStrategy();
+  if (authStrategy) {
+    const authMiddleware = createAuthMiddleware(authStrategy);
+    app.use(config.mcpHttpEndpointPath, authMiddleware);
+    logger.info(
+      'Authentication middleware enabled for MCP endpoint.',
+      transportContext,
+    );
+  } else {
+    logger.info(
+      'Authentication is disabled; MCP endpoint is unprotected.',
+      transportContext,
+    );
+  }
+
+  // JSON-RPC over HTTP (Streamable)
   app.all(config.mcpHttpEndpointPath, async (c) => {
     logger.debug('Handling MCP request.', {
       ...transportContext,
@@ -83,11 +111,8 @@ export function createHttpApp(
       method: c.req.method,
     });
 
-    const transport =
-      new StreamableHTTPTransport() as StreamableHTTPTransport & {
-        sessionId: string;
-      };
-    transport.sessionId = c.req.header('mcp-session-id') ?? randomUUID();
+    const sessionId = c.req.header('mcp-session-id') ?? randomUUID();
+    const transport = new McpSessionTransport(sessionId);
 
     const handleRpc = async (): Promise<Response> => {
       await mcpServer.connect(transport);
@@ -95,50 +120,18 @@ export function createHttpApp(
       if (response) {
         return response;
       }
-      // handleRequest may return undefined for notifications.
-      // Return 204 No Content as per HTTP best practices for such cases.
       return c.body(null, 204);
     };
 
-    const protectRpc = config.mcpAuthMode !== 'none';
-
+    // The auth logic is now handled by the middleware. We just need to
+    // run the core RPC logic within the async-local-storage context that
+    // the middleware has already populated.
     try {
-      if (!protectRpc) {
-        return await handleRpc();
+      const store = authContext.getStore();
+      if (store) {
+        return await authContext.run(store, handleRpc);
       }
-
-      const authHeader = c.req.header('Authorization');
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        logger.warning(
-          'Authorization header missing or invalid (HTTP JSON-RPC).',
-          {
-            ...transportContext,
-            method: c.req.method,
-            path: c.req.path,
-          },
-        );
-        throw new McpError(
-          JsonRpcErrorCode.Unauthorized,
-          'Missing or invalid Authorization header. Bearer scheme required.',
-          transportContext,
-        );
-      }
-
-      const strategy = createAuthStrategy();
-      if (!strategy) {
-        logger.warning(
-          'Auth mode indicates protection, but no strategy was created. Proceeding unauthenticated.',
-          transportContext,
-        );
-        return await handleRpc();
-      }
-
-      const token = authHeader.substring(7);
-      const authInfo = await strategy.verify(token);
-
-      return await authContext.run({ authInfo }, async () => {
-        return await handleRpc();
-      });
+      return await handleRpc();
     } catch (err) {
       await transport.close?.();
       throw err instanceof Error ? err : new Error(String(err));
@@ -246,10 +239,7 @@ function startHttpServerWithRetry(
 export async function startHttpTransport(
   mcpServer: McpServer,
   parentContext: RequestContext,
-): Promise<{
-  app: Hono<{ Bindings: HonoNodeBindings }>;
-  server: ServerType;
-}> {
+): Promise<ServerType> {
   const transportContext = {
     ...parentContext,
     component: 'HttpTransportStart',
@@ -267,5 +257,28 @@ export async function startHttpTransport(
   );
 
   logger.info('HTTP transport started successfully.', transportContext);
-  return { app, server };
+  return server;
+}
+
+export async function stopHttpTransport(
+  server: ServerType,
+  parentContext: RequestContext,
+): Promise<void> {
+  const operationContext = {
+    ...parentContext,
+    operation: 'stopHttpTransport',
+    transportType: 'Http',
+  };
+  logger.info('Attempting to stop http transport...', operationContext);
+
+  return new Promise((resolve, reject) => {
+    server.close((err) => {
+      if (err) {
+        logger.error('Error closing HTTP server.', err, operationContext);
+        return reject(err);
+      }
+      logger.info('HTTP server closed successfully.', operationContext);
+      resolve();
+    });
+  });
 }

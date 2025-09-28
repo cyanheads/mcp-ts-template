@@ -9,6 +9,8 @@
  */
 import dotenv from 'dotenv';
 import { z } from 'zod';
+
+import { JsonRpcErrorCode, McpError } from '../types-global/errors.js';
 import packageJson from '../../package.json' with { type: 'json' };
 
 type PackageManifest = {
@@ -299,14 +301,21 @@ const parseConfig = () => {
   const parsedConfig = ConfigSchema.safeParse(finalRawConfig);
 
   if (!parsedConfig.success) {
-    // Keep existing error handling
+    // Keep existing TTY error logging for developer convenience.
     if (process.stdout.isTTY) {
       console.error(
         '❌ Invalid configuration found. Please check your environment variables.',
         parsedConfig.error.flatten().fieldErrors,
       );
     }
-    process.exit(1);
+    // Throw a specific, typed error instead of exiting.
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      'Invalid application configuration.',
+      {
+        validationErrors: parsedConfig.error.flatten().fieldErrors,
+      },
+    );
   }
 
   return parsedConfig.data;

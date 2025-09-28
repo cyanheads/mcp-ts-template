@@ -13,16 +13,13 @@
  * - Transports: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx
  * @module src/mcp-server/server
  */
-import type { ServerType } from '@hono/node-server';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { container } from 'tsyringe';
 
 import { config } from '@/config/index.js';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
-import { startHttpTransport } from '@/mcp-server/transports/http/httpTransport.js';
-import { startStdioTransport } from '@/mcp-server/transports/stdio/index.js';
-import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
+import { logger, requestContextService } from '@/utils/index.js';
 
 /**
  * Creates and configures a new instance of the `McpServer`.
@@ -81,79 +78,4 @@ export async function createMcpServerInstance(): Promise<McpServer> {
   }
 
   return server;
-}
-
-/**
- * Selects, sets up, and starts the appropriate MCP transport layer based on configuration.
- *
- * @returns Resolves with `McpServer` for 'stdio' or `http.Server` for 'http'.
- * @throws {Error} If transport type is unsupported or setup fails.
- * @private
- */
-async function startTransport(): Promise<
-  { server: ServerType } | { server: McpServer }
-> {
-  const transportType = config.mcpTransportType;
-  const context = requestContextService.createRequestContext({
-    operation: 'startTransport',
-    transport: transportType,
-  });
-  logger.info(`Starting transport: ${transportType}`, context);
-
-  if (transportType === 'http') {
-    // Create the MCP Server instance once and pass it to the transport.
-    const mcpServer = await createMcpServerInstance();
-    const { server } = await startHttpTransport(mcpServer, context);
-    return { server };
-  }
-
-  if (transportType === 'stdio') {
-    const server = await createMcpServerInstance();
-    await startStdioTransport(server, context);
-    return { server };
-  }
-
-  logger.crit(
-    `Unsupported transport type configured: ${transportType as string}`,
-    context,
-  );
-  throw new Error(
-    `Unsupported transport type: ${transportType as string}. Must be 'stdio' or 'http'.`,
-  );
-}
-
-/**
- * Main application entry point. Initializes and starts the MCP server.
- */
-export async function initializeAndStartServer(): Promise<
-  { server: ServerType } | { server: McpServer }
-> {
-  const context = requestContextService.createRequestContext({
-    operation: 'initializeAndStartServer',
-  });
-  logger.info('MCP Server initialization sequence started.', context);
-  try {
-    const result = await startTransport();
-    logger.info(
-      'MCP Server initialization sequence completed successfully.',
-      context,
-    );
-    return result;
-  } catch (err) {
-    logger.crit('Critical error during MCP server initialization.', {
-      ...context,
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-    });
-    ErrorHandler.handleError(err, {
-      ...context,
-      operation: 'initializeAndStartServer_Catch',
-      critical: true,
-    });
-    logger.info(
-      'Exiting process due to critical initialization error.',
-      context,
-    );
-    process.exit(1);
-  }
 }

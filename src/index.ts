@@ -14,19 +14,19 @@ import {
   requestContextService,
 } from '@/utils/index.js';
 import { type McpLogLevel, logger } from '@/utils/internal/logger.js';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import http from 'http';
+import 'reflect-metadata';
 
 import { config as appConfigType } from '@/config/index.js';
-import container, { AppConfig, composeContainer } from '@/container/index.js';
-
-import { initializeAndStartServer } from '@/mcp-server/server.js';
+import container, {
+  AppConfig,
+  TransportManagerToken,
+  composeContainer,
+} from '@/container/index.js';
+import { TransportManager } from '@/mcp-server/transports/manager.js';
 
 // The container is now composed in start(), so we must resolve config there.
 let config: typeof appConfigType;
-
-let mcpStdioServer: McpServer | undefined;
-let actualHttpServer: http.Server | undefined;
+let transportManager: TransportManager;
 let isShuttingDown = false;
 
 const shutdown = async (signal: string): Promise<void> => {
@@ -46,30 +46,9 @@ const shutdown = async (signal: string): Promise<void> => {
   );
 
   try {
-    let closePromise: Promise<void> = Promise.resolve();
-    const transportType = config.mcpTransportType;
-
-    if (transportType === 'stdio' && mcpStdioServer) {
-      logger.info(
-        'Attempting to close main MCP server (STDIO)...',
-        shutdownContext,
-      );
-      closePromise = mcpStdioServer.close();
-    } else if (transportType === 'http' && actualHttpServer) {
-      logger.info('Attempting to close HTTP server...', shutdownContext);
-      closePromise = new Promise((resolve, reject) => {
-        actualHttpServer!.close((err) => {
-          if (err) {
-            logger.error('Error closing HTTP server.', err, shutdownContext);
-            return reject(err);
-          }
-          logger.info('HTTP server closed successfully.', shutdownContext);
-          resolve();
-        });
-      });
+    if (transportManager) {
+      await transportManager.stop(signal);
     }
-
-    await closePromise;
 
     logger.info(
       'Graceful shutdown completed successfully. Exiting.',
@@ -97,10 +76,21 @@ const shutdown = async (signal: string): Promise<void> => {
 };
 
 const start = async (): Promise<void> => {
-  // Initialize DI container first
-  composeContainer();
-  // Now it's safe to resolve dependencies
-  config = container.resolve<typeof appConfigType>(AppConfig);
+  try {
+    // Initialize DI container first
+    composeContainer();
+    // Now it's safe to resolve dependencies
+    config = container.resolve<typeof appConfigType>(AppConfig);
+  } catch (_error) {
+    // This will catch the McpError from parseConfig
+    if (process.stdout.isTTY) {
+      // The config module already logged the details. We just provide a final message.
+      console.error('Halting due to critical configuration error.');
+    }
+    // Ensure OpenTelemetry is shut down if it was started before the error
+    await shutdownOpenTelemetry();
+    process.exit(1);
+  }
 
   // Initialize the high-resolution timer
   await initializePerformance_Hrt();
@@ -141,27 +131,22 @@ const start = async (): Promise<void> => {
     requestContextService.createRequestContext({ operation: 'StorageInit' }),
   );
 
-  const transportType = config.mcpTransportType;
+  transportManager = container.resolve<TransportManager>(TransportManagerToken);
+
   const startupContext = requestContextService.createRequestContext({
-    operation: `ServerStartupSequence_${transportType}`,
+    operation: 'ServerStartup',
     applicationName: config.mcpServerName,
     applicationVersion: config.mcpServerVersion,
     nodeEnvironment: config.environment,
   });
 
   logger.info(
-    `Starting ${config.mcpServerName} (Version: ${config.mcpServerVersion}, Transport: ${transportType}, Env: ${config.environment})...`,
+    `Starting ${config.mcpServerName} (v${config.mcpServerVersion})...`,
     startupContext,
   );
 
   try {
-    const { server } = await initializeAndStartServer();
-
-    if (transportType === 'http') {
-      actualHttpServer = server as http.Server;
-    } else if (transportType === 'stdio') {
-      mcpStdioServer = server as McpServer;
-    }
+    await transportManager.start();
 
     logger.info(
       `${config.mcpServerName} is now running and ready.`,

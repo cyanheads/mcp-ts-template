@@ -50,18 +50,18 @@ This document defines the operational rules for contributing to this codebase. F
 
 Separation of concerns maps directly to the filesystem. Always place files in their designated locations.
 
-| Directory | Purpose & Guidance |
-| :--- | :--- |
-| **`src/mcp-server/tools/definitions/`** | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**. |
-| **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**. |
-| **`src/mcp-server/tools/utils/`** | **Shared tool utilities,** including `ToolDefinition` and tool handler factory. |
-| **`src/mcp-server/resources/utils/`** | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory. |
-| **`src/mcp-server/transports/`** | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth. |
-| **`src/services/`** | **External service integrations** (e.g., LLM providers). |
-| **`src/storage/`** | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv). |
-| **`src/container/`** | **Dependency Injection (`tsyringe`).** Service registration and tokens. |
-| **`src/utils/`** | **Global utilities:** logging, error handling, performance, parsing, network, security, telemetry, scheduling. |
-| **`tests/`** | **Unit/integration tests.** Mirrors `src/` for easy navigation. |
+| Directory                                   | Purpose & Guidance                                                                                                                                                                                                                                    |
+| :------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`src/mcp-server/tools/definitions/`**     | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**.                                                                                                                               |
+| **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**.                                                                                                            |
+| **`src/mcp-server/tools/utils/`**           | **Shared tool utilities,** including `ToolDefinition` and tool handler factory.                                                                                                                                                                       |
+| **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                           |
+| **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth. |
+| **`src/services/`**                         | **External service integrations** (e.g., LLM providers).                                                                                                                                                                                              |
+| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv).                                                                                                                                        |
+| **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                               |
+| **`src/utils/`**                            | **Global utilities:** logging, error handling, performance, parsing, network, security, telemetry, scheduling.                                                                                                                                        |
+| **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation.                                                                                                                                                                                       |
 
 ---
 

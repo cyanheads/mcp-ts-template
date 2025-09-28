@@ -45,7 +45,7 @@ import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
 export async function startStdioTransport(
   server: McpServer,
   parentContext: RequestContext,
-): Promise<void> {
+): Promise<McpServer> {
   const operationContext = {
     ...parentContext,
     operation: 'connectStdioTransport',
@@ -72,6 +72,7 @@ export async function startStdioTransport(
         `\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: 2025-03-26 Stdio Transport)\n`,
       );
     }
+    return server;
   } catch (err) {
     // Let the ErrorHandler log the error with all context, then rethrow.
     throw ErrorHandler.handleError(err, {
@@ -80,5 +81,21 @@ export async function startStdioTransport(
       critical: true,
       rethrow: true,
     });
+  }
+}
+
+export async function stopStdioTransport(
+  server: McpServer,
+  parentContext: RequestContext,
+): Promise<void> {
+  const operationContext = {
+    ...parentContext,
+    operation: 'stopStdioTransport',
+    transportType: 'Stdio',
+  };
+  logger.info('Attempting to stop stdio transport...', operationContext);
+  if (server) {
+    await server.close();
+    logger.info('Stdio transport stopped successfully.', operationContext);
   }
 }

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.2.1] - 2025-09-27
+
+### Refactor
+
+- **Transport Layer Abstraction**: Refactored the server's transport management by introducing a `TransportManager` and an `ITransport` interface. This decouples the main application logic from the specific transport implementations (HTTP, STDIO), centralizing lifecycle management (start/stop) and improving modularity and testability.
+- **Improved Error Handling on Startup**: Enhanced the application's bootstrap process in `src/index.ts` to gracefully handle and report critical configuration errors, preventing the server from starting with an invalid state.
+- **HTTP Authentication Middleware**: The HTTP transport now uses a dedicated Hono middleware for authentication, streamlining the request pipeline and separating auth logic from the core RPC handling.
+
 ## [2.2.0] - 2025-09-27
 
 ### Feature
@@ -24,7 +32,6 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 ### Fixed
 
 - **Test Suite**: Updated all tool-related tests to accommodate the new `logic` function signature and provide a mock `SdkContext`, ensuring all tests pass with the new architecture.
-
 
 ## [2.1.8] - 2025-09-27
 

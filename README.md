@@ -5,7 +5,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.2.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.18.2-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.22-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-83.55%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
+[![Version](https://img.shields.io/badge/Version-2.2.1-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.18.2-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.22-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-83.55%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
 
 </div>
 
@@ -30,18 +30,20 @@
 
 ### Installation
 
-1.
-**Clone the repository:**
+1.  **Clone the repository:**
+
 ```sh
 git clone https://github.com/cyanheads/mcp-ts-template.git
 ```
-2.
-**Navigate into the directory:**
+
+2.  **Navigate into the directory:**
+
 ```sh
 cd mcp-ts-template
 ```
-3.
-**Install dependencies:**
+
+3.  **Install dependencies:**
+
 ```sh
 bun install
 ```
@@ -60,7 +62,10 @@ This tool echoes back a message with optional formatting. You can find the full 
 ```ts
 // Located at: src/mcp-server/tools/definitions/template-echo-message.tool.ts
 import { z } from 'zod';
-import type { SdkContext, ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
+import type {
+  SdkContext,
+  ToolDefinition,
+} from '@/mcp-server/tools/utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { type RequestContext, logger } from '@/utils/index.js';
 
@@ -180,14 +185,14 @@ Like the tool, `echoResourceDefinition` is registered in `src/mcp-server/resourc
 
 All configuration is centralized and validated at startup in `src/config/index.ts`. Key environment variables in your `.env` file include:
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `MCP_TRANSPORT_TYPE` | The transport to use: `stdio` or `http`. | `http` |
-| `MCP_HTTP_PORT` | The port for the HTTP server. | `3010` |
-| `MCP_AUTH_MODE` | Authentication mode: `none`, `jwt`, or `oauth`. | `none` |
+| Variable                | Description                                                                    | Default     |
+| :---------------------- | :----------------------------------------------------------------------------- | :---------- |
+| `MCP_TRANSPORT_TYPE`    | The transport to use: `stdio` or `http`.                                       | `http`      |
+| `MCP_HTTP_PORT`         | The port for the HTTP server.                                                  | `3010`      |
+| `MCP_AUTH_MODE`         | Authentication mode: `none`, `jwt`, or `oauth`.                                | `none`      |
 | `STORAGE_PROVIDER_TYPE` | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-kv`, `r2`. | `in-memory` |
-| `OTEL_ENABLED` | Set to `true` to enable OpenTelemetry. | `false` |
-| `LOG_LEVEL` | The minimum level for logging. | `info` |
+| `OTEL_ENABLED`          | Set to `true` to enable OpenTelemetry.                                         | `false`     |
+| `LOG_LEVEL`             | The minimum level for logging.                                                 | `info`      |
 
 ### Authentication & Authorization
 
@@ -229,36 +234,36 @@ All configuration is centralized and validated at startup in `src/config/index.t
 
 ### Cloudflare Workers
 
-1.
-**Build the Worker bundle**:
+1.  **Build the Worker bundle**:
+
 ```sh
 bun build:worker
 ```
-2.
-**Run locally with Wrangler**:
+
+2.  **Run locally with Wrangler**:
+
 ```sh
 bun deploy:dev
 ```
-3.
-**Deploy to Cloudflare**:
-`sh
+
+3.  **Deploy to Cloudflare**:
+    `sh
 bun deploy:prod
-`
-> **Note**: The `wrangler.toml` file is pre-configured to enable `nodejs_compat` for best results.
+` > **Note**: The `wrangler.toml` file is pre-configured to enable `nodejs_compat` for best results.
 
 ## 📂 Project Structure
 
-| Directory | Purpose & Contents |
-| :--- | :--- |
-| `src/mcp-server/tools/definitions` | Your tool definitions (`*.tool.ts`). This is where you add new capabilities. |
+| Directory                              | Purpose & Contents                                                                   |
+| :------------------------------------- | :----------------------------------------------------------------------------------- |
+| `src/mcp-server/tools/definitions`     | Your tool definitions (`*.tool.ts`). This is where you add new capabilities.         |
 | `src/mcp-server/resources/definitions` | Your resource definitions (`*.resource.ts`). This is where you add new data sources. |
-| `src/mcp-server/transports` | Implementations for HTTP and STDIO transports, including auth middleware. |
-| `src/storage` | The `StorageService` abstraction and all storage provider implementations. |
-| `src/services` | Integrations with external services (e.g., the default OpenRouter LLM provider). |
-| `src/container` | Dependency injection container registrations and tokens. |
-| `src/utils` | Core utilities for logging, error handling, performance, security, and telemetry. |
-| `src/config` | Environment variable parsing and validation with Zod. |
-| `tests/` | Unit and integration tests, mirroring the `src/` directory structure. |
+| `src/mcp-server/transports`            | Implementations for HTTP and STDIO transports, including auth middleware.            |
+| `src/storage`                          | The `StorageService` abstraction and all storage provider implementations.           |
+| `src/services`                         | Integrations with external services (e.g., the default OpenRouter LLM provider).     |
+| `src/container`                        | Dependency injection container registrations and tokens.                             |
+| `src/utils`                            | Core utilities for logging, error handling, performance, security, and telemetry.    |
+| `src/config`                           | Environment variable parsing and validation with Zod.                                |
+| `tests/`                               | Unit and integration tests, mirroring the `src/` directory structure.                |
 
 ## 🧑‍💻 Agent Development Guide
 

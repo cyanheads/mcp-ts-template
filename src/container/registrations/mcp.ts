@@ -6,6 +6,11 @@
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { container } from 'tsyringe';
+
+import {
+  CreateMcpServerInstance,
+  TransportManagerToken,
+} from '@/container/tokens.js';
 import {
   ResourceRegistry,
   registerResources,
@@ -15,8 +20,8 @@ import {
   ToolRegistry,
   registerTools,
 } from '@/mcp-server/tools/tool-registration.js';
+import { TransportManager } from '@/mcp-server/transports/manager.js';
 import { logger } from '@/utils/index.js';
-import { CreateMcpServerInstance } from '@/container/tokens.js';
 
 /**
  * Registers MCP-related services and factories with the tsyringe container.
@@ -35,6 +40,9 @@ export const registerMcpServices = () => {
   container.register<() => Promise<McpServer>>(CreateMcpServerInstance, {
     useValue: createMcpServerInstance,
   });
+
+  // Register TransportManager
+  container.registerSingleton(TransportManagerToken, TransportManager);
 
   logger.info('MCP services and factories registered with the DI container.');
 };
