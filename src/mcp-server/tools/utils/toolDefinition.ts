@@ -78,12 +78,24 @@ export interface ToolDefinition<
    */
   annotations?: ToolAnnotations;
   /**
-   * The core business logic function for the tool.
-   * It receives validated input and returns a structured output or throws an McpError.
-   * @param input The validated tool input.
-   * @param appContext The application's internal request context for logging and tracing.
-   * @param sdkContext The raw call context from the MCP SDK, containing `sendRequest`.
-   * @returns A promise that resolves with the structured output.
+   * The core business logic function for the tool. It receives the validated
+   * input and two context objects, and returns a structured output or throws an McpError.
+   *
+   * @param input The validated tool input, conforming to `inputSchema`.
+   *
+   * @param appContext The application's internal `RequestContext`. This should be
+   * passed to any internal services (like the logger) for consistent tracing and
+   * session management. It contains IDs (`requestId`, `sessionId`, `traceId`)
+   * and scoping information (`clientId`, `tenantId`, `scopes`).
+   *
+   * @param sdkContext The raw `SdkContext` (`RequestHandlerExtra`) from the MCP
+   * SDK. This provides access to lower-level protocol capabilities:
+   * - `signal`: An `AbortSignal` for handling request cancellation.
+   * - `sendNotification`: Send a notification back to the client.
+   * - `sendRequest`: Send a new request to the client (e.g., for elicitation).
+   * - `authInfo`: Raw, validated authentication information.
+   *
+   * @returns A promise that resolves with the structured output, conforming to `outputSchema`.
    */
   logic: (
     input: z.infer<TInputSchema>,
