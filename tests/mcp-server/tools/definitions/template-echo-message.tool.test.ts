@@ -65,4 +65,30 @@ describe('echoTool', () => {
       JsonRpcErrorCode.ValidationError,
     );
   });
+
+  it('should format response content with truncation and timestamp', () => {
+    const longMessage = 'loremipsum'.repeat(25);
+    const formatter = echoTool.responseFormatter;
+    expect(formatter).toBeDefined();
+
+    const result = formatter!({
+      originalMessage: longMessage,
+      formattedMessage: longMessage,
+      repeatedMessage: `${longMessage} ${longMessage}`,
+      mode: 'standard',
+      repeatCount: 2,
+      timestamp: '2024-01-01T00:00:00.000Z',
+    });
+
+    expect(result).toHaveLength(1);
+    const block = result[0];
+    expect(block).toBeDefined();
+    if (!block || block.type !== 'text') {
+      throw new Error('Expected text content block');
+    }
+    const lines = block.text.split('\n');
+    expect(lines[0]).toBe('Echo (mode=standard, repeat=2)');
+    expect(lines[1]).toMatch(/…$/);
+    expect(lines[2]).toBe('timestamp=2024-01-01T00:00:00.000Z');
+  });
 });

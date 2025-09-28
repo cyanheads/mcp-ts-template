@@ -46,6 +46,49 @@ describe('ErrorHandler (unit)', () => {
         JsonRpcErrorCode.Timeout,
       );
     });
+
+    it('supports AggregateError inner message aggregation and custom constructors', () => {
+      class CustomProblem {}
+      const aggregate = new AggregateError(
+        [new Error('inner one'), 'inner two'],
+        'outer failure',
+      );
+      // Ensure coverage of getErrorName for custom constructor instance
+      const customInstance = new CustomProblem();
+
+      expect(ErrorHandler.determineErrorCode(aggregate)).toBe(
+        JsonRpcErrorCode.InternalError,
+      );
+      expect(ErrorHandler.determineErrorCode(customInstance)).toBe(
+        JsonRpcErrorCode.InternalError,
+      );
+    });
+
+    it('falls back to AbortError special-case when regex patterns are bypassed', () => {
+      const abortError = new Error('no matching keywords');
+      (abortError as any).name = 'AbortError';
+
+      const originalTest = RegExp.prototype.test;
+      const testSpy = vi
+        .spyOn(RegExp.prototype, 'test')
+        .mockImplementation(function (this: RegExp, str: string) {
+          if (
+            this.source.includes('abort') ||
+            this.source.includes('cancell')
+          ) {
+            return false;
+          }
+          return originalTest.call(this, str);
+        });
+
+      try {
+        expect(ErrorHandler.determineErrorCode(abortError)).toBe(
+          JsonRpcErrorCode.Timeout,
+        );
+      } finally {
+        testSpy.mockRestore();
+      }
+    });
   });
 
   describe('formatError - non-Error input', () => {
@@ -83,6 +126,53 @@ describe('ErrorHandler (unit)', () => {
       );
       expect(result).toBeInstanceOf(RangeError);
       expect((result as RangeError).message).toBe('Mapped by rule');
+    });
+
+    it('normalizes regex flags to include case-insensitive matching', () => {
+      const result = ErrorHandler.mapError(
+        'FAIL STATE',
+        [
+          {
+            pattern: /fail/g,
+            errorCode: JsonRpcErrorCode.ValidationError,
+            factory: () => new Error('Regex matched without explicit i flag'),
+          },
+        ],
+        () => new Error('Should not use default factory'),
+      );
+
+      expect(result).toBeInstanceOf(Error);
+      expect((result as Error).message).toBe(
+        'Regex matched without explicit i flag',
+      );
+    });
+
+    it('supports string patterns for mapping rules', () => {
+      const result = ErrorHandler.mapError('literal trigger', [
+        {
+          pattern: 'literal trigger',
+          errorCode: JsonRpcErrorCode.ValidationError,
+          factory: () => new Error('String pattern matched'),
+        },
+      ]);
+
+      expect(result).toBeInstanceOf(Error);
+      expect((result as Error).message).toBe('String pattern matched');
+    });
+
+    it('passes additional context to mapping factories', () => {
+      const factory = vi.fn(() => new Error('Context aware'));
+      const result = ErrorHandler.mapError('CTX', [
+        {
+          pattern: 'ctx',
+          errorCode: JsonRpcErrorCode.InternalError,
+          additionalContext: { foo: 'bar' },
+          factory,
+        },
+      ]);
+
+      expect(factory).toHaveBeenCalledWith('CTX', { foo: 'bar' });
+      expect(result).toBeInstanceOf(Error);
     });
   });
 
@@ -146,5 +236,115 @@ describe('ErrorHandler (unit)', () => {
         originalStack: 'ORIG_STACK', // carried through, not duplicated
       });
     });
+
+    it('captures nested causes, reuses original stack when mapper clears it, and sanitizes diverse inputs', () => {
+      const root = new Error('root-cause');
+      const mid = new Error('mid-level');
+      (mid as any).cause = root;
+      const outer = new Error('outermost');
+      (outer as any).cause = mid;
+      outer.stack = 'OUTER_STACK';
+
+      const final = ErrorHandler.handleError(outer, {
+        operation: 'rootCauseTest',
+        context: { extra: 'details' },
+        input: function sampleFn() {
+          return 'noop';
+        },
+        errorMapper: (err) => {
+          const mapped = new Error(`mapped: ${(err as Error).message}`);
+          delete mapped.stack;
+          return mapped;
+        },
+      });
+
+      expect(final).toBeInstanceOf(Error);
+      expect(final.message).toBe('mapped: outermost');
+      expect(final.stack).toBe('OUTER_STACK');
+
+      const call = errorSpy.mock.calls[0];
+      if (!call) throw new Error('errorSpy was not called');
+      const [, ctx] = call;
+      const errorData = (ctx as Record<string, any>).errorData;
+      expect(errorData.rootCause).toEqual({
+        name: 'Error',
+        message: 'root-cause',
+      });
+      const loggedInput = (ctx as Record<string, unknown>).input;
+      expect(typeof loggedInput).toBe('function');
+      expect((loggedInput as Function).name).toBe('sampleFn');
+    });
+  });
+
+  describe('formatError helper coverage', () => {
+    it('handles null, undefined, function, symbol, and complex objects', () => {
+      const nullResult = ErrorHandler.formatError(null);
+      const undefinedResult = ErrorHandler.formatError(undefined);
+      const fnResult = ErrorHandler.formatError(function namedFn() {
+        return 1;
+      });
+      const symbol = Symbol('tok');
+      const symbolResult = ErrorHandler.formatError(symbol);
+      const jsonResult = ErrorHandler.formatError({ foo: 'bar' });
+      const bigintResult = ErrorHandler.formatError(BigInt(123));
+
+      expect(nullResult).toMatchObject({
+        code: JsonRpcErrorCode.UnknownError,
+        message: 'Null value encountered as error',
+        data: { errorType: 'NullValueEncountered' },
+      });
+      expect(undefinedResult).toMatchObject({
+        message: 'Undefined value encountered as error',
+        data: { errorType: 'UndefinedValueEncountered' },
+      });
+      expect(fnResult.message).toBe('[function namedFn]');
+      expect(symbolResult.message).toBe(symbol.toString());
+      expect(jsonResult.message).toBe(JSON.stringify({ foo: 'bar' }));
+      expect(bigintResult.message).toBe('123');
+    });
+
+    it('recovers when symbol stringification fails', () => {
+      const original = Symbol.prototype.toString;
+      Object.defineProperty(Symbol.prototype, 'toString', {
+        configurable: true,
+        writable: true,
+        value(): string {
+          throw new Error('symbol toString unavailable');
+        },
+      });
+
+      try {
+        const result = ErrorHandler.formatError(Symbol('boom'));
+        expect(result).toMatchObject({
+          code: JsonRpcErrorCode.UnknownError,
+          message: expect.stringContaining('symbol toString unavailable'),
+        });
+      } finally {
+        Object.defineProperty(Symbol.prototype, 'toString', {
+          configurable: true,
+          writable: true,
+          value: original,
+        });
+      }
+    });
+
+    it('falls back when reading aggregate errors fails unexpectedly', () => {
+      const aggregate = new AggregateError([], 'aggregate failure');
+      const proxyError = new Proxy(aggregate, {
+        has(target, prop) {
+          if (prop === 'errors') {
+            throw new Error('errors accessor failed');
+          }
+          return Reflect.has(target, prop);
+        },
+      });
+
+      expect(() => ErrorHandler.formatError(proxyError)).not.toThrow();
+      expect(ErrorHandler.determineErrorCode(proxyError)).toBe(
+        JsonRpcErrorCode.InternalError,
+      );
+    });
+
+    // Additional edge cases are exercised via other tests to ensure helper fallbacks work.
   });
 });

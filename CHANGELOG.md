@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.2.2] - 2025-09-28
+
+### Refactor
+
+- **Error Handling**: Major refactor of the internal error handling system. The logic from `errorHandler.ts` has been decomposed into a dedicated module at `src/utils/internal/error-handler/`. This includes `errorHandler.ts` (main class), `helpers.ts` (utility functions), `mappings.ts` (error-to-code maps), and `types.ts` (interfaces), improving modularity and maintainability.
+- **Performance Measurement**: The `performance.ts` utility was refined. `initializePerformance_Hrt` now correctly falls back to `Date.now()` if `perf_hooks` is unavailable. The `measureToolExecution` function now uses a fallback for calculating byte length in environments without `Buffer` or `TextEncoder`, increasing cross-platform robustness.
+
+### Tests
+
+- **Increased Test Coverage**: Significantly improved test coverage across the application. Added comprehensive unit and integration tests for the newly refactored error handler, performance utilities, and various parsing and security modules. New tests include `encoding.test.ts`, `performance.init.test.ts`, `csvParser.test.ts`, `xmlParser.test.ts`, `yamlParser.test.ts`, and `authUtils.test.ts`, bringing total test count to over 200 and pushing line coverage to ~97%.
+
+### Fixed
+
+- **Tool Test Suites**: Corrected and expanded the test suites for all template tools (`template-cat-fact`, `template-echo-message`, `template-image-test`). The tests now cover failure cases (API errors, bad data) and response formatting, ensuring the tools are more robust and predictable.
+
 ## [2.2.1] - 2025-09-27
 
 ### Refactor
@@ -17,7 +32,7 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 ### Feature
 
 - **MCP Elicitation Support**: Implemented support for the MCP Elicitation feature. The tool-handling pipeline now distinguishes between the application's internal `RequestContext` and the MCP SDK's `SdkContext`, allowing tools to access `elicitInput` and interactively request missing parameters from the user.
-- **New Mad Libs Elicitation Tool**: Added a new example tool, `template_madlibs_elicitation.tool.ts`, to demonstrate the elicitation feature by playing a game of Mad Libs and prompting the user for missing parts of speech.
+- **New Mad Libs Elicitation Tool**: Added a new example tool, `template-madlibs-elicitation.tool.ts`, to demonstrate the elicitation feature by playing a game of Mad Libs and prompting the user for missing parts of speech. (Untested because idk which clients support elicitation yet.)
 
 ### Refactor
 

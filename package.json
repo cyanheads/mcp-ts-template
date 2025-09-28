@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "mcpName": "io.github.cyanheads/mcp-ts-template",
   "description": "The definitive, production-grade template for building powerful and scalable Model Context Protocol (MCP) servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.",
   "main": "dist/index.js",
@@ -56,7 +56,7 @@
     "inspector": "bunx mcp-inspector --config mcp.json --server mcp-ts-template",
     "db:duckdb-example": "MCP_LOG_LEVEL=debug tsc && node dist/storage/duckdbExample.js",
     "test": "bun test --config vitest.config.ts",
-    "test:coverage": "bun test --coverage --config vitest.config.ts",
+    "test:coverage": "bun test --coverage",
     "audit": "bun audit",
     "audit:fix": "bun audit --fix",
     "publish-mcp": "bun scripts/validate-mcp-publish-schema.ts"

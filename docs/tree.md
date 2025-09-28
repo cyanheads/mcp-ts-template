@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-28 06:28:46
+Generated on: 2025-09-28 07:37:54
 
 ```
 mcp-ts-template
@@ -110,6 +110,12 @@ mcp-ts-template
 │   │   └── errors.ts
 │   ├── utils
 │   │   ├── internal
+│   │   │   ├── error-handler
+│   │   │   │   ├── errorHandler.ts
+│   │   │   │   ├── helpers.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── mappings.ts
+│   │   │   │   └── types.ts
 │   │   │   ├── encoding.ts
 │   │   │   ├── errorHandler.ts
 │   │   │   ├── health.ts
@@ -155,12 +161,16 @@ mcp-ts-template
 │   │   ├── resources
 │   │   │   └── definitions
 │   │   │       └── echo.resource.test.ts
-│   │   └── tools
-│   │       └── definitions
-│   │           ├── template-cat-fact.tool.test.ts
-│   │           ├── template-echo-message.tool.test.ts
-│   │           ├── template-image-test.tool.test.ts
-│   │           └── template-madlibs-elicitation.tool.test.ts
+│   │   ├── tools
+│   │   │   └── definitions
+│   │   │       ├── template-cat-fact.tool.test.ts
+│   │   │       ├── template-echo-message.tool.test.ts
+│   │   │       ├── template-image-test.tool.test.ts
+│   │   │       └── template-madlibs-elicitation.tool.test.ts
+│   │   └── transports
+│   │       └── auth
+│   │           └── lib
+│   │               └── authUtils.test.ts
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts
@@ -175,10 +185,12 @@ mcp-ts-template
 │   │   └── storageProviderCompliance.test.ts
 │   ├── utils
 │   │   ├── internal
+│   │   │   ├── encoding.test.ts
 │   │   │   ├── errorHandler.int.test.ts
 │   │   │   ├── errorHandler.unit.test.ts
 │   │   │   ├── health.test.ts
 │   │   │   ├── logger.int.test.ts
+│   │   │   ├── performance.init.test.ts
 │   │   │   ├── performance.test.ts
 │   │   │   └── requestContext.test.ts
 │   │   ├── metrics
@@ -187,8 +199,11 @@ mcp-ts-template
 │   │   ├── network
 │   │   │   └── fetchWithTimeout.test.ts
 │   │   ├── parsing
+│   │   │   ├── csvParser.test.ts
 │   │   │   ├── dateParser.test.ts
-│   │   │   └── jsonParser.test.ts
+│   │   │   ├── jsonParser.test.ts
+│   │   │   ├── xmlParser.test.ts
+│   │   │   └── yamlParser.test.ts
 │   │   ├── scheduling
 │   │   │   └── scheduler.test.ts
 │   │   └── security

@@ -16,6 +16,10 @@ import { setupServer } from 'msw/node';
 
 import { imageTestTool } from '../../../../src/mcp-server/tools/definitions/template-image-test.tool.js';
 import { requestContextService } from '../../../../src/utils/index.js';
+import {
+  JsonRpcErrorCode,
+  McpError,
+} from '../../../../src/types-global/errors.js';
 
 // Create a fake image buffer (e.g., a simple 1x1 GIF)
 const fakeImageBuffer = Buffer.from(
@@ -53,5 +57,69 @@ describe('imageTestTool', () => {
 
     expect(result.mimeType).toBe('image/gif');
     expect(result.data).toBe(fakeImageBuffer.toString('base64'));
+  });
+
+  it('should throw an McpError when the image API responds with non-OK status', async () => {
+    server.use(
+      http.get('https://cataas.com/cat', () =>
+        HttpResponse.text('nope', { status: 502 }),
+      ),
+    );
+
+    const context = requestContextService.createRequestContext();
+    const promise = imageTestTool.logic(
+      { trigger: true },
+      context,
+      mockSdkContext,
+    );
+
+    await expect(promise).rejects.toBeInstanceOf(McpError);
+    await expect(promise).rejects.toHaveProperty(
+      'code',
+      JsonRpcErrorCode.ServiceUnavailable,
+    );
+  });
+
+  it('should throw an McpError when the image payload is empty', async () => {
+    server.use(
+      http.get(
+        'https://cataas.com/cat',
+        () =>
+          new HttpResponse(new ArrayBuffer(0), {
+            headers: { 'Content-Type': 'image/png' },
+          }),
+      ),
+    );
+
+    const context = requestContextService.createRequestContext();
+    const promise = imageTestTool.logic(
+      { trigger: true },
+      context,
+      mockSdkContext,
+    );
+
+    await expect(promise).rejects.toBeInstanceOf(McpError);
+    await expect(promise).rejects.toHaveProperty(
+      'code',
+      JsonRpcErrorCode.ServiceUnavailable,
+    );
+  });
+
+  it('should format image responses into an image content block', () => {
+    const formatter = imageTestTool.responseFormatter;
+    expect(formatter).toBeDefined();
+
+    const blocks = formatter!({
+      data: fakeImageBuffer.toString('base64'),
+      mimeType: 'image/gif',
+    });
+
+    expect(blocks).toEqual([
+      {
+        type: 'image',
+        data: fakeImageBuffer.toString('base64'),
+        mimeType: 'image/gif',
+      },
+    ]);
   });
 });

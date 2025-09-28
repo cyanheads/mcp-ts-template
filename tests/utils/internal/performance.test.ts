@@ -53,6 +53,7 @@ describe('measureToolExecution', () => {
   });
 
   it('records success metrics and returns the tool result', async () => {
+    const byteLengthSpy = vi.spyOn(Buffer, 'byteLength');
     memoryUsageSpy
       .mockReturnValueOnce({ rss: 1000, heapUsed: 400 } as NodeJS.MemoryUsage)
       .mockReturnValueOnce({ rss: 1600, heapUsed: 700 } as NodeJS.MemoryUsage);
@@ -82,6 +83,8 @@ describe('measureToolExecution', () => {
       }),
     );
     expect(span.end).toHaveBeenCalled();
+    expect(byteLengthSpy).toHaveBeenCalled();
+    byteLengthSpy.mockRestore();
   });
 
   it('captures error metadata and rethrows the original McpError', async () => {
@@ -121,5 +124,58 @@ describe('measureToolExecution', () => {
     expect((logMeta as any).metrics.errorCode).toBe(
       String(JsonRpcErrorCode.InternalError),
     );
+  });
+
+  it('handles generic errors and uses JSON length fallback when Buffer is unavailable', async () => {
+    const mutableGlobal = globalThis as {
+      Buffer?: typeof Buffer;
+      TextEncoder?: typeof TextEncoder;
+    };
+    const originalBuffer = mutableGlobal.Buffer;
+    const originalTextEncoder = mutableGlobal.TextEncoder;
+    // Simulate an environment without Buffer/TextEncoder support.
+    delete mutableGlobal.Buffer;
+    delete mutableGlobal.TextEncoder;
+
+    memoryUsageSpy
+      .mockReturnValueOnce({ rss: 200, heapUsed: 120 } as NodeJS.MemoryUsage)
+      .mockReturnValueOnce({ rss: 220, heapUsed: 140 } as NodeJS.MemoryUsage);
+
+    const failure = new Error('unexpected');
+    const payload = { key: 'value' };
+    const expectedBytes = JSON.stringify(payload).length;
+
+    try {
+      await expect(
+        measureToolExecution(
+          async () => {
+            throw failure;
+          },
+          {
+            toolName: 'generic-failure',
+            requestId: 'req-3',
+            timestamp: new Date().toISOString(),
+          },
+          payload,
+        ),
+      ).rejects.toBe(failure);
+    } finally {
+      // Restore globals for other tests.
+      if (originalBuffer) mutableGlobal.Buffer = originalBuffer;
+      else delete mutableGlobal.Buffer;
+
+      if (originalTextEncoder) mutableGlobal.TextEncoder = originalTextEncoder;
+      else delete mutableGlobal.TextEncoder;
+    }
+
+    expect(span.setAttribute).toHaveBeenCalledWith(
+      'mcp.tool.error_code',
+      'UNHANDLED_ERROR',
+    );
+    const call = infoSpy.mock.calls[0];
+    if (!call) throw new Error('infoSpy was not called');
+    const [, logMeta] = call;
+    expect((logMeta as any).metrics.inputBytes).toBe(expectedBytes);
+    expect((logMeta as any).metrics.outputBytes).toBe(0);
   });
 });

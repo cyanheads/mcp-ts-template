@@ -36,6 +36,20 @@ let performanceNow: () => number = () => Date.now(); // Fallback
  * In a browser-like environment, it uses `globalThis.performance`.
  * In Node.js, it dynamically imports `perf_hooks`.
  */
+/**
+ * Dynamically loads Node's perf_hooks module. Exposed for testing to allow
+ * mocking the dynamic import path.
+ *
+ * @returns The Node.js perf_hooks performance interface promise.
+ */
+export async function loadPerfHooks(): Promise<{
+  performance: typeof PerfHooksPerformance;
+}> {
+  return import('perf_hooks') as Promise<{
+    performance: typeof PerfHooksPerformance;
+  }>;
+}
+
 export async function initializePerformance_Hrt(): Promise<void> {
   // Use a type assertion to safely access `performance` on `globalThis`,
   // which is present in browser-like environments (e.g., Cloudflare Workers)
@@ -45,14 +59,14 @@ export async function initializePerformance_Hrt(): Promise<void> {
   };
 
   if (typeof globalWithPerf.performance?.now === 'function') {
-    performanceNow = () => globalWithPerf.performance!.now();
+    const perf = globalWithPerf.performance;
+    performanceNow = () => perf?.now() ?? Date.now();
   } else {
     try {
-      const { performance: nodePerformance } = (await import('perf_hooks')) as {
-        performance: typeof PerfHooksPerformance;
-      };
+      const { performance: nodePerformance } = await loadPerfHooks();
       performanceNow = () => nodePerformance.now();
     } catch (_e) {
+      performanceNow = () => Date.now();
       logger.warning(
         'Could not import perf_hooks, falling back to Date.now() for performance timing.',
       );
@@ -71,7 +85,8 @@ const toBytes = (payload: unknown): number => {
       typeof Buffer !== 'undefined' &&
       typeof Buffer.byteLength === 'function'
     ) {
-      return Buffer.byteLength(json, 'utf8');
+      const bytes = Buffer.byteLength(json, 'utf8');
+      return bytes;
     }
     if (typeof TextEncoder !== 'undefined') {
       return new TextEncoder().encode(json).length;
