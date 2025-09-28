@@ -26,10 +26,8 @@ const hasFileSystemAccess =
   process.versions !== null &&
   typeof process.versions.node === 'string';
 
-// Suppress dotenv's noisy initial log message.
-// This is set here to ensure it's active before `config()` is called.
-process.env.DOTENV_CONFIG_SILENT = 'true';
-dotenv.config();
+// Suppress dotenv's noisy initial log message as suggested by its output.
+dotenv.config({ quiet: true });
 
 // --- Helper Functions ---
 const emptyStringAsUndefined = (val: unknown) => {
