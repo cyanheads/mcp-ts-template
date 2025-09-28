@@ -3,12 +3,14 @@
  * This module decouples the application from concrete storage implementations, allowing the
  * storage backend to be selected via environment variables. In a serverless environment,
  * it defaults to `in-memory` to ensure compatibility.
- * @module src/storage/storageFactory
+ * @module src/storage/core/storageFactory
  */
 import { container } from 'tsyringe';
 import type { R2Bucket, KVNamespace } from '@cloudflare/workers-types';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { AppConfig } from '@/config/index.js';
+import type { Database } from '@/storage/providers/supabase/supabase.types.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
@@ -21,16 +23,26 @@ import { logger, requestContextService } from '@/utils/index.js';
 const isServerless =
   typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
 
+export interface StorageFactoryDeps {
+  supabaseClient?: SupabaseClient<Database>;
+  r2Bucket?: R2Bucket;
+  kvNamespace?: KVNamespace;
+}
+
 /**
  * Creates and returns a storage provider instance based on the provided configuration.
  *
  * @param config - The application configuration object, typically resolved
  *                 from the DI container.
+ * @param deps - Optional object containing pre-resolved dependencies for providers.
  * @returns An instance of a class that implements the IStorageProvider interface.
  * @throws {McpError} If the configuration is missing required values for the
  *         selected provider.
  */
-export function createStorageProvider(config: AppConfig): IStorageProvider {
+export function createStorageProvider(
+  config: AppConfig,
+  deps: StorageFactoryDeps = {},
+): IStorageProvider {
   const context = requestContextService.createRequestContext({
     operation: 'createStorageProvider',
   });
@@ -70,11 +82,16 @@ export function createStorageProvider(config: AppConfig): IStorageProvider {
           context,
         );
       }
+      if (deps.supabaseClient) {
+        return new SupabaseProvider(deps.supabaseClient);
+      }
+      // Fallback to DI container (backward-compatible)
       return container.resolve(SupabaseProvider);
     case 'cloudflare-r2':
       if (isServerless) {
-        const bucket = (globalThis as unknown as { R2_BUCKET: R2Bucket })
-          .R2_BUCKET;
+        const bucket =
+          deps.r2Bucket ??
+          (globalThis as unknown as { R2_BUCKET: R2Bucket }).R2_BUCKET;
         return new R2Provider(bucket);
       }
       throw new McpError(
@@ -84,8 +101,9 @@ export function createStorageProvider(config: AppConfig): IStorageProvider {
       );
     case 'cloudflare-kv':
       if (isServerless) {
-        const kv = (globalThis as unknown as { KV_NAMESPACE: KVNamespace })
-          .KV_NAMESPACE;
+        const kv =
+          deps.kvNamespace ??
+          (globalThis as unknown as { KV_NAMESPACE: KVNamespace }).KV_NAMESPACE;
         return new KvProvider(kv);
       }
       throw new McpError(

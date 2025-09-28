@@ -4,14 +4,35 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.1.8] - 2025-09-28
+
+### Feature
+
+- **Storage Provider TTL Support**: Implemented Time-to-Live (TTL) support across all storage providers (`fileSystem`, `cloudflare-r2`, `cloudflare-kv`). Stored items can now have an expiration, after which they are considered invalid and are filtered from `get` and `list` operations. This is handled via a metadata envelope to ensure cross-provider consistency.
+- **Swagger Parser Dependency**: Added `@apidevtools/swagger-parser` to enable parsing and validation of OpenAPI/Swagger specifications.
+
+### Changed
+
+- **Refactored Storage Providers**: All storage providers (`kvProvider`, `r2Provider`, `fileSystemProvider`) have been refactored to use a centralized `ErrorHandler.tryCatch` wrapper, improving robustness and standardizing error responses. The `storageFactory` was also updated to accept pre-resolved dependencies, enhancing testability.
+- **Documentation**:
+    - The `mcp-elicitation-summary.md` has been significantly expanded into a comprehensive developer's guide with client/server examples and best practices.
+    - Added detailed documentation to `IStorageProvider.ts` explaining the TTL implementation and behavior for each storage provider.
+- **Dependencies**: Bumped `hono` to `^4.9.9`.
+
+### Fixed
+
+- **Storage Listing**: The `list` method in `FileSystemProvider` now correctly filters expired items, ensuring that only active keys are returned.
+
 ## [2.1.7] - 2025-09-27
 
 ### Changed
+
 - **Asynchronous Resource Logic**: The resource handler factory (`resourceHandlerFactory.ts`) now supports `async` logic functions. This allows resources to perform asynchronous operations, such as fetching data from a network, before returning a result.
 - **Documentation**: Major updates to `README.md` & `AGENTS.md` to improve clarity, streamline the development workflow, and reflect the latest architectural patterns, including asynchronous resource handling.
 - **Dependencies**: Upgraded `hono` to `^4.9.9`.
 
 ### Fixed
+
 - Corrected a minor module path typo in the JSDoc for `httpErrorHandler.ts`.
 
 ## [2.1.6] - 2025-09-27

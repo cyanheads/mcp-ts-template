@@ -10,3 +10,4 @@ export type {
   StorageOptions,
 } from './core/IStorageProvider.js';
 export { createStorageProvider } from './core/storageFactory.js';
+export { StorageService } from './core/StorageService.js';

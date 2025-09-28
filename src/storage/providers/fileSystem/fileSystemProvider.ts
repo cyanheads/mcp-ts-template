@@ -8,13 +8,23 @@ import { existsSync, mkdirSync } from 'fs';
 import { readFile, readdir, rm, writeFile } from 'fs/promises';
 import path from 'path';
 
-import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
+import type {
+  IStorageProvider,
+  StorageOptions,
+} from '@/storage/core/IStorageProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   ErrorHandler,
   sanitization,
   type RequestContext,
 } from '@/utils/index.js';
+
+type FileEnvelope = {
+  __mcp: { v: 1; expiresAt?: number };
+  value: unknown;
+};
+
+const FILE_ENVELOPE_VERSION = 1;
 
 export class FileSystemProvider implements IStorageProvider {
   private readonly storagePath: string;
@@ -65,6 +75,54 @@ export class FileSystemProvider implements IStorageProvider {
     return filePath;
   }
 
+  private buildEnvelope(
+    value: unknown,
+    options?: StorageOptions,
+  ): FileEnvelope {
+    const expiresAt = options?.ttl
+      ? Date.now() + options.ttl * 1000
+      : undefined;
+    return {
+      __mcp: { v: FILE_ENVELOPE_VERSION, ...(expiresAt ? { expiresAt } : {}) },
+      value,
+    };
+  }
+
+  private async parseAndValidate<T>(
+    raw: string,
+    tenantId: string,
+    key: string,
+    filePath: string,
+    context: RequestContext,
+  ): Promise<T | null> {
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      // Envelope-aware parsing
+      if (parsed && typeof parsed === 'object' && '__mcp' in parsed) {
+        const env = parsed as FileEnvelope;
+        const expiresAt = env.__mcp?.expiresAt;
+        if (expiresAt && Date.now() > expiresAt) {
+          // Expired: best-effort delete and return null
+          try {
+            await rm(filePath);
+          } catch {
+            // ignore
+          }
+          return null;
+        }
+        return env.value as T;
+      }
+      // Legacy: return parsed directly
+      return parsed as T;
+    } catch (error) {
+      throw new McpError(
+        JsonRpcErrorCode.SerializationError,
+        `Failed to parse stored JSON for key "${key}" (tenant "${tenantId}").`,
+        { ...context, error },
+      );
+    }
+  }
+
   async get<T>(
     tenantId: string,
     key: string,
@@ -75,12 +133,18 @@ export class FileSystemProvider implements IStorageProvider {
       async () => {
         try {
           const data = await readFile(filePath, 'utf-8');
-          return JSON.parse(data) as T;
+          return this.parseAndValidate<T>(
+            data,
+            tenantId,
+            key,
+            filePath,
+            context,
+          );
         } catch (error) {
           if (
             error instanceof Error &&
             'code' in error &&
-            error.code === 'ENOENT'
+            (error as { code: string }).code === 'ENOENT'
           ) {
             return null; // File not found
           }
@@ -100,13 +164,13 @@ export class FileSystemProvider implements IStorageProvider {
     key: string,
     value: unknown,
     context: RequestContext,
+    options?: StorageOptions,
   ): Promise<void> {
     const filePath = this.getFilePath(tenantId, key);
     return ErrorHandler.tryCatch(
       async () => {
-        const content =
-          typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-        // Ensure the directory exists before writing the file
+        const envelope = this.buildEnvelope(value, options);
+        const content = JSON.stringify(envelope, null, 2);
         mkdirSync(path.dirname(filePath), { recursive: true });
         await writeFile(filePath, content, 'utf-8');
       },
@@ -133,7 +197,7 @@ export class FileSystemProvider implements IStorageProvider {
           if (
             error instanceof Error &&
             'code' in error &&
-            error.code === 'ENOENT'
+            (error as { code: string }).code === 'ENOENT'
           ) {
             return false; // File didn't exist
           }
@@ -148,6 +212,25 @@ export class FileSystemProvider implements IStorageProvider {
     );
   }
 
+  private async listFilesRecursively(
+    dir: string,
+    baseDir: string,
+  ): Promise<string[]> {
+    const entries = await readdir(dir, { withFileTypes: true });
+    const results: string[] = [];
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        results.push(...(await this.listFilesRecursively(fullPath, baseDir)));
+      } else if (entry.isFile()) {
+        const rel = path.relative(baseDir, fullPath);
+        // Normalize to POSIX-style keys for consistency
+        results.push(rel.split(path.sep).join('/'));
+      }
+    }
+    return results;
+  }
+
   async list(
     tenantId: string,
     prefix: string,
@@ -156,8 +239,32 @@ export class FileSystemProvider implements IStorageProvider {
     return ErrorHandler.tryCatch(
       async () => {
         const tenantPath = this.getTenantPath(tenantId);
-        const files = await readdir(tenantPath);
-        return files.filter((file) => file.startsWith(prefix));
+        const allKeys = await this.listFilesRecursively(tenantPath, tenantPath);
+        const candidateKeys = allKeys.filter((k) => k.startsWith(prefix));
+
+        // TTL-aware filtering: best-effort; expensive on large stores.
+        const validKeys: string[] = [];
+        for (const k of candidateKeys) {
+          const filePath = this.getFilePath(tenantId, k);
+          try {
+            const raw = await readFile(filePath, 'utf-8');
+            const value = await this.parseAndValidate<unknown>(
+              raw,
+              tenantId,
+              k,
+              filePath,
+              context,
+            );
+            if (value !== null) {
+              validKeys.push(k);
+            }
+          } catch (_e) {
+            // If parsing fails, exclude key and continue; error already typed/logged by tryCatch wrapper.
+            continue;
+          }
+        }
+
+        return validKeys;
       },
       {
         operation: 'FileSystemProvider.list',
