@@ -2,7 +2,7 @@
  * @fileoverview Tests for the template-echo-message tool.
  * @module tests/mcp-server/tools/definitions/template-echo-message.tool.test
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import {
   echoTool,
@@ -15,11 +15,18 @@ import {
 } from '../../../../src/types-global/errors.js';
 
 describe('echoTool', () => {
+  const mockSdkContext = {
+    signal: new AbortController().signal,
+    requestId: 'test-request-id',
+    sendNotification: vi.fn(),
+    sendRequest: vi.fn(),
+  };
+
   it('should echo a message with default settings', async () => {
     const context = requestContextService.createRequestContext();
     const rawInput = { message: 'hello' };
     const parsedInput = echoTool.inputSchema.parse(rawInput);
-    const result = await echoTool.logic(parsedInput, context);
+    const result = await echoTool.logic(parsedInput, context, mockSdkContext);
 
     expect(result.originalMessage).toBe('hello');
     expect(result.formattedMessage).toBe('hello');
@@ -38,7 +45,7 @@ describe('echoTool', () => {
       includeTimestamp: true,
     };
     const parsedInput = echoTool.inputSchema.parse(rawInput);
-    const result = await echoTool.logic(parsedInput, context);
+    const result = await echoTool.logic(parsedInput, context, mockSdkContext);
 
     expect(result.formattedMessage).toBe('HELLO');
     expect(result.repeatedMessage).toBe('HELLO HELLO');
@@ -50,7 +57,7 @@ describe('echoTool', () => {
     const context = requestContextService.createRequestContext();
     const rawInput = { message: TEST_ERROR_TRIGGER_MESSAGE };
     const parsedInput = echoTool.inputSchema.parse(rawInput);
-    const promise = echoTool.logic(parsedInput, context);
+    const promise = echoTool.logic(parsedInput, context, mockSdkContext);
 
     await expect(promise).rejects.toThrow(McpError);
     await expect(promise).rejects.toHaveProperty(

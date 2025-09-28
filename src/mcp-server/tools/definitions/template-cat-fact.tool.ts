@@ -8,6 +8,7 @@ import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type {
+  SdkContext,
   ToolAnnotations,
   ToolDefinition,
 } from '@/mcp-server/tools/utils/toolDefinition.js';
@@ -30,7 +31,7 @@ const TOOL_NAME = 'template_cat_fact';
 /** --------------------------------------------------------- */
 
 /** Human-readable title used by UIs. */
-const TOOL_TITLE = 'template_cat_fact';
+const TOOL_TITLE = 'Template Cat Fact';
 /** --------------------------------------------------------- */
 
 /**
@@ -115,10 +116,11 @@ type CatFactToolResponse = z.infer<typeof OutputSchema>;
 // -------------------------------------------------------------
 async function catFactToolLogic(
   input: CatFactToolInput,
-  context: RequestContext,
+  appContext: RequestContext,
+  _sdkContext: SdkContext,
 ): Promise<CatFactToolResponse> {
   logger.debug('Processing template_cat_fact logic.', {
-    ...context,
+    ...appContext,
     toolInput: input,
   });
 
@@ -127,12 +129,12 @@ async function catFactToolLogic(
       ? `${CAT_FACT_API_URL}?max_length=${input.maxLength}`
       : CAT_FACT_API_URL;
 
-  logger.info(`Fetching random cat fact from: ${url}`, context);
+  logger.info(`Fetching random cat fact from: ${url}`, appContext);
 
   const response = await fetchWithTimeout(
     url,
     CAT_FACT_API_TIMEOUT_MS,
-    context,
+    appContext,
   );
 
   if (!response.ok) {
@@ -141,7 +143,7 @@ async function catFactToolLogic(
       JsonRpcErrorCode.ServiceUnavailable,
       `Cat Fact API request failed: ${response.status} ${response.statusText}`,
       {
-        requestId: context.requestId,
+        requestId: appContext.requestId,
         httpStatusCode: response.status,
         responseBody: errorText,
       },
@@ -152,7 +154,7 @@ async function catFactToolLogic(
   const parsed = CatFactApiSchema.safeParse(rawData);
   if (!parsed.success) {
     logger.error('Cat Fact API response validation failed', {
-      ...context,
+      ...appContext,
       receivedData: rawData,
       issues: parsed.error.issues,
     });
@@ -160,7 +162,7 @@ async function catFactToolLogic(
       JsonRpcErrorCode.ServiceUnavailable,
       'Cat Fact API returned unexpected data format.',
       {
-        requestId: context.requestId,
+        requestId: appContext.requestId,
         issues: parsed.error.issues,
       },
     );
@@ -175,7 +177,7 @@ async function catFactToolLogic(
   };
 
   logger.notice('Random cat fact fetched and processed successfully.', {
-    ...context,
+    ...appContext,
     factLength: toolResponse.length,
   });
 

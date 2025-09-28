@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.1.9] - 2025-09-28
+
+### Feature
+
+- **MCP Elicitation Support**: Implemented support for the MCP Elicitation feature. The tool-handling pipeline now distinguishes between the application's internal `RequestContext` and the MCP SDK's `SdkContext`, allowing tools to access `elicitInput` and interactively request missing parameters from the user.
+- **New Mad Libs Elicitation Tool**: Added a new example tool, `template_madlibs_elicitation.tool.ts`, to demonstrate the elicitation feature by playing a game of Mad Libs and prompting the user for missing parts of speech.
+
+### Refactor
+
+- **Tool Logic Signature**: The `logic` function signature for all tools has been updated to `(input, appContext, sdkContext)`. This provides tools access to both the application's internal context (for logging, tracing) and the full SDK context (for features like elicitation).
+- **Storage Provider Error Handling**: The `KvProvider` and `R2Provider` for Cloudflare now throw a structured `McpError` on JSON parsing failures instead of returning `null`, aligning them with the project's standardized error-handling strategy.
+
+### Changed
+
+- **Test Configuration**: Introduced a `vitest.config.ts` file to centralize test configurations and updated the `test` scripts in `package.json` to use it, ensuring consistency.
+- **Tool Naming**: Renamed tool titles for consistency (e.g., "Template Cat Fact" instead of "template_cat_fact").
+
+### Fixed
+
+- **Test Suite**: Updated all tool-related tests to accommodate the new `logic` function signature and provide a mock `SdkContext`, ensuring all tests pass with the new architecture.
+
+
 ## [2.1.8] - 2025-09-28
 
 ### Feature
@@ -15,8 +37,8 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 
 - **Refactored Storage Providers**: All storage providers (`kvProvider`, `r2Provider`, `fileSystemProvider`) have been refactored to use a centralized `ErrorHandler.tryCatch` wrapper, improving robustness and standardizing error responses. The `storageFactory` was also updated to accept pre-resolved dependencies, enhancing testability.
 - **Documentation**:
-    - The `mcp-elicitation-summary.md` has been significantly expanded into a comprehensive developer's guide with client/server examples and best practices.
-    - Added detailed documentation to `IStorageProvider.ts` explaining the TTL implementation and behavior for each storage provider.
+  - The `mcp-elicitation-summary.md` has been significantly expanded into a comprehensive developer's guide with client/server examples and best practices.
+  - Added detailed documentation to `IStorageProvider.ts` explaining the TTL implementation and behavior for each storage provider.
 - **Dependencies**: Bumped `hono` to `^4.9.9`.
 
 ### Fixed

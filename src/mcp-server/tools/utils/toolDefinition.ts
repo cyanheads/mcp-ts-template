@@ -4,7 +4,12 @@
  * and logic in a consistent, self-contained format, aligned with MCP specifications.
  * @module src/mcp-server/tools/utils/toolDefinition
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
+import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import type {
+  ContentBlock,
+  Request as McpRequest,
+  Notification,
+} from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
 import type { RequestContext } from '@/utils/index.js';
@@ -32,6 +37,12 @@ export interface ToolAnnotations {
    */
   openWorldHint?: boolean;
 }
+
+/**
+ * A type alias for the SDK's `RequestHandlerExtra` context, making it more
+ * specific and easier to reference in our tool logic signatures.
+ */
+export type SdkContext = RequestHandlerExtra<McpRequest, Notification>;
 
 /**
  * Represents the complete, self-contained definition of an MCP tool.
@@ -70,12 +81,14 @@ export interface ToolDefinition<
    * The core business logic function for the tool.
    * It receives validated input and returns a structured output or throws an McpError.
    * @param input The validated tool input.
-   * @param context The request context for logging and tracing.
+   * @param appContext The application's internal request context for logging and tracing.
+   * @param sdkContext The raw call context from the MCP SDK, containing `sendRequest`.
    * @returns A promise that resolves with the structured output.
    */
   logic: (
     input: z.infer<TInputSchema>,
-    context: RequestContext,
+    appContext: RequestContext,
+    sdkContext: SdkContext,
   ) => Promise<z.infer<TOutputSchema>>;
   /**
    * An optional function to format the successful output into an array of ContentBlocks

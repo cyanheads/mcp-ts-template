@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-28 03:46:35
+Generated on: 2025-09-28 05:58:52
 
 ```
 mcp-ts-template
@@ -51,6 +51,7 @@ mcp-ts-template
 │   │   ├── tools
 │   │   │   ├── definitions
 │   │   │   │   ├── index.ts
+│   │   │   │   ├── template_madlibs_elicitation.tool.ts
 │   │   │   │   ├── template-cat-fact.tool.ts
 │   │   │   │   ├── template-echo-message.tool.ts
 │   │   │   │   └── template-image-test.tool.ts
@@ -154,6 +155,7 @@ mcp-ts-template
 │   │   │       └── echo.resource.test.ts
 │   │   └── tools
 │   │       └── definitions
+│   │           ├── template_madlibs_elicitation.tool.test.ts
 │   │           ├── template-cat-fact.tool.test.ts
 │   │           ├── template-echo-message.tool.test.ts
 │   │           └── template-image-test.tool.test.ts
@@ -214,6 +216,7 @@ mcp-ts-template
 ├── tsconfig.test.json
 ├── tsdoc.json
 ├── typedoc.json
+├── vitest.config.ts
 └── wrangler.toml
 ```
 

@@ -2,11 +2,11 @@
  * @fileoverview Unit tests for the R2Provider.
  * @module tests/storage/providers/cloudflare/r2Provider.test
  */
-import { R2Provider } from '../../../../src/storage/providers/cloudflare/r2Provider.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { R2Provider } from '../../../../src/storage/providers/cloudflare/r2Provider.js';
+import { McpError } from '../../../../src/types-global/errors.js';
 import type { RequestContext } from '../../../../src/utils/index.js';
 import { requestContextService } from '../../../../src/utils/index.js';
-import { logger } from '../../../../src/utils/index.js';
 
 // Mock R2Bucket
 const createMockR2Bucket = () => ({
@@ -40,8 +40,12 @@ describe('R2Provider', () => {
 
     it('should return parsed JSON object if found', async () => {
       const storedObject = { data: 'test-data' };
+      const envelope = {
+        __mcp: { v: 1 },
+        value: storedObject,
+      };
       const mockR2Object = {
-        json: async () => storedObject,
+        text: async () => JSON.stringify(envelope),
       };
       mockBucket.get.mockResolvedValue(mockR2Object);
       const result = await r2Provider.get<{ data: string }>(
@@ -52,42 +56,48 @@ describe('R2Provider', () => {
       expect(result).toEqual(storedObject);
     });
 
-    it('should return null on JSON parsing error', async () => {
+    it('should throw McpError on JSON parsing error', async () => {
       const mockR2Object = {
-        json: async () => {
-          throw new Error('Invalid JSON');
-        },
+        text: async () => 'invalid-json',
       };
       mockBucket.get.mockResolvedValue(mockR2Object);
-      const result = await r2Provider.get('tenant-1', 'key-1', context);
-      expect(result).toBeNull();
+      await expect(
+        r2Provider.get('tenant-1', 'key-1', context),
+      ).rejects.toThrow(McpError);
     });
   });
 
   describe('set', () => {
-    it('should call put with the correct key and stringified value', async () => {
+    it('should call put with the correct key and stringified envelope', async () => {
       const value = { data: 'test-data' };
+      const expectedEnvelope = {
+        __mcp: { v: 1 },
+        value,
+      };
       await r2Provider.set('tenant-1', 'key-1', value, context);
       expect(mockBucket.put).toHaveBeenCalledWith(
         'tenant-1:key-1',
-        JSON.stringify(value),
-        {},
+        JSON.stringify(expectedEnvelope),
       );
     });
 
-    it('should ignore TTL option and log a warning', async () => {
+    it('should include a calculated expiresAt in envelope if ttl is provided', async () => {
       const value = { data: 'test' };
-      const loggerSpy = vi.spyOn(logger, 'warning');
-      await r2Provider.set('tenant-1', 'key-1', value, context, { ttl: 3600 });
-      expect(loggerSpy).toHaveBeenCalledWith(
-        "[R2Provider] TTL is not natively supported by R2. The 'ttl' option for key 'tenant-1:key-1' will be ignored.",
-        context,
-      );
-      expect(mockBucket.put).toHaveBeenCalledWith(
-        'tenant-1:key-1',
-        JSON.stringify(value),
-        {},
-      );
+      const ttl = 3600;
+      const now = Date.now();
+
+      await r2Provider.set('tenant-1', 'key-1', value, context, { ttl });
+
+      expect(mockBucket.put).toHaveBeenCalledTimes(1);
+      const [key, body] = mockBucket.put.mock.calls[0]!;
+      const envelope = JSON.parse(body);
+
+      expect(key).toBe('tenant-1:key-1');
+      expect(envelope.value).toEqual(value);
+      expect(envelope.__mcp.v).toBe(1);
+      expect(envelope.__mcp.expiresAt).toBeGreaterThanOrEqual(now + ttl * 1000);
+      // Allow for a small delay in execution
+      expect(envelope.__mcp.expiresAt).toBeLessThan(now + ttl * 1000 + 100);
     });
   });
 

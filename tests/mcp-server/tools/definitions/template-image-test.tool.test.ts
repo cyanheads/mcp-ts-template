@@ -2,7 +2,15 @@
  * @fileoverview Tests for the template-image-test tool.
  * @module tests/mcp-server/tools/definitions/template-image-test.tool.test
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterEach,
+  afterAll,
+  vi,
+} from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
@@ -28,9 +36,20 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 describe('imageTestTool', () => {
+  const mockSdkContext = {
+    signal: new AbortController().signal,
+    requestId: 'test-request-id',
+    sendNotification: vi.fn(),
+    sendRequest: vi.fn(),
+  };
+
   it('should fetch an image and return it as base64', async () => {
     const context = requestContextService.createRequestContext();
-    const result = await imageTestTool.logic({ trigger: true }, context);
+    const result = await imageTestTool.logic(
+      { trigger: true },
+      context,
+      mockSdkContext,
+    );
 
     expect(result.mimeType).toBe('image/gif');
     expect(result.data).toBe(fakeImageBuffer.toString('base64'));

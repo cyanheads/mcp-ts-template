@@ -8,6 +8,7 @@ import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type {
+  SdkContext,
   ToolAnnotations,
   ToolDefinition,
 } from '@/mcp-server/tools/utils/toolDefinition.js';
@@ -31,7 +32,7 @@ const TOOL_NAME = 'template_image_test';
 /** --------------------------------------------------------- */
 
 /** Human-readable title used by UIs. */
-const TOOL_TITLE = 'Fetch Image Test';
+const TOOL_TITLE = 'Template Image Test';
 /** --------------------------------------------------------- */
 
 /**
@@ -102,14 +103,19 @@ type ImageTestToolResponse = z.infer<typeof OutputSchema>;
 // -------------------------------------------------------------
 async function imageTestToolLogic(
   input: ImageTestToolInput,
-  context: RequestContext,
+  appContext: RequestContext,
+  _sdkContext: SdkContext,
 ): Promise<ImageTestToolResponse> {
   logger.debug('Processing template_image_test logic.', {
-    ...context,
+    ...appContext,
     toolInput: input,
   });
 
-  const response = await fetchWithTimeout(CAT_API_URL, API_TIMEOUT_MS, context);
+  const response = await fetchWithTimeout(
+    CAT_API_URL,
+    API_TIMEOUT_MS,
+    appContext,
+  );
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => undefined);
@@ -117,7 +123,7 @@ async function imageTestToolLogic(
       JsonRpcErrorCode.ServiceUnavailable,
       `Image API request failed: ${response.status} ${response.statusText}`,
       {
-        requestId: context.requestId,
+        requestId: appContext.requestId,
         httpStatusCode: response.status,
         responseBody: errorText,
       },
@@ -129,7 +135,7 @@ async function imageTestToolLogic(
     throw new McpError(
       JsonRpcErrorCode.ServiceUnavailable,
       'Image API returned an empty payload.',
-      { requestId: context.requestId },
+      { requestId: appContext.requestId },
     );
   }
 
@@ -141,7 +147,7 @@ async function imageTestToolLogic(
   };
 
   logger.notice('Image fetched and encoded successfully.', {
-    ...context,
+    ...appContext,
     mimeType,
     byteLength: arrayBuf.byteLength,
   });

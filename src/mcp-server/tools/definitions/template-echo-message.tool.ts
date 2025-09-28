@@ -8,6 +8,7 @@ import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type {
+  SdkContext,
   ToolAnnotations,
   ToolDefinition,
 } from '@/mcp-server/tools/utils/toolDefinition.js';
@@ -26,7 +27,7 @@ const TOOL_NAME = 'template_echo_message';
 /** --------------------------------------------------------- */
 
 /** Human-readable title used by UIs. */
-const TOOL_TITLE = 'Echo Message';
+const TOOL_TITLE = 'Template Echo Message';
 /** --------------------------------------------------------- */
 
 /**
@@ -139,19 +140,20 @@ type EchoToolResponse = z.infer<typeof OutputSchema>;
 // -------------------------------------------------------------
 async function echoToolLogic(
   input: EchoToolInput,
-  context: RequestContext,
+  appContext: RequestContext,
+  _sdkContext: SdkContext,
 ): Promise<EchoToolResponse> {
   logger.debug('Processing echo message logic.', {
-    ...context,
+    ...appContext,
     toolInput: input,
   });
 
   if (input.message === TEST_ERROR_TRIGGER_MESSAGE) {
     const errorData: Record<string, unknown> = {
-      requestId: context.requestId,
+      requestId: appContext.requestId,
     };
-    if (typeof (context as Record<string, unknown>).traceId === 'string') {
-      errorData.traceId = (context as Record<string, unknown>)
+    if (typeof (appContext as Record<string, unknown>).traceId === 'string') {
+      errorData.traceId = (appContext as Record<string, unknown>)
         .traceId as string;
     }
     throw new McpError(

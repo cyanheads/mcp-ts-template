@@ -2,6 +2,7 @@
  * @fileoverview Unit tests for the KvProvider.
  * @module tests/storage/providers/cloudflare/kvProvider.test
  */
+import { McpError } from '../../../../src/types-global/errors.js';
 import { KvProvider } from '../../../../src/storage/providers/cloudflare/kvProvider.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RequestContext } from '../../../../src/utils/index.js';
@@ -47,10 +48,13 @@ describe('KvProvider', () => {
       expect(result).toEqual(storedObject);
     });
 
-    it('should return null on JSON parsing error', async () => {
-      mockKv.get.mockRejectedValue(new Error('Invalid JSON'));
-      const result = await kvProvider.get('tenant-1', 'key-1', context);
-      expect(result).toBeNull();
+    it('should throw McpError on JSON parsing error', async () => {
+      const parsingError = new Error('Invalid JSON');
+      mockKv.get.mockRejectedValue(parsingError);
+
+      await expect(
+        kvProvider.get('tenant-1', 'key-1', context),
+      ).rejects.toThrow(McpError);
     });
   });
 

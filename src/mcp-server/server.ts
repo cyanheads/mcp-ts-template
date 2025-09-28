@@ -55,6 +55,7 @@ export async function createMcpServerInstance(): Promise<McpServer> {
         logging: {},
         resources: { listChanged: true },
         tools: { listChanged: true },
+        elicitation: {},
       },
     },
   );

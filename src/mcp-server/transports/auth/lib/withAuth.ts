@@ -2,6 +2,7 @@
  * @fileoverview Higher-order functions for declarative, scope-based authorization.
  * @module src/mcp-server/transports/auth/lib/withAuth
  */
+import type { SdkContext } from '@/mcp-server/tools/utils/toolDefinition.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import type { RequestContext } from '@/utils/index.js';
 
@@ -18,11 +19,20 @@ export function withToolAuth<TInput, TOutput>(
   logicFn: (
     input: TInput,
     context: RequestContext,
+    sdkContext: SdkContext,
   ) => TOutput | Promise<TOutput>,
-): (input: TInput, context: RequestContext) => Promise<TOutput> {
-  return async (input: TInput, context: RequestContext): Promise<TOutput> => {
+): (
+  input: TInput,
+  context: RequestContext,
+  sdkContext: SdkContext,
+) => Promise<TOutput> {
+  return async (
+    input: TInput,
+    context: RequestContext,
+    sdkContext: SdkContext,
+  ): Promise<TOutput> => {
     withRequiredScopes(requiredScopes);
-    return Promise.resolve(logicFn(input, context));
+    return Promise.resolve(logicFn(input, context, sdkContext));
   };
 }
 
