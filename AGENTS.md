@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.2.0
+**Version:** 2.2.1
 **Target Project:** mcp-ts-template
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
@@ -425,7 +425,16 @@ Export a single `const` of type `ResourceDefinition` with:
   - **Usage:** This is injected into `StorageService` (do not inject provider in tools/resources).
 - **`CreateMcpServerInstance`** (factory function)
   - **Token:** `CreateMcpServerInstance`
-  - **Usage:** Resolved by transports to create/configure the `McpServer`.
+  - **Usage:** Resolved by the `TransportManager` to create/configure the `McpServer`.
+- **`TransportManager`**
+  - **Token:** `TransportManagerToken`
+  - **Usage:** `@inject(TransportManagerToken) private transportManager: TransportManager`
+- **`CreateMcpServerInstance`** (factory function)
+  - **Token:** `CreateMcpServerInstance`
+  - **Usage:** Resolved by the `TransportManager` to create/configure the `McpServer`.
+- **`TransportManager`**
+  - **Token:** `TransportManagerToken`
+  - **Usage:** `@inject(TransportManagerToken) private transportManager: TransportManager`
 
 #### Storage Providers (configured in `src/storage/core/storageFactory.ts`)
 
@@ -492,10 +501,11 @@ Export a single `const` of type `ResourceDefinition` with:
 - Registers tools and resources via DI-managed registries.
 - Returns a configured `McpServer`.
 
-#### Transports
+#### `TransportManager` (`src/mcp-server/transports/manager.ts`)
 
-- **stdio:** `startStdioTransport` connects `McpServer` to `StdioServerTransport`.
-- **http:** `createHttpApp` creates a Hono app and attaches `StreamableHTTPTransport` for JSON-RPC, plus health/status routes and CORS. `startHttpTransport` includes robust port binding with retries.
+- Resolves the `CreateMcpServerInstance` factory to get a configured `McpServer`.
+- Based on `MCP_TRANSPORT_TYPE`, it instantiates and manages the lifecycle of the appropriate transport (`http` or `stdio`).
+- Handles graceful startup and shutdown of the active transport.
 
 #### Worker (Edge)
 
