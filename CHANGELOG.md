@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
-## [2.1.9] - 2025-09-28
+## [2.2.0] - 2025-09-27
 
 ### Feature
 
@@ -26,7 +26,7 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 - **Test Suite**: Updated all tool-related tests to accommodate the new `logic` function signature and provide a mock `SdkContext`, ensuring all tests pass with the new architecture.
 
 
-## [2.1.8] - 2025-09-28
+## [2.1.8] - 2025-09-27
 
 ### Feature
 

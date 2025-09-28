@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.1.7
+**Version:** 2.2.0
 **Target Project:** mcp-ts-template
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
@@ -25,9 +25,9 @@ This document defines the operational rules for contributing to this codebase. F
     - **No Manual Instrumentation:** Do not add custom spans in your logic. Use the provided utilities and structured logging. The framework handles the single wrapper span per tool invocation.
 
 3.  **Structured, Traceable Operations**
-    - Always accept a `RequestContext` as the last parameter of any significant operation (tools, resources, services).
-    - Pass the _same_ `context` through your call stack for continuity.
-    - Use the global `logger` for all logging; include the `context` in every log call.
+    - Your logic functions will receive two context objects: `appContext` (for internal logging/tracing) and `sdkContext` (for SDK-level operations like elicitation).
+    - Pass the _same_ `appContext` through your internal call stack for continuity.
+    - Use the global `logger` for all logging; include the `appContext` in every log call.
 
 4.  **Decoupled Storage**
     - Never directly access persistence backends (`fs`, `supabase-js`, Worker KV/R2) from tool/resource logic.
@@ -39,24 +39,29 @@ This document defines the operational rules for contributing to this codebase. F
     - Guard non-portable dependencies so the bundle stays edge-compatible.
     - Prefer runtime-agnostic abstractions (Hono + `@hono/mcp`, Fetch APIs) to keep Bun/Node on localhost identical to Cloudflare Workers.
 
+6.  **Use Elicitation for Missing Input**
+    - If a tool requires a parameter that was not provided, use the `elicitInput` function from the `sdkContext`.
+    - This allows the tool to interactively request the necessary information from the user instead of failing.
+    - See `template_madlibs_elicitation.tool.ts` for a canonical example.
+
 ---
 
 ## II. Architectural Overview & Directory Structure
 
 Separation of concerns maps directly to the filesystem. Always place files in their designated locations.
 
-| Directory                                   | Purpose & Guidance                                                                                                                                                                                                                                    |
-| :------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`src/mcp-server/tools/definitions/`**     | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**.                                                                                                                               |
-| **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**.                                                                                                            |
-| **`src/mcp-server/tools/utils/`**           | **Shared tool utilities,** including `ToolDefinition` and tool handler factory.                                                                                                                                                                       |
-| **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                           |
-| **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth. |
-| **`src/services/`**                         | **External service integrations** (e.g., LLM providers).                                                                                                                                                                                              |
-| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv).                                                                                                                                        |
-| **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                               |
-| **`src/utils/`**                            | **Global utilities:** logging, error handling, performance, parsing, network, security, telemetry, scheduling.                                                                                                                                        |
-| **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation.                                                                                                                                                                                       |
+| Directory | Purpose & Guidance |
+| :--- | :--- |
+| **`src/mcp-server/tools/definitions/`** | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**. |
+| **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**. |
+| **`src/mcp-server/tools/utils/`** | **Shared tool utilities,** including `ToolDefinition` and tool handler factory. |
+| **`src/mcp-server/resources/utils/`** | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory. |
+| **`src/mcp-server/transports/`** | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth. |
+| **`src/services/`** | **External service integrations** (e.g., LLM providers). |
+| **`src/storage/`** | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv). |
+| **`src/container/`** | **Dependency Injection (`tsyringe`).** Service registration and tokens. |
+| **`src/utils/`** | **Global utilities:** logging, error handling, performance, parsing, network, security, telemetry, scheduling. |
+| **`tests/`** | **Unit/integration tests.** Mirrors `src/` for easy navigation. |
 
 ---
 
@@ -95,7 +100,7 @@ Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 - `description`: Clear, LLM-facing description of what the tool does.
 - `inputSchema`: A `z.object({ ... })`. **Every field must have a `.describe()`**.
 - `outputSchema`: A `z.object({ ... })` describing the successful output structure.
-- `logic`: `async (input, context) => { ... }` pure business logic. No `try/catch` here. Throw `McpError` on failure.
+- `logic`: `async (input, appContext, sdkContext) => { ... }` pure business logic. No `try/catch` here. Throw `McpError` on failure.
 - `annotations` (optional): UI/behavior hints such as `readOnlyHint`, `openWorldHint`, and others (flexible dictionary).
 - `responseFormatter` (optional): Map successful output to `ContentBlock[]` for a UI-friendly representation. If omitted, a default JSON string is used.
 
@@ -127,6 +132,7 @@ import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import type {
+  SdkContext,
   ToolAnnotations,
   ToolDefinition,
 } from '@/mcp-server/tools/utils/toolDefinition.js';
@@ -145,7 +151,7 @@ const TOOL_NAME = 'template_echo_message';
 /** --------------------------------------------------------- */
 
 /** Human-readable title used by UIs. */
-const TOOL_TITLE = 'Echo Message';
+const TOOL_TITLE = 'Template Echo Message';
 /** --------------------------------------------------------- */
 
 /**
@@ -258,19 +264,20 @@ type EchoToolResponse = z.infer<typeof OutputSchema>;
 // -------------------------------------------------------------
 async function echoToolLogic(
   input: EchoToolInput,
-  context: RequestContext,
+  appContext: RequestContext,
+  _sdkContext: SdkContext,
 ): Promise<EchoToolResponse> {
   logger.debug('Processing echo message logic.', {
-    ...context,
+    ...appContext,
     toolInput: input,
   });
 
   if (input.message === TEST_ERROR_TRIGGER_MESSAGE) {
     const errorData: Record<string, unknown> = {
-      requestId: context.requestId,
+      requestId: appContext.requestId,
     };
-    if (typeof (context as Record<string, unknown>).traceId === 'string') {
-      errorData.traceId = (context as Record<string, unknown>)
+    if (typeof (appContext as Record<string, unknown>).traceId === 'string') {
+      errorData.traceId = (appContext as Record<string, unknown>)
         .traceId as string;
     }
     throw new McpError(
@@ -397,7 +404,6 @@ Export a single `const` of type `ResourceDefinition` with:
 - **`ILlmProvider`**
   - **Token:** `LlmProvider`
   - **Usage:** `@inject(LlmProvider) private llmProvider: ILlmProvider`
-  - **Default impl:** `OpenRouterProvider` (requires `OPENROUTER_API_KEY` and related config)
 - **`StorageService`**
   - **Token:** `StorageService`
   - **Usage:** `@inject(StorageService) private storage: StorageService`
@@ -482,7 +488,7 @@ Export a single `const` of type `ResourceDefinition` with:
 #### `createMcpServerInstance` (`src/mcp-server/server.ts`)
 
 - Initializes `RequestContext` global config.
-- Creates `McpServer` with identity and capabilities (logging, `resources/tools listChanged`).
+- Creates `McpServer` with identity and capabilities (logging, `resources/tools listChanged`, `elicitation`).
 - Registers tools and resources via DI-managed registries.
 - Returns a configured `McpServer`.
 
@@ -555,46 +561,28 @@ Use scripts from `package.json`:
 
 ---
 
+#### Notes on Tenancy
+
+- `StorageService` requires `context.tenantId` and throws if missing. In HTTP mode with auth enabled, `tenantId` is extracted from the token claim `tid` and propagated automatically via `requestContextService`.
+- If your feature needs multi-tenant storage access in contexts without authenticated HTTP (e.g., stdio), ensure `context.tenantId` is explicitly provided at the boundary where appropriate.
+
+---
+
 ## XIII. Quick Checklist
 
 Before completing your task, ensure you have:
 
 - [ ] Implemented tool/resource logic in a `*.tool.ts` or `*.resource.ts` file.
 - [ ] Kept `logic` functions pure (no `try...catch`).
-- [ ] Thrown `McpError` for failures within logic (appropriate code and context).
-- [ ] Applied authorization with `withToolAuth` or `withResourceAuth`, specifying required scopes.
-- [ ] Used `logger` with `RequestContext` for all significant operations.
-- [ ] Used `StorageService` (DI) for persistence (never directly access low-level storage backends).
+- [ ] Thrown `McpError` for failures within logic.
+- [ ] Used `elicitInput` from `sdkContext` for missing parameters.
+- [ ] Applied authorization with `withToolAuth` or `withResourceAuth`.
+- [ ] Used `logger` with `appContext` for all significant operations.
+- [ ] Used `StorageService` (DI) for persistence.
 - [ ] Registered definitions in the corresponding `index.ts` barrel file.
-- [ ] Added or updated tests and confirmed they pass with `bun test`.
-- [ ] Ran `bun run devcheck` to ensure code quality, formatting, and types are correct.
-- [ ] Smoke-tested local transports with `bun run dev:stdio` and `bun run dev:http` (and `start:*` after build).
-- [ ] Validated the Worker bundle (`bun run build:worker`) and `wrangler dev --local` for edge compatibility.
+- [ ] Added or updated tests (`bun test`).
+- [ ] Ran `bun run devcheck` to ensure code quality.
+- [ ] Smoke-tested local transports (`bun run dev:stdio`/`http`).
+- [ ] Validated the Worker bundle (`bun run build:worker`).
 
----
-
-## XIV. Canonical Examples
-
-#### Tool (`template-cat-fact`, abridged)
-
-- See `src/mcp-server/tools/definitions/template-cat-fact.tool.ts` for:
-  - Constants (name/title/description/annotations)
-  - Input and output Zod schemas (with `.describe()` on each field)
-  - Pure logic with `McpError` throws and `fetchWithTimeout`
-  - `responseFormatter` returning `ContentBlock[]`
-  - `logic` wrapped with `withToolAuth([...], logicFn)`
-
-#### Resource (`echo` resource, abridged)
-
-- See `src/mcp-server/resources/definitions/echo.resource.ts` for:
-  - `paramsSchema` and `outputSchema`
-  - Pure logic reading from the URI and params
-  - `withResourceAuth([...], logicFn)`
-  - Registration via `allResourceDefinitions` in `index.ts`
-
-#### Notes on Tenancy
-
-- `StorageService` requires `context.tenantId` and throws if missing. In HTTP mode with auth enabled, `tenantId` is extracted from the token claim `tid` and propagated automatically via `requestContextService`.
-- If your feature needs multi-tenant storage access in contexts without authenticated HTTP (e.g., stdio), ensure `context.tenantId` is explicitly provided at the boundary where appropriate.
-
-That’s it. Follow this document precisely to keep the architecture coherent and the system observable, testable, and portable.
+That’s it. Follow this document precisely.
