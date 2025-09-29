@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-28 07:37:54
+Generated on: 2025-09-29 20:07:00
 
 ```
 mcp-ts-template
@@ -21,7 +21,6 @@ mcp-ts-template
 │   ├── mcp-elicitation-summary.md
 │   ├── publishing-mcp-server-registry.md
 │   └── tree.md
-├── generated
 ├── scripts
 │   ├── clean.ts
 │   ├── devcheck.ts
@@ -117,13 +116,13 @@ mcp-ts-template
 │   │   │   │   ├── mappings.ts
 │   │   │   │   └── types.ts
 │   │   │   ├── encoding.ts
-│   │   │   ├── errorHandler.ts
 │   │   │   ├── health.ts
 │   │   │   ├── index.ts
 │   │   │   ├── logger.ts
 │   │   │   ├── performance.ts
 │   │   │   ├── requestContext.ts
-│   │   │   └── runtime.ts
+│   │   │   ├── runtime.ts
+│   │   │   └── startupBanner.ts
 │   │   ├── metrics
 │   │   │   ├── index.ts
 │   │   │   ├── registry.ts

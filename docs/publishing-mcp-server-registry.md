@@ -63,23 +63,15 @@ Review the following files:
     - Ensure the `version` matches the one in `package.json`.
     - Check that the `packages.identifier` field matches the `name` in your `package.json`.
     - Verify that the `packages.version` also matches the version in `package.json`.
-    - Add a `website_url` pointing to your project homepage or README (recommended for discoverability).
-    - Consider adding `repository.id` (e.g., GitHub repo ID) for registry safety. You can obtain it with: `gh api repos/<owner>/<repo> --jq '.id'`.
-    - Prefer HTTP transport URL templating so clients can override host/port/path without editing JSON, for example:
-      ```json
-      {
-        "type": "streamable-http",
-        "url": "http://{MCP_HTTP_HOST}:{MCP_HTTP_PORT}{MCP_HTTP_ENDPOINT_PATH}"
-      }
-      ```
-      Provide corresponding entries in `packages[].environment_variables` such as `MCP_HTTP_HOST`, `MCP_HTTP_PORT`, and `MCP_HTTP_ENDPOINT_PATH` with sensible defaults.
+    - Add a `websiteUrl` pointing to your project homepage or README (recommended for discoverability).
+    - Prefer HTTP transport URL templating so clients can override host/port/path without editing JSON. Use template variables like `MCP_HTTP_HOST` and ensure they are listed in `packages[].environmentVariables` with sensible defaults.
 
 3.  **`src/config/index.ts`**:
     - Look for any default values that might affect the server's runtime behavior, such as `mcpHttpPort`. The default HTTP port is currently `3010`. If you've configured a different port via environment variables for your deployment, ensure your `server.json` reflects that.
 
 ### Environment Variable Precedence (Important)
 
-Depending on how you start the server, environment variables set in `package.json` scripts can override values provided via `server.json`'s `environment_variables`. For example, this template sets `MCP_LOG_LEVEL=debug` in `start:*` scripts. If you want `server.json` to be the source of truth for those values, remove or adjust the hardcoded env vars in scripts, or invoke the runtime directly (e.g., `bun ./dist/index.js`) and allow client-provided values to take effect.
+Depending on how you start the server, environment variables set in `package.json` scripts can override values provided via `server.json`'s `environmentVariables`. For example, this template sets `MCP_LOG_LEVEL=debug` in `start:*` scripts. If you want `server.json` to be the source of truth for those values, remove or adjust the hardcoded env vars in scripts, or invoke the runtime directly (e.g., `bun ./dist/index.js`) and allow client-provided values to take effect.
 
 ## Step 2: Validate the `server.json` Schema
 
