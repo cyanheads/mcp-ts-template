@@ -78,6 +78,39 @@ describe('imageTestTool', () => {
       'code',
       JsonRpcErrorCode.ServiceUnavailable,
     );
+
+    try {
+      await imageTestTool.logic({ trigger: true }, context, mockSdkContext);
+    } catch (error) {
+      const mcpError = error as McpError;
+      // fetchWithTimeout throws the McpError, which is what we expect
+      expect(mcpError.message).toContain('Fetch failed');
+      expect(mcpError.message).toContain('502');
+    }
+  });
+
+  it('should handle error when response.text() fails during error handling', async () => {
+    server.use(
+      http.get('https://cataas.com/cat', () => {
+        return new HttpResponse(null, {
+          status: 500,
+          statusText: 'Internal Server Error',
+        });
+      }),
+    );
+
+    const context = requestContextService.createRequestContext();
+    const promise = imageTestTool.logic(
+      { trigger: true },
+      context,
+      mockSdkContext,
+    );
+
+    await expect(promise).rejects.toBeInstanceOf(McpError);
+    await expect(promise).rejects.toHaveProperty(
+      'code',
+      JsonRpcErrorCode.ServiceUnavailable,
+    );
   });
 
   it('should throw an McpError when the image payload is empty', async () => {

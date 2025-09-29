@@ -132,4 +132,28 @@ describe('Configuration Service', () => {
     const config = parseConfig();
     expect(config.openTelemetry.enabled).toBe(false);
   });
+
+  it('should throw a Zod validation error for invalid configuration', async () => {
+    process.env.MCP_HTTP_PORT = 'not-a-number';
+    const { parseConfig } = await import('../../src/config/index.js');
+    expect(() => parseConfig()).toThrow();
+  });
+
+  it('should derive serviceName and version from package.json when not set', async () => {
+    delete process.env.OTEL_SERVICE_NAME;
+    delete process.env.OTEL_SERVICE_VERSION;
+    const { parseConfig } = await import('../../src/config/index.js');
+    const config = parseConfig();
+    expect(config.openTelemetry.serviceName).toBeTruthy();
+    expect(config.openTelemetry.serviceVersion).toBeTruthy();
+  });
+
+  it('should handle storage configuration', async () => {
+    process.env.STORAGE_PROVIDER_TYPE = 'filesystem';
+    process.env.STORAGE_FILESYSTEM_PATH = '/tmp/test-storage';
+    const { parseConfig } = await import('../../src/config/index.js');
+    const config = parseConfig();
+    expect(config.storage.providerType).toBe('filesystem');
+    expect(config.storage.filesystemPath).toBe('/tmp/test-storage');
+  });
 });

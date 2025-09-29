@@ -128,4 +128,39 @@ describe('madlibsElicitationTool', () => {
       JsonRpcErrorCode.InvalidParams,
     );
   });
+
+  it('should format response correctly', () => {
+    const formatter = madlibsElicitationTool.responseFormatter;
+    expect(formatter).toBeDefined();
+
+    const result = {
+      noun: 'dragon',
+      verb: 'soared',
+      adjective: 'magnificent',
+      story: 'The magnificent dragon soared over the lazy dog.',
+    };
+
+    const formatted = formatter!(result);
+
+    expect(formatted).toHaveLength(2);
+    const storyBlock = formatted[0];
+    const detailsBlock = formatted[1];
+
+    expect(storyBlock).toBeDefined();
+    if (!storyBlock || storyBlock.type !== 'text') {
+      throw new Error('Expected text content block for story');
+    }
+    expect(storyBlock.text).toBe(
+      'The magnificent dragon soared over the lazy dog.',
+    );
+
+    expect(detailsBlock).toBeDefined();
+    if (!detailsBlock || detailsBlock.type !== 'text') {
+      throw new Error('Expected text content block for details');
+    }
+    const details = JSON.parse(detailsBlock.text);
+    expect(details.noun).toBe('dragon');
+    expect(details.verb).toBe('soared');
+    expect(details.adjective).toBe('magnificent');
+  });
 });

@@ -134,4 +134,92 @@ describe('Logger Integration (Pino)', () => {
     // Reset level for other tests
     logger.setLevel('debug');
   });
+
+  it('should log emergency level messages', async () => {
+    await new Promise<void>((resolve) => {
+      logger.emerg('Emergency situation detected', {
+        testId: 'pino-emerg-test',
+        requestId: 'test-pino-emerg',
+        timestamp: new Date().toISOString(),
+      });
+
+      setTimeout(() => {
+        const combinedLog = readJsonLog(COMBINED_LOG_PATH);
+        const emergEntry = combinedLog.find(
+          (log) => log.testId === 'pino-emerg-test',
+        );
+        expect(emergEntry).toBeDefined();
+        expect(emergEntry.msg).toBe('Emergency situation detected');
+        // Pino fatal level is 60
+        expect(emergEntry.level).toBeGreaterThanOrEqual(50);
+        resolve();
+      }, 200);
+    });
+  });
+
+  it('should log critical level messages', async () => {
+    await new Promise<void>((resolve) => {
+      logger.crit('Critical error occurred', {
+        testId: 'pino-crit-test',
+        requestId: 'test-pino-crit',
+        timestamp: new Date().toISOString(),
+      });
+
+      setTimeout(() => {
+        const combinedLog = readJsonLog(COMBINED_LOG_PATH);
+        const critEntry = combinedLog.find(
+          (log) => log.testId === 'pino-crit-test',
+        );
+        expect(critEntry).toBeDefined();
+        expect(critEntry.msg).toBe('Critical error occurred');
+        // Mapped to error level (50) in Pino
+        expect(critEntry.level).toBeGreaterThanOrEqual(50);
+        resolve();
+      }, 200);
+    });
+  });
+
+  it('should log alert level messages', async () => {
+    await new Promise<void>((resolve) => {
+      logger.alert('Alert condition triggered', {
+        testId: 'pino-alert-test',
+        requestId: 'test-pino-alert',
+        timestamp: new Date().toISOString(),
+      });
+
+      setTimeout(() => {
+        const combinedLog = readJsonLog(COMBINED_LOG_PATH);
+        const alertEntry = combinedLog.find(
+          (log) => log.testId === 'pino-alert-test',
+        );
+        expect(alertEntry).toBeDefined();
+        expect(alertEntry.msg).toBe('Alert condition triggered');
+        // Mapped to error/fatal level in Pino
+        expect(alertEntry.level).toBeGreaterThanOrEqual(50);
+        resolve();
+      }, 200);
+    });
+  });
+
+  it('should log notice level messages', async () => {
+    await new Promise<void>((resolve) => {
+      logger.notice('Notice level message', {
+        testId: 'pino-notice-test',
+        requestId: 'test-pino-notice',
+        timestamp: new Date().toISOString(),
+      });
+
+      setTimeout(() => {
+        const combinedLog = readJsonLog(COMBINED_LOG_PATH);
+        const noticeEntry = combinedLog.find(
+          (log) => log.testId === 'pino-notice-test',
+        );
+        expect(noticeEntry).toBeDefined();
+        expect(noticeEntry.msg).toBe('Notice level message');
+        // Mapped to info level (30) in Pino
+        expect(noticeEntry.level).toBeGreaterThanOrEqual(30);
+        resolve();
+      }, 200);
+    });
+  });
 });

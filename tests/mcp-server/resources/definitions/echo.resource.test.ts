@@ -40,4 +40,15 @@ describe('echoResourceDefinition', () => {
     expect(typedResult.requestUri).toBe('echo://test-message');
     expect(typedResult).toHaveProperty('timestamp');
   });
+
+  it('should provide resource list for discovery', () => {
+    const list = echoResourceDefinition.list;
+    expect(list).toBeDefined();
+
+    const resourceList = list!();
+    expect(resourceList.resources).toHaveLength(1);
+    expect(resourceList.resources[0]).toHaveProperty('uri', 'echo://hello');
+    expect(resourceList.resources[0]).toHaveProperty('name');
+    expect(resourceList.resources[0]).toHaveProperty('description');
+  });
 });

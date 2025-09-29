@@ -91,4 +91,28 @@ describe('echoTool', () => {
     expect(lines[1]).toMatch(/…$/);
     expect(lines[2]).toBe('timestamp=2024-01-01T00:00:00.000Z');
   });
+
+  it('should format response content without timestamp when not provided', () => {
+    const formatter = echoTool.responseFormatter;
+    expect(formatter).toBeDefined();
+
+    const result = formatter!({
+      originalMessage: 'short',
+      formattedMessage: 'short',
+      repeatedMessage: 'short',
+      mode: 'lowercase',
+      repeatCount: 1,
+    });
+
+    expect(result).toHaveLength(1);
+    const block = result[0];
+    expect(block).toBeDefined();
+    if (!block || block.type !== 'text') {
+      throw new Error('Expected text content block');
+    }
+    const lines = block.text.split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toBe('Echo (mode=lowercase, repeat=1)');
+    expect(lines[1]).toBe('short');
+  });
 });

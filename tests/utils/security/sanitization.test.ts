@@ -253,4 +253,25 @@ describe('Sanitization Utility', () => {
       expect(sanitization.sanitizeNumber(25, 10, 20)).toBe(20);
     });
   });
+
+  describe('setSensitiveFields and getSensitiveFields', () => {
+    it('should allow adding and retrieving sensitive fields', () => {
+      const initialFields = sanitization.getSensitiveFields();
+      sanitization.setSensitiveFields(['customSecret', 'customToken']);
+      const updatedFields = sanitization.getSensitiveFields();
+      expect(updatedFields).toContain('customsecret');
+      expect(updatedFields).toContain('customtoken');
+      expect(updatedFields.length).toBeGreaterThan(initialFields.length);
+    });
+
+    it('should return pino-compliant field names', () => {
+      const pinoFields = sanitization.getSensitivePinoFields();
+      expect(Array.isArray(pinoFields)).toBe(true);
+      // Pino fields should not contain hyphens or underscores
+      pinoFields.forEach((field) => {
+        expect(field).not.toContain('-');
+        expect(field).not.toContain('_');
+      });
+    });
+  });
 });

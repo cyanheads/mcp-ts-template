@@ -82,6 +82,35 @@ describe('catFactTool', () => {
       'code',
       JsonRpcErrorCode.ServiceUnavailable,
     );
+
+    try {
+      await catFactTool.logic({}, context, mockSdkContext);
+    } catch (error) {
+      const mcpError = error as McpError;
+      // fetchWithTimeout throws the McpError, which is what we expect
+      expect(mcpError.message).toContain('Fetch failed');
+      expect(mcpError.message).toContain('503');
+    }
+  });
+
+  it('should handle error when response.text() fails during error handling', async () => {
+    server.use(
+      http.get('https://catfact.ninja/fact', () => {
+        return new HttpResponse(null, {
+          status: 500,
+          statusText: 'Internal Server Error',
+        });
+      }),
+    );
+
+    const context = requestContextService.createRequestContext();
+    const promise = catFactTool.logic({}, context, mockSdkContext);
+
+    await expect(promise).rejects.toBeInstanceOf(McpError);
+    await expect(promise).rejects.toHaveProperty(
+      'code',
+      JsonRpcErrorCode.ServiceUnavailable,
+    );
   });
 
   it('should throw an McpError when the API returns unexpected data', async () => {

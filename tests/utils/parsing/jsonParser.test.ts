@@ -135,4 +135,11 @@ describe('JsonParser', () => {
       );
     }
   });
+
+  it('should create a default context when none is provided', () => {
+    const jsonString = '{"test": "value"}';
+    expect(() => parser.parse(jsonString, Allow.ALL)).not.toThrow();
+    const result = parser.parse(jsonString, Allow.ALL);
+    expect(result).toEqual({ test: 'value' });
+  });
 });
