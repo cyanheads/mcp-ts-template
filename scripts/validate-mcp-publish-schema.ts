@@ -28,7 +28,7 @@ import path from 'path';
 const PACKAGE_JSON_PATH = path.resolve(process.cwd(), 'package.json');
 const SERVER_JSON_PATH = path.resolve(process.cwd(), 'server.json');
 const MCP_SCHEMA_URL =
-  'https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json';
+  'https://static.modelcontextprotocol.io/schemas/2025-09-16/server.schema.json';
 const MCP_REGISTRY_URL = 'https://registry.modelcontextprotocol.io/v0/servers';
 
 // --- Helper Functions ---
