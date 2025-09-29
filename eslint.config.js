@@ -86,4 +86,19 @@ export default [
       ],
     },
   },
+
+  // Restrict console usage in src/ - use structured logger instead
+  // Allow warn/error for early boot failures and log for user-facing banners
+  // Scripts (CLI tools) are exempt as console output is their primary interface
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': [
+        'error',
+        {
+          allow: ['log', 'warn', 'error'],
+        },
+      ],
+    },
+  },
 ];

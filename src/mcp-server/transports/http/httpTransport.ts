@@ -20,7 +20,11 @@ import {
 } from '@/mcp-server/transports/auth/index.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
-import { type RequestContext, logger } from '@/utils/index.js';
+import {
+  type RequestContext,
+  logger,
+  logStartupBanner,
+} from '@/utils/index.js';
 
 /**
  * Extends the base StreamableHTTPTransport to include a session ID.
@@ -211,8 +215,9 @@ function startHttpServerWithRetry(
                   port,
                   address: serverAddress,
                 });
-                if (process.stdout.isTTY)
-                  console.log(`\n🚀 MCP Server running at: ${serverAddress}`);
+                logStartupBanner(
+                  `\n🚀 MCP Server running at: ${serverAddress}`,
+                );
               },
             );
             resolve(serverInstance);

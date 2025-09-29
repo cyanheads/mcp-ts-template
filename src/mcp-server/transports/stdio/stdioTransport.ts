@@ -20,7 +20,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
+import {
+  ErrorHandler,
+  type RequestContext,
+  logger,
+  logStartupBanner,
+} from '@/utils/index.js';
 
 /**
  * Connects a given `McpServer` instance to the Stdio transport.
@@ -67,11 +72,9 @@ export async function startStdioTransport(
       'MCP Server connected and listening via stdio transport.',
       operationContext,
     );
-    if (process.stdout.isTTY) {
-      console.log(
-        `\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: 2025-03-26 Stdio Transport)\n`,
-      );
-    }
+    logStartupBanner(
+      `\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: 2025-03-26 Stdio Transport)\n`,
+    );
     return server;
   } catch (err) {
     // Let the ErrorHandler log the error with all context, then rethrow.
