@@ -97,6 +97,45 @@ export class OauthStrategy implements AuthStrategy {
         claims: payload,
       });
 
+      // RFC 8707 Resource Indicators validation (MCP 2025-06-18 requirement)
+      // Validate that the token was issued for this specific MCP server
+      if (this.config.mcpServerResourceIdentifier) {
+        const resourceClaim = payload.resource || payload.aud;
+        const expectedResource = this.config.mcpServerResourceIdentifier;
+
+        const isResourceValid =
+          (Array.isArray(resourceClaim) &&
+            resourceClaim.includes(expectedResource)) ||
+          resourceClaim === expectedResource;
+
+        if (!isResourceValid) {
+          this.logger.warning(
+            'Token resource indicator mismatch. Token was not issued for this MCP server.',
+            {
+              ...context,
+              expected: expectedResource,
+              received: resourceClaim,
+            },
+          );
+          throw new McpError(
+            JsonRpcErrorCode.Forbidden,
+            'Token was not issued for this MCP server. Resource indicator mismatch.',
+            {
+              expected: expectedResource,
+              received: resourceClaim,
+            },
+          );
+        }
+
+        this.logger.debug(
+          'RFC 8707 resource indicator validated successfully.',
+          {
+            ...context,
+            resource: expectedResource,
+          },
+        );
+      }
+
       const scopes =
         typeof payload.scope === 'string' ? payload.scope.split(' ') : [];
       if (scopes.length === 0) {

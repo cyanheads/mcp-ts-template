@@ -8,16 +8,18 @@
  * 4. Handles top-level error management during startup.
  *
  * MCP Specification References:
- * - Lifecycle: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/lifecycle.mdx
- * - Overview (Capabilities): https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/index.mdx
- * - Transports: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx
+ * - Lifecycle: https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle
+ * - Overview (Capabilities): https://modelcontextprotocol.io/specification/2025-06-18/basic/index
+ * - Transports: https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
  * @module src/mcp-server/server
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { container } from 'tsyringe';
 
 import { config } from '@/config/index.js';
+import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
+import { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import { logger, requestContextService } from '@/utils/index.js';
 
@@ -53,23 +55,32 @@ export async function createMcpServerInstance(): Promise<McpServer> {
         resources: { listChanged: true },
         tools: { listChanged: true },
         elicitation: {},
+        sampling: {}, // MCP 2025-06-18: Allow tools to request LLM completions from clients
+        prompts: { listChanged: true }, // MCP 2025-06-18: Provide structured message templates
+        roots: { listChanged: true }, // MCP 2025-06-18: Workspace/filesystem context awareness
       },
     },
   );
 
   try {
-    logger.debug('Registering resources and tools via registries...', context);
+    logger.debug('Registering all MCP capabilities via registries...', context);
 
-    // Resolve and use the new registry services
+    // Resolve and use registry services
     const toolRegistry = container.resolve(ToolRegistry);
     await toolRegistry.registerAll(server);
 
     const resourceRegistry = container.resolve(ResourceRegistry);
     await resourceRegistry.registerAll(server);
 
-    logger.info('Resources and tools registered successfully', context);
+    const promptRegistry = container.resolve(PromptRegistry);
+    promptRegistry.registerAll(server);
+
+    const rootsRegistry = container.resolve(RootsRegistry);
+    rootsRegistry.registerAll(server);
+
+    logger.info('All MCP capabilities registered successfully', context);
   } catch (err) {
-    logger.error('Failed to register resources/tools', {
+    logger.error('Failed to register MCP capabilities', {
       ...context,
       error: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack : undefined,

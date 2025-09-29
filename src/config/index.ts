@@ -110,6 +110,7 @@ const ConfigSchema = z.object({
   oauthAudience: z.string().optional(),
   oauthJwksCooldownMs: z.coerce.number().default(300_000), // 5 minutes
   oauthJwksTimeoutMs: z.coerce.number().default(5_000), // 5 seconds
+  mcpServerResourceIdentifier: z.string().url().optional(), // RFC 8707 resource indicator
   devMcpClientId: z.string().optional(),
   devMcpScopes: z.array(z.string()).optional(),
   openrouterAppUrl: z.string().default('http://localhost:3000'),
@@ -223,6 +224,7 @@ const parseConfig = () => {
     oauthAudience: env.OAUTH_AUDIENCE,
     oauthJwksCooldownMs: env.OAUTH_JWKS_COOLDOWN_MS,
     oauthJwksTimeoutMs: env.OAUTH_JWKS_TIMEOUT_MS,
+    mcpServerResourceIdentifier: env.MCP_SERVER_RESOURCE_IDENTIFIER,
     devMcpClientId: env.DEV_MCP_CLIENT_ID,
     devMcpScopes: env.DEV_MCP_SCOPES?.split(',').map((s) => s.trim()),
     openrouterAppUrl: env.OPENROUTER_APP_URL,

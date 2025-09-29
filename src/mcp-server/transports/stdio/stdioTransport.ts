@@ -1,20 +1,20 @@
 /**
  * @fileoverview Handles the setup and connection for the Stdio MCP transport.
- * Implements the MCP Specification 2025-03-26 for stdio transport.
+ * Implements the MCP Specification 2025-06-18 for stdio transport.
  * This transport communicates directly over standard input (stdin) and
  * standard output (stdout), typically used when the MCP server is launched
  * as a child process by a host application.
  *
  * Specification Reference:
- * https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx#stdio
+ * https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#stdio
  *
  * --- Authentication Note ---
- * As per the MCP Authorization Specification (2025-03-26, Section 1.2),
+ * As per the MCP Authorization Specification (2025-06-18, Section 1.2),
  * STDIO transports SHOULD NOT implement HTTP-based authentication flows.
  * Authorization is typically handled implicitly by the host application
  * controlling the server process. This implementation follows that guideline.
  *
- * @see {@link https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/authorization.mdx | MCP Authorization Specification}
+ * @see {@link https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization | MCP Authorization Specification}
  * @module src/mcp-server/transports/stdioTransport
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -73,7 +73,7 @@ export async function startStdioTransport(
       operationContext,
     );
     logStartupBanner(
-      `\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: 2025-03-26 Stdio Transport)\n`,
+      `\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: 2025-06-18 Stdio Transport)\n`,
     );
     return server;
   } catch (err) {

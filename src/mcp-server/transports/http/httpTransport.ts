@@ -2,6 +2,9 @@
  * @fileoverview Configures and starts the HTTP MCP transport using Hono.
  * This implementation uses the official @hono/mcp package for a fully
  * web-standard, platform-agnostic transport layer.
+ *
+ * Implements MCP Specification 2025-06-18 Streamable HTTP Transport.
+ * @see {@link https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http | MCP Streamable HTTP Transport}
  * @module src/mcp-server/transports/http/httpTransport
  */
 import { StreamableHTTPTransport } from '@hono/mcp';
@@ -77,6 +80,25 @@ export function createHttpApp(
   // Health and GET /mcp status remain unprotected for convenience
   app.get('/healthz', (c) => c.json({ status: 'ok' }));
 
+  // RFC 9728 Protected Resource Metadata endpoint (MCP 2025-06-18)
+  // Must be accessible without authentication for discovery
+  app.get('/.well-known/oauth-protected-resource', (c) => {
+    if (!config.oauthIssuerUrl) {
+      return c.json(
+        { error: 'OAuth not configured on this server' },
+        { status: 404 },
+      );
+    }
+
+    return c.json({
+      resource: config.mcpServerResourceIdentifier || config.oauthAudience,
+      authorization_servers: [config.oauthIssuerUrl],
+      bearer_methods_supported: ['header'],
+      resource_signing_alg_values_supported: ['RS256', 'ES256', 'PS256'],
+      ...(config.oauthJwksUri && { jwks_uri: config.oauthJwksUri }),
+    });
+  });
+
   app.get(config.mcpHttpEndpointPath, (c) => {
     return c.json({
       status: 'ok',
@@ -109,11 +131,25 @@ export function createHttpApp(
 
   // JSON-RPC over HTTP (Streamable)
   app.all(config.mcpHttpEndpointPath, async (c) => {
+    const protocolVersion =
+      c.req.header('mcp-protocol-version') ?? '2025-03-26';
     logger.debug('Handling MCP request.', {
       ...transportContext,
       path: c.req.path,
       method: c.req.method,
+      protocolVersion,
     });
+
+    // Per MCP Spec 2025-06-18: MCP-Protocol-Version header should be validated
+    // We default to 2025-03-26 for backward compatibility if not provided
+    const supportedVersions = ['2025-03-26', '2025-06-18'];
+    if (!supportedVersions.includes(protocolVersion)) {
+      logger.warning('Unsupported MCP protocol version requested.', {
+        ...transportContext,
+        protocolVersion,
+        supportedVersions,
+      });
+    }
 
     const sessionId = c.req.header('mcp-session-id') ?? randomUUID();
     const transport = new McpSessionTransport(sessionId);
@@ -137,7 +173,15 @@ export function createHttpApp(
       }
       return await handleRpc();
     } catch (err) {
-      await transport.close?.();
+      // Only close transport on error - success path needs to keep it open
+      await transport.close?.().catch((closeErr) => {
+        logger.warning('Failed to close transport after error', {
+          ...transportContext,
+          sessionId,
+          error:
+            closeErr instanceof Error ? closeErr.message : String(closeErr),
+        });
+      });
       throw err instanceof Error ? err : new Error(String(err));
     }
   });
