@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.2.3] - 2025-09-29
+
+### Feature
+- **Server Runtime Banner**: Introduced `logStartupBanner` utility to display transport startup messages only in TTY environments, preventing output corruption when using STDIO transport or piping output. Used in `httpTransport.ts` and `stdioTransport.ts`.
+
+### Refactor
+- **Error Handler Cleanup**: Completed the Error Handler refactor by removing the legacy barrel file (`src/utils/internal/errorHandler.ts`) and adjusting all import references to point directly to the dedicated subdirectory (`src/utils/internal/error-handler/index.js`).
+- **Code Quality**: Added a new ESLint rule to restrict `console` usage in the `src/` directory, mandating the use of the structured `logger` or the new TTY-safe utility.
+- **Agent Protocol**: Updated `AGENTS.md` and related documents with a new section on multi-tenancy and storage context, clarifying requirements for `tenantId` in different transport modes.
+
+### Chore
+- **Dependency Updates**: Bumped various development and runtime dependencies, including `@hono/node-server`, `pino`, and OpenTelemetry packages, for stability and latest features.
+- **Documentation Restructure**: Moved standalone documentation files (`mcp-elicitation-summary.md`, `publishing-mcp-server-registry.md`) into a `docs/archive` subdirectory to clean up the root `docs/` folder, reflected in `docs/tree.md`.
+
 ## [2.2.2] - 2025-09-28
 
 ### Refactor
