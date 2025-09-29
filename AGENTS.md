@@ -5,6 +5,8 @@
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
+> **Note on File Synchronization**: This file (`AGENTS.md`), along with `CLAUDE.md` and `.clinerules/AGENTS.md`, are hard-linked on the filesystem for tool compatibility (e.g., Cline does not work with symlinks). **Edit only `AGENTS.md`** – changes will automatically propagate to the other copies.
+
 ---
 
 ## I. Core Principles (Non‑Negotiable)
@@ -60,8 +62,8 @@ Separation of concerns maps directly to the filesystem. Always place files in th
 | **`src/services/`**                         | **External service integrations** (e.g., LLM providers).                                                                                                                                                                                              |
 | **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv).                                                                                                                                        |
 | **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                               |
-| **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                       |
-| **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                          |
+| **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                    |
+| **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                        |
 
 ---
 
@@ -429,12 +431,6 @@ Export a single `const` of type `ResourceDefinition` with:
 - **`TransportManager`**
   - **Token:** `TransportManagerToken`
   - **Usage:** `@inject(TransportManagerToken) private transportManager: TransportManager`
-- **`CreateMcpServerInstance`** (factory function)
-  - **Token:** `CreateMcpServerInstance`
-  - **Usage:** Resolved by the `TransportManager` to create/configure the `McpServer`.
-- **`TransportManager`**
-  - **Token:** `TransportManagerToken`
-  - **Usage:** `@inject(TransportManagerToken) private transportManager: TransportManager`
 
 #### Storage Providers (configured in `src/storage/core/storageFactory.ts`)
 
@@ -571,10 +567,55 @@ Use scripts from `package.json`:
 
 ---
 
-#### Notes on Tenancy
+## XIV. Multi-Tenancy & Storage Context
 
-- `StorageService` requires `context.tenantId` and throws if missing. In HTTP mode with auth enabled, `tenantId` is extracted from the token claim `tid` and propagated automatically via `requestContextService`.
-- If your feature needs multi-tenant storage access in contexts without authenticated HTTP (e.g., stdio), ensure `context.tenantId` is explicitly provided at the boundary where appropriate.
+### Storage Tenancy Requirements
+
+**`StorageService` requires `context.tenantId`** and will throw `McpError` with `JsonRpcErrorCode.ConfigurationError` if it's missing.
+
+### Automatic Tenancy (HTTP Transport with Auth)
+
+When using HTTP transport with authentication enabled (`MCP_AUTH_MODE='jwt'` or `'oauth'`):
+
+- The `tenantId` is automatically extracted from the JWT token claim `'tid'`
+- It's propagated to `RequestContext` via `requestContextService.withAuthInfo()`
+- All tool/resource invocations automatically receive the correct `tenantId`
+
+### Manual Tenancy (STDIO or Auth-Disabled)
+
+**⚠️ Important Limitation:** STDIO transport and HTTP with `MCP_AUTH_MODE='none'` do not provide automatic `tenantId` extraction.
+
+**When using multi-tenant storage in these scenarios:**
+
+1. **Option A - Single-Tenant Mode** (Recommended for STDIO):
+   - Set a default `tenantId` during initialization
+   - Use `requestContextService.withTenantId('default-tenant')` in your transport setup
+   - All operations use this single tenant
+
+2. **Option B - Explicit Tenancy** (Advanced):
+   - Pass `tenantId` explicitly when creating `RequestContext`
+   - Requires custom logic to determine tenant from another source
+   - Example: Extract from environment variable or configuration
+
+3. **Option C - In-Memory Storage** (Development/Testing):
+   - Use `STORAGE_PROVIDER_TYPE='in-memory'` which doesn't persist across restarts
+   - No tenancy concerns for ephemeral data
+
+**Example - Setting Default Tenant in STDIO:**
+
+```typescript
+// In your stdio transport setup
+const context = requestContextService.createRequestContext({
+  operation: 'connectStdioTransport',
+  tenantId: 'default-tenant', // Explicitly provide tenant
+});
+```
+
+**Troubleshooting:**
+
+- **Error:** `"Storage operation requires a tenantId in the request context"`
+- **Cause:** Attempting to use `StorageService` without a `tenantId`
+- **Solution:** Apply one of the options above based on your use case
 
 ---
 

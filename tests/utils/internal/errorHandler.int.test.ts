@@ -19,7 +19,7 @@ import {
   JsonRpcErrorCode,
   McpError,
 } from '../../../src/types-global/errors.js';
-import { ErrorHandler } from '../../../src/utils/internal/errorHandler.js';
+import { ErrorHandler } from '../../../src/utils/internal/error-handler/index.js';
 import { logger } from '../../../src/utils/internal/logger.js';
 
 // Spy on the actual logger instance's error method

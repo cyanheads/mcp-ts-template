@@ -15,7 +15,7 @@ import { inject, injectable } from 'tsyringe';
 import { config as ConfigType } from '@/config/index.js';
 import { AppConfig, Logger, RateLimiterService } from '@/container/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { ErrorHandler } from '@/utils/internal/errorHandler.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/index.js';
 import { logger as LoggerType } from '@/utils/internal/logger.js';
 import {
   type RequestContext,

@@ -14,7 +14,6 @@ import {
   requestContextService,
 } from '@/utils/index.js';
 import { type McpLogLevel, logger } from '@/utils/internal/logger.js';
-import 'reflect-metadata';
 
 import { config as appConfigType } from '@/config/index.js';
 import container, {
