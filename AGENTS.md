@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.2.2
+**Version:** 2.2.4
 **Target Project:** mcp-ts-template
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
@@ -27,7 +27,8 @@ This document defines the operational rules for contributing to this codebase. F
     - **No Manual Instrumentation:** Do not add custom spans in your logic. Use the provided utilities and structured logging. The framework handles the single wrapper span per tool invocation.
 
 3.  **Structured, Traceable Operations**
-    - Your logic functions will receive two context objects: `appContext` (for internal logging/tracing) and `sdkContext` (for SDK-level operations like elicitation).
+    - Your logic functions will receive two context objects: `appContext` (for internal logging/tracing) and `sdkContext` (for SDK-level operations like Elicitation, Sampling, and Roots).
+    - The `sdkContext` provides methods (like `elicitInput` and `createMessage`) for client interaction.
     - Pass the _same_ `appContext` through your internal call stack for continuity.
     - Use the global `logger` for all logging; include the `appContext` in every log call.
 
@@ -493,8 +494,8 @@ Export a single `const` of type `ResourceDefinition` with:
 #### `createMcpServerInstance` (`src/mcp-server/server.ts`)
 
 - Initializes `RequestContext` global config.
-- Creates `McpServer` with identity and capabilities (logging, `resources/tools listChanged`, `elicitation`).
-- Registers tools and resources via DI-managed registries.
+- Creates `McpServer` with identity and capabilities (logging, `resources/tools listChanged`, **elicitation**, **sampling**, **prompts**, **roots**).
+- Registers all capabilities via DI-managed registries.
 - Returns a configured `McpServer`.
 
 #### `TransportManager` (`src/mcp-server/transports/manager.ts`)
@@ -567,7 +568,7 @@ Use scripts from `package.json`:
 
 ---
 
-## XIV. Multi-Tenancy & Storage Context
+## XIII. Multi-Tenancy & Storage Context
 
 ### Storage Tenancy Requirements
 
@@ -619,18 +620,18 @@ const context = requestContextService.createRequestContext({
 
 ---
 
-## XIII. Quick Checklist
+## XIV. Quick Checklist
 
 Before completing your task, ensure you have:
 
 - [ ] Implemented tool/resource logic in a `*.tool.ts` or `*.resource.ts` file.
 - [ ] Kept `logic` functions pure (no `try...catch`).
 - [ ] Thrown `McpError` for failures within logic.
-- [ ] Used `elicitInput` from `sdkContext` for missing parameters.
+- [ ] Used `elicitInput` (for Elicitation) or `sdkContext.createMessage` (for Sampling) from `sdkContext` to request input/completions from the client.
 - [ ] Applied authorization with `withToolAuth` or `withResourceAuth`.
 - [ ] Used `logger` with `appContext` for all significant operations.
 - [ ] Used `StorageService` (DI) for persistence.
-- [ ] Registered definitions in the corresponding `index.ts` barrel file.
+- [ ] Registered definitions in the corresponding `index.ts` barrel files (Tools, Resources, Prompts).
 - [ ] Added or updated tests (`bun test`).
 - [ ] Ran `bun run devcheck` to ensure code quality.
 - [ ] Smoke-tested local transports (`bun run dev:stdio`/`http`).
