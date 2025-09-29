@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.2.5] - 2025-09-29
+
+### Tests
+
+- **New Test Files**: Added new test files for `template_code_review_sampling` tool and `runtime` utilities.
+- **Utility Coverage**: Added comprehensive tests for `logger` high-severity levels (`emerg`, `crit`, `alert`, `notice`), `rateLimiter`, `sanitization`, and `config` validation logic, hardening core infrastructure.
+
+### Chore
+
+- **Documentation**: Updated `docs/tree.md` to reflect the latest file structure, including new Prompt, Root, and Sampling tool definitions.
+
 ## [2.2.4] - 2025-09-29
 
 ### Feature

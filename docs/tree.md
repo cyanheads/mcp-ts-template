@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-29 20:07:00
+Generated on: 2025-09-29 21:23:04
 
 ```
 mcp-ts-template
@@ -39,6 +39,13 @@ mcp-ts-template
 │   │   ├── index.ts
 │   │   └── tokens.ts
 │   ├── mcp-server
+│   │   ├── prompts
+│   │   │   ├── definitions
+│   │   │   │   ├── code-review.prompt.ts
+│   │   │   │   └── index.ts
+│   │   │   ├── utils
+│   │   │   │   └── promptDefinition.ts
+│   │   │   └── prompt-registration.ts
 │   │   ├── resources
 │   │   │   ├── definitions
 │   │   │   │   ├── echo.resource.ts
@@ -47,10 +54,13 @@ mcp-ts-template
 │   │   │   │   ├── resourceDefinition.ts
 │   │   │   │   └── resourceHandlerFactory.ts
 │   │   │   └── resource-registration.ts
+│   │   ├── roots
+│   │   │   └── roots-registration.ts
 │   │   ├── tools
 │   │   │   ├── definitions
 │   │   │   │   ├── index.ts
 │   │   │   │   ├── template-cat-fact.tool.ts
+│   │   │   │   ├── template-code-review-sampling.tool.ts
 │   │   │   │   ├── template-echo-message.tool.ts
 │   │   │   │   ├── template-image-test.tool.ts
 │   │   │   │   └── template-madlibs-elicitation.tool.ts
@@ -163,6 +173,7 @@ mcp-ts-template
 │   │   ├── tools
 │   │   │   └── definitions
 │   │   │       ├── template-cat-fact.tool.test.ts
+│   │   │       ├── template-code-review-sampling.tool.test.ts
 │   │   │       ├── template-echo-message.tool.test.ts
 │   │   │       ├── template-image-test.tool.test.ts
 │   │   │       └── template-madlibs-elicitation.tool.test.ts
@@ -191,7 +202,8 @@ mcp-ts-template
 │   │   │   ├── logger.int.test.ts
 │   │   │   ├── performance.init.test.ts
 │   │   │   ├── performance.test.ts
-│   │   │   └── requestContext.test.ts
+│   │   │   ├── requestContext.test.ts
+│   │   │   └── runtime.test.ts
 │   │   ├── metrics
 │   │   │   ├── registry.test.ts
 │   │   │   └── tokenCounter.test.ts
