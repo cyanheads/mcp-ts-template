@@ -53,8 +53,8 @@ describe('InMemoryProvider (unit)', () => {
     });
 
     now += 1_100;
-    const keys = await provider.list(tenantId, 'prefix:', context);
-    expect(keys).toEqual(['prefix:active']);
+    const result = await provider.list(tenantId, 'prefix:', context);
+    expect(result.keys).toEqual(['prefix:active']);
 
     const expiredValue = await provider.get(
       tenantId,

@@ -108,15 +108,124 @@ export function storageProviderTests(
       await provider.set(tenantId, 'prefix:key2', 2, testContext);
       await provider.set(tenantId, 'another-prefix:key3', 3, testContext);
 
-      const keys = await provider.list(tenantId, 'prefix:', testContext);
-      expect(keys).toHaveLength(2);
-      expect(keys).toContain('prefix:key1');
-      expect(keys).toContain('prefix:key2');
+      const result = await provider.list(tenantId, 'prefix:', testContext);
+      expect(result.keys).toHaveLength(2);
+      expect(result.keys).toContain('prefix:key1');
+      expect(result.keys).toContain('prefix:key2');
     });
 
     it('should return an empty array for a prefix that matches no keys', async () => {
-      const keys = await provider.list(tenantId, 'no-match:', testContext);
-      expect(keys).toEqual([]);
+      const result = await provider.list(tenantId, 'no-match:', testContext);
+      expect(result.keys).toEqual([]);
+      expect(result.nextCursor).toBeUndefined();
+    });
+
+    it('should support pagination with limit and cursor', async () => {
+      // Set up multiple keys
+      await provider.set(tenantId, 'page:key1', 1, testContext);
+      await provider.set(tenantId, 'page:key2', 2, testContext);
+      await provider.set(tenantId, 'page:key3', 3, testContext);
+
+      // Get first page
+      const page1 = await provider.list(tenantId, 'page:', testContext, {
+        limit: 2,
+      });
+      expect(page1.keys).toHaveLength(2);
+
+      // If there's a cursor, get the next page
+      if (page1.nextCursor) {
+        const page2 = await provider.list(tenantId, 'page:', testContext, {
+          limit: 2,
+          cursor: page1.nextCursor,
+        });
+        expect(page2.keys.length).toBeGreaterThan(0);
+        // Ensure no overlap between pages
+        for (const key of page2.keys) {
+          expect(page1.keys).not.toContain(key);
+        }
+      }
+    });
+
+    it('should retrieve multiple values with getMany', async () => {
+      await provider.set(tenantId, 'batch:key1', 'value1', testContext);
+      await provider.set(tenantId, 'batch:key2', 'value2', testContext);
+      await provider.set(tenantId, 'batch:key3', 'value3', testContext);
+
+      const results = await provider.getMany<string>(
+        tenantId,
+        ['batch:key1', 'batch:key2', 'batch:nonexistent'],
+        testContext,
+      );
+
+      expect(results.size).toBe(2);
+      expect(results.get('batch:key1')).toBe('value1');
+      expect(results.get('batch:key2')).toBe('value2');
+      expect(results.has('batch:nonexistent')).toBe(false);
+    });
+
+    it('should store multiple values with setMany', async () => {
+      const entries = new Map<string, unknown>([
+        ['multi:key1', 'value1'],
+        ['multi:key2', 42],
+        ['multi:key3', { nested: true }],
+      ]);
+
+      await provider.setMany(tenantId, entries, testContext);
+
+      const val1 = await provider.get<string>(
+        tenantId,
+        'multi:key1',
+        testContext,
+      );
+      const val2 = await provider.get<number>(
+        tenantId,
+        'multi:key2',
+        testContext,
+      );
+      const val3 = await provider.get<{ nested: boolean }>(
+        tenantId,
+        'multi:key3',
+        testContext,
+      );
+
+      expect(val1).toBe('value1');
+      expect(val2).toBe(42);
+      expect(val3).toEqual({ nested: true });
+    });
+
+    it('should delete multiple values with deleteMany', async () => {
+      await provider.set(tenantId, 'del:key1', 1, testContext);
+      await provider.set(tenantId, 'del:key2', 2, testContext);
+      await provider.set(tenantId, 'del:key3', 3, testContext);
+
+      const deletedCount = await provider.deleteMany(
+        tenantId,
+        ['del:key1', 'del:key3', 'del:nonexistent'],
+        testContext,
+      );
+
+      expect(deletedCount).toBe(2);
+
+      const val1 = await provider.get(tenantId, 'del:key1', testContext);
+      const val2 = await provider.get(tenantId, 'del:key2', testContext);
+      const val3 = await provider.get(tenantId, 'del:key3', testContext);
+
+      expect(val1).toBeNull();
+      expect(val2).toBe(2); // Not deleted
+      expect(val3).toBeNull();
+    });
+
+    it('should clear all keys for a tenant', async () => {
+      await provider.set(tenantId, 'clear:key1', 1, testContext);
+      await provider.set(tenantId, 'clear:key2', 2, testContext);
+      await provider.set(tenantId, 'clear:key3', 3, testContext);
+
+      const clearedCount = await provider.clear(tenantId, testContext);
+
+      expect(clearedCount).toBeGreaterThanOrEqual(3);
+
+      const result = await provider.list(tenantId, '', testContext);
+      expect(result.keys).toHaveLength(0);
     });
 
     // it('should respect TTL and return null after expiration', async () => {

@@ -12,6 +12,8 @@ import { SupabaseAdminClient } from '@/container/tokens.js';
 import type {
   IStorageProvider,
   StorageOptions,
+  ListOptions,
+  ListResult,
 } from '@/storage/core/IStorageProvider.js';
 import type {
   Json,
@@ -20,6 +22,7 @@ import type {
 import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
 
 const TABLE_NAME = 'kv_store';
+const DEFAULT_LIST_LIMIT = 1000;
 
 @injectable()
 export class SupabaseProvider implements IStorageProvider {
@@ -136,27 +139,175 @@ export class SupabaseProvider implements IStorageProvider {
     tenantId: string,
     prefix: string,
     context: RequestContext,
-  ): Promise<string[]> {
+    options?: ListOptions,
+  ): Promise<ListResult> {
     return ErrorHandler.tryCatch(
       async () => {
         const now = new Date().toISOString();
+        const limit = options?.limit ?? DEFAULT_LIST_LIMIT;
 
-        const { data, error } = await this.getClient()
+        let query = this.getClient()
           .from(TABLE_NAME)
           .select('key')
           .eq('tenant_id', tenantId)
           .like('key', `${prefix}%`)
-          // Add a filter to only include non-expired items.
-          // It selects rows where expires_at is NULL OR expires_at is in the future.
-          .or(`expires_at.is.null,expires_at.gt.${now}`);
+          .or(`expires_at.is.null,expires_at.gt.${now}`)
+          .order('key', { ascending: true })
+          .limit(limit + 1); // Fetch one extra to determine if there are more results
+
+        // Apply cursor-based pagination
+        if (options?.cursor) {
+          query = query.gt('key', options.cursor);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
-        return data?.map((item) => item.key) ?? [];
+
+        const keys = data?.map((item) => item.key) ?? [];
+        const hasMore = keys.length > limit;
+        const resultKeys = hasMore ? keys.slice(0, limit) : keys;
+        const nextCursor = hasMore
+          ? resultKeys[resultKeys.length - 1]
+          : undefined;
+
+        return {
+          keys: resultKeys,
+          nextCursor,
+        };
       },
       {
         operation: 'SupabaseProvider.list',
         context,
-        input: { tenantId, prefix },
+        input: { tenantId, prefix, options },
+      },
+    );
+  }
+
+  async getMany<T>(
+    tenantId: string,
+    keys: string[],
+    context: RequestContext,
+  ): Promise<Map<string, T>> {
+    return ErrorHandler.tryCatch<Map<string, T>>(
+      async () => {
+        if (keys.length === 0) {
+          return new Map<string, T>();
+        }
+
+        const { data, error } = await this.getClient()
+          .from(TABLE_NAME)
+          .select('key, value, expires_at')
+          .eq('tenant_id', tenantId)
+          .in('key', keys);
+
+        if (error) throw error;
+
+        const results = new Map<string, T>();
+        for (const row of data ?? []) {
+          if (
+            !row.expires_at ||
+            new Date(row.expires_at).getTime() >= Date.now()
+          ) {
+            results.set(row.key, row.value as T);
+          } else {
+            // Clean up expired entries
+            await this.delete(tenantId, row.key, context);
+          }
+        }
+
+        return results;
+      },
+      {
+        operation: 'SupabaseProvider.getMany',
+        context,
+        input: { tenantId, keyCount: keys.length },
+      },
+    );
+  }
+
+  async setMany(
+    tenantId: string,
+    entries: Map<string, unknown>,
+    context: RequestContext,
+    options?: StorageOptions,
+  ): Promise<void> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        if (entries.size === 0) {
+          return;
+        }
+
+        const expires_at = options?.ttl
+          ? new Date(Date.now() + options.ttl * 1000).toISOString()
+          : null;
+
+        const rows = Array.from(entries.entries()).map(([key, value]) => ({
+          tenant_id: tenantId,
+          key,
+          value: value as Json,
+          expires_at,
+        }));
+
+        const { error } = await this.getClient().from(TABLE_NAME).upsert(rows);
+
+        if (error) throw error;
+      },
+      {
+        operation: 'SupabaseProvider.setMany',
+        context,
+        input: { tenantId, entryCount: entries.size },
+      },
+    );
+  }
+
+  async deleteMany(
+    tenantId: string,
+    keys: string[],
+    context: RequestContext,
+  ): Promise<number> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        if (keys.length === 0) {
+          return 0;
+        }
+
+        const { error, count } = await this.getClient()
+          .from(TABLE_NAME)
+          .delete({ count: 'exact' })
+          .eq('tenant_id', tenantId)
+          .in('key', keys);
+
+        if (error) throw error;
+        return count ?? 0;
+      },
+      {
+        operation: 'SupabaseProvider.deleteMany',
+        context,
+        input: { tenantId, keyCount: keys.length },
+      },
+    );
+  }
+
+  async clear(tenantId: string, context: RequestContext): Promise<number> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        const { error, count } = await this.getClient()
+          .from(TABLE_NAME)
+          .delete({ count: 'exact' })
+          .eq('tenant_id', tenantId);
+
+        if (error) throw error;
+        logger.info(
+          `[SupabaseProvider] Cleared ${count ?? 0} keys for tenant: ${tenantId}`,
+          context,
+        );
+        return count ?? 0;
+      },
+      {
+        operation: 'SupabaseProvider.clear',
+        context,
+        input: { tenantId },
       },
     );
   }

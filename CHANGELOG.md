@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.2.6] - 2025-09-29
+
+### Feature
+
+- **Storage Layer Enhancement**: Implemented comprehensive bulk and pagination operations across all storage providers (`InMemory`, `FileSystem`, `Supabase`, `Cloudflare KV`, `Cloudflare R2`).
+  - Added `getMany`, `setMany`, and `deleteMany` for efficient batch processing.
+  - Introduced `clear` to purge all data for a specific tenant.
+  - Enhanced the `list` method with cursor-based pagination (`ListOptions`, `ListResult`) for handling large datasets.
+
+### Refactor
+
+- **Storage Validation**: Centralized all key, prefix, and tenant ID validation logic into a new `storageValidation.ts` module to ensure consistent enforcement of security and format rules across the storage layer.
+
+### Tests
+
+- **Expanded Storage Compliance Suite**: Significantly updated the storage provider compliance test suite to validate the new bulk operations (`getMany`, `setMany`, `deleteMany`, `clear`) and pagination behavior, ensuring all providers adhere to the enhanced `IStorageProvider` contract.
+
 ## [2.2.5] - 2025-09-29
 
 ### Tests

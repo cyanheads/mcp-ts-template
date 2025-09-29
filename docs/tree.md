@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-29 21:23:04
+Generated on: 2025-09-29 22:20:40
 
 ```
 mcp-ts-template
@@ -101,7 +101,8 @@ mcp-ts-template
 │   │   ├── core
 │   │   │   ├── IStorageProvider.ts
 │   │   │   ├── storageFactory.ts
-│   │   │   └── StorageService.ts
+│   │   │   ├── StorageService.ts
+│   │   │   └── storageValidation.ts
 │   │   ├── providers
 │   │   │   ├── cloudflare
 │   │   │   │   ├── index.ts

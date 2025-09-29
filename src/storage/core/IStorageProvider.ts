@@ -26,6 +26,42 @@ export interface StorageOptions {
 }
 
 /**
+ * Options for list operations with pagination support.
+ *
+ * @property limit - Maximum number of keys to return per page. If not provided, returns all keys.
+ * @property cursor - Opaque cursor for pagination. Provider-specific format.
+ */
+export interface ListOptions {
+  /**
+   * Maximum number of keys to return. Defaults to provider-specific limit.
+   */
+  limit?: number;
+  /**
+   * Pagination cursor from a previous list operation.
+   * Format is provider-specific (opaque string).
+   */
+  cursor?: string;
+}
+
+/**
+ * Result of a list operation with pagination support.
+ *
+ * @property keys - Array of matching keys.
+ * @property nextCursor - Cursor for the next page, or undefined if no more results.
+ */
+export interface ListResult {
+  /**
+   * Array of keys matching the prefix.
+   */
+  keys: string[];
+  /**
+   * Cursor for fetching the next page of results.
+   * Undefined if there are no more results.
+   */
+  nextCursor?: string | undefined;
+}
+
+/**
  * Defines the contract for a generic storage provider.
  * All methods must be asynchronous and accept a RequestContext for tracing and logging.
  */
@@ -78,11 +114,67 @@ export interface IStorageProvider {
    * Refer to `StorageOptions` for provider-specific TTL documentation.
    * @param prefix The prefix to match keys against.
    * @param context The request context for logging and tracing.
-   * @returns A promise that resolves to an array of matching keys.
+   * @param options Optional pagination settings.
+   * @returns A promise that resolves to a ListResult with keys and optional pagination cursor.
    */
   list(
     tenantId: string,
     prefix: string,
     context: RequestContext,
-  ): Promise<string[]>;
+    options?: ListOptions,
+  ): Promise<ListResult>;
+
+  /**
+   * Retrieves multiple values from storage in a single operation.
+   * More efficient than multiple individual get() calls.
+   * @param tenantId The unique identifier for the tenant.
+   * @param keys Array of keys to retrieve.
+   * @param context The request context for logging and tracing.
+   * @returns A promise that resolves to a Map of key-value pairs. Missing keys are not included.
+   */
+  getMany<T>(
+    tenantId: string,
+    keys: string[],
+    context: RequestContext,
+  ): Promise<Map<string, T>>;
+
+  /**
+   * Stores multiple values in a single operation.
+   * More efficient than multiple individual set() calls.
+   * @param tenantId The unique identifier for the tenant.
+   * @param entries Map of key-value pairs to store.
+   * @param context The request context for logging and tracing.
+   * @param options Optional settings like TTL (applied to all entries).
+   * @returns A promise that resolves when all operations are complete.
+   */
+  setMany(
+    tenantId: string,
+    entries: Map<string, unknown>,
+    context: RequestContext,
+    options?: StorageOptions,
+  ): Promise<void>;
+
+  /**
+   * Deletes multiple keys in a single operation.
+   * More efficient than multiple individual delete() calls.
+   * @param tenantId The unique identifier for the tenant.
+   * @param keys Array of keys to delete.
+   * @param context The request context for logging and tracing.
+   * @returns A promise that resolves to the number of keys successfully deleted.
+   */
+  deleteMany(
+    tenantId: string,
+    keys: string[],
+    context: RequestContext,
+  ): Promise<number>;
+
+  /**
+   * Clears all keys for a given tenant.
+   * WARNING: This is a destructive operation that cannot be undone.
+   * Useful for testing or tenant cleanup operations.
+   * @param tenantId The unique identifier for the tenant.
+   * @param context The request context for logging and tracing.
+   * @returns A promise that resolves to the number of keys deleted.
+   */
+  clear(tenantId: string, context: RequestContext): Promise<number>;
 }

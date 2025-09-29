@@ -7,6 +7,8 @@ import type { R2Bucket } from '@cloudflare/workers-types';
 import type {
   IStorageProvider,
   StorageOptions,
+  ListOptions,
+  ListResult,
 } from '@/storage/core/IStorageProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler, logger, type RequestContext } from '@/utils/index.js';
@@ -17,11 +19,18 @@ type R2Envelope = {
 };
 
 const R2_ENVELOPE_VERSION = 1;
+const DEFAULT_LIST_LIMIT = 1000;
 
 export class R2Provider implements IStorageProvider {
   private bucket: R2Bucket;
 
   constructor(bucket: R2Bucket) {
+    if (!bucket) {
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        'R2Provider requires a valid R2Bucket instance.',
+      );
+    }
     this.bucket = bucket;
   }
 
@@ -166,16 +175,26 @@ export class R2Provider implements IStorageProvider {
     tenantId: string,
     prefix: string,
     context: RequestContext,
-  ): Promise<string[]> {
+    options?: ListOptions,
+  ): Promise<ListResult> {
     const r2Prefix = this.getR2Key(tenantId, prefix);
     return ErrorHandler.tryCatch(
       async () => {
-        logger.debug(
-          `[R2Provider] Listing keys with prefix: ${r2Prefix}`,
-          context,
-        );
+        logger.debug(`[R2Provider] Listing keys with prefix: ${r2Prefix}`, {
+          ...context,
+          options,
+        });
 
-        const listed = await this.bucket.list({ prefix: r2Prefix });
+        const limit = options?.limit ?? DEFAULT_LIST_LIMIT;
+        const listOptions: import('@cloudflare/workers-types').R2ListOptions = {
+          prefix: r2Prefix,
+          limit: limit + 1, // Fetch one extra to determine if there are more
+        };
+        if (options?.cursor) {
+          listOptions.cursor = options.cursor;
+        }
+        const listed = await this.bucket.list(listOptions);
+
         const tenantPrefix = `${tenantId}:`;
         const keys = listed.objects.map((obj) =>
           obj.key.startsWith(tenantPrefix)
@@ -183,17 +202,131 @@ export class R2Provider implements IStorageProvider {
             : obj.key,
         );
 
+        const hasMore = keys.length > limit;
+        const resultKeys = hasMore ? keys.slice(0, limit) : keys;
+        const nextCursor =
+          'cursor' in listed && listed.truncated ? listed.cursor : undefined;
+
         logger.debug(
-          `[R2Provider] Found ${keys.length} keys with prefix: ${r2Prefix}`,
+          `[R2Provider] Found ${resultKeys.length} keys with prefix: ${r2Prefix}`,
           context,
         );
 
-        return keys;
+        return {
+          keys: resultKeys,
+          nextCursor,
+        };
       },
       {
         operation: 'R2Provider.list',
         context,
-        input: { tenantId, prefix },
+        input: { tenantId, prefix, options },
+      },
+    );
+  }
+
+  async getMany<T>(
+    tenantId: string,
+    keys: string[],
+    context: RequestContext,
+  ): Promise<Map<string, T>> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        const results = new Map<string, T>();
+        for (const key of keys) {
+          const value = await this.get<T>(tenantId, key, context);
+          if (value !== null) {
+            results.set(key, value);
+          }
+        }
+        return results;
+      },
+      {
+        operation: 'R2Provider.getMany',
+        context,
+        input: { tenantId, keyCount: keys.length },
+      },
+    );
+  }
+
+  async setMany(
+    tenantId: string,
+    entries: Map<string, unknown>,
+    context: RequestContext,
+    options?: StorageOptions,
+  ): Promise<void> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        const promises = Array.from(entries.entries()).map(([key, value]) =>
+          this.set(tenantId, key, value, context, options),
+        );
+        await Promise.all(promises);
+      },
+      {
+        operation: 'R2Provider.setMany',
+        context,
+        input: { tenantId, entryCount: entries.size },
+      },
+    );
+  }
+
+  async deleteMany(
+    tenantId: string,
+    keys: string[],
+    context: RequestContext,
+  ): Promise<number> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        const promises = keys.map((key) => this.delete(tenantId, key, context));
+        const results = await Promise.all(promises);
+        return results.filter((deleted) => deleted).length;
+      },
+      {
+        operation: 'R2Provider.deleteMany',
+        context,
+        input: { tenantId, keyCount: keys.length },
+      },
+    );
+  }
+
+  async clear(tenantId: string, context: RequestContext): Promise<number> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        const r2Prefix = `${tenantId}:`;
+        let deletedCount = 0;
+        let cursor: string | undefined;
+        let hasMore = true;
+
+        while (hasMore) {
+          const listOpts: import('@cloudflare/workers-types').R2ListOptions = {
+            prefix: r2Prefix,
+            limit: 1000,
+          };
+          if (cursor) {
+            listOpts.cursor = cursor;
+          }
+          const listed = await this.bucket.list(listOpts);
+
+          const deletePromises = listed.objects.map((obj) =>
+            this.bucket.delete(obj.key),
+          );
+          await Promise.all(deletePromises);
+          deletedCount += listed.objects.length;
+
+          hasMore = listed.truncated;
+          cursor = 'cursor' in listed ? listed.cursor : undefined;
+        }
+
+        logger.info(
+          `[R2Provider] Cleared ${deletedCount} keys for tenant: ${tenantId}`,
+          context,
+        );
+        return deletedCount;
+      },
+      {
+        operation: 'R2Provider.clear',
+        context,
+        input: { tenantId },
       },
     );
   }

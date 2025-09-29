@@ -13,6 +13,8 @@ import type { RequestContext } from '@/utils/index.js';
 import type {
   IStorageProvider,
   StorageOptions,
+  ListOptions,
+  ListResult,
 } from '@/storage/core/IStorageProvider.js';
 
 function requireTenantId(context: RequestContext): string {
@@ -53,8 +55,36 @@ export class StorageService {
     return this.provider.delete(tenantId, key, context);
   }
 
-  list(prefix: string, context: RequestContext): Promise<string[]> {
+  list(
+    prefix: string,
+    context: RequestContext,
+    options?: ListOptions,
+  ): Promise<ListResult> {
     const tenantId = requireTenantId(context);
-    return this.provider.list(tenantId, prefix, context);
+    return this.provider.list(tenantId, prefix, context, options);
+  }
+
+  getMany<T>(keys: string[], context: RequestContext): Promise<Map<string, T>> {
+    const tenantId = requireTenantId(context);
+    return this.provider.getMany(tenantId, keys, context);
+  }
+
+  setMany(
+    entries: Map<string, unknown>,
+    context: RequestContext,
+    options?: StorageOptions,
+  ): Promise<void> {
+    const tenantId = requireTenantId(context);
+    return this.provider.setMany(tenantId, entries, context, options);
+  }
+
+  deleteMany(keys: string[], context: RequestContext): Promise<number> {
+    const tenantId = requireTenantId(context);
+    return this.provider.deleteMany(tenantId, keys, context);
+  }
+
+  clear(context: RequestContext): Promise<number> {
+    const tenantId = requireTenantId(context);
+    return this.provider.clear(tenantId, context);
   }
 }

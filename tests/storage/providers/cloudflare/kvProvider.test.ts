@@ -104,10 +104,17 @@ describe('KvProvider', () => {
           { name: 'tenant-1:key-2' },
           { name: 'unrelated-key' },
         ],
+        list_complete: true,
       });
       const result = await kvProvider.list('tenant-1', 'key', context);
-      expect(result).toEqual(['key-1', 'key-2', 'unrelated-key']);
-      expect(mockKv.list).toHaveBeenCalledWith({ prefix: 'tenant-1:key' });
+      expect(result.keys).toEqual(['key-1', 'key-2', 'unrelated-key']);
+      expect(result.nextCursor).toBeUndefined();
+      expect(mockKv.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prefix: 'tenant-1:key',
+          limit: 1000,
+        }),
+      );
     });
   });
 });

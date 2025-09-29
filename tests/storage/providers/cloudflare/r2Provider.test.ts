@@ -125,12 +125,17 @@ describe('R2Provider', () => {
           { key: 'tenant-1:key-2' },
           { key: 'unrelated-key' },
         ],
+        truncated: false,
       });
       const result = await r2Provider.list('tenant-1', 'key', context);
-      expect(result).toEqual(['key-1', 'key-2', 'unrelated-key']);
-      expect(mockBucket.list).toHaveBeenCalledWith({
-        prefix: 'tenant-1:key',
-      });
+      expect(result.keys).toEqual(['key-1', 'key-2', 'unrelated-key']);
+      expect(result.nextCursor).toBeUndefined();
+      expect(mockBucket.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prefix: 'tenant-1:key',
+          limit: 1001,
+        }),
+      );
     });
   });
 });

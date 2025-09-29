@@ -11,6 +11,8 @@ import path from 'path';
 import type {
   IStorageProvider,
   StorageOptions,
+  ListOptions,
+  ListResult,
 } from '@/storage/core/IStorageProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
@@ -18,6 +20,8 @@ import {
   sanitization,
   type RequestContext,
 } from '@/utils/index.js';
+
+const DEFAULT_LIST_LIMIT = 1000;
 
 type FileEnvelope = {
   __mcp: { v: 1; expiresAt?: number };
@@ -235,7 +239,8 @@ export class FileSystemProvider implements IStorageProvider {
     tenantId: string,
     prefix: string,
     context: RequestContext,
-  ): Promise<string[]> {
+    options?: ListOptions,
+  ): Promise<ListResult> {
     return ErrorHandler.tryCatch(
       async () => {
         const tenantPath = this.getTenantPath(tenantId);
@@ -264,12 +269,125 @@ export class FileSystemProvider implements IStorageProvider {
           }
         }
 
-        return validKeys;
+        // Sort for consistent pagination
+        validKeys.sort();
+
+        // Apply pagination
+        const limit = options?.limit ?? DEFAULT_LIST_LIMIT;
+        let startIndex = 0;
+
+        if (options?.cursor) {
+          const cursorIndex = validKeys.indexOf(options.cursor);
+          if (cursorIndex !== -1) {
+            startIndex = cursorIndex + 1;
+          }
+        }
+
+        const paginatedKeys = validKeys.slice(startIndex, startIndex + limit);
+        const nextCursor =
+          startIndex + limit < validKeys.length
+            ? paginatedKeys[paginatedKeys.length - 1]
+            : undefined;
+
+        return {
+          keys: paginatedKeys,
+          nextCursor,
+        };
       },
       {
         operation: 'FileSystemProvider.list',
         context,
         input: { tenantId, prefix },
+      },
+    );
+  }
+
+  async getMany<T>(
+    tenantId: string,
+    keys: string[],
+    context: RequestContext,
+  ): Promise<Map<string, T>> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        const results = new Map<string, T>();
+        for (const key of keys) {
+          const value = await this.get<T>(tenantId, key, context);
+          if (value !== null) {
+            results.set(key, value);
+          }
+        }
+        return results;
+      },
+      {
+        operation: 'FileSystemProvider.getMany',
+        context,
+        input: { tenantId, keyCount: keys.length },
+      },
+    );
+  }
+
+  async setMany(
+    tenantId: string,
+    entries: Map<string, unknown>,
+    context: RequestContext,
+    options?: StorageOptions,
+  ): Promise<void> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        for (const [key, value] of entries.entries()) {
+          await this.set(tenantId, key, value, context, options);
+        }
+      },
+      {
+        operation: 'FileSystemProvider.setMany',
+        context,
+        input: { tenantId, entryCount: entries.size },
+      },
+    );
+  }
+
+  async deleteMany(
+    tenantId: string,
+    keys: string[],
+    context: RequestContext,
+  ): Promise<number> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        let deletedCount = 0;
+        for (const key of keys) {
+          const deleted = await this.delete(tenantId, key, context);
+          if (deleted) {
+            deletedCount++;
+          }
+        }
+        return deletedCount;
+      },
+      {
+        operation: 'FileSystemProvider.deleteMany',
+        context,
+        input: { tenantId, keyCount: keys.length },
+      },
+    );
+  }
+
+  async clear(tenantId: string, context: RequestContext): Promise<number> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        const tenantPath = this.getTenantPath(tenantId);
+        const allKeys = await this.listFilesRecursively(tenantPath, tenantPath);
+        let deletedCount = 0;
+        for (const key of allKeys) {
+          const deleted = await this.delete(tenantId, key, context);
+          if (deleted) {
+            deletedCount++;
+          }
+        }
+        return deletedCount;
+      },
+      {
+        operation: 'FileSystemProvider.clear',
+        context,
+        input: { tenantId },
       },
     );
   }
