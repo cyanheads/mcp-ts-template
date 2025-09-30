@@ -12,8 +12,8 @@ import {
   requestContextService,
 } from '@/utils/index.js';
 
+import type { ISpeechProvider } from '../core/ISpeechProvider.js';
 import type {
-  ISpeechProvider,
   SpeechProviderConfig,
   SpeechToTextOptions,
   SpeechToTextResult,

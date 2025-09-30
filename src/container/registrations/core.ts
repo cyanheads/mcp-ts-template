@@ -19,8 +19,8 @@ import {
   StorageProvider,
   SupabaseAdminClient,
 } from '@/container/tokens.js';
-import type { ILlmProvider } from '@/services/llm-providers/ILlmProvider.js';
-import { OpenRouterProvider } from '@/services/llm-providers/openRouterProvider.js';
+import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
+import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
 import { SpeechService as SpeechServiceClass } from '@/services/speech/index.js';
 import { StorageService as StorageServiceClass } from '@/storage/core/StorageService.js';
 import { createStorageProvider } from '@/storage/core/storageFactory.js';

@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.2.7
+**Version:** 2.3.0
 **Target Project:** mcp-ts-template
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
@@ -53,18 +53,18 @@ This document defines the operational rules for contributing to this codebase. F
 
 Separation of concerns maps directly to the filesystem. Always place files in their designated locations.
 
-| Directory                                   | Purpose & Guidance                                                                                                                                                                                                                                    |
-| :------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`src/mcp-server/tools/definitions/`**     | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**.                                                                                                                               |
-| **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**.                                                                                                            |
-| **`src/mcp-server/tools/utils/`**           | **Shared tool utilities,** including `ToolDefinition` and tool handler factory.                                                                                                                                                                       |
-| **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                           |
-| **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth. |
-| **`src/services/`**                         | **External service integrations** (e.g., LLM providers).                                                                                                                                                                                              |
-| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv).                                                                                                                                        |
-| **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                               |
-| **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                    |
-| **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                        |
+| Directory                                   | Purpose & Guidance                                                                                                                                                                                                                                                                                                                |
+| :------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`src/mcp-server/tools/definitions/`**     | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**.                                                                                                                                                                                                           |
+| **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**.                                                                                                                                                                                        |
+| **`src/mcp-server/tools/utils/`**           | **Shared tool utilities,** including `ToolDefinition` and tool handler factory.                                                                                                                                                                                                                                                   |
+| **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                                                                                                       |
+| **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth.                                                                             |
+| **`src/services/`**                         | **External service integrations** following a consistent domain-driven pattern:<br>- Each service domain (e.g., `llm/`, `speech/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`, and `index.ts`<br>- Use DI for all service dependencies. See **Service Development Pattern** below. |
+| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv).                                                                                                                                                                                                                    |
+| **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                                                                                                           |
+| **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                                                                                                |
+| **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                                                                                                    |
 
 ---
 
@@ -400,7 +400,89 @@ Export a single `const` of type `ResourceDefinition` with:
 
 ---
 
-## VI. Core Services & Utilities
+## VI. Service Development Pattern
+
+All external service integrations (LLM providers, speech services, email, etc.) follow a consistent domain-driven architecture pattern.
+
+#### Standard Service Structure
+
+Every service domain follows this organization:
+
+```
+src/services/<service-name>/
+├── core/                          # Interfaces and abstractions
+│   ├── I<Service>Provider.ts     # Provider interface contract
+│   └── <Service>Service.ts       # (Optional) Multi-provider orchestrator
+├── providers/                     # Concrete implementations
+│   ├── <provider-name>.provider.ts
+│   └── ...
+├── types.ts                       # Domain-specific types and DTOs
+└── index.ts                       # Barrel export (public API)
+```
+
+#### When to Use a Service Orchestrator
+
+Create a `<Service>Service.ts` class in `core/` when you need:
+
+- **Multi-provider orchestration** (e.g., Speech uses different providers for TTS vs STT)
+- **Provider routing logic** (e.g., fallback chains, load balancing)
+- **Capability aggregation** (e.g., combined health checks)
+- **Cross-provider state management**
+
+If your service uses a **single provider pattern** (like LLM currently does), skip the service class and inject the provider directly via DI.
+
+#### Example: Simple Single-Provider Pattern (LLM)
+
+```typescript
+// No service class needed - direct provider injection
+@inject(LlmProvider) private llmProvider: ILlmProvider
+
+await this.llmProvider.chatCompletion(params, context);
+```
+
+#### Example: Multi-Provider Orchestration (Speech)
+
+```typescript
+// Service class manages multiple providers
+export class SpeechService {
+  private ttsProvider?: ISpeechProvider;
+  private sttProvider?: ISpeechProvider;
+
+  getTTSProvider(): ISpeechProvider {
+    /* ... */
+  }
+  getSTTProvider(): ISpeechProvider {
+    /* ... */
+  }
+}
+```
+
+#### Provider Implementation Guidelines
+
+1. **Interface compliance**: All providers implement `I<Service>Provider`
+2. **DI-injectable**: Mark with `@injectable()` decorator
+3. **Health checks**: Implement `healthCheck(): Promise<boolean>`
+4. **Error handling**: Throw `McpError` for failures (no try/catch in provider logic)
+5. **Naming convention**: `<provider-name>.provider.ts` (lowercase, kebab-case)
+
+#### Adding a New Service Domain
+
+1. Create directory: `src/services/<service-name>/`
+2. Define interface: `core/I<Service>Provider.ts`
+3. Implement provider(s): `providers/<name>.provider.ts`
+4. Define types: `types.ts`
+5. Create barrel export: `index.ts`
+6. Register in DI: Add token to `src/container/tokens.ts`
+7. Register service: Update `src/container/registrations/core.ts`
+
+#### Existing Service Examples
+
+- **`llm/`**: Single-provider pattern with direct DI injection
+- **`speech/`**: Multi-provider orchestration with service class
+
+---
+
+## VII. Core Services & Utilities
 
 #### DI-Managed Services (tokens in `src/container/tokens.ts`)
 
@@ -458,18 +540,18 @@ Export a single `const` of type `ResourceDefinition` with:
 
 The `src/utils/` directory contains a rich set of directly importable utilities for common tasks. Below is a summary of key modules.
 
-| Module | Description & Key Exports |
-| :--- | :--- |
-| **`parsing/`** | A suite of robust parsers for various data formats, designed to handle optional LLM `<think>` blocks. <br>- `csvParser`: For CSV data. <br>- `yamlParser`: For YAML data. <br>- `xmlParser`: For XML data. <br>- `jsonParser`: A hardened JSON parser. <br>- `pdfParser`: For creating, modifying, and parsing PDF documents using `pdf-lib`. |
-| **`security/`** | Utilities for enhancing application security. <br>- `sanitization`: For redacting sensitive data and validating inputs. <br>- `rateLimiter`: A DI-managed service for enforcing rate limits. <br>- `idGenerator`: For creating unique identifiers. |
-| **`network/`** | Networking helpers. <br>- `fetchWithTimeout`: A wrapper around `fetch` that includes a configurable timeout. |
-| **`scheduling/`** | Task scheduling utilities. <br>- `scheduler`: A wrapper around `node-cron` for managing scheduled jobs. |
-| **`internal/`** | Core internal machinery. <br>- `logger`: The global Pino logger instance. <br>- `requestContextService`: The AsyncLocalStorage-based service for context propagation. <br>- `ErrorHandler`: The centralized error handling class. <br>- `performance`: Utilities for performance measurement, including `measureToolExecution`. |
-| **`telemetry/`** | OpenTelemetry instrumentation and tracing helpers. |
+| Module            | Description & Key Exports                                                                                                                                                                                                                                                                                                                     |
+| :---------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`parsing/`**    | A suite of robust parsers for various data formats, designed to handle optional LLM `<think>` blocks. <br>- `csvParser`: For CSV data. <br>- `yamlParser`: For YAML data. <br>- `xmlParser`: For XML data. <br>- `jsonParser`: A hardened JSON parser. <br>- `pdfParser`: For creating, modifying, and parsing PDF documents using `pdf-lib`. |
+| **`security/`**   | Utilities for enhancing application security. <br>- `sanitization`: For redacting sensitive data and validating inputs. <br>- `rateLimiter`: A DI-managed service for enforcing rate limits. <br>- `idGenerator`: For creating unique identifiers.                                                                                            |
+| **`network/`**    | Networking helpers. <br>- `fetchWithTimeout`: A wrapper around `fetch` that includes a configurable timeout.                                                                                                                                                                                                                                  |
+| **`scheduling/`** | Task scheduling utilities. <br>- `scheduler`: A wrapper around `node-cron` for managing scheduled jobs.                                                                                                                                                                                                                                       |
+| **`internal/`**   | Core internal machinery. <br>- `logger`: The global Pino logger instance. <br>- `requestContextService`: The AsyncLocalStorage-based service for context propagation. <br>- `ErrorHandler`: The centralized error handling class. <br>- `performance`: Utilities for performance measurement, including `measureToolExecution`.               |
+| **`telemetry/`**  | OpenTelemetry instrumentation and tracing helpers.                                                                                                                                                                                                                                                                                            |
 
 ---
 
-## VII. Authentication & Authorization
+## VIII. Authentication & Authorization
 
 #### HTTP Transport (configurable)
 
@@ -503,7 +585,7 @@ The `src/utils/` directory contains a rich set of directly importable utilities 
 
 ---
 
-## VIII. Transports & Server Lifecycle
+## IX. Transports & Server Lifecycle
 
 #### `createMcpServerInstance` (`src/mcp-server/server.ts`)
 
@@ -526,7 +608,7 @@ The `src/utils/` directory contains a rich set of directly importable utilities 
 
 ---
 
-## IX. Code Style, Validation, and Security
+## X. Code Style, Validation, and Security
 
 - **JSDoc:** Every file must start with `@fileoverview` and `@module`. Exported APIs must be documented.
 - **Validation:** All inputs are validated via Zod schemas. Ensure every field in schemas has a `.describe()`.
@@ -538,7 +620,7 @@ The `src/utils/` directory contains a rich set of directly importable utilities 
 
 ---
 
-## X. Checks & Workflow Commands
+## XI. Checks & Workflow Commands
 
 Use scripts from `package.json`:
 
@@ -551,7 +633,7 @@ Use scripts from `package.json`:
 
 ---
 
-## XI. Configuration & Environment
+## XII. Configuration & Environment
 
 - All configuration is validated via Zod in `src/config/index.ts`.
 - Derives `serviceName` and `version` from `package.json` if not provided via env.
@@ -564,7 +646,7 @@ Use scripts from `package.json`:
 
 ---
 
-## XII. Local & Edge Targets
+## XIII. Local & Edge Targets
 
 - **Local parity:** Ensure both stdio and HTTP transports run and behave identically for your feature.
 - **Worker compatibility:** `bun run build:worker` and `wrangler dev --local` must succeed before merging.
@@ -572,7 +654,7 @@ Use scripts from `package.json`:
 
 ---
 
-## XIII. Multi-Tenancy & Storage Context
+## XIV. Multi-Tenancy & Storage Context
 
 ### Storage Tenancy Requirements
 
@@ -624,7 +706,7 @@ const context = requestContextService.createRequestContext({
 
 ---
 
-## XIV. Quick Checklist
+## XV. Quick Checklist
 
 Before completing your task, ensure you have:
 

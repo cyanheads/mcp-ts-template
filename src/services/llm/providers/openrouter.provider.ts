@@ -2,7 +2,7 @@
  * @fileoverview Provides a service class (`OpenRouterProvider`) for interacting with the
  * OpenRouter API. This class is designed to be managed by a dependency injection
  * container, receiving its dependencies via constructor injection.
- * @module src/services/llm-providers/openRouterProvider
+ * @module src/services/llm/providers/openrouter.provider
  */
 import OpenAI from 'openai';
 import {
@@ -26,7 +26,7 @@ import { sanitization } from '@/utils/security/sanitization.js';
 import type {
   ILlmProvider,
   OpenRouterChatParams,
-} from '@/services/llm-providers/ILlmProvider.js';
+} from '@/services/llm/core/ILlmProvider.js';
 
 export interface OpenRouterClientOptions {
   apiKey: string;

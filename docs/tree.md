@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-30 21:35:18
+Generated on: 2025-09-30 22:32:32
 
 ```
 mcp-ts-template
@@ -94,10 +94,17 @@ mcp-ts-template
 │   │   │   └── manager.ts
 │   │   └── server.ts
 │   ├── services
-│   │   ├── llm-providers
-│   │   │   ├── ILlmProvider.ts
-│   │   │   └── openRouterProvider.ts
+│   │   ├── llm
+│   │   │   ├── core
+│   │   │   │   └── ILlmProvider.ts
+│   │   │   ├── providers
+│   │   │   │   └── openrouter.provider.ts
+│   │   │   ├── index.ts
+│   │   │   └── types.ts
 │   │   └── speech
+│   │       ├── core
+│   │       │   ├── ISpeechProvider.ts
+│   │       │   └── SpeechService.ts
 │   │       ├── providers
 │   │       │   ├── elevenlabs.provider.ts
 │   │       │   └── whisper.provider.ts

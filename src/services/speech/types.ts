@@ -148,51 +148,6 @@ export interface Voice {
 }
 
 /**
- * Main interface for speech service providers.
- * Providers may implement TTS, STT, or both.
- */
-export interface ISpeechProvider {
-  /**
-   * Provider name for identification.
-   */
-  readonly name: string;
-
-  /**
-   * Whether this provider supports text-to-speech.
-   */
-  readonly supportsTTS: boolean;
-
-  /**
-   * Whether this provider supports speech-to-text.
-   */
-  readonly supportsSTT: boolean;
-
-  /**
-   * Convert text to speech audio.
-   * @throws {McpError} if TTS is not supported or operation fails
-   */
-  textToSpeech(options: TextToSpeechOptions): Promise<TextToSpeechResult>;
-
-  /**
-   * Convert speech audio to text.
-   * @throws {McpError} if STT is not supported or operation fails
-   */
-  speechToText(options: SpeechToTextOptions): Promise<SpeechToTextResult>;
-
-  /**
-   * Get available voices (for TTS providers).
-   * @throws {McpError} if operation fails or not supported
-   */
-  getVoices(): Promise<Voice[]>;
-
-  /**
-   * Health check for the provider.
-   * @returns true if provider is healthy and configured correctly
-   */
-  healthCheck(): Promise<boolean>;
-}
-
-/**
  * Configuration for speech service providers.
  */
 export interface SpeechProviderConfig {
@@ -210,22 +165,4 @@ export interface SpeechProviderConfig {
   timeout?: number;
   /** Additional provider-specific options */
   options?: Record<string, unknown>;
-}
-
-/**
- * Type guard to check if a provider supports TTS.
- */
-export function supportsTTS(
-  provider: ISpeechProvider,
-): provider is ISpeechProvider {
-  return provider.supportsTTS;
-}
-
-/**
- * Type guard to check if a provider supports STT.
- */
-export function supportsSTT(
-  provider: ISpeechProvider,
-): provider is ISpeechProvider {
-  return provider.supportsSTT;
 }

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.3.0] - 2025-09-30
+
+### Refactor
+
+- **Service Layer Architecture**: Overhauled the `src/services` directory to implement a domain-driven design. All services, including `llm` and `speech`, are now organized into a consistent structure with `core/` (interfaces, orchestrators) and `providers/` (concrete implementations) subdirectories. This improves modularity, scalability, and aligns with architectural best practices.
+- **Dependency Injection**: Updated the DI container registrations in `src/container/registrations/core.ts` to reflect the new service locations.
+
+### Chore
+
+- **Documentation**:
+  - Updated `AGENTS.md`, `CLAUDE.md`, and `.clinerules/AGENTS.md` to document the new service development pattern and update the version to `2.3.0`.
+  - Regenerated `docs/tree.md` to accurately reflect the new directory structure.
+
 ## [2.2.8] - 2025-09-30
 
 ### Feature
