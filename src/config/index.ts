@@ -191,6 +191,31 @@ const ConfigSchema = z.object({
       )
       .default('INFO'),
   }),
+  speech: z
+    .object({
+      tts: z
+        .object({
+          enabled: z.coerce.boolean().default(false),
+          provider: z.enum(['elevenlabs']).default('elevenlabs'),
+          apiKey: z.string().optional(),
+          baseUrl: z.string().url().optional(),
+          defaultVoiceId: z.string().optional(),
+          defaultModelId: z.string().optional(),
+          timeout: z.coerce.number().optional(),
+        })
+        .optional(),
+      stt: z
+        .object({
+          enabled: z.coerce.boolean().default(false),
+          provider: z.enum(['openai-whisper']).default('openai-whisper'),
+          apiKey: z.string().optional(),
+          baseUrl: z.string().url().optional(),
+          defaultModelId: z.string().optional(),
+          timeout: z.coerce.number().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 
 // --- Parsing Logic ---
@@ -271,6 +296,32 @@ const parseConfig = () => {
       samplingRatio: env.OTEL_TRACES_SAMPLER_ARG,
       logLevel: env.OTEL_LOG_LEVEL,
     },
+    speech:
+      env.SPEECH_TTS_ENABLED || env.SPEECH_STT_ENABLED
+        ? {
+            tts: env.SPEECH_TTS_ENABLED
+              ? {
+                  enabled: env.SPEECH_TTS_ENABLED,
+                  provider: env.SPEECH_TTS_PROVIDER,
+                  apiKey: env.SPEECH_TTS_API_KEY,
+                  baseUrl: env.SPEECH_TTS_BASE_URL,
+                  defaultVoiceId: env.SPEECH_TTS_DEFAULT_VOICE_ID,
+                  defaultModelId: env.SPEECH_TTS_DEFAULT_MODEL_ID,
+                  timeout: env.SPEECH_TTS_TIMEOUT,
+                }
+              : undefined,
+            stt: env.SPEECH_STT_ENABLED
+              ? {
+                  enabled: env.SPEECH_STT_ENABLED,
+                  provider: env.SPEECH_STT_PROVIDER,
+                  apiKey: env.SPEECH_STT_API_KEY,
+                  baseUrl: env.SPEECH_STT_BASE_URL,
+                  defaultModelId: env.SPEECH_STT_DEFAULT_MODEL_ID,
+                  timeout: env.SPEECH_STT_TIMEOUT,
+                }
+              : undefined,
+          }
+        : undefined,
     // The following fields will be derived and are not directly from env
     mcpServerName: env.MCP_SERVER_NAME,
     mcpServerVersion: env.MCP_SERVER_VERSION,

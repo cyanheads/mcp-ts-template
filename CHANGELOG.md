@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.2.7] - 2025-09-30
+
+### Feature
+
+- **Speech Service**: Integrated a new speech service with providers for ElevenLabs (Text-to-Speech) and OpenAI Whisper (Speech-to-Text).
+  - Added `src/services/speech/` module with `ISpeechProvider` interface and provider implementations.
+  - New configuration options under `speech` in `src/config/index.ts` to enable and configure TTS/STT.
+  - Registered `SpeechService` in the DI container.
+
+### Chore
+
+- **Dependencies**: Upgraded `openai` to `5.23.2`.
+- **Documentation**: Updated `docs/tree.md` to reflect the new speech service files.
+
 ## [2.2.6] - 2025-09-29
 
 ### Feature

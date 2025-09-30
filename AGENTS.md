@@ -1,11 +1,11 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.2.4
+**Version:** 2.2.7
 **Target Project:** mcp-ts-template
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
-> **Note on File Synchronization**: This file (`AGENTS.md`), along with `CLAUDE.md` and `.clinerules/AGENTS.md`, are hard-linked on the filesystem for tool compatibility (e.g., Cline does not work with symlinks). **Edit only `AGENTS.md`** – changes will automatically propagate to the other copies.
+> **Note on File Synchronization**: This file (`AGENTS.md`), along with `CLAUDE.md` and `.clinerules/AGENTS.md`, are hard-linked on the filesystem for tool compatibility (e.g., Cline does not work with symlinks). **Edit only the root `AGENTS.md`** – changes will automatically propagate to the other copies.
 
 ---
 

@@ -1,9 +1,11 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.2.2
+**Version:** 2.2.7
 **Target Project:** mcp-ts-template
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
+
+> **Note on File Synchronization**: This file (`AGENTS.md`), along with `CLAUDE.md` and `.clinerules/AGENTS.md`, are hard-linked on the filesystem for tool compatibility (e.g., Cline does not work with symlinks). **Edit only the root `AGENTS.md`** – changes will automatically propagate to the other copies.
 
 ---
 
@@ -25,7 +27,8 @@ This document defines the operational rules for contributing to this codebase. F
     - **No Manual Instrumentation:** Do not add custom spans in your logic. Use the provided utilities and structured logging. The framework handles the single wrapper span per tool invocation.
 
 3.  **Structured, Traceable Operations**
-    - Your logic functions will receive two context objects: `appContext` (for internal logging/tracing) and `sdkContext` (for SDK-level operations like elicitation).
+    - Your logic functions will receive two context objects: `appContext` (for internal logging/tracing) and `sdkContext` (for SDK-level operations like Elicitation, Sampling, and Roots).
+    - The `sdkContext` provides methods (like `elicitInput` and `createMessage`) for client interaction.
     - Pass the _same_ `appContext` through your internal call stack for continuity.
     - Use the global `logger` for all logging; include the `appContext` in every log call.
 
@@ -429,12 +432,6 @@ Export a single `const` of type `ResourceDefinition` with:
 - **`TransportManager`**
   - **Token:** `TransportManagerToken`
   - **Usage:** `@inject(TransportManagerToken) private transportManager: TransportManager`
-- **`CreateMcpServerInstance`** (factory function)
-  - **Token:** `CreateMcpServerInstance`
-  - **Usage:** Resolved by the `TransportManager` to create/configure the `McpServer`.
-- **`TransportManager`**
-  - **Token:** `TransportManagerToken`
-  - **Usage:** `@inject(TransportManagerToken) private transportManager: TransportManager`
 
 #### Storage Providers (configured in `src/storage/core/storageFactory.ts`)
 
@@ -497,8 +494,8 @@ Export a single `const` of type `ResourceDefinition` with:
 #### `createMcpServerInstance` (`src/mcp-server/server.ts`)
 
 - Initializes `RequestContext` global config.
-- Creates `McpServer` with identity and capabilities (logging, `resources/tools listChanged`, `elicitation`).
-- Registers tools and resources via DI-managed registries.
+- Creates `McpServer` with identity and capabilities (logging, `resources/tools listChanged`, **elicitation**, **sampling**, **prompts**, **roots**).
+- Registers all capabilities via DI-managed registries.
 - Returns a configured `McpServer`.
 
 #### `TransportManager` (`src/mcp-server/transports/manager.ts`)
@@ -571,25 +568,70 @@ Use scripts from `package.json`:
 
 ---
 
-#### Notes on Tenancy
+## XIII. Multi-Tenancy & Storage Context
 
-- `StorageService` requires `context.tenantId` and throws if missing. In HTTP mode with auth enabled, `tenantId` is extracted from the token claim `tid` and propagated automatically via `requestContextService`.
-- If your feature needs multi-tenant storage access in contexts without authenticated HTTP (e.g., stdio), ensure `context.tenantId` is explicitly provided at the boundary where appropriate.
+### Storage Tenancy Requirements
+
+**`StorageService` requires `context.tenantId`** and will throw `McpError` with `JsonRpcErrorCode.ConfigurationError` if it's missing.
+
+### Automatic Tenancy (HTTP Transport with Auth)
+
+When using HTTP transport with authentication enabled (`MCP_AUTH_MODE='jwt'` or `'oauth'`):
+
+- The `tenantId` is automatically extracted from the JWT token claim `'tid'`
+- It's propagated to `RequestContext` via `requestContextService.withAuthInfo()`
+- All tool/resource invocations automatically receive the correct `tenantId`
+
+### Manual Tenancy (STDIO or Auth-Disabled)
+
+**⚠️ Important Limitation:** STDIO transport and HTTP with `MCP_AUTH_MODE='none'` do not provide automatic `tenantId` extraction.
+
+**When using multi-tenant storage in these scenarios:**
+
+1. **Option A - Single-Tenant Mode** (Recommended for STDIO):
+   - Set a default `tenantId` during initialization
+   - Use `requestContextService.withTenantId('default-tenant')` in your transport setup
+   - All operations use this single tenant
+
+2. **Option B - Explicit Tenancy** (Advanced):
+   - Pass `tenantId` explicitly when creating `RequestContext`
+   - Requires custom logic to determine tenant from another source
+   - Example: Extract from environment variable or configuration
+
+3. **Option C - In-Memory Storage** (Development/Testing):
+   - Use `STORAGE_PROVIDER_TYPE='in-memory'` which doesn't persist across restarts
+   - No tenancy concerns for ephemeral data
+
+**Example - Setting Default Tenant in STDIO:**
+
+```typescript
+// In your stdio transport setup
+const context = requestContextService.createRequestContext({
+  operation: 'connectStdioTransport',
+  tenantId: 'default-tenant', // Explicitly provide tenant
+});
+```
+
+**Troubleshooting:**
+
+- **Error:** `"Storage operation requires a tenantId in the request context"`
+- **Cause:** Attempting to use `StorageService` without a `tenantId`
+- **Solution:** Apply one of the options above based on your use case
 
 ---
 
-## XIII. Quick Checklist
+## XIV. Quick Checklist
 
 Before completing your task, ensure you have:
 
 - [ ] Implemented tool/resource logic in a `*.tool.ts` or `*.resource.ts` file.
 - [ ] Kept `logic` functions pure (no `try...catch`).
 - [ ] Thrown `McpError` for failures within logic.
-- [ ] Used `elicitInput` from `sdkContext` for missing parameters.
+- [ ] Used `elicitInput` (for Elicitation) or `sdkContext.createMessage` (for Sampling) from `sdkContext` to request input/completions from the client.
 - [ ] Applied authorization with `withToolAuth` or `withResourceAuth`.
 - [ ] Used `logger` with `appContext` for all significant operations.
 - [ ] Used `StorageService` (DI) for persistence.
-- [ ] Registered definitions in the corresponding `index.ts` barrel file.
+- [ ] Registered definitions in the corresponding `index.ts` barrel files (Tools, Resources, Prompts).
 - [ ] Added or updated tests (`bun test`).
 - [ ] Ran `bun run devcheck` to ensure code quality.
 - [ ] Smoke-tested local transports (`bun run dev:stdio`/`http`).

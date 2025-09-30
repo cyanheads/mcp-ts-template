@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-29 22:20:40
+Generated on: 2025-09-30 19:26:51
 
 ```
 mcp-ts-template
@@ -94,9 +94,15 @@ mcp-ts-template
 │   │   │   └── manager.ts
 │   │   └── server.ts
 │   ├── services
-│   │   └── llm-providers
-│   │       ├── ILlmProvider.ts
-│   │       └── openRouterProvider.ts
+│   │   ├── llm-providers
+│   │   │   ├── ILlmProvider.ts
+│   │   │   └── openRouterProvider.ts
+│   │   └── speech
+│   │       ├── providers
+│   │       │   ├── elevenlabs.provider.ts
+│   │       │   └── whisper.provider.ts
+│   │       ├── index.ts
+│   │       └── types.ts
 │   ├── storage
 │   │   ├── core
 │   │   │   ├── IStorageProvider.ts
@@ -185,7 +191,6 @@ mcp-ts-template
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts
-│   ├── scripts
 │   ├── storage
 │   │   ├── providers
 │   │   │   ├── cloudflare
