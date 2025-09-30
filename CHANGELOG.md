@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.3.1] - 2025-09-30
+
+### Refactor
+
+- **Cloudflare Worker Enhancement**: Overhauled `src/worker.ts` to provide robust support for Cloudflare Bindings (`KV`, `R2`, `D1`, `AI`), improved environment variable injection, and added comprehensive observability with structured logging and error handling for both `fetch` and `scheduled` handlers.
+
+### Chore
+
+- **Version Bump**: Incremented the project version to `2.3.1` in `package.json` and `server.json`.
+- **Configuration**: Updated `wrangler.toml` with clearer instructions, secret management guidance, and organized bindings for KV, R2, and D1.
+
 ## [2.3.0] - 2025-09-30
 
 ### Refactor
