@@ -10,3 +10,4 @@ export * from './jsonParser.js';
 export * from './xmlParser.js';
 export * from './yamlParser.js';
 export * from './csvParser.js';
+export * from './pdfParser.js';

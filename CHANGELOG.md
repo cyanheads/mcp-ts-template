@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.2.8] - 2025-09-30
+
+### Feature
+
+- **PDF Parsing Utility**: Added a new `PdfParser` utility in `src/utils/parsing/` that wraps the `pdf-lib` library. This provides a robust, standardized interface for creating, modifying, and parsing PDF documents, complete with structured error handling and logging.
+  - New `pdfParser.ts` module with a comprehensive `PdfParser` class.
+  - Added full test coverage in `tests/utils/parsing/pdfParser.test.ts`.
+
+### Chore
+
+- **Dependencies**:
+  - Added `pdf-lib` for PDF manipulation.
+  - Upgraded `openai` to `^6.0.0`.
+  - Upgraded `typescript` to `^5.9.3`.
+- **Documentation**:
+  - Updated `docs/tree.md` to include the new PDF parser files.
+  - Cleaned up and simplified the "Checks & Workflow Commands" section in `AGENTS.md`, `CLAUDE.md`, and `.clinerules/AGENTS.md` to improve clarity for developers.
+
 ## [2.2.7] - 2025-09-30
 
 ### Feature

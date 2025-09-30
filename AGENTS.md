@@ -452,6 +452,20 @@ Export a single `const` of type `ResourceDefinition` with:
 - `sanitization` from `src/utils/index.js`
 - `fetchWithTimeout` from `src/utils/index.js` (for robust network calls with timeouts)
 - `measureToolExecution` from `src/utils/index.js` (used by handlers)
+- `pdfParser` from `src/utils/index.js` (for creating, modifying, and parsing PDF documents)
+
+#### Key Utilities (`src/utils/`)
+
+The `src/utils/` directory contains a rich set of directly importable utilities for common tasks. Below is a summary of key modules.
+
+| Module | Description & Key Exports |
+| :--- | :--- |
+| **`parsing/`** | A suite of robust parsers for various data formats, designed to handle optional LLM `<think>` blocks. <br>- `csvParser`: For CSV data. <br>- `yamlParser`: For YAML data. <br>- `xmlParser`: For XML data. <br>- `jsonParser`: A hardened JSON parser. <br>- `pdfParser`: For creating, modifying, and parsing PDF documents using `pdf-lib`. |
+| **`security/`** | Utilities for enhancing application security. <br>- `sanitization`: For redacting sensitive data and validating inputs. <br>- `rateLimiter`: A DI-managed service for enforcing rate limits. <br>- `idGenerator`: For creating unique identifiers. |
+| **`network/`** | Networking helpers. <br>- `fetchWithTimeout`: A wrapper around `fetch` that includes a configurable timeout. |
+| **`scheduling/`** | Task scheduling utilities. <br>- `scheduler`: A wrapper around `node-cron` for managing scheduled jobs. |
+| **`internal/`** | Core internal machinery. <br>- `logger`: The global Pino logger instance. <br>- `requestContextService`: The AsyncLocalStorage-based service for context propagation. <br>- `ErrorHandler`: The centralized error handling class. <br>- `performance`: Utilities for performance measurement, including `measureToolExecution`. |
+| **`telemetry/`** | OpenTelemetry instrumentation and tracing helpers. |
 
 ---
 
@@ -529,21 +543,11 @@ Export a single `const` of type `ResourceDefinition` with:
 Use scripts from `package.json`:
 
 - `bun rebuild`: cleans and rebuilds; also clears logs. Run after dependency changes.
-- `bun run devcheck`: lint, format, typecheck, security. Use flags like `--no-fix`, `--no-lint`, `--no-audit` to tailor.
+- `bun devcheck` or `bun run devcheck`: lint, format, typecheck, security. Use flags like `--no-fix`, `--no-lint`, `--no-audit` to tailor.
 - `bun test`: run unit/integration tests.
 - `bun run dev:stdio` / `bun run dev:http`: run server in development mode.
 - `bun run start:stdio` / `bun run start:http`: run after build.
 - `bun run build:worker`: build Cloudflare Worker bundle.
-
-#### Publishing & Registry
-
-- See `docs/publishing-mcp-server-registry.md` for publishing guidance.
-- Use `scripts/validate-mcp-publish-schema.ts` to validate registry metadata where applicable.
-
-#### `devdocs` Companion
-
-- To generate focused context for a section: `bun run devdocs -- <path>`
-- Output defaults to `docs/devdocs.md`. This improves complex analysis and implementation accuracy.
 
 ---
 

@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-09-30 19:26:51
+Generated on: 2025-09-30 21:35:18
 
 ```
 mcp-ts-template
@@ -152,6 +152,7 @@ mcp-ts-template
 │   │   │   ├── dateParser.ts
 │   │   │   ├── index.ts
 │   │   │   ├── jsonParser.ts
+│   │   │   ├── pdfParser.ts
 │   │   │   ├── xmlParser.ts
 │   │   │   └── yamlParser.ts
 │   │   ├── scheduling
@@ -219,6 +220,7 @@ mcp-ts-template
 │   │   │   ├── csvParser.test.ts
 │   │   │   ├── dateParser.test.ts
 │   │   │   ├── jsonParser.test.ts
+│   │   │   ├── pdfParser.test.ts
 │   │   │   ├── xmlParser.test.ts
 │   │   │   └── yamlParser.test.ts
 │   │   ├── scheduling
