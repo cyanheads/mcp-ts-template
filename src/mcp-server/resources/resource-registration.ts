@@ -17,7 +17,7 @@ import { logger, requestContextService } from '@/utils/index.js';
 @injectable()
 export class ResourceRegistry {
   constructor(
-    @injectAll(ResourceDefinitions)
+    @injectAll(ResourceDefinitions, { isOptional: true })
     private resourceDefs: ResourceDefinition<
       ZodObject<ZodRawShape>,
       ZodObject<ZodRawShape> | undefined

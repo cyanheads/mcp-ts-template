@@ -18,7 +18,7 @@ import { createMcpToolHandler } from '@/mcp-server/tools/utils/toolHandlerFactor
 @injectable()
 export class ToolRegistry {
   constructor(
-    @injectAll(ToolDefinitions)
+    @injectAll(ToolDefinitions, { isOptional: true })
     private toolDefs: ToolDefinition<
       ZodObject<ZodRawShape>,
       ZodObject<ZodRawShape>

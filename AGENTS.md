@@ -1,11 +1,12 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.3.1
+**Version:** 2.3.2
 **Target Project:** mcp-ts-template
+**Last Updated:** 2025-10-02
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
-> **Note on File Synchronization**: This file (`AGENTS.md`), along with `CLAUDE.md` and `.clinerules/AGENTS.md`, are hard-linked on the filesystem for tool compatibility (e.g., Cline does not work with symlinks). **Edit only the root `AGENTS.md`** – changes will automatically propagate to the other copies.
+> **Note on File Synchronization**: This file (`AGENTS.md`), along with `CLAUDE.md` and `.clinerules/AGENTS.md`, are hard-linked on the filesystem for tool compatibility (e.g., Cline does not work with symlinks). **Edit only the root `AGENTS.md`** – changes will automatically propagate to the other copies. DO NOT TOUCH THE OTHER COPIES AT ALL.
 
 ---
 
@@ -105,7 +106,7 @@ Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 - `outputSchema`: A `z.object({ ... })` describing the successful output structure.
 - `logic`: `async (input, appContext, sdkContext) => { ... }` pure business logic. No `try/catch` here. Throw `McpError` on failure.
 - `annotations` (optional): UI/behavior hints such as `readOnlyHint`, `openWorldHint`, and others (flexible dictionary).
-- `responseFormatter` (optional): Map successful output to `ContentBlock[]` for a UI-friendly representation. If omitted, a default JSON string is used.
+- `responseFormatter` (optional): Map successful output to `ContentBlock[]` for the LLM to consume. **CRITICAL**: The LLM receives this formatted output, not the raw result. Include all data the LLM needs to answer questions. Balance human-readable summaries with complete structured data. If omitted, a default JSON string is used.
 
 #### Step 2.5 — Apply Authorization (Mandatory for most tools)
 
@@ -121,6 +122,76 @@ Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 
 - Add your tool to `src/mcp-server/tools/definitions/index.ts` in `allToolDefinitions`.
 - The DI container discovers and registers all tools from that array. No further registration is necessary.
+
+---
+
+### Response Formatter Best Practices
+
+The `responseFormatter` function determines what the LLM receives. Follow these guidelines:
+
+**❌ DO NOT:**
+
+- Return only a summary with "Full details in structured output" (there is no separate structured output for the LLM)
+- Omit critical data that the LLM needs to answer follow-up questions
+- Assume the LLM can access the raw result object
+
+**✅ DO:**
+
+- Include both human-readable summaries AND complete data
+- Structure output hierarchically (summary → details)
+- Truncate extremely long fields (eligibility criteria, descriptions) but include key information
+- For comparisons, show both commonalities/differences AND detailed breakdowns
+- Use markdown formatting for clarity (headings, lists, code blocks)
+
+**Examples:**
+
+```typescript
+// BAD: Summary only - LLM cannot answer detailed questions
+function badFormatter(result: ComparisonOutput): ContentBlock[] {
+  return [
+    {
+      type: 'text',
+      text: 'Comparison complete. See structured output for details.',
+    },
+  ];
+}
+
+// GOOD: Summary + Details - LLM has everything it needs
+function goodFormatter(result: ComparisonOutput): ContentBlock[] {
+  const summary = `# Comparison of ${result.studies.length} Studies\n\n`;
+
+  const commonalities =
+    result.commonalities.length > 0
+      ? `## Commonalities\n${result.commonalities.map((c) => `- ${c}`).join('\n')}\n\n`
+      : '';
+
+  const details = result.studies
+    .map(
+      (study) =>
+        `### ${study.nctId}: ${study.title}\n\n` +
+        `**Status:** ${study.status}\n` +
+        `**Design:** ${study.design.type} | ${study.design.phases.join(', ')}\n` +
+        `**Interventions:** ${study.interventions.map((i) => i.name).join(', ')}\n` +
+        `**Primary Outcomes:**\n${study.outcomes.primary.map((o) => `- ${o.measure}`).join('\n')}`,
+    )
+    .join('\n\n---\n\n');
+
+  return [{ type: 'text', text: `${summary}${commonalities}${details}` }];
+}
+
+// ALSO GOOD: Pure JSON for maximum flexibility
+function jsonFormatter(result: ComparisonOutput): ContentBlock[] {
+  return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
+}
+```
+
+**When to use each approach:**
+
+- **Summary + Details**: Best for comparison tools, analysis tools, multi-entity responses
+- **Pure JSON**: Best for single-entity fetches, when data structure is self-explanatory
+- **Hybrid**: Use summary sections with selective detail inclusion for very large responses
+
+---
 
 #### Example Tool Definition:
 
@@ -667,26 +738,6 @@ When using HTTP transport with authentication enabled (`MCP_AUTH_MODE='jwt'` or 
 - The `tenantId` is automatically extracted from the JWT token claim `'tid'`
 - It's propagated to `RequestContext` via `requestContextService.withAuthInfo()`
 - All tool/resource invocations automatically receive the correct `tenantId`
-
-### Manual Tenancy (STDIO or Auth-Disabled)
-
-**⚠️ Important Limitation:** STDIO transport and HTTP with `MCP_AUTH_MODE='none'` do not provide automatic `tenantId` extraction.
-
-**When using multi-tenant storage in these scenarios:**
-
-1. **Option A - Single-Tenant Mode** (Recommended for STDIO):
-   - Set a default `tenantId` during initialization
-   - Use `requestContextService.withTenantId('default-tenant')` in your transport setup
-   - All operations use this single tenant
-
-2. **Option B - Explicit Tenancy** (Advanced):
-   - Pass `tenantId` explicitly when creating `RequestContext`
-   - Requires custom logic to determine tenant from another source
-   - Example: Extract from environment variable or configuration
-
-3. **Option C - In-Memory Storage** (Development/Testing):
-   - Use `STORAGE_PROVIDER_TYPE='in-memory'` which doesn't persist across restarts
-   - No tenancy concerns for ephemeral data
 
 **Example - Setting Default Tenant in STDIO:**
 

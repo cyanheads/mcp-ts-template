@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.3.2] - 2025-10-02
+
+### Refactor
+
+- **Tooling Robustness**: Hardened the dependency injection container by making tool and resource registrations optional (`@injectAll(..., { isOptional: true })`). This prevents the server from crashing on startup if no tools or resources are defined, improving resilience for minimal deployments.
+- **Formatter Guidance**: Significantly improved the developer mandate (`AGENTS.md`) with explicit best practices for creating `responseFormatter` functions. The new guidance emphasizes including both human-readable summaries and complete structured data to ensure LLMs have sufficient context for follow-up questions.
+
+### Chore
+
+- **Dependencies**: Upgraded several key dependencies to their latest versions for security and performance improvements, including `openai` to `^6.0.1`, `@cloudflare/workers-types` to `^4.20251001.0`, and `@types/node` to `^24.6.2`.
+- **NPM Scripts**: Cleaned up and streamlined the `scripts` in `package.json`, improving clarity and maintainability for developers.
+- **Documentation**: Removed obsolete sections related to manual multi-tenancy from all agent documentation files (`AGENTS.md`, `CLAUDE.md`, `.clinerules/AGENTS.md`), simplifying the guidance and reflecting the current tenancy model.
+- **Version Bump**: Incremented the project version to `2.3.2` in `package.json` and `server.json`.
+
 ## [2.3.1] - 2025-09-30
 
 ### Refactor
