@@ -10,8 +10,8 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-import { JsonRpcErrorCode, McpError } from '../types-global/errors.js';
 import packageJson from '../../package.json' with { type: 'json' };
+import { JsonRpcErrorCode, McpError } from '../types-global/errors.js';
 
 type PackageManifest = {
   name?: string;
@@ -382,4 +382,4 @@ const config = parseConfig();
  */
 export type AppConfig = z.infer<typeof ConfigSchema>;
 
-export { config, parseConfig, ConfigSchema };
+export { config, ConfigSchema, parseConfig };

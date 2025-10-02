@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.3.3] - 2025-10-02
+
+### Changed
+
+- **Configuration**: Changed default HTTP port in `Dockerfile` from 3017 to 3010 for consistency.
+
+### Refactor
+
+- **Dependencies**: Promoted critical observability packages (`@opentelemetry/*`) and `pino-pretty` from `devDependencies` to `dependencies` to ensure they are available in production environments, hardening the server's telemetry and logging capabilities.
+
+### Chore
+
+- **Documentation**: Added a new "MCP Client Settings/Configuration" section to `README.md` to guide users on integrating the server with their client.
+- **Version Bump**: Incremented the project version to `2.3.3` in `package.json` and `server.json`.
+
 ## [2.3.2] - 2025-10-02
 
 ### Refactor

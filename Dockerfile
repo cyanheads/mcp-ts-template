@@ -65,7 +65,7 @@ ARG PORT
 
 # Set runtime environment variables
 # Note: PORT is an automatic variable in many cloud environments (e.g., Cloud Run)
-ENV MCP_HTTP_PORT=${PORT:-3017}
+ENV MCP_HTTP_PORT=${PORT:-3010}
 ENV MCP_HTTP_HOST="0.0.0.0"
 ENV MCP_TRANSPORT_TYPE="http"
 ENV MCP_SESSION_MODE="stateless"
