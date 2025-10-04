@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.3.4] - 2025-10-04
+
+### Refactor
+
+- **Agent Protocol & DI**: Major updates to `AGENTS.md` to refine the development protocol. This includes new guidance on using dependency injection within tool logic by resolving services from the global container, clarified rules for `responseFormatter` to ensure both human-readability and LLM-consumable structured data, and a new "graceful degradation" pattern for handling `tenantId` in development environments.
+- **Storage & Service Architecture**: The architectural mandate now includes clearer distinctions on when to use the generic `StorageService` versus creating custom, domain-specific storage providers. A decision matrix has been added to guide this choice.
+
+### Chore
+
+- **Dependencies**: Upgraded numerous dependencies to their latest versions for security, performance, and stability. Key updates include `@modelcontextprotocol/sdk` to `^1.19.1`, `pino` to `^10.0.0`, `repomix` to `^1.6.1`, and `eslint` to `^9.37.0`.
+- **Documentation**: Regenerated `docs/tree.md` to reflect the current project structure.
+- **Housekeeping**: Added `ideas/` directory to `.gitignore`.
+- **Version Bump**: Incremented the project version to `2.4.0`.
+
 ## [2.3.3] - 2025-10-02
 
 ### Changed
