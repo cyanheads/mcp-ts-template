@@ -749,6 +749,31 @@ describe('PdfParser', () => {
       expect(checkbox).toBeDefined();
     });
 
+    it('should uncheck checkbox fields when provided a false value', () => {
+      const form = doc.getForm();
+      const originalGetField = form.getField.bind(form);
+      const uncheckSpy = vi.fn();
+
+      vi.spyOn(form, 'getField').mockImplementation((fieldName: string) => {
+        if (fieldName === 'Subscribe') {
+          return {
+            check: vi.fn(),
+            uncheck: uncheckSpy,
+          } as unknown as ReturnType<typeof originalGetField>;
+        }
+        return originalGetField(fieldName);
+      });
+
+      const options: FillFormOptions = {
+        fields: {
+          Subscribe: false,
+        },
+      };
+
+      expect(() => parser.fillForm(doc, options, context)).not.toThrow();
+      expect(uncheckSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('should fill multiple field types', () => {
       const options: FillFormOptions = {
         fields: {
@@ -823,6 +848,29 @@ describe('PdfParser', () => {
       };
 
       expect(() => parser.fillForm(doc, options)).not.toThrow();
+    });
+
+    it('wraps unexpected form access errors in an McpError', () => {
+      vi.spyOn(doc, 'getForm').mockImplementation(() => {
+        throw new Error('no form available');
+      });
+
+      const errorSpy = vi.spyOn(logger, 'error');
+
+      const options: FillFormOptions = {
+        fields: {
+          Name: 'Test',
+        },
+      };
+
+      expect(() => parser.fillForm(doc, options, context)).toThrow(McpError);
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to fill PDF form.',
+        expect.objectContaining({
+          errorDetails: 'no form available',
+        }),
+      );
     });
   });
 

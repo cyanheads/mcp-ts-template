@@ -66,6 +66,30 @@ describe('echoTool', () => {
     );
   });
 
+  it('should include traceId metadata when provided in the request context', async () => {
+    const context = requestContextService.createRequestContext({
+      traceId: 'trace-echo-123',
+    });
+    const rawInput = { message: TEST_ERROR_TRIGGER_MESSAGE };
+    const parsedInput = echoTool.inputSchema.parse(rawInput);
+
+    let thrown: unknown;
+    try {
+      await echoTool.logic(parsedInput, context, mockSdkContext);
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(McpError);
+    const mcpError = thrown as McpError;
+    expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
+    expect(context.traceId).toBe('trace-echo-123');
+    expect(mcpError.data).toMatchObject({
+      requestId: context.requestId,
+      traceId: 'trace-echo-123',
+    });
+  });
+
   it('should format response content with truncation and timestamp', () => {
     const longMessage = 'loremipsum'.repeat(25);
     const formatter = echoTool.responseFormatter;

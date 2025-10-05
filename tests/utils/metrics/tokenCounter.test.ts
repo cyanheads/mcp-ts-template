@@ -77,5 +77,22 @@ describe('tokenCounter', () => {
       const tokenCount = await countChatTokens(messages);
       expect(tokenCount).toBeGreaterThan(5);
     });
+
+    it('should include name overhead when a message defines name', async () => {
+      const messages: ChatMessage[] = [
+        {
+          role: 'system',
+          name: 'context-provider',
+          content: 'You set contextual instructions for the assistant.',
+        },
+      ];
+
+      const withoutName = await countChatTokens([
+        { role: 'system', content: messages[0]!.content },
+      ]);
+      const withName = await countChatTokens(messages);
+
+      expect(withName).toBeGreaterThan(withoutName);
+    });
   });
 });

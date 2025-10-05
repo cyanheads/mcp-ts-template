@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.3.5] - 2025-10-05
+
+### Tests
+
+- **Enhanced Coverage**: Added over 50 new unit and integration tests, significantly improving test coverage for core utilities, including configuration, error handling, performance metrics, and security. New tests cover edge cases in `fetchWithTimeout`, `rateLimiter`, `sanitization`, and various parsers.
+- **Test Fixes**: Corrected and expanded existing test suites for all template tools to handle more failure cases, ensuring their robustness.
+
+### Chore
+
+- **Dependencies**: Upgraded `typescript` to `^5.9.3`.
+- **Version Bump**: Incremented project version to `2.3.5` in `package.json` and `server.json`.
+- **Documentation**: Regenerated `docs/tree.md` to reflect the current project structure.
+
 ## [2.3.4] - 2025-10-04
 
 ### Refactor

@@ -202,4 +202,51 @@ describe('RateLimiter', () => {
       clearInterval(timer);
     }
   });
+
+  it('should unref the cleanup timer when supported by the environment', () => {
+    const unrefSpy = vi.fn();
+    const fakeTimer = {
+      unref: unrefSpy,
+      ref: vi.fn(),
+    } as unknown as NodeJS.Timeout;
+
+    const setIntervalSpy = vi
+      .spyOn(globalThis, 'setInterval')
+      .mockReturnValue(fakeTimer);
+
+    rateLimiter.configure({ cleanupInterval: 250 });
+
+    expect(unrefSpy).toHaveBeenCalled();
+
+    setIntervalSpy.mockRestore();
+    rateLimiter.configure({ cleanupInterval: 0 });
+  });
+
+  it('should dispose cleanup resources and clear tracked limits', () => {
+    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
+    const fakeTimer = {
+      unref: vi.fn(),
+      ref: vi.fn(),
+    } as unknown as NodeJS.Timeout;
+    const setIntervalSpy = vi
+      .spyOn(globalThis, 'setInterval')
+      .mockReturnValue(fakeTimer);
+
+    rateLimiter.configure({ cleanupInterval: 500 });
+    setIntervalSpy.mockRestore();
+
+    rateLimiter.configure({ windowMs: 1000, maxRequests: 2 });
+    rateLimiter.check('dispose-key', {
+      requestId: 'dispose-req',
+      timestamp: new Date().toISOString(),
+    });
+    expect(rateLimiter.getStatus('dispose-key')).not.toBeNull();
+
+    rateLimiter.dispose();
+
+    expect(clearIntervalSpy).toHaveBeenCalled();
+    expect(rateLimiter.getStatus('dispose-key')).toBeNull();
+
+    clearIntervalSpy.mockRestore();
+  });
 });

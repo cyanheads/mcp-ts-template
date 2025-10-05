@@ -20,6 +20,7 @@ import {
   JsonRpcErrorCode,
   McpError,
 } from '../../../../src/types-global/errors.js';
+import * as fetchModule from '../../../../src/utils/network/fetchWithTimeout.js';
 
 const server = setupServer(
   http.get('https://catfact.ninja/fact', () => {
@@ -65,6 +66,36 @@ describe('catFactTool', () => {
 
     expect(requestedUrl).toContain('max_length=42');
     expect(result.requestedMaxLength).toBe(42);
+  });
+
+  it('captures undefined response body when error text cannot be read', async () => {
+    const context = requestContextService.createRequestContext();
+    const failingResponse = {
+      ok: false,
+      status: 502,
+      statusText: 'Gateway Timeout',
+      text: vi.fn().mockRejectedValue(new Error('stream errored')),
+    } as unknown as Response;
+
+    const fetchSpy = vi
+      .spyOn(fetchModule, 'fetchWithTimeout')
+      .mockResolvedValueOnce(failingResponse);
+
+    try {
+      await expect(
+        catFactTool.logic({}, context, mockSdkContext),
+      ).rejects.toMatchObject({
+        code: JsonRpcErrorCode.ServiceUnavailable,
+        data: expect.objectContaining({
+          responseBody: undefined,
+          httpStatusCode: 502,
+        }),
+      });
+
+      expect(failingResponse.text).toHaveBeenCalledTimes(1);
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it('should throw an McpError when the API responds with a failure status', async () => {
@@ -149,5 +180,44 @@ describe('catFactTool', () => {
     }
     expect(block.text).toContain('Cat Fact (length=30, max<=60)');
     expect(block.text).toContain('timestamp=2024-01-01T00:00:00.000Z');
+  });
+
+  it('should omit max length annotation when not provided', () => {
+    const formatter = catFactTool.responseFormatter;
+    const blocks = formatter!({
+      fact: 'Cats purr contentedly.',
+      length: 24,
+      requestedMaxLength: undefined,
+      timestamp: '2024-01-01T00:00:00.000Z',
+    });
+
+    expect(blocks).toHaveLength(1);
+    const block = blocks[0];
+    if (!block || block.type !== 'text') {
+      throw new Error('Expected text content block');
+    }
+    expect(block.text).toContain('Cat Fact (length=24)');
+    expect(block.text).not.toContain('max<=');
+  });
+
+  it('should truncate long facts in the preview', () => {
+    const formatter = catFactTool.responseFormatter;
+    const longFact = 'A'.repeat(400);
+    const blocks = formatter!({
+      fact: longFact,
+      length: longFact.length,
+      requestedMaxLength: 500,
+      timestamp: '2024-01-01T00:00:00.000Z',
+    });
+
+    expect(blocks).toHaveLength(1);
+    const block = blocks[0];
+    if (!block || block.type !== 'text') {
+      throw new Error('Expected text content block');
+    }
+    expect(block.text).toContain('Cat Fact (length=400, max<=500)');
+    expect(block.text).toContain('AAA');
+    expect(block.text).toContain('…');
+    expect(block.text).not.toContain('A'.repeat(400));
   });
 });

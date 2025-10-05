@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "2.3.4",
+  "version": "2.3.5",
   "mcpName": "io.github.cyanheads/mcp-ts-template",
   "description": "The definitive, production-grade template for building powerful and scalable Model Context Protocol (MCP) servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.",
   "main": "dist/index.js",
@@ -127,7 +127,7 @@
     "msw": "^2.11.3",
     "prettier": "^3.6.2",
     "typedoc": "^0.28.13",
-    "typescript": "^5.9.2",
+    "typescript": "^5.9.3",
     "typescript-eslint": "8.45.0",
     "vite": "^7.1.9",
     "vite-tsconfig-paths": "^5.1.4",
@@ -179,5 +179,8 @@
       "repomix",
       "mcp-ts-template"
     ]
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

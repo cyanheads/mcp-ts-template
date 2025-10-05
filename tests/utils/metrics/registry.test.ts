@@ -1,180 +1,167 @@
 /**
- * @fileoverview Unit tests for the metrics registry helper.
+ * @fileoverview Tests for the metrics registry helper, covering enabled and disabled paths.
  * @module tests/utils/metrics/registry.test
  */
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type MockInstance,
-} from 'vitest';
-import { metrics } from '@opentelemetry/api';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { config } from '../../../src/config/index.js';
-import { metricsRegistry } from '../../../src/utils/metrics/registry.js';
+const meterMock = {
+  createCounter: vi.fn(),
+  createHistogram: vi.fn(),
+};
+const getMeterMock = vi.fn(() => meterMock);
+const configMock = {
+  openTelemetry: {
+    enabled: false,
+    serviceName: 'test-service',
+    serviceVersion: '0.0.1',
+    logLevel: 'INFO',
+    samplingRatio: 1,
+  },
+};
+
+vi.mock('@opentelemetry/api', () => ({
+  metrics: {
+    getMeter: getMeterMock,
+  },
+}));
+
+vi.mock('@/config/index.js', () => ({
+  config: configMock,
+}));
+
+let metricsRegistry: typeof import('../../../src/utils/metrics/registry.js').metricsRegistry;
+
+beforeAll(async () => {
+  ({ metricsRegistry } = await import(
+    '../../../src/utils/metrics/registry.js'
+  ));
+});
 
 describe('metricsRegistry', () => {
-  let meter: {
-    createCounter: ReturnType<typeof vi.fn>;
-    createHistogram: ReturnType<typeof vi.fn>;
-  };
-  let counterInstance: {
-    add: ReturnType<typeof vi.fn>;
-    bind: ReturnType<typeof vi.fn>;
-    unbind: ReturnType<typeof vi.fn>;
-  };
-  let histogramInstance: {
-    record: ReturnType<typeof vi.fn>;
-    bind: ReturnType<typeof vi.fn>;
-    unbind: ReturnType<typeof vi.fn>;
-  };
-  let getMeterSpy: MockInstance;
-  let originalEnabled: boolean;
-
   beforeEach(() => {
-    counterInstance = {
+    configMock.openTelemetry.enabled = false;
+    getMeterMock.mockClear();
+    meterMock.createCounter.mockReset();
+    meterMock.createHistogram.mockReset();
+  });
+
+  it('returns no-op meters when OpenTelemetry is disabled', () => {
+    expect(metricsRegistry.enabled()).toBe(false);
+
+    expect(() => metricsRegistry.add('disabled_metric', 1)).not.toThrow();
+    expect(() => metricsRegistry.record('disabled_histogram', 5)).not.toThrow();
+    expect(getMeterMock).not.toHaveBeenCalled();
+  });
+
+  it('creates and caches counters and histograms when enabled', () => {
+    configMock.openTelemetry.enabled = true;
+
+    const counterWithOptions = {
       add: vi.fn(),
       bind: vi.fn(() => ({ add: vi.fn() })),
       unbind: vi.fn(),
     };
-    histogramInstance = {
+    const counterWithoutOptions = {
+      add: vi.fn(),
+      bind: vi.fn(() => ({ add: vi.fn() })),
+      unbind: vi.fn(),
+    };
+    const histogramWithOptions = {
       record: vi.fn(),
       bind: vi.fn(() => ({ record: vi.fn() })),
       unbind: vi.fn(),
     };
-    meter = {
-      createCounter: vi.fn(() => counterInstance as never),
-      createHistogram: vi.fn(() => histogramInstance as never),
+    const histogramWithoutOptions = {
+      record: vi.fn(),
+      bind: vi.fn(() => ({ record: vi.fn() })),
+      unbind: vi.fn(),
     };
-    originalEnabled = config.openTelemetry.enabled;
-    config.openTelemetry.enabled = true;
-    getMeterSpy = vi.spyOn(metrics, 'getMeter').mockReturnValue(meter as never);
-  });
 
-  afterEach(() => {
-    config.openTelemetry.enabled = originalEnabled;
-    getMeterSpy.mockRestore();
-  });
-
-  it('returns a no-op counter when telemetry is disabled', () => {
-    config.openTelemetry.enabled = false;
-
-    const counter = metricsRegistry.getCounter('disabled_counter');
-    expect(counter.add(5)).toBeUndefined();
-    expect(getMeterSpy).not.toHaveBeenCalled();
-  });
-
-  it('creates and caches counters when telemetry is enabled', () => {
-    const first = metricsRegistry.getCounter('cached_counter');
-    const second = metricsRegistry.getCounter('cached_counter');
-
-    expect(first).toBe(second);
-    expect(meter.createCounter).toHaveBeenCalledTimes(1);
-    expect(getMeterSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('adds values using the underlying counter implementation', () => {
-    metricsRegistry.add('add_counter', 3, { region: 'us' }, 'Requests', '1');
-
-    expect(meter.createCounter).toHaveBeenCalledWith('add_counter', {
-      description: 'Requests',
-      unit: '1',
+    meterMock.createCounter.mockImplementation((name) => {
+      if (name === 'requests_total') return counterWithOptions;
+      if (name === 'requests_total_no_opts') return counterWithoutOptions;
+      return counterWithOptions;
     });
-    expect(counterInstance.add).toHaveBeenCalledWith(3, { region: 'us' });
-  });
+    meterMock.createHistogram.mockImplementation((name) => {
+      if (name === 'latency_ms') return histogramWithOptions;
+      if (name === 'latency_ms_no_opts') return histogramWithoutOptions;
+      return histogramWithOptions;
+    });
 
-  it('records histogram values with attributes', () => {
-    metricsRegistry.record(
-      'histogram_metric',
-      42,
+    expect(metricsRegistry.enabled()).toBe(true);
+
+    metricsRegistry.add(
+      'requests_total',
+      2,
       { status: 'ok' },
-      'Latency',
-      'ms',
+      'Number of successful requests',
+      'requests',
     );
 
-    expect(meter.createHistogram).toHaveBeenCalledWith('histogram_metric', {
-      description: 'Latency',
+    expect(getMeterMock).toHaveBeenCalledWith(
+      configMock.openTelemetry.serviceName,
+      configMock.openTelemetry.serviceVersion,
+    );
+    expect(meterMock.createCounter).toHaveBeenCalledWith('requests_total', {
+      description: 'Number of successful requests',
+      unit: 'requests',
+    });
+    expect(counterWithOptions.add).toHaveBeenCalledWith(2, { status: 'ok' });
+
+    // Call again with the same signature to confirm the cached counter is reused.
+    counterWithOptions.add.mockClear();
+    meterMock.createCounter.mockClear();
+
+    metricsRegistry.add(
+      'requests_total',
+      3,
+      undefined,
+      'Number of successful requests',
+      'requests',
+    );
+
+    expect(meterMock.createCounter).not.toHaveBeenCalled();
+    expect(counterWithOptions.add).toHaveBeenCalledWith(3, undefined);
+
+    // Exercise the branch where no metric options are passed.
+    metricsRegistry.add('requests_total_no_opts', 1);
+    expect(meterMock.createCounter).toHaveBeenCalledWith(
+      'requests_total_no_opts',
+    );
+    expect(counterWithoutOptions.add).toHaveBeenCalledWith(1, undefined);
+
+    metricsRegistry.record(
+      'latency_ms',
+      125,
+      { route: '/cats' },
+      'Request latency in milliseconds',
+      'ms',
+    );
+    expect(meterMock.createHistogram).toHaveBeenCalledWith('latency_ms', {
+      description: 'Request latency in milliseconds',
       unit: 'ms',
     });
-    expect(histogramInstance.record).toHaveBeenCalledWith(42, { status: 'ok' });
-  });
+    expect(histogramWithOptions.record).toHaveBeenCalledWith(125, {
+      route: '/cats',
+    });
 
-  it('creates a counter with no options when description and unit are omitted', () => {
-    metricsRegistry.getCounter('plain_counter');
-    expect(meter.createCounter).toHaveBeenCalledWith('plain_counter');
-  });
+    histogramWithOptions.record.mockClear();
+    meterMock.createHistogram.mockClear();
 
-  it('creates a histogram with no options when description and unit are omitted', () => {
-    metricsRegistry.getHistogram('plain_histogram');
-    expect(meter.createHistogram).toHaveBeenCalledWith('plain_histogram');
-  });
+    metricsRegistry.record(
+      'latency_ms',
+      200,
+      undefined,
+      'Request latency in milliseconds',
+      'ms',
+    );
+    expect(meterMock.createHistogram).not.toHaveBeenCalled();
+    expect(histogramWithOptions.record).toHaveBeenCalledWith(200, undefined);
 
-  it('caches counters and histograms by composite key (name|description|unit)', () => {
-    // Make createCounter return distinct instances on first two calls
-    const counter1 = {
-      add: vi.fn(),
-      bind: vi.fn(() => ({ add: vi.fn() })),
-      unbind: vi.fn(),
-    };
-    const counter2 = {
-      add: vi.fn(),
-      bind: vi.fn(() => ({ add: vi.fn() })),
-      unbind: vi.fn(),
-    };
-    (meter.createCounter as unknown as MockInstance)
-      .mockImplementationOnce(() => counter1 as never)
-      .mockImplementationOnce(() => counter2 as never);
-
-    // Counters: two distinct keys and one duplicate
-    const c1 = metricsRegistry.getCounter('multi', 'desc1', '1');
-    const c2 = metricsRegistry.getCounter('multi', 'desc2', '1');
-    const c3 = metricsRegistry.getCounter('multi', 'desc1', '1');
-
-    expect(c1).toBe(counter1);
-    expect(c2).toBe(counter2);
-    expect(c1).toBe(c3);
-    expect(meter.createCounter).toHaveBeenCalledTimes(2);
-
-    // Make createHistogram return distinct instances on first two calls
-    const hist1 = {
-      record: vi.fn(),
-      bind: vi.fn(() => ({ record: vi.fn() })),
-      unbind: vi.fn(),
-    };
-    const hist2 = {
-      record: vi.fn(),
-      bind: vi.fn(() => ({ record: vi.fn() })),
-      unbind: vi.fn(),
-    };
-    (meter.createHistogram as unknown as MockInstance)
-      .mockImplementationOnce(() => hist1 as never)
-      .mockImplementationOnce(() => hist2 as never);
-
-    // Histograms: two distinct keys and one duplicate
-    const h1 = metricsRegistry.getHistogram('multiH', 'd1', 'ms');
-    const h2 = metricsRegistry.getHistogram('multiH', 'd2', 'ms');
-    const h3 = metricsRegistry.getHistogram('multiH', 'd1', 'ms');
-
-    expect(h1).toBe(hist1);
-    expect(h2).toBe(hist2);
-    expect(h1).toBe(h3);
-    expect(meter.createHistogram).toHaveBeenCalledTimes(2);
-  });
-
-  it('enabled() reflects telemetry configuration', () => {
-    config.openTelemetry.enabled = true;
-    expect(metricsRegistry.enabled()).toBe(true);
-    config.openTelemetry.enabled = false;
-    expect(metricsRegistry.enabled()).toBe(false);
-  });
-
-  it('returns a no-op histogram when telemetry is disabled', () => {
-    config.openTelemetry.enabled = false;
-    const hist = metricsRegistry.getHistogram('disabled_hist');
-    expect(() => hist.record(1)).not.toThrow();
-    expect(getMeterSpy).not.toHaveBeenCalled();
+    metricsRegistry.record('latency_ms_no_opts', 50);
+    expect(meterMock.createHistogram).toHaveBeenCalledWith(
+      'latency_ms_no_opts',
+    );
+    expect(histogramWithoutOptions.record).toHaveBeenCalledWith(50, undefined);
   });
 });

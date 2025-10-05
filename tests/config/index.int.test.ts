@@ -156,4 +156,85 @@ describe('Configuration Service', () => {
     expect(config.storage.providerType).toBe('filesystem');
     expect(config.storage.filesystemPath).toBe('/tmp/test-storage');
   });
+
+  it('should build oauth proxy configuration when env values are provided', async () => {
+    process.env.OAUTH_PROXY_AUTHORIZATION_URL = 'https://auth.example.com';
+    process.env.OAUTH_PROXY_TOKEN_URL = 'https://token.example.com';
+    process.env.OAUTH_PROXY_REVOCATION_URL = 'https://revoke.example.com';
+    process.env.OAUTH_PROXY_ISSUER_URL = 'https://issuer.example.com';
+    process.env.OAUTH_PROXY_SERVICE_DOCUMENTATION_URL =
+      'https://docs.example.com';
+    process.env.OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS =
+      ' https://app.example.com/callback , https://app.example.com/alt ';
+
+    const { parseConfig } = await import('../../src/config/index.js');
+    const config = parseConfig();
+
+    expect(config.oauthProxy).toEqual({
+      authorizationUrl: 'https://auth.example.com',
+      tokenUrl: 'https://token.example.com',
+      revocationUrl: 'https://revoke.example.com',
+      issuerUrl: 'https://issuer.example.com',
+      serviceDocumentationUrl: 'https://docs.example.com',
+      defaultClientRedirectUris: [
+        'https://app.example.com/callback',
+        'https://app.example.com/alt',
+      ],
+    });
+  });
+
+  it('should add supabase configuration when url and anon key are set', async () => {
+    process.env.SUPABASE_URL = 'https://supabase.example.com';
+    process.env.SUPABASE_ANON_KEY = 'anon-key';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+    const { parseConfig } = await import('../../src/config/index.js');
+    const config = parseConfig();
+
+    expect(config.supabase).toEqual({
+      url: 'https://supabase.example.com',
+      anonKey: 'anon-key',
+      serviceRoleKey: 'service-role-key',
+    });
+  });
+
+  it('should include speech configuration for enabled providers', async () => {
+    process.env.SPEECH_TTS_ENABLED = 'true';
+    process.env.SPEECH_TTS_PROVIDER = 'elevenlabs';
+    process.env.SPEECH_TTS_API_KEY = 'tts-key';
+    process.env.SPEECH_TTS_BASE_URL = 'https://tts.example.com';
+    process.env.SPEECH_TTS_DEFAULT_VOICE_ID = 'voice-1';
+    process.env.SPEECH_TTS_DEFAULT_MODEL_ID = 'model-1';
+    process.env.SPEECH_TTS_TIMEOUT = '2000';
+
+    process.env.SPEECH_STT_ENABLED = 'true';
+    process.env.SPEECH_STT_PROVIDER = 'openai-whisper';
+    process.env.SPEECH_STT_API_KEY = 'stt-key';
+    process.env.SPEECH_STT_BASE_URL = 'https://stt.example.com';
+    process.env.SPEECH_STT_DEFAULT_MODEL_ID = 'whisper-1';
+    process.env.SPEECH_STT_TIMEOUT = '4000';
+
+    const { parseConfig } = await import('../../src/config/index.js');
+    const config = parseConfig();
+
+    expect(config.speech).toEqual({
+      tts: {
+        enabled: true,
+        provider: 'elevenlabs',
+        apiKey: 'tts-key',
+        baseUrl: 'https://tts.example.com',
+        defaultVoiceId: 'voice-1',
+        defaultModelId: 'model-1',
+        timeout: 2000,
+      },
+      stt: {
+        enabled: true,
+        provider: 'openai-whisper',
+        apiKey: 'stt-key',
+        baseUrl: 'https://stt.example.com',
+        defaultModelId: 'whisper-1',
+        timeout: 4000,
+      },
+    });
+  });
 });

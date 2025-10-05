@@ -2,10 +2,10 @@
  * @fileoverview Unit tests for the YAML parser utility.
  * @module tests/utils/parsing/yamlParser.test
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { yamlParser } from '@/utils/parsing/yamlParser.js';
-import { requestContextService } from '@/utils/index.js';
+import { logger, requestContextService } from '@/utils/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 
 describe('yamlParser.parse', () => {
@@ -37,8 +37,9 @@ describe('yamlParser.parse', () => {
   });
 
   it('wraps parser failures in an McpError', () => {
+    const context = createContext();
     try {
-      yamlParser.parse('invalid: [unterminated');
+      yamlParser.parse('invalid: [unterminated', context);
       throw new Error('Expected yamlParser.parse to throw');
     } catch (error) {
       expect(error).toBeInstanceOf(McpError);
@@ -46,5 +47,30 @@ describe('yamlParser.parse', () => {
       expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
       expect(mcpError.message).toContain('Failed to parse YAML');
     }
+  });
+
+  it('logs parse failures with an auto-generated context when none is provided', () => {
+    const errorSpy = vi.spyOn(logger, 'error');
+    expect(() => yamlParser.parse('invalid: [unterminated')).toThrow(McpError);
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Failed to parse YAML content.',
+      expect.objectContaining({ operation: 'YamlParser.parseError' }),
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('logs an empty think block with an auto-generated context when none is provided', () => {
+    const debugSpy = vi.spyOn(logger, 'debug');
+    const yamlString = '<think></think>key: value';
+
+    const result = yamlParser.parse<Record<string, string>>(yamlString);
+
+    expect(result).toEqual({ key: 'value' });
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Empty LLM <think> block detected.',
+      expect.objectContaining({ operation: 'YamlParser.thinkBlock' }),
+    );
+
+    debugSpy.mockRestore();
   });
 });

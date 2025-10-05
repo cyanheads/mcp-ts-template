@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-04 11:08:21
+Generated on: 2025-10-05 11:32:58
 
 ```
 mcp-ts-template
@@ -18,13 +18,10 @@ mcp-ts-template
 ├── changelog
 │   └── archive1.md
 ├── docs
-│   ├── first-install-and-configure-prompt.md
 │   ├── mcp-elicitation-summary.md
-│   ├── mcp-install-config.txt
 │   ├── publishing-mcp-server-registry.md
 │   └── tree.md
 ├── ideas
-│   └── mcp-server-ideas.md
 ├── scripts
 │   ├── clean.ts
 │   ├── devcheck.ts
@@ -184,7 +181,8 @@ mcp-ts-template
 │   └── worker.ts
 ├── tests
 │   ├── config
-│   │   └── index.int.test.ts
+│   │   ├── index.int.test.ts
+│   │   └── index.test.ts
 │   ├── mcp-server
 │   │   ├── resources
 │   │   │   └── definitions
@@ -221,7 +219,8 @@ mcp-ts-template
 │   │   │   ├── performance.init.test.ts
 │   │   │   ├── performance.test.ts
 │   │   │   ├── requestContext.test.ts
-│   │   │   └── runtime.test.ts
+│   │   │   ├── runtime.test.ts
+│   │   │   └── startupBanner.test.ts
 │   │   ├── metrics
 │   │   │   ├── registry.test.ts
 │   │   │   └── tokenCounter.test.ts

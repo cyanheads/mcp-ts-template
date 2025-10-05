@@ -103,6 +103,18 @@ describe('ErrorHandler (unit)', () => {
   });
 
   describe('mapError - defaultFactory path', () => {
+    it('returns the original Error instance when no mapping or default is provided', () => {
+      const original = new Error('leave me be');
+      const result = ErrorHandler.mapError(original, []);
+      expect(result).toBe(original);
+    });
+
+    it('wraps non-Error inputs into Error when no mapping or default exists', () => {
+      const result = ErrorHandler.mapError(99, []);
+      expect(result).toBeInstanceOf(Error);
+      expect((result as Error).message).toBe('99');
+    });
+
     it('uses defaultFactory when no mapping rule matches', () => {
       const result = ErrorHandler.mapError(
         'no-match',

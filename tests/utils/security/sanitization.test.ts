@@ -45,6 +45,20 @@ describe('Sanitization Utility', () => {
       ).toBe(expected);
     });
 
+    it('supports explicit tag and attribute whitelists for HTML sanitization', () => {
+      const input =
+        '<a href="https://example.com" onclick="alert(1)">Read more</a>';
+      const sanitized = sanitization.sanitizeString(input, {
+        context: 'html',
+        allowedTags: ['a'],
+        allowedAttributes: {
+          a: ['href'],
+        },
+      });
+
+      expect(sanitized).toBe('<a href="https://example.com">Read more</a>');
+    });
+
     it('should handle "url" context and return empty for invalid URLs', () => {
       const validInput = 'https://example.com/path';
       const invalidUrl = 'javascript:alert("xss")';

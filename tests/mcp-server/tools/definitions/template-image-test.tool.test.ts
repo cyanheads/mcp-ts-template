@@ -155,4 +155,21 @@ describe('imageTestTool', () => {
       },
     ]);
   });
+
+  it('should default mime type when response header is missing', async () => {
+    server.use(
+      http.get('https://cataas.com/cat', () => {
+        return new HttpResponse(fakeImageBuffer.buffer);
+      }),
+    );
+
+    const context = requestContextService.createRequestContext();
+    const result = await imageTestTool.logic(
+      { trigger: true },
+      context,
+      mockSdkContext,
+    );
+
+    expect(result.mimeType).toBe('image/jpeg');
+  });
 });

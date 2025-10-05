@@ -9,7 +9,11 @@ import {
   McpError,
 } from '../../../src/types-global/errors.js';
 import { logger, requestContextService } from '../../../src/utils/index.js';
-import { Allow, JsonParser } from '../../../src/utils/parsing/jsonParser.js';
+import {
+  Allow,
+  JsonParser,
+  jsonParser,
+} from '../../../src/utils/parsing/jsonParser.js';
 
 describe('JsonParser', () => {
   let parser: JsonParser;
@@ -136,10 +140,30 @@ describe('JsonParser', () => {
     }
   });
 
+  it('logs parse failures with an auto-created context when none is provided', () => {
+    const errorSpy = vi.spyOn(logger, 'error');
+    try {
+      parser.parse('still invalid json');
+      throw new Error('Expected parser.parse to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(McpError);
+    }
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Failed to parse JSON content.',
+      expect.objectContaining({ operation: 'JsonParser.parseError' }),
+    );
+    errorSpy.mockRestore();
+  });
+
   it('should create a default context when none is provided', () => {
     const jsonString = '{"test": "value"}';
     expect(() => parser.parse(jsonString, Allow.ALL)).not.toThrow();
     const result = parser.parse(jsonString, Allow.ALL);
     expect(result).toEqual({ test: 'value' });
+  });
+
+  it('provides a singleton instance that can parse JSON without explicit options', () => {
+    const result = jsonParser.parse('{"singleton": true}');
+    expect(result).toEqual({ singleton: true });
   });
 });

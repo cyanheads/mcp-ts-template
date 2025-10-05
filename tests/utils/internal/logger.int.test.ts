@@ -4,7 +4,7 @@
  */
 import { existsSync, readFileSync, rmSync } from 'fs';
 import path from 'path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { config } from '../../../src/config/index.js';
 import { Logger } from '../../../src/utils/internal/logger.js';
@@ -12,6 +12,7 @@ import { Logger } from '../../../src/utils/internal/logger.js';
 const LOGS_DIR = path.join(process.cwd(), 'logs', 'logger-test');
 const COMBINED_LOG_PATH = path.join(LOGS_DIR, 'combined.log');
 const ERROR_LOG_PATH = path.join(LOGS_DIR, 'error.log');
+const INTERACTIONS_LOG_PATH = path.join(LOGS_DIR, 'interactions.log');
 
 // Override config to use a dedicated test directory
 config.logsPath = LOGS_DIR;
@@ -221,5 +222,74 @@ describe('Logger Integration (Pino)', () => {
         resolve();
       }, 200);
     });
+  });
+
+  it('should log fatal level messages by delegating to emerg', async () => {
+    await new Promise<void>((resolve) => {
+      logger.fatal('Fatal condition encountered', {
+        testId: 'pino-fatal-test',
+        requestId: 'test-pino-fatal',
+        timestamp: new Date().toISOString(),
+      });
+
+      setTimeout(() => {
+        const combinedLog = readJsonLog(COMBINED_LOG_PATH);
+        const fatalEntry = combinedLog.find(
+          (log) => log.testId === 'pino-fatal-test',
+        );
+        expect(fatalEntry).toBeDefined();
+        expect(fatalEntry.msg).toBe('Fatal condition encountered');
+        expect(fatalEntry.level).toBeGreaterThanOrEqual(50);
+        resolve();
+      }, 200);
+    });
+  });
+
+  it('writes interaction events when an interaction logger is available', async () => {
+    await new Promise<void>((resolve) => {
+      logger.logInteraction('test-interaction', {
+        context: {
+          testId: 'interaction-test',
+          requestId: 'interaction-1',
+          timestamp: new Date().toISOString(),
+        },
+        payloadSize: 42,
+      });
+
+      setTimeout(() => {
+        const interactions = readJsonLog(INTERACTIONS_LOG_PATH);
+        const entry = interactions.find(
+          (log) => log.interactionName === 'test-interaction',
+        );
+        expect(entry).toBeDefined();
+        expect(entry.payloadSize).toBe(42);
+        resolve();
+      }, 200);
+    });
+  });
+
+  it('warns when interaction logging is requested but unavailable', () => {
+    const loggerWithInternals = logger as unknown as {
+      interactionLogger?: unknown;
+    };
+    const originalInteractionLogger = loggerWithInternals.interactionLogger;
+    loggerWithInternals.interactionLogger = undefined;
+
+    const warningSpy = vi.spyOn(logger, 'warning');
+
+    logger.logInteraction('missing-interaction', {
+      context: {
+        requestId: 'missing-interaction',
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    expect(warningSpy).toHaveBeenCalledWith(
+      'Interaction logger not available.',
+      expect.objectContaining({ requestId: 'missing-interaction' }),
+    );
+
+    warningSpy.mockRestore();
+    loggerWithInternals.interactionLogger = originalInteractionLogger;
   });
 });

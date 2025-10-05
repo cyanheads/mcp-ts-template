@@ -7,7 +7,7 @@ import type { ParseConfig, ParseError, ParseResult } from 'papaparse';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { csvParser } from '@/utils/parsing/csvParser.js';
-import { requestContextService } from '@/utils/index.js';
+import { logger, requestContextService } from '@/utils/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 
 afterEach(() => {
@@ -57,6 +57,7 @@ describe('csvParser.parse', () => {
   });
 
   it('wraps parser errors into an McpError', () => {
+    const context = createContext();
     const parserError: ParseError = {
       type: 'Quotes',
       code: 'MissingQuotes',
@@ -87,7 +88,7 @@ describe('csvParser.parse', () => {
     parseSpy.mockImplementation(() => parseResult);
 
     try {
-      csvParser.parse('name,age\n"Ada,36');
+      csvParser.parse('name,age\n"Ada,36', undefined, context);
       throw new Error('Expected csvParser.parse to throw');
     } catch (error) {
       expect(error).toBeInstanceOf(McpError);
@@ -96,5 +97,62 @@ describe('csvParser.parse', () => {
       expect(mcpError.message).toContain('Failed to parse CSV');
       expect(mcpError.data).toMatchObject({ errors: [parserError] });
     }
+  });
+
+  it('logs an empty think block and auto-creates a context when none is supplied', () => {
+    const debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
+    const csv = '<think>   </think>name,age\nAda,36';
+
+    const result = csvParser.parse<{ name: string; age: string }>(csv, {
+      header: true,
+    });
+
+    expect(result.data).toEqual([{ name: 'Ada', age: '36' }]);
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Empty LLM <think> block detected.',
+      expect.objectContaining({ operation: 'CsvParser.thinkBlock' }),
+    );
+
+    debugSpy.mockRestore();
+  });
+
+  it('logs parser errors with an auto-generated context when none is supplied', () => {
+    const parserError: ParseError = {
+      type: 'Quotes',
+      code: 'MissingQuotes',
+      message: 'Mismatched quotes',
+    };
+
+    const parseResult: ParseResult<unknown> = {
+      data: [],
+      errors: [parserError],
+      meta: {
+        delimiter: ',',
+        linebreak: '\n',
+        aborted: false,
+        truncated: false,
+        cursor: 0,
+      },
+    };
+
+    vi.spyOn(
+      Papa as unknown as {
+        parse: (
+          csvString: string,
+          config?: ParseConfig<unknown>,
+        ) => ParseResult<unknown>;
+      },
+      'parse',
+    ).mockImplementation(() => parseResult);
+
+    const errorSpy = vi.spyOn(logger, 'error');
+
+    expect(() => csvParser.parse('name,age\n"Ada,36')).toThrow(McpError);
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Failed to parse CSV content.',
+      expect.objectContaining({ operation: 'CsvParser.parseError' }),
+    );
+
+    errorSpy.mockRestore();
   });
 });

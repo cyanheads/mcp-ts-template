@@ -60,6 +60,17 @@ describe('requestContextService', () => {
     );
   });
 
+  it('returns a defensive copy when reading the current configuration', () => {
+    requestContextService.configure({ featureFlag: true });
+
+    const snapshot = requestContextService.getConfig();
+    expect(snapshot.featureFlag).toBe(true);
+
+    // Mutating the snapshot should not affect the internal state.
+    (snapshot as { featureFlag?: boolean }).featureFlag = false;
+    expect(requestContextService.getConfig().featureFlag).toBe(true);
+  });
+
   it('creates a context with generated IDs, added fields, and trace metadata', () => {
     const spanContext = { traceId: 'trace-id', spanId: 'span-id' };
     getActiveSpanSpy.mockReturnValue({

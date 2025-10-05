@@ -116,5 +116,119 @@ describe('KvProvider', () => {
         }),
       );
     });
+
+    it('should forward cursors when Cloudflare pagination continues', async () => {
+      mockKv.list.mockResolvedValue({
+        keys: [{ name: 'tenant-1:page-1' }],
+        list_complete: false,
+        cursor: 'next-cursor',
+      });
+
+      const result = await kvProvider.list('tenant-1', 'page', context, {
+        limit: 5,
+        cursor: 'prev-cursor',
+      });
+
+      expect(result.keys).toEqual(['page-1']);
+      expect(result.nextCursor).toBe('next-cursor');
+      expect(mockKv.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prefix: 'tenant-1:page',
+          limit: 5,
+          cursor: 'prev-cursor',
+        }),
+      );
+    });
+  });
+
+  describe('batch operations', () => {
+    it('getMany should aggregate non-null values', async () => {
+      const getSpy = vi
+        .spyOn(kvProvider, 'get')
+        .mockResolvedValueOnce('value-1' as never)
+        .mockResolvedValueOnce(null as never)
+        .mockResolvedValueOnce('value-3' as never);
+
+      const result = await kvProvider.getMany<string>(
+        'tenant-1',
+        ['a', 'b', 'c'],
+        context,
+      );
+
+      expect(result).toBeInstanceOf(Map);
+      expect(Array.from(result.entries())).toEqual([
+        ['a', 'value-1'],
+        ['c', 'value-3'],
+      ]);
+      expect(getSpy).toHaveBeenCalledTimes(3);
+      getSpy.mockRestore();
+    });
+
+    it('setMany should delegate writes with provided options', async () => {
+      const entries = new Map<string, unknown>([
+        ['k1', { foo: 'bar' }],
+        ['k2', { baz: 2 }],
+      ]);
+
+      await kvProvider.setMany('tenant-1', entries, context, { ttl: 120 });
+
+      expect(mockKv.put).toHaveBeenCalledTimes(2);
+      expect(mockKv.put).toHaveBeenCalledWith(
+        'tenant-1:k1',
+        JSON.stringify({ foo: 'bar' }),
+        { expirationTtl: 120 },
+      );
+      expect(mockKv.put).toHaveBeenCalledWith(
+        'tenant-1:k2',
+        JSON.stringify({ baz: 2 }),
+        { expirationTtl: 120 },
+      );
+    });
+
+    it('deleteMany should return count of deleted keys', async () => {
+      const deleteSpy = vi
+        .spyOn(kvProvider, 'delete')
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
+
+      const deleted = await kvProvider.deleteMany(
+        'tenant-1',
+        ['a', 'b', 'c'],
+        context,
+      );
+
+      expect(deleted).toBe(2);
+      deleteSpy.mockRestore();
+    });
+
+    it('clear should iterate through pages and delete all keys', async () => {
+      mockKv.list
+        .mockResolvedValueOnce({
+          keys: [{ name: 'tenant-1:k1' }, { name: 'tenant-1:k2' }],
+          list_complete: false,
+          cursor: 'cursor-1',
+        })
+        .mockResolvedValueOnce({
+          keys: [{ name: 'tenant-1:k3' }],
+          list_complete: true,
+        });
+
+      mockKv.delete.mockResolvedValue(undefined);
+
+      const cleared = await kvProvider.clear('tenant-1', context);
+
+      expect(cleared).toBe(3);
+      expect(mockKv.delete).toHaveBeenCalledTimes(3);
+      expect(mockKv.list).toHaveBeenNthCalledWith(1, {
+        prefix: 'tenant-1:',
+        limit: 1000,
+      });
+      expect(mockKv.list).toHaveBeenNthCalledWith(2, {
+        prefix: 'tenant-1:',
+        limit: 1000,
+        cursor: 'cursor-1',
+      });
+    });
   });
 });

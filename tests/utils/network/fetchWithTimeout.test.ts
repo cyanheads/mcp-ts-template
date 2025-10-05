@@ -12,7 +12,10 @@ import {
   type MockInstance,
 } from 'vitest';
 
-import { JsonRpcErrorCode } from '../../../src/types-global/errors.js';
+import {
+  JsonRpcErrorCode,
+  McpError,
+} from '../../../src/types-global/errors.js';
 import { fetchWithTimeout } from '../../../src/utils/network/fetchWithTimeout.js';
 import { logger } from '../../../src/utils/internal/logger.js';
 
@@ -120,6 +123,79 @@ describe('fetchWithTimeout', () => {
       expect.objectContaining({
         errorSource: 'FetchNetworkError',
         originalErrorName: 'Error',
+      }),
+    );
+  });
+
+  it('rethrows an existing McpError without wrapping it again', async () => {
+    const existingError = new McpError(
+      JsonRpcErrorCode.ServiceUnavailable,
+      'upstream unavailable',
+    );
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(existingError);
+
+    await expect(
+      fetchWithTimeout('https://error.example.com', 1000, context),
+    ).rejects.toBe(existingError);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Network error during fetch GET https://error.example.com: upstream unavailable',
+      expect.objectContaining({
+        errorSource: 'FetchNetworkError',
+        originalErrorName: 'McpError',
+      }),
+    );
+  });
+
+  it('falls back to placeholder response body when response.text() fails', async () => {
+    const failingResponse = {
+      ok: false,
+      status: 502,
+      statusText: 'Bad Gateway',
+      text: vi.fn().mockRejectedValue(new Error('stream closed')),
+    } as unknown as Response;
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(failingResponse);
+
+    await expect(
+      fetchWithTimeout('https://bad-body.example.com', 1000, context),
+    ).rejects.toMatchObject({
+      code: JsonRpcErrorCode.ServiceUnavailable,
+      data: expect.objectContaining({
+        responseBody: 'Could not read response body',
+        statusCode: 502,
+      }),
+    });
+
+    expect(failingResponse.text).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Fetch failed for https://bad-body.example.com with status 502.',
+      expect.objectContaining({
+        responseBody: 'Could not read response body',
+        errorSource: 'FetchHttpError',
+      }),
+    );
+  });
+
+  it('wraps non-Error rejection values into McpError instances', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue('catastrophic failure');
+
+    await expect(
+      fetchWithTimeout('https://string-error.example.com', 500, context),
+    ).rejects.toMatchObject({
+      code: JsonRpcErrorCode.ServiceUnavailable,
+      message: expect.stringContaining('catastrophic failure'),
+      data: expect.objectContaining({
+        originalErrorName: 'UnknownError',
+        errorSource: 'FetchNetworkErrorWrapper',
+      }),
+    });
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Network error during fetch GET https://string-error.example.com: catastrophic failure',
+      expect.objectContaining({
+        originalErrorName: 'UnknownError',
+        errorSource: 'FetchNetworkError',
       }),
     );
   });

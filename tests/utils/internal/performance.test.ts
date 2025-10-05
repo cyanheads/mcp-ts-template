@@ -178,4 +178,68 @@ describe('measureToolExecution', () => {
     expect((logMeta as any).metrics.inputBytes).toBe(expectedBytes);
     expect((logMeta as any).metrics.outputBytes).toBe(0);
   });
+
+  it('uses TextEncoder fallback when Buffer is unavailable but TextEncoder exists', async () => {
+    const mutableGlobal = globalThis as {
+      Buffer?: typeof Buffer;
+      TextEncoder?: typeof TextEncoder;
+    };
+    const originalBuffer = mutableGlobal.Buffer;
+    const originalTextEncoder = mutableGlobal.TextEncoder;
+
+    delete mutableGlobal.Buffer;
+
+    const encodeSpy = vi.fn((input: string) => {
+      const arr = new Uint8Array(input.length);
+      for (let i = 0; i < input.length; i += 1) {
+        arr[i] = input.charCodeAt(i);
+      }
+      return arr;
+    });
+
+    class FakeTextEncoder {
+      encode(value: string): Uint8Array {
+        return encodeSpy(value);
+      }
+    }
+
+    mutableGlobal.TextEncoder =
+      FakeTextEncoder as unknown as typeof TextEncoder;
+
+    memoryUsageSpy
+      .mockReturnValueOnce({ rss: 700, heapUsed: 350 } as NodeJS.MemoryUsage)
+      .mockReturnValueOnce({ rss: 900, heapUsed: 450 } as NodeJS.MemoryUsage);
+
+    infoSpy.mockRestore();
+    const localInfoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+
+    try {
+      const result = await measureToolExecution(
+        async () => ({ ok: true }),
+        {
+          toolName: 'text-encoder-fallback',
+          requestId: 'req-4',
+          timestamp: new Date().toISOString(),
+        },
+        { input: 'value' },
+      );
+
+      expect(result).toEqual({ ok: true });
+      expect(encodeSpy).toHaveBeenCalled();
+      const call = localInfoSpy.mock.calls[0];
+      if (!call) throw new Error('info logger was not called');
+      const [, logMeta] = call;
+      expect((logMeta as any).metrics.isSuccess).toBe(true);
+      expect((logMeta as any).metrics.errorCode).toBeUndefined();
+    } finally {
+      if (originalBuffer) mutableGlobal.Buffer = originalBuffer;
+      else delete mutableGlobal.Buffer;
+
+      if (originalTextEncoder) mutableGlobal.TextEncoder = originalTextEncoder;
+      else delete mutableGlobal.TextEncoder;
+
+      localInfoSpy.mockRestore();
+      infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+    }
+  });
 });
