@@ -186,6 +186,7 @@ duckdata/
 data/
 docs/devdocs.md
 ideas/
+.mcp.json
 
 # =============================================================================
 # MCP REGISTRY

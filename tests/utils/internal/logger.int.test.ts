@@ -32,6 +32,11 @@ describe('Logger Integration (Pino)', () => {
   let logger: Logger;
 
   beforeAll(async () => {
+    // Use real timers for this test suite to avoid conflicts with setTimeout
+    if (typeof (vi as any).useRealTimers === 'function') {
+      (vi as any).useRealTimers();
+    }
+
     // Clean up old logs if they exist
     if (existsSync(LOGS_DIR)) {
       rmSync(LOGS_DIR, { recursive: true, force: true });
@@ -53,7 +58,7 @@ describe('Logger Integration (Pino)', () => {
 
   it('should create log files on initialization', async () => {
     // Pino file transport creation is very fast, but let's be safe.
-    await new Promise((res) => setTimeout(res, 100));
+    await new Promise((res) => setTimeout(res, 500));
     expect(existsSync(COMBINED_LOG_PATH)).toBe(true);
     expect(existsSync(ERROR_LOG_PATH)).toBe(true);
   });
@@ -82,7 +87,7 @@ describe('Logger Integration (Pino)', () => {
         );
         expect(errorLogEntry).toBeUndefined();
         resolve();
-      }, 200);
+      }, 500);
     });
   });
 
@@ -111,7 +116,7 @@ describe('Logger Integration (Pino)', () => {
         expect(errorLogEntry).toBeDefined();
         expect(errorLogEntry.msg).toBe('This is a pino error message');
         resolve();
-      }, 200);
+      }, 500);
     });
   });
 
@@ -126,7 +131,7 @@ describe('Logger Integration (Pino)', () => {
       timestamp: new Date().toISOString(),
     });
 
-    await new Promise((res) => setTimeout(res, 200));
+    await new Promise((res) => setTimeout(res, 500));
 
     const updatedLog = readFileSync(COMBINED_LOG_PATH, 'utf-8');
     const newLogContent = updatedLog.substring(initialLog.length);
@@ -154,7 +159,7 @@ describe('Logger Integration (Pino)', () => {
         // Pino fatal level is 60
         expect(emergEntry.level).toBeGreaterThanOrEqual(50);
         resolve();
-      }, 200);
+      }, 500);
     });
   });
 
@@ -176,7 +181,7 @@ describe('Logger Integration (Pino)', () => {
         // Mapped to error level (50) in Pino
         expect(critEntry.level).toBeGreaterThanOrEqual(50);
         resolve();
-      }, 200);
+      }, 500);
     });
   });
 
@@ -198,7 +203,7 @@ describe('Logger Integration (Pino)', () => {
         // Mapped to error/fatal level in Pino
         expect(alertEntry.level).toBeGreaterThanOrEqual(50);
         resolve();
-      }, 200);
+      }, 500);
     });
   });
 
@@ -220,7 +225,7 @@ describe('Logger Integration (Pino)', () => {
         // Mapped to info level (30) in Pino
         expect(noticeEntry.level).toBeGreaterThanOrEqual(30);
         resolve();
-      }, 200);
+      }, 500);
     });
   });
 
@@ -241,7 +246,7 @@ describe('Logger Integration (Pino)', () => {
         expect(fatalEntry.msg).toBe('Fatal condition encountered');
         expect(fatalEntry.level).toBeGreaterThanOrEqual(50);
         resolve();
-      }, 200);
+      }, 500);
     });
   });
 
@@ -264,7 +269,7 @@ describe('Logger Integration (Pino)', () => {
         expect(entry).toBeDefined();
         expect(entry.payloadSize).toBe(42);
         resolve();
-      }, 200);
+      }, 500);
     });
   });
 

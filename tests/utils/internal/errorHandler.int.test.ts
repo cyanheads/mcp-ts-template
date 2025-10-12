@@ -34,6 +34,11 @@ const getActiveSpanSpy = vi.spyOn(trace, 'getActiveSpan');
 
 describe('ErrorHandler', () => {
   beforeAll(async () => {
+    // Use real timers for this test suite to avoid conflicts with logger
+    if (typeof (vi as any).useRealTimers === 'function') {
+      (vi as any).useRealTimers();
+    }
+
     // Initialize the logger once for all tests in this file
     await logger.initialize('debug');
   });

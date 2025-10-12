@@ -1,4 +1,1 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 bun run scripts/devcheck.ts --no-audit --no-secrets --no-deps --no-todos --no-format

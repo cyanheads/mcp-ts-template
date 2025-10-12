@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-05 11:32:58
+Generated on: 2025-10-12 06:01:16
 
 ```
 mcp-ts-template
@@ -66,6 +66,7 @@ mcp-ts-template
 │   │   │   │   ├── template-image-test.tool.ts
 │   │   │   │   └── template-madlibs-elicitation.tool.ts
 │   │   │   ├── utils
+│   │   │   │   ├── index.ts
 │   │   │   │   ├── toolDefinition.ts
 │   │   │   │   └── toolHandlerFactory.ts
 │   │   │   └── tool-registration.ts
@@ -133,6 +134,9 @@ mcp-ts-template
 │   ├── types-global
 │   │   └── errors.ts
 │   ├── utils
+│   │   ├── formatting
+│   │   │   ├── index.ts
+│   │   │   └── markdownBuilder.ts
 │   │   ├── internal
 │   │   │   ├── error-handler
 │   │   │   │   ├── errorHandler.ts
@@ -188,12 +192,14 @@ mcp-ts-template
 │   │   │   └── definitions
 │   │   │       └── echo.resource.test.ts
 │   │   ├── tools
-│   │   │   └── definitions
-│   │   │       ├── template-cat-fact.tool.test.ts
-│   │   │       ├── template-code-review-sampling.tool.test.ts
-│   │   │       ├── template-echo-message.tool.test.ts
-│   │   │       ├── template-image-test.tool.test.ts
-│   │   │       └── template-madlibs-elicitation.tool.test.ts
+│   │   │   ├── definitions
+│   │   │   │   ├── template-cat-fact.tool.test.ts
+│   │   │   │   ├── template-code-review-sampling.tool.test.ts
+│   │   │   │   ├── template-echo-message.tool.test.ts
+│   │   │   │   ├── template-image-test.tool.test.ts
+│   │   │   │   └── template-madlibs-elicitation.tool.test.ts
+│   │   │   └── utils
+│   │   │       └── core
 │   │   └── transports
 │   │       └── auth
 │   │           └── lib
@@ -210,6 +216,8 @@ mcp-ts-template
 │   │   │       └── inMemoryProvider.test.ts
 │   │   └── storageProviderCompliance.test.ts
 │   ├── utils
+│   │   ├── formatting
+│   │   │   └── markdownBuilder.test.ts
 │   │   ├── internal
 │   │   │   ├── encoding.test.ts
 │   │   │   ├── errorHandler.int.test.ts

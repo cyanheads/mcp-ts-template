@@ -1,11 +1,24 @@
-// path: scripts/devdocs.ts
 /**
  * @fileoverview Generates a comprehensive development documentation prompt for AI analysis.
  * This script combines a repository file tree with 'repomix' output for specified files,
  * wraps it in a detailed prompt, and copies the result to the clipboard.
+ * @module scripts/devdocs
+ * @description
+ *   Analyzes your codebase and generates AI-ready documentation prompts.
+ *   Supports git integration, exclude patterns, dry-run mode, and detailed statistics.
  *
- * To run: npm run devdocs -- [--include-rules] <file1> <file2> ...
- * Example: npm run devdocs -- src/
+ * @example
+ * // Run all checks with statistics:
+ * // npm run devdocs -- --stats src/
+ *
+ * // Analyze only changed files:
+ * // npm run devdocs -- --git-diff --include-rules
+ *
+ * // Preview without generating:
+ * // npm run devdocs -- --dry-run src/
+ *
+ * // Exclude test files:
+ * // npm run devdocs -- --exclude "*.test.ts" --exclude "*.spec.ts" src/
  */
 import clipboardy from 'clipboardy';
 import { execa } from 'execa';
@@ -14,24 +27,75 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-// --- Configuration & Types ---
+// =============================================================================
+// Embedded Dependencies
+// =============================================================================
 
-const CONFIG = {
-  DOCS_DIR: 'docs',
-  TREE_SCRIPT: path.join('scripts', 'tree.ts'),
-  TREE_OUTPUT: 'tree.md',
-  DEVDOCS_OUTPUT: 'devdocs.md',
-  AGENT_RULE_FILES: ['clinerules.md', 'agents.md'],
-  COMMAND_TIMEOUT_MS: 120000, // 2 minutes for external commands
-  MAX_BUFFER_SIZE: 1024 * 1024 * 20, // 20 MB buffer for large outputs
-} as const;
+// picocolors (https://github.com/alexeyraspopov/picocolors) - MIT License
+// Embedded so the script runs without needing 'npm/bun install'.
+const isColorSupported = process.stdout.isTTY && process.env.TERM !== 'dumb';
+
+const createColor =
+  (open: string, close: string, re: RegExp, reset: string) =>
+  (str: string | number) =>
+    isColorSupported
+      ? open + ('' + str).replace(re, open + reset + open) + close
+      : '' + str;
+
+const c = {
+  bold: (s: string | number) =>
+    createColor('\x1b[1m', '\x1b[22m', /\\x1b\[22m/g, '\x1b[1m')(s),
+  dim: (s: string | number) =>
+    createColor('\x1b[2m', '\x1b[22m', /\\x1b\[22m/g, '\x1b[2m')(s),
+  red: (s: string | number) =>
+    createColor('\x1b[31m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[31m')(s),
+  green: (s: string | number) =>
+    createColor('\x1b[32m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[32m')(s),
+  yellow: (s: string | number) =>
+    createColor('\x1b[33m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[33m')(s),
+  blue: (s: string | number) =>
+    createColor('\x1b[34m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[34m')(s),
+  magenta: (s: string | number) =>
+    createColor('\x1b[35m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[35m')(s),
+  cyan: (s: string | number) =>
+    createColor('\x1b[36m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[36m')(s),
+};
+
+// =============================================================================
+// Types & Interfaces
+// =============================================================================
 
 interface CliArgs {
   values: {
     'include-rules': boolean;
+    'dry-run': boolean;
+    stats: boolean;
+    'git-diff': boolean;
+    'git-staged': boolean;
+    validate: boolean;
+    exclude: string[];
+    config: string | undefined;
     help: boolean;
   };
   positionals: string[];
+}
+
+interface DevDocsConfig {
+  excludePatterns?: string[];
+  includePaths?: string[];
+  includeRules?: boolean;
+  ignoredDependencies?: string[];
+  maxOutputSizeMB?: number;
+}
+
+interface Statistics {
+  filesAnalyzed: number;
+  totalLines: number;
+  totalSize: number;
+  estimatedTokens: number;
+  duration: number;
+  skippedFiles: number;
+  warnings: string[];
 }
 
 class DevDocsError extends Error {
@@ -44,17 +108,31 @@ class DevDocsError extends Error {
   }
 }
 
-// --- Constants (Templates) ---
+// =============================================================================
+// Configuration
+// =============================================================================
+
+const CONFIG = {
+  DOCS_DIR: 'docs',
+  TREE_SCRIPT: path.join('scripts', 'tree.ts'),
+  TREE_OUTPUT: 'tree.md',
+  DEVDOCS_OUTPUT: 'devdocs.md',
+  AGENT_RULE_FILES: ['clinerules.md', 'agents.md'],
+  COMMAND_TIMEOUT_MS: 120000,
+  MAX_BUFFER_SIZE: 1024 * 1024 * 20,
+  MAX_OUTPUT_SIZE_MB: 15,
+  APPROX_CHARS_PER_TOKEN: 4,
+  CONFIG_FILE_NAMES: ['.devdocsrc', '.devdocsrc.json'],
+} as const;
+
+// =============================================================================
+// Templates
+// =============================================================================
 
 const PROMPT_TEMPLATE = `
 You are a senior software architect. Your task is to analyze the provided codebase and generate a detailed plan for my developer to implement improvements.
 
 Review this code base file by file, line by line, to fully understand our code base; you must identify all features, functions, utilities, and understand how they work with each other within the code base.
-
-When formulating your plan, pay special attention to our core architectural principles:
-- **Pragmatic SOLID**: Ensure changes group code that changes together, prefer composition, and keep interfaces focused.
-- **Dependency Inversion**: All proposals must depend on abstractions, not concrete implementations. Identify and refactor any direct dependencies on concrete classes.
-- **"The Logic Throws, The Handler Catches"**: Business logic should be pure and stateless, throwing typed errors on failure. Framework-level handlers are responsible for \`try-catch\` blocks.
 
 Identify any issues, gaps, inconsistencies, etc.
 Additionally identify potential enhancements, including architectural changes, refactoring, etc.
@@ -81,41 +159,240 @@ Please remember:
 - Before completing the task, run 'bun devcheck' (lint, type check, etc.) to maintain code consistency.
 `.trim();
 
-const USAGE_INFO =
-  'Usage: npm run devdocs -- [--include-rules] [-h|--help] <file1> [<file2> ...]';
+const USAGE_INFO = `
+${c.bold('Usage:')} npm run devdocs -- [options] <file1> [<file2> ...]
 
-// --- Utility Functions ---
+${c.bold('Options:')}
+  --include-rules      Include agent rules files (clinerules.md, agents.md)
+  --dry-run           Preview what will be analyzed without generating output
+  --stats             Show detailed statistics about analyzed files
+  --git-diff          Only analyze files changed in git working directory
+  --git-staged        Only analyze files staged in git
+  --exclude <pattern> Exclude files matching pattern (can be used multiple times)
+  --config <path>     Path to custom config file
+  --validate          Validate required tools before running
+  -h, --help          Show this help message
+
+${c.bold('Examples:')}
+  ${c.dim('# Basic usage with statistics')}
+  npm run devdocs -- --stats src/
+
+  ${c.dim('# Analyze only changed files')}
+  npm run devdocs -- --git-diff --include-rules
+
+  ${c.dim('# Preview without generating')}
+  npm run devdocs -- --dry-run src/
+
+  ${c.dim('# Exclude test files')}
+  npm run devdocs -- --exclude "*.test.ts" --exclude "*.spec.ts" src/
+
+  ${c.dim('# Use custom config')}
+  npm run devdocs -- --config .devdocsrc.json src/
+
+${c.bold('Config File (.devdocsrc or .devdocsrc.json):')}
+  {
+    "excludePatterns": ["*.test.ts", "*.spec.ts", "__tests__/**"],
+    "includePaths": ["src/", "lib/"],
+    "includeRules": true,
+    "ignoredDependencies": ["lodash", "moment"],
+    "maxOutputSizeMB": 15
+  }
+`.trim();
+
+// =============================================================================
+// UI & Logging
+// =============================================================================
+
+const UI = {
+  log: console.log,
+
+  printHeader() {
+    UI.log(
+      `\n${c.bold(c.cyan('📚 DevDocs: Generating AI-ready codebase documentation...'))}`,
+    );
+  },
+
+  printStep(step: string, detail?: string) {
+    const detailStr = detail ? c.dim(` ${detail}`) : '';
+    UI.log(`${c.bold(c.blue('▸'))} ${step}${detailStr}`);
+  },
+
+  printSuccess(message: string) {
+    UI.log(`${c.bold(c.green('✓'))} ${message}`);
+  },
+
+  printWarning(message: string) {
+    UI.log(`${c.bold(c.yellow('⚠'))} ${message}`);
+  },
+
+  printError(message: string, error?: Error) {
+    UI.log(`${c.bold(c.red('✗'))} ${message}`);
+    if (error?.message) {
+      UI.log(c.red(`  ${error.message}`));
+    }
+  },
+
+  printInfo(message: string) {
+    UI.log(`${c.dim('ℹ')} ${c.dim(message)}`);
+  },
+
+  printCommand(cmd: string[]) {
+    let cmdStr = cmd.join(' ');
+    if (cmdStr.length > 100) {
+      cmdStr = cmdStr.substring(0, 97) + '...';
+    }
+    UI.log(c.dim(`  $ ${cmdStr}`));
+  },
+
+  printSeparator() {
+    UI.log(c.dim('─'.repeat(60)));
+  },
+
+  printStatistics(stats: Statistics) {
+    UI.log(`\n${c.bold(c.cyan('📊 Generation Statistics:'))}`);
+    UI.printSeparator();
+    UI.log(`${c.bold('Files analyzed:'.padEnd(25))} ${stats.filesAnalyzed}`);
+    UI.log(`${c.bold('Files skipped:'.padEnd(25))} ${stats.skippedFiles}`);
+    UI.log(
+      `${c.bold('Total lines:'.padEnd(25))} ${stats.totalLines.toLocaleString()}`,
+    );
+    UI.log(
+      `${c.bold('Total size:'.padEnd(25))} ${formatBytes(stats.totalSize)}`,
+    );
+    UI.log(
+      `${c.bold('Estimated tokens:'.padEnd(25))} ~${stats.estimatedTokens.toLocaleString()}`,
+    );
+    UI.log(`${c.bold('Duration:'.padEnd(25))} ${stats.duration.toFixed(2)}s`);
+
+    if (stats.warnings.length > 0) {
+      UI.log(`\n${c.bold(c.yellow('⚠ Warnings:'))}`);
+      stats.warnings.forEach((warning) => UI.log(`  • ${c.dim(warning)}`));
+    }
+
+    UI.printSeparator();
+  },
+
+  printDryRunHeader() {
+    UI.log(`\n${c.bold(c.cyan('🔍 Dry Run - Preview of Analysis:'))}`);
+    UI.printSeparator();
+  },
+
+  printDryRunFile(
+    status: 'include' | 'exclude' | 'missing' | 'directory',
+    filePath: string,
+  ) {
+    const icons = {
+      include: c.green('✓'),
+      exclude: c.yellow('⊘'),
+      missing: c.red('✗'),
+      directory: c.blue('📁'),
+    };
+    const labels = {
+      include: 'Include',
+      exclude: 'Excluded',
+      missing: 'Not found',
+      directory: 'Directory',
+    };
+    UI.log(
+      `${icons[status]} ${c.bold(labels[status].padEnd(10))} ${c.dim(filePath)}`,
+    );
+  },
+
+  printDryRunSummary(total: number, excluded: number) {
+    UI.printSeparator();
+    UI.log(`${c.bold('Files to analyze:'.padEnd(25))} ${total}`);
+    UI.log(`${c.bold('Files to exclude:'.padEnd(25))} ${excluded}`);
+    UI.printSeparator();
+  },
+
+  printFooter(success: boolean, outputPath?: string) {
+    if (success && outputPath) {
+      UI.log(
+        `\n${c.bold(c.green('🎉 Documentation generated successfully!'))}`,
+      );
+      UI.log(`   ${c.dim('Location:')} ${c.cyan(outputPath)}`);
+      UI.log(`   ${c.dim('Copied to clipboard')}`);
+    } else if (!success) {
+      UI.log(
+        `\n${c.bold(c.red('🛑 Documentation generation failed. Review errors above.'))}`,
+      );
+    }
+  },
+
+  printFatalError(error: unknown) {
+    UI.log(`\n${c.bold(c.red('🛑 Fatal Error:'))}`);
+    if (error instanceof DevDocsError) {
+      UI.log(c.red(`   ${error.message}`));
+      if (error.cause instanceof Error) {
+        UI.log(c.dim(`   ${error.cause.message}`));
+      }
+    } else if (error instanceof Error) {
+      UI.log(c.red(`   ${error.message}`));
+      if (error.stack) {
+        UI.log(c.dim(error.stack.split('\n').slice(1).join('\n')));
+      }
+    } else {
+      UI.log(c.red(`   ${String(error)}`));
+    }
+  },
+};
+
+// =============================================================================
+// Utility Functions
+// =============================================================================
 
 /**
- * Structured JSON Logger for observability.
+ * Formats bytes to human-readable size.
  */
-const logger = {
-  info: (message: string, data?: Record<string, unknown>) =>
-    console.log(
-      JSON.stringify({ level: 'info', message, ...data, source: 'devdocs' }),
-    ),
-  error: (message: string, error?: Error, data?: Record<string, unknown>) =>
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        message,
-        error_message: error?.message,
-        // Include stack trace for unexpected errors
-        error_stack: error?.stack,
-        ...data,
-        source: 'devdocs',
-      }),
-    ),
-  warn: (message: string, data?: Record<string, unknown>) =>
-    console.warn(
-      JSON.stringify({ level: 'warn', message, ...data, source: 'devdocs' }),
-    ),
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
 };
 
 /**
- * Traverses up the directory tree (asynchronously) to find the project root.
- * @param startPath The path to start searching from.
- * @returns The absolute path to the project root.
+ * Estimates token count from text content.
+ */
+const estimateTokens = (text: string): number => {
+  return Math.ceil(text.length / CONFIG.APPROX_CHARS_PER_TOKEN);
+};
+
+/**
+ * Checks if a file or directory exists.
+ */
+const exists = async (filePath: string): Promise<boolean> => {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Matches file path against glob-like patterns.
+ */
+const matchesPattern = (filePath: string, patterns: string[]): boolean => {
+  if (patterns.length === 0) return false;
+
+  for (const pattern of patterns) {
+    const regexPattern = pattern
+      .replace(/\./g, '\\.')
+      .replace(/\*\*/g, '.*')
+      .replace(/\*/g, '[^/]*');
+    const regex = new RegExp(`^${regexPattern}$`);
+
+    if (regex.test(filePath) || filePath.includes(pattern)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/**
+ * Traverses up the directory tree to find the project root.
  */
 const findProjectRoot = async (startPath: string): Promise<string> => {
   let currentPath = path.resolve(startPath);
@@ -125,9 +402,8 @@ const findProjectRoot = async (startPath: string): Promise<string> => {
       await fs.access(packageJsonPath);
       return currentPath;
     } catch {
-      // package.json not found, continue traversing up
+      currentPath = path.dirname(currentPath);
     }
-    currentPath = path.dirname(currentPath);
   }
   throw new DevDocsError(
     'Could not find project root (package.json not found).',
@@ -136,10 +412,6 @@ const findProjectRoot = async (startPath: string): Promise<string> => {
 
 /**
  * Executes a command using execa, handling potential errors.
- * @param command The command to run (e.g., 'npx').
- * @param args Arguments for the command.
- * @param captureOutput Whether to capture stdout (true) or inherit stdio (false).
- * @returns The trimmed stdout if captureOutput is true, otherwise void.
  */
 const executeCommand = async (
   command: string,
@@ -147,7 +419,6 @@ const executeCommand = async (
   captureOutput: boolean,
 ): Promise<string | void> => {
   try {
-    // execa handles cross-platform execution (like npx on Windows) reliably.
     const stdio = captureOutput ? 'pipe' : 'inherit';
     const result = await execa(command, args, {
       stdio,
@@ -160,30 +431,109 @@ const executeCommand = async (
     }
   } catch (error) {
     const message = `Error executing command: "${command} ${args.join(' ')}"`;
-    // execa provides detailed error information (stderr, exit code) if the command fails.
     throw new DevDocsError(message, error);
   }
 };
 
+// =============================================================================
+// Core Logic
+// =============================================================================
+
 /**
- * Checks if a file or directory exists (asynchronously).
+ * Validates that required external tools are available.
  */
-const exists = async (filePath: string): Promise<boolean> => {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
+const validateRequiredTools = async (): Promise<void> => {
+  UI.printStep('Validating required tools...');
+  const requiredTools = [
+    { command: 'npx', args: ['--version'], name: 'npx' },
+    { command: 'npx', args: ['repomix', '--version'], name: 'repomix' },
+  ];
+
+  for (const tool of requiredTools) {
+    try {
+      await executeCommand(tool.command, tool.args, true);
+      UI.printSuccess(`${tool.name} is available`);
+    } catch (error) {
+      throw new DevDocsError(
+        `Required tool "${tool.name}" is not available. Please install it first.`,
+        error,
+      );
+    }
   }
 };
 
-// --- Core Logic (Business Logic - Throws on Error) ---
+/**
+ * Gets list of changed files from git.
+ */
+const getGitChangedFiles = async (
+  staged: boolean = false,
+): Promise<string[]> => {
+  UI.printStep(`Getting ${staged ? 'staged' : 'changed'} files from git...`);
+  try {
+    const args = staged
+      ? ['diff', '--cached', '--name-only', '--diff-filter=ACMR']
+      : ['diff', '--name-only', 'HEAD'];
+    const output = (await executeCommand('git', args, true)) as string;
+
+    if (!output) {
+      UI.printWarning(`No ${staged ? 'staged' : 'changed'} files found in git`);
+      return [];
+    }
+
+    const files = output.split('\n').filter(Boolean);
+    UI.printSuccess(
+      `Found ${files.length} ${staged ? 'staged' : 'changed'} file(s)`,
+    );
+    return files;
+  } catch (error) {
+    throw new DevDocsError(
+      'Failed to get git changes. Ensure git is available and you are in a git repository.',
+      error,
+    );
+  }
+};
+
+/**
+ * Loads configuration from file.
+ */
+const loadConfigFile = async (
+  rootDir: string,
+  configPath?: string,
+): Promise<DevDocsConfig | null> => {
+  const searchPaths = configPath
+    ? [path.resolve(configPath)]
+    : CONFIG.CONFIG_FILE_NAMES.map((name) => path.join(rootDir, name));
+
+  for (const configFilePath of searchPaths) {
+    if (await exists(configFilePath)) {
+      UI.printInfo(
+        `Loading config from: ${path.relative(rootDir, configFilePath)}`,
+      );
+      try {
+        const content = await fs.readFile(configFilePath, 'utf-8');
+        const config = JSON.parse(content) as DevDocsConfig;
+        return config;
+      } catch (error) {
+        throw new DevDocsError(
+          `Failed to parse config file: ${configFilePath}`,
+          error,
+        );
+      }
+    }
+  }
+
+  if (configPath) {
+    throw new DevDocsError(`Config file not found: ${configPath}`);
+  }
+
+  return null;
+};
 
 /**
  * Runs the external tree script and reads its output.
  */
 const generateFileTree = async (rootDir: string): Promise<string> => {
-  logger.info('Generating file tree...');
+  UI.printStep('Generating file tree...');
   const treeScriptPath = path.resolve(rootDir, CONFIG.TREE_SCRIPT);
   const treeDocPath = path.resolve(
     rootDir,
@@ -197,70 +547,93 @@ const generateFileTree = async (rootDir: string): Promise<string> => {
     );
   }
 
-  // Execute the script, inheriting stdio so its own logs are visible.
   await executeCommand('npx', ['tsx', treeScriptPath], false);
 
-  logger.info(`File tree generated at ${path.relative(rootDir, treeDocPath)}`);
+  UI.printSuccess(`File tree generated`);
 
   try {
     return await fs.readFile(treeDocPath, 'utf-8');
   } catch (error) {
     throw new DevDocsError(
-      `Failed to read generated tree file at ${treeDocPath}. Ensure the script creates it.`,
+      `Failed to read generated tree file at ${treeDocPath}`,
       error,
     );
   }
 };
 
 /**
- * Runs repomix on the specified file paths concurrently and concatenates the output.
- * @param filePaths An array of file or directory paths to analyze.
- * @param ignoredDeps A list of dependency names to ignore during analysis.
+ * Analyzes a file for statistics.
+ */
+const analyzeFile = async (
+  filePath: string,
+): Promise<{ lines: number; size: number } | null> => {
+  try {
+    const stats = await fs.stat(filePath);
+    if (!stats.isFile()) return null;
+
+    const content = await fs.readFile(filePath, 'utf-8');
+    const lines = content.split('\n').length;
+    return { lines, size: stats.size };
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Runs repomix on the specified file paths and concatenates output.
  */
 const getRepomixOutputs = async (
   filePaths: string[],
   ignoredDeps: string[],
+  excludePatterns: string[],
+  stats: Statistics,
 ): Promise<string> => {
-  // Run tasks in parallel
-  const tasks = filePaths.map(async (filePath) => {
-    // Check existence relative to CWD (where the script was invoked)
+  UI.printStep(`Running repomix on ${filePaths.length} path(s)...`);
+
+  const tasks = filePaths.map(async (filePath, index) => {
     if (!(await exists(filePath))) {
-      logger.warn(`File or directory not found: "${filePath}". Skipping.`, {
-        filePath,
-      });
+      UI.printWarning(`File not found: "${filePath}". Skipping.`);
+      stats.skippedFiles++;
       return null;
     }
 
-    logger.info(`Running repomix...`, { filePath });
+    if (matchesPattern(filePath, excludePatterns)) {
+      UI.printInfo(`Excluding file: ${filePath}`);
+      stats.skippedFiles++;
+      return null;
+    }
+
+    UI.printInfo(`[${index + 1}/${filePaths.length}] Analyzing ${filePath}...`);
+
     try {
       const repomixArgs = ['repomix', filePath, '-o', '-'];
       if (ignoredDeps.length > 0) {
-        // According to repomix docs, --ignore accepts a comma-separated list
         repomixArgs.push('--ignore', ignoredDeps.join(','));
-        logger.info(`Repomix will ignore: ${ignoredDeps.join(', ')}`, {
-          filePath,
-        });
+      }
+      if (excludePatterns.length > 0) {
+        repomixArgs.push('--ignore', excludePatterns.join(','));
       }
 
-      // Use '-o -' to pipe repomix output to stdout and capture it.
       const output = await executeCommand('npx', repomixArgs, true);
 
       if (output && output.length > 0) {
-        logger.info('Repomix analysis complete.', { filePath });
+        const fileStats = await analyzeFile(filePath);
+        if (fileStats) {
+          stats.filesAnalyzed++;
+          stats.totalLines += fileStats.lines;
+          stats.totalSize += fileStats.size;
+        }
+
         return output;
       }
 
-      logger.warn(`Repomix produced no output for ${filePath}. Skipping.`, {
-        filePath,
-      });
+      UI.printWarning(`Repomix produced no output for ${filePath}. Skipping.`);
+      stats.skippedFiles++;
       return null;
-    } catch (error) {
-      // Log the error but allow other tasks to continue (resilience)
-      logger.error(
-        `Repomix failed for ${filePath}. Skipping.`,
-        error instanceof Error ? error : undefined,
-        { filePath },
-      );
+    } catch (_error) {
+      UI.printWarning(`Repomix failed for ${filePath}. Skipping.`);
+      stats.skippedFiles++;
+      stats.warnings.push(`Failed to analyze: ${filePath}`);
       return null;
     }
   });
@@ -269,28 +642,30 @@ const getRepomixOutputs = async (
   const successfulOutputs = allOutputs.filter(Boolean) as string[];
 
   if (successfulOutputs.length === 0) {
-    // Fail fast if no output was generated at all
     throw new DevDocsError(
       'Repomix failed to generate output for all provided files.',
     );
   }
 
   if (successfulOutputs.length < filePaths.length) {
-    logger.warn(
-      'Partial results generated; some files failed or were skipped.',
-    );
+    UI.printWarning('Some files failed or were skipped');
+  } else {
+    UI.printSuccess('All files analyzed successfully');
   }
 
   return successfulOutputs.join('\n\n---\n\n');
 };
 
 /**
- * Reads package.json and extracts dependency names from the 'resolutions' field.
- * @param rootDir The project root directory containing package.json.
- * @returns An array of dependency names to be ignored.
+ * Reads package.json and extracts dependency names.
  */
-const getIgnoredDependencies = async (rootDir: string): Promise<string[]> => {
+const getIgnoredDependencies = async (
+  rootDir: string,
+  configDeps?: string[],
+): Promise<string[]> => {
+  const deps = new Set<string>(configDeps ?? []);
   const packageJsonPath = path.join(rootDir, 'package.json');
+
   try {
     const packageJsonContent = await fs.readFile(packageJsonPath, 'utf-8');
     const packageJson = JSON.parse(packageJsonContent);
@@ -303,22 +678,21 @@ const getIgnoredDependencies = async (rootDir: string): Promise<string[]> => {
       packageJson.resolutions !== null
     ) {
       const resolutions = Object.keys(packageJson.resolutions);
-      logger.info(`Found ${resolutions.length} dependencies in resolutions.`, {
-        dependencies: resolutions,
-      });
-      return resolutions;
+      resolutions.forEach((dep) => deps.add(dep));
     }
-  } catch (error) {
-    // This is not a fatal error; the script can proceed without ignoring dependencies.
-    logger.warn('Could not read or parse package.json for resolutions.', {
-      error: error instanceof Error ? error.message : String(error),
-    });
+  } catch (_error) {
+    UI.printWarning('Could not read package.json for resolutions');
   }
-  return [];
+
+  const result = Array.from(deps);
+  if (result.length > 0) {
+    UI.printInfo(`Ignoring ${result.length} dependencies`);
+  }
+  return result;
 };
 
 /**
- * Finds a file in a directory matching one of the names (case-insensitive, async).
+ * Finds a file in a directory matching one of the names (case-insensitive).
  */
 const findFileCaseInsensitive = async (
   dir: string,
@@ -338,12 +712,8 @@ const findFileCaseInsensitive = async (
       }
     }
   } catch (error) {
-    // Handle directory read errors (e.g., permissions)
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      logger.warn(
-        `Could not read directory while searching for rules files: ${dir}`,
-        { error: (error as Error).message },
-      );
+      UI.printWarning(`Could not read directory: ${dir}`);
     }
   }
   return null;
@@ -355,16 +725,14 @@ const findFileCaseInsensitive = async (
 const getAgentRulesContent = async (
   rootDir: string,
 ): Promise<string | null> => {
-  logger.info(
-    `Searching for agent rules files: ${CONFIG.AGENT_RULE_FILES.join(', ')}...`,
-  );
+  UI.printStep('Searching for agent rules files...');
   const ruleFilePath = await findFileCaseInsensitive(
     rootDir,
     CONFIG.AGENT_RULE_FILES,
   );
 
   if (ruleFilePath) {
-    logger.info(`Found agent rules file: ${ruleFilePath}`);
+    UI.printSuccess(`Found agent rules: ${path.basename(ruleFilePath)}`);
     try {
       return await fs.readFile(ruleFilePath, 'utf-8');
     } catch (error) {
@@ -375,7 +743,7 @@ const getAgentRulesContent = async (
     }
   }
 
-  logger.info('No agent rules file found.');
+  UI.printInfo('No agent rules file found');
   return null;
 };
 
@@ -387,13 +755,16 @@ const createDevDocsFile = async (
   treeContent: string,
   repomixContent: string,
   agentRulesContent: string | null,
+  stats: Statistics,
+  maxOutputSizeMB: number,
 ): Promise<string> => {
-  logger.info(`Creating ${CONFIG.DEVDOCS_OUTPUT}...`);
+  UI.printStep('Creating devdocs.md...');
   const devDocsPath = path.resolve(
     rootDir,
     CONFIG.DOCS_DIR,
     CONFIG.DEVDOCS_OUTPUT,
   );
+
   const contentParts = [
     PROMPT_TEMPLATE,
     '# Full project repository tree',
@@ -409,78 +780,114 @@ const createDevDocsFile = async (
 
   const devdocsContent = contentParts.join('\n\n');
 
+  stats.estimatedTokens = estimateTokens(devdocsContent);
+  const sizeInMB = devdocsContent.length / (1024 * 1024);
+
+  if (sizeInMB > maxOutputSizeMB) {
+    const warning = `Output size (${sizeInMB.toFixed(2)} MB) exceeds recommended maximum (${maxOutputSizeMB} MB)`;
+    UI.printWarning(warning);
+    stats.warnings.push(warning);
+  }
+
   try {
-    // Ensure the docs directory exists
     await fs.mkdir(path.dirname(devDocsPath), { recursive: true });
     await fs.writeFile(devDocsPath, devdocsContent);
 
-    logger.info(
-      `${CONFIG.DEVDOCS_OUTPUT} created at ${path.relative(
-        rootDir,
-        devDocsPath,
-      )}`,
+    UI.printSuccess(
+      `Documentation written to ${path.relative(rootDir, devDocsPath)}`,
     );
     return devdocsContent;
   } catch (error) {
-    throw new DevDocsError(
-      `Failed to write ${CONFIG.DEVDOCS_OUTPUT} to ${devDocsPath}`,
-      error,
-    );
+    throw new DevDocsError(`Failed to write ${CONFIG.DEVDOCS_OUTPUT}`, error);
   }
 };
 
 /**
  * Copies the generated content to the system clipboard.
- * This is a best-effort operation.
  */
 const copyToClipboard = async (content: string): Promise<void> => {
-  logger.info('Attempting to copy contents to clipboard...');
+  UI.printStep('Copying to clipboard...');
   try {
     await clipboardy.write(content);
-    logger.info('Content copied to clipboard successfully.');
-  } catch (error) {
-    // If clipboard access fails (e.g., headless environment, missing utilities like xclip/wl-clipboard on Linux),
-    // log a warning but do not fail the script.
-    logger.warn(
-      'Failed to copy content to clipboard. The file was generated successfully.',
-      { error: error instanceof Error ? error.message : String(error) },
+    UI.printSuccess('Copied to clipboard');
+  } catch (_error) {
+    UI.printWarning(
+      'Failed to copy to clipboard (file was generated successfully)',
     );
   }
 };
 
-// --- Main Execution (The Handler - Catches Errors) ---
+/**
+ * Performs a dry run to preview what will be analyzed.
+ */
+const performDryRun = async (
+  filePaths: string[],
+  excludePatterns: string[],
+): Promise<void> => {
+  UI.printDryRunHeader();
+
+  let totalFiles = 0;
+  let excludedFiles = 0;
+
+  for (const filePath of filePaths) {
+    if (!(await exists(filePath))) {
+      UI.printDryRunFile('missing', filePath);
+      continue;
+    }
+
+    const stats = await fs.stat(filePath);
+    if (stats.isDirectory()) {
+      UI.printDryRunFile('directory', filePath);
+    } else if (matchesPattern(filePath, excludePatterns)) {
+      UI.printDryRunFile('exclude', filePath);
+      excludedFiles++;
+    } else {
+      UI.printDryRunFile('include', filePath);
+      totalFiles++;
+    }
+  }
+
+  UI.printDryRunSummary(totalFiles, excludedFiles);
+};
+
+// =============================================================================
+// Main Execution
+// =============================================================================
 
 const parseCliArguments = (): CliArgs => {
   try {
     const { values, positionals } = parseArgs({
       options: {
-        'include-rules': {
-          type: 'boolean',
-          default: false,
-        },
-        help: {
-          type: 'boolean',
-          short: 'h',
-          default: false,
-        },
+        'include-rules': { type: 'boolean', default: false },
+        'dry-run': { type: 'boolean', default: false },
+        stats: { type: 'boolean', default: false },
+        'git-diff': { type: 'boolean', default: false },
+        'git-staged': { type: 'boolean', default: false },
+        validate: { type: 'boolean', default: false },
+        exclude: { type: 'string', multiple: true, default: [] },
+        config: { type: 'string' },
+        help: { type: 'boolean', short: 'h', default: false },
       },
       allowPositionals: true,
-      // Use strict: false to allow unknown arguments to potentially be treated as file paths,
-      // mirroring the flexibility of the original script. Existence is validated later.
       strict: false,
     });
 
     return {
-      // Type assertions are safe as defaults are provided
       values: {
         'include-rules': values['include-rules'] as boolean,
+        'dry-run': values['dry-run'] as boolean,
+        stats: values.stats as boolean,
+        'git-diff': values['git-diff'] as boolean,
+        'git-staged': values['git-staged'] as boolean,
+        validate: values.validate as boolean,
+        exclude: (values.exclude as string[]) ?? [],
+        config: values.config as string | undefined,
         help: values.help as boolean,
       },
       positionals,
     };
   } catch (error) {
-    // This should ideally only happen if the configuration itself is invalid
-    throw new DevDocsError('Failed to configure argument parser.', error);
+    throw new DevDocsError('Failed to parse arguments', error);
   }
 };
 
@@ -493,64 +900,113 @@ const main = async () => {
     process.exit(0);
   }
 
-  const filePaths = args.positionals;
-  const includeRules = args.values['include-rules'];
+  UI.printHeader();
 
-  if (filePaths.length === 0) {
-    logger.error('Error: Please provide at least one file path for repomix.');
-    console.log(USAGE_INFO);
-    process.exit(1);
-  }
+  // Initialize statistics
+  const stats: Statistics = {
+    filesAnalyzed: 0,
+    totalLines: 0,
+    totalSize: 0,
+    estimatedTokens: 0,
+    duration: 0,
+    skippedFiles: 0,
+    warnings: [],
+  };
 
-  // Determine the directory of the current script to start searching for the project root
+  // Find project root
   const scriptPath = fileURLToPath(import.meta.url);
   const scriptDir = path.dirname(scriptPath);
   const rootDir = await findProjectRoot(scriptDir);
-  logger.info(`Project root found at: ${rootDir}`);
+  UI.printSuccess(`Project root: ${rootDir}`);
 
-  const ignoredDeps = await getIgnoredDependencies(rootDir);
+  // Load configuration
+  const config = await loadConfigFile(rootDir, args.values.config);
 
-  // Run all independent data gathering tasks concurrently (Maximized Parallelism)
+  // Merge CLI args with config
+  const excludePatterns = [
+    ...(config?.excludePatterns ?? []),
+    ...args.values.exclude,
+  ];
+  const includeRules =
+    args.values['include-rules'] || config?.includeRules || false;
+  const maxOutputSizeMB = config?.maxOutputSizeMB ?? CONFIG.MAX_OUTPUT_SIZE_MB;
+
+  // Determine file paths
+  let filePaths = args.positionals;
+
+  if (args.values['git-diff'] || args.values['git-staged']) {
+    const gitFiles = await getGitChangedFiles(args.values['git-staged']);
+    filePaths = gitFiles.length > 0 ? gitFiles : filePaths;
+  }
+
+  if (config?.includePaths && filePaths.length === 0) {
+    filePaths = config.includePaths;
+  }
+
+  if (filePaths.length === 0) {
+    UI.printError('No file paths provided');
+    console.log('\n' + USAGE_INFO);
+    process.exit(1);
+  }
+
+  // Validate tools if requested
+  if (args.values.validate) {
+    await validateRequiredTools();
+  }
+
+  // Dry run mode
+  if (args.values['dry-run']) {
+    await performDryRun(filePaths, excludePatterns);
+    process.exit(0);
+  }
+
+  // Get ignored dependencies
+  const ignoredDeps = await getIgnoredDependencies(
+    rootDir,
+    config?.ignoredDependencies,
+  );
+
+  // Run all tasks concurrently
+  UI.log('');
   const [treeContent, agentRulesContent, allRepomixOutputs] = await Promise.all(
     [
       generateFileTree(rootDir),
       includeRules ? getAgentRulesContent(rootDir) : Promise.resolve(null),
-      getRepomixOutputs(filePaths, ignoredDeps),
+      getRepomixOutputs(filePaths, ignoredDeps, excludePatterns, stats),
     ],
   );
 
-  // Combine and Write File
+  // Create file
   const content = await createDevDocsFile(
     rootDir,
     treeContent,
     allRepomixOutputs,
     agentRulesContent,
+    stats,
+    maxOutputSizeMB,
   );
 
-  // Copy to Clipboard (Best Effort)
+  // Copy to clipboard
   await copyToClipboard(content);
 
-  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-  logger.info(`All tasks completed successfully in ${duration}s.`);
+  // Update duration
+  stats.duration = (Date.now() - startTime) / 1000;
+
+  // Print statistics if requested
+  if (args.values.stats) {
+    UI.printStatistics(stats);
+  }
+
+  // Print footer
+  const outputPath = path.relative(
+    rootDir,
+    path.join(rootDir, CONFIG.DOCS_DIR, CONFIG.DEVDOCS_OUTPUT),
+  );
+  UI.printFooter(true, outputPath);
 };
 
-// Top-level error handling
+// Entry point
 main().catch((error) => {
-  console.error('\n[FATAL] Aborting devdocs script due to critical error.');
-  if (error instanceof DevDocsError) {
-    // Log the operational error and its cause if available
-    logger.error(
-      error.message,
-      error.cause instanceof Error ? error.cause : undefined,
-    );
-  } else if (error instanceof Error) {
-    // Log unexpected internal errors
-    logger.error('Internal Script Error', error);
-  } else {
-    // Handle non-Error throws
-    logger.error('An unknown error occurred', undefined, {
-      error: String(error),
-    });
-  }
+  UI.printFatalError(error);
   process.exit(1);
 });

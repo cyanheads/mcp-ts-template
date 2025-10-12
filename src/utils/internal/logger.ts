@@ -211,7 +211,7 @@ export class Logger {
     );
   }
 
-  public close(): Promise<void> {
+  public async close(): Promise<void> {
     if (!this.initialized) return Promise.resolve();
     this.info(
       'Logger shutting down.',
@@ -219,10 +219,32 @@ export class Logger {
     );
     if (this.cleanupTimer) clearInterval(this.cleanupTimer);
     this.flushSuppressedMessages();
-    this.pinoLogger?.flush();
-    this.interactionLogger?.flush();
+
+    // Wait for all pending writes to complete
+    await Promise.all([
+      new Promise<void>((resolve) => {
+        if (this.pinoLogger) {
+          this.pinoLogger.flush((err) => {
+            if (err) console.error('Error flushing main logger:', err);
+            resolve();
+          });
+        } else {
+          resolve();
+        }
+      }),
+      new Promise<void>((resolve) => {
+        if (this.interactionLogger) {
+          this.interactionLogger.flush((err) => {
+            if (err) console.error('Error flushing interaction logger:', err);
+            resolve();
+          });
+        } else {
+          resolve();
+        }
+      }),
+    ]);
+
     this.initialized = false;
-    return Promise.resolve();
   }
 
   public isInitialized(): boolean {

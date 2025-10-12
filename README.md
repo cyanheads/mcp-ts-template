@@ -1,11 +1,13 @@
 <div align="center">
   <h1>mcp-ts-template</h1>
-  <p><b>Production-grade TypeScript template for building Model Context Protocol (MCP) servers. Ships with declarative tools/resources, robust error handling, DI, easy auth, optional OpenTelemetry, and first-class support for both local and edge (Cloudflare Workers) runtimes.</b></p>
+  <p><b>Production-grade TypeScript template for building Model Context Protocol (MCP) servers. Ships with declarative tools/resources, robust error handling, DI, easy auth, optional OpenTelemetry, and first-class support for both local and edge (Cloudflare Workers) runtimes.</b>
+  <div>5 Tools • 1 Resource • 1 Prompt</div>
+  </p>
 </div>
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.3.4-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.19.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.23-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-87.74%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
+[![Version](https://img.shields.io/badge/Version-2.3.6-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.23-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-93.44%25-brightgreen.svg?style=flat-square)](./coverage/lcov-report/)
 
 </div>
 
@@ -24,6 +26,32 @@
 - **Rich Built-in Utility Suite**: Helpers for parsing (PDF, YAML, CSV), scheduling, security, and more.
 - **Edge-Ready**: Write code once and run it seamlessly on your local machine or at the edge on Cloudflare Workers.
 
+## 🛠️ Included Capabilities
+
+This template includes working examples to get you started.
+
+### Tools
+
+| Tool                                | Description                                                       |
+| :---------------------------------- | :---------------------------------------------------------------- |
+| **`template_echo_message`**         | Echoes a message back with optional formatting and repetition.    |
+| **`template_cat_fact`**             | Fetches a random cat fact from an external API.                   |
+| **`template_madlibs_elicitation`**  | Demonstrates elicitation by asking for words to complete a story. |
+| **`template_code_review_sampling`** | Uses the LLM service to perform a simulated code review.          |
+| **`template_image_test`**           | Returns a test image as a base64-encoded data URI.                |
+
+### Resources
+
+| Resource   | URI                | Description                                   |
+| :--------- | :----------------- | :-------------------------------------------- |
+| **`echo`** | `echo://{message}` | A simple resource that echoes back a message. |
+
+### Prompts
+
+| Prompt            | Description                                                      |
+| :---------------- | :--------------------------------------------------------------- |
+| **`code-review`** | A structured prompt for guiding an LLM to perform a code review. |
+
 ## 🚀 Getting Started
 
 ### MCP Client Settings/Configuration
@@ -34,10 +62,14 @@ Add the following to your MCP Client configuration file (e.g., `cline_mcp_settin
 {
   "mcpServers": {
     "mcp-ts-template": {
+      "type": "stdio",
       "command": "bunx",
       "args": ["mcp-ts-template@latest"],
       "env": {
-        "MCP_LOG_LEVEL": "info"
+        "MCP_TRANSPORT_TYPE": "stdio",
+        "MCP_LOG_LEVEL": "info",
+        "STORAGE_PROVIDER_TYPE": "filesystem",
+        "STORAGE_FILESYSTEM_PATH": "/path/to/your/storage"
       }
     }
   }
@@ -68,151 +100,25 @@ cd mcp-ts-template
 bun install
 ```
 
-## 🛠️ Understanding the Template: Tools & Resources
-
-This template includes working examples of tools and resources.
-
-### 1. Example Tool: `template_echo_message`
-
-This tool echoes back a message with optional formatting. You can find the full source at `src/mcp-server/tools/definitions/template-echo-message.tool.ts`.
-
-<details>
-<summary>Click to see the `echoTool` definition structure</summary>
-
-```ts
-// Located at: src/mcp-server/tools/definitions/template-echo-message.tool.ts
-import { z } from 'zod';
-import type {
-  SdkContext,
-  ToolDefinition,
-} from '@/mcp-server/tools/utils/toolDefinition.js';
-import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import { type RequestContext, logger } from '@/utils/index.js';
-
-// 1. Define Input and Output Schemas with Zod for validation.
-const InputSchema = z.object({
-  message: z.string().min(1).describe('The message to echo back.'),
-  mode: z
-    .enum(['standard', 'uppercase', 'lowercase'])
-    .default('standard')
-    .describe('Formatting mode.'),
-  repeat: z
-    .number()
-    .int()
-    .min(1)
-    .max(5)
-    .default(1)
-    .describe('Number of times to repeat the message.'),
-});
-
-const OutputSchema = z.object({
-  repeatedMessage: z
-    .string()
-    .describe('The final, formatted, and repeated message.'),
-  // ... other fields from the actual file
-});
-
-// 2. Implement the pure business logic for the tool.
-async function echoToolLogic(
-  input: z.infer<typeof InputSchema>,
-  appContext: RequestContext,
-  sdkContext: SdkContext,
-): Promise<z.infer<typeof OutputSchema>> {
-  // ... logic to format and repeat the message
-  const formattedMessage = input.message.toUpperCase(); // simplified for example
-  const repeatedMessage = Array(input.repeat).fill(formattedMessage).join(' ');
-  return { repeatedMessage };
-}
-
-// 3. Assemble the final Tool Definition.
-export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
-  {
-    name: 'template_echo_message', // The official tool name
-    title: 'Template Echo Message',
-    description:
-      'Echoes a message back with optional formatting and repetition.',
-    inputSchema: InputSchema,
-    outputSchema: OutputSchema,
-    logic: withToolAuth(['tool:echo:read'], echoToolLogic), // Secure the tool
-  };
-```
-
-The `echoTool` is registered in `src/mcp-server/tools/definitions/index.ts`, making it available to the server on startup. For an example of how to use the new elicitation feature, see `template_madlibs_elicitation.tool.ts`.
-
-</details>
-
-### 2. Example Resource: `echo-resource`
-
-This resource provides a simple echo response via a URI. The source is located at `src/mcp-server/resources/definitions/echo.resource.ts`.
-
-<details>
-<summary>Click to see the `echoResourceDefinition` structure</summary>
-
-```ts
-// Located at: src/mcp-server/resources/definitions/echo.resource.ts
-import { z } from 'zod';
-import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
-import { withResourceAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import { type RequestContext, logger } from '@/utils/index.js';
-
-// 1. Define Parameter and Output Schemas.
-const ParamsSchema = z.object({
-  message: z.string().optional().describe('Message to echo from the URI.'),
-});
-
-const OutputSchema = z.object({
-  message: z.string().describe('The echoed message.'),
-  timestamp: z.string().datetime().describe('Timestamp of the response.'),
-  requestUri: z.string().url().describe('The original request URI.'),
-});
-
-// 2. Implement the pure read logic for the resource.
-function echoLogic(
-  uri: URL,
-  params: z.infer<typeof ParamsSchema>,
-  context: RequestContext,
-): z.infer<typeof OutputSchema> {
-  const messageToEcho = params.message || uri.hostname || 'Default echo';
-  return {
-    message: messageToEcho,
-    timestamp: new Date().toISOString(),
-    requestUri: uri.href,
-  };
-}
-
-// 3. Assemble the final Resource Definition.
-export const echoResourceDefinition: ResourceDefinition<
-  typeof ParamsSchema,
-  typeof OutputSchema
-> = {
-  name: 'echo-resource', // The official resource name
-  title: 'Echo Message Resource',
-  description: 'A simple echo resource that returns a message.',
-  uriTemplate: 'echo://{message}',
-  paramsSchema: ParamsSchema,
-  outputSchema: OutputSchema,
-  logic: withResourceAuth(['resource:echo:read'], echoLogic), // Secure the resource
-};
-```
-
-Like the tool, `echoResourceDefinition` is registered in `src/mcp-server/resources/definitions/index.ts`.
-
-</details>
-
-## ⚙️ Core Concepts
-
-### Configuration
+## ⚙️ Configuration
 
 All configuration is centralized and validated at startup in `src/config/index.ts`. Key environment variables in your `.env` file include:
 
-| Variable                | Description                                                                    | Default     |
-| :---------------------- | :----------------------------------------------------------------------------- | :---------- |
-| `MCP_TRANSPORT_TYPE`    | The transport to use: `stdio` or `http`.                                       | `http`      |
-| `MCP_HTTP_PORT`         | The port for the HTTP server.                                                  | `3010`      |
-| `MCP_AUTH_MODE`         | Authentication mode: `none`, `jwt`, or `oauth`.                                | `none`      |
-| `STORAGE_PROVIDER_TYPE` | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-kv`, `r2`. | `in-memory` |
-| `OTEL_ENABLED`          | Set to `true` to enable OpenTelemetry.                                         | `false`     |
-| `LOG_LEVEL`             | The minimum level for logging.                                                 | `info`      |
+| Variable                    | Description                                                                    | Default     |
+| :-------------------------- | :----------------------------------------------------------------------------- | :---------- |
+| `MCP_TRANSPORT_TYPE`        | The transport to use: `stdio` or `http`.                                       | `http`      |
+| `MCP_HTTP_PORT`             | The port for the HTTP server.                                                  | `3010`      |
+| `MCP_HTTP_HOST`             | The hostname for the HTTP server.                                              | `127.0.0.1` |
+| `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.                                | `none`      |
+| `MCP_AUTH_SECRET_KEY`       | **Required for `jwt` auth mode.** A 32+ character secret.                      | `(none)`    |
+| `OAUTH_ISSUER_URL`          | **Required for `oauth` auth mode.** URL of the OIDC provider.                  | `(none)`    |
+| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-kv`, `r2`. | `in-memory` |
+| `STORAGE_FILESYSTEM_PATH`   | **Required for `filesystem` storage.** Path to the storage directory.          | `(none)`    |
+| `SUPABASE_URL`              | **Required for `supabase` storage.** Your Supabase project URL.                | `(none)`    |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Required for `supabase` storage.** Your Supabase service role key.           | `(none)`    |
+| `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                                         | `false`     |
+| `LOG_LEVEL`                 | The minimum level for logging (`debug`, `info`, `warn`, `error`).              | `info`      |
+| `OPENROUTER_API_KEY`        | API key for OpenRouter LLM service.                                            | `(none)`    |
 
 ### Authentication & Authorization
 
@@ -267,9 +173,12 @@ bun deploy:dev
 ```
 
 3.  **Deploy to Cloudflare**:
-    `sh
+
+```sh
 bun deploy:prod
-` > **Note**: The `wrangler.toml` file is pre-configured to enable `nodejs_compat` for best results.
+```
+
+> **Note**: The `wrangler.toml` file is pre-configured to enable `nodejs_compat` for best results.
 
 ## 📂 Project Structure
 
@@ -317,3 +226,12 @@ bun test
 ## 📜 License
 
 This project is licensed under the Apache 2.0 License. See the [LICENSE](./LICENSE) file for details.
+
+---
+
+<div align="center">
+  <p>
+    <a href="https://github.com/sponsors/cyanheads">Sponsor this project</a> •
+    <a href="https://www.buymeacoffee.com/cyanheads">Buy me a coffee</a>
+  </p>
+</div>
