@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.3.6] - 2025-10-11
+
+### Added
+
+- **MarkdownBuilder Utility**: Introduced a new `MarkdownBuilder` class in `src/utils/formatting/` providing a fluent API for creating well-structured markdown content. This utility helps eliminate string concatenation in response formatters and ensures consistent formatting across all tool outputs.
+  - Added comprehensive test coverage in `tests/utils/formatting/markdownBuilder.test.ts`.
+  - Exported as `markdown()` helper function for convenience.
+- **Tool Utils Barrel Export**: Created `src/mcp-server/tools/utils/index.ts` to provide centralized exports for core tool infrastructure (`ToolDefinition`, `SdkContext`, `ToolAnnotations`, `createMcpToolHandler`).
+
+### Changed
+
+- **Agent Protocol Documentation**: Updated `AGENTS.md`, `CLAUDE.md`, and `.clinerules/AGENTS.md` with comprehensive guidance on response formatters, including when to use simple string building versus `MarkdownBuilder` for complex outputs.
+  - Added new "Response Formatters" section with examples and best practices.
+  - Updated "Key Utilities" table to document the new `formatting/` module.
+  - Reverted version number to 2.3.1 and removed erroneous "Last Updated" field.
+  - Simplified graceful degradation guidance and removed duplicate DI examples.
+- **Dependencies**: Updated `package.json` to include new formatting utilities in the utils barrel export.
+- **Configuration**: Added `.mcp.json` to `.gitignore` to exclude client-specific MCP configuration files.
+
+### Refactored
+
+- **Tool Template Examples**: Updated all template tools (`template-cat-fact`, `template-code-review-sampling`, `template-echo-message`, `template-image-test`, `template-madlibs-elicitation`) to use simpler, more maintainable response formatting patterns as examples.
+- **Logger Configuration**: Enhanced logger to suppress trace-level output in production environments for better performance.
+- **Error Handling Tests**: Improved test coverage for error handler edge cases and logger high-severity levels.
+- **Test Configuration**: Updated `vitest.config.ts` with improved reporter configuration and coverage thresholds.
+
+### Documentation
+
+- **Tree Documentation**: Regenerated `docs/tree.md` to reflect new formatting utilities and test files.
+
 ## [2.3.5] - 2025-10-05
 
 ### Tests

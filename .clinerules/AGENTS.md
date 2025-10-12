@@ -57,13 +57,13 @@ Separation of concerns maps directly to the filesystem. Always place files in th
 | :------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`src/mcp-server/tools/definitions/`**     | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**.                                                                                                                                                                                                           |
 | **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**.                                                                                                                                                                                        |
-| **`src/mcp-server/tools/utils/`**           | **Shared tool utilities,** including `ToolDefinition` and tool handler factory.                                                                                                                                                                                                                                                   |
+| **`src/mcp-server/tools/utils/`**           | **Shared tool utilities:** Core tool infrastructure (`ToolDefinition`, `toolHandlerFactory`)                                                                                                                                                                                                                                      |
 | **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                                                                                                       |
 | **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth.                                                                             |
 | **`src/services/`**                         | **External service integrations** following a consistent domain-driven pattern:<br>- Each service domain (e.g., `llm/`, `speech/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`, and `index.ts`<br>- Use DI for all service dependencies. See **Service Development Pattern** below. |
 | **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv).                                                                                                                                                                                                                    |
 | **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                                                                                                           |
-| **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                                                                                                |
+| **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, formatting, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                                                                                    |
 | **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                                                                                                    |
 
 ---
@@ -536,6 +536,54 @@ export class SpeechService {
 - `measureToolExecution` from `src/utils/index.js` (used by handlers)
 - `pdfParser` from `src/utils/index.js` (for creating, modifying, and parsing PDF documents)
 
+#### Response Formatters
+
+**Simple string building (recommended for most tools):**
+
+```typescript
+function responseFormatter(result: ToolResponse): ContentBlock[] {
+  const lines = [
+    `Status: ${result.status}`,
+    `Result: ${result.message}`,
+    result.timestamp ? `Timestamp: ${result.timestamp}` : undefined,
+  ].filter(Boolean) as string[];
+
+  return [{ type: 'text', text: lines.join('\n') }];
+}
+```
+
+**MarkdownBuilder (optional, for complex multi-section outputs):**
+
+Available at `src/utils/formatting/markdownBuilder.ts` for tools that need structured markdown reports:
+
+```typescript
+import { markdown } from '@/utils/index.js';
+
+function responseFormatter(result: ToolResponse): ContentBlock[] {
+  const md = markdown()
+    .h1('Commit Created', '✅')
+    .keyValue('Hash', result.commitHash)
+    .keyValue('Author', result.author)
+    .section('Files Changed', () => {
+      md.list(result.files);
+    })
+    .when(result.diff, () => {
+      md.section('Diff', 3, () => {
+        md.codeBlock(result.diff, 'diff');
+      });
+    });
+
+  return [{ type: 'text', text: md.build() }];
+}
+```
+
+**Guidelines:**
+
+- **Simple string building** for 90% of use cases (see `template-cat-fact.tool.ts`)
+- **MarkdownBuilder** only when you need complex, multi-section formatted reports
+- Return structured data in `structuredContent` (automatically handled by framework)
+- Keep `responseFormatter` concise and readable
+
 #### Key Utilities (`src/utils/`)
 
 The `src/utils/` directory contains a rich set of directly importable utilities for common tasks. Below is a summary of key modules.
@@ -543,6 +591,7 @@ The `src/utils/` directory contains a rich set of directly importable utilities 
 | Module            | Description & Key Exports                                                                                                                                                                                                                                                                                                                     |
 | :---------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`parsing/`**    | A suite of robust parsers for various data formats, designed to handle optional LLM `<think>` blocks. <br>- `csvParser`: For CSV data. <br>- `yamlParser`: For YAML data. <br>- `xmlParser`: For XML data. <br>- `jsonParser`: A hardened JSON parser. <br>- `pdfParser`: For creating, modifying, and parsing PDF documents using `pdf-lib`. |
+| **`formatting/`** | Output formatting utilities. <br>- `MarkdownBuilder`: Fluent API for building structured markdown content. <br>- `markdown()`: Helper function to create a MarkdownBuilder instance.                                                                                                                                                          |
 | **`security/`**   | Utilities for enhancing application security. <br>- `sanitization`: For redacting sensitive data and validating inputs. <br>- `rateLimiter`: A DI-managed service for enforcing rate limits. <br>- `idGenerator`: For creating unique identifiers.                                                                                            |
 | **`network/`**    | Networking helpers. <br>- `fetchWithTimeout`: A wrapper around `fetch` that includes a configurable timeout.                                                                                                                                                                                                                                  |
 | **`scheduling/`** | Task scheduling utilities. <br>- `scheduler`: A wrapper around `node-cron` for managing scheduled jobs.                                                                                                                                                                                                                                       |

@@ -1,12 +1,11 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.3.4
+**Version:** 2.3.1
 **Target Project:** mcp-ts-template
-**Last Updated:** 2025-10-04
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
-> **Note on File Synchronization**: This file (`AGENTS.md`), along with `CLAUDE.md` and `.clinerules/AGENTS.md`, are hard-linked on the filesystem for tool compatibility (e.g., Cline does not work with symlinks). **Edit only the root `AGENTS.md`** – changes will automatically propagate to the other copies. DO NOT TOUCH THE OTHER TWO AGENTS.md & CLAUDE.md FILES.
+> **Note on File Synchronization**: This file (`AGENTS.md`), along with `CLAUDE.md` and `.clinerules/AGENTS.md`, are hard-linked on the filesystem for tool compatibility (e.g., Cline does not work with symlinks). **Edit only the root `AGENTS.md`** – changes will automatically propagate to the other copies.
 
 ---
 
@@ -35,8 +34,7 @@ This document defines the operational rules for contributing to this codebase. F
 
 4.  **Decoupled Storage**
     - Never directly access persistence backends (`fs`, `supabase-js`, Worker KV/R2) from tool/resource logic.
-    - **Default: Use the `StorageService`**, injected via DI, for simple key-value persistence.
-    - **Advanced: Create domain-specific providers** when your data has rich structure beyond key-value storage (e.g., relational queries, complex filtering, recursive loading). See **When to Create Custom Providers** below.
+    - **Always use the `StorageService`**, injected via DI, for all persistence.
     - The concrete storage provider is configured via environment variables and initialized at startup.
 
 5.  **Local ↔ Edge Runtime Parity**
@@ -49,12 +47,6 @@ This document defines the operational rules for contributing to this codebase. F
     - This allows the tool to interactively request the necessary information from the user instead of failing.
     - See `template_madlibs_elicitation.tool.ts` for a canonical example.
 
-7.  **Graceful Degradation in Development**
-    - When context values like `tenantId` are missing, default to permissive behavior instead of throwing errors.
-    - **Pattern:** `const tenantId = appContext.tenantId || 'default-tenant';`
-    - This aligns with the philosophy that auth/scope checks default to allowed when auth is disabled.
-    - Production environments with auth enabled will provide real `tenantId` from JWT claims automatically.
-
 ---
 
 ## II. Architectural Overview & Directory Structure
@@ -65,13 +57,13 @@ Separation of concerns maps directly to the filesystem. Always place files in th
 | :------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`src/mcp-server/tools/definitions/`**     | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**.                                                                                                                                                                                                           |
 | **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**.                                                                                                                                                                                        |
-| **`src/mcp-server/tools/utils/`**           | **Shared tool utilities,** including `ToolDefinition` and tool handler factory.                                                                                                                                                                                                                                                   |
+| **`src/mcp-server/tools/utils/`**           | **Shared tool utilities:** Core tool infrastructure (`ToolDefinition`, `toolHandlerFactory`)                                                                                                                                                                                                                                      |
 | **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                                                                                                       |
 | **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth.                                                                             |
 | **`src/services/`**                         | **External service integrations** following a consistent domain-driven pattern:<br>- Each service domain (e.g., `llm/`, `speech/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`, and `index.ts`<br>- Use DI for all service dependencies. See **Service Development Pattern** below. |
 | **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv).                                                                                                                                                                                                                    |
 | **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                                                                                                           |
-| **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                                                                                                |
+| **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, formatting, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                                                                                    |
 | **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                                                                                                    |
 
 ---
@@ -111,11 +103,9 @@ Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 - `description`: Clear, LLM-facing description of what the tool does.
 - `inputSchema`: A `z.object({ ... })`. **Every field must have a `.describe()`**.
 - `outputSchema`: A `z.object({ ... })` describing the successful output structure.
-- `logic`: An `async` function with the signature `(input, appContext, sdkContext) => Promise<Output>`. This function should contain pure business logic.
-  - **No `try/catch` blocks**; throw `McpError` on failure.
-  - **For dependencies, resolve them inside the logic function** using the global `container`. Do not use `@injectable` classes for tool logic. The framework is designed for stateless, function-based logic.
+- `logic`: `async (input, appContext, sdkContext) => { ... }` pure business logic. No `try/catch` here. Throw `McpError` on failure.
 - `annotations` (optional): UI/behavior hints such as `readOnlyHint`, `openWorldHint`, and others (flexible dictionary).
-- `responseFormatter` (optional): Map successful output to `ContentBlock[]` for the LLM to consume. **CRITICAL**: The LLM receives this formatted output, not the raw result. Include all data the LLM needs to answer questions. Balance human-readable summaries with complete structured data. If omitted, a default JSON string is used.
+- `responseFormatter` (optional): Map successful output to `ContentBlock[]` for a UI-friendly representation. If omitted, a default JSON string is used.
 
 #### Step 2.5 — Apply Authorization (Mandatory for most tools)
 
@@ -132,143 +122,18 @@ Export a single `const` named `[toolName]Tool` of type `ToolDefinition` with:
 - Add your tool to `src/mcp-server/tools/definitions/index.ts` in `allToolDefinitions`.
 - The DI container discovers and registers all tools from that array. No further registration is necessary.
 
----
-
-### Response Formatter Best Practices
-
-The `responseFormatter` function determines what the LLM receives. Follow these guidelines:
-
-**❌ DO NOT:**
-
-- Return only a summary with "Full details in structured output" (there is no separate structured output for the LLM)
-- Omit critical data that the LLM needs to answer follow-up questions
-- Assume the LLM can access the raw result object
-
-**✅ DO:**
-
-- Include both human-readable summaries AND complete data
-- Structure output hierarchically (summary → details)
-- Truncate extremely long fields (eligibility criteria, descriptions) but include key information
-- For comparisons, show both commonalities/differences AND detailed breakdowns
-- Use markdown formatting for clarity (headings, lists, code blocks)
-
-**Examples:**
-
-```typescript
-// BAD: Summary only - LLM cannot answer detailed questions
-function badFormatter(result: ComparisonOutput): ContentBlock[] {
-  return [
-    {
-      type: 'text',
-      text: 'Comparison complete. See structured output for details.',
-    },
-  ];
-}
-
-// GOOD: Summary + Details - LLM has everything it needs
-function goodFormatter(result: ComparisonOutput): ContentBlock[] {
-  const summary = `# Comparison of ${result.studies.length} Studies\n\n`;
-
-  const commonalities =
-    result.commonalities.length > 0
-      ? `## Commonalities\n${result.commonalities.map((c) => `- ${c}`).join('\n')}\n\n`
-      : '';
-
-  const details = result.studies
-    .map(
-      (study) =>
-        `### ${study.nctId}: ${study.title}\n\n` +
-        `**Status:** ${study.status}\n` +
-        `**Design:** ${study.design.type} | ${study.design.phases.join(', ')}\n` +
-        `**Interventions:** ${study.interventions.map((i) => i.name).join(', ')}\n` +
-        `**Primary Outcomes:**\n${study.outcomes.primary.map((o) => `- ${o.measure}`).join('\n')}`,
-    )
-    .join('\n\n---\n\n');
-
-  return [{ type: 'text', text: `${summary}${commonalities}${details}` }];
-}
-
-// ALSO GOOD: Pure JSON for maximum flexibility
-function jsonFormatter(result: ComparisonOutput): ContentBlock[] {
-  return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
-}
-```
-
-**When to use each approach:**
-
-- **Summary + Details**: Best for comparison tools, analysis tools, multi-entity responses
-- **Pure JSON**: Best for single-entity fetches, when data structure is self-explanatory
-- **Hybrid**: Use summary sections with selective detail inclusion for very large responses
-
-#### Real-World Example: Survey Tool with Complex Output
-
-This example from the Survey MCP Server shows how to balance summary and detail for stateful operations:
-
-```typescript
-// Survey session start returns multiple data structures
-type StartSessionResponse = {
-  session: ParticipantSession;
-  survey: SurveyDefinition;
-  allQuestions: EnrichedQuestion[];
-  nextSuggestedQuestions: EnrichedQuestion[];
-};
-
-// ❌ BAD: Only a summary
-function badFormatter(result: StartSessionResponse): ContentBlock[] {
-  return [
-    {
-      type: 'text',
-      text: `Session ${result.session.sessionId} started. ${result.nextSuggestedQuestions.length} questions available.`,
-    },
-  ];
-}
-
-// ✅ GOOD: Summary + actionable next steps + complete metadata
-function goodFormatter(result: StartSessionResponse): ContentBlock[] {
-  const header = `Survey Session Started: ${result.survey.title}`;
-  const metadata = `Session: ${result.session.sessionId} | Status: ${result.session.status}`;
-
-  const suggested = result.nextSuggestedQuestions
-    .map(
-      (q, i) =>
-        `${i + 1}. [${q.id}] ${q.required ? '[Required]' : '[Optional]'} ${q.text}` +
-        (q.currentlyEligible ? '' : ` (Not eligible: ${q.eligibilityReason})`),
-    )
-    .join('\n');
-
-  const progress = `Progress: ${result.session.progress.totalAnswered}/${result.session.progress.totalQuestions} answered`;
-
-  return [
-    {
-      type: 'text',
-      text: `${header}\n${metadata}\n\n## Next Questions\n${suggested}\n\n${progress}`,
-    },
-  ];
-}
-```
-
-**Key principles demonstrated:**
-
-1. **Hierarchy:** Header → Metadata → Actionable items → Progress
-2. **Complete data:** All question IDs, text, eligibility state included
-3. **LLM-friendly:** LLM can answer "What's the first question?" or "How many required questions?"
-4. **Human-readable:** Clear formatting with markdown headers and lists
-
----
-
-#### Example Tool Definition (with Dependency Injection):
+#### Example Tool Definition:
 
 ```ts
 /**
- * @fileoverview Example tool showing the correct pattern for dependency injection.
- * @module
+ * @fileoverview Complete, declarative definition for the 'template_echo_message' tool.
+ * Emphasizes a clean, top‑down flow with configurable metadata at the top,
+ * schema definitions next, pure logic, and finally the exported ToolDefinition.
+ * @module src/mcp-server/tools/definitions/template-echo-message.tool
  */
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
-import { container } from 'tsyringe';
 import { z } from 'zod';
 
-import { SomeServiceProvider } from '@/container/tokens.js'; // 1. Import Service Token
-import type { ISomeServiceProvider } from '@/services/some-service/core/ISomeServiceProvider.js'; // 2. Import Service Interface
 import type {
   SdkContext,
   ToolAnnotations,
@@ -285,10 +150,26 @@ import { type RequestContext, logger } from '@/utils/index.js';
  * - Use lowercase snake_case.
  * - Examples: 'template_echo_message', 'template_cat_fact'.
  */
-const TOOL_NAME = 'example_service_tool';
-const TOOL_TITLE = 'Example Service Tool';
+const TOOL_NAME = 'template_echo_message';
+/** --------------------------------------------------------- */
+
+/** Human-readable title used by UIs. */
+const TOOL_TITLE = 'Template Echo Message';
+/** --------------------------------------------------------- */
+
+/**
+ * LLM-facing description of the tool.
+ * Guidance:
+ * - Be descriptive but concise (aim for 1–2 sentences).
+ * - Write from the LLM's perspective to optimize tool selection.
+ * - State purpose, primary inputs, notable constraints, and side effects.
+ * - Mention any requirements (auth, permissions, online access) and limits
+ *   (rate limits, size constraints, expected latency) if critically applicable.
+ * - Note determinism/idempotency and external-world interactions when relevant.
+ * - Avoid implementation details; focus on the observable behavior and contract.
+ */
 const TOOL_DESCRIPTION =
-  'An example tool that uses a dependency-injected service.';
+  'Echoes a message back with optional formatting and repetition.';
 /** --------------------------------------------------------- */
 
 /**
@@ -303,78 +184,169 @@ const TOOL_DESCRIPTION =
  */
 const TOOL_ANNOTATIONS: ToolAnnotations = {
   readOnlyHint: true,
+  idempotentHint: true,
+  openWorldHint: false,
 };
+/** --------------------------------------------------------- */
+
+/** Supported formatting modes. */
+const ECHO_MODES = ['standard', 'uppercase', 'lowercase'] as const;
+/** Default mode when not provided. */
+const DEFAULT_MODE: (typeof ECHO_MODES)[number] = 'standard';
+/** Default repeat count. */
+const DEFAULT_REPEAT = 1;
+/** Default includeTimestamp behavior. */
+const DEFAULT_INCLUDE_TIMESTAMP = false;
+/** Special input which deliberately triggers a failure for testing. */
+export const TEST_ERROR_TRIGGER_MESSAGE = 'TRIGGER_ERROR';
 
 //
-const InputSchema = z.object({
-  id: z.string().describe('The ID of the item to process.'),
-});
+// Schemas (input and output)
+// --------------------------
+const InputSchema = z
+  .object({
+    message: z
+      .string()
+      .min(1, 'Message cannot be empty.')
+      .max(1000, 'Message cannot exceed 1000 characters.')
+      .describe(
+        `The message to echo back. To trigger a test error, provide '${TEST_ERROR_TRIGGER_MESSAGE}'.`,
+      ),
+    mode: z
+      .enum(ECHO_MODES)
+      .default(DEFAULT_MODE)
+      .describe(
+        "How to format the message ('standard' | 'uppercase' | 'lowercase').",
+      ),
+    repeat: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .default(DEFAULT_REPEAT)
+      .describe('Number of times to repeat the formatted message.'),
+    includeTimestamp: z
+      .boolean()
+      .default(DEFAULT_INCLUDE_TIMESTAMP)
+      .describe('Whether to include an ISO 8601 timestamp in the response.'),
+  })
+  .describe('Echo a message with optional formatting and repetition.');
 
-const OutputSchema = z.object({
-  status: z.string().describe('The processing status.'),
-  data: z.record(z.unknown()).describe('Data returned from the service.'),
-});
+const OutputSchema = z
+  .object({
+    originalMessage: z
+      .string()
+      .describe('The original message provided in the input.'),
+    formattedMessage: z
+      .string()
+      .describe('The message after applying the specified formatting.'),
+    repeatedMessage: z
+      .string()
+      .describe('The final message repeated the requested number of times.'),
+    mode: z.enum(ECHO_MODES).describe('The formatting mode that was applied.'),
+    repeatCount: z
+      .number()
+      .int()
+      .min(1)
+      .describe('The number of times the message was repeated.'),
+    timestamp: z
+      .string()
+      .datetime()
+      .optional()
+      .describe(
+        'Optional ISO 8601 timestamp of when the response was generated.',
+      ),
+  })
+  .describe('Echo tool response payload.');
 
-type ToolInput = z.infer<typeof InputSchema>;
-type ToolOutput = z.infer<typeof OutputSchema>;
+type EchoToolInput = z.infer<typeof InputSchema>;
+type EchoToolResponse = z.infer<typeof OutputSchema>;
 
 //
-// Pure business logic function
-async function exampleToolLogic(
-  input: ToolInput,
+// Pure business logic (no try/catch; throw McpError on failure)
+// -------------------------------------------------------------
+async function echoToolLogic(
+  input: EchoToolInput,
   appContext: RequestContext,
   _sdkContext: SdkContext,
-): Promise<ToolOutput> {
-  logger.debug('Executing example tool logic', {
+): Promise<EchoToolResponse> {
+  logger.debug('Processing echo message logic.', {
     ...appContext,
     toolInput: input,
   });
 
-  // 3. Resolve the service from the container
-  const someService =
-    container.resolve<ISomeServiceProvider>(SomeServiceProvider);
-
-  // 4. Use the service
-  try {
-    const serviceData = await someService.processItem(input.id, appContext);
-    return {
-      status: 'Success',
-      data: serviceData,
+  if (input.message === TEST_ERROR_TRIGGER_MESSAGE) {
+    const errorData: Record<string, unknown> = {
+      requestId: appContext.requestId,
     };
-  } catch (error) {
-    logger.error('Service failed to process item', { ...appContext, error });
-    // Re-throw as McpError to conform to protocol
+    if (typeof (appContext as Record<string, unknown>).traceId === 'string') {
+      errorData.traceId = (appContext as Record<string, unknown>)
+        .traceId as string;
+    }
     throw new McpError(
-      JsonRpcErrorCode.InternalError,
-      `Service error: ${error instanceof Error ? error.message : 'Unknown'}`,
+      JsonRpcErrorCode.ValidationError,
+      'Deliberate failure triggered.',
+      errorData,
     );
   }
+
+  const formattedMessage =
+    input.mode === 'uppercase'
+      ? input.message.toUpperCase()
+      : input.mode === 'lowercase'
+        ? input.message.toLowerCase()
+        : input.message;
+
+  const repeatedMessage = Array(input.repeat).fill(formattedMessage).join(' ');
+
+  const response: EchoToolResponse = {
+    originalMessage: input.message,
+    formattedMessage,
+    repeatedMessage,
+    mode: input.mode,
+    repeatCount: input.repeat,
+    ...(input.includeTimestamp && { timestamp: new Date().toISOString() }),
+  };
+
+  return Promise.resolve(response);
 }
 
-// Formatter for the final output to the LLM
-function responseFormatter(result: ToolOutput): ContentBlock[] {
+/**
+ * Formats a concise human-readable summary while structuredContent carries the full payload.
+ */
+function responseFormatter(result: EchoToolResponse): ContentBlock[] {
+  const preview =
+    result.repeatedMessage.length > 200
+      ? `${result.repeatedMessage.slice(0, 197)}…`
+      : result.repeatedMessage;
+  const lines = [
+    `Echo (mode=${result.mode}, repeat=${result.repeatCount})`,
+    preview,
+    result.timestamp ? `timestamp=${result.timestamp}` : undefined,
+  ].filter(Boolean) as string[];
+
   return [
     {
       type: 'text',
-      text: `Status: ${result.status}\nData: ${JSON.stringify(result.data, null, 2)}`,
+      text: lines.join('\n'),
     },
   ];
 }
 
-// The final tool definition
-export const exampleServiceTool: ToolDefinition<
-  typeof InputSchema,
-  typeof OutputSchema
-> = {
-  name: TOOL_NAME,
-  title: TOOL_TITLE,
-  description: TOOL_DESCRIPTION,
-  inputSchema: InputSchema,
-  outputSchema: OutputSchema,
-  annotations: TOOL_ANNOTATIONS,
-  logic: withToolAuth(['tool:example:read'], exampleToolLogic),
-  responseFormatter,
-};
+/**
+ * The complete tool definition for the echo tool.
+ */
+export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
+  {
+    name: TOOL_NAME,
+    title: TOOL_TITLE,
+    description: TOOL_DESCRIPTION,
+    inputSchema: InputSchema,
+    outputSchema: OutputSchema,
+    annotations: TOOL_ANNOTATIONS,
+    logic: withToolAuth(['tool:echo:read'], echoToolLogic),
+    responseFormatter,
+  };
 ```
 
 ---
@@ -456,20 +428,8 @@ Create a `<Service>Service.ts` class in `core/` when you need:
 - **Provider routing logic** (e.g., fallback chains, load balancing)
 - **Capability aggregation** (e.g., combined health checks)
 - **Cross-provider state management**
-- **Complex business logic** with multi-step operations, state transformations, or conditional flows
-- **Stateful operations** like session management, progress tracking, or eligibility evaluation
 
 If your service uses a **single provider pattern** (like LLM currently does), skip the service class and inject the provider directly via DI.
-
-**Decision Matrix:**
-
-| Scenario                               | Pattern                          | Example                                                     |
-| -------------------------------------- | -------------------------------- | ----------------------------------------------------------- |
-| Simple CRUD with key-value storage     | Use `StorageService` directly    | User preferences, feature flags                             |
-| Single external API integration        | Provider only (no service class) | LLM completions                                             |
-| Multiple providers for same capability | Service orchestrator             | Speech (TTS/STT providers)                                  |
-| Rich domain logic + data access        | Service + Custom Provider        | Survey (session management, eligibility, conditional logic) |
-| Complex state transformations          | Service orchestrator             | Survey (enriching questions, progress calculation)          |
 
 #### Example: Simple Single-Provider Pattern (LLM)
 
@@ -514,39 +474,6 @@ export class SpeechService {
 5. Create barrel export: `index.ts`
 6. Register in DI: Add token to `src/container/tokens.ts`
 7. Register service: Update `src/container/registrations/core.ts`
-
-#### When to Create Custom Providers
-
-Create a custom provider (instead of using `StorageService`) when:
-
-- **Rich data structure:** Your domain has complex nested objects, relationships, or metadata
-- **Query capabilities:** You need filtering, searching, or aggregation beyond key-value lookup
-- **Recursive operations:** Loading hierarchical data structures (e.g., directory trees)
-- **Format transformation:** Reading/writing specific file formats (JSON, CSV, YAML)
-- **Domain-specific validation:** Type-safe loading with Zod schemas for your domain
-- **Cross-entity operations:** Joining data from multiple sources
-
-**Example - Survey Provider vs StorageService:**
-
-```typescript
-// ❌ Using StorageService for complex survey data would be awkward:
-const surveyJson = await storage.get(`surveys/${surveyId}`); // manual serialization
-const survey = JSON.parse(surveyJson); // no type safety
-const sessions = await storage.list(`sessions/${surveyId}/*`); // limited query capability
-
-// ✅ Custom SurveyProvider provides rich, type-safe operations:
-const survey = await surveyProvider.getSurveyById(surveyId, tenantId); // typed result
-const sessions = await surveyProvider.getSessionsBySurvey(surveyId, tenantId, {
-  status: 'completed',
-  dateRange: { start, end },
-}); // complex filtering
-```
-
-**When to stick with StorageService:**
-
-- Simple key-value data (user preferences, session tokens, feature flags)
-- Flat data structures without complex relationships
-- Basic CRUD operations without specialized queries
 
 #### Existing Service Examples
 
@@ -609,6 +536,54 @@ const sessions = await surveyProvider.getSessionsBySurvey(surveyId, tenantId, {
 - `measureToolExecution` from `src/utils/index.js` (used by handlers)
 - `pdfParser` from `src/utils/index.js` (for creating, modifying, and parsing PDF documents)
 
+#### Response Formatters
+
+**Simple string building (recommended for most tools):**
+
+```typescript
+function responseFormatter(result: ToolResponse): ContentBlock[] {
+  const lines = [
+    `Status: ${result.status}`,
+    `Result: ${result.message}`,
+    result.timestamp ? `Timestamp: ${result.timestamp}` : undefined,
+  ].filter(Boolean) as string[];
+
+  return [{ type: 'text', text: lines.join('\n') }];
+}
+```
+
+**MarkdownBuilder (optional, for complex multi-section outputs):**
+
+Available at `src/utils/formatting/markdownBuilder.ts` for tools that need structured markdown reports:
+
+```typescript
+import { markdown } from '@/utils/index.js';
+
+function responseFormatter(result: ToolResponse): ContentBlock[] {
+  const md = markdown()
+    .h1('Commit Created', '✅')
+    .keyValue('Hash', result.commitHash)
+    .keyValue('Author', result.author)
+    .section('Files Changed', () => {
+      md.list(result.files);
+    })
+    .when(result.diff, () => {
+      md.section('Diff', 3, () => {
+        md.codeBlock(result.diff, 'diff');
+      });
+    });
+
+  return [{ type: 'text', text: md.build() }];
+}
+```
+
+**Guidelines:**
+
+- **Simple string building** for 90% of use cases (see `template-cat-fact.tool.ts`)
+- **MarkdownBuilder** only when you need complex, multi-section formatted reports
+- Return structured data in `structuredContent` (automatically handled by framework)
+- Keep `responseFormatter` concise and readable
+
 #### Key Utilities (`src/utils/`)
 
 The `src/utils/` directory contains a rich set of directly importable utilities for common tasks. Below is a summary of key modules.
@@ -616,6 +591,7 @@ The `src/utils/` directory contains a rich set of directly importable utilities 
 | Module            | Description & Key Exports                                                                                                                                                                                                                                                                                                                     |
 | :---------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`parsing/`**    | A suite of robust parsers for various data formats, designed to handle optional LLM `<think>` blocks. <br>- `csvParser`: For CSV data. <br>- `yamlParser`: For YAML data. <br>- `xmlParser`: For XML data. <br>- `jsonParser`: A hardened JSON parser. <br>- `pdfParser`: For creating, modifying, and parsing PDF documents using `pdf-lib`. |
+| **`formatting/`** | Output formatting utilities. <br>- `MarkdownBuilder`: Fluent API for building structured markdown content. <br>- `markdown()`: Helper function to create a MarkdownBuilder instance.                                                                                                                                                          |
 | **`security/`**   | Utilities for enhancing application security. <br>- `sanitization`: For redacting sensitive data and validating inputs. <br>- `rateLimiter`: A DI-managed service for enforcing rate limits. <br>- `idGenerator`: For creating unique identifiers.                                                                                            |
 | **`network/`**    | Networking helpers. <br>- `fetchWithTimeout`: A wrapper around `fetch` that includes a configurable timeout.                                                                                                                                                                                                                                  |
 | **`scheduling/`** | Task scheduling utilities. <br>- `scheduler`: A wrapper around `node-cron` for managing scheduled jobs.                                                                                                                                                                                                                                       |
@@ -741,57 +717,21 @@ When using HTTP transport with authentication enabled (`MCP_AUTH_MODE='jwt'` or 
 - It's propagated to `RequestContext` via `requestContextService.withAuthInfo()`
 - All tool/resource invocations automatically receive the correct `tenantId`
 
-### TenantID Handling in Tools
-
-**For tools that use `StorageService` or other tenant-scoped services:**
-
-Follow the graceful degradation pattern to support both development and production:
+**Example - Setting Default Tenant in STDIO:**
 
 ```typescript
-async function myToolLogic(
-  input: ToolInput,
-  appContext: RequestContext,
-  _sdkContext: SdkContext,
-): Promise<ToolOutput> {
-  // ✅ Graceful degradation: default to 'default-tenant' in development
-  const tenantId = appContext.tenantId || 'default-tenant';
-
-  const service = container.resolve<MyService>(MyServiceToken);
-  const result = await service.doSomething(input.param, tenantId);
-
-  return result;
-}
+// In your stdio transport setup
+const context = requestContextService.createRequestContext({
+  operation: 'connectStdioTransport',
+  tenantId: 'default-tenant', // Explicitly provide tenant
+});
 ```
-
-**Why this pattern?**
-
-- **Development (STDIO/no auth):** Works out-of-the-box without configuration
-- **Production (HTTP + auth):** Real `tenantId` from JWT automatically available
-- **Aligns with template philosophy:** Permissive in development, strict in production
-
-**Alternative - Explicit Tenant Check:**
-
-```typescript
-// ❌ Don't throw errors for missing tenantId - breaks development experience
-if (!appContext.tenantId) {
-  throw new McpError(JsonRpcErrorCode.InvalidRequest, 'Tenant ID required');
-}
-
-// ✅ Use default instead
-const tenantId = appContext.tenantId || 'default-tenant';
-```
-
-**When to use explicit tenant checking:**
-
-- Security-critical operations where you must verify tenant isolation
-- Production-only tools that should never run in development mode
-- Audit trails where the actual tenant must be logged
 
 **Troubleshooting:**
 
 - **Error:** `"Storage operation requires a tenantId in the request context"`
-- **Cause:** Tool passed `undefined` to a service expecting `tenantId`
-- **Solution:** Apply the graceful degradation pattern: `const tenantId = appContext.tenantId || 'default-tenant';`
+- **Cause:** Attempting to use `StorageService` without a `tenantId`
+- **Solution:** Apply one of the options above based on your use case
 
 ---
 
@@ -812,4 +752,4 @@ Before completing your task, ensure you have:
 - [ ] Smoke-tested local transports (`bun run dev:stdio`/`http`).
 - [ ] Validated the Worker bundle (`bun run build:worker`).
 
-That’s it. Follow these guidelines to ensure consistency, security, and maintainability across the MCP Server codebase.
+That’s it. Follow this document precisely.
