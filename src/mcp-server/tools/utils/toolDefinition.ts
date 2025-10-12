@@ -2,7 +2,7 @@
  * @fileoverview Defines the standard structure for a declarative tool definition.
  * This interface ensures that all tools provide the necessary metadata (name, schemas)
  * and logic in a consistent, self-contained format, aligned with MCP specifications.
- * @module src/mcp-server/tools/utils/toolDefinition
+ * @module mcp-server/tools/utils/toolDefinition
  */
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type {

@@ -11,7 +11,8 @@ import type {
   SdkContext,
   ToolAnnotations,
   ToolDefinition,
-} from '@/mcp-server/tools/utils/toolDefinition.js';
+} from '@/mcp-server/tools/utils/index.js';
+import { markdown } from '@/utils/index.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { type RequestContext, logger } from '@/utils/index.js';
@@ -186,22 +187,53 @@ async function echoToolLogic(
 
 /**
  * Formats a concise human-readable summary while structuredContent carries the full payload.
+ *
+ * @example Before (manual string concatenation):
+ * ```typescript
+ * const lines = [
+ *   `Echo (mode=${result.mode}, repeat=${result.repeatCount})`,
+ *   preview,
+ *   result.timestamp ? `timestamp=${result.timestamp}` : undefined,
+ * ].filter(Boolean) as string[];
+ * return [{ type: 'text', text: lines.join('\n') }];
+ * ```
+ *
+ * @example After (using MarkdownBuilder):
+ * ```typescript
+ * // For tight line formatting without blank lines, use text() with manual newlines
+ * const md = markdown()
+ *   .text(`Echo (mode=${result.mode}, repeat=${result.repeatCount})\n`)
+ *   .text(`${preview}`);
+ *
+ * // Apply conditional content after builder is initialized
+ * md.when(!!result.timestamp, () => {
+ *   md.text(`\ntimestamp=${result.timestamp}`);
+ * });
+ *
+ * return [{ type: 'text', text: md.build() }];
+ * ```
  */
 function responseFormatter(result: EchoToolResponse): ContentBlock[] {
   const preview =
     result.repeatedMessage.length > 200
       ? `${result.repeatedMessage.slice(0, 197)}…`
       : result.repeatedMessage;
-  const lines = [
-    `Echo (mode=${result.mode}, repeat=${result.repeatCount})`,
-    preview,
-    result.timestamp ? `timestamp=${result.timestamp}` : undefined,
-  ].filter(Boolean) as string[];
+
+  // Using MarkdownBuilder for consistent, semantic formatting
+  // Using text() with manual newlines for tight line formatting
+  const md = markdown()
+    .text(`Echo (mode=${result.mode}, repeat=${result.repeatCount})\n`)
+    .text(`${preview}`);
+
+  // Apply conditional content after builder is initialized
+  md.when(!!result.timestamp, () => {
+    md.text(`\ntimestamp=${result.timestamp}`);
+  });
 
   return [
     {
       type: 'text',
-      text: lines.join('\n'),
+      text: md.build(),
     },
   ];
 }

@@ -2,9 +2,9 @@
  * @fileoverview A factory for creating standardized MCP tool handlers.
  * This module abstracts away the boilerplate of error handling, context creation,
  * performance measurement, and response formatting for tool handlers.
- * @module src/mcp-server/tools/utils/toolHandlerFactory
+ * @module mcp-server/tools/utils/toolHandlerFactory
  */
-import type { SdkContext } from '@/mcp-server/tools/utils/toolDefinition.js';
+import type { SdkContext } from './toolDefinition.js';
 import { McpError } from '@/types-global/errors.js';
 import {
   ErrorHandler,

@@ -12,8 +12,8 @@ import { ToolDefinitions } from '@/container/index.js';
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
 import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
-import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
-import { createMcpToolHandler } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
+import type { ToolDefinition } from '@/mcp-server/tools/utils/index.js';
+import { createMcpToolHandler } from '@/mcp-server/tools/utils/index.js';
 
 @injectable()
 export class ToolRegistry {
