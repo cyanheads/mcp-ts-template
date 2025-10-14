@@ -23,7 +23,10 @@ import {
 } from '@/mcp-server/transports/auth/index.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
-import { SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
+import {
+  SessionStore,
+  type SessionIdentity,
+} from '@/mcp-server/transports/http/sessionStore.js';
 import {
   type RequestContext,
   logger,
@@ -230,23 +233,44 @@ export function createHttpApp(
     const providedSessionId = c.req.header('mcp-session-id');
     const sessionId = providedSessionId ?? randomUUID();
 
+    // Extract identity from auth context (if auth is enabled)
+    // This MUST happen before session validation for security
+    const authStore = authContext.getStore();
+    let sessionIdentity: SessionIdentity | undefined;
+    if (authStore?.authInfo) {
+      // Build identity object conditionally to satisfy exactOptionalPropertyTypes
+      sessionIdentity = {};
+      if (authStore.authInfo.tenantId)
+        sessionIdentity.tenantId = authStore.authInfo.tenantId;
+      if (authStore.authInfo.clientId)
+        sessionIdentity.clientId = authStore.authInfo.clientId;
+      if (authStore.authInfo.subject)
+        sessionIdentity.subject = authStore.authInfo.subject;
+    }
+
     // MCP Spec 2025-06-18: Return 404 for invalid/terminated sessions
     // https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management
+    // SECURITY: Validate session WITH identity binding to prevent hijacking
     if (
       sessionStore &&
       providedSessionId &&
-      !sessionStore.isValid(providedSessionId)
+      !sessionStore.isValidForIdentity(providedSessionId, sessionIdentity)
     ) {
-      logger.warning('Request with invalid or terminated session ID', {
-        ...transportContext,
-        sessionId: providedSessionId,
-      });
+      logger.warning(
+        'Session validation failed - invalid or hijacked session',
+        {
+          ...transportContext,
+          sessionId: providedSessionId,
+          requestTenant: sessionIdentity?.tenantId,
+          requestClient: sessionIdentity?.clientId,
+        },
+      );
       return c.json({ error: 'Session not found or expired' }, 404);
     }
 
-    // Create or update session for stateful mode
+    // Create or update session for stateful mode WITH identity binding
     if (sessionStore) {
-      sessionStore.getOrCreate(sessionId);
+      sessionStore.getOrCreate(sessionId, sessionIdentity);
     }
 
     const transport = new McpSessionTransport(sessionId);

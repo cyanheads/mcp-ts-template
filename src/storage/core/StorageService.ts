@@ -17,8 +17,26 @@ import type {
   ListResult,
 } from '@/storage/core/IStorageProvider.js';
 
+/**
+ * Validates and returns the tenant ID from the request context.
+ * Ensures the tenant ID is present, non-empty, and follows security constraints.
+ *
+ * Security constraints:
+ * - Must be non-empty string
+ * - Maximum length: 128 characters
+ * - Allowed characters: alphanumeric, hyphens, underscores, dots
+ * - Cannot contain path traversal sequences (../)
+ * - Cannot start or end with special characters
+ *
+ * @param context - The request context containing the tenant ID
+ * @returns The validated tenant ID
+ * @throws {McpError} If tenant ID is missing, invalid, or violates security constraints
+ */
 function requireTenantId(context: RequestContext): string {
-  if (!context.tenantId) {
+  const tenantId = context.tenantId;
+
+  // Check if tenant ID is missing (undefined or null)
+  if (tenantId === undefined || tenantId === null) {
     throw new McpError(
       JsonRpcErrorCode.InternalError,
       'Tenant ID is required for storage operations but was not found in the request context.',
@@ -28,7 +46,80 @@ function requireTenantId(context: RequestContext): string {
       },
     );
   }
-  return context.tenantId;
+
+  // Check if tenant ID is not a string or is empty/whitespace
+  if (typeof tenantId !== 'string' || tenantId.trim().length === 0) {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidParams,
+      'Tenant ID cannot be an empty string.',
+      {
+        operation: 'StorageService.requireTenantId',
+        requestId: context.requestId,
+        tenantId,
+      },
+    );
+  }
+
+  const trimmedTenantId = tenantId.trim();
+
+  // Check maximum length
+  if (trimmedTenantId.length > 128) {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidParams,
+      'Tenant ID exceeds maximum length of 128 characters.',
+      {
+        operation: 'StorageService.requireTenantId',
+        requestId: context.requestId,
+        tenantIdLength: trimmedTenantId.length,
+      },
+    );
+  }
+
+  // Validate character set: alphanumeric, hyphens, underscores, dots only
+  // This prevents path traversal and special character injection
+  // Single character: must be alphanumeric
+  // Multiple characters: must start and end with alphanumeric, middle can include ._-
+  const validTenantIdPattern =
+    /^[a-zA-Z0-9]$|^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$/;
+  if (!validTenantIdPattern.test(trimmedTenantId)) {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidParams,
+      'Tenant ID contains invalid characters. Only alphanumeric characters, hyphens, underscores, and dots are allowed. Must start and end with alphanumeric characters.',
+      {
+        operation: 'StorageService.requireTenantId',
+        requestId: context.requestId,
+        tenantId: trimmedTenantId,
+      },
+    );
+  }
+
+  // Check for path traversal attempts
+  if (trimmedTenantId.includes('../') || trimmedTenantId.includes('..\\')) {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidParams,
+      'Tenant ID contains path traversal sequences, which are not allowed.',
+      {
+        operation: 'StorageService.requireTenantId',
+        requestId: context.requestId,
+        tenantId: trimmedTenantId,
+      },
+    );
+  }
+
+  // Check for consecutive dots (potential bypass)
+  if (trimmedTenantId.includes('..')) {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidParams,
+      'Tenant ID contains consecutive dots, which are not allowed.',
+      {
+        operation: 'StorageService.requireTenantId',
+        requestId: context.requestId,
+        tenantId: trimmedTenantId,
+      },
+    );
+  }
+
+  return trimmedTenantId;
 }
 
 @injectable()
