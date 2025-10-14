@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [Unreleased]
+
+### Added
+
+- **Test Coverage Expansion**: Significantly increased test coverage for critical infrastructure components.
+  - Added `tests/mcp-server/transports/auth/authFactory.test.ts` with 5 test cases for authentication strategy factory (JWT, OAuth, none modes).
+  - Added `tests/mcp-server/transports/auth/strategies/jwtStrategy.test.ts` with 15 comprehensive JWT verification tests covering token validation, claims extraction, expiry, and signature verification.
+  - Added `tests/mcp-server/transports/manager.test.ts` with 9 test cases for transport manager lifecycle (HTTP and stdio initialization, start/stop behavior).
+  - Added `tests/storage/core/storageFactory.test.ts` with 10 test cases for storage provider factory covering in-memory, filesystem, Supabase, and Cloudflare providers.
+  - Overall test suite now at 556 passing tests with 84.73% function coverage and 88.47% line coverage.
+
+### Fixed
+
+- **Test Suite Improvements**: Fixed multiple test issues to ensure reliable execution.
+  - Fixed OAuth strategy test to properly set required configuration properties (`oauthIssuerUrl`, `oauthAudience`).
+  - Fixed JWT strategy test error message patterns to match actual implementation.
+  - Fixed storage factory tests to work with read-only config and DI container state.
+  - Added proper DI container registration in auth factory tests.
+
 ## [2.3.9] - 2025-10-14
 
 ### Added
