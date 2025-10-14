@@ -117,12 +117,8 @@ const start = async (): Promise<void> => {
     }
   }
 
+  // Logger will log its own initialization message
   await logger.initialize(validatedMcpLogLevel);
-
-  logger.info(
-    `Logger initialized. Effective MCP logging level: ${validatedMcpLogLevel}.`,
-    requestContextService.createRequestContext({ operation: 'LoggerInit' }),
-  );
 
   // Storage Service is now initialized in the container
   logger.info(
