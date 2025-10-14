@@ -31,6 +31,8 @@ export interface RateLimitConfig {
   keyGenerator?: (identifier: string, context?: RequestContext) => string;
   /** How often, in milliseconds, to clean up expired entries. */
   cleanupInterval?: number;
+  /** Maximum number of tracked keys. When exceeded, oldest entries are evicted (LRU). Default: 10000 */
+  maxTrackedKeys?: number;
 }
 
 /**
@@ -41,6 +43,8 @@ export interface RateLimitEntry {
   count: number;
   /** When the window resets (timestamp in milliseconds). */
   resetTime: number;
+  /** Last access timestamp for LRU eviction. */
+  lastAccess: number;
 }
 
 @injectable()
@@ -60,10 +64,43 @@ export class RateLimiter {
         'Rate limit exceeded. Please try again in {waitTime} seconds.',
       skipInDevelopment: false,
       cleanupInterval: 5 * 60 * 1000,
+      maxTrackedKeys: 10000,
     };
     this.effectiveConfig = { ...defaultConfig };
     this.limits = new Map();
     this.startCleanupTimer();
+  }
+
+  /**
+   * Evicts the least recently used entry from the limits Map.
+   * This prevents unbounded memory growth in high-traffic scenarios.
+   * @private
+   */
+  private evictLRUEntry(): void {
+    if (this.limits.size === 0) return;
+
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+
+    // Find the entry with the oldest lastAccess time
+    for (const [key, entry] of this.limits.entries()) {
+      if (entry.lastAccess < oldestTime) {
+        oldestTime = entry.lastAccess;
+        oldestKey = key;
+      }
+    }
+
+    if (oldestKey) {
+      this.limits.delete(oldestKey);
+      const logContext = requestContextService.createRequestContext({
+        operation: 'RateLimiter.evictLRUEntry',
+        additionalContext: {
+          evictedKey: oldestKey,
+          remainingEntries: this.limits.size,
+        },
+      });
+      this.logger.debug('Evicted LRU entry from rate limiter', logContext);
+    }
   }
 
   private startCleanupTimer(): void {
@@ -145,13 +182,25 @@ export class RateLimiter {
     let entry = this.limits.get(limitKey);
 
     if (!entry || now >= entry.resetTime) {
+      // Check if we need to evict an entry before adding a new one
+      const maxKeys = this.effectiveConfig.maxTrackedKeys || 10000;
+      if (!entry && this.limits.size >= maxKeys) {
+        this.evictLRUEntry();
+        activeSpan?.addEvent('rate_limit_lru_eviction', {
+          'mcp.rate_limit.size_before_eviction': this.limits.size + 1,
+          'mcp.rate_limit.max_keys': maxKeys,
+        });
+      }
+
       entry = {
         count: 1,
         resetTime: now + this.effectiveConfig.windowMs,
+        lastAccess: now,
       };
       this.limits.set(limitKey, entry);
     } else {
       entry.count++;
+      entry.lastAccess = now; // Update LRU timestamp
     }
 
     const remaining = Math.max(
@@ -162,13 +211,14 @@ export class RateLimiter {
       'mcp.rate_limit.limit': this.effectiveConfig.maxRequests,
       'mcp.rate_limit.count': entry.count,
       'mcp.rate_limit.remaining': remaining,
+      'mcp.rate_limit.tracked_keys': this.limits.size,
     });
 
     if (entry.count > this.effectiveConfig.maxRequests) {
       const waitTime = Math.ceil((entry.resetTime - now) / 1000);
       const errorMessage = (
         this.effectiveConfig.errorMessage ||
-        'Rate limit exceeded. Please try again in {waitTime} seconds.'
+        'Rate limit exceeded. Please try again in {waitTime}  seconds.'
       ).replace('{waitTime}', waitTime.toString());
 
       activeSpan?.addEvent('rate_limit_exceeded', {
