@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.3.9] - 2025-10-14
+
+### Added
+
+- **Session Identity Binding**: Implemented comprehensive session security to prevent hijacking across tenants and clients.
+  - Added `SessionIdentity` interface with `tenantId`, `clientId`, and `subject` fields for binding sessions to authenticated users.
+  - Enhanced `Session` interface to store identity fields for security validation.
+  - Session store now performs identity validation on every request to prevent cross-tenant/client session hijacking.
+  - Added detailed security logging for session validation failures with context about mismatches.
+- **Storage Security Enhancements**: Implemented robust tenant ID validation with comprehensive security checks.
+  - Added validation for tenant ID presence, type, length (max 128 chars), and character set (alphanumeric, hyphens, underscores, dots).
+  - Implemented path traversal prevention by blocking `../` sequences and consecutive dots.
+  - Enhanced validation to ensure tenant IDs start and end with alphanumeric characters.
+  - Added descriptive error messages with operation context for all validation failures.
+- **Rate Limiter Memory Management**: Added LRU (Least Recently Used) eviction to prevent unbounded memory growth.
+  - Implemented configurable `maxTrackedKeys` parameter (default: 10000) to limit memory usage.
+  - Added `lastAccess` timestamp tracking for each rate limit entry.
+  - Automatic eviction of oldest entries when limit is reached.
+  - Added telemetry event for LRU evictions with size metrics.
+- **Test Coverage**: Added comprehensive test suites for new security features.
+  - Session store tests covering identity binding and validation scenarios.
+  - Storage service tests for tenant ID validation logic.
+
+### Changed
+
+- **Session Management**: Refactored session validation to use identity-based security model.
+  - `SessionStore.getOrCreate()` now accepts optional `SessionIdentity` parameter for binding.
+  - Replaced `isValid()` with `isValidForIdentity()` for security-aware validation.
+  - Implemented lazy identity binding for sessions created before authentication.
+  - HTTP transport now extracts identity from auth context before session validation.
+- **Logger Initialization**: Removed redundant initialization log message as logger logs its own initialization.
+- **Documentation**: Updated `docs/tree.md` to reflect new test file structure.
+
+### Security
+
+- **Session Hijacking Prevention**: Sessions are now cryptographically bound to the authenticated identity, preventing attackers from reusing session IDs across different tenants or clients.
+- **Tenant ID Injection Protection**: Enhanced validation prevents path traversal attacks and special character injection through tenant IDs.
+- **Rate Limiter DOS Protection**: LRU eviction prevents memory exhaustion attacks from generating excessive unique rate limit keys.
+
 ## [2.3.8] - 2025-10-14
 
 ### Added

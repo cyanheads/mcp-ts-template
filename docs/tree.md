@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-14 16:36:46
+Generated on: 2025-10-14 21:58:36
 
 ```
 mcp-ts-template
@@ -220,9 +220,11 @@ mcp-ts-template
 │   │   │   └── utils
 │   │   │       └── core
 │   │   └── transports
-│   │       └── auth
-│   │           └── lib
-│   │               └── authUtils.test.ts
+│   │       ├── auth
+│   │       │   └── lib
+│   │       │       └── authUtils.test.ts
+│   │       └── http
+│   │           └── sessionStore.test.ts
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts
@@ -233,7 +235,8 @@ mcp-ts-template
 │   │   │   │   └── r2Provider.test.ts
 │   │   │   └── inMemory
 │   │   │       └── inMemoryProvider.test.ts
-│   │   └── storageProviderCompliance.test.ts
+│   │   ├── storageProviderCompliance.test.ts
+│   │   └── StorageService.test.ts
 │   ├── utils
 │   │   ├── formatting
 │   │   │   └── markdownBuilder.test.ts
@@ -279,6 +282,7 @@ mcp-ts-template
 ├── bunfig.toml
 ├── CHANGELOG.md
 ├── CLAUDE.md
+├── CODE_REVIEW_SUMMARY.md
 ├── Dockerfile
 ├── eslint.config.js
 ├── LICENSE
