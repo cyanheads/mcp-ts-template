@@ -8,6 +8,7 @@
 import type { Context } from 'hono';
 import type { StatusCode } from 'hono/utils/http-status';
 
+import { config } from '@/config/index.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
@@ -47,6 +48,25 @@ export const httpErrorHandler = async (
         break;
       case JsonRpcErrorCode.Unauthorized:
         status = 401;
+        // MCP Spec 2025-06-18: Add WWW-Authenticate header per RFC 9728 Section 5.1
+        // https://datatracker.ietf.org/doc/html/rfc9728#section-5.1
+        if (config.oauthIssuerUrl) {
+          const origin = new URL(c.req.url).origin;
+          const resourceMetadataUrl = `${origin}/.well-known/oauth-protected-resource`;
+
+          // Build WWW-Authenticate header per RFC 9728
+          const wwwAuthValue = [
+            `Bearer realm="${config.mcpServerName}"`,
+            `resource_metadata="${resourceMetadataUrl}"`,
+          ].join(', ');
+
+          c.header('WWW-Authenticate', wwwAuthValue);
+
+          logger.debug('Added WWW-Authenticate header for 401 response', {
+            ...context,
+            resourceMetadataUrl,
+          });
+        }
         break;
       case JsonRpcErrorCode.Forbidden:
         status = 403;
