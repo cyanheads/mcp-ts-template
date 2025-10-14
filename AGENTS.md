@@ -40,6 +40,10 @@ This document defines the operational rules for contributing to this codebase. F
 
 ## II. Architectural Overview & Directory Structure
 
+> **📁 Repository Structure Reference**: For a complete visual tree of the codebase, see [docs/tree.md](docs/tree.md). This will help you understand the full directory layout and where to place your code.
+>
+> **⚠️ Architectural Discipline**: ALWAYS respect the established directory structure. New services go in `src/services/`, new tools in `src/mcp-server/tools/definitions/`, etc. Do not create top-level directories or place code in non-standard locations.
+
 Separation of concerns maps directly to the filesystem. Always place files in their designated locations.
 
 | Directory                                   | Purpose & Guidance                                                                                                                                                                                                                                                                                                                |
@@ -113,13 +117,21 @@ import { z } from 'zod';
 // Metadata constants
 const TOOL_NAME = 'template_echo_message';
 const TOOL_TITLE = 'Template Echo Message';
-const TOOL_DESCRIPTION = 'Echoes a message back with optional formatting and repetition.';
-const TOOL_ANNOTATIONS = { readOnlyHint: true, idempotentHint: true, openWorldHint: false };
+const TOOL_DESCRIPTION =
+  'Echoes a message back with optional formatting and repetition.';
+const TOOL_ANNOTATIONS = {
+  readOnlyHint: true,
+  idempotentHint: true,
+  openWorldHint: false,
+};
 
 // Schemas (all fields must have .describe())
 const InputSchema = z.object({
   message: z.string().min(1).max(1000).describe('The message to echo back.'),
-  mode: z.enum(['standard', 'uppercase', 'lowercase']).default('standard').describe('Formatting mode.'),
+  mode: z
+    .enum(['standard', 'uppercase', 'lowercase'])
+    .default('standard')
+    .describe('Formatting mode.'),
   // ...
 });
 const OutputSchema = z.object({
@@ -131,7 +143,9 @@ const OutputSchema = z.object({
 async function echoToolLogic(input, appContext, sdkContext) {
   logger.debug('Processing echo message.', { ...appContext });
   // Business logic here (no try/catch, throw McpError on failure)
-  return { /* result */ };
+  return {
+    /* result */
+  };
 }
 
 // Optional response formatter
@@ -140,26 +154,134 @@ function responseFormatter(result): ContentBlock[] {
 }
 
 // Export definition
-export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
-  name: TOOL_NAME,
-  title: TOOL_TITLE,
-  description: TOOL_DESCRIPTION,
-  inputSchema: InputSchema,
-  outputSchema: OutputSchema,
-  annotations: TOOL_ANNOTATIONS,
-  logic: withToolAuth(['tool:echo:read'], echoToolLogic),
-  responseFormatter,
-};
+export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
+  {
+    name: TOOL_NAME,
+    title: TOOL_TITLE,
+    description: TOOL_DESCRIPTION,
+    inputSchema: InputSchema,
+    outputSchema: OutputSchema,
+    annotations: TOOL_ANNOTATIONS,
+    logic: withToolAuth(['tool:echo:read'], echoToolLogic),
+    responseFormatter,
+  };
 ```
 
 **Resource-Specific Notes:**
+
 - Resources use `uriTemplate` (e.g., `echo://{message}`), `paramsSchema`, and optional `list()` for discovery
 - Logic signature: `(uri: URL, params, context) => result` (can be `async`)
 - See `echo.resource.ts` for complete example
 
 ---
 
+## IV.A. Quick Start: Creating Your First Tool
+
+**Follow these steps to add a new tool capability:**
+
+- [ ] **1. Read the template**
+  - Open and study: [src/mcp-server/tools/definitions/template-echo-message.tool.ts](src/mcp-server/tools/definitions/template-echo-message.tool.ts)
+  - Understand the structure: metadata → schemas → logic → export
+
+- [ ] **2. Create your tool file**
+  - Location: `src/mcp-server/tools/definitions/[your-tool-name].tool.ts`
+  - Use kebab-case naming (e.g., `my-custom-tool.tool.ts`)
+
+- [ ] **3. Define metadata constants**
+
+  ```ts
+  const TOOL_NAME = 'your_tool_name'; // snake_case, unique
+  const TOOL_TITLE = 'Your Tool Title'; // Human-readable
+  const TOOL_DESCRIPTION = 'What it does...'; // LLM-facing, 1-2 sentences
+  const TOOL_ANNOTATIONS = {
+    // UI hints
+    readOnlyHint: true, // No state changes?
+    idempotentHint: true, // Same input = same output?
+  };
+  ```
+
+- [ ] **4. Create Zod schemas**
+  - Define `InputSchema` and `OutputSchema` as `z.object()`
+  - **CRITICAL:** Every field must have `.describe('Clear description')`
+  - Example: `z.string().min(1).describe('The message to process')`
+
+- [ ] **5. Implement pure logic function**
+
+  ```ts
+  async function yourToolLogic(input, appContext, sdkContext) {
+    logger.debug('Processing...', { ...appContext });
+
+    // NO try/catch - handlers catch errors
+    // Throw McpError on failure:
+    // throw new McpError(JsonRpcErrorCode.InvalidParams, 'Reason');
+
+    return {
+      /* your result matching OutputSchema */
+    };
+  }
+  ```
+
+- [ ] **6. (Optional) Add response formatter**
+
+  ```ts
+  function responseFormatter(result): ContentBlock[] {
+    return [{ type: 'text', text: `Result: ${result.data}` }];
+  }
+  ```
+
+- [ ] **7. Wrap logic with authorization**
+
+  ```ts
+  import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+
+  logic: withToolAuth(['tool:yourname:read'], yourToolLogic),
+  ```
+
+- [ ] **8. Export the ToolDefinition**
+
+  ```ts
+  export const yourTool: ToolDefinition<
+    typeof InputSchema,
+    typeof OutputSchema
+  > = {
+    name: TOOL_NAME,
+    title: TOOL_TITLE,
+    description: TOOL_DESCRIPTION,
+    inputSchema: InputSchema,
+    outputSchema: OutputSchema,
+    annotations: TOOL_ANNOTATIONS,
+    logic: withToolAuth(['tool:yourname:read'], yourToolLogic),
+    responseFormatter, // optional
+  };
+  ```
+
+- [ ] **9. Register in barrel export**
+  - Open [src/mcp-server/tools/definitions/index.ts](src/mcp-server/tools/definitions/index.ts)
+  - Import: `import { yourTool } from './your-tool-name.tool.js';`
+  - Add to `allToolDefinitions` array
+
+- [ ] **10. Run quality checks**
+
+  ```bash
+  bun devcheck
+  ```
+
+- [ ] **11. Test your tool**
+
+  ```bash
+  bun run dev:stdio    # or dev:http
+  ```
+
+  - Use an MCP client (Claude Desktop, Cline, etc.) to invoke your tool
+  - Verify input validation, logic execution, and response format
+
+**Need more details?** See the full workflow in Section IV and comprehensive checklist in Section XIV.
+
+---
+
 ## V. Service Development Pattern
+
+> **Architecture reminder:** All new services MUST be created in `src/services/[service-name]/` following the domain-driven pattern. See [docs/tree.md](docs/tree.md) for the complete structure.
 
 **Structure:** `src/services/<service-name>/` contains `core/` (interfaces, optional orchestrator), `providers/` (implementations), `types.ts`, `index.ts`
 
@@ -168,11 +290,13 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
 **Multi-Provider Pattern** (e.g., Speech): Create `<Service>Service.ts` orchestrator when you need provider routing, capability aggregation, or cross-provider state.
 
 **Provider Guidelines:**
+
 1. Implement `I<Service>Provider`, mark `@injectable()`, provide `healthCheck(): Promise<boolean>`
 2. Throw `McpError` for failures (no try/catch in provider logic)
 3. Name: `<provider-name>.provider.ts` (kebab-case)
 
 **Adding New Service:**
+
 1. Create dir structure → 2. Define interface → 3. Implement providers → 4. Define types → 5. Barrel export → 6. Register DI token (`src/container/tokens.ts`) → 7. Register service (`src/container/registrations/core.ts`)
 
 ---
@@ -181,15 +305,15 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
 
 #### DI-Managed Services (tokens in `src/container/tokens.ts`)
 
-| Service | Token | Usage | Notes |
-|---------|-------|-------|-------|
-| `ILlmProvider` | `LlmProvider` | `@inject(LlmProvider) private llmProvider: ILlmProvider` | |
-| `StorageService` | `StorageService` | `@inject(StorageService) private storage: StorageService` | Requires `context.tenantId` |
-| `RateLimiter` | `RateLimiterService` | `@inject(RateLimiterService) private rateLimiter: RateLimiter` | |
-| `Logger` | `Logger` | `@inject(Logger) private logger: typeof logger` | Pino-backed singleton |
-| App Config | `AppConfig` | `@inject(AppConfig) private config: typeof configModule` | |
-| Supabase Client | `SupabaseAdminClient` | `@inject(SupabaseAdminClient) private client: SupabaseClient<Database>` | Only when needed |
-| Transport Manager | `TransportManagerToken` | `@inject(TransportManagerToken) private tm: TransportManager` | |
+| Service           | Token                   | Usage                                                                   | Notes                       |
+| ----------------- | ----------------------- | ----------------------------------------------------------------------- | --------------------------- |
+| `ILlmProvider`    | `LlmProvider`           | `@inject(LlmProvider) private llmProvider: ILlmProvider`                |                             |
+| `StorageService`  | `StorageService`        | `@inject(StorageService) private storage: StorageService`               | Requires `context.tenantId` |
+| `RateLimiter`     | `RateLimiterService`    | `@inject(RateLimiterService) private rateLimiter: RateLimiter`          |                             |
+| `Logger`          | `Logger`                | `@inject(Logger) private logger: typeof logger`                         | Pino-backed singleton       |
+| App Config        | `AppConfig`             | `@inject(AppConfig) private config: typeof configModule`                |                             |
+| Supabase Client   | `SupabaseAdminClient`   | `@inject(SupabaseAdminClient) private client: SupabaseClient<Database>` | Only when needed            |
+| Transport Manager | `TransportManagerToken` | `@inject(TransportManagerToken) private tm: TransportManager`           |                             |
 
 **Storage Providers:** `STORAGE_PROVIDER_TYPE` = `in-memory` (default) \| `filesystem` (Node) \| `supabase` \| `cloudflare-r2/kv` (Worker). Always use `StorageService` from DI.
 
@@ -205,21 +329,22 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
 
 #### Utils Modules (`src/utils/`)
 
-| Module | Key Exports |
-|--------|-------------|
-| `parsing/` | `csvParser`, `yamlParser`, `xmlParser`, `jsonParser`, `pdfParser` (handles LLM `<think>` blocks) |
-| `formatting/` | `MarkdownBuilder`, `markdown()` helper |
-| `security/` | `sanitization`, `rateLimiter`, `idGenerator` |
-| `network/` | `fetchWithTimeout` |
-| `scheduling/` | `scheduler` (node-cron wrapper) |
-| `internal/` | `logger`, `requestContextService`, `ErrorHandler`, `performance` |
-| `telemetry/` | OpenTelemetry instrumentation |
+| Module        | Key Exports                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------ |
+| `parsing/`    | `csvParser`, `yamlParser`, `xmlParser`, `jsonParser`, `pdfParser` (handles LLM `<think>` blocks) |
+| `formatting/` | `MarkdownBuilder`, `markdown()` helper                                                           |
+| `security/`   | `sanitization`, `rateLimiter`, `idGenerator`                                                     |
+| `network/`    | `fetchWithTimeout`                                                                               |
+| `scheduling/` | `scheduler` (node-cron wrapper)                                                                  |
+| `internal/`   | `logger`, `requestContextService`, `ErrorHandler`, `performance`                                 |
+| `telemetry/`  | OpenTelemetry instrumentation                                                                    |
 
 ---
 
 ## VII. Authentication & Authorization
 
 **HTTP Transport:** `MCP_AUTH_MODE` = `none` \| `jwt` \| `oauth`
+
 - **JWT:** Local secret (`MCP_AUTH_SECRET_KEY`). Dev mode bypasses verification if secret missing.
 - **OAuth:** Remote JWKS verification. Requires `OAUTH_ISSUER_URL`, `OAUTH_AUDIENCE`, optional `OAUTH_JWKS_URI`.
 - **Claims extracted:** `clientId` (`cid`/`client_id`), `scopes` (`scp`/`scope`), `subject` (`sub`), `tenantId` (`tid` → `context.tenantId`)
@@ -228,6 +353,7 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
 **STDIO Transport:** No HTTP-based auth. Authorization handled by host application.
 
 **Endpoints:**
+
 - `GET /healthz`, `GET /mcp`: Unprotected
 - `POST`/`OPTIONS /mcp`: Protected when `MCP_AUTH_MODE != 'none'`
 - CORS: `MCP_ALLOWED_ORIGINS` or `'*'`
@@ -256,14 +382,14 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
 
 ## X. Checks & Workflow Commands
 
-| Command | Purpose |
-|---------|---------|
-| `bun rebuild` | Clean, rebuild, clear logs (after dep changes) |
-| `bun devcheck` | **USE OFTEN** Lint, format, typecheck, security (flags: `--no-fix`, `--no-lint`, `--no-audit`) |
-| `bun test` | Unit/integration tests |
-| `bun run dev:stdio/http` | Development mode |
-| `bun run start:stdio/http` | Production mode (after build) |
-| `bun run build:worker` | Cloudflare Worker bundle |
+| Command                    | Purpose                                                                                        |
+| -------------------------- | ---------------------------------------------------------------------------------------------- |
+| `bun rebuild`              | Clean, rebuild, clear logs (after dep changes)                                                 |
+| `bun devcheck`             | **USE OFTEN** Lint, format, typecheck, security (flags: `--no-fix`, `--no-lint`, `--no-audit`) |
+| `bun test`                 | Unit/integration tests                                                                         |
+| `bun run dev:stdio/http`   | Development mode                                                                               |
+| `bun run start:stdio/http` | Production mode (after build)                                                                  |
+| `bun run build:worker`     | Cloudflare Worker bundle                                                                       |
 
 ---
 
@@ -271,13 +397,13 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
 
 All config validated via Zod in `src/config/index.ts`. Derives `serviceName`/`version` from `package.json`.
 
-| Category | Key Variables |
-|----------|---------------|
-| **Transport** | `MCP_TRANSPORT_TYPE` (`stdio`\|`http`), `MCP_HTTP_PORT/HOST/PATH` |
-| **Auth** | `MCP_AUTH_MODE` (`none`\|`jwt`\|`oauth`), `MCP_AUTH_SECRET_KEY`, `OAUTH_*` |
-| **Storage** | `STORAGE_PROVIDER_TYPE` (`in-memory`\|`filesystem`\|`supabase`\|`cloudflare-r2/kv`) |
-| **LLM** | `OPENROUTER_API_KEY`, `OPENROUTER_APP_URL/NAME`, `LLM_DEFAULT_*` |
-| **Telemetry** | `OTEL_ENABLED`, `OTEL_SERVICE_NAME/VERSION`, `OTEL_EXPORTER_OTLP_*` |
+| Category      | Key Variables                                                                       |
+| ------------- | ----------------------------------------------------------------------------------- |
+| **Transport** | `MCP_TRANSPORT_TYPE` (`stdio`\|`http`), `MCP_HTTP_PORT/HOST/PATH`                   |
+| **Auth**      | `MCP_AUTH_MODE` (`none`\|`jwt`\|`oauth`), `MCP_AUTH_SECRET_KEY`, `OAUTH_*`          |
+| **Storage**   | `STORAGE_PROVIDER_TYPE` (`in-memory`\|`filesystem`\|`supabase`\|`cloudflare-r2/kv`) |
+| **LLM**       | `OPENROUTER_API_KEY`, `OPENROUTER_APP_URL/NAME`, `LLM_DEFAULT_*`                    |
+| **Telemetry** | `OTEL_ENABLED`, `OTEL_SERVICE_NAME/VERSION`, `OTEL_EXPORTER_OTLP_*`                 |
 
 ---
 
@@ -296,6 +422,7 @@ All config validated via Zod in `src/config/index.ts`. Derives `serviceName`/`ve
 **HTTP with Auth:** `tenantId` auto-extracted from JWT claim `'tid'` → propagated via `requestContextService.withAuthInfo()`.
 
 **STDIO:** Explicitly set tenant:
+
 ```typescript
 const context = requestContextService.createRequestContext({
   operation: 'connectStdioTransport',
