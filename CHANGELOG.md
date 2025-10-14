@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.3.8] - 2025-10-14
+
+### Added
+
+- **Pagination Utilities**: Implemented comprehensive pagination support per MCP spec 2025-06-18.
+  - Added `src/utils/pagination/index.ts` with cursor-based pagination utilities (`extractCursor`, `paginateArray`, `encodeCursor`, `decodeCursor`).
+  - Cursors are opaque, server-controlled strings for secure pagination.
+  - Page sizes are server-controlled with configurable defaults and maximums.
+  - Included comprehensive test coverage in `tests/utils/pagination/index.test.ts`.
+- **Resource Pagination Support**: Enhanced resource definitions to support pagination in `list()` operations.
+  - Updated `ResourceDefinition` interface to pass `RequestHandlerExtra` parameter to `list()` function.
+  - Added detailed JSDoc examples showing pagination implementation patterns.
+  - Updated echo resource with pagination guidance and example code.
+
+### Changed
+
+- **Documentation**: Enhanced `AGENTS.md` with comprehensive pagination guidance in Section IV.
+  - Added "Resource Pagination" subsection with key utilities and implementation notes.
+  - Clarified cursor opacity requirements and error handling patterns.
+  - Added reference to pagination utilities available from `@/utils/index.js`.
+  - Updated developer note to emphasize reading file content before editing.
+- **Version**: Bumped project version from `2.3.7` to `2.3.8` in `package.json` and `server.json`.
+- **Tree Documentation**: Regenerated `docs/tree.md` to include new pagination utilities and MCP specification documentation.
+
+### Fixed
+
+- **Resource List Tests**: Updated echo resource tests to properly mock `RequestHandlerExtra` parameter for `list()` function, ensuring compatibility with the new pagination-aware signature.
+
 ## [2.3.7] - 2025-10-14
 
 ### Added
