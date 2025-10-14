@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.3.7] - 2025-10-14
+
+### Added
+
+- **MCP Spec 2025-06-18 Compliance**: Implemented comprehensive HTTP transport security and session management features aligned with the latest MCP specification.
+  - Added `WWW-Authenticate` header with OAuth resource metadata URL for 401 responses per RFC 9728 Section 5.1.
+  - Implemented Origin header validation for DNS rebinding protection on all MCP endpoint requests.
+  - Added DELETE endpoint for explicit session termination, allowing clients to cleanly close sessions.
+  - Enhanced InitializeResponse with `Mcp-Session-Id` header for stateful session tracking.
+  - Added 404 responses for invalid or terminated session IDs.
+  - Implemented 400 Bad Request responses for unsupported MCP protocol versions.
+- **Session Store**: Created `SessionStore` utility class in `src/mcp-server/transports/http/` for managing stateful session lifecycles with automatic cleanup of stale sessions.
+
+### Changed
+
+- **Dependencies**: Updated multiple dependencies for security and feature improvements:
+  - `hono` from `4.9.11` to `4.9.12`
+  - `repomix` from `1.6.1` to `1.7.0`
+  - `typescript-eslint` from `8.46.0` to `8.46.1`
+  - `vite` from `7.1.9` to `7.1.10`
+- **Version**: Bumped project version from `2.3.6` to `2.3.7` in `package.json` and `server.json`.
+
+### Fixed
+
+- **HTTP Transport Security**: Resolved multiple security and compliance gaps in the HTTP transport layer by implementing proper Origin validation, session lifecycle management, and protocol version enforcement per MCP specification.
+
 ## [2.3.6] - 2025-10-11
 
 ### Added
