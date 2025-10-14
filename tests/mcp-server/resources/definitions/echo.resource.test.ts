@@ -41,11 +41,17 @@ describe('echoResourceDefinition', () => {
     expect(typedResult).toHaveProperty('timestamp');
   });
 
-  it('should provide resource list for discovery', () => {
+  it('should provide resource list for discovery', async () => {
     const list = echoResourceDefinition.list;
     expect(list).toBeDefined();
 
-    const resourceList = list!();
+    // Mock RequestHandlerExtra parameter
+    const mockExtra = {
+      signal: new AbortController().signal,
+      _meta: {},
+    } as any;
+
+    const resourceList = await list!(mockExtra);
     expect(resourceList.resources).toHaveLength(1);
     expect(resourceList.resources[0]).toHaveProperty('uri', 'echo://hello');
     expect(resourceList.resources[0]).toHaveProperty('name');

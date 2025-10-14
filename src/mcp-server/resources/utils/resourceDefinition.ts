@@ -4,9 +4,12 @@
  * architecture for MCP resources, separating pure logic from handler concerns.
  * @module src/mcp-server/resources/utils/resourceDefinition
  */
+import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type {
   ListResourcesResult,
   ReadResourceResult,
+  ServerNotification,
+  ServerRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
@@ -50,9 +53,38 @@ export interface ResourceDefinition<
   annotations?: ResourceAnnotations;
   /**
    * Optional provider for list results. If provided, it's used for resource discovery.
-   * Return value should conform to the MCP SDK's ListResourcesResult.
+   * The `extra` parameter provides access to request metadata including pagination cursor
+   * via `extra._meta?.cursor` or from the request params.
+   * Return value should conform to the MCP SDK's ListResourcesResult, which can include
+   * a `nextCursor` field for pagination support per MCP spec 2025-06-18.
+   *
+   * @param extra - Request handler context including signal, authInfo, sessionId, and request metadata
+   * @returns ListResourcesResult with resources array and optional nextCursor for pagination
+   *
+   * @example
+   * ```typescript
+   * import { extractCursor, paginateArray } from '@/utils/index.js';
+   *
+   * list: (extra) => {
+   *   const allResources = [...]  // Your full resource list
+   *   const cursor = extractCursor(extra._meta);
+   *   const { items, nextCursor } = paginateArray(
+   *     allResources,
+   *     cursor,
+   *     50,   // defaultPageSize
+   *     1000, // maxPageSize
+   *     context
+   *   );
+   *   return {
+   *     resources: items,
+   *     ...(nextCursor && { nextCursor }),
+   *   };
+   * }
+   * ```
    */
-  list?: () => ListResourcesResult;
+  list?: (
+    extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+  ) => ListResourcesResult | Promise<ListResourcesResult>;
   /**
    * The pure, stateless core logic for the resource read operation.
    * MUST NOT contain try/catch. Throw McpError on failure.

@@ -82,14 +82,20 @@ export const echoResourceDefinition: ResourceDefinition<
   mimeType: 'application/json',
   examples: [{ name: 'Basic echo', uri: 'echo://hello' }],
   annotations: { readOnlyHint: true },
-  list: () => ({
-    resources: [
-      {
-        uri: 'echo://hello',
-        name: 'Default Echo Message',
-        description: 'A simple echo resource example.',
-      },
-    ],
-  }),
+  list: (_extra) => {
+    // For pagination support, extract cursor and use pagination utilities:
+    // const cursor = extractCursor(_extra._meta);
+    // const { items, nextCursor } = paginateArray(allResources, cursor, 50, 1000, context);
+    // return { resources: items, ...(nextCursor && { nextCursor }) };
+    return {
+      resources: [
+        {
+          uri: 'echo://hello',
+          name: 'Default Echo Message',
+          description: 'A simple echo resource example.',
+        },
+      ],
+    };
+  },
   logic: withResourceAuth(['resource:echo:read'], echoLogic),
 };
