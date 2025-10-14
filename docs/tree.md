@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-12 06:01:16
+Generated on: 2025-10-14 16:36:46
 
 ```
 mcp-ts-template
@@ -18,6 +18,22 @@ mcp-ts-template
 ├── changelog
 │   └── archive1.md
 ├── docs
+│   ├── mcp-specification
+│   │   └── 2025-06-18
+│   │       ├── best-practices
+│   │       │   └── security.md
+│   │       ├── core
+│   │       │   ├── authorization.md
+│   │       │   ├── lifecycle.md
+│   │       │   ├── overview.md
+│   │       │   └── transports.md
+│   │       └── utils
+│   │           ├── cancellation.md
+│   │           ├── completion.md
+│   │           ├── logging.md
+│   │           ├── pagination.md
+│   │           ├── ping.md
+│   │           └── progress.md
 │   ├── mcp-elicitation-summary.md
 │   ├── publishing-mcp-server-registry.md
 │   └── tree.md
@@ -88,7 +104,8 @@ mcp-ts-template
 │   │   │   │   ├── httpErrorHandler.ts
 │   │   │   │   ├── httpTransport.ts
 │   │   │   │   ├── httpTypes.ts
-│   │   │   │   └── index.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   └── sessionStore.ts
 │   │   │   ├── stdio
 │   │   │   │   ├── index.ts
 │   │   │   │   └── stdioTransport.ts
@@ -158,6 +175,8 @@ mcp-ts-template
 │   │   │   └── tokenCounter.ts
 │   │   ├── network
 │   │   │   ├── fetchWithTimeout.ts
+│   │   │   └── index.ts
+│   │   ├── pagination
 │   │   │   └── index.ts
 │   │   ├── parsing
 │   │   │   ├── csvParser.ts
@@ -234,6 +253,8 @@ mcp-ts-template
 │   │   │   └── tokenCounter.test.ts
 │   │   ├── network
 │   │   │   └── fetchWithTimeout.test.ts
+│   │   ├── pagination
+│   │   │   └── index.test.ts
 │   │   ├── parsing
 │   │   │   ├── csvParser.test.ts
 │   │   │   ├── dateParser.test.ts

@@ -7,7 +7,7 @@ This document defines the operational rules for contributing to this codebase. F
 
 > **Note on File Synchronization**: `AGENTS.md` is symlinked to CLAUDE.md & `.clinerules/AGENTS.md` for consistency. Only edit the root `AGENTS.md` file. You do not have permission edit, touch, or change in any way the `CLAUDE.md` or `.clinerules/AGENTS.md` files.
 
-> **Developer Note**: Never assume anything. Always review related files, search for documentation, etc. when making changes. Always prefer reading the full file content to understand the full context.
+> **Note for Developer**: Never assume anything. Always review related files, search for documentation, etc. when making changes. Always prefer reading the full file content to understand the full context. NEVER attempt to edit a file before reading the current content.
 
 ---
 
@@ -172,6 +172,24 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
 - Resources use `uriTemplate` (e.g., `echo://{message}`), `paramsSchema`, and optional `list()` for discovery
 - Logic signature: `(uri: URL, params, context) => result` (can be `async`)
 - See `echo.resource.ts` for complete example
+
+**Resource Pagination:**
+
+Resources that return large lists should implement pagination support per [MCP spec 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/utils/pagination). The `list()` function receives a `RequestHandlerExtra` parameter that provides access to the cursor for pagination.
+
+Key pagination utilities (available from `@/utils/index.js`):
+
+- `extractCursor(meta)`: Extract cursor from request metadata
+- `paginateArray(items, cursor, defaultPageSize, maxPageSize, context)`: Paginate in-memory arrays
+- `encodeCursor(state)` / `decodeCursor(cursor, context)`: Manual cursor encoding/decoding
+
+**Important pagination notes:**
+
+- Cursors are opaque strings - clients must not parse or construct them
+- Page sizes are server-controlled - clients cannot specify size
+- Invalid cursors throw `JsonRpcErrorCode.InvalidParams` (-32602)
+- Use `nextCursor` conditionally - only include if more results exist
+- See `src/utils/pagination/index.ts` for detailed implementation
 
 ---
 
