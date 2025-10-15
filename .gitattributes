@@ -1,16 +1,152 @@
 # =============================================================================
-# GitHub Linguist Configuration
+# LINE ENDING NORMALIZATION
 # =============================================================================
-# This file controls language detection and repository statistics on GitHub.
+# Ensure consistent line endings across all platforms (Windows/Mac/Linux)
+
+# Auto detect text files and normalize to LF
+* text=auto eol=lf
+
+# Explicitly declare text files
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.txt text eol=lf
+*.xml text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.svg text eol=lf
+
+# Shell scripts should always use LF
+*.sh text eol=lf
+
+# =============================================================================
+# BINARY FILES
+# =============================================================================
+# Prevent corruption of binary files
+
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+
+# Fonts
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.7z binary
+*.rar binary
+
+# Executables
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+
+# =============================================================================
+# GITHUB LINGUIST CONFIGURATION
+# =============================================================================
+# Control language detection and repository statistics on GitHub
 # See: https://github.com/github/linguist
 
-# Exclude coverage reports from language statistics
+# Generated code - won't count toward language statistics
+dist/** linguist-generated
+build/** linguist-generated
+out/** linguist-generated
 coverage/** linguist-generated
+*.d.ts linguist-generated
 
-# Mark documentation files
+# Lock files - mark as generated
+package-lock.json linguist-generated
+bun.lockb linguist-generated
+yarn.lock linguist-generated
+
+# Documentation
 *.md linguist-documentation
+docs/** linguist-documentation
 
-# Mark configuration files as data
+# Configuration and data files
 *.json linguist-data
 *.yaml linguist-data
 *.yml linguist-data
+.vscode/** linguist-data
+.github/** linguist-data
+
+# Vendored/third-party code
+node_modules/** linguist-vendored
+vendor/** linguist-vendored
+
+# =============================================================================
+# DIFF HANDLING
+# =============================================================================
+# Improve diff readability for specific file types
+
+# JSON files - use JSON-aware diff
+*.json diff=json
+package.json diff=json
+
+# Lockfiles - disable diff (too noisy)
+package-lock.json -diff
+bun.lockb -diff
+yarn.lock -diff
+
+# =============================================================================
+# MERGE STRATEGIES
+# =============================================================================
+# Custom merge behavior for specific files
+
+# Lockfiles - use binary merge to avoid conflicts
+package-lock.json merge=binary
+bun.lockb merge=binary
+yarn.lock merge=binary
+
+# =============================================================================
+# EXPORT-IGNORE
+# =============================================================================
+# Files to exclude from `git archive` (reduces npm package size)
+
+.github/ export-ignore
+.vscode/ export-ignore
+.husky/ export-ignore
+tests/ export-ignore
+coverage/ export-ignore
+docs/ export-ignore
+scripts/ export-ignore
+*.test.ts export-ignore
+*.test.tsx export-ignore
+*.test.js export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
+.eslintrc.json export-ignore
+.eslintignore export-ignore
+.prettierrc.json export-ignore
+tsconfig.json export-ignore
+tsconfig.test.json export-ignore
+vitest.config.ts export-ignore
+vitest.integration.config.ts export-ignore
+bunfig.toml export-ignore
+wrangler.toml export-ignore
+Dockerfile export-ignore
+.dockerignore export-ignore
+.env.example export-ignore
+AGENTS.md export-ignore
+CLAUDE.md export-ignore
