@@ -69,7 +69,6 @@ wheels/
 .installed.cfg
 *.egg
 .pytest_cache/
-.coverage
 htmlcov/
 .tox/
 .venv
@@ -94,7 +93,6 @@ target/
 *.gem
 *.rbc
 /.config
-/coverage/
 /InstalledFiles
 /pkg/
 /spec/reports/
@@ -142,7 +140,6 @@ logs/
 # =============================================================================
 # TESTING & COVERAGE
 # =============================================================================
-coverage/
 .nyc_output/
 
 # =============================================================================
