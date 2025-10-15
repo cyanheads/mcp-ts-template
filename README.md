@@ -160,7 +160,7 @@ All configuration is centralized and validated at startup in `src/config/index.t
 - **Run checks and tests**:
   ```sh
   bun devcheck # Lints, formats, type-checks, and more
-  bun test # Runs the test suite
+  bun run test # Runs the test suite (Do not use 'bun test' directly as it may not work correctly)
   ```
 
 ### Cloudflare Workers
