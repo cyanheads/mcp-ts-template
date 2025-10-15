@@ -23,21 +23,55 @@ import { logger, requestContextService } from '@/utils/index.js';
 const isServerless =
   typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
 
+/**
+ * Optional dependencies for storage provider creation.
+ * Allows pre-resolved dependencies to be passed in, useful for testing
+ * and Worker environments where DI container may not be available.
+ */
 export interface StorageFactoryDeps {
-  supabaseClient?: SupabaseClient<Database>;
-  r2Bucket?: R2Bucket;
-  kvNamespace?: KVNamespace;
+  /** Pre-configured Supabase client */
+  readonly supabaseClient?: SupabaseClient<Database>;
+  /** Cloudflare R2 bucket binding */
+  readonly r2Bucket?: R2Bucket;
+  /** Cloudflare KV namespace binding */
+  readonly kvNamespace?: KVNamespace;
 }
 
 /**
  * Creates and returns a storage provider instance based on the provided configuration.
  *
- * @param config - The application configuration object, typically resolved
- *                 from the DI container.
- * @param deps - Optional object containing pre-resolved dependencies for providers.
+ * This factory decouples the application from concrete storage implementations,
+ * allowing the backend to be selected via environment configuration. In serverless
+ * environments, automatically falls back to in-memory storage for non-compatible providers.
+ *
+ * Provider Selection Logic:
+ * - Serverless environment: Only `in-memory`, `cloudflare-r2`, `cloudflare-kv` allowed
+ * - Node environment: All providers available
+ * - Missing config: Throws ConfigurationError
+ *
+ * @param config - The application configuration object, typically resolved from DI container.
+ * @param deps - Optional pre-resolved dependencies for providers (useful for testing/Workers).
  * @returns An instance of a class that implements the IStorageProvider interface.
- * @throws {McpError} If the configuration is missing required values for the
- *         selected provider.
+ *
+ * @throws {McpError} JsonRpcErrorCode.ConfigurationError - If:
+ *   - filesystem provider selected but STORAGE_FILESYSTEM_PATH not set
+ *   - supabase provider selected but SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set
+ *   - cloudflare-r2 provider selected in non-serverless environment
+ *   - cloudflare-kv provider selected in non-serverless environment
+ *   - unknown provider type specified
+ *
+ * @example
+ * ```typescript
+ * // Standard usage via DI
+ * const config = container.resolve<AppConfig>(AppConfig);
+ * const provider = createStorageProvider(config);
+ *
+ * // Worker usage with pre-resolved bindings
+ * const provider = createStorageProvider(config, {
+ *   r2Bucket: env.R2_BUCKET,
+ *   kvNamespace: env.KV_NAMESPACE
+ * });
+ * ```
  */
 export function createStorageProvider(
   config: AppConfig,
