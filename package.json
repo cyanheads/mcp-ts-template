@@ -52,8 +52,8 @@
     "format": "bunx prettier --write \"**/*.{ts,js,json,md,html,css}\"",
     "prepare": "bunx husky",
     "inspector": "bunx mcp-inspector --config mcp.json --server mcp-ts-template",
-    "test": "bun test --config vitest.config.ts",
-    "test:coverage": "bun test --coverage",
+    "test": "bunx vitest run",
+    "test:coverage": "bunx vitest run --coverage",
     "audit": "bun audit",
     "audit:fix": "bun audit --fix",
     "publish-mcp": "bun scripts/validate-mcp-publish-schema.ts"

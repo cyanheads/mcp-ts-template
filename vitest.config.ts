@@ -7,11 +7,13 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
-    // Run integration tests sequentially to avoid logger singleton conflicts
+    // Run tests in parallel with proper isolation to prevent mock pollution
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: true,
+        maxForks: 10, // Use 10 of 12 available cores for maximum speed
+        minForks: 2, // Start with 2, scale up as needed
+        isolate: true, // CRITICAL: Each test file gets clean module state
       },
     },
     coverage: {
