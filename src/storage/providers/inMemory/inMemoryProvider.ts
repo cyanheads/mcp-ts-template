@@ -10,6 +10,10 @@ import type {
   ListOptions,
   ListResult,
 } from '@/storage/core/IStorageProvider.js';
+import {
+  encodeCursor,
+  decodeCursor,
+} from '@/storage/core/storageValidation.js';
 import { type RequestContext, logger } from '@/utils/index.js';
 
 const DEFAULT_LIST_LIMIT = 1000;
@@ -71,12 +75,12 @@ export class InMemoryProvider implements IStorageProvider {
       context,
     );
     const tenantStore = this.getTenantStore(tenantId);
-    const expiresAt = options?.ttl
-      ? Date.now() + options.ttl * 1000
-      : undefined;
+    // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
+    const expiresAt =
+      options?.ttl !== undefined ? Date.now() + options.ttl * 1000 : undefined;
     tenantStore.set(key, {
       value,
-      ...(expiresAt && { expiresAt }),
+      ...(expiresAt !== undefined && { expiresAt }),
     });
     return Promise.resolve();
   }
@@ -122,13 +126,14 @@ export class InMemoryProvider implements IStorageProvider {
     // Sort for consistent pagination
     allKeys.sort();
 
-    // Apply pagination
+    // Apply pagination with opaque cursors
     const limit = options?.limit ?? DEFAULT_LIST_LIMIT;
     let startIndex = 0;
 
     if (options?.cursor) {
-      // Cursor is the last key from previous page
-      const cursorIndex = allKeys.indexOf(options.cursor);
+      // Decode and validate cursor
+      const lastKey = decodeCursor(options.cursor, tenantId, context);
+      const cursorIndex = allKeys.indexOf(lastKey);
       if (cursorIndex !== -1) {
         startIndex = cursorIndex + 1;
       }
@@ -136,8 +141,8 @@ export class InMemoryProvider implements IStorageProvider {
 
     const paginatedKeys = allKeys.slice(startIndex, startIndex + limit);
     const nextCursor =
-      startIndex + limit < allKeys.length
-        ? paginatedKeys[paginatedKeys.length - 1]
+      startIndex + limit < allKeys.length && paginatedKeys.length > 0
+        ? encodeCursor(paginatedKeys[paginatedKeys.length - 1]!, tenantId)
         : undefined;
 
     return Promise.resolve({
@@ -151,17 +156,31 @@ export class InMemoryProvider implements IStorageProvider {
     keys: string[],
     context: RequestContext,
   ): Promise<Map<string, T>> {
+    if (keys.length === 0) {
+      return new Map<string, T>();
+    }
+
     logger.debug(
       `[InMemoryProvider] Getting ${keys.length} keys for tenant: ${tenantId}`,
       context,
     );
+
+    // Parallel fetch for better performance
+    const promises = keys.map((key) => this.get<T>(tenantId, key, context));
+    const values = await Promise.all(promises);
+
     const results = new Map<string, T>();
-    for (const key of keys) {
-      const value = await this.get<T>(tenantId, key, context);
+    keys.forEach((key, i) => {
+      const value = values[i];
       if (value !== null) {
-        results.set(key, value);
+        results.set(key, value as T);
       }
-    }
+    });
+
+    logger.debug(
+      `[InMemoryProvider] Retrieved ${results.size}/${keys.length} keys for tenant: ${tenantId}`,
+      context,
+    );
     return results;
   }
 
@@ -171,13 +190,25 @@ export class InMemoryProvider implements IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
+    if (entries.size === 0) {
+      return;
+    }
+
     logger.debug(
       `[InMemoryProvider] Setting ${entries.size} keys for tenant: ${tenantId}`,
       context,
     );
-    for (const [key, value] of entries.entries()) {
-      await this.set(tenantId, key, value, context, options);
-    }
+
+    // Parallel set for better performance
+    const promises = Array.from(entries.entries()).map(([key, value]) =>
+      this.set(tenantId, key, value, context, options),
+    );
+    await Promise.all(promises);
+
+    logger.debug(
+      `[InMemoryProvider] Successfully set ${entries.size} keys for tenant: ${tenantId}`,
+      context,
+    );
   }
 
   async deleteMany(
@@ -185,17 +216,24 @@ export class InMemoryProvider implements IStorageProvider {
     keys: string[],
     context: RequestContext,
   ): Promise<number> {
+    if (keys.length === 0) {
+      return 0;
+    }
+
     logger.debug(
       `[InMemoryProvider] Deleting ${keys.length} keys for tenant: ${tenantId}`,
       context,
     );
-    let deletedCount = 0;
-    for (const key of keys) {
-      const deleted = await this.delete(tenantId, key, context);
-      if (deleted) {
-        deletedCount++;
-      }
-    }
+
+    // Parallel delete for better performance
+    const promises = keys.map((key) => this.delete(tenantId, key, context));
+    const results = await Promise.all(promises);
+    const deletedCount = results.filter((deleted) => deleted).length;
+
+    logger.debug(
+      `[InMemoryProvider] Deleted ${deletedCount}/${keys.length} keys for tenant: ${tenantId}`,
+      context,
+    );
     return deletedCount;
   }
 

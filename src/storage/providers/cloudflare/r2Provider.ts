@@ -1,5 +1,10 @@
 /**
  * @fileoverview Implements the IStorageProvider interface for Cloudflare R2.
+ *
+ * Performance note: TTL filtering in list operations is not applied at the R2 API level.
+ * Expired entries are only removed on get operations. For large datasets, consider
+ * implementing periodic cleanup jobs to remove expired entries.
+ *
  * @module src/storage/providers/cloudflare/r2Provider
  */
 import type { R2Bucket } from '@cloudflare/workers-types';
@@ -22,7 +27,7 @@ const R2_ENVELOPE_VERSION = 1;
 const DEFAULT_LIST_LIMIT = 1000;
 
 export class R2Provider implements IStorageProvider {
-  private bucket: R2Bucket;
+  private readonly bucket: R2Bucket;
 
   constructor(bucket: R2Bucket) {
     if (!bucket) {
@@ -39,11 +44,14 @@ export class R2Provider implements IStorageProvider {
   }
 
   private buildEnvelope(value: unknown, options?: StorageOptions): R2Envelope {
-    const expiresAt = options?.ttl
-      ? Date.now() + options.ttl * 1000
-      : undefined;
+    // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
+    const expiresAt =
+      options?.ttl !== undefined ? Date.now() + options.ttl * 1000 : undefined;
     return {
-      __mcp: { v: R2_ENVELOPE_VERSION, ...(expiresAt ? { expiresAt } : {}) },
+      __mcp: {
+        v: R2_ENVELOPE_VERSION,
+        ...(expiresAt !== undefined ? { expiresAt } : {}),
+      },
       value,
     };
   }
@@ -232,6 +240,10 @@ export class R2Provider implements IStorageProvider {
   ): Promise<Map<string, T>> {
     return ErrorHandler.tryCatch(
       async () => {
+        if (keys.length === 0) {
+          return new Map<string, T>();
+        }
+
         const results = new Map<string, T>();
         for (const key of keys) {
           const value = await this.get<T>(tenantId, key, context);
@@ -257,6 +269,10 @@ export class R2Provider implements IStorageProvider {
   ): Promise<void> {
     return ErrorHandler.tryCatch(
       async () => {
+        if (entries.size === 0) {
+          return;
+        }
+
         const promises = Array.from(entries.entries()).map(([key, value]) =>
           this.set(tenantId, key, value, context, options),
         );
@@ -277,6 +293,10 @@ export class R2Provider implements IStorageProvider {
   ): Promise<number> {
     return ErrorHandler.tryCatch(
       async () => {
+        if (keys.length === 0) {
+          return 0;
+        }
+
         const promises = keys.map((key) => this.delete(tenantId, key, context));
         const results = await Promise.all(promises);
         return results.filter((deleted) => deleted).length;

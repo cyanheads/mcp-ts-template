@@ -127,8 +127,15 @@ export interface IStorageProvider {
   /**
    * Retrieves multiple values from storage in a single operation.
    * More efficient than multiple individual get() calls.
+   *
+   * Performance characteristics by provider:
+   * - Cloudflare KV/R2: Parallel fetches (fast for large batches)
+   * - Supabase: Single SQL query with IN clause (fast, database-optimized)
+   * - In-Memory: Parallel Map lookups (fastest, no I/O)
+   * - FileSystem: Parallel file reads (I/O bound, benefits from concurrency)
+   *
    * @param tenantId The unique identifier for the tenant.
-   * @param keys Array of keys to retrieve.
+   * @param keys Array of keys to retrieve. Empty array returns empty Map.
    * @param context The request context for logging and tracing.
    * @returns A promise that resolves to a Map of key-value pairs. Missing keys are not included.
    */
@@ -141,8 +148,15 @@ export interface IStorageProvider {
   /**
    * Stores multiple values in a single operation.
    * More efficient than multiple individual set() calls.
+   *
+   * Performance characteristics by provider:
+   * - Cloudflare KV/R2: Parallel writes (fast, eventually consistent)
+   * - Supabase: Single SQL batch upsert (fast, immediately consistent)
+   * - In-Memory: Parallel Map inserts (fastest, no I/O)
+   * - FileSystem: Parallel file writes (I/O bound, benefits from concurrency)
+   *
    * @param tenantId The unique identifier for the tenant.
-   * @param entries Map of key-value pairs to store.
+   * @param entries Map of key-value pairs to store. Empty map is a no-op.
    * @param context The request context for logging and tracing.
    * @param options Optional settings like TTL (applied to all entries).
    * @returns A promise that resolves when all operations are complete.
@@ -157,8 +171,15 @@ export interface IStorageProvider {
   /**
    * Deletes multiple keys in a single operation.
    * More efficient than multiple individual delete() calls.
+   *
+   * Performance characteristics by provider:
+   * - Cloudflare KV/R2: Parallel deletes (fast)
+   * - Supabase: Single SQL DELETE with IN clause (fast, database-optimized)
+   * - In-Memory: Parallel Map deletes (fastest, no I/O)
+   * - FileSystem: Parallel file deletes (I/O bound, benefits from concurrency)
+   *
    * @param tenantId The unique identifier for the tenant.
-   * @param keys Array of keys to delete.
+   * @param keys Array of keys to delete. Empty array returns 0.
    * @param context The request context for logging and tracing.
    * @returns A promise that resolves to the number of keys successfully deleted.
    */

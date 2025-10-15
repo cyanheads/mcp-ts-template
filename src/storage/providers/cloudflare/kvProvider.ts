@@ -16,7 +16,7 @@ import { ErrorHandler, logger, type RequestContext } from '@/utils/index.js';
 const DEFAULT_LIST_LIMIT = 1000;
 
 export class KvProvider implements IStorageProvider {
-  private kv: KVNamespace;
+  private readonly kv: KVNamespace;
 
   constructor(kv: KVNamespace) {
     if (!kv) {
@@ -78,7 +78,8 @@ export class KvProvider implements IStorageProvider {
 
         const putOptions: import('@cloudflare/workers-types').KVNamespacePutOptions =
           {};
-        if (options?.ttl) {
+        // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
+        if (options?.ttl !== undefined) {
           putOptions.expirationTtl = options.ttl;
         }
 
@@ -189,6 +190,10 @@ export class KvProvider implements IStorageProvider {
   ): Promise<Map<string, T>> {
     return ErrorHandler.tryCatch(
       async () => {
+        if (keys.length === 0) {
+          return new Map<string, T>();
+        }
+
         const results = new Map<string, T>();
         for (const key of keys) {
           const value = await this.get<T>(tenantId, key, context);
@@ -214,6 +219,10 @@ export class KvProvider implements IStorageProvider {
   ): Promise<void> {
     return ErrorHandler.tryCatch(
       async () => {
+        if (entries.size === 0) {
+          return;
+        }
+
         const promises = Array.from(entries.entries()).map(([key, value]) =>
           this.set(tenantId, key, value, context, options),
         );
@@ -234,6 +243,10 @@ export class KvProvider implements IStorageProvider {
   ): Promise<number> {
     return ErrorHandler.tryCatch(
       async () => {
+        if (keys.length === 0) {
+          return 0;
+        }
+
         const promises = keys.map((key) => this.delete(tenantId, key, context));
         const results = await Promise.all(promises);
         return results.filter((deleted) => deleted).length;

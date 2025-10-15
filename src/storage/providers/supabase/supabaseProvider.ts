@@ -19,6 +19,10 @@ import type {
   Json,
   Database,
 } from '@/storage/providers/supabase/supabase.types.js';
+import {
+  encodeCursor,
+  decodeCursor,
+} from '@/storage/core/storageValidation.js';
 import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
 
 const TABLE_NAME = 'kv_store';
@@ -88,9 +92,11 @@ export class SupabaseProvider implements IStorageProvider {
   ): Promise<void> {
     return ErrorHandler.tryCatch(
       async () => {
-        const expires_at = options?.ttl
-          ? new Date(Date.now() + options.ttl * 1000).toISOString()
-          : null;
+        // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
+        const expires_at =
+          options?.ttl !== undefined
+            ? new Date(Date.now() + options.ttl * 1000).toISOString()
+            : null;
 
         const { error } = await this.getClient()
           .from(TABLE_NAME)
@@ -155,9 +161,11 @@ export class SupabaseProvider implements IStorageProvider {
           .order('key', { ascending: true })
           .limit(limit + 1); // Fetch one extra to determine if there are more results
 
-        // Apply cursor-based pagination
+        // Apply cursor-based pagination with opaque cursors
         if (options?.cursor) {
-          query = query.gt('key', options.cursor);
+          // Decode and validate cursor
+          const lastKey = decodeCursor(options.cursor, tenantId, context);
+          query = query.gt('key', lastKey);
         }
 
         const { data, error } = await query;
@@ -167,9 +175,10 @@ export class SupabaseProvider implements IStorageProvider {
         const keys = data?.map((item) => item.key) ?? [];
         const hasMore = keys.length > limit;
         const resultKeys = hasMore ? keys.slice(0, limit) : keys;
-        const nextCursor = hasMore
-          ? resultKeys[resultKeys.length - 1]
-          : undefined;
+        const nextCursor =
+          hasMore && resultKeys.length > 0
+            ? encodeCursor(resultKeys[resultKeys.length - 1]!, tenantId)
+            : undefined;
 
         return {
           keys: resultKeys,
@@ -238,9 +247,11 @@ export class SupabaseProvider implements IStorageProvider {
           return;
         }
 
-        const expires_at = options?.ttl
-          ? new Date(Date.now() + options.ttl * 1000).toISOString()
-          : null;
+        // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
+        const expires_at =
+          options?.ttl !== undefined
+            ? new Date(Date.now() + options.ttl * 1000).toISOString()
+            : null;
 
         const rows = Array.from(entries.entries()).map(([key, value]) => ({
           tenant_id: tenantId,

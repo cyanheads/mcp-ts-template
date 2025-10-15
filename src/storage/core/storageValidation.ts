@@ -10,17 +10,34 @@ import type { StorageOptions } from './IStorageProvider.js';
 /**
  * Maximum length for tenant IDs and keys to prevent abuse.
  */
-const MAX_TENANT_ID_LENGTH = 256;
+const MAX_TENANT_ID_LENGTH = 128;
 const MAX_KEY_LENGTH = 1024;
 const MAX_PREFIX_LENGTH = 512;
 
 /**
- * Pattern for valid tenant IDs and keys (alphanumeric, hyphens, underscores, dots, slashes).
+ * Pattern for valid tenant IDs (alphanumeric, hyphens, underscores, dots).
+ * More restrictive than key pattern - no slashes allowed to prevent path traversal.
+ * Single character: must be alphanumeric.
+ * Multiple characters: must start and end with alphanumeric, middle can include ._-
  */
-const VALID_IDENTIFIER_PATTERN = /^[a-zA-Z0-9_.\-/]+$/;
+const VALID_TENANT_ID_PATTERN =
+  /^[a-zA-Z0-9]$|^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$/;
+
+/**
+ * Pattern for valid keys and prefixes (alphanumeric, hyphens, underscores, dots, slashes).
+ */
+const VALID_KEY_PATTERN = /^[a-zA-Z0-9_.\-/]+$/;
 
 /**
  * Validates a tenant ID for storage operations.
+ *
+ * Security constraints:
+ * - Must be non-empty string
+ * - Maximum length: 128 characters
+ * - Allowed characters: alphanumeric, hyphens, underscores, dots
+ * - Cannot contain slashes or path traversal sequences
+ * - Cannot start or end with special characters
+ *
  * @param tenantId The tenant ID to validate.
  * @param context The request context for error reporting.
  * @throws {McpError} If the tenant ID is invalid.
@@ -29,35 +46,53 @@ export function validateTenantId(
   tenantId: string,
   context: RequestContext,
 ): void {
-  if (!tenantId || typeof tenantId !== 'string') {
+  if (typeof tenantId !== 'string') {
     throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      'Tenant ID must be a non-empty string.',
+      JsonRpcErrorCode.InvalidParams,
+      'Tenant ID must be a string.',
       { ...context, tenantId },
     );
   }
 
-  if (tenantId.length > MAX_TENANT_ID_LENGTH) {
+  const trimmedTenantId = tenantId.trim();
+
+  if (trimmedTenantId.length === 0) {
     throw new McpError(
-      JsonRpcErrorCode.ValidationError,
+      JsonRpcErrorCode.InvalidParams,
+      'Tenant ID cannot be an empty string.',
+      { ...context, tenantId },
+    );
+  }
+
+  if (trimmedTenantId.length > MAX_TENANT_ID_LENGTH) {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidParams,
       `Tenant ID exceeds maximum length of ${MAX_TENANT_ID_LENGTH} characters.`,
-      { ...context, tenantId: tenantId.substring(0, 50) + '...' },
+      { ...context, tenantIdLength: trimmedTenantId.length },
     );
   }
 
-  if (!VALID_IDENTIFIER_PATTERN.test(tenantId)) {
+  if (!VALID_TENANT_ID_PATTERN.test(trimmedTenantId)) {
     throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      'Tenant ID contains invalid characters. Only alphanumeric, hyphens, underscores, dots, and slashes are allowed.',
-      { ...context, tenantId },
+      JsonRpcErrorCode.InvalidParams,
+      'Tenant ID contains invalid characters. Only alphanumeric characters, hyphens, underscores, and dots are allowed. Must start and end with alphanumeric characters.',
+      { ...context, tenantId: trimmedTenantId },
     );
   }
 
-  if (tenantId.includes('..')) {
+  if (trimmedTenantId.includes('..')) {
     throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      'Tenant ID must not contain ".." (path traversal attempt).',
-      { ...context, tenantId },
+      JsonRpcErrorCode.InvalidParams,
+      'Tenant ID contains consecutive dots, which are not allowed.',
+      { ...context, tenantId: trimmedTenantId },
+    );
+  }
+
+  if (trimmedTenantId.includes('../') || trimmedTenantId.includes('..\\')) {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidParams,
+      'Tenant ID contains path traversal sequences, which are not allowed.',
+      { ...context, tenantId: trimmedTenantId },
     );
   }
 }
@@ -85,7 +120,7 @@ export function validateKey(key: string, context: RequestContext): void {
     );
   }
 
-  if (!VALID_IDENTIFIER_PATTERN.test(key)) {
+  if (!VALID_KEY_PATTERN.test(key)) {
     throw new McpError(
       JsonRpcErrorCode.ValidationError,
       'Key contains invalid characters. Only alphanumeric, hyphens, underscores, dots, and slashes are allowed.',
@@ -160,7 +195,7 @@ export function validateStorageOptions(
     if (options.ttl < 0) {
       throw new McpError(
         JsonRpcErrorCode.ValidationError,
-        'TTL must be a non-negative number.',
+        'TTL must be a non-negative number. Use 0 for immediate expiration.',
         { ...context, ttl: options.ttl },
       );
     }
@@ -172,5 +207,74 @@ export function validateStorageOptions(
         { ...context, ttl: options.ttl },
       );
     }
+  }
+}
+
+/**
+ * Cursor encoding/decoding utilities for pagination.
+ * Cursors are opaque strings that should not be constructed or parsed by clients.
+ */
+
+interface CursorData {
+  /** The last key from the previous page */
+  k: string;
+  /** The tenant ID for validation */
+  t: string;
+}
+
+/**
+ * Encodes pagination cursor data into an opaque string.
+ * @param lastKey The last key from the current page.
+ * @param tenantId The tenant ID for validation.
+ * @returns An opaque cursor string.
+ */
+export function encodeCursor(lastKey: string, tenantId: string): string {
+  const data: CursorData = { k: lastKey, t: tenantId };
+  return Buffer.from(JSON.stringify(data)).toString('base64');
+}
+
+/**
+ * Decodes and validates an opaque cursor string.
+ * @param cursor The cursor string to decode.
+ * @param tenantId The expected tenant ID for validation.
+ * @param context The request context for error reporting.
+ * @returns The last key from the cursor.
+ * @throws {McpError} If the cursor is invalid or tampered with.
+ */
+export function decodeCursor(
+  cursor: string,
+  tenantId: string,
+  context: RequestContext,
+): string {
+  try {
+    const decoded = Buffer.from(cursor, 'base64').toString('utf-8');
+    const data = JSON.parse(decoded) as CursorData;
+
+    if (!data || typeof data !== 'object' || !('k' in data) || !('t' in data)) {
+      throw new McpError(
+        JsonRpcErrorCode.InvalidParams,
+        'Invalid cursor format.',
+        { ...context },
+      );
+    }
+
+    if (data.t !== tenantId) {
+      throw new McpError(
+        JsonRpcErrorCode.InvalidParams,
+        'Cursor tenant ID mismatch. Cursor may have been tampered with.',
+        { ...context },
+      );
+    }
+
+    return data.k;
+  } catch (error) {
+    if (error instanceof McpError) {
+      throw error;
+    }
+    throw new McpError(
+      JsonRpcErrorCode.InvalidParams,
+      'Failed to decode cursor. Cursor may be corrupted or invalid.',
+      { ...context, error },
+    );
   }
 }

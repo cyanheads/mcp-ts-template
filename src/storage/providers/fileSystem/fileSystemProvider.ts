@@ -2,6 +2,11 @@
  * @fileoverview A filesystem-based storage provider.
  * Persists data to the local filesystem in a specified directory.
  * Each key-value pair is stored as a separate JSON file.
+ *
+ * Performance note: List operations with TTL filtering can be slow on large datasets
+ * as each file must be read and parsed to check expiration. Consider implementing
+ * periodic cleanup jobs for production use with large key counts.
+ *
  * @module src/storage/providers/fileSystem/fileSystemProvider
  */
 import { existsSync, mkdirSync } from 'fs';
@@ -15,6 +20,10 @@ import type {
   ListResult,
 } from '@/storage/core/IStorageProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import {
+  encodeCursor,
+  decodeCursor,
+} from '@/storage/core/storageValidation.js';
 import {
   ErrorHandler,
   sanitization,
@@ -83,11 +92,14 @@ export class FileSystemProvider implements IStorageProvider {
     value: unknown,
     options?: StorageOptions,
   ): FileEnvelope {
-    const expiresAt = options?.ttl
-      ? Date.now() + options.ttl * 1000
-      : undefined;
+    // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
+    const expiresAt =
+      options?.ttl !== undefined ? Date.now() + options.ttl * 1000 : undefined;
     return {
-      __mcp: { v: FILE_ENVELOPE_VERSION, ...(expiresAt ? { expiresAt } : {}) },
+      __mcp: {
+        v: FILE_ENVELOPE_VERSION,
+        ...(expiresAt !== undefined ? { expiresAt } : {}),
+      },
       value,
     };
   }
@@ -272,12 +284,14 @@ export class FileSystemProvider implements IStorageProvider {
         // Sort for consistent pagination
         validKeys.sort();
 
-        // Apply pagination
+        // Apply pagination with opaque cursors
         const limit = options?.limit ?? DEFAULT_LIST_LIMIT;
         let startIndex = 0;
 
         if (options?.cursor) {
-          const cursorIndex = validKeys.indexOf(options.cursor);
+          // Decode and validate cursor
+          const lastKey = decodeCursor(options.cursor, tenantId, context);
+          const cursorIndex = validKeys.indexOf(lastKey);
           if (cursorIndex !== -1) {
             startIndex = cursorIndex + 1;
           }
@@ -285,8 +299,8 @@ export class FileSystemProvider implements IStorageProvider {
 
         const paginatedKeys = validKeys.slice(startIndex, startIndex + limit);
         const nextCursor =
-          startIndex + limit < validKeys.length
-            ? paginatedKeys[paginatedKeys.length - 1]
+          startIndex + limit < validKeys.length && paginatedKeys.length > 0
+            ? encodeCursor(paginatedKeys[paginatedKeys.length - 1]!, tenantId)
             : undefined;
 
         return {
@@ -309,13 +323,21 @@ export class FileSystemProvider implements IStorageProvider {
   ): Promise<Map<string, T>> {
     return ErrorHandler.tryCatch(
       async () => {
-        const results = new Map<string, T>();
-        for (const key of keys) {
-          const value = await this.get<T>(tenantId, key, context);
-          if (value !== null) {
-            results.set(key, value);
-          }
+        if (keys.length === 0) {
+          return new Map<string, T>();
         }
+
+        // Parallel fetch for better performance
+        const promises = keys.map((key) => this.get<T>(tenantId, key, context));
+        const values = await Promise.all(promises);
+
+        const results = new Map<string, T>();
+        keys.forEach((key, i) => {
+          const value = values[i];
+          if (value !== null) {
+            results.set(key, value as T);
+          }
+        });
         return results;
       },
       {
@@ -334,9 +356,15 @@ export class FileSystemProvider implements IStorageProvider {
   ): Promise<void> {
     return ErrorHandler.tryCatch(
       async () => {
-        for (const [key, value] of entries.entries()) {
-          await this.set(tenantId, key, value, context, options);
+        if (entries.size === 0) {
+          return;
         }
+
+        // Parallel set for better performance
+        const promises = Array.from(entries.entries()).map(([key, value]) =>
+          this.set(tenantId, key, value, context, options),
+        );
+        await Promise.all(promises);
       },
       {
         operation: 'FileSystemProvider.setMany',
@@ -353,14 +381,14 @@ export class FileSystemProvider implements IStorageProvider {
   ): Promise<number> {
     return ErrorHandler.tryCatch(
       async () => {
-        let deletedCount = 0;
-        for (const key of keys) {
-          const deleted = await this.delete(tenantId, key, context);
-          if (deleted) {
-            deletedCount++;
-          }
+        if (keys.length === 0) {
+          return 0;
         }
-        return deletedCount;
+
+        // Parallel delete for better performance
+        const promises = keys.map((key) => this.delete(tenantId, key, context));
+        const results = await Promise.all(promises);
+        return results.filter((deleted) => deleted).length;
       },
       {
         operation: 'FileSystemProvider.deleteMany',
