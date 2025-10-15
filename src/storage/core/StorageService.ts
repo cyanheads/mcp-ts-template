@@ -9,7 +9,7 @@ import { injectable, inject } from 'tsyringe';
 
 import { StorageProvider } from '@/container/tokens.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import type { RequestContext } from '@/utils/index.js';
+import { logger, type RequestContext } from '@/utils/index.js';
 import type {
   IStorageProvider,
   StorageOptions,
@@ -21,15 +21,21 @@ import {
   validateKey,
   validatePrefix,
   validateStorageOptions,
+  validateListOptions,
 } from '@/storage/core/storageValidation.js';
 
 /**
  * Validates and returns the tenant ID from the request context.
- * Ensures the tenant ID is present and delegates to shared validation logic.
+ *
+ * This helper ensures the tenant ID is present in the context and passes
+ * validation rules defined in {@link validateTenantId}. All StorageService
+ * operations require a valid tenant ID for multi-tenancy isolation.
  *
  * @param context - The request context containing the tenant ID
- * @returns The validated tenant ID (trimmed)
- * @throws {McpError} If tenant ID is missing or invalid
+ * @returns The validated tenant ID (trimmed of whitespace)
+ * @throws {McpError} JsonRpcErrorCode.InternalError - If tenant ID is missing (undefined or null)
+ * @throws {McpError} JsonRpcErrorCode.InvalidParams - If tenant ID fails validation (from validateTenantId)
+ * @internal
  */
 function requireTenantId(context: RequestContext): string {
   const tenantId = context.tenantId;
@@ -40,8 +46,10 @@ function requireTenantId(context: RequestContext): string {
       JsonRpcErrorCode.InternalError,
       'Tenant ID is required for storage operations but was not found in the request context.',
       {
-        operation: 'StorageService.requireTenantId',
+        operation: context.operation || 'StorageService.requireTenantId',
         requestId: context.requestId,
+        // Include call stack hint for debugging
+        calledFrom: 'StorageService',
       },
     );
   }
@@ -54,11 +62,22 @@ function requireTenantId(context: RequestContext): string {
 
 @injectable()
 export class StorageService {
-  constructor(@inject(StorageProvider) private provider: IStorageProvider) {}
+  constructor(@inject(StorageProvider) private provider: IStorageProvider) {
+    // Note: Cannot use structured logging in constructor as we don't have RequestContext yet
+    // This is logged when the service is first instantiated by the DI container
+  }
 
   get<T>(key: string, context: RequestContext): Promise<T | null> {
     const tenantId = requireTenantId(context);
     validateKey(key, context);
+
+    logger.debug('[StorageService] get operation', {
+      ...context,
+      operation: 'StorageService.get',
+      tenantId,
+      key,
+    });
+
     return this.provider.get(tenantId, key, context);
   }
 
@@ -71,12 +90,30 @@ export class StorageService {
     const tenantId = requireTenantId(context);
     validateKey(key, context);
     validateStorageOptions(options, context);
+
+    logger.debug('[StorageService] set operation', {
+      ...context,
+      operation: 'StorageService.set',
+      tenantId,
+      key,
+      hasTTL: options?.ttl !== undefined,
+      ttl: options?.ttl,
+    });
+
     return this.provider.set(tenantId, key, value, context, options);
   }
 
   delete(key: string, context: RequestContext): Promise<boolean> {
     const tenantId = requireTenantId(context);
     validateKey(key, context);
+
+    logger.debug('[StorageService] delete operation', {
+      ...context,
+      operation: 'StorageService.delete',
+      tenantId,
+      key,
+    });
+
     return this.provider.delete(tenantId, key, context);
   }
 
@@ -87,6 +124,17 @@ export class StorageService {
   ): Promise<ListResult> {
     const tenantId = requireTenantId(context);
     validatePrefix(prefix, context);
+    validateListOptions(options, context);
+
+    logger.debug('[StorageService] list operation', {
+      ...context,
+      operation: 'StorageService.list',
+      tenantId,
+      prefix,
+      limit: options?.limit,
+      hasCursor: !!options?.cursor,
+    });
+
     return this.provider.list(tenantId, prefix, context, options);
   }
 
@@ -96,6 +144,14 @@ export class StorageService {
     for (const key of keys) {
       validateKey(key, context);
     }
+
+    logger.debug('[StorageService] getMany operation', {
+      ...context,
+      operation: 'StorageService.getMany',
+      tenantId,
+      keyCount: keys.length,
+    });
+
     return this.provider.getMany(tenantId, keys, context);
   }
 
@@ -110,6 +166,16 @@ export class StorageService {
     for (const key of entries.keys()) {
       validateKey(key, context);
     }
+
+    logger.debug('[StorageService] setMany operation', {
+      ...context,
+      operation: 'StorageService.setMany',
+      tenantId,
+      entryCount: entries.size,
+      hasTTL: options?.ttl !== undefined,
+      ttl: options?.ttl,
+    });
+
     return this.provider.setMany(tenantId, entries, context, options);
   }
 
@@ -119,11 +185,26 @@ export class StorageService {
     for (const key of keys) {
       validateKey(key, context);
     }
+
+    logger.debug('[StorageService] deleteMany operation', {
+      ...context,
+      operation: 'StorageService.deleteMany',
+      tenantId,
+      keyCount: keys.length,
+    });
+
     return this.provider.deleteMany(tenantId, keys, context);
   }
 
   clear(context: RequestContext): Promise<number> {
     const tenantId = requireTenantId(context);
+
+    logger.info('[StorageService] clear operation', {
+      ...context,
+      operation: 'StorageService.clear',
+      tenantId,
+    });
+
     return this.provider.clear(tenantId, context);
   }
 }

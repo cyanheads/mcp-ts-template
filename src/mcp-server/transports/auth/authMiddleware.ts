@@ -5,6 +5,7 @@
  * populates the async-local storage context with the resulting auth info.
  * @module src/mcp-server/transports/auth/authMiddleware
  */
+import { trace } from '@opentelemetry/api';
 import type { HttpBindings } from '@hono/node-server';
 import type { Context, Next } from 'hono';
 
@@ -76,6 +77,22 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
         'Authentication successful. Auth context populated.',
         authLogContext,
       );
+
+      // Add authentication context to OpenTelemetry span for distributed tracing
+      const activeSpan = trace.getActiveSpan();
+      if (activeSpan) {
+        activeSpan.setAttributes({
+          'auth.client_id': authInfo.clientId,
+          'auth.tenant_id': authInfo.tenantId ?? 'none',
+          'auth.scopes': authInfo.scopes.join(','),
+          'auth.subject': authInfo.subject ?? 'unknown',
+          'auth.method': 'bearer',
+        });
+        logger.debug('Added auth context to OpenTelemetry span', {
+          ...authLogContext,
+          spanId: activeSpan.spanContext().spanId,
+        });
+      }
 
       // Run the next middleware in the chain within the populated auth context.
       await authContext.run({ authInfo }, next);
