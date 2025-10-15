@@ -1,23 +1,21 @@
 /**
  * @fileoverview Helper utilities for error inspection and normalization.
+ * Enhanced with cause chain extraction and circular reference detection.
  * @module src/utils/internal/error-handler/helpers
  */
 
+import { McpError } from '@/types-global/errors.js';
+import { getCompiledPattern } from './mappings.js';
+
 /**
- * Creates a "safe" RegExp for testing error messages.
+ * Creates a "safe" RegExp for testing error messages with caching.
  * Ensures case-insensitivity and removes the global flag.
+ * Now delegates to the compiled pattern cache for better performance.
  * @param pattern - The string or RegExp pattern.
- * @returns A new RegExp instance.
+ * @returns A cached RegExp instance.
  */
 export function createSafeRegex(pattern: string | RegExp): RegExp {
-  if (pattern instanceof RegExp) {
-    let flags = pattern.flags.replace('g', '');
-    if (!flags.includes('i')) {
-      flags += 'i';
-    }
-    return new RegExp(pattern.source, flags);
-  }
-  return new RegExp(pattern, 'i');
+  return getCompiledPattern(pattern);
 }
 
 /**
@@ -106,4 +104,138 @@ export function getErrorMessage(error: unknown): string {
   } catch (conversionError) {
     return `Error converting error to string: ${conversionError instanceof Error ? conversionError.message : 'Unknown conversion error'}`;
   }
+}
+
+/**
+ * Represents a node in the error cause chain for structured error analysis.
+ */
+export interface ErrorCauseNode {
+  /** Error name/type */
+  name: string;
+  /** Error message */
+  message: string;
+  /** Stack trace if available */
+  stack?: string;
+  /** Depth in the cause chain (0 = original error) */
+  depth: number;
+  /** Additional data from McpError instances */
+  data?: Record<string, unknown>;
+}
+
+/**
+ * Extracts the complete error cause chain with circular reference detection.
+ * Traverses the error.cause chain up to maxDepth, tracking seen errors to prevent infinite loops.
+ * @param error - The error to extract causes from
+ * @param maxDepth - Maximum depth to traverse (default: 20)
+ * @returns Array of error cause nodes from root to leaf
+ *
+ * @example
+ * ```typescript
+ * const chain = extractErrorCauseChain(error);
+ * console.log(`Root cause: ${chain[chain.length - 1].message}`);
+ * console.log(`Error chain depth: ${chain.length}`);
+ * ```
+ */
+export function extractErrorCauseChain(
+  error: unknown,
+  maxDepth = 20,
+): ErrorCauseNode[] {
+  const chain: ErrorCauseNode[] = [];
+  const seen = new WeakSet<object>();
+  let current = error;
+  let depth = 0;
+
+  while (current && depth < maxDepth) {
+    // Circular reference detection
+    if (typeof current === 'object' && current !== null) {
+      if (seen.has(current)) {
+        chain.push({
+          name: 'CircularReference',
+          message: 'Circular reference detected in error cause chain',
+          depth,
+        });
+        break;
+      }
+      seen.add(current);
+    }
+
+    if (current instanceof Error) {
+      const node: ErrorCauseNode = {
+        name: current.name,
+        message: current.message,
+        depth,
+        // Only include stack if it exists (exact optional property types)
+        ...(current.stack !== undefined ? { stack: current.stack } : {}),
+      };
+
+      // Extract data from McpError instances
+      if (current instanceof McpError && current.data) {
+        node.data = current.data;
+      }
+
+      chain.push(node);
+
+      // Continue traversing cause chain
+      current = current.cause;
+    } else if (typeof current === 'string') {
+      chain.push({
+        name: 'StringError',
+        message: current,
+        depth,
+      });
+      break;
+    } else {
+      chain.push({
+        name: getErrorName(current),
+        message: getErrorMessage(current),
+        depth,
+      });
+      break;
+    }
+
+    depth++;
+  }
+
+  if (depth >= maxDepth) {
+    chain.push({
+      name: 'MaxDepthExceeded',
+      message: `Error cause chain exceeded maximum depth of ${maxDepth}`,
+      depth,
+    });
+  }
+
+  return chain;
+}
+
+/**
+ * Serializes an error cause chain to a structured format for logging and monitoring.
+ * @param error - The error to serialize
+ * @returns Serialized cause chain object with root cause and full chain
+ *
+ * @example
+ * ```typescript
+ * const serialized = serializeErrorCauseChain(error);
+ * logger.error('Error occurred', {
+ *   rootCause: serialized.rootCause.message,
+ *   chainDepth: serialized.totalDepth,
+ * });
+ * ```
+ */
+export function serializeErrorCauseChain(error: unknown): {
+  rootCause: ErrorCauseNode;
+  chain: ErrorCauseNode[];
+  totalDepth: number;
+} {
+  const chain = extractErrorCauseChain(error);
+  const rootCause = chain[chain.length - 1] || {
+    name: 'Unknown',
+    message: 'No error information available',
+    depth: 0,
+  };
+
+  return {
+    rootCause,
+    chain,
+    totalDepth: chain.length,
+  };
 }

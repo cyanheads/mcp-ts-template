@@ -1,9 +1,71 @@
 /**
  * @fileoverview Shared type definitions for the error handler utilities.
+ * Enhanced with 2025 best practices including Result types, error metadata,
+ * severity levels, and recovery strategies for robust error handling.
  * @module src/utils/internal/error-handler/types
  */
 
 import type { JsonRpcErrorCode } from '@/types-global/errors.js';
+import type { McpError } from '@/types-global/errors.js';
+
+/**
+ * Severity levels for errors, extending beyond basic logging levels.
+ * Enables fine-grained categorization and alerting based on error impact.
+ */
+export enum ErrorSeverity {
+  /** Informational errors that don't require action */
+  Info = 'info',
+  /** Warnings that should be monitored */
+  Warning = 'warning',
+  /** Errors requiring attention */
+  Error = 'error',
+  /** Critical errors requiring immediate action */
+  Critical = 'critical',
+  /** System-threatening errors */
+  Fatal = 'fatal',
+}
+
+/**
+ * Breadcrumb entry for tracking execution path leading to an error.
+ * Provides context about operations executed before the error occurred.
+ */
+export interface ErrorBreadcrumb {
+  /** ISO 8601 timestamp when the operation occurred */
+  timestamp: string;
+  /** Name of the operation that was performed */
+  operation: string;
+  /** Optional additional context for this breadcrumb */
+  context?: Record<string, unknown>;
+}
+
+/**
+ * Structured metadata attached to errors for enhanced debugging and monitoring.
+ * Supports breadcrumbs, metrics, user-facing messages, and error correlation.
+ */
+export interface ErrorMetadata {
+  /** Breadcrumb trail showing error propagation path */
+  breadcrumbs?: ErrorBreadcrumb[];
+  /** Performance metrics related to the error */
+  metrics?: {
+    /** Operation duration in milliseconds */
+    duration?: number;
+    /** Number of retry attempts made */
+    retryCount?: number;
+  };
+  /** User-facing error details (safe for display, sanitized) */
+  userFacing?: {
+    /** Short title for the error */
+    title: string;
+    /** Detailed user-friendly message */
+    message: string;
+    /** Suggested actions the user can take */
+    actions?: string[];
+  };
+  /** Error fingerprint for deduplication in monitoring systems */
+  fingerprint?: string;
+  /** Related error IDs for correlation across distributed systems */
+  relatedErrors?: string[];
+}
 
 /**
  * Defines a generic structure for providing context with errors.
@@ -22,6 +84,19 @@ export interface ErrorContext {
    * Keys are strings, and values can be of any type.
    */
   [key: string]: unknown;
+}
+
+/**
+ * Enhanced error context with metadata support for improved debugging.
+ * Extends base ErrorContext with severity, structured metadata, and tags.
+ */
+export interface EnhancedErrorContext extends ErrorContext {
+  /** Severity level of the error */
+  severity?: ErrorSeverity;
+  /** Structured metadata including breadcrumbs and metrics */
+  metadata?: ErrorMetadata;
+  /** Arbitrary key-value tags for categorization and filtering */
+  tags?: Record<string, string>;
 }
 
 /**
@@ -127,4 +202,59 @@ export interface ErrorMapping<T extends Error = Error>
    * when this mapping rule is applied.
    */
   additionalContext?: Record<string, unknown>;
+}
+
+/**
+ * Result type for functional error handling following Railway Oriented Programming pattern.
+ * Explicitly represents success or failure, eliminating implicit exceptions.
+ * @template T The success value type
+ * @template E The error type, defaults to McpError
+ *
+ * @example
+ * ```typescript
+ * const result: Result<User, McpError> = await getUserById(id);
+ * if (result.ok) {
+ *   console.log('User:', result.value);
+ * } else {
+ *   console.error('Error:', result.error.message);
+ * }
+ * ```
+ */
+export type Result<T, E extends Error = McpError> =
+  | { ok: true; value: T; error?: never }
+  | { ok: false; value?: never; error: E };
+
+/**
+ * Error recovery strategy interface for implementing retry logic and resilience patterns.
+ * Defines when and how to retry failed operations with configurable backoff strategies.
+ */
+export interface ErrorRecoveryStrategy {
+  /**
+   * Determines if the operation should be retried based on the error and attempt number.
+   * @param error - The error that occurred
+   * @param attemptNumber - Current attempt number (1-indexed)
+   * @returns true if the operation should be retried
+   */
+  shouldRetry: (error: Error, attemptNumber: number) => boolean;
+
+  /**
+   * Calculates the delay before the next retry attempt.
+   * Typically implements exponential backoff with optional jitter.
+   * @param attemptNumber - Current attempt number (1-indexed)
+   * @returns Delay in milliseconds before next retry
+   */
+  getRetryDelay: (attemptNumber: number) => number;
+
+  /**
+   * Maximum number of retry attempts before giving up.
+   */
+  maxAttempts: number;
+
+  /**
+   * Optional callback invoked before each retry attempt.
+   * Useful for logging, metrics, or custom retry logic.
+   * @param error - The error that triggered the retry
+   * @param attemptNumber - Current attempt number (1-indexed)
+   */
+  onRetry?: (error: Error, attemptNumber: number) => void;
 }

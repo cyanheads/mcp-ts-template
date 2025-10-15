@@ -1,5 +1,6 @@
 /**
  * @fileoverview Main ErrorHandler implementation with logging and telemetry integration.
+ * Enhanced with Result types, breadcrumb tracking, error sanitization, and retry logic.
  * @module src/utils/internal/error-handler/errorHandler
  */
 
@@ -10,9 +11,24 @@ import { generateUUID, sanitizeInputForLogging } from '@/utils/index.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 
-import { COMMON_ERROR_PATTERNS, ERROR_TYPE_MAPPINGS } from './mappings.js';
-import { createSafeRegex, getErrorMessage, getErrorName } from './helpers.js';
-import type { ErrorHandlerOptions, ErrorMapping } from './types.js';
+import {
+  COMPILED_ERROR_PATTERNS,
+  COMPILED_PROVIDER_PATTERNS,
+  ERROR_TYPE_MAPPINGS,
+} from './mappings.js';
+import {
+  createSafeRegex,
+  extractErrorCauseChain,
+  getErrorMessage,
+  getErrorName,
+} from './helpers.js';
+import type {
+  EnhancedErrorContext,
+  ErrorHandlerOptions,
+  ErrorMapping,
+  ErrorRecoveryStrategy,
+  Result,
+} from './types.js';
 
 /**
  * A utility class providing static methods for comprehensive error handling.
@@ -20,7 +36,8 @@ import type { ErrorHandlerOptions, ErrorMapping } from './types.js';
 export class ErrorHandler {
   /**
    * Determines an appropriate `JsonRpcErrorCode` for a given error.
-   * Checks `McpError` instances, `ERROR_TYPE_MAPPINGS`, and `COMMON_ERROR_PATTERNS`.
+   * Checks `McpError` instances, `ERROR_TYPE_MAPPINGS`, and pre-compiled error patterns.
+   * Now includes provider-specific patterns for better external service error classification.
    * Defaults to `JsonRpcErrorCode.InternalError`.
    * @param error - The error instance or value to classify.
    * @returns The determined error code.
@@ -33,6 +50,7 @@ export class ErrorHandler {
     const errorName = getErrorName(error);
     const errorMessage = getErrorMessage(error);
 
+    // Check against standard JavaScript error types
     const mappedFromType = (
       ERROR_TYPE_MAPPINGS as Record<string, JsonRpcErrorCode>
     )[errorName];
@@ -40,9 +58,22 @@ export class ErrorHandler {
       return mappedFromType;
     }
 
-    for (const mapping of COMMON_ERROR_PATTERNS) {
-      const regex = createSafeRegex(mapping.pattern);
-      if (regex.test(errorMessage) || regex.test(errorName)) {
+    // Check provider-specific patterns first (more specific)
+    for (const mapping of COMPILED_PROVIDER_PATTERNS) {
+      if (
+        mapping.compiledPattern.test(errorMessage) ||
+        mapping.compiledPattern.test(errorName)
+      ) {
+        return mapping.errorCode;
+      }
+    }
+
+    // Then check common error patterns (using pre-compiled patterns for performance)
+    for (const mapping of COMPILED_ERROR_PATTERNS) {
+      if (
+        mapping.compiledPattern.test(errorMessage) ||
+        mapping.compiledPattern.test(errorName)
+      ) {
         return mapping.errorCode;
       }
     }
@@ -123,24 +154,29 @@ export class ErrorHandler {
     }
 
     const cause = error instanceof Error ? error : undefined;
-    const rootCause = (() => {
-      let current: unknown = cause;
-      let depth = 0;
-      while (
-        current &&
-        current instanceof Error &&
-        current.cause &&
-        depth < 5
-      ) {
-        current = current.cause as unknown;
-        depth += 1;
+
+    // Extract full cause chain with circular reference detection
+    const causeChain = extractErrorCauseChain(error);
+    if (causeChain.length > 0) {
+      const rootCause = causeChain[causeChain.length - 1];
+      if (rootCause) {
+        consolidatedData['rootCause'] = {
+          name: rootCause.name,
+          message: rootCause.message,
+        };
       }
-      return current instanceof Error
-        ? { name: current.name, message: current.message }
-        : undefined;
-    })();
-    if (rootCause) {
-      consolidatedData['rootCause'] = rootCause;
+      consolidatedData['causeChain'] = causeChain;
+    }
+
+    // Add breadcrumbs from enhanced context if present
+    if (
+      context &&
+      'metadata' in context &&
+      context.metadata &&
+      typeof context.metadata === 'object' &&
+      'breadcrumbs' in context.metadata
+    ) {
+      consolidatedData['breadcrumbs'] = context.metadata.breadcrumbs;
     }
 
     if (error instanceof McpError) {
@@ -300,5 +336,290 @@ export class ErrorHandler {
         rethrow: true,
       });
     }
+  }
+
+  /**
+   * Executes a function and returns a Result type instead of throwing.
+   * Enables functional error handling following Railway Oriented Programming pattern.
+   * @template T The expected return type
+   * @param fn - The function to execute
+   * @param options - Error handling options (excluding `rethrow`)
+   * @returns Result<T, McpError> - Success or error wrapped in Result type
+   *
+   * @example
+   * ```typescript
+   * const result = await ErrorHandler.tryAsResult(
+   *   () => dangerousOperation(),
+   *   { operation: 'dangerousOp', context }
+   * );
+   *
+   * if (result.ok) {
+   *   console.log('Success:', result.value);
+   * } else {
+   *   console.error('Error:', result.error.message);
+   * }
+   * ```
+   */
+  public static async tryAsResult<T>(
+    fn: () => Promise<T> | T,
+    options: Omit<ErrorHandlerOptions, 'rethrow'>,
+  ): Promise<Result<T, McpError>> {
+    try {
+      const value = await Promise.resolve(fn());
+      return { ok: true, value };
+    } catch (caughtError) {
+      const error = ErrorHandler.handleError(caughtError, {
+        ...options,
+        rethrow: false,
+      }) as McpError;
+      return { ok: false, error };
+    }
+  }
+
+  /**
+   * Helper to map a Result value through a transformation function.
+   * @template T Input type
+   * @template U Output type
+   * @param result - The result to map
+   * @param fn - Transformation function
+   * @returns Mapped result
+   *
+   * @example
+   * ```typescript
+   * const userResult = await getUserById(id);
+   * const nameResult = ErrorHandler.mapResult(userResult, user => user.name);
+   * ```
+   */
+  public static mapResult<T, U>(
+    result: Result<T, McpError>,
+    fn: (value: T) => U,
+  ): Result<U, McpError> {
+    if (result.ok) {
+      try {
+        return { ok: true, value: fn(result.value) };
+      } catch (error) {
+        return {
+          ok: false,
+          error: new McpError(
+            JsonRpcErrorCode.InternalError,
+            `Error mapping result: ${getErrorMessage(error)}`,
+          ),
+        };
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Helper to chain Result-returning operations (flatMap / bind).
+   * @template T Input type
+   * @template U Output type
+   * @param result - The result to chain
+   * @param fn - Function that returns a new Result
+   * @returns Chained result
+   *
+   * @example
+   * ```typescript
+   * const userResult = await getUserById(id);
+   * const postsResult = ErrorHandler.flatMapResult(
+   *   userResult,
+   *   user => getPostsByUserId(user.id)
+   * );
+   * ```
+   */
+  public static flatMapResult<T, U>(
+    result: Result<T, McpError>,
+    fn: (value: T) => Result<U, McpError>,
+  ): Result<U, McpError> {
+    if (result.ok) {
+      return fn(result.value);
+    }
+    return result;
+  }
+
+  /**
+   * Provides a fallback value if Result is an error.
+   * @template T Value type
+   * @param result - The result to recover from
+   * @param fallback - Fallback value or function
+   * @returns T value (either success value or fallback)
+   *
+   * @example
+   * ```typescript
+   * const user = ErrorHandler.recoverResult(
+   *   userResult,
+   *   { id: 'guest', name: 'Guest User' }
+   * );
+   * ```
+   */
+  public static recoverResult<T>(
+    result: Result<T, McpError>,
+    fallback: T | ((error: McpError) => T),
+  ): T {
+    if (result.ok) {
+      return result.value;
+    }
+    return typeof fallback === 'function'
+      ? (fallback as (error: McpError) => T)(result.error)
+      : fallback;
+  }
+
+  /**
+   * Adds a breadcrumb to the error context for tracking execution path.
+   * @param context - The request context to add breadcrumb to
+   * @param operation - Operation name
+   * @param additionalData - Optional additional context
+   * @returns Updated context with breadcrumb
+   *
+   * @example
+   * ```typescript
+   * let context = requestContextService.createRequestContext({ operation: 'initial' });
+   * context = ErrorHandler.addBreadcrumb(context as EnhancedErrorContext, 'step1');
+   * context = ErrorHandler.addBreadcrumb(context, 'step2', { userId: '123' });
+   * ```
+   */
+  public static addBreadcrumb(
+    context: EnhancedErrorContext,
+    operation: string,
+    additionalData?: Record<string, unknown>,
+  ): EnhancedErrorContext {
+    const breadcrumbs = context.metadata?.breadcrumbs || [];
+
+    breadcrumbs.push({
+      timestamp: new Date().toISOString(),
+      operation,
+      // Only include context if it exists (exact optional property types)
+      ...(additionalData !== undefined ? { context: additionalData } : {}),
+    });
+
+    return {
+      ...context,
+      metadata: {
+        ...context.metadata,
+        breadcrumbs,
+      },
+    };
+  }
+
+  /**
+   * Executes a function with automatic retry logic and exponential backoff.
+   * Implements resilience patterns for distributed systems.
+   * @template T Return type
+   * @param fn - Function to execute
+   * @param options - Error handling options
+   * @param strategy - Retry strategy configuration
+   * @returns Promise resolving to result or throwing after exhausting retries
+   *
+   * @example
+   * ```typescript
+   * const strategy = ErrorHandler.createExponentialBackoffStrategy(3);
+   * const result = await ErrorHandler.tryCatchWithRetry(
+   *   () => fetchFromUnreliableAPI(),
+   *   { operation: 'fetchAPI', context },
+   *   strategy
+   * );
+   * ```
+   */
+  public static async tryCatchWithRetry<T>(
+    fn: () => Promise<T> | T,
+    options: Omit<ErrorHandlerOptions, 'rethrow'>,
+    strategy: ErrorRecoveryStrategy,
+  ): Promise<T> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= strategy.maxAttempts; attempt++) {
+      try {
+        return await Promise.resolve(fn());
+      } catch (caughtError) {
+        lastError =
+          caughtError instanceof Error
+            ? caughtError
+            : new Error(String(caughtError));
+
+        if (
+          attempt < strategy.maxAttempts &&
+          strategy.shouldRetry(lastError, attempt)
+        ) {
+          const delay = strategy.getRetryDelay(attempt);
+
+          const retryContext: RequestContext = {
+            ...options.context,
+            requestId: (options.context?.requestId as string) || generateUUID(),
+            timestamp: new Date().toISOString(),
+            operation: options.operation,
+            error: lastError.message,
+            attempt,
+          };
+
+          logger.warning(
+            `Retry attempt ${attempt}/${strategy.maxAttempts} after ${delay}ms`,
+            retryContext,
+          );
+
+          strategy.onRetry?.(lastError, attempt);
+
+          // Wait before retry
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          // Max attempts reached or error not retryable
+          throw ErrorHandler.handleError(lastError, {
+            ...options,
+            rethrow: true,
+            context: {
+              ...options.context,
+              retryAttempts: attempt,
+              finalAttempt: true,
+            },
+          });
+        }
+      }
+    }
+
+    // Should never reach here, but TypeScript requires it
+    throw ErrorHandler.handleError(lastError!, {
+      ...options,
+      rethrow: true,
+    });
+  }
+
+  /**
+   * Creates a default exponential backoff retry strategy.
+   * @param maxAttempts - Maximum retry attempts (default: 3)
+   * @param baseDelay - Base delay in ms (default: 1000)
+   * @param maxDelay - Maximum delay in ms (default: 30000)
+   * @returns ErrorRecoveryStrategy
+   *
+   * @example
+   * ```typescript
+   * const strategy = ErrorHandler.createExponentialBackoffStrategy(5, 500, 10000);
+   * ```
+   */
+  public static createExponentialBackoffStrategy(
+    maxAttempts = 3,
+    baseDelay = 1000,
+    maxDelay = 30000,
+  ): ErrorRecoveryStrategy {
+    return {
+      maxAttempts,
+      shouldRetry: (error: Error) => {
+        // Don't retry on validation errors or unauthorized
+        if (error instanceof McpError) {
+          const nonRetryableCodes = [
+            JsonRpcErrorCode.ValidationError,
+            JsonRpcErrorCode.Unauthorized,
+            JsonRpcErrorCode.Forbidden,
+            JsonRpcErrorCode.NotFound,
+          ];
+          return !nonRetryableCodes.includes(error.code);
+        }
+        return true;
+      },
+      getRetryDelay: (attemptNumber: number) => {
+        // Exponential backoff: baseDelay * 2^(attempt - 1) with jitter
+        const exponentialDelay = baseDelay * Math.pow(2, attemptNumber - 1);
+        const jitter = Math.random() * 0.3 * exponentialDelay; // 30% jitter
+        return Math.min(exponentialDelay + jitter, maxDelay);
+      },
+    };
   }
 }
