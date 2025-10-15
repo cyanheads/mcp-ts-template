@@ -9,6 +9,11 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
 ### Added
 
 - **Test Coverage Expansion**: Significantly increased test coverage for critical infrastructure components.
+  - Added `tests/container/index.test.ts` with 7 test cases for container composition and singleton behavior.
+  - Added `tests/container/registrations/core.test.ts` with 14 test cases for core service registration (AppConfig, Logger, Storage, LLM, RateLimiter, Speech).
+  - Added `tests/container/registrations/mcp.test.ts` with 13 test cases for MCP service registration (ToolRegistry, ResourceRegistry, TransportManager, server factory).
+  - Added `tests/mcp-server/transports/auth/authMiddleware.test.ts` with 20 comprehensive tests covering Bearer token validation, AuthInfo propagation, error handling, and request context creation.
+  - Added `tests/mcp-server/transports/stdio/stdioTransport.test.ts` (documented as requiring integration tests - thin SDK wrapper).
   - Added `tests/mcp-server/transports/auth/authFactory.test.ts` with 5 test cases for authentication strategy factory (JWT, OAuth, none modes).
   - Added `tests/mcp-server/transports/auth/strategies/jwtStrategy.test.ts` with 15 comprehensive JWT verification tests covering token validation, claims extraction, expiry, and signature verification.
   - Added `tests/mcp-server/transports/manager.test.ts` with 9 test cases for transport manager lifecycle (HTTP and stdio initialization, start/stop behavior).
@@ -19,11 +24,17 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
   - Added `tests/services/llm/providers/openrouter.provider.test.ts` with 15 test cases for OpenRouter LLM provider covering constructor validation, parameter preparation, rate limiting, error handling, and streaming.
   - Added `tests/mcp-server/resources/resource-registration.test.ts` with 12 test cases for resource registry covering registration, validation, and definition handling.
   - Added `tests/mcp-server/tools/tool-registration.test.ts` for tool registry (passes devcheck, has runtime SDK import issues).
-  - Overall test suite now at **665 passing tests** across **50 test files** with **77.48% function coverage** and **82.46% line coverage**.
+  - Overall test suite now at **719 passing tests** (1 skipped) across **55 test files** with **82.42% function coverage** and **85.96% line coverage**.
 
 ### Fixed
 
 - **Test Suite Improvements**: Fixed multiple test issues to ensure reliable execution.
+  - Fixed TypeScript errors with Hono mock signatures by handling all three `header()` method overloads (single parameter, string parameter, no parameters returning Record).
+  - Fixed container lifecycle management by using `beforeAll()` instead of `beforeEach()` for singleton container composition.
+  - Added proper type assertions for `container.resolve()` return values to satisfy TypeScript strict type checking.
+  - Implemented graceful error handling for LLM provider tests when `OPENROUTER_API_KEY` is not set in test environment.
+  - Added required `token` field to all `AuthInfo` mocks to comply with MCP SDK requirements.
+  - Fixed read-only property mutations in Hono Context mocks by creating new objects instead of mutating.
   - Fixed OAuth strategy test to properly set required configuration properties (`oauthIssuerUrl`, `oauthAudience`).
   - Fixed JWT strategy test error message patterns to match actual implementation.
   - Fixed storage factory tests to work with read-only config and DI container state.
