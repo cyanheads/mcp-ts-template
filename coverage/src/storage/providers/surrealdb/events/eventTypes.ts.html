@@ -3,15 +3,15 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for src/storage/providers/surrealdb/surrealdb.types.ts</title>
+    <title>Code coverage report for src/storage/providers/surrealdb/events/eventTypes.ts</title>
     <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../../../prettify.css" />
-    <link rel="stylesheet" href="../../../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <link rel="stylesheet" href="../../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style type='text/css'>
         .coverage-summary .sorter {
-            background-image: url(../../../../sort-arrow-sprite.png);
+            background-image: url(../../../../../sort-arrow-sprite.png);
         }
     </style>
 </head>
@@ -19,7 +19,7 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">src/storage/providers/surrealdb</a> surrealdb.types.ts</h1>
+        <h1><a href="../../../../../index.html">All files</a> / <a href="index.html">src/storage/providers/surrealdb/events</a> eventTypes.ts</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
@@ -116,7 +116,31 @@
 <a name='L51'></a><a href='#L51'>51</a>
 <a name='L52'></a><a href='#L52'>52</a>
 <a name='L53'></a><a href='#L53'>53</a>
-<a name='L54'></a><a href='#L54'>54</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -170,58 +194,70 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
- * @fileoverview Type definitions for SurrealDB storage provider.
- * Defines the schema and types for the key-value store table in SurrealDB.
- * @module src/storage/providers/surrealdb/surrealdb.types
+ * @fileoverview Type definitions for SurrealDB table events.
+ * @module src/storage/providers/surrealdb/events/eventTypes
  */
 &nbsp;
 /**
- * Represents a record in the SurrealDB kv_store table.
- * This structure stores key-value pairs with multi-tenancy support and TTL functionality.
+ * Event trigger type - when the event fires.
  */
-export interface KvStoreRecord {
-  /**
-   * The tenant ID for multi-tenancy isolation.
-   * Required for all operations to ensure data separation between tenants.
-   */
-  tenant_id: string;
+export type EventTrigger = 'CREATE' | 'UPDATE' | 'DELETE';
 &nbsp;
-  /**
-   * The unique key for the stored item within the tenant's namespace.
-   */
-  key: string;
-&nbsp;
-  /**
-   * The stored value. Can be any JSON-serializable data.
-   * SurrealDB will store this as a flexible object/value type.
-   */
-  value: unknown;
-&nbsp;
-  /**
-   * Optional expiration timestamp.
-   * If set, the record should be considered expired after this time.
-   * Format: ISO 8601 datetime string.
-   */
-  expires_at?: string | null;
-&nbsp;
-  /**
-   * Timestamp when the record was created.
-   * Format: ISO 8601 datetime string.
-   */
-  created_at?: string;
-&nbsp;
-  /**
-   * Timestamp when the record was last updated.
-   * Format: ISO 8601 datetime string.
-   */
-  updated_at?: string;
+/**
+ * Configuration for defining a table event.
+ */
+export interface EventConfig {
+  /** Table the event is attached to */
+  table: string;
+  /** Event name (unique per table) */
+  name: string;
+  /** When to trigger the event */
+  triggers: EventTrigger[];
+  /** Optional WHEN condition (SurrealQL expression) */
+  when?: string;
+  /** THEN clause - actions to execute (SurrealQL) */
+  then: string;
 }
 &nbsp;
 /**
- * Input type for creating or updating records.
- * Omits the auto-generated fields (created_at, updated_at).
+ * Event context available in THEN clause.
  */
-export type KvStoreInput = Omit&lt;KvStoreRecord, 'created_at' | 'updated_at'&gt;;
+export interface EventContext {
+  /** Event type (CREATE, UPDATE, DELETE) */
+  $event: EventTrigger;
+  /** Record state before the change */
+  $before?: Record&lt;string, unknown&gt;;
+  /** Record state after the change */
+  $after?: Record&lt;string, unknown&gt;;
+  /** Record ID being modified */
+  $value: string;
+}
+&nbsp;
+/**
+ * Result of defining an event.
+ */
+export interface DefineEventResult {
+  /** Event name */
+  name: string;
+  /** Table name */
+  table: string;
+  /** Whether the event was created successfully */
+  success: boolean;
+}
+&nbsp;
+/**
+ * Information about an existing event.
+ */
+export interface EventInfo {
+  /** Event name */
+  name: string;
+  /** Trigger conditions */
+  triggers: EventTrigger[];
+  /** WHEN condition (if any) */
+  when?: string;
+  /** THEN actions */
+  then: string;
+}
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -229,16 +265,16 @@ export type KvStoreInput = Omit&lt;KvStoreRecord, 'created_at' | 'updated_at'&gt
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-15T19:47:22.466Z
+                at 2025-10-15T22:37:06.259Z
             </div>
-        <script src="../../../../prettify.js"></script>
+        <script src="../../../../../prettify.js"></script>
         <script>
             window.onload = function () {
                 prettyPrint();
             };
         </script>
-        <script src="../../../../sorter.js"></script>
-        <script src="../../../../block-navigation.js"></script>
+        <script src="../../../../../sorter.js"></script>
+        <script src="../../../../../block-navigation.js"></script>
     </body>
 </html>
     

@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">39.39% </span>
+                <span class="strong">40.42% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>52/132</span>
+                <span class='fraction'>57/141</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">60% </span>
+                <span class="strong">50% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>3/5</span>
+                <span class='fraction'>3/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">39.39% </span>
+                <span class="strong">40.42% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>52/132</span>
+                <span class='fraction'>57/141</span>
             </div>
         
             
@@ -252,7 +252,19 @@
 <a name='L187'></a><a href='#L187'>187</a>
 <a name='L188'></a><a href='#L188'>188</a>
 <a name='L189'></a><a href='#L189'>189</a>
-<a name='L190'></a><a href='#L190'>190</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -275,6 +287,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -437,6 +452,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
@@ -455,15 +479,18 @@ import Surreal from 'surrealdb';
 import { parseConfig } from '@/config/index.js';
 import {
   AppConfig,
+  GraphService,
   LlmProvider,
   Logger,
   RateLimiterService,
   SpeechService,
-  StorageService,
   StorageProvider,
+  StorageService,
   SupabaseAdminClient,
   SurrealdbClient,
 } from '@/container/tokens.js';
+import { GraphService as GraphServiceClass } from '@/services/graph/core/GraphService.js';
+import { SurrealGraphProvider } from '@/services/graph/providers/surrealGraph.provider.js';
 import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
 import { SpeechService as SpeechServiceClass } from '@/services/speech/index.js';
@@ -628,6 +655,15 @@ export const registerCoreServices = () =&gt; {
     },
   });
 &nbsp;
+  // Register GraphService (only if SurrealDB is configured)
+  container.register&lt;GraphServiceClass&gt;(GraphService, {
+    useFactory: <span class="fstat-no" title="function not covered" >(c) =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >      const surrealClient = c.resolve&lt;Surreal&gt;(SurrealdbClient);</span>
+<span class="cstat-no" title="statement not covered" >      const graphProvider = new SurrealGraphProvider(surrealClient);</span>
+<span class="cstat-no" title="statement not covered" >      return new GraphServiceClass(graphProvider);</span>
+<span class="cstat-no" title="statement not covered" >    },</span>
+  });
+&nbsp;
   logger.info('Core services registered with the DI container.');
 };
 &nbsp;</pre></td></tr></table></pre>
@@ -637,7 +673,7 @@ export const registerCoreServices = () =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-15T19:47:22.466Z
+                at 2025-10-15T22:37:06.259Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

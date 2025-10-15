@@ -3,15 +3,15 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for src/storage/providers/surrealdb/surrealdbProvider.ts</title>
+    <title>Code coverage report for src/storage/providers/surrealdb/kv/surrealKvProvider.ts</title>
     <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../../../prettify.css" />
-    <link rel="stylesheet" href="../../../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <link rel="stylesheet" href="../../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style type='text/css'>
         .coverage-summary .sorter {
-            background-image: url(../../../../sort-arrow-sprite.png);
+            background-image: url(../../../../../sort-arrow-sprite.png);
         }
     </style>
 </head>
@@ -19,34 +19,34 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">src/storage/providers/surrealdb</a> surrealdbProvider.ts</h1>
+        <h1><a href="../../../../../index.html">All files</a> / <a href="index.html">src/storage/providers/surrealdb/kv</a> surrealKvProvider.ts</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">93.03% </span>
+                <span class="strong">89.5% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>267/287</span>
+                <span class='fraction'>307/343</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">74.07% </span>
+                <span class="strong">80.35% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>40/54</span>
+                <span class='fraction'>45/56</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">95.45% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>18/18</span>
+                <span class='fraction'>21/22</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">93.03% </span>
+                <span class="strong">89.5% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>267/287</span>
+                <span class='fraction'>307/343</span>
             </div>
         
             
@@ -495,11 +495,78 @@
 <a name='L430'></a><a href='#L430'>430</a>
 <a name='L431'></a><a href='#L431'>431</a>
 <a name='L432'></a><a href='#L432'>432</a>
-<a name='L433'></a><a href='#L433'>433</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L433'></a><a href='#L433'>433</a>
+<a name='L434'></a><a href='#L434'>434</a>
+<a name='L435'></a><a href='#L435'>435</a>
+<a name='L436'></a><a href='#L436'>436</a>
+<a name='L437'></a><a href='#L437'>437</a>
+<a name='L438'></a><a href='#L438'>438</a>
+<a name='L439'></a><a href='#L439'>439</a>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a>
+<a name='L443'></a><a href='#L443'>443</a>
+<a name='L444'></a><a href='#L444'>444</a>
+<a name='L445'></a><a href='#L445'>445</a>
+<a name='L446'></a><a href='#L446'>446</a>
+<a name='L447'></a><a href='#L447'>447</a>
+<a name='L448'></a><a href='#L448'>448</a>
+<a name='L449'></a><a href='#L449'>449</a>
+<a name='L450'></a><a href='#L450'>450</a>
+<a name='L451'></a><a href='#L451'>451</a>
+<a name='L452'></a><a href='#L452'>452</a>
+<a name='L453'></a><a href='#L453'>453</a>
+<a name='L454'></a><a href='#L454'>454</a>
+<a name='L455'></a><a href='#L455'>455</a>
+<a name='L456'></a><a href='#L456'>456</a>
+<a name='L457'></a><a href='#L457'>457</a>
+<a name='L458'></a><a href='#L458'>458</a>
+<a name='L459'></a><a href='#L459'>459</a>
+<a name='L460'></a><a href='#L460'>460</a>
+<a name='L461'></a><a href='#L461'>461</a>
+<a name='L462'></a><a href='#L462'>462</a>
+<a name='L463'></a><a href='#L463'>463</a>
+<a name='L464'></a><a href='#L464'>464</a>
+<a name='L465'></a><a href='#L465'>465</a>
+<a name='L466'></a><a href='#L466'>466</a>
+<a name='L467'></a><a href='#L467'>467</a>
+<a name='L468'></a><a href='#L468'>468</a>
+<a name='L469'></a><a href='#L469'>469</a>
+<a name='L470'></a><a href='#L470'>470</a>
+<a name='L471'></a><a href='#L471'>471</a>
+<a name='L472'></a><a href='#L472'>472</a>
+<a name='L473'></a><a href='#L473'>473</a>
+<a name='L474'></a><a href='#L474'>474</a>
+<a name='L475'></a><a href='#L475'>475</a>
+<a name='L476'></a><a href='#L476'>476</a>
+<a name='L477'></a><a href='#L477'>477</a>
+<a name='L478'></a><a href='#L478'>478</a>
+<a name='L479'></a><a href='#L479'>479</a>
+<a name='L480'></a><a href='#L480'>480</a>
+<a name='L481'></a><a href='#L481'>481</a>
+<a name='L482'></a><a href='#L482'>482</a>
+<a name='L483'></a><a href='#L483'>483</a>
+<a name='L484'></a><a href='#L484'>484</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -512,19 +579,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -535,22 +589,66 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-yes">23x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">23x</span>
 <span class="cline-any cline-yes">23x</span>
 <span class="cline-any cline-yes">23x</span>
 <span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">71x</span>
-<span class="cline-any cline-yes">71x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">17x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">20x</span>
@@ -560,12 +658,8 @@
 <span class="cline-any cline-yes">20x</span>
 <span class="cline-any cline-yes">20x</span>
 <span class="cline-any cline-yes">20x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">20x</span>
+<span class="cline-any cline-yes">20x</span>
 <span class="cline-any cline-yes">20x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">20x</span>
@@ -573,7 +667,6 @@
 <span class="cline-any cline-yes">20x</span>
 <span class="cline-any cline-yes">20x</span>
 <span class="cline-any cline-yes">20x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">20x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">20x</span>
@@ -582,10 +675,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">12x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">12x</span>
-<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">20x</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">20x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -614,16 +708,11 @@
 <span class="cline-any cline-yes">35x</span>
 <span class="cline-any cline-yes">35x</span>
 <span class="cline-any cline-yes">35x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">35x</span>
 <span class="cline-any cline-yes">35x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">34x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">35x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -635,6 +724,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">35x</span>
+<span class="cline-any cline-yes">35x</span>
+<span class="cline-any cline-yes">35x</span>
+<span class="cline-any cline-yes">35x</span>
 <span class="cline-any cline-yes">35x</span>
 <span class="cline-any cline-yes">35x</span>
 <span class="cline-any cline-yes">35x</span>
@@ -665,14 +758,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
@@ -702,9 +796,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -712,7 +804,7 @@
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
@@ -723,18 +815,16 @@
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
@@ -763,30 +853,25 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -814,42 +899,32 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
@@ -878,14 +953,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
@@ -906,35 +982,61 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
- * @fileoverview A SurrealDB-based storage provider.
- * Persists data to a specified table in a SurrealDB instance (local or cloud).
- * Assumes a table with columns: `tenant_id`, `key`, `value`, `expires_at`, `created_at`, `updated_at`.
- * @module src/storage/providers/surrealdb/surrealdbProvider
+ * @fileoverview SurrealDB key-value storage provider using modular base.
+ * Implements IStorageProvider for multi-tenant KV operations.
+ * @module src/storage/providers/surrealdb/kv/surrealKvProvider
  */
+&nbsp;
 import { inject, injectable } from 'tsyringe';
-import Surreal from 'surrealdb';
+import type Surreal from 'surrealdb';
 &nbsp;
 import { SurrealdbClient } from '@/container/tokens.js';
 import type {
@@ -943,45 +1045,92 @@ import type {
   ListOptions,
   ListResult,
 } from '@/storage/core/IStorageProvider.js';
-import type { KvStoreRecord } from '@/storage/providers/surrealdb/surrealdb.types.js';
 import {
   encodeCursor,
   decodeCursor,
 } from '@/storage/core/storageValidation.js';
-import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
+import { ErrorHandler, logger, type RequestContext } from '@/utils/index.js';
+import type { KvStoreRecord, QueryResult } from '../types.js';
+import { select } from '../core/queryBuilder.js';
+import { TransactionManager } from '../core/transactionManager.js';
 &nbsp;
 const DEFAULT_LIST_LIMIT = 1000;
 &nbsp;
 /**
- * SurrealDB-based storage provider implementation.
+ * SurrealDB-based key-value storage provider.
  *
+ * @remarks
  * Provides key-value storage using SurrealDB with support for:
  * - Multi-tenancy isolation via tenant_id
  * - TTL (time-to-live) with automatic expiration
  * - Batch operations (getMany, setMany, deleteMany)
  * - Cursor-based pagination
+ * - Transaction support
  *
- * @remarks
- * Uses UPDATE...MERGE for upserts to preserve created_at timestamps.
- * Expired entries are filtered on read and cleaned up asynchronously.
+ * This provider uses composition with direct client injection for
+ * improved modularity and testability.
  */
 @injectable()
-export class SurrealdbProvider implements IStorageProvider {
-  /**
-   * Creates a new SurrealDB storage provider instance.
-   *
-   * @param client - The connected SurrealDB client instance (injected via DI)
-   * @param tableName - The name of the table to use for storage (default: 'kv_store')
-   *                    Must match the table defined in your SurrealDB schema
-   */
-  constructor(
-    @inject(SurrealdbClient)
-    private readonly client: Surreal,
-    private readonly tableName: string = 'kv_store',
-  ) {}
+export class SurrealKvProvider implements IStorageProvider {
+  private readonly tableName: string;
+  private readonly client: Surreal;
+  private readonly transactionManager: TransactionManager;
 &nbsp;
-  private getClient() {
-    return this.client;
+  constructor(
+    @inject(SurrealdbClient) client: Surreal,
+    tableName: string = 'kv_store',
+  ) {
+    this.client = client;
+    this.tableName = tableName;
+    this.transactionManager = new TransactionManager(this.client);
+  }
+&nbsp;
+  /**
+   * Execute a raw query with parameters.
+   *
+   * @param query - The SurrealQL query string
+   * @param params - Query parameters
+   * @param context - Request context for logging
+   * @returns Query result
+   */
+  private async executeQuery&lt;T = unknown&gt;(
+    query: string,
+    params: Record&lt;string, unknown&gt;,
+    context: RequestContext,
+  ): Promise&lt;T[]&gt; {
+    return ErrorHandler.tryCatch(
+      async () =&gt; {
+        logger.debug('[SurrealKvProvider] Executing query', {
+          ...context,
+          query: query.substring(0, 100),
+        });
+&nbsp;
+        const queryResult = await this.client.query&lt;[QueryResult&lt;T&gt;]&gt;(
+          query,
+          params,
+        );
+&nbsp;
+        return queryResult[0]?.<span class="branch-0 cbranch-no" title="branch not covered" >result ?? [];</span>
+      },
+      {
+        operation: 'SurrealKvProvider.executeQuery',
+        context,
+        input: { query: query.substring(0, 50) },
+      },
+    );
+  }
+&nbsp;
+  /**
+   * Check if a record has expired based on expires_at field.
+   *
+   * @param record - Record to check
+   * @returns True if expired
+   */
+  private isExpired(record: KvStoreRecord): boolean {
+    if (!record.expires_at) {
+      return false;
+<span class="branch-0 cbranch-no" title="branch not covered" >    }</span>
+<span class="cstat-no" title="statement not covered" >    return new Date(record.expires_at).getTime() &lt; Date.now();</span>
   }
 &nbsp;
   async get&lt;T&gt;(
@@ -991,22 +1140,17 @@ export class SurrealdbProvider implements IStorageProvider {
   ): Promise&lt;T | null&gt; {
     return ErrorHandler.tryCatch(
       async () =&gt; {
-        const query = `
-          SELECT value, expires_at
-          FROM type::table($table)
-          WHERE tenant_id = $tenant_id AND key = $key
-          LIMIT 1
-        `;
+        const builder = select('value', 'expires_at')
+          .from(this.tableName)
+          .where((w) =&gt; w.equals('tenant_id', tenantId).equals('key', key))
+          .limit(1);
 &nbsp;
-        const queryResult = await this.getClient().query&lt;
-          [{ result: KvStoreRecord[] }]
-        &gt;(query, {
-          table: this.tableName,
-          tenant_id: tenantId,
-          key,
-        });
-&nbsp;
-        const data = queryResult[0]?.result;
+        const { query, params } = builder.build();
+        const data = await this.executeQuery&lt;KvStoreRecord&gt;(
+          query,
+          params,
+          context,
+        );
 &nbsp;
         if (!data || data.length === 0) {
           return null;
@@ -1014,23 +1158,24 @@ export class SurrealdbProvider implements IStorageProvider {
 &nbsp;
         const record = data[0];
 &nbsp;
+        if (!record) <span class="branch-0 cbranch-no" title="branch not covered" >{</span>
+<span class="cstat-no" title="statement not covered" >          return null;</span>
+<span class="cstat-no" title="statement not covered" >        }</span>
+&nbsp;
         // Check expiration
-        if (
-          record?.<span class="branch-0 cbranch-no" title="branch not covered" >expires_at &amp;&amp;</span>
-<span class="cstat-no" title="statement not covered" >          new Date(record.expires_at).getTime() &lt; Date.now()</span>
-        ) <span class="branch-0 cbranch-no" title="branch not covered" >{</span>
+        if (this.isExpired(record)) <span class="branch-0 cbranch-no" title="branch not covered" >{</span>
 <span class="cstat-no" title="statement not covered" >          await this.delete(tenantId, key, context);</span>
 <span class="cstat-no" title="statement not covered" >          logger.debug(</span>
-<span class="cstat-no" title="statement not covered" >            `[SurrealdbProvider] Key expired and removed: ${key} for tenant: ${tenantId}`,</span>
+<span class="cstat-no" title="statement not covered" >            `[SurrealKvProvider] Key expired and removed: ${key}`,</span>
 <span class="cstat-no" title="statement not covered" >            context,</span>
 <span class="cstat-no" title="statement not covered" >          );</span>
 <span class="cstat-no" title="statement not covered" >          return null;</span>
 <span class="cstat-no" title="statement not covered" >        }</span>
 &nbsp;
-        return record?.value as T;
+        return record.value as T;
       },
       {
-        operation: 'SurrealdbProvider.get',
+        operation: 'SurrealKvProvider.get',
         context,
         input: { tenantId, key },
       },
@@ -1046,16 +1191,11 @@ export class SurrealdbProvider implements IStorageProvider {
   ): Promise&lt;void&gt; {
     return ErrorHandler.tryCatch(
       async () =&gt; {
-        // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
-        // Calculate expiration timestamp
         const expires_at =
           options?.ttl !== undefined
             ? new Date(Date.now() + options.ttl * 1000).toISOString()
             : null;
 &nbsp;
-        // Use UPDATE...MERGE for upsert behavior to preserve created_at on updates
-        // MERGE updates only specified fields, unlike CONTENT which replaces entire record
-        // This ensures created_at is set only on initial creation, not on updates
         const query = `
           UPDATE type::table($table):[$tenant_id, $key] MERGE {
             tenant_id: $tenant_id,
@@ -1067,16 +1207,20 @@ export class SurrealdbProvider implements IStorageProvider {
           }
         `;
 &nbsp;
-        await this.getClient().query(query, {
-          table: this.tableName,
-          tenant_id: tenantId,
-          key,
-          value,
-          expires_at,
-        });
+        await this.executeQuery(
+          query,
+          {
+            table: this.tableName,
+            tenant_id: tenantId,
+            key,
+            value,
+            expires_at,
+          },
+          context,
+        );
       },
       {
-        operation: 'SurrealdbProvider.set',
+        operation: 'SurrealKvProvider.set',
         context,
         input: { tenantId, key },
       },
@@ -1096,19 +1240,20 @@ export class SurrealdbProvider implements IStorageProvider {
           RETURN BEFORE
         `;
 &nbsp;
-        const queryResult = await this.getClient().query&lt;
-          [{ result: KvStoreRecord[] }]
-        &gt;(query, {
-          table: this.tableName,
-          tenant_id: tenantId,
-          key,
-        });
+        const result = await this.executeQuery&lt;KvStoreRecord&gt;(
+          query,
+          {
+            table: this.tableName,
+            tenant_id: tenantId,
+            key,
+          },
+          context,
+        );
 &nbsp;
-        const deleted = queryResult[0]?.result;
-        return deleted !== undefined &amp;&amp; deleted.length &gt; 0;
+        return result !== undefined &amp;&amp; result.length &gt; 0;
       },
       {
-        operation: 'SurrealdbProvider.delete',
+        operation: 'SurrealKvProvider.delete',
         context,
         input: { tenantId, key },
       },
@@ -1134,43 +1279,39 @@ export class SurrealdbProvider implements IStorageProvider {
             AND (expires_at IS NONE OR expires_at &gt; type::datetime($now))
         `;
 &nbsp;
-        // Apply cursor-based pagination
         if (options?.cursor) {
-          // Decode cursor to validate it (the value is used in params below)
           decodeCursor(options.cursor, tenantId, context);
           query += ` AND key &gt; $cursor`;
         }
 &nbsp;
         query += ` ORDER BY key ASC LIMIT $limit_plus_one`;
 &nbsp;
-        const queryResult = await this.getClient().query&lt;
-          [{ result: Array&lt;{ key: string }&gt; }]
-        &gt;(query, {
-          table: this.tableName,
-          tenant_id: tenantId,
-          prefix,
-          now,
-          cursor: options?.cursor
-            ? decodeCursor(options.cursor, tenantId, context)
-            : undefined,
-          limit_plus_one: limit + 1, // Fetch one extra to determine if there are more results
-        });
+        const data = await this.executeQuery&lt;{ key: string }&gt;(
+          query,
+          {
+            table: this.tableName,
+            tenant_id: tenantId,
+            prefix,
+            now,
+            cursor: options?.cursor
+              ? decodeCursor(options.cursor, tenantId, context)
+              : undefined,
+            limit_plus_one: limit + 1,
+          },
+          context,
+        );
 &nbsp;
-        const data = queryResult[0]?.<span class="branch-0 cbranch-no" title="branch not covered" >result ?? [];</span>
-        const keys = data.map((item: { key: string }) =&gt; item.key);
+        const keys = data.map((item) =&gt; item.key);
         const hasMore = keys.length &gt; limit;
         const resultKeys = hasMore ? keys.slice(0, limit) : keys;
         const lastKey = resultKeys[resultKeys.length - 1];
         const nextCursor =
           hasMore &amp;&amp; lastKey ? encodeCursor(lastKey, tenantId) : undefined;
 &nbsp;
-        return {
-          keys: resultKeys,
-          nextCursor,
-        };
+        return { keys: resultKeys, nextCursor };
       },
       {
-        operation: 'SurrealdbProvider.list',
+        operation: 'SurrealKvProvider.list',
         context,
         input: { tenantId, prefix, options },
       },
@@ -1194,32 +1335,27 @@ export class SurrealdbProvider implements IStorageProvider {
           WHERE tenant_id = $tenant_id AND key INSIDE $keys
         `;
 &nbsp;
-        const queryResult = await this.getClient().query&lt;
-          [{ result: KvStoreRecord[] }]
-        &gt;(query, {
-          table: this.tableName,
-          tenant_id: tenantId,
-          keys,
-        });
-&nbsp;
-        const data = queryResult[0]?.<span class="branch-0 cbranch-no" title="branch not covered" >result ?? [];</span>
+        const data = await this.executeQuery&lt;KvStoreRecord&gt;(
+          query,
+          {
+            table: this.tableName,
+            tenant_id: tenantId,
+            keys,
+          },
+          context,
+        );
 &nbsp;
         const results = new Map&lt;string, T&gt;();
         const expiredKeys: string[] = [];
 &nbsp;
         for (const row of data) {
-          if (
-            !row.<span class="branch-0 cbranch-no" title="branch not covered" >expires_at ||</span>
-<span class="cstat-no" title="statement not covered" >            new Date(row.expires_at).getTime() &gt;= Date.now()</span>
-          ) {
+          if (!this.isExpired(row)) {
             results.set(row.key, row.value as T);
 <span class="branch-0 cbranch-no" title="branch not covered" >          } else {</span>
-            // Collect expired keys for batch deletion
 <span class="cstat-no" title="statement not covered" >            expiredKeys.push(row.key);</span>
 <span class="cstat-no" title="statement not covered" >          }</span>
         }
 &nbsp;
-        // Clean up expired entries in a single batch operation
         if (expiredKeys.length &gt; 0) <span class="branch-0 cbranch-no" title="branch not covered" >{</span>
 <span class="cstat-no" title="statement not covered" >          await this.deleteMany(tenantId, expiredKeys, context);</span>
 <span class="cstat-no" title="statement not covered" >        }</span>
@@ -1227,7 +1363,7 @@ export class SurrealdbProvider implements IStorageProvider {
         return results;
       },
       {
-        operation: 'SurrealdbProvider.getMany',
+        operation: 'SurrealKvProvider.getMany',
         context,
         input: { tenantId, keyCount: keys.length },
       },
@@ -1246,46 +1382,36 @@ export class SurrealdbProvider implements IStorageProvider {
 <span class="cstat-no" title="statement not covered" >          return;</span>
 <span class="cstat-no" title="statement not covered" >        }</span>
 &nbsp;
-        // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
-        // Calculate expiration timestamp
         const expires_at =
 <span class="branch-0 cbranch-no" title="branch not covered" >          options?.ttl !== <span class="branch-0 cbranch-no" title="branch not covered" >u</span>ndefined</span>
 <span class="cstat-no" title="statement not covered" >            ? new Date(Date.now() + options.ttl * 1000).toISOString()</span>
             : null;
 &nbsp;
-        // Build batch upsert using multiple UPDATE statements in a single query
-        // Using MERGE to preserve created_at on updates (see set() method for explanation)
-        const updates = Array.from(entries.entries()).map((_entry, index) =&gt; {
-          return `
-            UPDATE type::table($table):[$tenant_id, $key_${index}] MERGE {
-              tenant_id: $tenant_id,
-              key: $key_${index},
-              value: $value_${index},
-              expires_at: $expires_at,
-              created_at: $this.created_at ?? time::now(),
-              updated_at: time::now()
-            };
-          `;
-        });
+        await this.transactionManager.executeInTransaction(async (client) =&gt; {
+          for (const [key, value] of entries) {
+            const query = `
+              UPDATE type::table($table):[$tenant_id, $key] MERGE {
+                tenant_id: $tenant_id,
+                key: $key,
+                value: $value,
+                expires_at: $expires_at,
+                created_at: $this.created_at ?? time::now(),
+                updated_at: time::now()
+              }
+            `;
 &nbsp;
-        const query = updates.join('\n');
-&nbsp;
-        // Build parameters object with indexed keys and values
-        const params: Record&lt;string, unknown&gt; = {
-          table: this.tableName,
-          tenant_id: tenantId,
-          expires_at,
-        };
-&nbsp;
-        Array.from(entries.entries()).forEach(([key, value], index) =&gt; {
-          params[`key_${index}`] = key;
-          params[`value_${index}`] = value;
-        });
-&nbsp;
-        await this.getClient().query(query, params);
+            await client.query(query, {
+              table: this.tableName,
+              tenant_id: tenantId,
+              key,
+              value,
+              expires_at,
+            });
+          }
+        }, context);
       },
       {
-        operation: 'SurrealdbProvider.setMany',
+        operation: 'SurrealKvProvider.setMany',
         context,
         input: { tenantId, entryCount: entries.size },
       },
@@ -1309,19 +1435,20 @@ export class SurrealdbProvider implements IStorageProvider {
           RETURN BEFORE
         `;
 &nbsp;
-        const queryResult = await this.getClient().query&lt;
-          [{ result: KvStoreRecord[] }]
-        &gt;(query, {
-          table: this.tableName,
-          tenant_id: tenantId,
-          keys,
-        });
+        const deleted = await this.executeQuery&lt;KvStoreRecord&gt;(
+          query,
+          {
+            table: this.tableName,
+            tenant_id: tenantId,
+            keys,
+          },
+          context,
+        );
 &nbsp;
-        const deleted = queryResult[0]?.<span class="branch-0 cbranch-no" title="branch not covered" >result ?? [];</span>
         return deleted.length;
       },
       {
-        operation: 'SurrealdbProvider.deleteMany',
+        operation: 'SurrealKvProvider.deleteMany',
         context,
         input: { tenantId, keyCount: keys.length },
       },
@@ -1337,27 +1464,53 @@ export class SurrealdbProvider implements IStorageProvider {
           RETURN BEFORE
         `;
 &nbsp;
-        const queryResult = await this.getClient().query&lt;
-          [{ result: KvStoreRecord[] }]
-        &gt;(query, {
-          table: this.tableName,
-          tenant_id: tenantId,
-        });
+        const result = await this.executeQuery&lt;KvStoreRecord&gt;(
+          query,
+          {
+            table: this.tableName,
+            tenant_id: tenantId,
+          },
+          context,
+        );
 &nbsp;
-        const count = queryResult[0]?.result?.<span class="branch-0 cbranch-no" title="branch not covered" >length ?? 0;</span>
+        const count = result.length;
         logger.info(
-          `[SurrealdbProvider] Cleared ${count} keys for tenant: ${tenantId}`,
+          `[SurrealKvProvider] Cleared ${count} keys for tenant: ${tenantId}`,
           context,
         );
         return count;
       },
       {
-        operation: 'SurrealdbProvider.clear',
+        operation: 'SurrealKvProvider.clear',
         context,
         input: { tenantId },
       },
     );
   }
+&nbsp;
+  /**
+   * Perform health check on the connection.
+   *
+   * @param context - Request context for logging
+   * @returns Health check result
+   */
+<span class="fstat-no" title="function not covered" >  async healthCheck(context: RequestContext): Promise&lt;boolean&gt; {</span>
+<span class="cstat-no" title="statement not covered" >    return ErrorHandler.tryCatch(</span>
+<span class="cstat-no" title="statement not covered" >      async () =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >        try {</span>
+          // Simple ping query
+<span class="cstat-no" title="statement not covered" >          await this.client.query('SELECT 1 as ping');</span>
+<span class="cstat-no" title="statement not covered" >          return true;</span>
+<span class="cstat-no" title="statement not covered" >        } catch (_error) {</span>
+<span class="cstat-no" title="statement not covered" >          return false;</span>
+<span class="cstat-no" title="statement not covered" >        }</span>
+<span class="cstat-no" title="statement not covered" >      },</span>
+<span class="cstat-no" title="statement not covered" >      {</span>
+<span class="cstat-no" title="statement not covered" >        operation: 'SurrealKvProvider.healthCheck',</span>
+<span class="cstat-no" title="statement not covered" >        context,</span>
+<span class="cstat-no" title="statement not covered" >      },</span>
+<span class="cstat-no" title="statement not covered" >    );</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
 }
 &nbsp;</pre></td></tr></table></pre>
 
@@ -1366,16 +1519,16 @@ export class SurrealdbProvider implements IStorageProvider {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-15T19:47:22.466Z
+                at 2025-10-15T22:37:06.259Z
             </div>
-        <script src="../../../../prettify.js"></script>
+        <script src="../../../../../prettify.js"></script>
         <script>
             window.onload = function () {
                 prettyPrint();
             };
         </script>
-        <script src="../../../../sorter.js"></script>
-        <script src="../../../../block-navigation.js"></script>
+        <script src="../../../../../sorter.js"></script>
+        <script src="../../../../../block-navigation.js"></script>
     </body>
 </html>
     
