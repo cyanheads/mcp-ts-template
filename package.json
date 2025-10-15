@@ -54,6 +54,8 @@
     "inspector": "bunx mcp-inspector --config mcp.json --server mcp-ts-template",
     "test": "bunx vitest run",
     "test:coverage": "bunx vitest run --coverage",
+    "coverage:update": "bun run scripts/update-coverage.ts",
+    "coverage:commit": "bun run scripts/update-coverage.ts --commit",
     "audit": "bun audit",
     "audit:fix": "bun audit --fix",
     "publish-mcp": "bun scripts/validate-mcp-publish-schema.ts"
