@@ -32,6 +32,9 @@ describe('Logger Integration (Pino)', () => {
   let logger: Logger;
 
   beforeAll(async () => {
+    // Enable test logs for logger integration tests
+    process.env.ENABLE_TEST_LOGS = 'true';
+
     // Use real timers for this test suite to avoid conflicts with setTimeout
     if (typeof (vi as any).useRealTimers === 'function') {
       (vi as any).useRealTimers();
@@ -54,6 +57,8 @@ describe('Logger Integration (Pino)', () => {
     if (existsSync(LOGS_DIR)) {
       rmSync(LOGS_DIR, { recursive: true, force: true });
     }
+    // Cleanup environment variable
+    delete process.env.ENABLE_TEST_LOGS;
   });
 
   it('should create log files on initialization', async () => {

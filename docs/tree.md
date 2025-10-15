@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-14 21:58:36
+Generated on: 2025-10-15 08:48:34
 
 ```
 mcp-ts-template
@@ -207,9 +207,12 @@ mcp-ts-template
 │   │   ├── index.int.test.ts
 │   │   └── index.test.ts
 │   ├── mcp-server
+│   │   ├── prompts
+│   │   │   └── prompt-registration.test.ts
 │   │   ├── resources
-│   │   │   └── definitions
-│   │   │       └── echo.resource.test.ts
+│   │   │   ├── definitions
+│   │   │   │   └── echo.resource.test.ts
+│   │   │   └── resource-registration.test.ts
 │   │   ├── tools
 │   │   │   ├── definitions
 │   │   │   │   ├── template-cat-fact.tool.test.ts
@@ -217,22 +220,38 @@ mcp-ts-template
 │   │   │   │   ├── template-echo-message.tool.test.ts
 │   │   │   │   ├── template-image-test.tool.test.ts
 │   │   │   │   └── template-madlibs-elicitation.tool.test.ts
-│   │   │   └── utils
-│   │   │       └── core
-│   │   └── transports
-│   │       ├── auth
-│   │       │   └── lib
-│   │       │       └── authUtils.test.ts
-│   │       └── http
-│   │           └── sessionStore.test.ts
+│   │   │   ├── utils
+│   │   │   │   ├── core
+│   │   │   │   └── toolHandlerFactory.test.ts
+│   │   │   └── tool-registration.test.ts
+│   │   ├── transports
+│   │   │   ├── auth
+│   │   │   │   ├── lib
+│   │   │   │   │   └── authUtils.test.ts
+│   │   │   │   ├── strategies
+│   │   │   │   │   └── jwtStrategy.test.ts
+│   │   │   │   └── authFactory.test.ts
+│   │   │   ├── http
+│   │   │   │   └── sessionStore.test.ts
+│   │   │   └── manager.test.ts
+│   │   └── server.test.ts.disabled
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts
+│   ├── services
+│   │   └── llm
+│   │       └── providers
+│   │           ├── openrouter.provider.test.ts
+│   │           └── openrouter.provider.test.ts.disabled
 │   ├── storage
+│   │   ├── core
+│   │   │   └── storageFactory.test.ts
 │   │   ├── providers
 │   │   │   ├── cloudflare
 │   │   │   │   ├── kvProvider.test.ts
 │   │   │   │   └── r2Provider.test.ts
+│   │   │   ├── fileSystem
+│   │   │   │   └── fileSystemProvider.test.ts
 │   │   │   └── inMemory
 │   │   │       └── inMemoryProvider.test.ts
 │   │   ├── storageProviderCompliance.test.ts
@@ -282,7 +301,6 @@ mcp-ts-template
 ├── bunfig.toml
 ├── CHANGELOG.md
 ├── CLAUDE.md
-├── CODE_REVIEW_SUMMARY.md
 ├── Dockerfile
 ├── eslint.config.js
 ├── LICENSE

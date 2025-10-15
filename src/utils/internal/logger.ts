@@ -73,9 +73,13 @@ export class Logger {
 
   private async createPinoLogger(level: McpLogLevel): Promise<PinoLogger> {
     const pinoLevel = mcpToPinoLevel[level] || 'info';
+    const isTest = config.environment === 'testing';
+
+    // In test environment, suppress all output unless explicitly enabled
+    const enableTestLogs = process.env.ENABLE_TEST_LOGS === 'true';
 
     const pinoOptions: pino.LoggerOptions = {
-      level: pinoLevel,
+      level: isTest && !enableTestLogs ? 'silent' : pinoLevel,
       base: {
         env: config.environment,
         version: config.mcpServerVersion,
@@ -97,7 +101,6 @@ export class Logger {
 
     const transports: pino.TransportTargetOptions[] = [];
     const isDevelopment = config.environment === 'development';
-    const isTest = config.environment === 'testing';
 
     if (isDevelopment && !isServerless) {
       // Try to resolve 'pino-pretty' robustly even when bundled (e.g., Bun/ESM),

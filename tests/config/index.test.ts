@@ -71,9 +71,11 @@ describe('config parsing', () => {
   });
 
   it('throws a configuration error when validation fails', async () => {
+    // Mock console.error BEFORE setting isTTY to suppress output during tests
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
     process.env.MCP_LOG_LEVEL = 'invalid-level';
     process.stdout.isTTY = true;
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     let thrown: unknown;
     try {

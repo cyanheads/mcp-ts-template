@@ -22,6 +22,19 @@ import {
 import { ErrorHandler } from '../../../src/utils/internal/error-handler/index.js';
 import { logger } from '../../../src/utils/internal/logger.js';
 
+// Suppress logger stdout output for this test by mocking the underlying pino logger
+const mockPinoMethods = [
+  'debug',
+  'info',
+  'notice',
+  'warning',
+  'error',
+  'crit',
+  'alert',
+  'emerg',
+  'fatal',
+];
+
 // Spy on the actual logger instance's error method
 const errorSpy = vi.spyOn(logger, 'error');
 
@@ -33,6 +46,8 @@ const mockSpan = {
 const getActiveSpanSpy = vi.spyOn(trace, 'getActiveSpan');
 
 describe('ErrorHandler', () => {
+  const pinoSpies: any[] = [];
+
   beforeAll(async () => {
     // Use real timers for this test suite to avoid conflicts with logger
     if (typeof (vi as any).useRealTimers === 'function') {
@@ -41,9 +56,23 @@ describe('ErrorHandler', () => {
 
     // Initialize the logger once for all tests in this file
     await logger.initialize('debug');
+
+    // Suppress console output by mocking internal pino methods
+    const pinoLogger = (logger as any).pinoLogger;
+    if (pinoLogger) {
+      mockPinoMethods.forEach((method) => {
+        if (typeof pinoLogger[method] === 'function') {
+          const spy = vi.spyOn(pinoLogger, method).mockImplementation(() => {});
+          pinoSpies.push(spy);
+        }
+      });
+    }
   });
 
   afterAll(async () => {
+    // Restore pino spies
+    pinoSpies.forEach((spy) => spy.mockRestore());
+
     // Close the logger once after all tests have run
     await logger.close();
   });
