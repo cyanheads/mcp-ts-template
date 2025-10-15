@@ -7,7 +7,7 @@ The recommended method is to use the all-in-one `publish-mcp` script included in
 ## Prerequisites
 
 - **MCP Publisher CLI**: You need the `mcp-publisher` command-line tool. If you don't have it, install it using one of the methods from the [official publishing guide](https://github.com/modelcontextprotocol/registry/blob/main/docs/guides/publishing/publish-server.md#step-1-install-the-publisher-cli). (i.e. `brew install mcp-publisher`)
-- **[Bun](https://bun.sh/)**: Ensure you have Bun v1.2.0 or higher installed. The script uses Bun to execute.
+- **[Bun](https://bun.sh/)**: Ensure you have Bun v1.2.21 or higher installed. The script uses Bun to execute.
 - **GitHub Account**: Publishing to an `io.github.*` namespace requires you to authenticate with a corresponding GitHub account. The script will guide you through this.
 
 ## The Recommended Method: The All-in-One `publish-mcp` Script

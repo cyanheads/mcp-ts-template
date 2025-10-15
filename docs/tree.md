@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-15 10:49:13
+Generated on: 2025-10-15 13:09:00
 
 ```
 mcp-ts-template
@@ -16,7 +16,195 @@ mcp-ts-template
 ├── .vscode
 │   └── settings.json
 ├── changelog
-│   └── archive1.md
+│   ├── archive1.md
+│   └── archive2.md
+├── coverage
+│   ├── src
+│   │   ├── config
+│   │   │   ├── index.html
+│   │   │   └── index.ts.html
+│   │   ├── container
+│   │   │   ├── registrations
+│   │   │   │   ├── core.ts.html
+│   │   │   │   ├── index.html
+│   │   │   │   └── mcp.ts.html
+│   │   │   ├── index.html
+│   │   │   ├── index.ts.html
+│   │   │   └── tokens.ts.html
+│   │   ├── mcp-server
+│   │   │   ├── prompts
+│   │   │   │   ├── definitions
+│   │   │   │   │   ├── code-review.prompt.ts.html
+│   │   │   │   │   └── index.html
+│   │   │   │   ├── utils
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   └── promptDefinition.ts.html
+│   │   │   │   ├── index.html
+│   │   │   │   └── prompt-registration.ts.html
+│   │   │   ├── resources
+│   │   │   │   ├── definitions
+│   │   │   │   │   ├── echo.resource.ts.html
+│   │   │   │   │   └── index.html
+│   │   │   │   ├── utils
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── resourceDefinition.ts.html
+│   │   │   │   │   └── resourceHandlerFactory.ts.html
+│   │   │   │   ├── index.html
+│   │   │   │   └── resource-registration.ts.html
+│   │   │   ├── roots
+│   │   │   │   ├── index.html
+│   │   │   │   └── roots-registration.ts.html
+│   │   │   ├── tools
+│   │   │   │   ├── definitions
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── template-cat-fact.tool.ts.html
+│   │   │   │   │   ├── template-code-review-sampling.tool.ts.html
+│   │   │   │   │   ├── template-echo-message.tool.ts.html
+│   │   │   │   │   ├── template-image-test.tool.ts.html
+│   │   │   │   │   └── template-madlibs-elicitation.tool.ts.html
+│   │   │   │   ├── utils
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── toolDefinition.ts.html
+│   │   │   │   │   └── toolHandlerFactory.ts.html
+│   │   │   │   ├── index.html
+│   │   │   │   └── tool-registration.ts.html
+│   │   │   ├── transports
+│   │   │   │   ├── auth
+│   │   │   │   │   ├── lib
+│   │   │   │   │   │   ├── authContext.ts.html
+│   │   │   │   │   │   ├── authTypes.ts.html
+│   │   │   │   │   │   ├── authUtils.ts.html
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   └── withAuth.ts.html
+│   │   │   │   │   ├── strategies
+│   │   │   │   │   │   ├── authStrategy.ts.html
+│   │   │   │   │   │   ├── index.html
+│   │   │   │   │   │   ├── jwtStrategy.ts.html
+│   │   │   │   │   │   └── oauthStrategy.ts.html
+│   │   │   │   │   ├── authFactory.ts.html
+│   │   │   │   │   ├── authMiddleware.ts.html
+│   │   │   │   │   └── index.html
+│   │   │   │   ├── http
+│   │   │   │   │   ├── httpErrorHandler.ts.html
+│   │   │   │   │   ├── httpTransport.ts.html
+│   │   │   │   │   ├── httpTypes.ts.html
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── sessionIdUtils.ts.html
+│   │   │   │   │   └── sessionStore.ts.html
+│   │   │   │   ├── stdio
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   └── stdioTransport.ts.html
+│   │   │   │   ├── index.html
+│   │   │   │   ├── ITransport.ts.html
+│   │   │   │   └── manager.ts.html
+│   │   │   ├── index.html
+│   │   │   └── server.ts.html
+│   │   ├── services
+│   │   │   ├── llm
+│   │   │   │   ├── core
+│   │   │   │   │   ├── ILlmProvider.ts.html
+│   │   │   │   │   └── index.html
+│   │   │   │   ├── providers
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   └── openrouter.provider.ts.html
+│   │   │   │   ├── index.html
+│   │   │   │   └── types.ts.html
+│   │   │   └── speech
+│   │   │       ├── core
+│   │   │       │   ├── index.html
+│   │   │       │   ├── ISpeechProvider.ts.html
+│   │   │       │   └── SpeechService.ts.html
+│   │   │       ├── providers
+│   │   │       │   ├── elevenlabs.provider.ts.html
+│   │   │       │   ├── index.html
+│   │   │       │   └── whisper.provider.ts.html
+│   │   │       ├── index.html
+│   │   │       └── types.ts.html
+│   │   ├── storage
+│   │   │   ├── core
+│   │   │   │   ├── index.html
+│   │   │   │   ├── IStorageProvider.ts.html
+│   │   │   │   ├── storageFactory.ts.html
+│   │   │   │   ├── StorageService.ts.html
+│   │   │   │   └── storageValidation.ts.html
+│   │   │   └── providers
+│   │   │       ├── cloudflare
+│   │   │       │   ├── index.html
+│   │   │       │   ├── kvProvider.ts.html
+│   │   │       │   └── r2Provider.ts.html
+│   │   │       ├── fileSystem
+│   │   │       │   ├── fileSystemProvider.ts.html
+│   │   │       │   └── index.html
+│   │   │       ├── inMemory
+│   │   │       │   ├── index.html
+│   │   │       │   └── inMemoryProvider.ts.html
+│   │   │       └── supabase
+│   │   │           ├── index.html
+│   │   │           ├── supabase.types.ts.html
+│   │   │           └── supabaseProvider.ts.html
+│   │   ├── types-global
+│   │   │   ├── errors.ts.html
+│   │   │   └── index.html
+│   │   ├── utils
+│   │   │   ├── formatting
+│   │   │   │   ├── index.html
+│   │   │   │   └── markdownBuilder.ts.html
+│   │   │   ├── internal
+│   │   │   │   ├── error-handler
+│   │   │   │   │   ├── errorHandler.ts.html
+│   │   │   │   │   ├── helpers.ts.html
+│   │   │   │   │   ├── index.html
+│   │   │   │   │   ├── mappings.ts.html
+│   │   │   │   │   └── types.ts.html
+│   │   │   │   ├── encoding.ts.html
+│   │   │   │   ├── health.ts.html
+│   │   │   │   ├── index.html
+│   │   │   │   ├── logger.ts.html
+│   │   │   │   ├── performance.ts.html
+│   │   │   │   ├── requestContext.ts.html
+│   │   │   │   ├── runtime.ts.html
+│   │   │   │   └── startupBanner.ts.html
+│   │   │   ├── metrics
+│   │   │   │   ├── index.html
+│   │   │   │   ├── registry.ts.html
+│   │   │   │   └── tokenCounter.ts.html
+│   │   │   ├── network
+│   │   │   │   ├── fetchWithTimeout.ts.html
+│   │   │   │   └── index.html
+│   │   │   ├── parsing
+│   │   │   │   ├── csvParser.ts.html
+│   │   │   │   ├── dateParser.ts.html
+│   │   │   │   ├── index.html
+│   │   │   │   ├── jsonParser.ts.html
+│   │   │   │   ├── pdfParser.ts.html
+│   │   │   │   ├── xmlParser.ts.html
+│   │   │   │   └── yamlParser.ts.html
+│   │   │   ├── scheduling
+│   │   │   │   ├── index.html
+│   │   │   │   └── scheduler.ts.html
+│   │   │   ├── security
+│   │   │   │   ├── idGenerator.ts.html
+│   │   │   │   ├── index.html
+│   │   │   │   ├── rateLimiter.ts.html
+│   │   │   │   └── sanitization.ts.html
+│   │   │   └── telemetry
+│   │   │       ├── index.html
+│   │   │       ├── instrumentation.ts.html
+│   │   │       ├── metrics.ts.html
+│   │   │       ├── semconv.ts.html
+│   │   │       └── trace.ts.html
+│   │   ├── index.html
+│   │   ├── index.ts.html
+│   │   └── worker.ts.html
+│   ├── base.css
+│   ├── block-navigation.js
+│   ├── coverage-final.json
+│   ├── favicon.png
+│   ├── index.html
+│   ├── prettify.css
+│   ├── prettify.js
+│   ├── sort-arrow-sprite.png
+│   └── sorter.js
 ├── docs
 │   ├── mcp-specification
 │   │   └── 2025-06-18
@@ -212,16 +400,28 @@ mcp-ts-template
 │   │   ├── registrations
 │   │   │   ├── core.test.ts
 │   │   │   └── mcp.test.ts
-│   │   └── index.test.ts
+│   │   ├── index.test.ts
+│   │   └── tokens.test.ts
 │   ├── mcp-server
 │   │   ├── prompts
+│   │   │   ├── definitions
+│   │   │   │   └── code-review.prompt.test.ts
+│   │   │   ├── utils
+│   │   │   │   └── promptDefinition.test.ts
 │   │   │   └── prompt-registration.test.ts
 │   │   ├── resources
 │   │   │   ├── definitions
-│   │   │   │   └── echo.resource.test.ts
+│   │   │   │   ├── echo.resource.test.ts
+│   │   │   │   └── index.test.ts
+│   │   │   ├── utils
+│   │   │   │   ├── resourceDefinition.test.ts
+│   │   │   │   └── resourceHandlerFactory.test.ts
 │   │   │   └── resource-registration.test.ts
+│   │   ├── roots
+│   │   │   └── roots-registration.test.ts
 │   │   ├── tools
 │   │   │   ├── definitions
+│   │   │   │   ├── index.test.ts
 │   │   │   │   ├── template-cat-fact.tool.test.ts
 │   │   │   │   ├── template-code-review-sampling.tool.test.ts
 │   │   │   │   ├── template-echo-message.tool.test.ts
@@ -229,20 +429,35 @@ mcp-ts-template
 │   │   │   │   └── template-madlibs-elicitation.tool.test.ts
 │   │   │   ├── utils
 │   │   │   │   ├── core
+│   │   │   │   ├── index.test.ts
+│   │   │   │   ├── toolDefinition.test.ts
 │   │   │   │   └── toolHandlerFactory.test.ts
 │   │   │   └── tool-registration.test.ts
 │   │   ├── transports
 │   │   │   ├── auth
 │   │   │   │   ├── lib
-│   │   │   │   │   └── authUtils.test.ts
+│   │   │   │   │   ├── authContext.test.ts
+│   │   │   │   │   ├── authTypes.test.ts
+│   │   │   │   │   ├── authUtils.test.ts
+│   │   │   │   │   └── withAuth.test.ts
 │   │   │   │   ├── strategies
-│   │   │   │   │   └── jwtStrategy.test.ts
+│   │   │   │   │   ├── authStrategy.test.ts
+│   │   │   │   │   ├── jwtStrategy.test.ts
+│   │   │   │   │   └── oauthStrategy.test.ts
 │   │   │   │   ├── authFactory.test.ts
-│   │   │   │   └── authMiddleware.test.ts
+│   │   │   │   ├── authMiddleware.test.ts
+│   │   │   │   └── index.test.ts
 │   │   │   ├── http
+│   │   │   │   ├── httpErrorHandler.test.ts
+│   │   │   │   ├── httpTransport.test.ts
+│   │   │   │   ├── httpTypes.test.ts
+│   │   │   │   ├── index.test.ts
+│   │   │   │   ├── sessionIdUtils.test.ts
 │   │   │   │   └── sessionStore.test.ts
 │   │   │   ├── stdio
+│   │   │   │   ├── index.test.ts
 │   │   │   │   └── stdioTransport.test.ts
+│   │   │   ├── ITransport.test.ts
 │   │   │   └── manager.test.ts
 │   │   └── server.test.ts.disabled
 │   ├── mocks
@@ -251,27 +466,55 @@ mcp-ts-template
 │   ├── scripts
 │   │   └── devdocs.test.ts
 │   ├── services
-│   │   └── llm
-│   │       └── providers
-│   │           ├── openrouter.provider.test.ts
-│   │           └── openrouter.provider.test.ts.disabled
+│   │   ├── llm
+│   │   │   ├── core
+│   │   │   │   └── ILlmProvider.test.ts
+│   │   │   ├── providers
+│   │   │   │   ├── openrouter.provider.test.ts
+│   │   │   │   └── openrouter.provider.test.ts.disabled
+│   │   │   ├── index.test.ts
+│   │   │   └── types.test.ts
+│   │   └── speech
+│   │       ├── core
+│   │       │   ├── ISpeechProvider.test.ts
+│   │       │   └── SpeechService.test.ts
+│   │       ├── providers
+│   │       │   ├── elevenlabs.provider.test.ts
+│   │       │   └── whisper.provider.test.ts
+│   │       ├── index.test.ts
+│   │       └── types.test.ts
 │   ├── storage
 │   │   ├── core
-│   │   │   └── storageFactory.test.ts
+│   │   │   ├── IStorageProvider.test.ts
+│   │   │   ├── storageFactory.test.ts
+│   │   │   └── storageValidation.test.ts
 │   │   ├── providers
 │   │   │   ├── cloudflare
 │   │   │   │   ├── kvProvider.test.ts
 │   │   │   │   └── r2Provider.test.ts
 │   │   │   ├── fileSystem
 │   │   │   │   └── fileSystemProvider.test.ts
-│   │   │   └── inMemory
-│   │   │       └── inMemoryProvider.test.ts
+│   │   │   ├── inMemory
+│   │   │   │   └── inMemoryProvider.test.ts
+│   │   │   └── supabase
+│   │   │       ├── supabase.types.test.ts
+│   │   │       └── supabaseProvider.test.ts
+│   │   ├── index.test.ts
 │   │   ├── storageProviderCompliance.test.ts
 │   │   └── StorageService.test.ts
+│   ├── types-global
+│   │   └── errors.test.ts
 │   ├── utils
 │   │   ├── formatting
+│   │   │   ├── index.test.ts
 │   │   │   └── markdownBuilder.test.ts
 │   │   ├── internal
+│   │   │   ├── error-handler
+│   │   │   │   ├── errorHandler.test.ts
+│   │   │   │   ├── helpers.test.ts
+│   │   │   │   ├── index.test.ts
+│   │   │   │   ├── mappings.test.ts
+│   │   │   │   └── types.test.ts
 │   │   │   ├── encoding.test.ts
 │   │   │   ├── errorHandler.int.test.ts
 │   │   │   ├── errorHandler.unit.test.ts
@@ -283,26 +526,40 @@ mcp-ts-template
 │   │   │   ├── runtime.test.ts
 │   │   │   └── startupBanner.test.ts
 │   │   ├── metrics
+│   │   │   ├── index.test.ts
 │   │   │   ├── registry.test.ts
 │   │   │   └── tokenCounter.test.ts
 │   │   ├── network
-│   │   │   └── fetchWithTimeout.test.ts
+│   │   │   ├── fetchWithTimeout.test.ts
+│   │   │   └── index.test.ts
 │   │   ├── pagination
 │   │   │   └── index.test.ts
 │   │   ├── parsing
 │   │   │   ├── csvParser.test.ts
 │   │   │   ├── dateParser.test.ts
+│   │   │   ├── index.test.ts
 │   │   │   ├── jsonParser.test.ts
 │   │   │   ├── pdfParser.test.ts
 │   │   │   ├── xmlParser.test.ts
 │   │   │   └── yamlParser.test.ts
 │   │   ├── scheduling
+│   │   │   ├── index.test.ts
 │   │   │   └── scheduler.test.ts
-│   │   └── security
-│   │       ├── idGenerator.test.ts
-│   │       ├── rateLimiter.test.ts
-│   │       └── sanitization.test.ts
-│   └── setup.ts
+│   │   ├── security
+│   │   │   ├── idGenerator.test.ts
+│   │   │   ├── index.test.ts
+│   │   │   ├── rateLimiter.test.ts
+│   │   │   └── sanitization.test.ts
+│   │   ├── telemetry
+│   │   │   ├── index.test.ts
+│   │   │   ├── instrumentation.test.ts
+│   │   │   ├── metrics.test.ts
+│   │   │   ├── semconv.test.ts
+│   │   │   └── trace.test.ts
+│   │   └── index.test.ts
+│   ├── index.test.ts
+│   ├── setup.ts
+│   └── worker.test.ts
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
