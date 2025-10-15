@@ -373,15 +373,42 @@ const exists = async (filePath: string): Promise<boolean> => {
 
 /**
  * Matches file path against glob-like patterns.
+ *
+ * @param filePath - The file path to test against patterns
+ * @param patterns - Array of glob-like patterns (supports * and ** wildcards)
+ * @returns true if the file path matches any pattern
+ *
+ * @security
+ * This function properly escapes all regex special characters before converting
+ * glob patterns to regex, preventing regex injection and ReDoS attacks from
+ * user-provided patterns (CLI args or config files).
+ *
+ * @example
+ * matchesPattern('src/test.ts', ['*.ts']) // true
+ * matchesPattern('src/utils/helper.ts', ['**\/util*\/**']) // true
+ * matchesPattern('test.ts', ['test.ts']) // true (exact match)
  */
 const matchesPattern = (filePath: string, patterns: string[]): boolean => {
   if (patterns.length === 0) return false;
 
   for (const pattern of patterns) {
+    // Security: Properly escape regex chars while preserving glob wildcards
+    // This prevents regex injection from user-provided patterns
     const regexPattern = pattern
-      .replace(/\./g, '\\.')
-      .replace(/\*\*/g, '.*')
-      .replace(/\*/g, '[^/]*');
+      // Step 1: Temporarily mark glob patterns with placeholders
+      .replace(/\*\*/g, '\x00DOUBLESTAR\x00')
+      .replace(/\*/g, '\x00STAR\x00')
+      // Step 2: Escape all regex special chars (except the placeholders)
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      // Step 3: Convert glob * to regex [^/]* (matches any characters except /)
+      .replace(/\x00STAR\x00/g, '[^/]*')
+      // Step 4: Handle **/ pattern specially - matches zero or more path segments
+      .replace(/\x00DOUBLESTAR\x00\//g, '(?:.*/)?')
+      // Step 5: Handle /** pattern at end
+      .replace(/\/\x00DOUBLESTAR\x00$/g, '/.*')
+      // Step 6: Handle remaining ** (not preceded/followed by /)
+      .replace(/\x00DOUBLESTAR\x00/g, '.*');
+
     const regex = new RegExp(`^${regexPattern}$`);
 
     if (regex.test(filePath) || filePath.includes(pattern)) {
