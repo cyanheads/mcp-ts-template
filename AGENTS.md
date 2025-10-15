@@ -1,7 +1,8 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.4.3
+**Version:** 2.4.7
 **Target Project:** mcp-ts-template
+**Last Updated:** 2024-10-15
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
@@ -109,216 +110,43 @@ Separation of concerns maps directly to the filesystem. Always place files in th
    - **Tools:** Add to `src/mcp-server/tools/definitions/index.ts` → `allToolDefinitions`
    - **Resources:** Add to `src/mcp-server/resources/definitions/index.ts` → `allResourceDefinitions`
 
-**Example Tool Structure** (see `template-echo-message.tool.ts` for complete reference):
-
-```ts
-import type { ToolDefinition } from '@/mcp-server/tools/utils/index.js';
-import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import { z } from 'zod';
-
-// Metadata constants
-const TOOL_NAME = 'template_echo_message';
-const TOOL_TITLE = 'Template Echo Message';
-const TOOL_DESCRIPTION =
-  'Echoes a message back with optional formatting and repetition.';
-const TOOL_ANNOTATIONS = {
-  readOnlyHint: true,
-  idempotentHint: true,
-  openWorldHint: false,
-};
-
-// Schemas (all fields must have .describe())
-const InputSchema = z.object({
-  message: z.string().min(1).max(1000).describe('The message to echo back.'),
-  mode: z
-    .enum(['standard', 'uppercase', 'lowercase'])
-    .default('standard')
-    .describe('Formatting mode.'),
-  // ...
-});
-const OutputSchema = z.object({
-  originalMessage: z.string().describe('The original message.'),
-  // ...
-});
-
-// Pure logic function
-async function echoToolLogic(input, appContext, sdkContext) {
-  logger.debug('Processing echo message.', { ...appContext });
-  // Business logic here (no try/catch, throw McpError on failure)
-  return {
-    /* result */
-  };
-}
-
-// Optional response formatter
-function responseFormatter(result): ContentBlock[] {
-  return [{ type: 'text', text: `Echo: ${result.message}` }];
-}
-
-// Export definition
-export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
-  {
-    name: TOOL_NAME,
-    title: TOOL_TITLE,
-    description: TOOL_DESCRIPTION,
-    inputSchema: InputSchema,
-    outputSchema: OutputSchema,
-    annotations: TOOL_ANNOTATIONS,
-    logic: withToolAuth(['tool:echo:read'], echoToolLogic),
-    responseFormatter,
-  };
-```
-
 **Resource-Specific Notes:**
 
 - Resources use `uriTemplate` (e.g., `echo://{message}`), `paramsSchema`, and optional `list()` for discovery
 - Logic signature: `(uri: URL, params, context) => result` (can be `async`)
-- See `echo.resource.ts` for complete example
+- See `echo.resource.ts` and Section IV.A for complete examples
 
-**Resource Pagination:**
-
-Resources that return large lists should implement pagination support per [MCP spec 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/utils/pagination). The `list()` function receives a `RequestHandlerExtra` parameter that provides access to the cursor for pagination.
-
-Key pagination utilities (available from `@/utils/index.js`):
-
-- `extractCursor(meta)`: Extract cursor from request metadata
-- `paginateArray(items, cursor, defaultPageSize, maxPageSize, context)`: Paginate in-memory arrays
-- For **storage providers specifically**, use `encodeCursor(lastKey, tenantId)` / `decodeCursor(cursor, tenantId, context)` from `@/storage/core/storageValidation.js` for secure tenant-bound cursors
-
-**Important pagination notes:**
-
-- Cursors are opaque strings - clients must not parse or construct them
-- Page sizes are server-controlled - clients cannot specify size
-- Invalid cursors throw `JsonRpcErrorCode.InvalidParams` (-32602)
-- Use `nextCursor` conditionally - only include if more results exist
-- **Storage cursors include tenant ID validation** to prevent cross-tenant attacks
-- See `src/utils/pagination/index.ts` for resource pagination and `src/storage/core/storageValidation.ts` for storage pagination
+**Resource Pagination:** Resources returning large lists must implement pagination per [MCP spec 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/utils/pagination). Use `extractCursor(meta)`, `paginateArray(...)` from `@/utils/index.js`. Storage providers: use `encodeCursor`/`decodeCursor` from `@/storage/core/storageValidation.js` for tenant-bound cursors. Cursors are opaque; invalid cursors → `JsonRpcErrorCode.InvalidParams` (-32602). Include `nextCursor` only when more results exist.
 
 ---
 
 ## IV.A. Quick Start: Creating Your First Tool
 
-**Follow these steps to add a new tool capability:**
+- [ ] **1. Study template:** [template-echo-message.tool.ts](src/mcp-server/tools/definitions/template-echo-message.tool.ts) — understand: metadata → schemas → logic → export
+- [ ] **2. Create file:** `src/mcp-server/tools/definitions/[your-tool-name].tool.ts` (kebab-case)
+- [ ] **3. Define metadata:** `TOOL_NAME` (snake_case), `TOOL_TITLE`, `TOOL_DESCRIPTION` (LLM-facing), `TOOL_ANNOTATIONS` (readOnly/idempotent hints)
+- [ ] **4. Create schemas:** `InputSchema`/`OutputSchema` as `z.object()` — **CRITICAL:** all fields need `.describe()`
+- [ ] **5. Implement logic:** Pure function `async (input, appContext, sdkContext) => result` — NO try/catch, throw `McpError` on failure
+- [ ] **6. (Optional) Response formatter:** `(result) => ContentBlock[]`
+- [ ] **7. Apply auth:** Wrap with `withToolAuth(['tool:name:read'], yourLogic)`
+- [ ] **8. Export ToolDefinition:** Combine metadata, schemas, logic, formatter
+- [ ] **9. Register:** Add to `allToolDefinitions` in [index.ts](src/mcp-server/tools/definitions/index.ts)
+- [ ] **10. Quality check:** `bun run devcheck`
+- [ ] **11. Test:** `bun run dev:stdio` or `dev:http`, verify with MCP client
 
-- [ ] **1. Read the template**
-  - Open and study: [src/mcp-server/tools/definitions/template-echo-message.tool.ts](src/mcp-server/tools/definitions/template-echo-message.tool.ts)
-  - Understand the structure: metadata → schemas → logic → export
-
-- [ ] **2. Create your tool file**
-  - Location: `src/mcp-server/tools/definitions/[your-tool-name].tool.ts`
-  - Use kebab-case naming (e.g., `my-custom-tool.tool.ts`)
-
-- [ ] **3. Define metadata constants**
-
-  ```ts
-  const TOOL_NAME = 'your_tool_name'; // snake_case, unique
-  const TOOL_TITLE = 'Your Tool Title'; // Human-readable
-  const TOOL_DESCRIPTION = 'What it does...'; // LLM-facing, 1-2 sentences
-  const TOOL_ANNOTATIONS = {
-    // UI hints
-    readOnlyHint: true, // No state changes?
-    idempotentHint: true, // Same input = same output?
-  };
-  ```
-
-- [ ] **4. Create Zod schemas**
-  - Define `InputSchema` and `OutputSchema` as `z.object()`
-  - **CRITICAL:** Every field must have `.describe('Clear description')`
-  - Example: `z.string().min(1).describe('The message to process')`
-
-- [ ] **5. Implement pure logic function**
-
-  ```ts
-  async function yourToolLogic(input, appContext, sdkContext) {
-    logger.debug('Processing...', { ...appContext });
-
-    // NO try/catch - handlers catch errors
-    // Throw McpError on failure:
-    // throw new McpError(JsonRpcErrorCode.InvalidParams, 'Reason');
-
-    return {
-      /* your result matching OutputSchema */
-    };
-  }
-  ```
-
-- [ ] **6. (Optional) Add response formatter**
-
-  ```ts
-  function responseFormatter(result): ContentBlock[] {
-    return [{ type: 'text', text: `Result: ${result.data}` }];
-  }
-  ```
-
-- [ ] **7. Wrap logic with authorization**
-
-  ```ts
-  import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-
-  logic: withToolAuth(['tool:yourname:read'], yourToolLogic),
-  ```
-
-- [ ] **8. Export the ToolDefinition**
-
-  ```ts
-  export const yourTool: ToolDefinition<
-    typeof InputSchema,
-    typeof OutputSchema
-  > = {
-    name: TOOL_NAME,
-    title: TOOL_TITLE,
-    description: TOOL_DESCRIPTION,
-    inputSchema: InputSchema,
-    outputSchema: OutputSchema,
-    annotations: TOOL_ANNOTATIONS,
-    logic: withToolAuth(['tool:yourname:read'], yourToolLogic),
-    responseFormatter, // optional
-  };
-  ```
-
-- [ ] **9. Register in barrel export**
-  - Open [src/mcp-server/tools/definitions/index.ts](src/mcp-server/tools/definitions/index.ts)
-  - Import: `import { yourTool } from './your-tool-name.tool.js';`
-  - Add to `allToolDefinitions` array
-
-- [ ] **10. Run quality checks**
-
-  ```bash
-  bun run devcheck
-  ```
-
-- [ ] **11. Test your tool**
-
-  ```bash
-  bun run dev:stdio    # or dev:http
-  ```
-
-  - Use an MCP client (Claude Desktop, Cline, etc.) to invoke your tool
-  - Verify input validation, logic execution, and response format
-
-**Need more details?** See the full workflow in Section IV and comprehensive checklist in Section XIV.
+See Section IV for full workflow, Section XIV for comprehensive checklist.
 
 ---
 
 ## V. Service Development Pattern
 
-> **Architecture reminder:** All new services MUST be created in `src/services/[service-name]/` following the domain-driven pattern. See [docs/tree.md](docs/tree.md) for the complete structure.
+> **All services:** `src/services/[service-name]/` with `core/` (interfaces), `providers/` (impls), `types.ts`, `index.ts`. See [docs/tree.md](docs/tree.md).
 
-**Structure:** `src/services/<service-name>/` contains `core/` (interfaces, optional orchestrator), `providers/` (implementations), `types.ts`, `index.ts`
+**Patterns:** Single-provider (e.g., LLM) → direct DI `@inject(LlmProvider)`. Multi-provider (e.g., Speech) → create orchestrator for routing/aggregation.
 
-**Single-Provider Pattern** (e.g., LLM): Direct DI injection `@inject(LlmProvider) private llmProvider: ILlmProvider`
+**Provider requirements:** Implement `I<Service>Provider`, `@injectable()`, `healthCheck()`, throw `McpError` on failure, name as `<name>.provider.ts` (kebab-case).
 
-**Multi-Provider Pattern** (e.g., Speech): Create `<Service>Service.ts` orchestrator when you need provider routing, capability aggregation, or cross-provider state.
-
-**Provider Guidelines:**
-
-1. Implement `I<Service>Provider`, mark `@injectable()`, provide `healthCheck(): Promise<boolean>`
-2. Throw `McpError` for failures (no try/catch in provider logic)
-3. Name: `<provider-name>.provider.ts` (kebab-case)
-
-**Adding New Service:**
-
-1. Create dir structure → 2. Define interface → 3. Implement providers → 4. Define types → 5. Barrel export → 6. Register DI token (`src/container/tokens.ts`) → 7. Register service (`src/container/registrations/core.ts`)
+**Add service:** Dir structure → Interface → Providers → Types → Barrel export → DI token (`tokens.ts`) → Register (`registrations/core.ts`)
 
 ---
 
@@ -326,37 +154,28 @@ Key pagination utilities (available from `@/utils/index.js`):
 
 #### DI-Managed Services (tokens in `src/container/tokens.ts`)
 
-| Service           | Token                   | Usage                                                                   | Notes                       |
-| ----------------- | ----------------------- | ----------------------------------------------------------------------- | --------------------------- |
-| `ILlmProvider`    | `LlmProvider`           | `@inject(LlmProvider) private llmProvider: ILlmProvider`                |                             |
-| `StorageService`  | `StorageService`        | `@inject(StorageService) private storage: StorageService`               | Requires `context.tenantId` |
-| `RateLimiter`     | `RateLimiterService`    | `@inject(RateLimiterService) private rateLimiter: RateLimiter`          |                             |
-| `Logger`          | `Logger`                | `@inject(Logger) private logger: typeof logger`                         | Pino-backed singleton       |
-| App Config        | `AppConfig`             | `@inject(AppConfig) private config: typeof configModule`                |                             |
-| Supabase Client   | `SupabaseAdminClient`   | `@inject(SupabaseAdminClient) private client: SupabaseClient<Database>` | Only when needed            |
-| SurrealDB Client  | `SurrealdbClient`       | `@inject(SurrealdbClient) private client: Surreal`                      | Only when needed            |
-| Transport Manager | `TransportManagerToken` | `@inject(TransportManagerToken) private tm: TransportManager`           |                             |
+| Service           | Token                   | Usage                                                                   | Notes                          |
+| ----------------- | ----------------------- | ----------------------------------------------------------------------- | ------------------------------ |
+| `ILlmProvider`    | `LlmProvider`           | `@inject(LlmProvider) private llmProvider: ILlmProvider`                |                                |
+| `IGraphProvider`  | `GraphProvider`         | `@inject(GraphProvider) private graphProvider: IGraphProvider`          | Only when using graph features |
+| `StorageService`  | `StorageService`        | `@inject(StorageService) private storage: StorageService`               | Requires `context.tenantId`    |
+| `RateLimiter`     | `RateLimiterService`    | `@inject(RateLimiterService) private rateLimiter: RateLimiter`          |                                |
+| `Logger`          | `Logger`                | `@inject(Logger) private logger: typeof logger`                         | Pino-backed singleton          |
+| App Config        | `AppConfig`             | `@inject(AppConfig) private config: typeof configModule`                |                                |
+| Supabase Client   | `SupabaseAdminClient`   | `@inject(SupabaseAdminClient) private client: SupabaseClient<Database>` | Only when needed               |
+| SurrealDB Client  | `SurrealdbClient`       | `@inject(SurrealdbClient) private client: Surreal`                      | Only when needed               |
+| Transport Manager | `TransportManagerToken` | `@inject(TransportManagerToken) private tm: TransportManager`           |                                |
 
-**Storage Providers:** `STORAGE_PROVIDER_TYPE` = `in-memory` (default) \| `filesystem` (Node) \| `supabase` \| `surrealdb` \| `cloudflare-r2/kv` (Worker). Always use `StorageService` from DI.
+**Graph Service:** Graph operations (relationships, traversals, pathfinding) via SurrealDB. Inject `IGraphProvider`. Operations: `relate()`, `unrelate()`, `traverse()`, `shortestPath()`, `get{Outgoing|Incoming}Edges()`, `pathExists()`.
 
-**SurrealDB Setup:** Initialize schema using `docs/surrealdb-schema.surql` before first use. Supports both local instances and Surreal Cloud with WebSocket connections.
-
-**Storage Capabilities (v2.4.0+):**
-
-- **Validation**: All inputs (tenant IDs, keys, prefixes, options) are validated via `src/storage/core/storageValidation.ts` before reaching providers
-- **Batch Operations**: `getMany()`, `setMany()`, `deleteMany()` use parallel execution where supported (FileSystem, InMemory, Cloudflare, SurrealDB)
-- **Secure Pagination**: Opaque cursors with tenant ID binding prevent cross-tenant attacks
-- **TTL Support**: All providers handle `ttl=0` (immediate expiration) correctly
+**Storage:** `STORAGE_PROVIDER_TYPE` = `in-memory` | `filesystem` | `supabase` | `surrealdb` | `cloudflare-r2/kv`. Use DI-injected `StorageService`. Features: input validation, parallel batch ops (`getMany/setMany/deleteMany`), secure tenant-bound pagination, TTL support. See [storage docs](src/storage/README.md). SurrealDB: init schema via `docs/surrealdb-schema.surql`.
 
 #### Directly Imported Utilities (`src/utils/`)
 
 - `logger`, `requestContextService`, `sanitization`, `fetchWithTimeout`, `measureToolExecution`, `pdfParser`, `markdown()` from `@/utils/index.js`
 - `ErrorHandler.tryCatch` (for services/setup code, NOT tool/resource logic)
 
-#### Response Formatters
-
-**Simple:** `const lines = [...].filter(Boolean); return [{ type: 'text', text: lines.join('\n') }];`
-**Complex:** Use `markdown()` from `@/utils/index.js` for structured markdown (see `template-echo-message.tool.ts`)
+**Response Formatters:** Simple: `[{ type: 'text', text: lines.join('\n') }]`. Complex: `markdown()` helper (see `template-echo-message.tool.ts`)
 
 #### Utils Modules (`src/utils/`)
 
@@ -374,40 +193,23 @@ Key pagination utilities (available from `@/utils/index.js`):
 
 ## VII. Authentication & Authorization
 
-**HTTP Transport:** `MCP_AUTH_MODE` = `none` \| `jwt` \| `oauth`
+**HTTP:** `MCP_AUTH_MODE` = `none` | `jwt` | `oauth`. JWT: local secret (`MCP_AUTH_SECRET_KEY`), dev bypasses if missing. OAuth: JWKS verification (`OAUTH_ISSUER_URL`, `OAUTH_AUDIENCE`, opt `OAUTH_JWKS_URI`). Claims: `clientId` (cid/client_id), `scopes` (scp/scope), `sub`, `tenantId` (tid → context.tenantId). Wrap logic with `withToolAuth`/`withResourceAuth` (defaults allowed if auth disabled).
 
-- **JWT:** Local secret (`MCP_AUTH_SECRET_KEY`). Dev mode bypasses verification if secret missing.
-- **OAuth:** Remote JWKS verification. Requires `OAUTH_ISSUER_URL`, `OAUTH_AUDIENCE`, optional `OAUTH_JWKS_URI`.
-- **Claims extracted:** `clientId` (`cid`/`client_id`), `scopes` (`scp`/`scope`), `subject` (`sub`), `tenantId` (`tid` → `context.tenantId`)
-- **Scope enforcement:** Always wrap logic with `withToolAuth`/`withResourceAuth`. Defaults to allowed if auth disabled.
+**STDIO:** No HTTP auth. Host handles authorization.
 
-**STDIO Transport:** No HTTP-based auth. Authorization handled by host application.
-
-**Endpoints:**
-
-- `GET /healthz`, `GET /mcp`: Unprotected
-- `POST`/`OPTIONS /mcp`: Protected when `MCP_AUTH_MODE != 'none'`
-- CORS: `MCP_ALLOWED_ORIGINS` or `'*'`
+**Endpoints:** `/healthz`, `GET /mcp` unprotected. `POST`/`OPTIONS /mcp` protected when auth enabled. CORS: `MCP_ALLOWED_ORIGINS` or `*`.
 
 ---
 
 ## VIII. Transports & Server Lifecycle
 
-- **`createMcpServerInstance`** (`src/mcp-server/server.ts`): Initializes `RequestContext`, creates `McpServer` with capabilities (logging, listChanged, elicitation, sampling, prompts, roots), registers all via DI.
-- **`TransportManager`** (`src/mcp-server/transports/manager.ts`): Resolves factory, instantiates transport (`http`/`stdio`), handles lifecycle.
-- **Worker** (`worker.ts`): Cloudflare Workers adapter with `serverless` flag for storage selection.
+**`createMcpServerInstance`** (`server.ts`): Init context, create server with capabilities (logging, listChanged, elicitation, sampling, prompts, roots), register via DI. **`TransportManager`** (`transports/manager.ts`): Resolve factory, instantiate transport, handle lifecycle. **Worker** (`worker.ts`): Cloudflare adapter, `serverless` flag.
 
 ---
 
 ## IX. Code Style, Validation, and Security
 
-- **JSDoc:** Every file needs `@fileoverview` and `@module`. Document exported APIs.
-- **Validation:** Zod schemas for all inputs. Every field needs `.describe()`.
-- **Logging:** Include `RequestContext`. Use `logger.debug/info/notice/warning/error/crit/emerg`.
-- **Error Handling:** Logic throws `McpError`; handlers catch. Use `ErrorHandler.tryCatch` in services only.
-- **Secrets:** Access via `src/config/index.ts` only. Never hard-code.
-- **Rate Limiting:** Use DI-injected `RateLimiter`.
-- **Telemetry:** Auto-initialized. No manual spans.
+**JSDoc:** `@fileoverview`, `@module` required. **Validation:** Zod schemas, all fields need `.describe()`. **Logging:** Include `RequestContext`, use `logger.{debug|info|notice|warning|error|crit|emerg}`. **Errors:** Logic throws `McpError`, handlers catch. `ErrorHandler.tryCatch` for services only. **Secrets:** `src/config/index.ts` only. **Rate Limiting:** DI-injected `RateLimiter`. **Telemetry:** Auto-init, no manual spans.
 
 ---
 
@@ -440,73 +242,30 @@ All config validated via Zod in `src/config/index.ts`. Derives `serviceName`/`ve
 
 ## XII. Local & Edge Targets
 
-- **Local parity:** Both stdio/HTTP transports must work identically.
-- **Worker compatibility:** `bun run build:worker` and `wrangler dev --local` must succeed.
-- **wrangler.toml:** Use `compatibility_date` ≥ `2025-09-01` with `nodejs_compat`.
+**Local parity:** stdio/HTTP transports work identically. **Worker:** `build:worker` + `wrangler dev --local` must succeed. **wrangler.toml:** `compatibility_date` ≥ `2025-09-01`, `nodejs_compat`.
 
 ---
 
 ## XIII. Multi-Tenancy & Storage Context
 
-**`StorageService` requires `context.tenantId`** (throws `McpError` if missing).
+**`StorageService` requires `context.tenantId`** (throws if missing). **Validation:** Max 128 chars, alphanumeric/hyphens/underscores/dots only, start/end alphanumeric, no path traversal (`../`), no consecutive dots.
 
-**Tenant ID Validation (v2.4.0+):**
+**HTTP with Auth:** `tenantId` auto-extracted from JWT `'tid'` claim → propagated via `requestContextService.withAuthInfo(authInfo)`. Context includes: `{ requestId, timestamp, tenantId, auth: { sub, clientId, scopes, token, tenantId } }`.
 
-- Maximum length: 128 characters
-- Allowed characters: alphanumeric, hyphens, underscores, dots
-- Must start and end with alphanumeric characters
-- No path traversal sequences (`../`, `..\\`)
-- No consecutive dots (`..`)
-- Validation occurs at `StorageService` layer before reaching providers
-
-**HTTP with Auth:** `tenantId` auto-extracted from JWT claim `'tid'` → propagated via `requestContextService.withAuthInfo()`.
-
-**Creating Auth-Enriched Contexts:**
-
-Use `requestContextService.withAuthInfo()` to create a `RequestContext` populated with authentication data:
-
-```typescript
-import { requestContextService } from '@/utils/index.js';
-import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
-
-// After token verification
-const authInfo: AuthInfo = await jwtStrategy.verify(token);
-
-// Create context with auth information
-const context = requestContextService.withAuthInfo(authInfo);
-// context now includes: { requestId, timestamp, tenantId, auth: {...} }
-
-// The auth property contains:
-// - sub: subject identifier
-// - clientId: client identifier
-// - scopes: array of permissions
-// - token: original JWT token
-// - tenantId: tenant identifier (if present)
-```
-
-**STDIO:** Explicitly set tenant:
-
-```typescript
-const context = requestContextService.createRequestContext({
-  operation: 'connectStdioTransport',
-  tenantId: 'default-tenant',
-});
-```
+**STDIO:** Explicitly set tenant via `requestContextService.createRequestContext({ operation, tenantId })`.
 
 ---
 
 ## XIV. Quick Checklist
 
-- [ ] Implement logic in `*.tool.ts`/`*.resource.ts` (pure, no `try...catch`, throw `McpError`)
-- [ ] Run `bun devcheck`
+- [ ] Implement pure logic in `*.tool.ts`/`*.resource.ts` (no `try...catch`, throw `McpError`)
 - [ ] Apply auth with `withToolAuth`/`withResourceAuth`
 - [ ] Use `logger` with `appContext`, `StorageService` (DI) for persistence
 - [ ] Use `sdkContext.elicitInput()`/`createMessage()` for client interaction
-- [ ] Run `bun devcheck`
-- [ ] Register in `index.ts` barrel (Tools, Resources, Prompts)
-- [ ] Add/update tests (`bun run test`)
-- [ ] Run `bun devcheck`
+- [ ] Register in `index.ts` barrel
+- [ ] Add/update tests (`bun test`)
+- [ ] **Run `bun devcheck`** (lint, format, typecheck, security)
 - [ ] Smoke-test local transports (`dev:stdio`/`http`)
 - [ ] Validate Worker bundle (`build:worker`)
 
-That's it. Follow this document precisely.
+Follow this document precisely.
