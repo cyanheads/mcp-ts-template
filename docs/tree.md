@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-15 10:22:49
+Generated on: 2025-10-15 10:49:13
 
 ```
 mcp-ts-template
@@ -198,6 +198,7 @@ mcp-ts-template
 │   │   ├── telemetry
 │   │   │   ├── index.ts
 │   │   │   ├── instrumentation.ts
+│   │   │   ├── metrics.ts
 │   │   │   ├── semconv.ts
 │   │   │   └── trace.ts
 │   │   └── index.ts

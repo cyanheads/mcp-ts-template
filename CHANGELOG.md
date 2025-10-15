@@ -4,6 +4,99 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.4.2] - 2025-10-15
+
+### Added
+
+- **OpenTelemetry Initialization Control**: Added explicit `initializeOpenTelemetry()` function for controlled SDK initialization.
+  - Idempotent initialization with promise tracking to prevent multiple concurrent initializations.
+  - Graceful degradation for Worker/Edge environments where NodeSDK is unavailable.
+  - Lightweight telemetry mode for serverless runtimes without full Node.js instrumentation.
+  - Cloud platform auto-detection with resource attributes (Cloudflare Workers, AWS Lambda, GCP Cloud Functions/Run).
+  - Lazy-loading of Node-specific OpenTelemetry modules to avoid Worker runtime crashes.
+- **Enhanced Error Handler**: Implemented comprehensive error handling patterns following Railway Oriented Programming.
+  - Added `tryAsResult<T>()` for functional error handling with Result types instead of exceptions.
+  - Added `mapResult()` for transforming Result values through pure functions.
+  - Added `flatMapResult()` for chaining Result-returning operations (monadic bind).
+  - Added `recoverResult()` for providing fallback values on errors.
+  - Added `addBreadcrumb()` for tracking execution paths leading to errors.
+  - Added `tryCatchWithRetry()` with exponential backoff for resilient distributed system operations.
+  - Added `createExponentialBackoffStrategy()` helper for configuring retry logic with jitter.
+- **Error Cause Chain Extraction**: Implemented deep error analysis with circular reference detection.
+  - Added `extractErrorCauseChain()` to traverse error.cause chains safely.
+  - Added `serializeErrorCauseChain()` for structured logging of root causes.
+  - Circular reference detection prevents infinite loops during error traversal.
+  - Maximum depth protection (default: 20 levels) with overflow detection.
+- **Provider-Specific Error Patterns**: Enhanced error classification for external service integrations.
+  - Added AWS service error patterns (ThrottlingException, AccessDenied, ResourceNotFoundException).
+  - Added HTTP status code patterns (401, 403, 404, 409, 429, 5xx).
+  - Added database error patterns (connection refused, timeout, constraint violations).
+  - Added Supabase-specific patterns (JWT expiration, RLS policies).
+  - Added OpenRouter/LLM provider patterns (quota exceeded, model not found, context length).
+  - Added network error patterns (DNS failures, connection resets).
+- **Performance Optimization**: Implemented regex pattern caching for faster error classification.
+  - Pre-compiled error patterns at module initialization reduce repeated regex compilation.
+  - Pattern cache prevents redundant pattern compilation on every error.
+  - Separate compiled pattern collections for common errors and provider-specific errors.
+- **Enhanced Semantic Conventions**: Expanded OpenTelemetry attribute constants with MCP-specific conventions.
+  - Added standard OTEL conventions aligned with 1.37+ specification (service, cloud, HTTP, network, errors).
+  - Added custom MCP tool execution attributes (tool name, memory tracking, duration, success/error metrics).
+  - Added custom MCP resource attributes (URI, MIME type, size).
+  - Added custom MCP request context attributes (request ID, operation name, tenant/client/session IDs).
+- **Distributed Tracing Utilities**: Implemented comprehensive trace context propagation helpers.
+  - Added `extractTraceparent()` for parsing W3C traceparent headers from incoming requests.
+  - Added `createContextWithParentTrace()` for inheriting trace context from HTTP headers.
+  - Added `withSpan()` for manual instrumentation with automatic error handling and span lifecycle.
+  - Added `runInContext()` for preserving trace context across async boundaries (setTimeout, queueMicrotask).
+- **Metrics Creation Support**: Added metrics utilities module for custom metric creation.
+  - Exported from telemetry barrel for comprehensive observability toolkit.
+- **Graceful Telemetry Shutdown**: Enhanced OpenTelemetry shutdown with timeout protection.
+  - Shutdown now races against configurable timeout (default: 5000ms) to prevent hung processes.
+  - Proper cleanup of SDK state on shutdown (nullifies instance, resets initialization flag).
+  - Error propagation for caller handling instead of silent failures.
+
+### Changed
+
+- **OpenTelemetry Initialization Timing**: Moved initialization to entry point before logger creation.
+  - Application startup now calls `initializeOpenTelemetry()` before logger initialization for proper instrumentation.
+  - Initialization failure no longer blocks application startup (graceful degradation).
+  - Observability is now treated as optional infrastructure rather than critical dependency.
+- **Error Metadata Enrichment**: Enhanced error context with breadcrumbs, metrics, and structured metadata.
+  - Error handler now extracts full cause chains instead of just root cause.
+  - Added breadcrumb tracking from enhanced error contexts for execution path visibility.
+  - Improved error consolidation with user-facing messages, fingerprints, and related error correlation.
+- **Error Pattern Matching**: Optimized error classification with pre-compiled regex patterns.
+  - Error handler now checks provider-specific patterns before common patterns for better specificity.
+  - Pattern compilation moved to module initialization for performance.
+  - Cache-based pattern retrieval eliminates repeated regex construction overhead.
+- **Telemetry Instrumentation Documentation**: Expanded JSDoc with runtime-aware initialization guidance.
+  - Documented Worker/Edge runtime compatibility and graceful degradation behavior.
+  - Added examples for initialization and shutdown in application lifecycle.
+  - Clarified NodeSDK availability detection logic.
+- **Trace Helper Documentation**: Enhanced trace utilities with comprehensive usage examples.
+  - Added detailed JSDoc for W3C traceparent extraction and context propagation.
+  - Documented manual span creation patterns for custom instrumentation.
+  - Included examples for preserving trace context across async boundaries.
+- **Version Increment**: Bumped version from `2.4.1` to `2.4.2` in `package.json`, `server.json`, and `docs/tree.md`.
+
+### Fixed
+
+- **Error Handler Robustness**: Improved error cause chain extraction with safety guarantees.
+  - Circular reference detection prevents infinite loops when errors reference themselves.
+  - Maximum depth protection prevents stack overflow on deeply nested error chains.
+  - Proper handling of non-Error cause values (strings, objects).
+- **Type Safety**: Enhanced error handler types for exact optional property compliance.
+  - Breadcrumb context fields now properly handle undefined vs missing distinctions.
+  - Result type properly enforces exclusive value/error properties.
+  - ErrorRecoveryStrategy callback signatures correctly typed for all parameters.
+
+### Security
+
+- **Error Information Disclosure**: Enhanced sanitization of error details in public logs.
+  - Error cause chains now tracked internally without exposing implementation details.
+  - User-facing error messages separated from internal diagnostic information.
+  - Error fingerprinting enables monitoring without leaking sensitive context.
+
 ## [2.4.1] - 2025-10-15
 
 ### Added
