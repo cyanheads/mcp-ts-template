@@ -7,6 +7,7 @@
 import { container, Lifecycle } from 'tsyringe';
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import Surreal from 'surrealdb';
 
 import { parseConfig } from '@/config/index.js';
 import {
@@ -18,6 +19,7 @@ import {
   StorageService,
   StorageProvider,
   SupabaseAdminClient,
+  SurrealdbClient,
 } from '@/container/tokens.js';
 import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
@@ -58,6 +60,52 @@ export const registerCoreServices = () => {
           auth: { persistSession: false, autoRefreshToken: false },
         },
       );
+    },
+  });
+
+  // Register SurrealDB client
+  // Note: Since tsyringe doesn't support async factories, we create a promise-wrapped instance
+  container.register<Surreal>(SurrealdbClient, {
+    useFactory: (c) => {
+      const cfg = c.resolve<AppConfigType>(AppConfig);
+      if (
+        !cfg.surrealdb?.url ||
+        !cfg.surrealdb?.namespace ||
+        !cfg.surrealdb?.database
+      ) {
+        throw new McpError(
+          JsonRpcErrorCode.ConfigurationError,
+          'SurrealDB URL, namespace, and database are required for SurrealDB client.',
+        );
+      }
+
+      const db = new Surreal();
+
+      // Connect asynchronously (the connection will be established when first used)
+      db.connect(cfg.surrealdb.url, {
+        namespace: cfg.surrealdb.namespace,
+        database: cfg.surrealdb.database,
+        ...(cfg.surrealdb.username &&
+          cfg.surrealdb.password && {
+            auth: {
+              username: cfg.surrealdb.username,
+              password: cfg.surrealdb.password,
+            },
+          }),
+      })
+        .then(() => {
+          logger.info('Connected to SurrealDB');
+        })
+        .catch((err: Error) => {
+          logger.error('Failed to connect to SurrealDB', {
+            requestId: 'surrealdb-init',
+            timestamp: new Date().toISOString(),
+            operation: 'SurrealDB.connect',
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+
+      return db;
     },
   });
 

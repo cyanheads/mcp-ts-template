@@ -143,6 +143,16 @@ const ConfigSchema = z.object({
       serviceRoleKey: z.string().optional(),
     })
     .optional(),
+  surrealdb: z
+    .object({
+      url: z.string().url(),
+      namespace: z.string(),
+      database: z.string(),
+      username: z.string().optional(),
+      password: z.string().optional(),
+      tableName: z.string().default('kv_store'),
+    })
+    .optional(),
   storage: z.object({
     providerType: z
       .preprocess(
@@ -162,6 +172,7 @@ const ConfigSchema = z.object({
           'in-memory',
           'filesystem',
           'supabase',
+          'surrealdb',
           'cloudflare-r2',
           'cloudflare-kv',
         ]),
@@ -286,6 +297,17 @@ const parseConfig = () => {
             url: env.SUPABASE_URL,
             anonKey: env.SUPABASE_ANON_KEY,
             serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
+          }
+        : undefined,
+    surrealdb:
+      env.SURREALDB_URL && env.SURREALDB_NAMESPACE && env.SURREALDB_DATABASE
+        ? {
+            url: env.SURREALDB_URL,
+            namespace: env.SURREALDB_NAMESPACE,
+            database: env.SURREALDB_DATABASE,
+            username: env.SURREALDB_USERNAME,
+            password: env.SURREALDB_PASSWORD,
+            tableName: env.SURREALDB_TABLE_NAME,
           }
         : undefined,
     storage: {

@@ -8,6 +8,7 @@
 import { container } from 'tsyringe';
 import type { R2Bucket, KVNamespace } from '@cloudflare/workers-types';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type Surreal from 'surrealdb';
 
 import type { AppConfig } from '@/config/index.js';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
@@ -16,6 +17,7 @@ import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
+import { SurrealdbProvider } from '@/storage/providers/surrealdb/surrealdbProvider.js';
 import { R2Provider } from '@/storage/providers/cloudflare/r2Provider.js';
 import { KvProvider } from '@/storage/providers/cloudflare/kvProvider.js';
 import { logger, requestContextService } from '@/utils/index.js';
@@ -31,6 +33,8 @@ const isServerless =
 export interface StorageFactoryDeps {
   /** Pre-configured Supabase client */
   readonly supabaseClient?: SupabaseClient<Database>;
+  /** Pre-configured SurrealDB client */
+  readonly surrealdbClient?: Surreal;
   /** Cloudflare R2 bucket binding */
   readonly r2Bucket?: R2Bucket;
   /** Cloudflare KV namespace binding */
@@ -85,7 +89,9 @@ export function createStorageProvider(
 
   if (
     isServerless &&
-    !['in-memory', 'cloudflare-r2', 'cloudflare-kv'].includes(providerType)
+    !['in-memory', 'surrealdb', 'cloudflare-r2', 'cloudflare-kv'].includes(
+      providerType,
+    )
   ) {
     logger.warning(
       `Forcing 'in-memory' storage provider in serverless environment (configured: ${providerType}).`,
@@ -121,6 +127,26 @@ export function createStorageProvider(
       }
       // Fallback to DI container (backward-compatible)
       return container.resolve(SupabaseProvider);
+    case 'surrealdb':
+      if (
+        !config.surrealdb?.url ||
+        !config.surrealdb?.namespace ||
+        !config.surrealdb?.database
+      ) {
+        throw new McpError(
+          JsonRpcErrorCode.ConfigurationError,
+          'SURREALDB_URL, SURREALDB_NAMESPACE, and SURREALDB_DATABASE must be set for the surrealdb storage provider.',
+          context,
+        );
+      }
+      if (deps.surrealdbClient) {
+        return new SurrealdbProvider(
+          deps.surrealdbClient,
+          config.surrealdb.tableName,
+        );
+      }
+      // Fallback to DI container (backward-compatible)
+      return container.resolve(SurrealdbProvider);
     case 'cloudflare-r2':
       if (isServerless) {
         const bucket =
