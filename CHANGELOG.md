@@ -4,6 +4,72 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
+## [2.4.1] - 2025-10-15
+
+### Added
+
+- **Session ID Security**: Implemented secure session ID generation and validation to prevent injection attacks.
+  - Added `generateSecureSessionId()` utility using crypto-strong random bytes (256 bits) formatted as 64 hex characters.
+  - Added `validateSessionIdFormat()` to enforce strict session ID format validation (64 hex chars only).
+  - Session store now validates all session IDs before processing, throwing `JsonRpcErrorCode.InvalidParams` for invalid formats.
+  - Created `src/mcp-server/transports/http/sessionIdUtils.ts` for centralized session ID utilities.
+- **OpenTelemetry Auth Context**: Enhanced distributed tracing with authentication metadata propagation.
+  - Auth middleware now adds authentication attributes to active OpenTelemetry spans.
+  - Span attributes include: `auth.client_id`, `auth.tenant_id`, `auth.scopes`, `auth.subject`, `auth.method`.
+  - Enables correlation of auth failures with distributed traces for better observability.
+- **Request Context Auth Enrichment**: Added `requestContextService.withAuthInfo()` helper for creating auth-enriched contexts.
+  - Populates `RequestContext` with structured `AuthContext` from validated JWT/OAuth tokens.
+  - Includes tenant ID, client ID, scopes, subject, and original token for downstream propagation.
+  - Documented in AGENTS.md with comprehensive usage examples.
+- **Storage Service Observability**: Added structured debug logging for all storage operations.
+  - Logs operation type, tenant ID, key/prefix, and options (TTL, pagination) for every storage call.
+  - Enables audit trails and troubleshooting of storage access patterns.
+- **List Options Validation**: Implemented comprehensive validation for pagination parameters.
+  - Added `validateListOptions()` to validate limit (1-10000 range) and cursor (base64 format).
+  - Prevents memory exhaustion attacks via oversized page requests.
+  - Maximum list limit: 10,000 items (configurable constant).
+
+### Changed
+
+- **OAuth Protected Resource Metadata**: Enhanced RFC 9728 endpoint with improved standards compliance.
+  - Now derives resource identifier from config with fallback chain: `MCP_SERVER_RESOURCE_IDENTIFIER` → `OAUTH_AUDIENCE` → `{origin}/mcp`.
+  - Added `resource_documentation` field pointing to server docs.
+  - Implements proper HTTP caching headers (`Cache-Control: public, max-age=3600`).
+  - Added structured logging for metadata requests with resource identifier context.
+- **Storage Service Error Context**: Improved error reporting with operation-specific context.
+  - `requireTenantId()` now includes `calledFrom` hint for debugging missing tenant IDs.
+  - All validation errors include `operation` field for better error tracking.
+- **Storage Factory Documentation**: Expanded JSDoc with comprehensive usage examples and security model.
+  - Documents provider selection logic for serverless vs Node environments.
+  - Lists all error conditions with specific `JsonRpcErrorCode` mappings.
+  - Added example code for both DI and Worker usage patterns.
+  - Clarified dependency injection semantics with readonly interface.
+- **Validation Error Messages**: Enhanced prefix validation to allow empty strings (match all keys).
+  - Empty prefix is now explicitly documented as valid (matches entire tenant namespace).
+  - Pattern validation only runs for non-empty prefixes.
+  - Improved error context with operation name in all validation failures.
+- **Encoding Utilities**: Added cross-platform base64 string encoding/decoding functions.
+  - `stringToBase64()` and `base64ToString()` work in both Node and Worker environments.
+  - Cursor encoding/decoding now uses runtime-agnostic functions for Worker compatibility.
+  - Prefers Node.js Buffer for performance, falls back to Web APIs for Workers.
+- **Version Increment**: Bumped version from `2.4.0` to `2.4.1` in `package.json` and `server.json`.
+- **Documentation Updates**: Regenerated `docs/tree.md` to reflect new session ID utilities.
+
+### Fixed
+
+- **Session ID Injection Prevention**: Session IDs are now validated against strict format requirements before use.
+  - Prevents path traversal, XSS, and SQL injection attacks via malicious session IDs.
+  - Invalid session IDs immediately rejected with `JsonRpcErrorCode.InvalidParams` error.
+  - Test suite updated to use valid 64-hex-char session IDs throughout.
+
+### Security
+
+- **Session ID Hardening**: Session IDs now use cryptographically secure random generation (256 bits).
+  - Format: 64 hexadecimal characters (lowercase a-f, 0-9).
+  - Validation prevents injection attacks and ensures consistent ID format.
+  - Provides 2^256 possible session IDs, making brute force attacks infeasible.
+- **Auth Context Propagation**: Authentication metadata now flows through OpenTelemetry spans for audit trails.
+
 ## [2.4.0] - 2025-10-15
 
 ### Added

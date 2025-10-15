@@ -339,6 +339,7 @@ Key pagination utilities (available from `@/utils/index.js`):
 **Storage Providers:** `STORAGE_PROVIDER_TYPE` = `in-memory` (default) \| `filesystem` (Node) \| `supabase` \| `cloudflare-r2/kv` (Worker). Always use `StorageService` from DI.
 
 **Storage Capabilities (v2.4.0+):**
+
 - **Validation**: All inputs (tenant IDs, keys, prefixes, options) are validated via `src/storage/core/storageValidation.ts` before reaching providers
 - **Batch Operations**: `getMany()`, `setMany()`, `deleteMany()` use parallel execution where supported (FileSystem, InMemory, Cloudflare)
 - **Secure Pagination**: Opaque cursors with tenant ID binding prevent cross-tenant attacks
@@ -447,6 +448,7 @@ All config validated via Zod in `src/config/index.ts`. Derives `serviceName`/`ve
 **`StorageService` requires `context.tenantId`** (throws `McpError` if missing).
 
 **Tenant ID Validation (v2.4.0+):**
+
 - Maximum length: 128 characters
 - Allowed characters: alphanumeric, hyphens, underscores, dots
 - Must start and end with alphanumeric characters
@@ -455,6 +457,29 @@ All config validated via Zod in `src/config/index.ts`. Derives `serviceName`/`ve
 - Validation occurs at `StorageService` layer before reaching providers
 
 **HTTP with Auth:** `tenantId` auto-extracted from JWT claim `'tid'` → propagated via `requestContextService.withAuthInfo()`.
+
+**Creating Auth-Enriched Contexts:**
+
+Use `requestContextService.withAuthInfo()` to create a `RequestContext` populated with authentication data:
+
+```typescript
+import { requestContextService } from '@/utils/index.js';
+import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
+
+// After token verification
+const authInfo: AuthInfo = await jwtStrategy.verify(token);
+
+// Create context with auth information
+const context = requestContextService.withAuthInfo(authInfo);
+// context now includes: { requestId, timestamp, tenantId, auth: {...} }
+
+// The auth property contains:
+// - sub: subject identifier
+// - clientId: client identifier
+// - scopes: array of permissions
+// - token: original JWT token
+// - tenantId: tenant identifier (if present)
+```
 
 **STDIO:** Explicitly set tenant:
 

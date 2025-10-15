@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-15 09:42:41
+Generated on: 2025-10-15 10:22:49
 
 ```
 mcp-ts-template
@@ -105,6 +105,7 @@ mcp-ts-template
 │   │   │   │   ├── httpTransport.ts
 │   │   │   │   ├── httpTypes.ts
 │   │   │   │   ├── index.ts
+│   │   │   │   ├── sessionIdUtils.ts
 │   │   │   │   └── sessionStore.ts
 │   │   │   ├── stdio
 │   │   │   │   ├── index.ts
