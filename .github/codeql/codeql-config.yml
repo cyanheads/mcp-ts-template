@@ -1,0 +1,57 @@
+name: "CodeQL Configuration"
+
+# =============================================================================
+# PATH EXCLUSIONS
+# =============================================================================
+# Exclude generated files, test files, and build artifacts from code scanning
+# See: https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning
+
+paths-ignore:
+  # Generated coverage reports
+  - coverage/**
+
+  # Build outputs
+  - dist/**
+  - build/**
+  - out/**
+
+  # Dependencies
+  - node_modules/**
+  - vendor/**
+
+  # Test files
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+  - '**/*.test.js'
+  - '**/*.test.jsx'
+  - tests/**
+
+  # Development scripts and tools
+  - scripts/**
+
+  # Documentation
+  - docs/**
+
+  # Configuration files (usually safe)
+  - '*.config.ts'
+  - '*.config.js'
+
+# =============================================================================
+# PATH INCLUSIONS
+# =============================================================================
+# Explicitly include source code directories for analysis
+
+paths:
+  - src/**
+
+# =============================================================================
+# QUERY CONFIGURATION
+# =============================================================================
+# Use default security and quality queries
+# Uncomment and customize as needed:
+#
+# disable-default-queries: false
+#
+# queries:
+#   - uses: security-and-quality
+#   - uses: security-extended
