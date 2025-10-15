@@ -7,6 +7,59 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.4.6] - 2025-10-15
+
+### Changed
+
+- **SurrealDB Architecture Refactor**: Restructured SurrealDB provider from monolithic implementation to modular, enterprise-grade architecture.
+  - Refactored `SurrealdbProvider` to `SurrealKvProvider` in dedicated [src/storage/providers/surrealdb/kv/](src/storage/providers/surrealdb/kv/) directory for clarity.
+  - Created `BaseSurrealProvider` abstract class in [src/storage/providers/surrealdb/core/baseSurrealProvider.ts](src/storage/providers/surrealdb/core/baseSurrealProvider.ts) for shared functionality.
+  - Added `ConnectionManager` in [src/storage/providers/surrealdb/core/connectionManager.ts](src/storage/providers/surrealdb/core/connectionManager.ts) for connection lifecycle management.
+  - Implemented `TransactionManager` in [src/storage/providers/surrealdb/core/transactionManager.ts](src/storage/providers/surrealdb/core/transactionManager.ts) for ACID transaction support.
+  - Created query builder utilities (`SelectQueryBuilder`, `WhereBuilder`) in [src/storage/providers/surrealdb/core/queryBuilder.ts](src/storage/providers/surrealdb/core/queryBuilder.ts).
+- **Graph Database Capabilities**: Added comprehensive graph operations support.
+  - Implemented `GraphService` in [src/services/graph/core/GraphService.ts](src/services/graph/core/GraphService.ts) with DI registration.
+  - Created `SurrealGraphProvider` in [src/services/graph/providers/surrealGraph.provider.ts](src/services/graph/providers/surrealGraph.provider.ts).
+  - Added graph operations module in [src/storage/providers/surrealdb/graph/graphOperations.ts](src/storage/providers/surrealdb/graph/graphOperations.ts).
+  - Implemented relationship management and path-finding capabilities.
+- **Advanced SurrealDB Features**: Added enterprise features for production-grade database management.
+  - Authentication system with JWT and scope-based permissions in [src/storage/providers/surrealdb/auth/](src/storage/providers/surrealdb/auth/).
+  - Event system with triggers in [src/storage/providers/surrealdb/events/](src/storage/providers/surrealdb/events/).
+  - Custom function registry in [src/storage/providers/surrealdb/functions/](src/storage/providers/surrealdb/functions/).
+  - Migration runner with versioning support in [src/storage/providers/surrealdb/migrations/](src/storage/providers/surrealdb/migrations/).
+  - Schema introspection utilities in [src/storage/providers/surrealdb/introspection/](src/storage/providers/surrealdb/introspection/).
+  - Advanced query builders (subqueries, FOR loops) in [src/storage/providers/surrealdb/query/](src/storage/providers/surrealdb/query/).
+- **Schema Organization**: Reorganized schema files into dedicated schemas directory.
+  - Moved schema from [docs/surrealdb-schema.surql](docs/surrealdb-schema.surql) to [schemas/surrealdb/](schemas/surrealdb/).
+  - Added specialized schemas: `surrealdb-schema.surql`, `surrealdb-secure-schema.surql`, `surrealdb-graph-schema.surql`, `surrealdb-events-schema.surql`, `surrealdb-functions-schema.surql`.
+- **Type System Improvements**: Consolidated type definitions for better maintainability.
+  - Replaced `surrealdb.types.ts` with comprehensive [src/storage/providers/surrealdb/types.ts](src/storage/providers/surrealdb/types.ts).
+  - Added graph types, event types, migration types, and introspection types.
+  - Exported all types through barrel export in [src/storage/providers/surrealdb/index.ts](src/storage/providers/surrealdb/index.ts).
+- **Test Updates**: Updated test suite to reflect architectural changes.
+  - Renamed test file from `surrealdbProvider.test.ts` to `surrealKvProvider.test.ts`.
+  - Updated imports in [tests/storage/core/storageFactory.test.ts](tests/storage/core/storageFactory.test.ts) and [tests/storage/providers/surrealdb/surrealdb.types.test.ts](tests/storage/providers/surrealdb/surrealdb.types.test.ts).
+- **Documentation**: Updated command references for consistency.
+  - Changed `bun devcheck` to `bun run devcheck` and `bun rebuild` to `bun run rebuild` in [AGENTS.md](AGENTS.md).
+  - Updated [docs/tree.md](docs/tree.md) to reflect new directory structure.
+  - Added comprehensive implementation documentation in [docs/surrealdb-implementation.md](docs/surrealdb-implementation.md).
+
+### Added
+
+- **Dependency Injection Tokens**: Registered new service tokens in [src/container/tokens.ts](src/container/tokens.ts).
+  - Added `GraphService` token for graph database operations.
+  - Registered `GraphService` factory in [src/container/registrations/core.ts](src/container/registrations/core.ts).
+
+### Removed
+
+- **Deprecated Files**: Removed obsolete monolithic implementation files.
+  - Removed [src/storage/providers/surrealdb/surrealdbProvider.ts](src/storage/providers/surrealdb/surrealdbProvider.ts) (replaced by modular architecture).
+  - Removed [src/storage/providers/surrealdb/surrealdb.types.ts](src/storage/providers/surrealdb/surrealdb.types.ts) (consolidated into `types.ts`).
+  - Removed [tests/storage/providers/surrealdb/surrealdbProvider.test.ts](tests/storage/providers/surrealdb/surrealdbProvider.test.ts) (replaced by `surrealKvProvider.test.ts`).
+  - Removed [docs/surrealdb-schema.surql](docs/surrealdb-schema.surql) (moved to `schemas/surrealdb/`).
+
+---
+
 ## [2.4.5] - 2025-10-15
 
 ### Added

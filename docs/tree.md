@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-15 19:39:51
+Generated on: 2025-10-15 21:32:49
 
 ```
 mcp-ts-template
@@ -234,6 +234,13 @@ mcp-ts-template
 │   ├── surrealdb-schema.surql
 │   └── tree.md
 ├── ideas
+├── schemas
+│   └── surrealdb
+│       ├── surrealdb-events-schema.surql
+│       ├── surrealdb-functions-schema.surql
+│       ├── surrealdb-graph-schema.surql
+│       ├── surrealdb-schema.surql
+│       └── surrealdb-secure-schema.surql
 ├── scripts
 │   ├── clean.ts
 │   ├── devcheck.ts
@@ -311,6 +318,14 @@ mcp-ts-template
 │   │   │   └── manager.ts
 │   │   └── server.ts
 │   ├── services
+│   │   ├── graph
+│   │   │   ├── core
+│   │   │   │   ├── GraphService.ts
+│   │   │   │   └── IGraphProvider.ts
+│   │   │   ├── providers
+│   │   │   │   └── surrealGraph.provider.ts
+│   │   │   ├── index.ts
+│   │   │   └── types.ts
 │   │   ├── llm
 │   │   │   ├── core
 │   │   │   │   └── ILlmProvider.ts
@@ -346,9 +361,39 @@ mcp-ts-template
 │   │   │   │   ├── supabase.types.ts
 │   │   │   │   └── supabaseProvider.ts
 │   │   │   └── surrealdb
+│   │   │       ├── auth
+│   │   │       │   ├── authManager.ts
+│   │   │       │   ├── permissionHelpers.ts
+│   │   │       │   └── scopeDefinitions.ts
+│   │   │       ├── core
+│   │   │       │   ├── baseSurrealProvider.ts
+│   │   │       │   ├── connectionManager.ts
+│   │   │       │   ├── queryBuilder.ts
+│   │   │       │   └── transactionManager.ts
+│   │   │       ├── events
+│   │   │       │   ├── eventManager.ts
+│   │   │       │   ├── eventTypes.ts
+│   │   │       │   └── triggerBuilder.ts
+│   │   │       ├── functions
+│   │   │       │   ├── customFunctions.ts
+│   │   │       │   └── functionRegistry.ts
+│   │   │       ├── graph
+│   │   │       │   ├── graphOperations.ts
+│   │   │       │   ├── graphTypes.ts
+│   │   │       │   ├── pathFinder.ts
+│   │   │       │   └── relationshipManager.ts
+│   │   │       ├── introspection
+│   │   │       │   └── schemaIntrospector.ts
+│   │   │       ├── kv
+│   │   │       │   └── surrealKvProvider.ts
+│   │   │       ├── migrations
+│   │   │       │   ├── migrationRunner.ts
+│   │   │       │   └── migrationTypes.ts
+│   │   │       ├── query
+│   │   │       │   ├── forLoopBuilder.ts
+│   │   │       │   └── subqueryBuilder.ts
 │   │   │       ├── index.ts
-│   │   │       ├── surrealdb.types.ts
-│   │   │       └── surrealdbProvider.ts
+│   │   │       └── types.ts
 │   │   └── index.ts
 │   ├── types-global
 │   │   └── errors.ts
@@ -479,6 +524,9 @@ mcp-ts-template
 │   ├── scripts
 │   │   └── devdocs.test.ts
 │   ├── services
+│   │   ├── graph
+│   │   │   ├── core
+│   │   │   └── providers
 │   │   ├── llm
 │   │   │   ├── core
 │   │   │   │   └── ILlmProvider.test.ts
@@ -514,7 +562,8 @@ mcp-ts-template
 │   │   │   │   └── supabaseProvider.test.ts
 │   │   │   └── surrealdb
 │   │   │       ├── surrealdb.types.test.ts
-│   │   │       └── surrealdbProvider.test.ts
+│   │   │       ├── surrealdbProvider.test.ts
+│   │   │       └── surrealKvProvider.test.ts
 │   │   ├── index.test.ts
 │   │   ├── storageProviderCompliance.test.ts
 │   │   └── StorageService.test.ts

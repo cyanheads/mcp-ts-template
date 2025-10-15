@@ -190,7 +190,7 @@ export const registerCoreServices = () => {
 
   // Register GraphService (only if SurrealDB is configured)
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-  container.register(GraphService, {
+  container.register<GraphServiceClass>(GraphService, {
     useFactory: (c) => {
       const surrealClient = c.resolve<Surreal>(SurrealdbClient);
       const graphProvider = new SurrealGraphProvider(surrealClient);
