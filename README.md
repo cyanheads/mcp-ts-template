@@ -19,7 +19,7 @@
 - **Elicitation Support**: Tools can interactively prompt the user for missing parameters during execution, streamlining user workflows.
 - **Robust Error Handling**: A unified `McpError` system ensures consistent, structured error responses across the server.
 - **Pluggable Authentication**: Secure your server with zero-fuss support for `none`, `jwt`, or `oauth` modes.
-- **Abstracted Storage**: Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `Cloudflare KV/R2`) without changing business logic. Features secure opaque cursor pagination, parallel batch operations, and comprehensive validation.
+- **Abstracted Storage**: Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `SurrealDB`, `Cloudflare KV/R2`) without changing business logic. Features secure opaque cursor pagination, parallel batch operations, and comprehensive validation.
 - **Full-Stack Observability**: Get deep insights with structured logging (Pino) and optional, auto-instrumented OpenTelemetry for traces and metrics.
 - **Dependency Injection**: Built with `tsyringe` for a clean, decoupled, and testable architecture.
 - **Service Integrations**: Pluggable services for external APIs, including LLM providers (OpenRouter) and text-to-speech (ElevenLabs).
@@ -104,21 +104,26 @@ bun install
 
 All configuration is centralized and validated at startup in `src/config/index.ts`. Key environment variables in your `.env` file include:
 
-| Variable                    | Description                                                                    | Default     |
-| :-------------------------- | :----------------------------------------------------------------------------- | :---------- |
-| `MCP_TRANSPORT_TYPE`        | The transport to use: `stdio` or `http`.                                       | `http`      |
-| `MCP_HTTP_PORT`             | The port for the HTTP server.                                                  | `3010`      |
-| `MCP_HTTP_HOST`             | The hostname for the HTTP server.                                              | `127.0.0.1` |
-| `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.                                | `none`      |
-| `MCP_AUTH_SECRET_KEY`       | **Required for `jwt` auth mode.** A 32+ character secret.                      | `(none)`    |
-| `OAUTH_ISSUER_URL`          | **Required for `oauth` auth mode.** URL of the OIDC provider.                  | `(none)`    |
-| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-kv`, `r2`. | `in-memory` |
-| `STORAGE_FILESYSTEM_PATH`   | **Required for `filesystem` storage.** Path to the storage directory.          | `(none)`    |
-| `SUPABASE_URL`              | **Required for `supabase` storage.** Your Supabase project URL.                | `(none)`    |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Required for `supabase` storage.** Your Supabase service role key.           | `(none)`    |
-| `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                                         | `false`     |
-| `LOG_LEVEL`                 | The minimum level for logging (`debug`, `info`, `warn`, `error`).              | `info`      |
-| `OPENROUTER_API_KEY`        | API key for OpenRouter LLM service.                                            | `(none)`    |
+| Variable                    | Description                                                                                       | Default     |
+| :-------------------------- | :------------------------------------------------------------------------------------------------ | :---------- |
+| `MCP_TRANSPORT_TYPE`        | The transport to use: `stdio` or `http`.                                                          | `http`      |
+| `MCP_HTTP_PORT`             | The port for the HTTP server.                                                                     | `3010`      |
+| `MCP_HTTP_HOST`             | The hostname for the HTTP server.                                                                 | `127.0.0.1` |
+| `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.                                                   | `none`      |
+| `MCP_AUTH_SECRET_KEY`       | **Required for `jwt` auth mode.** A 32+ character secret.                                         | `(none)`    |
+| `OAUTH_ISSUER_URL`          | **Required for `oauth` auth mode.** URL of the OIDC provider.                                     | `(none)`    |
+| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `surrealdb`, `cloudflare-kv`, `r2`.       | `in-memory` |
+| `STORAGE_FILESYSTEM_PATH`   | **Required for `filesystem` storage.** Path to the storage directory.                             | `(none)`    |
+| `SUPABASE_URL`              | **Required for `supabase` storage.** Your Supabase project URL.                                   | `(none)`    |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Required for `supabase` storage.** Your Supabase service role key.                              | `(none)`    |
+| `SURREALDB_URL`             | **Required for `surrealdb` storage.** SurrealDB endpoint (e.g., `wss://cloud.surrealdb.com/rpc`). | `(none)`    |
+| `SURREALDB_NAMESPACE`       | **Required for `surrealdb` storage.** SurrealDB namespace.                                        | `(none)`    |
+| `SURREALDB_DATABASE`        | **Required for `surrealdb` storage.** SurrealDB database name.                                    | `(none)`    |
+| `SURREALDB_USERNAME`        | **Optional for `surrealdb` storage.** Database username for authentication.                       | `(none)`    |
+| `SURREALDB_PASSWORD`        | **Optional for `surrealdb` storage.** Database password for authentication.                       | `(none)`    |
+| `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                                                            | `false`     |
+| `LOG_LEVEL`                 | The minimum level for logging (`debug`, `info`, `warn`, `error`).                                 | `info`      |
+| `OPENROUTER_API_KEY`        | API key for OpenRouter LLM service.                                                               | `(none)`    |
 
 ### Authentication & Authorization
 
@@ -128,7 +133,8 @@ All configuration is centralized and validated at startup in `src/config/index.t
 ### Storage
 
 - **Service**: A DI-managed `StorageService` provides a consistent API for persistence. **Never access `fs` or other storage SDKs directly from tool logic.**
-- **Providers**: The default is `in-memory`. Node-only providers include `filesystem`. Edge-compatible providers include `supabase`, `cloudflare-kv`, and `cloudflare-r2`.
+- **Providers**: The default is `in-memory`. Node-only providers include `filesystem`. Edge-compatible providers include `supabase`, `surrealdb`, `cloudflare-kv`, and `cloudflare-r2`.
+- **SurrealDB Setup**: When using `surrealdb` provider, initialize the database schema using `docs/surrealdb-schema.surql` before first use.
 - **Multi-Tenancy**: The `StorageService` requires `context.tenantId`. This is automatically propagated from the `tid` claim in a JWT when auth is enabled.
 - **Advanced Features**:
   - **Secure Pagination**: Opaque cursors with tenant ID binding prevent cross-tenant attacks

@@ -56,7 +56,7 @@ Separation of concerns maps directly to the filesystem. Always place files in th
 | **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                                                                                                       |
 | **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth.                                                                             |
 | **`src/services/`**                         | **External service integrations** following a consistent domain-driven pattern:<br>- Each service domain (e.g., `llm/`, `speech/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`, and `index.ts`<br>- Use DI for all service dependencies. See **Service Development Pattern** below. |
-| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare-r2, cloudflare-kv).                                                                                                                                                                                                                    |
+| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, surrealdb, cloudflare-r2, cloudflare-kv).                                                                                                                                                                                                         |
 | **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                                                                                                           |
 | **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, formatting, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                                                                                    |
 | **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                                                                                                    |
@@ -334,14 +334,17 @@ Key pagination utilities (available from `@/utils/index.js`):
 | `Logger`          | `Logger`                | `@inject(Logger) private logger: typeof logger`                         | Pino-backed singleton       |
 | App Config        | `AppConfig`             | `@inject(AppConfig) private config: typeof configModule`                |                             |
 | Supabase Client   | `SupabaseAdminClient`   | `@inject(SupabaseAdminClient) private client: SupabaseClient<Database>` | Only when needed            |
+| SurrealDB Client  | `SurrealdbClient`       | `@inject(SurrealdbClient) private client: Surreal`                      | Only when needed            |
 | Transport Manager | `TransportManagerToken` | `@inject(TransportManagerToken) private tm: TransportManager`           |                             |
 
-**Storage Providers:** `STORAGE_PROVIDER_TYPE` = `in-memory` (default) \| `filesystem` (Node) \| `supabase` \| `cloudflare-r2/kv` (Worker). Always use `StorageService` from DI.
+**Storage Providers:** `STORAGE_PROVIDER_TYPE` = `in-memory` (default) \| `filesystem` (Node) \| `supabase` \| `surrealdb` \| `cloudflare-r2/kv` (Worker). Always use `StorageService` from DI.
+
+**SurrealDB Setup:** Initialize schema using `docs/surrealdb-schema.surql` before first use. Supports both local instances and Surreal Cloud with WebSocket connections.
 
 **Storage Capabilities (v2.4.0+):**
 
 - **Validation**: All inputs (tenant IDs, keys, prefixes, options) are validated via `src/storage/core/storageValidation.ts` before reaching providers
-- **Batch Operations**: `getMany()`, `setMany()`, `deleteMany()` use parallel execution where supported (FileSystem, InMemory, Cloudflare)
+- **Batch Operations**: `getMany()`, `setMany()`, `deleteMany()` use parallel execution where supported (FileSystem, InMemory, Cloudflare, SurrealDB)
 - **Secure Pagination**: Opaque cursors with tenant ID binding prevent cross-tenant attacks
 - **TTL Support**: All providers handle `ttl=0` (immediate expiration) correctly
 
@@ -414,7 +417,7 @@ Key pagination utilities (available from `@/utils/index.js`):
 | -------------------------- | ---------------------------------------------------------------------------------------------- |
 | `bun rebuild`              | Clean, rebuild, clear logs (after dep changes)                                                 |
 | `bun devcheck`             | **USE OFTEN** Lint, format, typecheck, security (flags: `--no-fix`, `--no-lint`, `--no-audit`) |
-| `bun test`                 | Unit/integration tests                                                                         |
+| `bun run test`             | Unit/integration tests                                                                         |
 | `bun run dev:stdio/http`   | Development mode                                                                               |
 | `bun run start:stdio/http` | Production mode (after build)                                                                  |
 | `bun run build:worker`     | Cloudflare Worker bundle                                                                       |
@@ -425,13 +428,13 @@ Key pagination utilities (available from `@/utils/index.js`):
 
 All config validated via Zod in `src/config/index.ts`. Derives `serviceName`/`version` from `package.json`.
 
-| Category      | Key Variables                                                                       |
-| ------------- | ----------------------------------------------------------------------------------- |
-| **Transport** | `MCP_TRANSPORT_TYPE` (`stdio`\|`http`), `MCP_HTTP_PORT/HOST/PATH`                   |
-| **Auth**      | `MCP_AUTH_MODE` (`none`\|`jwt`\|`oauth`), `MCP_AUTH_SECRET_KEY`, `OAUTH_*`          |
-| **Storage**   | `STORAGE_PROVIDER_TYPE` (`in-memory`\|`filesystem`\|`supabase`\|`cloudflare-r2/kv`) |
-| **LLM**       | `OPENROUTER_API_KEY`, `OPENROUTER_APP_URL/NAME`, `LLM_DEFAULT_*`                    |
-| **Telemetry** | `OTEL_ENABLED`, `OTEL_SERVICE_NAME/VERSION`, `OTEL_EXPORTER_OTLP_*`                 |
+| Category      | Key Variables                                                                                                   |
+| ------------- | --------------------------------------------------------------------------------------------------------------- |
+| **Transport** | `MCP_TRANSPORT_TYPE` (`stdio`\|`http`), `MCP_HTTP_PORT/HOST/PATH`                                               |
+| **Auth**      | `MCP_AUTH_MODE` (`none`\|`jwt`\|`oauth`), `MCP_AUTH_SECRET_KEY`, `OAUTH_*`                                      |
+| **Storage**   | `STORAGE_PROVIDER_TYPE` (`in-memory`\|`filesystem`\|`supabase`\|`surrealdb`\|`cloudflare-r2/kv`), `SURREALDB_*` |
+| **LLM**       | `OPENROUTER_API_KEY`, `OPENROUTER_APP_URL/NAME`, `LLM_DEFAULT_*`                                                |
+| **Telemetry** | `OTEL_ENABLED`, `OTEL_SERVICE_NAME/VERSION`, `OTEL_EXPORTER_OTLP_*`                                             |
 
 ---
 
@@ -501,7 +504,7 @@ const context = requestContextService.createRequestContext({
 - [ ] Use `sdkContext.elicitInput()`/`createMessage()` for client interaction
 - [ ] Run `bun devcheck`
 - [ ] Register in `index.ts` barrel (Tools, Resources, Prompts)
-- [ ] Add/update tests (`bun test`)
+- [ ] Add/update tests (`bun run test`)
 - [ ] Run `bun devcheck`
 - [ ] Smoke-test local transports (`dev:stdio`/`http`)
 - [ ] Validate Worker bundle (`build:worker`)

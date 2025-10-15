@@ -1,12 +1,14 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-15 13:09:00
+Generated on: 2025-10-15 19:39:51
 
 ```
 mcp-ts-template
 ├── .clinerules
 │   └── AGENTS.md
 ├── .github
+│   ├── codeql
+│   │   └── codeql-config.yml
 │   ├── workflows
 │   │   └── publish.yml
 │   └── FUNDING.yml
@@ -138,10 +140,14 @@ mcp-ts-template
 │   │   │       ├── inMemory
 │   │   │       │   ├── index.html
 │   │   │       │   └── inMemoryProvider.ts.html
-│   │   │       └── supabase
+│   │   │       ├── supabase
+│   │   │       │   ├── index.html
+│   │   │       │   ├── supabase.types.ts.html
+│   │   │       │   └── supabaseProvider.ts.html
+│   │   │       └── surrealdb
 │   │   │           ├── index.html
-│   │   │           ├── supabase.types.ts.html
-│   │   │           └── supabaseProvider.ts.html
+│   │   │           ├── surrealdb.types.ts.html
+│   │   │           └── surrealdbProvider.ts.html
 │   │   ├── types-global
 │   │   │   ├── errors.ts.html
 │   │   │   └── index.html
@@ -224,6 +230,8 @@ mcp-ts-template
 │   │           └── progress.md
 │   ├── mcp-elicitation-summary.md
 │   ├── publishing-mcp-server-registry.md
+│   ├── storage-surrealdb-setup.md
+│   ├── surrealdb-schema.surql
 │   └── tree.md
 ├── ideas
 ├── scripts
@@ -233,6 +241,7 @@ mcp-ts-template
 │   ├── fetch-openapi-spec.ts
 │   ├── make-executable.ts
 │   ├── tree.ts
+│   ├── update-coverage.ts
 │   └── validate-mcp-publish-schema.ts
 ├── src
 │   ├── config
@@ -333,9 +342,13 @@ mcp-ts-template
 │   │   │   │   └── fileSystemProvider.ts
 │   │   │   ├── inMemory
 │   │   │   │   └── inMemoryProvider.ts
-│   │   │   └── supabase
-│   │   │       ├── supabase.types.ts
-│   │   │       └── supabaseProvider.ts
+│   │   │   ├── supabase
+│   │   │   │   ├── supabase.types.ts
+│   │   │   │   └── supabaseProvider.ts
+│   │   │   └── surrealdb
+│   │   │       ├── index.ts
+│   │   │       ├── surrealdb.types.ts
+│   │   │       └── surrealdbProvider.ts
 │   │   └── index.ts
 │   ├── types-global
 │   │   └── errors.ts
@@ -496,9 +509,12 @@ mcp-ts-template
 │   │   │   │   └── fileSystemProvider.test.ts
 │   │   │   ├── inMemory
 │   │   │   │   └── inMemoryProvider.test.ts
-│   │   │   └── supabase
-│   │   │       ├── supabase.types.test.ts
-│   │   │       └── supabaseProvider.test.ts
+│   │   │   ├── supabase
+│   │   │   │   ├── supabase.types.test.ts
+│   │   │   │   └── supabaseProvider.test.ts
+│   │   │   └── surrealdb
+│   │   │       ├── surrealdb.types.test.ts
+│   │   │       └── surrealdbProvider.test.ts
 │   │   ├── index.test.ts
 │   │   ├── storageProviderCompliance.test.ts
 │   │   └── StorageService.test.ts
@@ -562,6 +578,7 @@ mcp-ts-template
 │   └── worker.test.ts
 ├── .dockerignore
 ├── .env.example
+├── .gitattributes
 ├── .gitignore
 ├── .prettierignore
 ├── .prettierrc.json
