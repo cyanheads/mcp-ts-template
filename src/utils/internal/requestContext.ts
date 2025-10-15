@@ -8,18 +8,28 @@
 import { trace } from '@opentelemetry/api';
 
 import { authContext as alsAuthContext } from '@/mcp-server/transports/auth/lib/authContext.js';
+import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import { generateRequestContextId } from '@/utils/index.js';
 import { logger } from '@/utils/internal/logger.js';
 
 /**
  * Defines the structure of the authentication-related context, typically
  * decoded from a JWT.
+ *
+ * This interface represents the processed authentication data that gets
+ * attached to a RequestContext after token verification.
  */
 export interface AuthContext {
   /** The subject (user) identifier. */
   sub: string;
   /** An array of granted permissions (scopes). */
   scopes: string[];
+  /** The client identifier from the token (cid or client_id claim). */
+  clientId: string;
+  /** The original JWT/OAuth token string. */
+  token: string;
+  /** Optional tenant identifier for multi-tenancy support. */
+  tenantId?: string;
   /** Other properties from the token payload. */
   [key: string]: unknown;
 }
@@ -231,6 +241,52 @@ const requestContextServiceInstance = {
     // --- End OpenTelemetry Integration ---
 
     return context;
+  },
+
+  /**
+   * Creates a new {@link RequestContext} enriched with authentication information.
+   * This method populates the context with auth data from a validated token,
+   * including tenant ID, client ID, scopes, and subject.
+   *
+   * The auth info is also propagated to the async-local storage context for
+   * downstream access via `authContext.getStore()`.
+   *
+   * @param authInfo - The validated authentication information from JWT/OAuth token.
+   * @param parentContext - Optional parent context to inherit properties from.
+   * @returns A new `RequestContext` object with auth information populated.
+   *
+   * @example
+   * ```typescript
+   * const authInfo = await jwtStrategy.verify(token);
+   * const context = requestContextService.withAuthInfo(authInfo);
+   * // context now includes: { requestId, timestamp, tenantId, auth: {...}, ... }
+   * ```
+   */
+  withAuthInfo(
+    authInfo: AuthInfo,
+    parentContext?: Record<string, unknown> | RequestContext,
+  ): RequestContext {
+    const baseContext = this.createRequestContext({
+      operation: 'withAuthInfo',
+      parentContext,
+      additionalContext: {
+        tenantId: authInfo.tenantId,
+      },
+    });
+
+    // Populate auth property with structured authentication context
+    const authContext: AuthContext = {
+      sub: authInfo.subject ?? authInfo.clientId,
+      scopes: authInfo.scopes,
+      clientId: authInfo.clientId,
+      token: authInfo.token,
+      ...(authInfo.tenantId ? { tenantId: authInfo.tenantId } : {}),
+    };
+
+    return {
+      ...baseContext,
+      auth: authContext,
+    };
   },
 };
 
