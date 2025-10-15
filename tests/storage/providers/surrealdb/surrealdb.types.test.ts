@@ -7,7 +7,7 @@ import { describe, test, expect } from 'vitest';
 import type {
   KvStoreRecord,
   KvStoreInput,
-} from '@/storage/providers/surrealdb/surrealdb.types.js';
+} from '@/storage/providers/surrealdb/types.js';
 
 describe('SurrealDB Storage Types', () => {
   describe('KvStoreRecord', () => {

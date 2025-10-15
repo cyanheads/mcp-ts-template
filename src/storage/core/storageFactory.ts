@@ -17,7 +17,7 @@ import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
-import { SurrealdbProvider } from '@/storage/providers/surrealdb/surrealdbProvider.js';
+import { SurrealKvProvider } from '@/storage/providers/surrealdb/kv/surrealKvProvider.js';
 import { R2Provider } from '@/storage/providers/cloudflare/r2Provider.js';
 import { KvProvider } from '@/storage/providers/cloudflare/kvProvider.js';
 import { logger, requestContextService } from '@/utils/index.js';
@@ -140,13 +140,13 @@ export function createStorageProvider(
         );
       }
       if (deps.surrealdbClient) {
-        return new SurrealdbProvider(
+        return new SurrealKvProvider(
           deps.surrealdbClient,
           config.surrealdb.tableName,
         );
       }
-      // Fallback to DI container (backward-compatible)
-      return container.resolve(SurrealdbProvider);
+      // Fallback to DI container
+      return container.resolve(SurrealKvProvider);
     case 'cloudflare-r2':
       if (isServerless) {
         const bucket =

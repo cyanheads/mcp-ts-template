@@ -9,7 +9,7 @@ import { createStorageProvider } from '@/storage/core/storageFactory.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
-import { SurrealdbProvider } from '@/storage/providers/surrealdb/surrealdbProvider.js';
+import { SurrealKvProvider } from '@/storage/providers/surrealdb/kv/surrealKvProvider.js';
 import { McpError } from '@/types-global/errors.js';
 
 // Mock Supabase client
@@ -143,7 +143,7 @@ describe('createStorageProvider', () => {
   });
 
   describe('surrealdb provider', () => {
-    it('should create SurrealdbProvider with provided client', () => {
+    it('should create SurrealKvProvider with provided client', () => {
       const mockConfig = {
         storage: {
           providerType: 'surrealdb' as const,
@@ -168,7 +168,7 @@ describe('createStorageProvider', () => {
         surrealdbClient: mockClient as any,
       });
 
-      expect(provider).toBeInstanceOf(SurrealdbProvider);
+      expect(provider).toBeInstanceOf(SurrealKvProvider);
     });
 
     it('should throw McpError when surrealdb URL is missing', () => {

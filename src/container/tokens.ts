@@ -19,3 +19,4 @@ export const TransportManagerToken = Symbol('TransportManager');
 export const SupabaseAdminClient = Symbol('SupabaseAdminClient');
 export const SurrealdbClient = Symbol('SurrealdbClient');
 export const SpeechService = Symbol('SpeechService');
+export const GraphService = Symbol('GraphService');

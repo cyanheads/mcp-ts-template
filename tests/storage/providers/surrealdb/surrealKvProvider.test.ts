@@ -1,11 +1,11 @@
 /**
- * @fileoverview Unit and compliance tests for the SurrealdbProvider implementation.
- * @module tests/storage/providers/surrealdb/surrealdbProvider.test
+ * @fileoverview Unit and compliance tests for the SurrealKvProvider implementation.
+ * @module tests/storage/providers/surrealdb/surrealKvProvider.test
  */
 import { describe, expect, it, beforeEach, vi, type Mock } from 'vitest';
 import Surreal from 'surrealdb';
 
-import { SurrealdbProvider } from '@/storage/providers/surrealdb/surrealdbProvider.js';
+import { SurrealKvProvider } from '@/storage/providers/surrealdb/kv/surrealKvProvider.js';
 import { requestContextService } from '@/utils/index.js';
 
 import { storageProviderTests } from '../../storageProviderCompliance.test.js';
@@ -31,8 +31,19 @@ function createMockSurrealClient() {
 
   const mockQuery: Mock = vi.fn(async (query: string, params?: unknown) => {
     const paramsObj = params as Record<string, unknown>;
-    const tenantId = paramsObj?.tenant_id as string;
-    const key = paramsObj?.key as string;
+
+    // Extract tenant_id and key from params (could be direct or where_0/where_1 format)
+    const tenantId = (paramsObj?.tenant_id || paramsObj?.where_0) as string;
+    const key = (paramsObj?.key || paramsObj?.where_1) as string;
+
+    // Handle transaction control statements
+    if (
+      query.includes('BEGIN TRANSACTION') ||
+      query.includes('COMMIT TRANSACTION') ||
+      query.includes('CANCEL TRANSACTION')
+    ) {
+      return [{ result: [] }];
+    }
 
     // Simulate SELECT queries
     if (query.includes('SELECT')) {
@@ -205,14 +216,14 @@ function createMockSurrealClient() {
   } as unknown as Surreal;
 }
 
-describe('SurrealdbProvider (unit)', () => {
-  let provider: SurrealdbProvider;
+describe('SurrealKvProvider (unit)', () => {
+  let provider: SurrealKvProvider;
   let mockClient: Surreal;
   const tenantId = 'tenant-a';
 
   beforeEach(() => {
     mockClient = createMockSurrealClient();
-    provider = new SurrealdbProvider(mockClient, 'kv_store');
+    provider = new SurrealKvProvider(mockClient, 'kv_store');
   });
 
   it('evicts entries that have passed their ttl', async () => {
@@ -388,6 +399,6 @@ describe('SurrealdbProvider (unit)', () => {
 
 // Run the generic compliance suite to ensure contract compatibility
 storageProviderTests(
-  () => new SurrealdbProvider(createMockSurrealClient(), 'kv_store'),
-  'SurrealdbProvider',
+  () => new SurrealKvProvider(createMockSurrealClient(), 'kv_store'),
+  'SurrealKvProvider',
 );

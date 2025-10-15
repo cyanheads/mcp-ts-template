@@ -20,9 +20,12 @@ import {
   StorageProvider,
   SupabaseAdminClient,
   SurrealdbClient,
+  GraphService,
 } from '@/container/tokens.js';
 import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
+import { GraphService as GraphServiceClass } from '@/services/graph/core/GraphService.js';
+import { SurrealGraphProvider } from '@/services/graph/providers/surrealGraph.provider.js';
 import { SpeechService as SpeechServiceClass } from '@/services/speech/index.js';
 import { StorageService as StorageServiceClass } from '@/storage/core/StorageService.js';
 import { createStorageProvider } from '@/storage/core/storageFactory.js';
@@ -182,6 +185,16 @@ export const registerCoreServices = () => {
           : undefined;
 
       return new SpeechServiceClass(ttsConfig, sttConfig);
+    },
+  });
+
+  // Register GraphService (only if SurrealDB is configured)
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+  container.register(GraphService, {
+    useFactory: (c) => {
+      const surrealClient = c.resolve<Surreal>(SurrealdbClient);
+      const graphProvider = new SurrealGraphProvider(surrealClient);
+      return new GraphServiceClass(graphProvider);
     },
   });
 
