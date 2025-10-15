@@ -13,7 +13,13 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
   - Added `tests/mcp-server/transports/auth/strategies/jwtStrategy.test.ts` with 15 comprehensive JWT verification tests covering token validation, claims extraction, expiry, and signature verification.
   - Added `tests/mcp-server/transports/manager.test.ts` with 9 test cases for transport manager lifecycle (HTTP and stdio initialization, start/stop behavior).
   - Added `tests/storage/core/storageFactory.test.ts` with 10 test cases for storage provider factory covering in-memory, filesystem, Supabase, and Cloudflare providers.
-  - Overall test suite now at 556 passing tests with 84.73% function coverage and 88.47% line coverage.
+  - Added `tests/mcp-server/tools/utils/toolHandlerFactory.test.ts` with 18 test cases covering tool handler creation, context handling, error handling, elicitation support, and response formatting.
+  - Added `tests/storage/providers/fileSystem/fileSystemProvider.test.ts` with 36 comprehensive tests covering CRUD operations, tenant isolation, path traversal security, TTL/expiration, batch operations, pagination, and nested keys.
+  - Added `tests/mcp-server/prompts/prompt-registration.test.ts` with 14 test cases for prompt registry covering registration, error handling, order preservation, handler execution, and metadata.
+  - Added `tests/services/llm/providers/openrouter.provider.test.ts` with 15 test cases for OpenRouter LLM provider covering constructor validation, parameter preparation, rate limiting, error handling, and streaming.
+  - Added `tests/mcp-server/resources/resource-registration.test.ts` with 12 test cases for resource registry covering registration, validation, and definition handling.
+  - Added `tests/mcp-server/tools/tool-registration.test.ts` for tool registry (passes devcheck, has runtime SDK import issues).
+  - Overall test suite now at **665 passing tests** across **50 test files** with **77.48% function coverage** and **82.46% line coverage**.
 
 ### Fixed
 
@@ -22,6 +28,8 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
   - Fixed JWT strategy test error message patterns to match actual implementation.
   - Fixed storage factory tests to work with read-only config and DI container state.
   - Added proper DI container registration in auth factory tests.
+  - Fixed `tests/setup.ts` to include `ResourceTemplate` mock export, resolving SDK import errors in resource-related tests.
+  - Established pattern for mocking complex SDK types using `any` or `Record<string, unknown>` to avoid strict type checking issues in tests.
 
 ## [2.3.9] - 2025-10-14
 

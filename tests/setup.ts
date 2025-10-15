@@ -53,7 +53,12 @@ if (!IS_INTEGRATION) {
         connect = (vi as any).fn(async () => {});
         constructor(..._args: any[]) {}
       }
-      return { McpServer };
+      class ResourceTemplate {
+        constructor(..._args: any[]) {}
+        match = (vi as any).fn(() => null);
+        render = (vi as any).fn(() => '');
+      }
+      return { McpServer, ResourceTemplate };
     });
   } catch {}
 
@@ -77,11 +82,6 @@ if (!IS_INTEGRATION) {
 // Ensure global vi exists for any indirect references
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).vi = (globalThis as any).vi ?? vi;
-
-try {
-  // eslint-disable-next-line no-console
-  console.debug('setup vitest vi keys:', Object.keys(vi as any));
-} catch {}
 
 // Global test setup without MSW - tests use real APIs or isolated MSW servers
 beforeAll(() => {
