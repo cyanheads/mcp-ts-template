@@ -7,6 +7,58 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.4.5] - 2025-10-15
+
+### Added
+
+- **SurrealDB Storage Provider**: Implemented comprehensive SurrealDB storage backend for distributed, multi-model data persistence.
+  - Added `SurrealdbProvider` in [src/storage/providers/surrealdb/surrealdbProvider.ts](src/storage/providers/surrealdb/surrealdbProvider.ts) with full `IStorageProvider` compliance.
+  - Implemented parallel batch operations (`getMany`, `setMany`, `deleteMany`) using `Promise.all()` for optimal performance.
+  - Added secure opaque cursor pagination with tenant ID validation for `list()` operations.
+  - Supports both local SurrealDB instances and Surreal Cloud with WebSocket connections.
+  - Added comprehensive type definitions in [src/storage/providers/surrealdb/surrealdb.types.ts](src/storage/providers/surrealdb/surrealdb.types.ts).
+  - Added dependency injection token `SurrealdbClient` in [src/container/tokens.ts:20](src/container/tokens.ts#L20).
+  - Registered SurrealDB client factory in [src/container/registrations/core.ts:66-110](src/container/registrations/core.ts#L66-L110) with async connection handling.
+- **SurrealDB Configuration**: Extended configuration schema to support SurrealDB connection parameters.
+  - Added `surrealdb` config object in [src/config/index.ts:146-156](src/config/index.ts#L146-L156) with URL, namespace, database, and optional authentication.
+  - Added `SURREALDB_*` environment variables: `SURREALDB_URL`, `SURREALDB_NAMESPACE`, `SURREALDB_DATABASE`, `SURREALDB_USERNAME`, `SURREALDB_PASSWORD`, `SURREALDB_TABLE_NAME`.
+  - Updated storage provider type enum to include `'surrealdb'` option.
+- **SurrealDB Schema & Documentation**: Added comprehensive setup documentation and schema definitions.
+  - Created [docs/storage-surrealdb-setup.md](docs/storage-surrealdb-setup.md) with detailed setup instructions, connection examples, and troubleshooting guidance.
+  - Created [docs/surrealdb-schema.surql](docs/surrealdb-schema.surql) with complete table schema including field definitions, indexes, and permissions.
+  - Schema includes tenant isolation, TTL support, and optimized queries for list operations.
+- **Test Coverage**: Added comprehensive test suite for SurrealDB provider.
+  - Created [tests/storage/providers/surrealdb/surrealdbProvider.test.ts](tests/storage/providers/surrealdb/surrealdbProvider.test.ts) with 36+ test cases covering CRUD operations, tenant isolation, batch operations, pagination, and error handling.
+  - Created [tests/storage/providers/surrealdb/surrealdb.types.test.ts](tests/storage/providers/surrealdb/surrealdb.types.test.ts) validating type definitions.
+  - Added SurrealDB-specific tests in [tests/storage/core/storageFactory.test.ts:145-220](tests/storage/core/storageFactory.test.ts#L145-L220).
+  - Updated token count test to reflect new `SurrealdbClient` token in [tests/container/tokens.test.ts:164-171](tests/container/tokens.test.ts#L164-L171).
+
+### Changed
+
+- **Storage Factory**: Enhanced provider selection logic to support SurrealDB in serverless environments.
+  - Updated [src/storage/core/storageFactory.ts:35-152](src/storage/core/storageFactory.ts#L35-L152) to include SurrealDB in edge-compatible provider list.
+  - Added SurrealDB client dependency injection with fallback to DI container.
+  - SurrealDB now validated alongside Cloudflare KV/R2 for serverless deployments.
+- **Documentation Updates**: Expanded architectural documentation to reflect new storage capabilities.
+  - Updated [AGENTS.md:59](AGENTS.md#L59) storage provider table to include `surrealdb`.
+  - Added SurrealDB client token and setup instructions in [AGENTS.md:337-340](AGENTS.md#L337-L340).
+  - Updated storage capabilities section to document SurrealDB parallel batch operations in [AGENTS.md:344](AGENTS.md#L344).
+  - Updated [README.md:22](README.md#L22) feature list to include SurrealDB alongside other storage backends.
+  - Added SurrealDB environment variables to configuration table in [README.md:110-119](README.md#L110-L119).
+  - Added SurrealDB setup instructions in [README.md:136-137](README.md#L136-L137).
+- **Dependency Management**: Added SurrealDB client library to project dependencies.
+  - Added `surrealdb@^1.3.2` to [package.json:186](package.json#L186) dependencies.
+  - Updated [bun.lock](bun.lock) with `surrealdb`, `isows`, and `uuidv7` packages.
+- **Version Bump**: Incremented project version from `2.4.4` to `2.4.5` in [package.json:3](package.json#L3) and [server.json:9-11,44-46](server.json#L9-L11,L44-L46).
+- **Script Naming Consistency**: Standardized test command references from `bun test` to `bun run test` in [AGENTS.md:420,507](AGENTS.md#L420,L507) for consistency with package.json scripts.
+
+### Documentation
+
+- **Tree Structure**: Regenerated [docs/tree.md](docs/tree.md) to reflect new SurrealDB provider files, documentation, tests, and directory structure updates.
+- **Architecture Notes**: Added note about SurrealDB schema initialization requirement before first use across documentation files.
+
+---
+
 ## [2.4.4] - 2025-10-15
 
 ### Fixed
