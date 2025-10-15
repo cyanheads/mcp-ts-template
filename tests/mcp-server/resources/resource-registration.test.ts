@@ -2,7 +2,7 @@
  * @fileoverview Tests for resource registration system.
  * @module tests/mcp-server/resources/resource-registration.test.ts
  */
-import { describe, expect, it, beforeEach, mock } from 'bun:test';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
 
 describe('ResourceRegistry', () => {
@@ -12,7 +12,7 @@ describe('ResourceRegistry', () => {
   beforeEach(() => {
     // Create a mock MCP server
     mockServer = {
-      resource: mock(() => {}),
+      resource: vi.fn(() => {}),
     };
 
     // Create registry with empty resource definitions
@@ -55,7 +55,7 @@ describe('ResourceRegistry', () => {
 
     it('should handle server with resource method', async () => {
       const serverWithMethod: any = {
-        resource: mock(async () => {}),
+        resource: vi.fn(async () => {}),
       };
 
       // Should complete registration without throwing

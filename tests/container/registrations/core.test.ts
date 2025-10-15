@@ -2,7 +2,7 @@
  * @fileoverview Tests for core service registration.
  * @module tests/container/registrations/core.test.ts
  */
-import { describe, expect, it, beforeAll } from 'bun:test';
+import { describe, expect, it, beforeAll } from 'vitest';
 import { container } from 'tsyringe';
 import { registerCoreServices } from '@/container/registrations/core.js';
 import {

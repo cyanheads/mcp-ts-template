@@ -2,7 +2,7 @@
  * @fileoverview Tests for MarkdownBuilder utility
  * @module tests/utils/formatting/markdownBuilder.test
  */
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 
 import {
   MarkdownBuilder,

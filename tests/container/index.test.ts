@@ -2,7 +2,7 @@
  * @fileoverview Tests for the dependency injection container composition.
  * @module tests/container/index.test.ts
  */
-import { describe, expect, it, beforeAll } from 'bun:test';
+import { describe, expect, it, beforeAll } from 'vitest';
 import { container } from 'tsyringe';
 import { composeContainer } from '@/container/index.js';
 import {

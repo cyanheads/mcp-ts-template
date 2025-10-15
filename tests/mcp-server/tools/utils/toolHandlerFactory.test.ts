@@ -2,7 +2,7 @@
  * @fileoverview Tests for the MCP tool handler factory.
  * @module tests/mcp-server/tools/utils/toolHandlerFactory.test.ts
  */
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { createMcpToolHandler } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
 import { McpError, JsonRpcErrorCode } from '@/types-global/errors.js';
 import type { RequestContext } from '@/utils/index.js';

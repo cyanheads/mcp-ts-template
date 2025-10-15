@@ -251,3 +251,22 @@ export function storageProviderTests(
     // });
   });
 }
+
+// Add a basic test suite so this file isn't empty when run directly
+describe('Storage Provider Compliance Test Suite', () => {
+  it('compliance test function exists and is exported', () => {
+    expect(storageProviderTests).toBeDefined();
+    expect(typeof storageProviderTests).toBe('function');
+  });
+
+  it('compliance test documentation is available', () => {
+    // This test documents that the actual compliance tests are run
+    // in provider-specific test files like:
+    // - tests/storage/providers/inMemory/inMemoryProvider.test.ts
+    // - tests/storage/providers/fileSystem/fileSystemProvider.test.ts
+    // - tests/storage/providers/cloudflare/kvProvider.test.ts
+    // - tests/storage/providers/cloudflare/r2Provider.test.ts
+    // Each provider test file calls storageProviderTests(factory, name)
+    expect(true).toBe(true);
+  });
+});

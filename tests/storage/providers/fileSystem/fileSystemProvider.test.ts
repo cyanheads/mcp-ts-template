@@ -2,7 +2,7 @@
  * @fileoverview Tests for the FileSystem storage provider.
  * @module tests/storage/providers/fileSystem/fileSystemProvider.test.ts
  */
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { rmSync, existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';

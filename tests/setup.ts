@@ -45,6 +45,11 @@ let offset = 0;
 
 // Pre-mock modules that are imported before tests call vi.mock
 // Skip these mocks for integration tests so we exercise the real stack.
+// IMPORTANT: Vitest's module mocking can interfere with AsyncLocalStorage context propagation
+// in some test scenarios. If you encounter "getStore is not a function" errors with
+// AsyncLocalStorage, the issue is likely with test isolation settings in vitest.config.ts.
+// Solution: Ensure poolOptions.forks.isolate = true (each test file gets clean module state).
+// See: https://github.com/vitest-dev/vitest/issues/5858
 const IS_INTEGRATION = process.env.INTEGRATION === '1';
 if (!IS_INTEGRATION) {
   try {

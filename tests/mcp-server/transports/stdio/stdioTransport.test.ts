@@ -9,7 +9,7 @@
  *
  * Integration tests should cover the full stdio transport flow in a real environment.
  */
-import { describe, it } from 'bun:test';
+import { describe, it } from 'vitest';
 
 describe.skip('Stdio Transport', () => {
   it('placeholder test - stdio transport requires integration testing', () => {

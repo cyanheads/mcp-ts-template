@@ -2,7 +2,7 @@
  * @fileoverview Tests for prompt registration system.
  * @module tests/mcp-server/prompts/prompt-registration.test.ts
  */
-import { describe, expect, it, beforeEach, mock } from 'bun:test';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import { logger } from '@/utils/index.js';
 
@@ -13,7 +13,7 @@ describe('PromptRegistry', () => {
   beforeEach(() => {
     // Create a mock MCP server
     mockServer = {
-      registerPrompt: mock(() => {}),
+      registerPrompt: vi.fn(() => {}),
     };
 
     // Create registry with logger
@@ -194,7 +194,7 @@ describe('PromptRegistry', () => {
 
       // Create new server and registry
       const newMockServer: any = {
-        registerPrompt: mock(() => {}),
+        registerPrompt: vi.fn(() => {}),
       };
       const newRegistry = new PromptRegistry(logger);
 

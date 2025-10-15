@@ -2,7 +2,7 @@
  * @fileoverview Tests for authentication middleware.
  * @module tests/mcp-server/transports/auth/authMiddleware.test.ts
  */
-import { describe, expect, it, mock, beforeEach } from 'bun:test';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { Context, Next } from 'hono';
 import { createAuthMiddleware } from '@/mcp-server/transports/auth/authMiddleware.js';
 import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
@@ -17,7 +17,7 @@ describe('Auth Middleware', () => {
   beforeEach(() => {
     // Create mock authentication strategy
     mockStrategy = {
-      verify: mock(
+      verify: vi.fn(
         async (token: string): Promise<AuthInfo> => ({
           token,
           clientId: 'test-client',
@@ -31,7 +31,7 @@ describe('Auth Middleware', () => {
     // Create mock Hono context
     mockContext = {
       req: {
-        header: mock((name?: string) => {
+        header: vi.fn((name?: string) => {
           if (name === 'Authorization') {
             return 'Bearer valid-token';
           }
@@ -46,7 +46,7 @@ describe('Auth Middleware', () => {
     } as unknown as Context;
 
     // Create mock next function
-    mockNext = mock(async () => {});
+    mockNext = vi.fn(async () => {});
   });
 
   describe('createAuthMiddleware', () => {
@@ -87,7 +87,7 @@ describe('Auth Middleware', () => {
 
   describe('Authorization Header Validation', () => {
     it('should reject missing Authorization header', async () => {
-      mockContext.req.header = mock((name?: string) => {
+      mockContext.req.header = vi.fn((name?: string) => {
         if (name === undefined) {
           return {};
         }
@@ -105,7 +105,7 @@ describe('Auth Middleware', () => {
     });
 
     it('should reject Authorization header without Bearer scheme', async () => {
-      mockContext.req.header = mock((name?: string) => {
+      mockContext.req.header = vi.fn((name?: string) => {
         if (name === 'Authorization') {
           return 'Basic dGVzdDp0ZXN0';
         }
@@ -122,7 +122,7 @@ describe('Auth Middleware', () => {
     });
 
     it('should reject empty Bearer token', async () => {
-      mockContext.req.header = mock((name?: string) => {
+      mockContext.req.header = vi.fn((name?: string) => {
         if (name === 'Authorization') {
           return 'Bearer ';
         }
@@ -142,7 +142,7 @@ describe('Auth Middleware', () => {
     });
 
     it('should handle malformed Authorization header', async () => {
-      mockContext.req.header = mock((name?: string) => {
+      mockContext.req.header = vi.fn((name?: string) => {
         if (name === 'Authorization') {
           return 'InvalidFormat';
         }
@@ -169,7 +169,7 @@ describe('Auth Middleware', () => {
     });
 
     it('should handle verification success', async () => {
-      mockStrategy.verify = mock(async (token) => ({
+      mockStrategy.verify = vi.fn(async (token) => ({
         token,
         clientId: 'client-123',
         subject: 'user-456',
@@ -185,7 +185,7 @@ describe('Auth Middleware', () => {
     });
 
     it('should handle verification failure', async () => {
-      mockStrategy.verify = mock(async () => {
+      mockStrategy.verify = vi.fn(async () => {
         throw new McpError(JsonRpcErrorCode.Unauthorized, 'Invalid token');
       });
 
@@ -198,7 +198,7 @@ describe('Auth Middleware', () => {
     });
 
     it('should handle expired token', async () => {
-      mockStrategy.verify = mock(async () => {
+      mockStrategy.verify = vi.fn(async () => {
         throw new McpError(JsonRpcErrorCode.Unauthorized, 'Token has expired');
       });
 
@@ -221,7 +221,7 @@ describe('Auth Middleware', () => {
         tenantId: 'tenant-123',
       };
 
-      mockStrategy.verify = mock(async () => authInfo);
+      mockStrategy.verify = vi.fn(async () => authInfo);
 
       const middleware = createAuthMiddleware(mockStrategy);
 
@@ -238,7 +238,7 @@ describe('Auth Middleware', () => {
         scopes: ['read'],
       };
 
-      mockStrategy.verify = mock(async () => authInfo);
+      mockStrategy.verify = vi.fn(async () => authInfo);
 
       const middleware = createAuthMiddleware(mockStrategy);
 
@@ -255,7 +255,7 @@ describe('Auth Middleware', () => {
         scopes: [],
       };
 
-      mockStrategy.verify = mock(async () => authInfo);
+      mockStrategy.verify = vi.fn(async () => authInfo);
 
       const middleware = createAuthMiddleware(mockStrategy);
 
@@ -272,7 +272,7 @@ describe('Auth Middleware', () => {
         'Custom auth error',
       );
 
-      mockStrategy.verify = mock(async () => {
+      mockStrategy.verify = vi.fn(async () => {
         throw customError;
       });
 
@@ -284,7 +284,7 @@ describe('Auth Middleware', () => {
     });
 
     it('should wrap non-McpError exceptions', async () => {
-      mockStrategy.verify = mock(async () => {
+      mockStrategy.verify = vi.fn(async () => {
         throw new Error('Unexpected error');
       });
 
@@ -294,7 +294,7 @@ describe('Auth Middleware', () => {
     });
 
     it('should not call next on authentication failure', async () => {
-      mockStrategy.verify = mock(async () => {
+      mockStrategy.verify = vi.fn(async () => {
         throw new McpError(JsonRpcErrorCode.Unauthorized, 'Auth failed');
       });
 
@@ -315,7 +315,7 @@ describe('Auth Middleware', () => {
       // Create context with specific method and path
       const customMockContext = {
         req: {
-          header: mock((name?: string) => {
+          header: vi.fn((name?: string) => {
             if (name === 'Authorization') {
               return 'Bearer valid-token';
             }
@@ -343,7 +343,7 @@ describe('Auth Middleware', () => {
       for (const method of methods) {
         const customContext = {
           req: {
-            header: mock((name?: string) => {
+            header: vi.fn((name?: string) => {
               if (name === 'Authorization') {
                 return 'Bearer valid-token';
               }
@@ -356,7 +356,7 @@ describe('Auth Middleware', () => {
             path: '/mcp',
           },
         } as unknown as Context;
-        const customNext = mock(async () => {});
+        const customNext = vi.fn(async () => {});
 
         const middleware = createAuthMiddleware(mockStrategy);
         await middleware(customContext, customNext);

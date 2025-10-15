@@ -2,7 +2,7 @@
  * @fileoverview Tests for OpenRouter LLM provider.
  * @module tests/services/llm/providers/openrouter.provider.test.ts
  */
-import { describe, expect, it, beforeEach, mock } from 'bun:test';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
 import { config } from '@/config/index.js';
 import { logger } from '@/utils/index.js';
@@ -24,11 +24,11 @@ describe('OpenRouterProvider', () => {
 
     // Create mock rate limiter
     mockRateLimiter = {
-      check: mock(() => {}),
-      reset: mock(() => {}),
-      getStatus: mock(() => null),
-      configure: mock(() => ({ maxRequests: 100, windowMs: 60000 })),
-      dispose: mock(() => {}),
+      check: vi.fn(() => {}),
+      reset: vi.fn(() => {}),
+      getStatus: vi.fn(() => null),
+      configure: vi.fn(() => ({ maxRequests: 100, windowMs: 60000 })),
+      dispose: vi.fn(() => {}),
     } as any;
   });
 
@@ -142,11 +142,11 @@ describe('OpenRouterProvider', () => {
     });
 
     it('should check rate limits before API calls', async () => {
-      const mockCheck = mock(() => {});
+      const mockCheck = vi.fn(() => {});
       mockRateLimiter.check = mockCheck;
 
       // Mock the OpenAI client to avoid actual API calls
-      (provider as any).client.chat.completions.create = mock(async () => ({
+      (provider as any).client.chat.completions.create = vi.fn(async () => ({
         id: 'test',
         object: 'chat.completion',
         created: Date.now(),
@@ -183,7 +183,7 @@ describe('OpenRouterProvider', () => {
 
     it('should handle API errors gracefully', async () => {
       // Mock client to throw error
-      (provider as any).client.chat.completions.create = mock(async () => {
+      (provider as any).client.chat.completions.create = vi.fn(async () => {
         throw new Error('API Error');
       });
 
@@ -199,7 +199,7 @@ describe('OpenRouterProvider', () => {
     });
 
     it('should wrap errors in ErrorHandler.tryCatch', async () => {
-      (provider as any).client.chat.completions.create = mock(async () => {
+      (provider as any).client.chat.completions.create = vi.fn(async () => {
         throw new Error('Test error');
       });
 
@@ -235,7 +235,7 @@ describe('OpenRouterProvider', () => {
         },
       };
 
-      (provider as any).client.chat.completions.create = mock(
+      (provider as any).client.chat.completions.create = vi.fn(
         async () => mockStream,
       );
 
