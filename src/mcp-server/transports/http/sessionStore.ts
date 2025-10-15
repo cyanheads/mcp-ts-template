@@ -5,6 +5,8 @@
  * @module src/mcp-server/transports/http/sessionStore
  */
 
+import { validateSessionIdFormat } from '@/mcp-server/transports/http/sessionIdUtils.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger, requestContextService } from '@/utils/index.js';
 
 /**
@@ -56,8 +58,23 @@ export class SessionStore {
    * @param sessionId - The session identifier
    * @param identity - Optional identity info (tenantId, clientId, subject)
    * @returns The session object
+   * @throws {McpError} If session ID format is invalid
    */
   getOrCreate(sessionId: string, identity?: SessionIdentity): Session {
+    // Validate session ID format to prevent injection attacks
+    if (!validateSessionIdFormat(sessionId)) {
+      const context = requestContextService.createRequestContext({
+        operation: 'SessionStore.getOrCreate',
+        sessionIdPrefix: sessionId.substring(0, 16),
+      });
+      logger.warning('Invalid session ID format rejected', context);
+      throw new McpError(
+        JsonRpcErrorCode.InvalidParams,
+        'Invalid session ID format. Session IDs must be 64 hexadecimal characters.',
+        context,
+      );
+    }
+
     let session = this.sessions.get(sessionId);
 
     if (!session) {

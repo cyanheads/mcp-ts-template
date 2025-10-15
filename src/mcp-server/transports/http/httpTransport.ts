@@ -13,7 +13,6 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import http from 'http';
-import { randomUUID } from 'node:crypto';
 
 import { config } from '@/config/index.js';
 import {
@@ -23,6 +22,7 @@ import {
 } from '@/mcp-server/transports/auth/index.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
+import { generateSecureSessionId } from '@/mcp-server/transports/http/sessionIdUtils.js';
 import {
   SessionStore,
   type SessionIdentity,
@@ -117,21 +117,45 @@ export function createHttpApp(
 
   // RFC 9728 Protected Resource Metadata endpoint (MCP 2025-06-18)
   // Must be accessible without authentication for discovery
+  // https://datatracker.ietf.org/doc/html/rfc9728
   app.get('/.well-known/oauth-protected-resource', (c) => {
     if (!config.oauthIssuerUrl) {
+      logger.debug(
+        'OAuth Protected Resource Metadata requested but OAuth not configured',
+        transportContext,
+      );
       return c.json(
         { error: 'OAuth not configured on this server' },
         { status: 404 },
       );
     }
 
-    return c.json({
-      resource: config.mcpServerResourceIdentifier || config.oauthAudience,
+    const origin = new URL(c.req.url).origin;
+    const resourceIdentifier =
+      config.mcpServerResourceIdentifier ??
+      config.oauthAudience ??
+      `${origin}/mcp`;
+
+    // Per RFC 9728, this endpoint provides metadata about the protected resource
+    const metadata = {
+      resource: resourceIdentifier,
       authorization_servers: [config.oauthIssuerUrl],
       bearer_methods_supported: ['header'],
       resource_signing_alg_values_supported: ['RS256', 'ES256', 'PS256'],
+      resource_documentation: `${origin}/docs`,
       ...(config.oauthJwksUri && { jwks_uri: config.oauthJwksUri }),
+    };
+
+    // RFC 9728 recommends caching this metadata
+    c.header('Cache-Control', 'public, max-age=3600');
+    c.header('Content-Type', 'application/json');
+
+    logger.debug('Serving OAuth Protected Resource Metadata', {
+      ...transportContext,
+      resourceIdentifier,
     });
+
+    return c.json(metadata);
   });
 
   app.get(config.mcpHttpEndpointPath, (c) => {
@@ -231,7 +255,7 @@ export function createHttpApp(
     }
 
     const providedSessionId = c.req.header('mcp-session-id');
-    const sessionId = providedSessionId ?? randomUUID();
+    const sessionId = providedSessionId ?? generateSecureSessionId();
 
     // Extract identity from auth context (if auth is enabled)
     // This MUST happen before session validation for security
