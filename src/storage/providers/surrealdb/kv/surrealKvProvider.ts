@@ -19,9 +19,9 @@ import {
   decodeCursor,
 } from '@/storage/core/storageValidation.js';
 import { ErrorHandler, logger, type RequestContext } from '@/utils/index.js';
-import { BaseSurrealProvider } from '../core/baseSurrealProvider.js';
-import type { KvStoreRecord } from '../types.js';
+import type { KvStoreRecord, QueryResult } from '../types.js';
 import { select } from '../core/queryBuilder.js';
+import { TransactionManager } from '../core/transactionManager.js';
 
 const DEFAULT_LIST_LIMIT = 1000;
 
@@ -35,17 +35,71 @@ const DEFAULT_LIST_LIMIT = 1000;
  * - Batch operations (getMany, setMany, deleteMany)
  * - Cursor-based pagination
  * - Transaction support
+ *
+ * This provider uses composition with direct client injection for
+ * improved modularity and testability.
  */
 @injectable()
-export class SurrealKvProvider
-  extends BaseSurrealProvider
-  implements IStorageProvider
-{
+export class SurrealKvProvider implements IStorageProvider {
+  private readonly tableName: string;
+  private readonly client: Surreal;
+  private readonly transactionManager: TransactionManager;
+
   constructor(
     @inject(SurrealdbClient) client: Surreal,
     tableName: string = 'kv_store',
   ) {
-    super(client, tableName);
+    this.client = client;
+    this.tableName = tableName;
+    this.transactionManager = new TransactionManager(this.client);
+  }
+
+  /**
+   * Execute a raw query with parameters.
+   *
+   * @param query - The SurrealQL query string
+   * @param params - Query parameters
+   * @param context - Request context for logging
+   * @returns Query result
+   */
+  private async executeQuery<T = unknown>(
+    query: string,
+    params: Record<string, unknown>,
+    context: RequestContext,
+  ): Promise<T[]> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        logger.debug('[SurrealKvProvider] Executing query', {
+          ...context,
+          query: query.substring(0, 100),
+        });
+
+        const queryResult = await this.client.query<[QueryResult<T>]>(
+          query,
+          params,
+        );
+
+        return queryResult[0]?.result ?? [];
+      },
+      {
+        operation: 'SurrealKvProvider.executeQuery',
+        context,
+        input: { query: query.substring(0, 50) },
+      },
+    );
+  }
+
+  /**
+   * Check if a record has expired based on expires_at field.
+   *
+   * @param record - Record to check
+   * @returns True if expired
+   */
+  private isExpired(record: KvStoreRecord): boolean {
+    if (!record.expires_at) {
+      return false;
+    }
+    return new Date(record.expires_at).getTime() < Date.now();
   }
 
   async get<T>(
@@ -60,7 +114,12 @@ export class SurrealKvProvider
           .where((w) => w.equals('tenant_id', tenantId).equals('key', key))
           .limit(1);
 
-        const data = await this.executeSelect<KvStoreRecord>(builder, context);
+        const { query, params } = builder.build();
+        const data = await this.executeQuery<KvStoreRecord>(
+          query,
+          params,
+          context,
+        );
 
         if (!data || data.length === 0) {
           return null;
@@ -297,7 +356,7 @@ export class SurrealKvProvider
             ? new Date(Date.now() + options.ttl * 1000).toISOString()
             : null;
 
-        await this.withTransaction(async (client) => {
+        await this.transactionManager.executeInTransaction(async (client) => {
           for (const [key, value] of entries) {
             const query = `
               UPDATE type::table($table):[$tenant_id, $key] MERGE {
@@ -394,6 +453,30 @@ export class SurrealKvProvider
         operation: 'SurrealKvProvider.clear',
         context,
         input: { tenantId },
+      },
+    );
+  }
+
+  /**
+   * Perform health check on the connection.
+   *
+   * @param context - Request context for logging
+   * @returns Health check result
+   */
+  async healthCheck(context: RequestContext): Promise<boolean> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        try {
+          // Simple ping query
+          await this.client.query('SELECT 1 as ping');
+          return true;
+        } catch (_error) {
+          return false;
+        }
+      },
+      {
+        operation: 'SurrealKvProvider.healthCheck',
+        context,
       },
     );
   }

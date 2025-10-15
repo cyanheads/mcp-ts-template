@@ -4,6 +4,14 @@
  * @module src/storage/providers/surrealdb/types
  */
 
+import type Surreal from 'surrealdb';
+
+/**
+ * Type alias for the SurrealDB client instance.
+ * Provides semantic clarity and improved readability throughout the codebase.
+ */
+export type SurrealDb = Surreal;
+
 /**
  * Represents a record in the SurrealDB kv_store table.
  * This structure stores key-value pairs with multi-tenancy support and TTL functionality.

@@ -4,8 +4,8 @@
  */
 
 // Core exports
+export { SurrealDbClient } from './core/surrealDbClient.js';
 export { SurrealKvProvider } from './kv/surrealKvProvider.js';
-export { BaseSurrealProvider } from './core/baseSurrealProvider.js';
 export { ConnectionManager } from './core/connectionManager.js';
 export { TransactionManager } from './core/transactionManager.js';
 export {
@@ -51,6 +51,7 @@ export { SchemaIntrospector } from './introspection/schemaIntrospector.js';
 
 // Types
 export type {
+  SurrealDb,
   KvStoreRecord,
   KvStoreInput,
   SurrealDbConfig,
