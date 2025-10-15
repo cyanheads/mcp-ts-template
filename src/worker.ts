@@ -170,8 +170,9 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
       await initializePerformance_Hrt();
 
       // Initialize logger with level from env or default to 'info'
+      // Workers always use HTTP transport (no STDIO support)
       const logLevel = env.LOG_LEVEL?.toLowerCase() ?? 'info';
-      await logger.initialize(logLevel as never);
+      await logger.initialize(logLevel as never, 'http');
 
       // Create a root context for the worker's lifecycle.
       const workerContext = requestContextService.createRequestContext({
