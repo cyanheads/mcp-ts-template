@@ -6,6 +6,25 @@
  * shutdown on process signals or unhandled errors.
  * @module src/index
  */
+
+// CRITICAL: Disable ANSI color codes BEFORE any imports when running via MCP clients.
+// The MCP specification requires clean output. Even in HTTP mode, if launched via
+// bunx/npx by an MCP client, colored output pollutes the client's process streams.
+// This must be set before pino-pretty or any other library loads.
+//
+// We disable colors in these scenarios:
+// 1. STDIO mode (always - MCP JSON-RPC on stdout)
+// 2. HTTP mode when NOT in TTY (likely launched by MCP client via bunx/npx)
+// 3. When explicitly disabled via existing NO_COLOR env var
+const transportType = process.env.MCP_TRANSPORT_TYPE?.toLowerCase();
+const isStdioMode = !transportType || transportType === 'stdio';
+const isHttpModeWithoutTty = transportType === 'http' && !process.stdout.isTTY;
+
+if (isStdioMode || isHttpModeWithoutTty) {
+  process.env.NO_COLOR = '1'; // Standard env var that most libraries respect
+  process.env.FORCE_COLOR = '0'; // Disable forced coloring
+}
+
 import {
   initializeOpenTelemetry,
   shutdownOpenTelemetry,
@@ -130,8 +149,8 @@ const start = async (): Promise<void> => {
     }
   }
 
-  // Logger will log its own initialization message
-  await logger.initialize(validatedMcpLogLevel);
+  // Pass transport type to logger to ensure STDIO mode uses plain JSON (no ANSI colors)
+  await logger.initialize(validatedMcpLogLevel, config.mcpTransportType);
 
   // Storage Service is now initialized in the container
   logger.info(

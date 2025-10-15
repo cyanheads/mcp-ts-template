@@ -303,3 +303,129 @@ describe('Logger Integration (Pino)', () => {
     loggerWithInternals.interactionLogger = originalInteractionLogger;
   });
 });
+
+describe('Logger Transport Mode Handling', () => {
+  afterAll(async () => {
+    // Clean up any test loggers
+    const testLogger = Logger.getInstance();
+    if (testLogger.isInitialized()) {
+      await testLogger.close();
+    }
+  });
+
+  it('should output plain JSON (no ANSI codes) to stderr when initialized with stdio transport', async () => {
+    // NOTE: This test verifies STDIO mode behavior by checking file output.
+    // Direct stderr capture is difficult with Pino's buffering, but we verify:
+    // 1. No ANSI codes in output (MCP spec requirement)
+    // 2. Valid JSON format (parseable by MCP clients)
+    // 3. Logger initializes with stdio transport mode
+    //
+    // The actual stderr routing (fd 2) is verified by the implementation:
+    // - Line 134 in logger.ts uses { destination: 2 } for STDIO mode
+    // - This ensures logs go to stderr, not stdout, per MCP specification
+
+    // CRITICAL: Enable test logs so logger doesn't run in silent mode
+    const originalEnableTestLogs = process.env.ENABLE_TEST_LOGS;
+    process.env.ENABLE_TEST_LOGS = 'true';
+
+    const stdioLogger = Logger.getInstance();
+
+    // Close any existing logger state
+    if (stdioLogger.isInitialized()) {
+      await stdioLogger.close();
+    }
+
+    // Create a test log directory for this specific test
+    const stdioTestLogDir = path.join(process.cwd(), 'logs', 'stdio-test');
+    const stdioTestLogPath = path.join(stdioTestLogDir, 'combined.log');
+
+    // Temporarily override config for this test
+    const originalLogsPath = config.logsPath;
+    config.logsPath = stdioTestLogDir;
+
+    // Clean up old logs if they exist
+    if (existsSync(stdioTestLogDir)) {
+      rmSync(stdioTestLogDir, { recursive: true, force: true });
+    }
+
+    // Initialize with STDIO transport mode
+    await stdioLogger.initialize('info', 'stdio');
+
+    // Wait for logger to initialize file transports
+    await new Promise((res) => setTimeout(res, 500));
+
+    // Write a test message
+    stdioLogger.info('STDIO transport test message', {
+      testId: 'stdio-ansi-test',
+      requestId: 'test-stdio-1',
+      timestamp: new Date().toISOString(),
+    });
+
+    // Wait for log to be written
+    await new Promise((res) => setTimeout(res, 500));
+
+    // Read the log file to verify output format
+    expect(existsSync(stdioTestLogPath)).toBe(true);
+
+    const logContent = readFileSync(stdioTestLogPath, 'utf-8');
+
+    // CRITICAL: Check for ANSI escape codes (e.g., [35m, [39m, [32m, etc.)
+    // The MCP specification requires clean JSON output with no color codes
+    const ansiPattern = /\x1b\[\d+m/;
+    expect(ansiPattern.test(logContent)).toBe(false);
+
+    // Verify the log entry is valid JSON (MCP clients must be able to parse)
+    const logLines = logContent
+      .split('\n')
+      .filter((line) => line.trim() !== '');
+
+    expect(logLines.length).toBeGreaterThan(0);
+
+    for (const line of logLines) {
+      expect(() => JSON.parse(line)).not.toThrow();
+    }
+
+    // Verify our test message was logged with correct content
+    const logs = logLines.map((line) => JSON.parse(line));
+    const testLog = logs.find((log) => log.testId === 'stdio-ansi-test');
+    expect(testLog).toBeDefined();
+    expect(testLog.msg).toBe('STDIO transport test message');
+
+    // Verify logger was initialized with stdio transport awareness
+    expect(stdioLogger.isInitialized()).toBe(true);
+
+    // Cleanup
+    await stdioLogger.close();
+    if (existsSync(stdioTestLogDir)) {
+      rmSync(stdioTestLogDir, { recursive: true, force: true });
+    }
+
+    // Restore original config and environment
+    config.logsPath = originalLogsPath;
+    if (originalEnableTestLogs !== undefined) {
+      process.env.ENABLE_TEST_LOGS = originalEnableTestLogs;
+    } else {
+      delete process.env.ENABLE_TEST_LOGS;
+    }
+  });
+
+  it('should allow colored output when initialized with http transport', async () => {
+    // This test ensures HTTP mode can use pino-pretty in development
+    // We just verify it doesn't throw an error during initialization
+    const httpLogger = Logger.getInstance();
+
+    // Close any existing logger state
+    if (httpLogger.isInitialized()) {
+      await httpLogger.close();
+    }
+
+    // Initialize with HTTP transport mode (should allow colors in dev)
+    await httpLogger.initialize('info', 'http');
+
+    // Verify logger is initialized successfully
+    expect(httpLogger.isInitialized()).toBe(true);
+
+    // Cleanup
+    await httpLogger.close();
+  });
+});

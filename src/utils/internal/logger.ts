@@ -71,7 +71,10 @@ export class Logger {
     return Logger.instance;
   }
 
-  private async createPinoLogger(level: McpLogLevel): Promise<PinoLogger> {
+  private async createPinoLogger(
+    level: McpLogLevel,
+    transportType?: 'stdio' | 'http',
+  ): Promise<PinoLogger> {
     const pinoLevel = mcpToPinoLevel[level] || 'info';
     const isTest = config.environment === 'testing';
 
@@ -102,7 +105,16 @@ export class Logger {
     const transports: pino.TransportTargetOptions[] = [];
     const isDevelopment = config.environment === 'development';
 
-    if (isDevelopment && !isServerless) {
+    // CRITICAL: STDIO transport MUST NOT output colored logs to stdout.
+    // The MCP specification requires clean JSON-RPC on stdout with no ANSI codes.
+    // Only use pretty/colored output for HTTP mode or when explicitly debugging.
+    // Respect NO_COLOR environment variable (https://no-color.org/)
+    const noColorEnv =
+      process.env.NO_COLOR === '1' || process.env.FORCE_COLOR === '0';
+    const useColoredOutput =
+      isDevelopment && transportType !== 'stdio' && !noColorEnv;
+
+    if (useColoredOutput && !isServerless) {
       // Try to resolve 'pino-pretty' robustly even when bundled (e.g., Bun/ESM),
       // falling back to JSON stdout if resolution fails.
       try {
@@ -120,7 +132,10 @@ export class Logger {
         transports.push({ target: 'pino/file', options: { destination: 1 } });
       }
     } else if (!isTest) {
-      transports.push({ target: 'pino/file', options: { destination: 1 } });
+      // CRITICAL: For STDIO transport, logs MUST go to stderr (fd 2), NOT stdout (fd 1).
+      // The MCP specification requires only JSON-RPC messages on stdout.
+      // For HTTP transport or production, we also use stderr to avoid polluting stdout.
+      transports.push({ target: 'pino/file', options: { destination: 2 } });
     }
 
     if (config.logsPath) {
@@ -169,7 +184,10 @@ export class Logger {
     });
   }
 
-  public async initialize(level: McpLogLevel = 'info'): Promise<void> {
+  public async initialize(
+    level: McpLogLevel = 'info',
+    transportType?: 'stdio' | 'http',
+  ): Promise<void> {
     if (this.initialized) {
       this.warning(
         'Logger already initialized.',
@@ -180,7 +198,7 @@ export class Logger {
       return;
     }
     this.currentMcpLevel = level;
-    this.pinoLogger = await this.createPinoLogger(level);
+    this.pinoLogger = await this.createPinoLogger(level, transportType);
     this.interactionLogger = await this.createInteractionLogger();
 
     // Start the cleanup timer only after initialization and only in Node.js
