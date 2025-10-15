@@ -1,0 +1,16 @@
+# =============================================================================
+# GitHub Linguist Configuration
+# =============================================================================
+# This file controls language detection and repository statistics on GitHub.
+# See: https://github.com/github/linguist
+
+# Exclude coverage reports from language statistics
+coverage/** linguist-generated
+
+# Mark documentation files
+*.md linguist-documentation
+
+# Mark configuration files as data
+*.json linguist-data
+*.yaml linguist-data
+*.yml linguist-data
