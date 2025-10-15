@@ -7,6 +7,57 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.4.7] - 2025-10-15
+
+### Changed
+
+- **Documentation Clarity**: Condensed and streamlined AGENTS.md for improved readability and maintainability.
+  - Simplified Quick Start section (IV.A) with concise checklist format instead of verbose step-by-step instructions.
+  - Condensed Service Development Pattern section (V) with essential information only.
+  - Streamlined Core Services & Utilities section (VI) with compact table format and concise descriptions.
+  - Reduced Authentication & Authorization section (VII) to key points without redundant details.
+  - Compressed multiple sections (VIII-XIV) to essential information only.
+  - Updated version to 2.4.7 and added "Last Updated" field.
+  - Improved resource pagination documentation with clearer cross-references.
+- **SurrealDB Architecture Simplification**: Refactored SurrealDB provider to use composition over inheritance.
+  - Removed [src/storage/providers/surrealdb/core/baseSurrealProvider.ts](src/storage/providers/surrealdb/core/baseSurrealProvider.ts) abstract class.
+  - Refactored [src/storage/providers/surrealdb/kv/surrealKvProvider.ts](src/storage/providers/surrealdb/kv/surrealKvProvider.ts) to inject client directly instead of extending base class.
+  - Moved query execution and helper methods directly into `SurrealKvProvider` as private methods.
+  - Provider now uses `TransactionManager` via composition for cleaner separation of concerns.
+  - Improved modularity and testability by eliminating inheritance hierarchy.
+- **Type System Enhancement**: Added semantic type alias for improved code clarity.
+  - Added `SurrealDb` type alias in [src/storage/providers/surrealdb/types.ts](src/storage/providers/surrealdb/types.ts) as alias for `Surreal` client type.
+  - Provides clearer semantic meaning throughout codebase.
+- **Test Coverage Expansion**: Added comprehensive test coverage for transport layers.
+  - Enhanced [tests/mcp-server/transports/http/httpTransport.test.ts](tests/mcp-server/transports/http/httpTransport.test.ts) with port retry logic validation.
+  - Completely rewrote [tests/mcp-server/transports/stdio/stdioTransport.test.ts](tests/mcp-server/transports/stdio/stdioTransport.test.ts) with 174 lines of comprehensive unit tests.
+  - Added tests for error handling, lifecycle management, and context propagation.
+  - Removed skip placeholder in favor of real test coverage.
+  - Added [tests/mcp-server/transports/http/httpTransport.integration.test.ts](tests/mcp-server/transports/http/httpTransport.integration.test.ts) for integration testing.
+  - Created [tests/services/graph/](tests/services/graph/) directory with comprehensive graph service test coverage.
+
+### Added
+
+- **Storage Documentation**: Added comprehensive documentation for storage providers.
+  - Created [src/storage/README.md](src/storage/README.md) with overview of storage architecture.
+  - Created [src/storage/providers/surrealdb/README.md](src/storage/providers/surrealdb/README.md) with SurrealDB-specific documentation.
+- **SurrealDB Client Module**: Introduced dedicated client module for better organization.
+  - Added [src/storage/providers/surrealdb/core/surrealDbClient.ts](src/storage/providers/surrealdb/core/surrealDbClient.ts) for centralized client management.
+  - Exported `SurrealDbClient` through barrel exports in [src/storage/providers/surrealdb/index.ts](src/storage/providers/surrealdb/index.ts).
+
+### Removed
+
+- **Deprecated Base Class**: Removed inheritance-based SurrealDB provider architecture.
+  - Deleted [src/storage/providers/surrealdb/core/baseSurrealProvider.ts](src/storage/providers/surrealdb/core/baseSurrealProvider.ts) (189 lines) in favor of composition pattern.
+  - Updated exports in [src/storage/providers/surrealdb/index.ts](src/storage/providers/surrealdb/index.ts) to remove `BaseSurrealProvider`.
+
+### Documentation
+
+- **Tree Structure**: Regenerated [docs/tree.md](docs/tree.md) to reflect new files and directory structure (timestamp: 2025-10-15 22:38:21).
+- **Version References**: Updated version numbers across [package.json](package.json), [server.json](server.json), and [AGENTS.md](AGENTS.md).
+
+---
+
 ## [2.4.6] - 2025-10-15
 
 ### Changed
