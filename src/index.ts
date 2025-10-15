@@ -6,7 +6,10 @@
  * shutdown on process signals or unhandled errors.
  * @module src/index
  */
-import { shutdownOpenTelemetry } from '@/utils/telemetry/instrumentation.js';
+import {
+  initializeOpenTelemetry,
+  shutdownOpenTelemetry,
+} from '@/utils/telemetry/instrumentation.js';
 import 'reflect-metadata';
 
 import {
@@ -89,6 +92,16 @@ const start = async (): Promise<void> => {
     // Ensure OpenTelemetry is shut down if it was started before the error
     await shutdownOpenTelemetry();
     process.exit(1);
+  }
+
+  // Initialize OpenTelemetry before logger to capture all spans
+  // This must happen before logger initialization for proper instrumentation
+  try {
+    await initializeOpenTelemetry();
+  } catch (error) {
+    // Observability failure should not block startup
+    console.error('[Startup] Failed to initialize OpenTelemetry:', error);
+    // Continue - application can run without telemetry
   }
 
   // Initialize the high-resolution timer
