@@ -161,12 +161,12 @@ describe('DI Tokens', () => {
   });
 
   describe('Token Count', () => {
-    it('should have exactly 13 tokens defined', () => {
+    it('should have exactly 14 tokens defined', () => {
       const exportedSymbols = Object.values(tokens).filter(
         (value) => typeof value === 'symbol',
       );
 
-      expect(exportedSymbols.length).toBe(13);
+      expect(exportedSymbols.length).toBe(14);
     });
 
     it('should export no additional non-symbol values', () => {
