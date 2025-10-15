@@ -1,6 +1,6 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.3.7
+**Version:** 2.4.0
 **Target Project:** mcp-ts-template
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
@@ -28,6 +28,8 @@ This document defines the operational rules for contributing to this codebase. F
 
 4.  **Decoupled Storage**
     - Never access persistence backends directly. Always use DI-injected `StorageService`.
+    - `StorageService` provides built-in validation, opaque cursor pagination, and parallel batch operations.
+    - All inputs (tenant IDs, keys, prefixes) are validated before reaching providers.
 
 5.  **Local ↔ Edge Runtime Parity**
     - All features work with local transports (`stdio`/`http`) and Worker bundle (`build:worker` + `wrangler`).
@@ -181,7 +183,7 @@ Key pagination utilities (available from `@/utils/index.js`):
 
 - `extractCursor(meta)`: Extract cursor from request metadata
 - `paginateArray(items, cursor, defaultPageSize, maxPageSize, context)`: Paginate in-memory arrays
-- `encodeCursor(state)` / `decodeCursor(cursor, context)`: Manual cursor encoding/decoding
+- For **storage providers specifically**, use `encodeCursor(lastKey, tenantId)` / `decodeCursor(cursor, tenantId, context)` from `@/storage/core/storageValidation.js` for secure tenant-bound cursors
 
 **Important pagination notes:**
 
@@ -189,7 +191,8 @@ Key pagination utilities (available from `@/utils/index.js`):
 - Page sizes are server-controlled - clients cannot specify size
 - Invalid cursors throw `JsonRpcErrorCode.InvalidParams` (-32602)
 - Use `nextCursor` conditionally - only include if more results exist
-- See `src/utils/pagination/index.ts` for detailed implementation
+- **Storage cursors include tenant ID validation** to prevent cross-tenant attacks
+- See `src/utils/pagination/index.ts` for resource pagination and `src/storage/core/storageValidation.ts` for storage pagination
 
 ---
 
@@ -335,6 +338,12 @@ Key pagination utilities (available from `@/utils/index.js`):
 
 **Storage Providers:** `STORAGE_PROVIDER_TYPE` = `in-memory` (default) \| `filesystem` (Node) \| `supabase` \| `cloudflare-r2/kv` (Worker). Always use `StorageService` from DI.
 
+**Storage Capabilities (v2.4.0+):**
+- **Validation**: All inputs (tenant IDs, keys, prefixes, options) are validated via `src/storage/core/storageValidation.ts` before reaching providers
+- **Batch Operations**: `getMany()`, `setMany()`, `deleteMany()` use parallel execution where supported (FileSystem, InMemory, Cloudflare)
+- **Secure Pagination**: Opaque cursors with tenant ID binding prevent cross-tenant attacks
+- **TTL Support**: All providers handle `ttl=0` (immediate expiration) correctly
+
 #### Directly Imported Utilities (`src/utils/`)
 
 - `logger`, `requestContextService`, `sanitization`, `fetchWithTimeout`, `measureToolExecution`, `pdfParser`, `markdown()` from `@/utils/index.js`
@@ -436,6 +445,14 @@ All config validated via Zod in `src/config/index.ts`. Derives `serviceName`/`ve
 ## XIII. Multi-Tenancy & Storage Context
 
 **`StorageService` requires `context.tenantId`** (throws `McpError` if missing).
+
+**Tenant ID Validation (v2.4.0+):**
+- Maximum length: 128 characters
+- Allowed characters: alphanumeric, hyphens, underscores, dots
+- Must start and end with alphanumeric characters
+- No path traversal sequences (`../`, `..\\`)
+- No consecutive dots (`..`)
+- Validation occurs at `StorageService` layer before reaching providers
 
 **HTTP with Auth:** `tenantId` auto-extracted from JWT claim `'tid'` → propagated via `requestContextService.withAuthInfo()`.
 
