@@ -7,6 +7,33 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.4.4] - 2025-10-15
+
+### Fixed
+
+- **MCP STDIO Compliance**: Fixed ANSI color code pollution in STDIO transport mode to comply with MCP specification.
+  - Added critical color disabling logic in [src/index.ts:9-26](src/index.ts#L9-L26) that runs before any imports when in STDIO mode or HTTP mode without TTY.
+  - Logger now receives transport type parameter to ensure STDIO mode uses plain JSON output (no pino-pretty colors).
+  - Logs now correctly route to stderr (fd 2) instead of stdout (fd 1) to keep stdout clean for JSON-RPC messages.
+  - Added `NO_COLOR=1` and `FORCE_COLOR=0` environment variables to disable coloring library-wide.
+  - Enhanced [src/utils/internal/logger.ts:74-137](src/utils/internal/logger.ts#L74-L137) with transport-aware initialization logic.
+  - Added comprehensive test coverage in [tests/utils/internal/logger.int.test.ts:306-428](tests/utils/internal/logger.int.test.ts#L306-L428) verifying no ANSI codes in STDIO mode output.
+
+### Changed
+
+- **Dependency Organization**: Reorganized package.json to move all packages to devDependencies for template usage pattern.
+  - This reflects that the template is installed/cloned and dependencies are resolved by the end user.
+  - OpenTelemetry packages, Hono, MCP SDK, and all runtime dependencies now in devDependencies.
+  - No functional changes - all packages still installed and available at runtime.
+- **Script Formatting**: Standardized indentation in [scripts/update-coverage.ts:22-209](scripts/update-coverage.ts#L22-L209) from tabs to spaces for consistency.
+- **Configuration Cleanup**: Minor formatting improvements in CodeQL config (single quotes, removed empty line).
+
+### Documentation
+
+- **Logger API Enhancement**: Updated logger initialization signature to accept optional transport type parameter for proper STDIO mode handling.
+
+---
+
 ## [2.4.3] - 2025-10-15
 
 ### Changed
