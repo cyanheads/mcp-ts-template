@@ -284,7 +284,7 @@ Key pagination utilities (available from `@/utils/index.js`):
 - [ ] **10. Run quality checks**
 
   ```bash
-  bun devcheck
+  bun run devcheck
   ```
 
 - [ ] **11. Test your tool**
@@ -415,8 +415,8 @@ Key pagination utilities (available from `@/utils/index.js`):
 
 | Command                    | Purpose                                                                                        |
 | -------------------------- | ---------------------------------------------------------------------------------------------- |
-| `bun rebuild`              | Clean, rebuild, clear logs (after dep changes)                                                 |
-| `bun devcheck`             | **USE OFTEN** Lint, format, typecheck, security (flags: `--no-fix`, `--no-lint`, `--no-audit`) |
+| `bun run rebuild`          | Clean, rebuild, clear logs (after dep changes)                                                 |
+| `bun run devcheck`         | **USE OFTEN** Lint, format, typecheck, security (flags: `--no-fix`, `--no-lint`, `--no-audit`) |
 | `bun run test`             | Unit/integration tests                                                                         |
 | `bun run dev:stdio/http`   | Development mode                                                                               |
 | `bun run start:stdio/http` | Production mode (after build)                                                                  |
