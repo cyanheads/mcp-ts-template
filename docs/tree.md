@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-15 08:48:34
+Generated on: 2025-10-15 09:42:41
 
 ```
 mcp-ts-template
@@ -206,6 +206,11 @@ mcp-ts-template
 │   ├── config
 │   │   ├── index.int.test.ts
 │   │   └── index.test.ts
+│   ├── container
+│   │   ├── registrations
+│   │   │   ├── core.test.ts
+│   │   │   └── mcp.test.ts
+│   │   └── index.test.ts
 │   ├── mcp-server
 │   │   ├── prompts
 │   │   │   └── prompt-registration.test.ts
@@ -230,14 +235,19 @@ mcp-ts-template
 │   │   │   │   │   └── authUtils.test.ts
 │   │   │   │   ├── strategies
 │   │   │   │   │   └── jwtStrategy.test.ts
-│   │   │   │   └── authFactory.test.ts
+│   │   │   │   ├── authFactory.test.ts
+│   │   │   │   └── authMiddleware.test.ts
 │   │   │   ├── http
 │   │   │   │   └── sessionStore.test.ts
+│   │   │   ├── stdio
+│   │   │   │   └── stdioTransport.test.ts
 │   │   │   └── manager.test.ts
 │   │   └── server.test.ts.disabled
 │   ├── mocks
 │   │   ├── handlers.ts
 │   │   └── server.ts
+│   ├── scripts
+│   │   └── devdocs.test.ts
 │   ├── services
 │   │   └── llm
 │   │       └── providers

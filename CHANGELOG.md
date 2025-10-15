@@ -4,10 +4,21 @@ All notable changes to this project will be documented in this file.
 
 For changelog details prior to version 2.0.0, please refer to the [changelog/archive1.md](changelog/archive1.md) file.
 
-## [Unreleased]
+## [2.4.0] - 2025-10-15
 
 ### Added
 
+- **Opaque Cursor Pagination**: Implemented secure, opaque cursor encoding/decoding for pagination across all storage providers.
+  - Added `encodeCursor()` and `decodeCursor()` utilities in `src/storage/core/storageValidation.ts`.
+  - Cursors now include tenant ID validation to prevent tampering and cross-tenant access.
+  - Updated all storage providers (InMemory, FileSystem, Supabase, Cloudflare KV/R2) to use opaque cursors in `list()` operations.
+- **Performance Documentation**: Added detailed performance characteristics documentation for batch operations (`getMany`, `setMany`, `deleteMany`) in `IStorageProvider` interface.
+  - Documented parallelization strategies and I/O characteristics per provider.
+  - Clarified that Cloudflare KV/R2 use parallel fetches, Supabase uses SQL optimizations, FileSystem uses parallel I/O, and InMemory uses parallel Map operations.
+- **Empty Collection Guards**: Added early-return guards for empty arrays/maps in batch operations across all storage providers.
+  - `getMany([])` returns empty Map immediately without I/O.
+  - `setMany(new Map())` returns immediately as no-op.
+  - `deleteMany([])` returns 0 immediately without I/O.
 - **Test Coverage Expansion**: Significantly increased test coverage for critical infrastructure components.
   - Added `tests/container/index.test.ts` with 7 test cases for container composition and singleton behavior.
   - Added `tests/container/registrations/core.test.ts` with 14 test cases for core service registration (AppConfig, Logger, Storage, LLM, RateLimiter, Speech).
@@ -24,10 +35,40 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
   - Added `tests/services/llm/providers/openrouter.provider.test.ts` with 15 test cases for OpenRouter LLM provider covering constructor validation, parameter preparation, rate limiting, error handling, and streaming.
   - Added `tests/mcp-server/resources/resource-registration.test.ts` with 12 test cases for resource registry covering registration, validation, and definition handling.
   - Added `tests/mcp-server/tools/tool-registration.test.ts` for tool registry (passes devcheck, has runtime SDK import issues).
+  - Added `tests/scripts/devdocs.test.ts` for devdocs script validation.
   - Overall test suite now at **719 passing tests** (1 skipped) across **55 test files** with **82.42% function coverage** and **85.96% line coverage**.
+
+### Changed
+
+- **Storage Validation Refactoring**: Extracted and centralized all storage validation logic into `src/storage/core/storageValidation.ts`.
+  - Moved tenant ID validation from `StorageService.requireTenantId()` to shared `validateTenantId()` utility.
+  - Added new validation functions: `validateKey()`, `validatePrefix()`, and `validateStorageOptions()`.
+  - `StorageService` now validates all keys, prefixes, and options before delegating to providers.
+  - Improved error messages and security constraints documentation.
+  - Maximum tenant ID length reduced from 256 to 128 characters for consistency.
+- **Batch Operation Performance**: Refactored batch operations in FileSystem and InMemory providers to use parallel execution.
+  - `getMany()` now executes `get()` calls in parallel using `Promise.all()`.
+  - `setMany()` now executes `set()` calls in parallel using `Promise.all()`.
+  - `deleteMany()` now executes `delete()` calls in parallel using `Promise.all()`.
+  - Added detailed logging for batch operation results with counts.
+- **Pagination Consistency**: Standardized pagination cursor handling across all storage providers.
+  - All providers now use `encodeCursor()` to create opaque cursors with tenant ID validation.
+  - All providers now use `decodeCursor()` to validate and extract the last key from cursors.
+  - Fixed edge case where `nextCursor` could be set with empty result sets.
+- **Version Bump**: Incremented project version from `2.3.9` to `2.4.0` in `package.json` and `server.json`.
 
 ### Fixed
 
+- **TTL Edge Case**: Fixed TTL handling for `ttl=0` (immediate expiration) across all storage providers.
+  - Changed from truthy check (`options?.ttl`) to explicit undefined check (`options?.ttl !== undefined`).
+  - Affects: InMemoryProvider, FileSystemProvider, SupabaseProvider, KvProvider, R2Provider.
+  - Now correctly handles `ttl=0` as "expire immediately" rather than "no expiration".
+- **Storage Options Validation**: Enhanced `validateStorageOptions()` to clarify that `ttl=0` is valid for immediate expiration.
+  - Updated error message from "TTL must be a non-negative number" to "TTL must be a non-negative number. Use 0 for immediate expiration."
+- **Regex Injection Prevention**: Hardened glob pattern matching in `scripts/devdocs.ts` to prevent ReDoS attacks.
+  - Added comprehensive regex escaping for all special characters before converting globs to regex.
+  - Used placeholder technique to preserve glob wildcards (`*` and `**`) during escaping.
+  - Added detailed security documentation explaining the prevention of regex injection from user-provided patterns.
 - **Test Suite Improvements**: Fixed multiple test issues to ensure reliable execution.
   - Fixed TypeScript errors with Hono mock signatures by handling all three `header()` method overloads (single parameter, string parameter, no parameters returning Record).
   - Fixed container lifecycle management by using `beforeAll()` instead of `beforeEach()` for singleton container composition.
@@ -41,6 +82,11 @@ For changelog details prior to version 2.0.0, please refer to the [changelog/arc
   - Added proper DI container registration in auth factory tests.
   - Fixed `tests/setup.ts` to include `ResourceTemplate` mock export, resolving SDK import errors in resource-related tests.
   - Established pattern for mocking complex SDK types using `any` or `Record<string, unknown>` to avoid strict type checking issues in tests.
+
+### Security
+
+- **Cursor Tampering Prevention**: Opaque cursors now cryptographically bind pagination state to tenant ID, preventing cross-tenant cursor reuse attacks.
+- **Regex DoS Prevention**: Enhanced glob pattern matching to properly escape all regex special characters, preventing ReDoS attacks from malicious CLI arguments or config files.
 
 ## [2.3.9] - 2025-10-14
 
