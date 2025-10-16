@@ -245,11 +245,11 @@ export class MigrationRunner {
           success: true,
           duration,
         };
-      } catch (error) {
+      } catch (error: unknown) {
         await this.client.query('CANCEL TRANSACTION');
         throw error;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       const errorMsg = error instanceof Error ? error.message : String(error);
 

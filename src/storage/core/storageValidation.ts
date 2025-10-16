@@ -418,7 +418,7 @@ export function decodeCursor(
     }
 
     return data.k;
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof McpError) {
       throw error;
     }

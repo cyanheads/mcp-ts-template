@@ -44,7 +44,7 @@ export class KvProvider implements IStorageProvider {
         try {
           const result = await this.kv.get<T>(kvKey, 'json');
           return result; // null indicates not found
-        } catch (error) {
+        } catch (error: unknown) {
           throw new McpError(
             JsonRpcErrorCode.SerializationError,
             `[KvProvider] Failed to parse JSON for key: ${kvKey}`,

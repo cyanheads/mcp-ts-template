@@ -147,7 +147,7 @@ export class ConnectionManager {
             healthy: true,
             responseTime,
           };
-        } catch (error) {
+        } catch (error: unknown) {
           this.isConnected = false;
           return {
             healthy: false,

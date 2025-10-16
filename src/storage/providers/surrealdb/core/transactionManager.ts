@@ -69,7 +69,7 @@ export class TransactionManager {
           logger.debug('[TransactionManager] Transaction committed', context);
 
           return result as T;
-        } catch (error) {
+        } catch (error: unknown) {
           // Cancel transaction on error
           logger.warning(
             '[TransactionManager] Transaction failed, cancelling',

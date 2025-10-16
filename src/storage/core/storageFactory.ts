@@ -149,10 +149,26 @@ export function createStorageProvider(
       return container.resolve(SurrealKvProvider);
     case 'cloudflare-r2':
       if (isServerless) {
-        const bucket =
-          deps.r2Bucket ??
-          (globalThis as unknown as { R2_BUCKET: R2Bucket }).R2_BUCKET;
-        return new R2Provider(bucket);
+        if (deps.r2Bucket) {
+          return new R2Provider(deps.r2Bucket);
+        }
+
+        // Type guard to check if globalThis has R2_BUCKET binding
+        function hasR2Bucket(obj: unknown): obj is { R2_BUCKET: R2Bucket } {
+          return typeof obj === 'object' && obj !== null && 'R2_BUCKET' in obj;
+        }
+
+        const globalWithBinding: unknown = globalThis;
+        if (!hasR2Bucket(globalWithBinding)) {
+          throw new McpError(
+            JsonRpcErrorCode.ConfigurationError,
+            'R2_BUCKET binding not available in globalThis. Ensure wrangler.toml is configured correctly.',
+            context,
+          );
+        }
+
+        // After type guard, globalWithBinding is narrowed to { R2_BUCKET: R2Bucket }
+        return new R2Provider(globalWithBinding.R2_BUCKET);
       }
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
@@ -161,10 +177,30 @@ export function createStorageProvider(
       );
     case 'cloudflare-kv':
       if (isServerless) {
-        const kv =
-          deps.kvNamespace ??
-          (globalThis as unknown as { KV_NAMESPACE: KVNamespace }).KV_NAMESPACE;
-        return new KvProvider(kv);
+        if (deps.kvNamespace) {
+          return new KvProvider(deps.kvNamespace);
+        }
+
+        // Type guard to check if globalThis has KV_NAMESPACE binding
+        function hasKVNamespace(
+          obj: unknown,
+        ): obj is { KV_NAMESPACE: KVNamespace } {
+          return (
+            typeof obj === 'object' && obj !== null && 'KV_NAMESPACE' in obj
+          );
+        }
+
+        const globalWithBinding: unknown = globalThis;
+        if (!hasKVNamespace(globalWithBinding)) {
+          throw new McpError(
+            JsonRpcErrorCode.ConfigurationError,
+            'KV_NAMESPACE binding not available in globalThis. Ensure wrangler.toml is configured correctly.',
+            context,
+          );
+        }
+
+        // After type guard, globalWithBinding is narrowed to { KV_NAMESPACE: KVNamespace }
+        return new KvProvider(globalWithBinding.KV_NAMESPACE);
       }
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,

@@ -130,7 +130,7 @@ export class FileSystemProvider implements IStorageProvider {
       }
       // Legacy: return parsed directly
       return parsed as T;
-    } catch (error) {
+    } catch (error: unknown) {
       throw new McpError(
         JsonRpcErrorCode.SerializationError,
         `Failed to parse stored JSON for key "${key}" (tenant "${tenantId}").`,
@@ -156,7 +156,7 @@ export class FileSystemProvider implements IStorageProvider {
             filePath,
             context,
           );
-        } catch (error) {
+        } catch (error: unknown) {
           if (
             error instanceof Error &&
             'code' in error &&
@@ -209,7 +209,7 @@ export class FileSystemProvider implements IStorageProvider {
         try {
           await rm(filePath);
           return true;
-        } catch (error) {
+        } catch (error: unknown) {
           if (
             error instanceof Error &&
             'code' in error &&

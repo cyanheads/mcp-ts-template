@@ -75,7 +75,7 @@ export class R2Provider implements IStorageProvider {
       }
       // legacy: direct value
       return parsed as T;
-    } catch (error) {
+    } catch (error: unknown) {
       throw new McpError(
         JsonRpcErrorCode.SerializationError,
         `[R2Provider] Failed to parse JSON for key: ${this.getR2Key(
