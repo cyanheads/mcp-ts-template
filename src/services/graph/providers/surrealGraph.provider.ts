@@ -19,6 +19,7 @@ import type {
   TraversalOptions,
   PathOptions,
 } from '../core/IGraphProvider.js';
+import type { GraphStats } from '../types.js';
 
 /**
  * SurrealDB graph provider implementation.
@@ -127,41 +128,50 @@ export class SurrealGraphProvider implements IGraphProvider {
       async () => {
         const maxDepth = options?.maxDepth ?? 1;
         const direction = options?.direction ?? 'out';
-
-        // Build traversal operator
         const operator = this.getTraversalOperator(direction);
 
-        // Build WHERE clause if needed
+        // Build edge filter
+        const edgeFilter = options?.edgeTypes?.length
+          ? options.edgeTypes.join('|')
+          : '';
+        // Note: vertexTypes filtering would require more complex query structure
+        // and is left for future enhancement
         const whereClause = options?.where ? `WHERE ${options.where}` : '';
 
-        // For multi-hop traversal, use recursive traversal syntax
-        const depthOperator =
-          maxDepth > 1 ? `${operator.repeat(maxDepth)}` : operator;
+        // Build the path expression
+        // For simple cases, use depth range syntax: 1..maxDepth
+        const simplePath = edgeFilter
+          ? `1..${maxDepth}${operator}${edgeFilter}`
+          : `1..${maxDepth}${operator}`;
 
         const query = `
           SELECT
-            id,
-            ${depthOperator} as connections
+            *,
+            (SELECT * FROM ONLY $startVertex) as startNode,
+            ${simplePath} as paths
           FROM $startVertex
           ${whereClause}
         `;
+
+        logger.debug(
+          `[SurrealGraphProvider] Traversing from ${startVertexId} with depth ${maxDepth}`,
+          context,
+        );
 
         const result = await this.client.query<
           [
             {
               result: Array<{
-                id: string;
-                connections: unknown[];
+                startNode: Record<string, unknown>;
+                paths: Array<Record<string, unknown>> | Record<string, unknown>;
               }>;
             },
           ]
-        >(query, {
-          startVertex: startVertexId,
-        });
+        >(query, { startVertex: startVertexId });
 
         const data = result[0]?.result?.[0];
 
-        if (!data) {
+        if (!data?.startNode) {
           throw new McpError(
             JsonRpcErrorCode.InvalidParams,
             `Vertex not found: ${startVertexId}`,
@@ -169,15 +179,93 @@ export class SurrealGraphProvider implements IGraphProvider {
           );
         }
 
-        // Transform result into TraversalResult format
-        // This is simplified - full implementation would parse the connections
+        // Convert startNode to Vertex format
+        const startVertex = {
+          id: (data.startNode.id as string) || startVertexId,
+          table: this.extractTableName(
+            (data.startNode.id as string) || startVertexId,
+          ),
+          data: Object.fromEntries(
+            Object.entries(data.startNode).filter(([key]) => key !== 'id'),
+          ),
+        };
+
+        // Parse paths - SurrealDB returns either an array of nodes or nested structure
+        const pathsArray = Array.isArray(data.paths)
+          ? data.paths
+          : data.paths
+            ? [data.paths]
+            : [];
+
+        const parsedPaths: GraphPath[] = [];
+
+        // Process each path
+        for (const pathElement of pathsArray) {
+          if (typeof pathElement === 'object' && pathElement !== null) {
+            const graphPath: GraphPath = { vertices: [], edges: [] };
+
+            // Handle both flat and nested structures
+            const elements = Array.isArray(pathElement)
+              ? pathElement
+              : [pathElement];
+
+            for (const element of elements) {
+              if (typeof element === 'object' && element !== null) {
+                // Check if it's an edge (has 'in' and 'out' properties)
+                if ('in' in element && 'out' in element) {
+                  const elem = element as Record<string, unknown>;
+                  const elementId =
+                    typeof elem.id === 'string' ? elem.id : String(elem.id);
+                  const elementOut =
+                    typeof elem.out === 'string' ? elem.out : String(elem.out);
+                  const elementIn =
+                    typeof elem.in === 'string' ? elem.in : String(elem.in);
+
+                  const edge: Edge = {
+                    id: elementId || '',
+                    table: this.extractTableName(elementId || ''),
+                    from: elementOut || '',
+                    to: elementIn || '',
+                    data: Object.fromEntries(
+                      Object.entries(elem).filter(
+                        ([key]) => !['id', 'in', 'out'].includes(key),
+                      ),
+                    ),
+                  };
+                  graphPath.edges.push(edge);
+                } else {
+                  // It's a vertex
+                  const elem = element as Record<string, unknown>;
+                  const elementId =
+                    typeof elem.id === 'string' ? elem.id : String(elem.id);
+
+                  const vertex = {
+                    id: elementId || '',
+                    table: this.extractTableName(elementId || ''),
+                    data: Object.fromEntries(
+                      Object.entries(elem).filter(([key]) => key !== 'id'),
+                    ),
+                  };
+                  graphPath.vertices.push(vertex);
+                }
+              }
+            }
+
+            // Only add paths that have content
+            if (graphPath.vertices.length > 0 || graphPath.edges.length > 0) {
+              parsedPaths.push(graphPath);
+            }
+          }
+        }
+
+        logger.debug(
+          `[SurrealGraphProvider] Found ${parsedPaths.length} paths from ${startVertexId}`,
+          context,
+        );
+
         return {
-          start: {
-            id: startVertexId,
-            table: this.extractTableName(startVertexId),
-            data: {},
-          },
-          paths: [], // TODO: Parse connections into paths
+          start: startVertex,
+          paths: parsedPaths,
         };
       },
       {
@@ -196,34 +284,76 @@ export class SurrealGraphProvider implements IGraphProvider {
   ): Promise<GraphPath | null> {
     return ErrorHandler.tryCatch(
       async () => {
-        // Use recursive traversal to find paths
-        const query = `
-          SELECT * FROM (
-            SELECT
-              id,
-              ->->->->->->->->->-> as paths
-            FROM $from
-          )
-          WHERE $to IN paths..id
-          LIMIT 1
-        `;
+        // Use SurrealDB's built-in shortest path function
+        const query = 'SELECT graph::shortest_path($from, $to) AS path;';
 
-        const result = await this.client.query<[{ result: unknown[] }]>(query, {
-          from,
-          to,
-        });
+        const result = await this.client.query<
+          [{ result: Array<{ path: Array<Record<string, unknown>> | null }> }]
+        >(query, { from, to });
 
-        const data = result[0]?.result;
+        const pathData = result[0]?.result?.[0]?.path;
 
-        if (!data || data.length === 0) {
+        if (!pathData || pathData.length === 0) {
+          logger.debug(
+            `[SurrealGraphProvider] No path found from ${from} to ${to}`,
+            context,
+          );
           return null;
         }
 
-        // TODO: Parse result into GraphPath format
-        return {
+        // Parse the mixed array of vertices and edges into a GraphPath object
+        const graphPath: GraphPath = {
           vertices: [],
           edges: [],
+          weight: pathData.length - 1, // Simple weight based on hop count
         };
+
+        for (const element of pathData) {
+          // Edges have 'in' and 'out' properties in SurrealDB
+          if ('in' in element && 'out' in element) {
+            const elementId =
+              typeof element.id === 'string' ? element.id : String(element.id);
+            const elementOut =
+              typeof element.out === 'string'
+                ? element.out
+                : String(element.out);
+            const elementIn =
+              typeof element.in === 'string' ? element.in : String(element.in);
+
+            const edge: Edge = {
+              id: elementId || '',
+              table: this.extractTableName(elementId || ''),
+              from: elementOut || '',
+              to: elementIn || '',
+              data: Object.fromEntries(
+                Object.entries(element).filter(
+                  ([key]) => !['id', 'in', 'out'].includes(key),
+                ),
+              ),
+            };
+            graphPath.edges.push(edge);
+          } else {
+            // It's a vertex
+            const elementId =
+              typeof element.id === 'string' ? element.id : String(element.id);
+
+            const vertex = {
+              id: elementId || '',
+              table: this.extractTableName(elementId || ''),
+              data: Object.fromEntries(
+                Object.entries(element).filter(([key]) => key !== 'id'),
+              ),
+            };
+            graphPath.vertices.push(vertex);
+          }
+        }
+
+        logger.debug(
+          `[SurrealGraphProvider] Found path from ${from} to ${to} with ${graphPath.vertices.length} vertices and ${graphPath.edges.length} edges`,
+          context,
+        );
+
+        return graphPath;
       },
       {
         operation: 'SurrealGraphProvider.shortestPath',
@@ -236,25 +366,24 @@ export class SurrealGraphProvider implements IGraphProvider {
   async getOutgoingEdges(
     vertexId: string,
     context: RequestContext,
-    _edgeTypes?: string[],
+    edgeTypes?: string[],
   ): Promise<Edge[]> {
     return ErrorHandler.tryCatch(
       async () => {
-        const query = `
-          SELECT -> as edges FROM $vertexId
-        `;
+        const edgeFilter = edgeTypes?.length ? edgeTypes.join('|') : '';
+        const query = `SELECT ->${edgeFilter} as edges FROM ONLY $vertexId`;
 
         const result = await this.client.query<
           [{ result: Array<{ edges: Edge[] }> }]
         >(query, { vertexId });
 
         const edges = result[0]?.result?.[0]?.edges ?? [];
-        return edges;
+        return Array.isArray(edges) ? edges : []; // Ensure result is always an array
       },
       {
         operation: 'SurrealGraphProvider.getOutgoingEdges',
         context,
-        input: { vertexId },
+        input: { vertexId, edgeTypes },
       },
     );
   }
@@ -262,23 +391,24 @@ export class SurrealGraphProvider implements IGraphProvider {
   async getIncomingEdges(
     vertexId: string,
     context: RequestContext,
-    _edgeTypes?: string[],
+    edgeTypes?: string[],
   ): Promise<Edge[]> {
     return ErrorHandler.tryCatch(
       async () => {
-        const query = `SELECT <- as edges FROM $vertexId`;
+        const edgeFilter = edgeTypes?.length ? edgeTypes.join('|') : '';
+        const query = `SELECT <-${edgeFilter} as edges FROM ONLY $vertexId`;
 
         const result = await this.client.query<
           [{ result: Array<{ edges: Edge[] }> }]
         >(query, { vertexId });
 
         const edges = result[0]?.result?.[0]?.edges ?? [];
-        return edges;
+        return Array.isArray(edges) ? edges : []; // Ensure result is always an array
       },
       {
         operation: 'SurrealGraphProvider.getIncomingEdges',
         context,
-        input: { vertexId },
+        input: { vertexId, edgeTypes },
       },
     );
   }
@@ -291,15 +421,121 @@ export class SurrealGraphProvider implements IGraphProvider {
   ): Promise<boolean> {
     return ErrorHandler.tryCatch(
       async () => {
-        const path = await this.shortestPath(from, to, context, {
-          maxLength: maxDepth,
-        });
-        return path !== null;
+        // Use the efficient path finding function and check for existence
+        const query = 'SELECT graph::shortest_path($from, $to) AS path;';
+        const result = await this.client.query<
+          [{ result: Array<{ path: unknown[] | null }> }]
+        >(query, { from, to });
+
+        const path = result[0]?.result?.[0]?.path;
+        // Check if path exists and respects maxDepth
+        // Path length = vertices + edges, so for maxDepth hops, max length is (maxDepth * 2 + 1)
+        return (
+          path !== null && path !== undefined && path.length <= maxDepth * 2 + 1
+        );
       },
       {
         operation: 'SurrealGraphProvider.pathExists',
         context,
         input: { from, to, maxDepth },
+      },
+    );
+  }
+
+  async getStats(context: RequestContext): Promise<GraphStats> {
+    return ErrorHandler.tryCatch(
+      async () => {
+        logger.debug(
+          '[SurrealGraphProvider] Getting graph statistics',
+          context,
+        );
+
+        // Get database info to list all tables
+        const infoResult = await this.client.query<
+          [
+            {
+              result: Array<{
+                tables: Record<
+                  string,
+                  {
+                    drop: boolean;
+                    full: boolean;
+                    kind: string;
+                    permissions: Record<string, unknown>;
+                  }
+                >;
+              }>;
+            },
+          ]
+        >('INFO FOR DB;');
+
+        const tables = infoResult[0]?.result?.[0]?.tables ?? {};
+
+        const vertexTypes: Record<string, number> = {};
+        const edgeTypes: Record<string, number> = {};
+        let vertexCount = 0;
+        let edgeCount = 0;
+
+        // Query each table to determine if it's a vertex or edge table
+        const countPromises = Object.keys(tables).map(async (tableName) => {
+          try {
+            // Check if table has IN/OUT fields (edge table)
+            // Query a sample record to check structure
+            const sampleQuery = `SELECT * FROM ${tableName} LIMIT 1;`;
+            const sampleResult =
+              await this.client.query<
+                [{ result: Array<Record<string, unknown>> }]
+              >(sampleQuery);
+            const sample = sampleResult[0]?.result?.[0];
+
+            const isEdge = sample && 'in' in sample && 'out' in sample;
+
+            // Count records in this table
+            const countQuery = `SELECT count() FROM ${tableName} GROUP ALL;`;
+            const countResult =
+              await this.client.query<[{ result: Array<{ count: number }> }]>(
+                countQuery,
+              );
+            const count = countResult[0]?.result?.[0]?.count ?? 0;
+
+            if (isEdge) {
+              edgeTypes[tableName] = count;
+              edgeCount += count;
+            } else {
+              vertexTypes[tableName] = count;
+              vertexCount += count;
+            }
+          } catch (error) {
+            // If there's an error querying this table, log and continue
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            logger.debug(
+              `[SurrealGraphProvider] Error querying table ${tableName}: ${errorMessage}`,
+              context,
+            );
+          }
+        });
+
+        await Promise.all(countPromises);
+
+        const stats: GraphStats = {
+          vertexCount,
+          edgeCount,
+          avgDegree: vertexCount > 0 ? edgeCount / vertexCount : 0,
+          vertexTypes,
+          edgeTypes,
+        };
+
+        logger.debug(
+          `[SurrealGraphProvider] Graph stats: ${vertexCount} vertices, ${edgeCount} edges`,
+          context,
+        );
+
+        return stats;
+      },
+      {
+        operation: 'SurrealGraphProvider.getStats',
+        context,
       },
     );
   }
