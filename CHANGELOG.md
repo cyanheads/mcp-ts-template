@@ -7,6 +7,48 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.4.9] - 2025-10-16
+
+### Changed
+
+- **TypeScript Error Handling Strictness**: Enforced `useUnknownInCatchVariables` across the entire codebase for improved type safety.
+  - Added `useUnknownInCatchVariables: true` to [tsconfig.json](tsconfig.json) to enforce strict error typing in catch clauses.
+  - Updated all catch blocks throughout the codebase to use `catch (error: unknown)` instead of untyped `catch (error)`.
+  - Affects 32 files including core infrastructure, storage providers, services, transports, and utilities.
+  - Improves type safety by preventing implicit `any` typing in error handlers.
+- **Cloudflare Worker Type Safety**: Enhanced type guards and validation for Cloudflare runtime bindings.
+  - Implemented strict type guards for R2 and KV namespace bindings in [src/storage/core/storageFactory.ts](src/storage/core/storageFactory.ts).
+  - Added explicit error messages when bindings are not available in `globalThis`, guiding developers to check `wrangler.toml` configuration.
+  - Replaced unsafe type assertions with proper type narrowing after validation.
+  - Implemented type-safe log level validation in [src/worker.ts](src/worker.ts) with explicit `ValidLogLevel` union type.
+  - Replaced deprecated `IncomingRequestCfProperties` interface with `@cloudflare/workers-types` standard `CfProperties` type.
+  - Improved type safety when accessing Cloudflare request metadata (`request.cf` property).
+- **OpenTelemetry Type Improvements**: Enhanced metrics registry with proper no-op implementations.
+  - Added explicit `NoOpCounter` and `NoOpHistogram` interfaces in [src/utils/metrics/registry.ts](src/utils/metrics/registry.ts).
+  - Replaced unsafe `as unknown as Counter/Histogram` casts with properly typed no-op implementations.
+  - Added comprehensive JSDoc documentation for metrics creation functions.
+  - Added `getMeter()` return type annotation as `Meter` for better type inference.
+- **Performance Monitoring Types**: Improved `NodeJS.MemoryUsage` type definitions in [src/utils/internal/performance.ts](src/utils/internal/performance.ts).
+  - Replaced incomplete memory usage mock objects with complete `NodeJS.MemoryUsage` satisfying all required fields.
+  - Added all required fields: `rss`, `heapUsed`, `heapTotal`, `external`, `arrayBuffers`.
+  - Used `satisfies` keyword for compile-time validation without type widening.
+- **Hono Middleware Types**: Added explicit `MiddlewareHandler` return type to `createAuthMiddleware()` in [src/mcp-server/transports/auth/authMiddleware.ts](src/mcp-server/transports/auth/authMiddleware.ts) for better type inference.
+- **Worker Application Types**: Improved type compatibility between HTTP and Worker environments in [src/worker.ts](src/worker.ts).
+  - Added explanatory comments about structural compatibility of Hono app types across runtime environments.
+  - Clarified use of intermediate `unknown` type for Cloudflare Workers-specific bindings.
+- **Dependencies**: Updated `@types/node` from `24.7.2` to `24.8.0` in [package.json](package.json) and [bun.lock](bun.lock).
+
+### Fixed
+
+- **Documentation**: Fixed markdown escaping in [CHANGELOG.md](CHANGELOG.md) for proper rendering of multiplication operator in path validation description.
+
+### Documentation
+
+- **Tree Structure**: Updated [docs/tree.md](docs/tree.md) generation timestamp to 2025-10-16 13:51:33.
+- **Type Safety**: All catch blocks now explicitly declare `error: unknown` for improved code clarity and type safety.
+
+---
+
 ## [2.4.8] - 2025-10-16
 
 ### Added
@@ -33,7 +75,7 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
   - Improved error handling and null result detection.
 - **Path Existence Check**: Optimized path validation with native graph functions.
   - Updated `pathExists()` to use `graph::shortest_path()` instead of wrapper method.
-  - Added depth validation to respect `maxDepth` parameter (path length ≤ maxDepth * 2 + 1).
+  - Added depth validation to respect `maxDepth` parameter (path length ≤ maxDepth \* 2 + 1).
   - Improved performance by using direct graph function instead of intermediate calls.
 - **Edge Retrieval Enhancement**: Improved edge filtering and result handling.
   - Enhanced `getOutgoingEdges()` and `getIncomingEdges()` to properly apply edge type filters.
