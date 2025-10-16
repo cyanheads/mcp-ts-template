@@ -14,6 +14,7 @@ import type {
   TraversalOptions,
   PathOptions,
 } from './IGraphProvider.js';
+import type { GraphStats } from '../types.js';
 
 /**
  * Service for managing graph database operations.
@@ -181,6 +182,17 @@ export class GraphService {
     maxDepth?: number,
   ): Promise<boolean> {
     return this.provider.pathExists(from, to, context, maxDepth);
+  }
+
+  /**
+   * Get statistics about the graph.
+   *
+   * @param context - Request context
+   * @returns Graph statistics including vertex/edge counts and type distributions
+   */
+  async getStats(context: RequestContext): Promise<GraphStats> {
+    logger.debug('[GraphService] Getting graph statistics', context);
+    return this.provider.getStats(context);
   }
 
   /**

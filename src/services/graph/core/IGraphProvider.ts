@@ -5,6 +5,7 @@
  */
 
 import type { RequestContext } from '@/utils/index.js';
+import type { GraphStats } from '../types.js';
 
 /**
  * Direction for graph traversal.
@@ -212,6 +213,14 @@ export interface IGraphProvider {
     context: RequestContext,
     maxDepth?: number,
   ): Promise<boolean>;
+
+  /**
+   * Get statistics about the graph.
+   *
+   * @param context - Request context for logging
+   * @returns Graph statistics including vertex/edge counts and type distributions
+   */
+  getStats(context: RequestContext): Promise<GraphStats>;
 
   /**
    * Perform health check on the provider.
