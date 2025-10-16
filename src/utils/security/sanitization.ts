@@ -375,7 +375,7 @@ export class Sanitization {
         );
       }
       return trimmedInput;
-    } catch (error) {
+    } catch (error: unknown) {
       throw new McpError(
         JsonRpcErrorCode.ValidationError,
         error instanceof Error
@@ -488,7 +488,7 @@ export class Sanitization {
           !effectiveOptions.allowAbsolute,
         optionsUsed: effectiveOptions,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.warning(
         'Path sanitization error',
         requestContextService.createRequestContext({
@@ -548,7 +548,7 @@ export class Sanitization {
       }
 
       return JSON.parse(input) as T;
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof McpError) throw error;
       throw new McpError(
         JsonRpcErrorCode.ValidationError,
@@ -661,7 +661,7 @@ export class Sanitization {
           : JSON.parse(JSON.stringify(input));
       this.redactSensitiveFields(clonedInput);
       return clonedInput;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(
         'Error during log sanitization, returning placeholder.',
         requestContextService.createRequestContext({

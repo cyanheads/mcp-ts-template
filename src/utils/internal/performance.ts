@@ -117,7 +117,13 @@ export async function measureToolExecution<T>(
         typeof process !== 'undefined' &&
         typeof process.memoryUsage === 'function'
           ? process.memoryUsage()
-          : ({ rss: 0, heapUsed: 0 } as unknown as NodeJS.MemoryUsage);
+          : ({
+              rss: 0,
+              heapUsed: 0,
+              heapTotal: 0,
+              external: 0,
+              arrayBuffers: 0,
+            } satisfies NodeJS.MemoryUsage);
       const t0 = nowMs();
 
       span.setAttributes({
@@ -157,7 +163,13 @@ export async function measureToolExecution<T>(
           typeof process !== 'undefined' &&
           typeof process.memoryUsage === 'function'
             ? process.memoryUsage()
-            : ({ rss: 0, heapUsed: 0 } as unknown as NodeJS.MemoryUsage);
+            : ({
+                rss: 0,
+                heapUsed: 0,
+                heapTotal: 0,
+                external: 0,
+                arrayBuffers: 0,
+              } satisfies NodeJS.MemoryUsage);
 
         const rssDelta = memAfter.rss - memBefore.rss;
         const heapUsedDelta = memAfter.heapUsed - memBefore.heapUsed;

@@ -79,7 +79,7 @@ export async function fetchWithTimeout(
       context,
     );
     return response;
-  } catch (error) {
+  } catch (error: unknown) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === 'AbortError') {
       logger.error(`${operationDescription} timed out after ${timeoutMs}ms.`, {

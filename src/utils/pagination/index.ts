@@ -55,7 +55,7 @@ export function encodeCursor(state: PaginationState): string {
     const jsonString = JSON.stringify(state);
     const base64 = Buffer.from(jsonString, 'utf-8').toString('base64url');
     return base64;
-  } catch (error) {
+  } catch (error: unknown) {
     throw new McpError(
       JsonRpcErrorCode.InternalError,
       'Failed to encode pagination cursor',
@@ -92,7 +92,7 @@ export function decodeCursor(
     }
 
     return state;
-  } catch (error) {
+  } catch (error: unknown) {
     logger.warning('Failed to decode pagination cursor', {
       ...context,
       cursor,

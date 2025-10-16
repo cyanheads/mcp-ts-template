@@ -190,7 +190,7 @@ export async function withSpan<T>(
       const result = await fn(span);
       span.setStatus({ code: SpanStatusCode.OK });
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       span.recordException(
         error instanceof Error ? error : new Error(String(error)),
       );

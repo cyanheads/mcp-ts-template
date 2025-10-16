@@ -8,6 +8,7 @@ import {
   metrics,
   type Counter,
   type Histogram,
+  type Meter,
   type ObservableGauge,
 } from '@opentelemetry/api';
 
@@ -26,7 +27,7 @@ import { config } from '@/config/index.js';
  * const queryCounter = meter.createCounter('db.queries');
  * ```
  */
-export function getMeter(name?: string) {
+export function getMeter(name?: string): Meter {
   return metrics.getMeter(
     name ?? config.openTelemetry.serviceName,
     config.openTelemetry.serviceVersion,

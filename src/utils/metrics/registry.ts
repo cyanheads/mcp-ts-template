@@ -9,6 +9,7 @@ import {
   type Attributes,
   type Counter,
   type Histogram,
+  type Meter,
   type MetricOptions,
   metrics,
 } from '@opentelemetry/api';
@@ -21,7 +22,43 @@ type HistogramMap = Map<string, Histogram>;
 const counters: CounterMap = new Map();
 const histograms: HistogramMap = new Map();
 
-function getMeter() {
+/**
+ * No-op counter implementation for when OpenTelemetry is disabled.
+ * This provides a type-safe mock that satisfies the Counter interface.
+ */
+interface NoOpCounter {
+  add: (value: number, attributes?: Attributes) => void;
+  bind: (attributes: Attributes) => { add: (value: number) => void };
+  unbind: (attributes: Attributes) => void;
+}
+
+/**
+ * No-op histogram implementation for when OpenTelemetry is disabled.
+ * This provides a type-safe mock that satisfies the Histogram interface.
+ */
+interface NoOpHistogram {
+  record: (value: number, attributes?: Attributes) => void;
+  bind: (attributes: Attributes) => { record: (value: number) => void };
+  unbind: (attributes: Attributes) => void;
+}
+
+const noOpCounter: NoOpCounter = {
+  add: () => undefined,
+  bind: () => ({ add: () => undefined }),
+  unbind: () => undefined,
+};
+
+const noOpHistogram: NoOpHistogram = {
+  record: () => undefined,
+  bind: () => ({ record: () => undefined }),
+  unbind: () => undefined,
+};
+
+/**
+ * Gets the OpenTelemetry meter for creating metrics.
+ * @returns The configured Meter instance
+ */
+function getMeter(): Meter {
   return metrics.getMeter(
     config.openTelemetry.serviceName,
     config.openTelemetry.serviceVersion,
@@ -38,11 +75,8 @@ function getCounter(
   unit?: string,
 ): Counter {
   if (!isEnabled()) {
-    return {
-      add: () => undefined,
-      bind: () => ({ add: () => undefined }),
-      unbind: () => undefined,
-    } as unknown as Counter;
+    // Return the typed no-op counter which is compatible with Counter interface
+    return noOpCounter as unknown as Counter;
   }
   const key = `${name}|${description ?? ''}|${unit ?? ''}`;
   const existing = counters.get(key);
@@ -63,11 +97,8 @@ function getHistogram(
   unit?: string,
 ): Histogram {
   if (!isEnabled()) {
-    return {
-      record: () => undefined,
-      bind: () => ({ record: () => undefined }),
-      unbind: () => undefined,
-    } as unknown as Histogram;
+    // Return the typed no-op histogram which is compatible with Histogram interface
+    return noOpHistogram as unknown as Histogram;
   }
   const key = `${name}|${description ?? ''}|${unit ?? ''}`;
   const existing = histograms.get(key);
