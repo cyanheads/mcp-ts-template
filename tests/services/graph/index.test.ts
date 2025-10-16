@@ -99,6 +99,14 @@ describe('Graph Service Barrel Exports', () => {
         getOutgoingEdges: async () => [],
         getIncomingEdges: async () => [],
         pathExists: async () => false,
+        getStats: async () =>
+          ({
+            vertexCount: 0,
+            edgeCount: 0,
+            avgDegree: 0,
+            vertexTypes: {},
+            edgeTypes: {},
+          }) as GraphModule.GraphStats,
         healthCheck: async () => true,
       };
 

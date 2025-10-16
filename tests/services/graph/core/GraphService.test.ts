@@ -26,6 +26,7 @@ class MockGraphProvider implements IGraphProvider {
   getOutgoingEdges = vi.fn();
   getIncomingEdges = vi.fn();
   pathExists = vi.fn();
+  getStats = vi.fn();
   healthCheck = vi.fn();
 }
 
