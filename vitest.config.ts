@@ -11,8 +11,8 @@ export default defineConfig({
     pool: 'forks',
     poolOptions: {
       forks: {
-        maxForks: 10, // Use 10 of 12 available cores for maximum speed
-        minForks: 2, // Start with 2, scale up as needed
+        maxForks: 11, // Use 11 of 12 available cores for maximum speed
+        minForks: 8, // Start with 8 workers for minimal ramp-up time
         isolate: true, // CRITICAL: Each test file gets clean module state
       },
     },

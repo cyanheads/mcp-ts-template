@@ -62,8 +62,8 @@ describe('Logger Integration (Pino)', () => {
   });
 
   it('should create log files on initialization', async () => {
-    // Pino file transport creation is very fast, but let's be safe.
-    await new Promise((res) => setTimeout(res, 500));
+    // Pino file transport creation is very fast, 100ms is sufficient
+    await new Promise((res) => setTimeout(res, 100));
     expect(existsSync(COMBINED_LOG_PATH)).toBe(true);
     expect(existsSync(ERROR_LOG_PATH)).toBe(true);
   });
@@ -92,7 +92,7 @@ describe('Logger Integration (Pino)', () => {
         );
         expect(errorLogEntry).toBeUndefined();
         resolve();
-      }, 500);
+      }, 100);
     });
   });
 
@@ -121,7 +121,7 @@ describe('Logger Integration (Pino)', () => {
         expect(errorLogEntry).toBeDefined();
         expect(errorLogEntry.msg).toBe('This is a pino error message');
         resolve();
-      }, 500);
+      }, 100);
     });
   });
 
@@ -136,7 +136,7 @@ describe('Logger Integration (Pino)', () => {
       timestamp: new Date().toISOString(),
     });
 
-    await new Promise((res) => setTimeout(res, 500));
+    await new Promise((res) => setTimeout(res, 100));
 
     const updatedLog = readFileSync(COMBINED_LOG_PATH, 'utf-8');
     const newLogContent = updatedLog.substring(initialLog.length);
@@ -164,7 +164,7 @@ describe('Logger Integration (Pino)', () => {
         // Pino fatal level is 60
         expect(emergEntry.level).toBeGreaterThanOrEqual(50);
         resolve();
-      }, 500);
+      }, 100);
     });
   });
 
@@ -186,7 +186,7 @@ describe('Logger Integration (Pino)', () => {
         // Mapped to error level (50) in Pino
         expect(critEntry.level).toBeGreaterThanOrEqual(50);
         resolve();
-      }, 500);
+      }, 100);
     });
   });
 
@@ -208,7 +208,7 @@ describe('Logger Integration (Pino)', () => {
         // Mapped to error/fatal level in Pino
         expect(alertEntry.level).toBeGreaterThanOrEqual(50);
         resolve();
-      }, 500);
+      }, 100);
     });
   });
 
@@ -230,7 +230,7 @@ describe('Logger Integration (Pino)', () => {
         // Mapped to info level (30) in Pino
         expect(noticeEntry.level).toBeGreaterThanOrEqual(30);
         resolve();
-      }, 500);
+      }, 100);
     });
   });
 
@@ -251,7 +251,7 @@ describe('Logger Integration (Pino)', () => {
         expect(fatalEntry.msg).toBe('Fatal condition encountered');
         expect(fatalEntry.level).toBeGreaterThanOrEqual(50);
         resolve();
-      }, 500);
+      }, 100);
     });
   });
 
@@ -274,7 +274,7 @@ describe('Logger Integration (Pino)', () => {
         expect(entry).toBeDefined();
         expect(entry.payloadSize).toBe(42);
         resolve();
-      }, 500);
+      }, 100);
     });
   });
 
@@ -352,7 +352,7 @@ describe('Logger Transport Mode Handling', () => {
     await stdioLogger.initialize('info', 'stdio');
 
     // Wait for logger to initialize file transports
-    await new Promise((res) => setTimeout(res, 500));
+    await new Promise((res) => setTimeout(res, 100));
 
     // Write a test message
     stdioLogger.info('STDIO transport test message', {
@@ -362,7 +362,7 @@ describe('Logger Transport Mode Handling', () => {
     });
 
     // Wait for log to be written
-    await new Promise((res) => setTimeout(res, 500));
+    await new Promise((res) => setTimeout(res, 100));
 
     // Read the log file to verify output format
     expect(existsSync(stdioTestLogPath)).toBe(true);

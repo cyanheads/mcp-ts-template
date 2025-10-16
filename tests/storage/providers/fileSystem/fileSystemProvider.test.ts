@@ -197,14 +197,14 @@ describe('FileSystemProvider', () => {
 
   describe('TTL and Expiration', () => {
     it('should respect TTL and expire entries', async () => {
-      // Set with 1 second TTL
+      // Set with 200ms TTL (optimized for faster tests)
       await provider.set(
         'tenant1',
         'expiring-key',
         { data: 'temporary' },
         testContext,
         {
-          ttl: 1,
+          ttl: 0.2,
         },
       );
 
@@ -212,8 +212,8 @@ describe('FileSystemProvider', () => {
       let result = await provider.get('tenant1', 'expiring-key', testContext);
       expect(result).toEqual({ data: 'temporary' });
 
-      // Wait for expiration
-      await new Promise((resolve) => setTimeout(resolve, 1100));
+      // Wait for expiration (300ms = 200ms TTL + 100ms buffer)
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Should be null after expiration
       result = await provider.get('tenant1', 'expiring-key', testContext);
@@ -246,11 +246,11 @@ describe('FileSystemProvider', () => {
         'key2',
         { data: 'temporary' },
         testContext,
-        { ttl: 1 },
+        { ttl: 0.2 },
       );
 
-      // Wait for expiration
-      await new Promise((resolve) => setTimeout(resolve, 1100));
+      // Wait for expiration (300ms = 200ms TTL + 100ms buffer)
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       const listResult = await provider.list('tenant1', '', testContext);
 
@@ -318,10 +318,10 @@ describe('FileSystemProvider', () => {
           ['key2', { value: 2 }],
         ]);
 
-        await provider.setMany('tenant1', entries, testContext, { ttl: 1 });
+        await provider.setMany('tenant1', entries, testContext, { ttl: 0.2 });
 
-        // Wait for expiration
-        await new Promise((resolve) => setTimeout(resolve, 1100));
+        // Wait for expiration (300ms = 200ms TTL + 100ms buffer)
+        await new Promise((resolve) => setTimeout(resolve, 300));
 
         const result1 = await provider.get('tenant1', 'key1', testContext);
         const result2 = await provider.get('tenant1', 'key2', testContext);
