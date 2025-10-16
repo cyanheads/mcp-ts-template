@@ -158,7 +158,7 @@ export class ElevenLabsProvider implements ISpeechProvider {
           provider: this.name,
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof McpError) {
         throw error;
       }
@@ -235,7 +235,7 @@ export class ElevenLabsProvider implements ISpeechProvider {
       logger.info(`Successfully fetched ${voices.length} voices`, context);
 
       return voices;
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof McpError) {
         throw error;
       }
@@ -261,7 +261,7 @@ export class ElevenLabsProvider implements ISpeechProvider {
       // Simple health check: try to fetch voices
       await this.getVoices();
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       const context = requestContextService.createRequestContext({
         operation: 'elevenlabs-healthCheck',
       });

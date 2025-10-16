@@ -505,7 +505,7 @@ export class SurrealGraphProvider implements IGraphProvider {
               vertexTypes[tableName] = count;
               vertexCount += count;
             }
-          } catch (error) {
+          } catch (error: unknown) {
             // If there's an error querying this table, log and continue
             const errorMessage =
               error instanceof Error ? error.message : String(error);

@@ -211,7 +211,7 @@ export class WhisperProvider implements ISpeechProvider {
           ...(data.task !== undefined && { task: data.task }),
         },
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof McpError) {
         throw error;
       }
@@ -262,7 +262,7 @@ export class WhisperProvider implements ISpeechProvider {
       );
 
       return response.ok;
-    } catch (error) {
+    } catch (error: unknown) {
       const context = requestContextService.createRequestContext({
         operation: 'whisper-healthCheck',
       });
