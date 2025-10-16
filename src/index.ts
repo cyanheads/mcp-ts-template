@@ -81,7 +81,7 @@ const shutdown = async (signal: string): Promise<void> => {
     await logger.close();
 
     process.exit(0);
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error(
       'Critical error during shutdown process.',
       error as Error,
@@ -117,7 +117,7 @@ const start = async (): Promise<void> => {
   // This must happen before logger initialization for proper instrumentation
   try {
     await initializeOpenTelemetry();
-  } catch (error) {
+  } catch (error: unknown) {
     // Observability failure should not block startup
     console.error('[Startup] Failed to initialize OpenTelemetry:', error);
     // Continue - application can run without telemetry
@@ -198,7 +198,7 @@ const start = async (): Promise<void> => {
       );
       void shutdown('unhandledRejection');
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.fatal(
       'CRITICAL ERROR DURING STARTUP.',
       error as Error,
@@ -212,7 +212,7 @@ const start = async (): Promise<void> => {
 void (async () => {
   try {
     await start();
-  } catch (error) {
+  } catch (error: unknown) {
     if (process.stdout.isTTY) {
       console.error('[GLOBAL CATCH] A fatal, unhandled error occurred:', error);
     }

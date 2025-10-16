@@ -64,7 +64,7 @@ export class OauthStrategy implements AuthStrategy {
         `JWKS client initialized for URL: ${jwksUrl.href}`,
         context,
       );
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.fatal('Failed to initialize JWKS client.', {
         ...context,
         error: error instanceof Error ? error.message : String(error),
@@ -181,7 +181,7 @@ export class OauthStrategy implements AuthStrategy {
         ...(tenantId ? { tenantId } : {}),
       });
       return authInfo;
-    } catch (error) {
+    } catch (error: unknown) {
       // If the error is already a structured McpError, re-throw it directly.
       if (error instanceof McpError) {
         throw error;

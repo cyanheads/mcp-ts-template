@@ -7,7 +7,7 @@
  */
 import { trace } from '@opentelemetry/api';
 import type { HttpBindings } from '@hono/node-server';
-import type { Context, Next } from 'hono';
+import type { Context, MiddlewareHandler, Next } from 'hono';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
@@ -20,7 +20,9 @@ import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authS
  * @param strategy - An instance of a class that implements the `AuthStrategy` interface.
  * @returns A Hono middleware function.
  */
-export function createAuthMiddleware(strategy: AuthStrategy) {
+export function createAuthMiddleware(
+  strategy: AuthStrategy,
+): MiddlewareHandler<{ Bindings: HttpBindings }> {
   return async function authMiddleware(
     c: Context<{ Bindings: HttpBindings }>,
     next: Next,
@@ -96,7 +98,7 @@ export function createAuthMiddleware(strategy: AuthStrategy) {
 
       // Run the next middleware in the chain within the populated auth context.
       await authContext.run({ authInfo }, next);
-    } catch (error) {
+    } catch (error: unknown) {
       // The strategy is expected to throw an McpError.
       // We re-throw it here to be caught by the global httpErrorHandler.
       logger.warning('Authentication verification failed.', {

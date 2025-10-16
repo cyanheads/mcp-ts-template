@@ -154,7 +154,7 @@ export class JwtStrategy implements AuthStrategy {
         ...(tenantId ? { tenantId } : {}),
       });
       return authInfo;
-    } catch (error) {
+    } catch (error: unknown) {
       // If the error is already a structured McpError, re-throw it directly.
       if (error instanceof McpError) {
         throw error;

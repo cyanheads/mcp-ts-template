@@ -101,7 +101,7 @@ export function createMcpToolHandler<
         structuredContent: result,
         content: responseFormatter(result),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       const mcpError = ErrorHandler.handleError(error, {
         operation: `tool:${toolName}`,
         context: appContext,

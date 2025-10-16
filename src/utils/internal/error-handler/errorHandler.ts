@@ -397,7 +397,7 @@ export class ErrorHandler {
     if (result.ok) {
       try {
         return { ok: true, value: fn(result.value) };
-      } catch (error) {
+      } catch (error: unknown) {
         return {
           ok: false,
           error: new McpError(

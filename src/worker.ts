@@ -12,6 +12,7 @@ import type {
   KVNamespace,
   D1Database,
   Ai,
+  IncomingRequestCfProperties as CfProperties,
 } from '@cloudflare/workers-types';
 
 import { composeContainer } from '@/container/index.js';
@@ -172,7 +173,32 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
       // Initialize logger with level from env or default to 'info'
       // Workers always use HTTP transport (no STDIO support)
       const logLevel = env.LOG_LEVEL?.toLowerCase() ?? 'info';
-      await logger.initialize(logLevel as never, 'http');
+      // Validate log level is one of the supported values
+      type ValidLogLevel =
+        | 'debug'
+        | 'info'
+        | 'notice'
+        | 'warning'
+        | 'error'
+        | 'crit'
+        | 'alert'
+        | 'emerg';
+      const validLogLevels: ValidLogLevel[] = [
+        'debug',
+        'info',
+        'notice',
+        'warning',
+        'error',
+        'crit',
+        'alert',
+        'emerg',
+      ];
+      const validatedLogLevel = validLogLevels.includes(
+        logLevel as ValidLogLevel,
+      )
+        ? (logLevel as ValidLogLevel)
+        : 'info';
+      await logger.initialize(validatedLogLevel, 'http');
 
       // Create a root context for the worker's lifecycle.
       const workerContext = requestContextService.createRequestContext({
@@ -190,6 +216,9 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
       const mcpServer = await createMcpServerInstance();
 
       // Create the Hono application.
+      // We need to use unknown intermediate because TypeScript can't directly prove
+      // that the Hono<HttpBindings> from createHttpApp is compatible with Hono<WorkerEnv>
+      // even though they're structurally compatible at runtime
       const app = createHttpApp(
         mcpServer,
         workerContext,
@@ -202,7 +231,7 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
       });
 
       return app;
-    } catch (error) {
+    } catch (error: unknown) {
       const initDuration = Date.now() - initStartTime;
       const errorContext = requestContextService.createRequestContext({
         operation: 'WorkerInitialization',
@@ -246,9 +275,9 @@ export default {
       const app = await initializeApp(env);
 
       // Extract Cloudflare-specific request metadata
-      const cfProperties = (
-        request as never as { cf?: IncomingRequestCfProperties }
-      ).cf;
+      // TypeScript doesn't know about the cf property, but it's added by Cloudflare runtime
+      type RequestWithCf = Request & { cf?: CfProperties };
+      const cfProperties = (request as RequestWithCf).cf;
       const requestId = request.headers.get('cf-ray') ?? crypto.randomUUID();
 
       // Create enhanced request context with Worker metadata
@@ -275,7 +304,7 @@ export default {
       // Example: ctx.waitUntil(someBackgroundTask());
 
       return await app.fetch(request, env, ctx);
-    } catch (error) {
+    } catch (error: unknown) {
       const requestId = request.headers.get('cf-ray');
       const errorContext = requestContextService.createRequestContext({
         operation: 'WorkerFetch',
@@ -341,7 +370,7 @@ export default {
       // Use _ctx.waitUntil() for background operations if needed
 
       logger.info('Scheduled event completed.', scheduledContext);
-    } catch (error) {
+    } catch (error: unknown) {
       const errorContext = requestContextService.createRequestContext({
         operation: 'WorkerScheduled',
         isServerless: true,
@@ -359,24 +388,6 @@ export default {
     }
   },
 };
-
-/**
- * Type definitions for Cloudflare-specific request properties.
- * These are injected by Cloudflare's edge network.
- */
-interface IncomingRequestCfProperties {
-  colo?: string;
-  country?: string;
-  city?: string;
-  continent?: string;
-  latitude?: string;
-  longitude?: string;
-  postalCode?: string;
-  metroCode?: string;
-  region?: string;
-  regionCode?: string;
-  timezone?: string;
-}
 
 /**
  * Type definition for scheduled event.

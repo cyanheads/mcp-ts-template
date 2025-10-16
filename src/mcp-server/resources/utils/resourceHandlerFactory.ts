@@ -160,7 +160,7 @@ export async function registerResource<
 
             const readResult: ReadResourceResult = { contents };
             return readResult;
-          } catch (error) {
+          } catch (error: unknown) {
             // Centralized handler re-throws the error for the SDK to catch
             throw ErrorHandler.handleError(error, {
               operation: `resource:${resourceName}:readHandler`,
