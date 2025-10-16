@@ -7,6 +7,61 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.4.8] - 2025-10-16
+
+### Added
+
+- **Graph Statistics**: Implemented comprehensive graph analytics functionality.
+  - Added `getStats()` method to [src/services/graph/core/GraphService.ts](src/services/graph/core/GraphService.ts) for retrieving graph statistics.
+  - Implemented `getStats()` in [src/services/graph/core/IGraphProvider.ts](src/services/graph/core/IGraphProvider.ts) interface.
+  - Added full implementation in [src/services/graph/providers/surrealGraph.provider.ts](src/services/graph/providers/surrealGraph.provider.ts) with vertex/edge counts, type distributions, and average degree calculations.
+  - Statistics include: `vertexCount`, `edgeCount`, `avgDegree`, `vertexTypes` (record type breakdown), `edgeTypes` (relationship type breakdown).
+  - Added [src/services/graph/types.ts](src/services/graph/types.ts) with `GraphStats` type definition.
+
+### Changed
+
+- **Graph Traversal Improvements**: Completely rewrote graph traversal implementation for better accuracy and functionality.
+  - Refactored `traverse()` method in [src/services/graph/providers/surrealGraph.provider.ts](src/services/graph/providers/surrealGraph.provider.ts) to use SurrealDB's depth range syntax (`1..maxDepth`).
+  - Enhanced path parsing to properly handle both flat and nested SurrealDB result structures.
+  - Improved edge filtering support with proper type application in queries.
+  - Added comprehensive vertex and edge data extraction with proper type conversions.
+  - Replaced placeholder logic with fully functional path construction.
+- **Shortest Path Algorithm**: Migrated to native SurrealDB graph functions for optimal performance.
+  - Replaced custom recursive traversal with SurrealDB's native `graph::shortest_path()` function in `shortestPath()` method.
+  - Implemented proper parsing of mixed vertex/edge arrays returned by the native function.
+  - Added weight calculation based on hop count.
+  - Improved error handling and null result detection.
+- **Path Existence Check**: Optimized path validation with native graph functions.
+  - Updated `pathExists()` to use `graph::shortest_path()` instead of wrapper method.
+  - Added depth validation to respect `maxDepth` parameter (path length ≤ maxDepth * 2 + 1).
+  - Improved performance by using direct graph function instead of intermediate calls.
+- **Edge Retrieval Enhancement**: Improved edge filtering and result handling.
+  - Enhanced `getOutgoingEdges()` and `getIncomingEdges()` to properly apply edge type filters.
+  - Added array validation to ensure consistent return types.
+  - Improved SurrealDB query construction with proper edge type filtering syntax.
+  - Updated input logging to include `edgeTypes` parameter for better observability.
+- **Test Performance Optimization**: Reduced test execution times for faster CI/CD pipelines.
+  - Optimized logger integration tests in [tests/utils/internal/logger.int.test.ts](tests/utils/internal/logger.int.test.ts) by reducing wait times from 500ms to 100ms.
+  - Improved FileSystem provider TTL tests in [tests/storage/providers/fileSystem/fileSystemProvider.test.ts](tests/storage/providers/fileSystem/fileSystemProvider.test.ts) by reducing TTL from 1000ms to 200ms.
+  - Maintained test reliability while achieving 4-5x speedup for time-sensitive tests.
+- **Vitest Worker Pool Tuning**: Optimized parallel test execution for better performance.
+  - Increased `maxForks` from 10 to 11 in [vitest.config.ts](vitest.config.ts) to utilize more CPU cores.
+  - Increased `minForks` from 2 to 8 to reduce worker ramp-up time.
+  - Improved test suite execution speed while maintaining isolation.
+- **Graph Test Updates**: Updated all graph-related tests to match new implementation patterns.
+  - Updated mock data structures in [tests/services/graph/providers/surrealGraph.provider.test.ts](tests/services/graph/providers/surrealGraph.provider.test.ts) to use `startNode`/`paths` format.
+  - Added proper path array validation in shortest path tests.
+  - Updated query assertions to verify native `graph::shortest_path()` usage.
+  - Added `getStats()` mock in [tests/services/graph/core/GraphService.test.ts](tests/services/graph/core/GraphService.test.ts).
+  - Enhanced test coverage for edge filtering and type-specific queries.
+
+### Documentation
+
+- **Tree Structure**: Regenerated [docs/tree.md](docs/tree.md) to reflect current timestamp (2025-10-16 12:22:08).
+- **Version References**: Updated version numbers across [package.json](package.json) and [server.json](server.json) from 2.4.7 to 2.4.8.
+
+---
+
 ## [2.4.7] - 2025-10-15
 
 ### Changed
