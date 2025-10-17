@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Scripts don't need to emit code - they run directly with bun/tsx
+    "noEmit": true,
+
+    // Scripts may use console directly and have relaxed rules
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+
+    // Allow more flexibility for script imports (Bun handles ESM/CJS interop)
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true
+  },
+  "include": ["scripts/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

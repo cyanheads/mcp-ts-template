@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-16 13:51:33
+Generated on: 2025-10-17 10:30:32
 
 ```
 mcp-ts-template
@@ -307,6 +307,7 @@ mcp-ts-template
 │   │   │   ├── core.ts
 │   │   │   └── mcp.ts
 │   │   ├── index.ts
+│   │   ├── README.md
 │   │   └── tokens.ts
 │   ├── mcp-server
 │   │   ├── prompts
@@ -365,6 +366,7 @@ mcp-ts-template
 │   │   │   │   └── stdioTransport.ts
 │   │   │   ├── ITransport.ts
 │   │   │   └── manager.ts
+│   │   ├── README.md
 │   │   └── server.ts
 │   ├── services
 │   │   ├── graph
@@ -382,15 +384,16 @@ mcp-ts-template
 │   │   │   │   └── openrouter.provider.ts
 │   │   │   ├── index.ts
 │   │   │   └── types.ts
-│   │   └── speech
-│   │       ├── core
-│   │       │   ├── ISpeechProvider.ts
-│   │       │   └── SpeechService.ts
-│   │       ├── providers
-│   │       │   ├── elevenlabs.provider.ts
-│   │       │   └── whisper.provider.ts
-│   │       ├── index.ts
-│   │       └── types.ts
+│   │   ├── speech
+│   │   │   ├── core
+│   │   │   │   ├── ISpeechProvider.ts
+│   │   │   │   └── SpeechService.ts
+│   │   │   ├── providers
+│   │   │   │   ├── elevenlabs.provider.ts
+│   │   │   │   └── whisper.provider.ts
+│   │   │   ├── index.ts
+│   │   │   └── types.ts
+│   │   └── README.md
 │   ├── storage
 │   │   ├── core
 │   │   │   ├── IStorageProvider.ts
@@ -701,6 +704,7 @@ mcp-ts-template
 ├── server.json
 ├── smithery.yaml
 ├── tsconfig.json
+├── tsconfig.scripts.json
 ├── tsconfig.test.json
 ├── tsdoc.json
 ├── typedoc.json
