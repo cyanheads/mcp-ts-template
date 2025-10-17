@@ -218,6 +218,7 @@ See Section IV for full workflow, Section XIV for comprehensive checklist.
 **CRITICAL:** When creating git commits, NEVER use heredoc syntax (`cat <<'EOF'`) or command substitution (`$(...)`) in commit messages. Use plain strings only.
 
 **Correct:**
+
 ```bash
 git commit -m "feat(auth): add JWT validation middleware
 
@@ -227,6 +228,7 @@ git commit -m "feat(auth): add JWT validation middleware
 ```
 
 **INCORRECT - NEVER DO THIS:**
+
 ```bash
 # ❌ WRONG - Do not use cat/heredoc/command substitution
 git commit -m "$(cat <<'EOF'
@@ -236,6 +238,7 @@ EOF
 ```
 
 **Conventional Commits Format:** Use the [Conventional Commits](https://www.conventionalcommits.org/) standard:
+
 - `feat(scope): description` - New feature
 - `fix(scope): description` - Bug fix
 - `refactor(scope): description` - Code refactoring
