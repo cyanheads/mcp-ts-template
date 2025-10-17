@@ -256,26 +256,30 @@ describe('Logger Integration (Pino)', () => {
   });
 
   it('writes interaction events when an interaction logger is available', async () => {
-    await new Promise<void>((resolve) => {
-      logger.logInteraction('test-interaction', {
-        context: {
-          testId: 'interaction-test',
-          requestId: 'interaction-1',
-          timestamp: new Date().toISOString(),
-        },
-        payloadSize: 42,
-      });
+    logger.logInteraction('test-interaction', {
+      context: {
+        testId: 'interaction-test',
+        requestId: 'interaction-1',
+        timestamp: new Date().toISOString(),
+      },
+      payloadSize: 42,
+    });
 
-      setTimeout(() => {
+    // Use vi.waitFor with retry logic for eventual consistency
+    await vi.waitFor(
+      () => {
         const interactions = readJsonLog(INTERACTIONS_LOG_PATH);
         const entry = interactions.find(
           (log) => log.interactionName === 'test-interaction',
         );
         expect(entry).toBeDefined();
-        expect(entry.payloadSize).toBe(42);
-        resolve();
-      }, 100);
-    });
+        expect(entry?.payloadSize).toBe(42);
+      },
+      {
+        timeout: 2000, // 2 second max wait
+        interval: 50, // Check every 50ms
+      },
+    );
   });
 
   it('warns when interaction logging is requested but unavailable', () => {
