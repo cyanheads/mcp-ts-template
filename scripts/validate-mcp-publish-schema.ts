@@ -70,7 +70,7 @@ async function verifyPublication(
         console.log(`--- ✅ Finished Step: ${stepName} ---`);
         return;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         console.warn(`Attempt ${i + 1} failed:`, error.message);
       } else {
@@ -115,7 +115,7 @@ async function syncMetadata(): Promise<{ version: string; mcpName: string }> {
     console.log(`Synced server.json to version "${version}".`);
     console.log(`--- ✅ Finished Step: ${stepName} ---`);
     return { version, mcpName };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`\n--- ❌ Step Failed: ${stepName} ---`, error);
     process.exit(1);
   }
@@ -162,7 +162,7 @@ async function validateServerJson() {
     }
     console.log('Validation successful!');
     console.log(`--- ✅ Finished Step: ${stepName} ---`);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`\n--- ❌ Step Failed: ${stepName} ---`, error);
     process.exit(1);
   }

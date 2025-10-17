@@ -85,7 +85,7 @@ async function tryFetch(
       `Successfully fetched (Status: ${response.status}, Content-Type: ${contentType || 'N/A'})`,
     );
     return { data: response.data, contentType };
-  } catch (error) {
+  } catch (error: unknown) {
     let status = 'Unknown';
     if (axios.isAxiosError(error)) {
       const axiosError = error as AxiosError;
@@ -243,7 +243,7 @@ async function fetchAndProcessSpec(): Promise<void> {
     console.log(`Saving YAML specification to: ${yamlOutputPath}`);
     await fs.writeFile(yamlOutputPath, yaml.dump(openapiSpec), 'utf8');
     console.log(`Successfully saved YAML specification.`);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(
       `Error saving YAML to ${yamlOutputPath}: ${error instanceof Error ? error.message : String(error)}. Aborting.`,
     );
@@ -258,7 +258,7 @@ async function fetchAndProcessSpec(): Promise<void> {
       'utf8',
     );
     console.log(`Successfully saved JSON specification.`);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(
       `Error saving JSON to ${jsonOutputPath}: ${error instanceof Error ? error.message : String(error)}. Aborting.`,
     );

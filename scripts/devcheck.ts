@@ -130,7 +130,7 @@ const Shell = {
         stdout: stdout.trim(),
         stderr: stderr.trim(),
       };
-    } catch (error) {
+    } catch (error: unknown) {
       // Handle cases where the command itself fails to spawn (e.g., command not found)
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -642,7 +642,7 @@ async function handleHuskyReStaging(ctx: AppContext) {
     } else {
       UI.log(c.green('   ✓ No staged files were modified by fixers.'));
     }
-  } catch (error) {
+  } catch (error: unknown) {
     UI.log(
       c.red(
         '🛑 Error during Husky hook file management. Fixes might not be staged.',

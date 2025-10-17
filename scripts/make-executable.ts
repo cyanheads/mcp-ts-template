@@ -77,7 +77,7 @@ const makeExecutable = async (): Promise<void> => {
           await fs.access(normalizedPath); // Check if file exists
           await fs.chmod(normalizedPath, EXECUTABLE_MODE);
           return { file: targetFile, status: 'success' };
-        } catch (error) {
+        } catch (error: unknown) {
           const err = error as NodeJS.ErrnoException;
           if (err.code === 'ENOENT') {
             return {
@@ -123,7 +123,7 @@ const makeExecutable = async (): Promise<void> => {
     } else {
       console.log('All targeted files processed successfully.');
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(
       'A fatal error occurred during the make-executable script:',
       error instanceof Error ? error.message : error,

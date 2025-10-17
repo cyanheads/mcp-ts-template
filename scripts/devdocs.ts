@@ -456,7 +456,7 @@ const executeCommand = async (
     if (captureOutput) {
       return (result.stdout ?? '').trim();
     }
-  } catch (error) {
+  } catch (error: unknown) {
     const message = `Error executing command: "${command} ${args.join(' ')}"`;
     throw new DevDocsError(message, error);
   }
@@ -480,7 +480,7 @@ const validateRequiredTools = async (): Promise<void> => {
     try {
       await executeCommand(tool.command, tool.args, true);
       UI.printSuccess(`${tool.name} is available`);
-    } catch (error) {
+    } catch (error: unknown) {
       throw new DevDocsError(
         `Required tool "${tool.name}" is not available. Please install it first.`,
         error,
@@ -512,7 +512,7 @@ const getGitChangedFiles = async (
       `Found ${files.length} ${staged ? 'staged' : 'changed'} file(s)`,
     );
     return files;
-  } catch (error) {
+  } catch (error: unknown) {
     throw new DevDocsError(
       'Failed to get git changes. Ensure git is available and you are in a git repository.',
       error,
@@ -540,7 +540,7 @@ const loadConfigFile = async (
         const content = await fs.readFile(configFilePath, 'utf-8');
         const config = JSON.parse(content) as DevDocsConfig;
         return config;
-      } catch (error) {
+      } catch (error: unknown) {
         throw new DevDocsError(
           `Failed to parse config file: ${configFilePath}`,
           error,
@@ -580,7 +580,7 @@ const generateFileTree = async (rootDir: string): Promise<string> => {
 
   try {
     return await fs.readFile(treeDocPath, 'utf-8');
-  } catch (error) {
+  } catch (error: unknown) {
     throw new DevDocsError(
       `Failed to read generated tree file at ${treeDocPath}`,
       error,
@@ -738,7 +738,7 @@ const findFileCaseInsensitive = async (
         }
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       UI.printWarning(`Could not read directory: ${dir}`);
     }
@@ -762,7 +762,7 @@ const getAgentRulesContent = async (
     UI.printSuccess(`Found agent rules: ${path.basename(ruleFilePath)}`);
     try {
       return await fs.readFile(ruleFilePath, 'utf-8');
-    } catch (error) {
+    } catch (error: unknown) {
       throw new DevDocsError(
         `Failed to read agent rules file: ${ruleFilePath}`,
         error,
@@ -824,7 +824,7 @@ const createDevDocsFile = async (
       `Documentation written to ${path.relative(rootDir, devDocsPath)}`,
     );
     return devdocsContent;
-  } catch (error) {
+  } catch (error: unknown) {
     throw new DevDocsError(`Failed to write ${CONFIG.DEVDOCS_OUTPUT}`, error);
   }
 };
@@ -913,7 +913,7 @@ const parseCliArguments = (): CliArgs => {
       },
       positionals,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     throw new DevDocsError('Failed to parse arguments', error);
   }
 };

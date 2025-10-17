@@ -47,7 +47,7 @@ async function runCoverage(): Promise<boolean> {
     await $`bunx vitest run --coverage`;
     console.log('\n✅ Coverage generation complete\n');
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('\n❌ Coverage generation failed:', error);
     return false;
   }
@@ -101,7 +101,7 @@ async function getCoverageStats(): Promise<string | null> {
         : '0.00';
 
     return `${percentage}% (${coveredStatements}/${totalStatements} statements)`;
-  } catch (error) {
+  } catch (error: unknown) {
     console.warn('⚠️  Could not read coverage statistics:', error);
     return null;
   }
@@ -122,7 +122,7 @@ async function commitChanges(): Promise<boolean> {
 
     console.log('✅ Coverage changes committed\n');
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Failed to commit changes:', error);
     return false;
   }

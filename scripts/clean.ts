@@ -95,7 +95,7 @@ const clean = async (): Promise<void> => {
         );
       }
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(
       'An unexpected error occurred during the clean script execution:',
       error instanceof Error ? error.message : error,

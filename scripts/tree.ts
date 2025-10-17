@@ -314,7 +314,7 @@ const writeTreeToFile = async (): Promise<void> => {
         `Successfully generated and updated tree structure in: ${resolvedOutputFile}`,
       );
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(
       `Error generating tree: ${error instanceof Error ? error.message : String(error)}`,
     );
