@@ -213,6 +213,41 @@ See Section IV for full workflow, Section XIV for comprehensive checklist.
 
 ---
 
+## IX.A. Git Commit Messages
+
+**CRITICAL:** When creating git commits, NEVER use heredoc syntax (`cat <<'EOF'`) or command substitution (`$(...)`) in commit messages. Use plain strings only.
+
+**Correct:**
+```bash
+git commit -m "feat(auth): add JWT validation middleware
+
+- Implemented token verification with exp claim validation
+- Added support for RS256 and HS256 algorithms
+- Includes comprehensive error handling"
+```
+
+**INCORRECT - NEVER DO THIS:**
+```bash
+# ❌ WRONG - Do not use cat/heredoc/command substitution
+git commit -m "$(cat <<'EOF'
+feat(auth): add JWT validation
+EOF
+)"
+```
+
+**Conventional Commits Format:** Use the [Conventional Commits](https://www.conventionalcommits.org/) standard:
+- `feat(scope): description` - New feature
+- `fix(scope): description` - Bug fix
+- `refactor(scope): description` - Code refactoring
+- `chore(scope): description` - Maintenance tasks (deps, config, etc.)
+- `docs(scope): description` - Documentation updates
+- `test(scope): description` - Test additions or updates
+- `build(scope): description` - Build system or dependency changes
+
+**Atomic Commits:** Group related changes together. Use `filesToStage` parameter to precisely control which files are included in each commit.
+
+---
+
 ## X. Checks & Workflow Commands
 
 | Command                    | Purpose                                                                                        |
