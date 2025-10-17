@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.4.9-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.23-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-76.12%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
+[![Version](https://img.shields.io/badge/Version-2.5.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.23-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-76.12%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
 
 </div>
 
@@ -26,6 +26,47 @@
 - **Service Integrations**: Pluggable services for external APIs, including LLM providers (OpenRouter), text-to-speech (ElevenLabs), and graph operations (SurrealDB).
 - **Rich Built-in Utility Suite**: Helpers for parsing (PDF, YAML, CSV), scheduling, security, and more.
 - **Edge-Ready**: Write code once and run it seamlessly on your local machine or at the edge on Cloudflare Workers.
+
+## 🏗️ Architecture
+
+This template follows a modular, domain-driven architecture with clear separation of concerns:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              MCP Client (Claude Code, ChatGPT, etc.)                  │
+└────────────────────┬────────────────────────────────────┘
+                     │ JSON-RPC 2.0
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│           MCP Server (Tools, Resources)                 │
+│              📖 [MCP Server Guide](src/mcp-server/)     │
+└────────────────────┬────────────────────────────────────┘
+                     │ Dependency Injection
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│          Dependency Injection Container                 │
+│              📦 [Container Guide](src/container/)       │
+└────────────────────┬────────────────────────────────────┘
+                     │
+        ┌────────────┼────────────┐
+        ▼            ▼            ▼
+┌──────────┐  ┌──────────┐  ┌──────────┐
+│ Services │  │ Storage  │  │ Utilities│
+│ 🔌 [→]   │  │ 💾 [→]   │  │ 🛠️ [→]   │
+└──────────┘  └──────────┘  └──────────┘
+
+[→]: src/services/    [→]: src/storage/    [→]: src/utils/
+```
+
+**Key Modules:**
+
+- **[MCP Server](src/mcp-server/)** - Tools, resources, prompts, and transport layer implementations
+- **[Container](src/container/)** - Dependency injection setup with tsyringe for clean architecture
+- **[Services](src/services/)** - External service integrations (LLM, Speech, Graph) with pluggable providers
+- **[Storage](src/storage/)** - Abstracted persistence layer with multiple backend support
+- **[Utilities](src/utils/)** - Cross-cutting concerns (logging, security, parsing, telemetry)
+
+> 💡 **Tip**: Each module has its own comprehensive README with architecture diagrams, usage examples, and best practices. Click the links above to dive deeper!
 
 ## 🛠️ Included Capabilities
 
@@ -194,17 +235,59 @@ bun deploy:prod
 
 ## 📂 Project Structure
 
-| Directory                              | Purpose & Contents                                                                   |
-| :------------------------------------- | :----------------------------------------------------------------------------------- |
-| `src/mcp-server/tools/definitions`     | Your tool definitions (`*.tool.ts`). This is where you add new capabilities.         |
-| `src/mcp-server/resources/definitions` | Your resource definitions (`*.resource.ts`). This is where you add new data sources. |
-| `src/mcp-server/transports`            | Implementations for HTTP and STDIO transports, including auth middleware.            |
-| `src/storage`                          | The `StorageService` abstraction and all storage provider implementations.           |
-| `src/services`                         | Integrations with external services (e.g., the default OpenRouter LLM provider).     |
-| `src/container`                        | Dependency injection container registrations and tokens.                             |
-| `src/utils`                            | Core utilities for logging, error handling, performance, security, and telemetry.    |
-| `src/config`                           | Environment variable parsing and validation with Zod.                                |
-| `tests/`                               | Unit and integration tests, mirroring the `src/` directory structure.                |
+| Directory                              | Purpose & Contents                                                                   | Guide                                |
+| :------------------------------------- | :----------------------------------------------------------------------------------- | :----------------------------------- |
+| `src/mcp-server/tools/definitions`     | Your tool definitions (`*.tool.ts`). This is where you add new capabilities.         | [📖 MCP Guide](src/mcp-server/)      |
+| `src/mcp-server/resources/definitions` | Your resource definitions (`*.resource.ts`). This is where you add new data sources. | [📖 MCP Guide](src/mcp-server/)      |
+| `src/mcp-server/transports`            | Implementations for HTTP and STDIO transports, including auth middleware.            | [📖 MCP Guide](src/mcp-server/)      |
+| `src/storage`                          | The `StorageService` abstraction and all storage provider implementations.           | [💾 Storage Guide](src/storage/)     |
+| `src/services`                         | Integrations with external services (e.g., the default OpenRouter LLM provider).     | [🔌 Services Guide](src/services/)   |
+| `src/container`                        | Dependency injection container registrations and tokens.                             | [📦 Container Guide](src/container/) |
+| `src/utils`                            | Core utilities for logging, error handling, performance, security, and telemetry.    |                                      |
+| `src/config`                           | Environment variable parsing and validation with Zod.                                |                                      |
+| `tests/`                               | Unit and integration tests, mirroring the `src/` directory structure.                |                                      |
+
+## 📚 Documentation
+
+Each major module includes comprehensive documentation with architecture diagrams, usage examples, and best practices:
+
+### Core Modules
+
+- **[MCP Server Guide](src/mcp-server/)** - Complete guide to building MCP tools and resources
+  - Creating tools with declarative definitions
+  - Resource development with URI templates
+  - Authentication and authorization
+  - Transport layer (HTTP/stdio) configuration
+  - SDK context and client interaction
+  - Response formatting and error handling
+
+- **[Container Guide](src/container/)** - Dependency injection with tsyringe
+  - Understanding DI tokens and registration
+  - Service lifetimes (singleton, transient, instance)
+  - Constructor injection patterns
+  - Testing with mocked dependencies
+  - Adding new services to the container
+
+- **[Services Guide](src/services/)** - External service integration patterns
+  - LLM provider integration (OpenRouter)
+  - Speech services (TTS/STT with ElevenLabs, Whisper)
+  - Graph database operations (SurrealDB)
+  - Creating custom service providers
+  - Health checks and error handling
+
+- **[Storage Guide](src/storage/)** - Abstracted persistence layer
+  - Storage provider implementations
+  - Multi-tenancy and tenant isolation
+  - Secure cursor-based pagination
+  - Batch operations and TTL support
+  - Provider-specific setup guides
+
+### Additional Resources
+
+- **[AGENTS.md](AGENTS.md)** - Strict development rules for AI agents
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and breaking changes
+- **[docs/tree.md](docs/tree.md)** - Complete visual directory structure
+- **[docs/publishing-mcp-server-registry.md](docs/publishing-mcp-server-registry.md)** - Publishing guide for MCP Registry
 
 ## 🧑‍💻 Agent Development Guide
 

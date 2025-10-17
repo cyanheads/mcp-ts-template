@@ -7,6 +7,46 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.5.0] - 2025-10-17
+
+### Added
+
+- **Module Documentation**: Added comprehensive README files for core architectural modules to improve developer onboarding and navigation.
+  - Created [src/container/README.md](src/container/README.md) explaining dependency injection patterns, service lifetimes, and registration strategies.
+  - Created [src/mcp-server/README.md](src/mcp-server/README.md) with complete guide to building MCP tools and resources.
+  - Created [src/services/README.md](src/services/README.md) documenting external service integration patterns.
+- **Enhanced README Architecture Section**: Added visual architecture diagram and comprehensive module overview in [README.md](README.md).
+  - Added ASCII diagram showing MCP client → server → DI container → services/storage/utilities architecture flow.
+  - Added "Key Modules" section with links to dedicated module READMEs for deep dives.
+  - Added "Documentation" section organizing all module guides and additional resources.
+  - Updated project structure table with links to module-specific documentation guides.
+- **TypeScript Script Configuration**: Added [tsconfig.scripts.json](tsconfig.scripts.json) for dedicated script type-checking.
+  - Provides isolated configuration for build/maintenance scripts in `scripts/` directory.
+  - Added `typecheck:scripts` command to `package.json` for script-specific validation.
+
+### Changed
+
+- **Dependencies**: Updated multiple dependencies to latest versions for security and stability.
+  - Updated `@modelcontextprotocol/sdk` from `1.20.0` to `1.20.1` in [package.json](package.json) and [bun.lock](bun.lock).
+  - Updated `@types/node` from `24.8.0` to `24.8.1` for improved Node.js type definitions.
+  - Updated `hono` from `4.9.12` to `4.10.0` with latest framework improvements.
+  - Updated `openai` from `6.3.0` to `6.4.0` with latest OpenAI SDK enhancements.
+- **Script Type Safety**: Enhanced error handling consistency across all build scripts in `scripts/` directory.
+  - Enforced `catch (error: unknown)` pattern in all catch blocks across 10 script files for strict type safety.
+  - Updated: [clean.ts](scripts/clean.ts), [devcheck.ts](scripts/devcheck.ts), [devdocs.ts](scripts/devdocs.ts), [fetch-openapi-spec.ts](scripts/fetch-openapi-spec.ts), [make-executable.ts](scripts/make-executable.ts), [tree.ts](scripts/tree.ts), [update-coverage.ts](scripts/update-coverage.ts), [validate-mcp-publish-schema.ts](scripts/validate-mcp-publish-schema.ts).
+- **Test Reliability**: Improved async test handling in logger integration tests.
+  - Updated [tests/utils/internal/logger.int.test.ts](tests/utils/internal/logger.int.test.ts) to use `vi.waitFor()` with retry logic for interaction logging tests.
+  - Changed from fixed `setTimeout()` to configurable retry with 2-second timeout and 50ms interval for eventual consistency.
+  - Eliminates flaky test failures due to file I/O timing variations.
+- **Version Badges**: Updated README.md version badges to reflect 2.5.0 release and latest dependency versions.
+
+### Documentation
+
+- **Tree Structure**: Updated [docs/tree.md](docs/tree.md) generation timestamp to 2025-10-17 10:30:32 reflecting new module README files.
+- **Module Navigation**: Enhanced documentation discoverability with clear pathways from main README to specialized module guides.
+
+---
+
 ## [2.4.9] - 2025-10-16
 
 ### Changed
