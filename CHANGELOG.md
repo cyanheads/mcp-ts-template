@@ -7,6 +7,57 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.5.1] - 2025-10-20
+
+### Added
+
+- **Cloudflare D1 Storage Provider**: Implemented Cloudflare D1 database provider for edge-native SQL storage.
+  - Added `D1Provider` in [src/storage/providers/cloudflare/d1Provider.ts](src/storage/providers/cloudflare/d1Provider.ts) with full `IStorageProvider` compliance.
+  - Added 'cloudflare-d1' to storage provider types in [src/config/index.ts](src/config/index.ts).
+  - Integrated D1 provider in storage factory with binding detection and validation in [src/storage/core/storageFactory.ts](src/storage/core/storageFactory.ts).
+  - Created [schemas/cloudflare-d1-schema.sql](schemas/cloudflare-d1-schema.sql) with complete table schema for D1 database setup.
+  - Exported D1Provider through barrel export in [src/storage/providers/cloudflare/index.ts](src/storage/providers/cloudflare/index.ts).
+- **Performance Caching**: Enhanced build tooling with comprehensive caching for faster development iterations.
+  - Added ESLint cache support (.eslintcache) for incremental linting in [scripts/devcheck.ts](scripts/devcheck.ts).
+  - Added Prettier cache support (.prettiercache) for faster formatting checks.
+  - Added TypeScript incremental compilation with .tsbuildinfo files in [tsconfig.json](tsconfig.json) and [tsconfig.scripts.json](tsconfig.scripts.json).
+  - Updated [.gitignore](.gitignore) to exclude cache files (.tsbuildinfo, .tsbuildinfo.scripts, .prettiercache).
+- **Fast Mode Execution**: Implemented --fast flag in devcheck script to skip network-bound checks.
+  - Added `fastMode` flag and `slowCheck` property to check definitions.
+  - Security audit and dependency checks marked as slow and skipped in fast mode.
+  - Optimizes pre-commit hook performance by skipping non-critical network operations.
+
+### Changed
+
+- **Dependencies**: Updated multiple dependencies to latest versions for security and feature improvements.
+  - Updated `@eslint/js` from `9.37.0` to `9.38.0` in [package.json](package.json).
+  - Updated `@supabase/supabase-js` from `2.75.0` to `2.76.0` including all sub-packages (auth-js, functions-js, postgrest-js, realtime-js, storage-js).
+  - Updated `@types/node` from `24.8.1` to `24.9.0` with improved Node.js type definitions.
+  - Updated `eslint` from `9.37.0` to `9.38.0`.
+  - Updated `msw` from `2.11.5` to `2.11.6` for improved request interception.
+  - Updated `openai` from `6.4.0` to `6.5.0` with latest OpenAI SDK enhancements.
+  - Updated `pino` from `10.0.0` to `10.1.0` with new `@pinojs/redact` module for sensitive data redaction.
+  - Updated `repomix` from `1.7.0` to `1.8.0`.
+- **Build Script Performance**: Completely rewrote devcheck script with performance optimizations.
+  - Reorganized check execution order in [scripts/devcheck.ts](scripts/devcheck.ts) to run fast checks first (ESLint, Prettier, TypeScript) and slow checks last (audit, outdated).
+  - Changed from `bunx` to direct node_modules/.bin invocations to reduce subprocess overhead.
+  - All checks now run in parallel using `Promise.allSettled` for maximum speed.
+  - Added comprehensive performance documentation explaining caching and optimization strategies.
+- **Documentation Symlink**: Reversed symlink direction for agent documentation.
+  - AGENTS.md now symlinks to CLAUDE.md instead of the opposite direction.
+  - CLAUDE.md is now the canonical file per project conventions.
+- **Schema Files**: Modified .gitignore to allow SQL schema files in the repository.
+  - Removed `*.sql` exclusion to permit schemas/ directory files to be tracked.
+  - Enables version control of database schema definitions (SurrealDB, Cloudflare D1).
+- **Version Bump**: Incremented project version from `2.5.0` to `2.5.1` in [package.json:3](package.json#L3).
+
+### Documentation
+
+- **Tree Structure**: Updated [docs/tree.md](docs/tree.md) generation timestamp to 2025-10-20 16:10:55 reflecting new D1 provider files and schema organization.
+- **Schema Organization**: Documented new schemas directory structure with cloudflare-d1-schema.sql alongside existing SurrealDB schemas.
+
+---
+
 ## [2.5.0] - 2025-10-17
 
 ### Added

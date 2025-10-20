@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-17 10:30:32
+Generated on: 2025-10-20 16:10:55
 
 ```
 mcp-ts-template
@@ -282,14 +282,14 @@ mcp-ts-template
 │   ├── storage-surrealdb-setup.md
 │   ├── surrealdb-schema.surql
 │   └── tree.md
-├── ideas
 ├── schemas
-│   └── surrealdb
-│       ├── surrealdb-events-schema.surql
-│       ├── surrealdb-functions-schema.surql
-│       ├── surrealdb-graph-schema.surql
-│       ├── surrealdb-schema.surql
-│       └── surrealdb-secure-schema.surql
+│   ├── surrealdb
+│   │   ├── surrealdb-events-schema.surql
+│   │   ├── surrealdb-functions-schema.surql
+│   │   ├── surrealdb-graph-schema.surql
+│   │   ├── surrealdb-schema.surql
+│   │   └── surrealdb-secure-schema.surql
+│   └── cloudflare-d1-schema.sql
 ├── scripts
 │   ├── clean.ts
 │   ├── devcheck.ts
@@ -402,6 +402,7 @@ mcp-ts-template
 │   │   │   └── storageValidation.ts
 │   │   ├── providers
 │   │   │   ├── cloudflare
+│   │   │   │   ├── d1Provider.ts
 │   │   │   │   ├── index.ts
 │   │   │   │   ├── kvProvider.ts
 │   │   │   │   └── r2Provider.ts

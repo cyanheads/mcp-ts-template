@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.5.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.23-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-76.12%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
+[![Version](https://img.shields.io/badge/Version-2.5.1-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.23-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-76.12%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
 
 </div>
 
@@ -19,7 +19,7 @@
 - **Elicitation Support**: Tools can interactively prompt the user for missing parameters during execution, streamlining user workflows.
 - **Robust Error Handling**: A unified `McpError` system ensures consistent, structured error responses across the server.
 - **Pluggable Authentication**: Secure your server with zero-fuss support for `none`, `jwt`, or `oauth` modes.
-- **Abstracted Storage**: Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `SurrealDB`, `Cloudflare KV/R2`) without changing business logic. Features secure opaque cursor pagination, parallel batch operations, and comprehensive validation.
+- **Abstracted Storage**: Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `SurrealDB`, `Cloudflare D1/KV/R2`) without changing business logic. Features secure opaque cursor pagination, parallel batch operations, and comprehensive validation.
 - **Graph Database Operations**: Optional graph service for relationship management, graph traversals, and pathfinding algorithms (SurrealDB provider).
 - **Full-Stack Observability**: Get deep insights with structured logging (Pino) and optional, auto-instrumented OpenTelemetry for traces and metrics.
 - **Dependency Injection**: Built with `tsyringe` for a clean, decoupled, and testable architecture.
@@ -154,7 +154,7 @@ All configuration is centralized and validated at startup in `src/config/index.t
 | `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.                                                   | `none`      |
 | `MCP_AUTH_SECRET_KEY`       | **Required for `jwt` auth mode.** A 32+ character secret.                                         | `(none)`    |
 | `OAUTH_ISSUER_URL`          | **Required for `oauth` auth mode.** URL of the OIDC provider.                                     | `(none)`    |
-| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `surrealdb`, `cloudflare-kv`, `r2`.       | `in-memory` |
+| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `surrealdb`, `cloudflare-d1`, `cloudflare-kv`, `cloudflare-r2`. | `in-memory` |
 | `STORAGE_FILESYSTEM_PATH`   | **Required for `filesystem` storage.** Path to the storage directory.                             | `(none)`    |
 | `SUPABASE_URL`              | **Required for `supabase` storage.** Your Supabase project URL.                                   | `(none)`    |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Required for `supabase` storage.** Your Supabase service role key.                              | `(none)`    |
