@@ -39,6 +39,8 @@ yarn-error.log*
 # TYPESCRIPT & JAVASCRIPT
 # =============================================================================
 *.tsbuildinfo
+.tsbuildinfo
+.tsbuildinfo.scripts
 .tscache/
 *.js.map
 *.mjs.map
@@ -48,6 +50,7 @@ yarn-error.log*
 !*.d.ts.template
 *.tgz
 .eslintcache
+.prettiercache
 .rollup.cache
 
 # =============================================================================
@@ -132,7 +135,6 @@ out/
 # LOGS & DATABASES
 # =============================================================================
 *.log
-*.sql
 *.sqlite
 *.sqlite3
 logs/

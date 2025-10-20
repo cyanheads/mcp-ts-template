@@ -4,6 +4,10 @@
     // Scripts don't need to emit code - they run directly with bun/tsx
     "noEmit": true,
 
+    // Incremental compilation for faster type checking
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo.scripts",
+
     // Scripts may use console directly and have relaxed rules
     "noUnusedLocals": false,
     "noUnusedParameters": false,

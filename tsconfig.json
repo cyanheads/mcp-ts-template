@@ -28,6 +28,10 @@
     // Import helpers to reduce bundle size
     "importHelpers": true,
 
+    // Incremental compilation for faster type checking
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo",
+
     // Skip type checking of declaration files
     "skipLibCheck": true,
 
