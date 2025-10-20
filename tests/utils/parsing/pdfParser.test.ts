@@ -997,42 +997,129 @@ describe('PdfParser', () => {
 
     beforeEach(async () => {
       doc = await PDFDocument.create();
-      doc.addPage([600, 400]);
-      doc.addPage([600, 400]);
-      doc.addPage([600, 400]);
+      // Create pages with actual text content
+      const page1 = doc.addPage([600, 400]);
+      const page2 = doc.addPage([600, 400]);
+      const page3 = doc.addPage([600, 400]);
+
+      const font = await doc.embedFont(StandardFonts.Helvetica);
+
+      page1.drawText('Page 1: Hello World', {
+        x: 50,
+        y: 350,
+        size: 12,
+        font,
+      });
+
+      page2.drawText('Page 2: Testing unpdf integration', {
+        x: 50,
+        y: 350,
+        size: 12,
+        font,
+      });
+
+      page3.drawText('Page 3: Text extraction works!', {
+        x: 50,
+        y: 350,
+        size: 12,
+        font,
+      });
     });
 
-    it('should return placeholder text for each page', () => {
-      const textPages = parser.extractText(doc, context);
-      expect(textPages).toHaveLength(3);
-      expect(textPages[0]).toContain('Text extraction not implemented');
+    it('should extract text as array (one string per page) by default', async () => {
+      const result = await parser.extractText(doc, undefined, context);
+
+      expect(result.totalPages).toBe(3);
+      expect(Array.isArray(result.text)).toBe(true);
+      expect((result.text as string[]).length).toBe(3);
+
+      // Check that extracted text contains our content
+      const textArray = result.text as string[];
+      expect(textArray[0]).toContain('Page 1');
+      expect(textArray[1]).toContain('Page 2');
+      expect(textArray[2]).toContain('Page 3');
     });
 
-    it('should log warning about limited text extraction', () => {
-      const warningSpy = vi.spyOn(logger, 'warning');
-      parser.extractText(doc, context);
-
-      expect(warningSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Text extraction is not fully implemented'),
-        expect.any(Object),
+    it('should extract text as merged string when mergePages is true', async () => {
+      const result = await parser.extractText(
+        doc,
+        { mergePages: true },
+        context,
       );
+
+      expect(result.totalPages).toBe(3);
+      expect(typeof result.text).toBe('string');
+
+      // Check that merged text contains content from all pages
+      const mergedText = result.text as string;
+      expect(mergedText).toContain('Page 1');
+      expect(mergedText).toContain('Page 2');
+      expect(mergedText).toContain('Page 3');
     });
 
-    it('should log debug message with page count', () => {
+    it('should extract text as array when mergePages is false', async () => {
+      const result = await parser.extractText(
+        doc,
+        { mergePages: false },
+        context,
+      );
+
+      expect(result.totalPages).toBe(3);
+      expect(Array.isArray(result.text)).toBe(true);
+      expect((result.text as string[]).length).toBe(3);
+    });
+
+    it('should log debug messages during extraction', async () => {
       const debugSpy = vi.spyOn(logger, 'debug');
-      parser.extractText(doc, context);
+      await parser.extractText(doc, undefined, context);
 
       expect(debugSpy).toHaveBeenCalledWith(
-        'Extracting text from PDF.',
+        'Extracting text from PDF using unpdf.',
         expect.objectContaining({
           pageCount: 3,
+          mergePages: false,
+        }),
+      );
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        'Successfully extracted text from PDF.',
+        expect.objectContaining({
+          totalPages: 3,
         }),
       );
     });
 
-    it('should create context if none provided', () => {
-      const textPages = parser.extractText(doc);
-      expect(textPages).toHaveLength(3);
+    it('should create context if none provided', async () => {
+      const result = await parser.extractText(doc);
+      expect(result.totalPages).toBe(3);
+      expect(result.text).toBeDefined();
+    });
+
+    it('should handle PDFs without text content', async () => {
+      const emptyDoc = await PDFDocument.create();
+      emptyDoc.addPage([600, 400]);
+
+      const result = await parser.extractText(emptyDoc, undefined, context);
+
+      expect(result.totalPages).toBe(1);
+      expect(Array.isArray(result.text)).toBe(true);
+    });
+
+    it('should throw McpError on extraction failure', async () => {
+      const errorSpy = vi.spyOn(logger, 'error');
+      // Force an error by spying on doc.save
+      vi.spyOn(doc, 'save').mockRejectedValueOnce(new Error('Save failed'));
+
+      await expect(parser.extractText(doc, undefined, context)).rejects.toThrow(
+        McpError,
+      );
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Failed to extract text from PDF.',
+        expect.objectContaining({
+          errorDetails: 'Save failed',
+        }),
+      );
     });
   });
 
