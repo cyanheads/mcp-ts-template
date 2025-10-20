@@ -7,6 +7,34 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.5.2] - 2025-10-20
+
+### Added
+
+- **PDF Text Extraction**: Implemented robust PDF text extraction using unpdf library for serverless-compatible parsing.
+  - Added `unpdf@^1.3.2` dependency in [package.json](package.json) for Cloudflare Workers-compatible PDF parsing.
+  - Integrated unpdf extraction in [src/utils/parsing/pdfParser.ts](src/utils/parsing/pdfParser.ts) with `extractText` method.
+  - Added `ExtractTextOptions` interface with `mergePages` option to control output format (single string vs. per-page array).
+  - Added `ExtractTextResult` interface with `totalPages` and `text` properties for structured extraction results.
+
+### Changed
+
+- **PDF Parser Enhancement**: Completely rewrote `extractText()` method for production-grade text extraction.
+  - Changed method signature from synchronous to asynchronous (`async extractText()`).
+  - Replaced placeholder implementation with full unpdf integration using document proxy pattern.
+  - Added `mergePages` option to control output format: `true` for single merged string, `false` for per-page array (default).
+  - Enhanced logging with extraction progress and text length metrics in [src/utils/parsing/pdfParser.ts:963-1056](src/utils/parsing/pdfParser.ts#L963-L1056).
+- **Test Coverage**: Comprehensive test updates for new async PDF text extraction API.
+  - Rewrote all `extractText` tests in [tests/utils/parsing/pdfParser.test.ts:997-1125](tests/utils/parsing/pdfParser.test.ts#L997-L1125) to handle async operations.
+  - Added actual text content to test PDFs for realistic extraction validation.
+  - Added tests for `mergePages` option and error handling scenarios.
+  - Updated assertions to validate real extracted text content instead of placeholder messages.
+- **Documentation**: Updated README.md configuration table with improved column alignment for better readability.
+- **Server Configuration**: Updated [server.json:9](server.json#L9) version from 2.5.0 to 2.5.1 and removed redundant version fields from package configurations.
+- **Version Bump**: Incremented project version from `2.5.1` to `2.5.2` in [package.json:3](package.json#L3).
+
+---
+
 ## [2.5.1] - 2025-10-20
 
 ### Added
