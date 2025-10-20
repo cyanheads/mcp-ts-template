@@ -5,7 +5,15 @@
  * @module scripts/devcheck
  * @description
  *   This script runs a series of checks (linting, types, formatting, security, etc.).
- *   It is optimized for speed, especially in pre-commit hooks, by analyzing only staged files where possible.
+ *   It is optimized for speed with caching, incremental builds, and parallel execution.
+ *   Pre-commit hooks analyze only staged files for maximum performance.
+ *
+ * @performance
+ *   - Uses ESLint cache (.eslintcache) for faster linting
+ *   - Uses Prettier cache (.prettiercache) for faster formatting
+ *   - Uses TypeScript incremental builds (.tsbuildinfo) for faster type checking
+ *   - Runs all checks in parallel using Promise.allSettled
+ *   - Fast mode (--fast) skips slow network-bound checks
  *
  * @example
  * // Run all checks (Auto-fixing enabled):
@@ -13,6 +21,9 @@
  *
  * // Run in read-only mode:
  * // bun run scripts/devcheck.ts --no-fix
+ *
+ * // Fast mode (skip network-bound checks like audit, outdated):
+ * // bun run scripts/devcheck.ts --fast
  *
  * // Skip specific checks:
  * // bun run scripts/devcheck.ts --no-lint --no-audit
@@ -70,6 +81,7 @@ interface AppContext {
   flags: Set<string>;
   noFix: boolean;
   isHuskyHook: boolean;
+  fastMode: boolean;
   rootDir: string;
   /** List of staged files, populated only if isHuskyHook is true. */
   stagedFiles: string[];
@@ -95,6 +107,8 @@ interface Check {
   getCommand: (ctx: AppContext, mode: RunMode) => string[] | null;
   /** Indicates if the check supports auto-fixing. */
   canFix: boolean;
+  /** If true, this check is skipped in fast mode (typically network-bound or very slow). */
+  slowCheck?: boolean;
   tip?: (c: Colors) => string;
   /**
    * Optional predicate to determine success.
@@ -211,51 +225,7 @@ const getTargets = (
 };
 
 const ALL_CHECKS: Check[] = [
-  {
-    name: 'ESLint',
-    flag: '--no-lint',
-    canFix: true,
-    getCommand: (ctx, mode) => {
-      const targets = getTargets(ctx, LINT_EXTS, '.');
-      if (targets.length === 0) return null;
-
-      const command = ['bunx', 'eslint', ...targets, '--max-warnings', '0'];
-      if (mode === 'fix') {
-        command.push('--fix');
-      }
-      return command;
-    },
-    tip: (c) =>
-      `Run without ${c.bold('--no-fix')} to automatically fix issues.`,
-  },
-  {
-    name: 'TypeScript',
-    flag: '--no-types',
-    canFix: false,
-    // TypeScript generally needs the whole project context for accurate checking.
-    getCommand: () => ['bunx', 'tsc', '--noEmit'],
-    tip: () => 'Check TypeScript errors in your IDE or the console output.',
-  },
-  {
-    name: 'Prettier',
-    flag: '--no-format',
-    canFix: true,
-    getCommand: (ctx, mode) => {
-      // We use '.' as the default target, assuming a .prettierignore file is present.
-      const targets = getTargets(ctx, FORMAT_EXTS, '.');
-      if (targets.length === 0) return null;
-
-      const command = ['bunx', 'prettier'];
-      if (mode === 'fix') {
-        command.push('--write');
-      } else {
-        command.push('--check');
-      }
-      command.push(...targets);
-      return command;
-    },
-    tip: (c) => `Run without ${c.bold('--no-fix')} to fix formatting.`,
-  },
+  // Fast checks first (local operations, no network)
   {
     name: 'TODOs/FIXMEs',
     flag: '--no-todos',
@@ -284,9 +254,89 @@ const ALL_CHECKS: Check[] = [
       `Resolve ${c.bold('TODO')} or ${c.bold('FIXME')} comments before committing.`,
   },
   {
+    name: 'Tracked Secrets',
+    flag: '--no-secrets',
+    canFix: false,
+    // Check if common sensitive files are tracked by git.
+    getCommand: () => ['git', 'ls-files', '*.env*', '.npmrc', '.netrc'],
+    // Success if output is empty OR only contains '.env.example'.
+    isSuccess: (result, _mode) => {
+      if (result.exitCode !== 0) return false;
+      const files = result.stdout.trim().split('\n').filter(Boolean);
+      if (files.length === 0) return true;
+      if (files.length === 1 && files[0] === '.env.example') return true;
+      return false;
+    },
+    tip: (c) =>
+      `Add sensitive files to ${c.bold('.gitignore')} and run ${c.bold('git rm --cached <file>')}.`,
+  },
+  {
+    name: 'ESLint',
+    flag: '--no-lint',
+    canFix: true,
+    getCommand: (ctx, mode) => {
+      const targets = getTargets(ctx, LINT_EXTS, '.');
+      if (targets.length === 0) return null;
+
+      const command = [
+        path.join(ctx.rootDir, 'node_modules', '.bin', 'eslint'),
+        ...targets,
+        '--max-warnings',
+        '0',
+        '--cache',
+        '--cache-location',
+        '.eslintcache',
+      ];
+      if (mode === 'fix') {
+        command.push('--fix');
+      }
+      return command;
+    },
+    tip: (c) =>
+      `Run without ${c.bold('--no-fix')} to automatically fix issues.`,
+  },
+  {
+    name: 'Prettier',
+    flag: '--no-format',
+    canFix: true,
+    getCommand: (ctx, mode) => {
+      // We use '.' as the default target, assuming a .prettierignore file is present.
+      const targets = getTargets(ctx, FORMAT_EXTS, '.');
+      if (targets.length === 0) return null;
+
+      const command = [
+        path.join(ctx.rootDir, 'node_modules', '.bin', 'prettier'),
+        '--cache',
+        '--cache-location',
+        '.prettiercache',
+      ];
+      if (mode === 'fix') {
+        command.push('--write');
+      } else {
+        command.push('--check');
+      }
+      command.push(...targets);
+      return command;
+    },
+    tip: (c) => `Run without ${c.bold('--no-fix')} to fix formatting.`,
+  },
+  {
+    name: 'TypeScript',
+    flag: '--no-types',
+    canFix: false,
+    // TypeScript generally needs the whole project context for accurate checking.
+    getCommand: (ctx) => [
+      path.join(ctx.rootDir, 'node_modules', '.bin', 'tsc'),
+      '--noEmit',
+    ],
+    tip: () => 'Check TypeScript errors in your IDE or the console output.',
+  },
+  // Slow checks last (network-bound operations)
+  {
     name: 'Security Audit',
     flag: '--no-audit',
     canFix: false, // 'bun audit --fix' exists but often requires manual review.
+    slowCheck: true,
     getCommand: () => ['bun', 'audit'],
     isSuccess: (result, _mode) => {
       // If the command exits 0, no vulnerabilities were found.
@@ -308,26 +358,10 @@ const ALL_CHECKS: Check[] = [
       `High- or critical-severity vulnerabilities found. Review the report and run ${c.bold('bun update')} or ${c.bold('bun audit --fix')}.`,
   },
   {
-    name: 'Tracked Secrets',
-    flag: '--no-secrets',
-    canFix: false,
-    // Check if common sensitive files are tracked by git.
-    getCommand: () => ['git', 'ls-files', '*.env*', '.npmrc', '.netrc'],
-    // Success if output is empty OR only contains '.env.example'.
-    isSuccess: (result, _mode) => {
-      if (result.exitCode !== 0) return false;
-      const files = result.stdout.trim().split('\n').filter(Boolean);
-      if (files.length === 0) return true;
-      if (files.length === 1 && files[0] === '.env.example') return true;
-      return false;
-    },
-    tip: (c) =>
-      `Add sensitive files to ${c.bold('.gitignore')} and run ${c.bold('git rm --cached <file>')}.`,
-  },
-  {
     name: 'Dependencies (Outdated)',
     flag: '--no-deps',
     canFix: false,
+    slowCheck: true,
     getCommand: () => ['bun', 'outdated'],
     isSuccess: (result, _mode) => {
       // `bun outdated` exits with 0 if no packages are outdated, which is a success.
@@ -370,9 +404,11 @@ const UI = {
         `(Husky Hook: ${mode} - ${fileCount} file${fileCount === 1 ? '' : 's'} staged)`,
       );
     } else {
+      const fixMode = ctx.noFix ? 'Read-only' : 'Auto-fixing';
+      const speedMode = ctx.fastMode ? ' - Fast mode' : '';
       modeMessage = ctx.noFix
-        ? c.dim('(Read-only mode)')
-        : c.magenta('(Auto-fixing mode)');
+        ? c.dim(`(${fixMode} mode${speedMode})`)
+        : c.magenta(`(${fixMode} mode${speedMode})`);
     }
 
     UI.log(
@@ -503,6 +539,7 @@ function parseArgs(
   const flags = new Set<string>();
   let noFix = false;
   let isHuskyHook = false;
+  let fastMode = false;
 
   for (const arg of args) {
     if (arg === '--no-fix') {
@@ -510,6 +547,9 @@ function parseArgs(
     } else if (arg === '--husky-hook') {
       // Flag used when invoking this script from a husky configuration
       isHuskyHook = true;
+    } else if (arg === '--fast') {
+      // Fast mode: skip slow network-bound checks
+      fastMode = true;
     } else if (arg.startsWith('--')) {
       flags.add(arg);
     }
@@ -520,7 +560,7 @@ function parseArgs(
     isHuskyHook = true;
   }
 
-  return { flags, noFix, isHuskyHook };
+  return { flags, noFix, isHuskyHook, fastMode };
 }
 
 async function runCheck(check: Check, ctx: AppContext): Promise<CommandResult> {
@@ -540,14 +580,20 @@ async function runCheck(check: Check, ctx: AppContext): Promise<CommandResult> {
     return { ...baseResult, skipped: true };
   }
 
-  // 2. Determine command and mode
+  // 2. Skip slow checks in fast mode
+  if (ctx.fastMode && check.slowCheck) {
+    UI.printSkipped(check, 'Skipped in fast mode');
+    return { ...baseResult, skipped: true };
+  }
+
+  // 3. Determine command and mode
   const useFixCommand = !ctx.noFix && check.canFix;
   const runMode: RunMode = useFixCommand ? 'fix' : 'check';
   const uiMode: UIMode = useFixCommand ? 'Fixing' : 'Checking';
 
   const command = getCommand(ctx, runMode);
 
-  // 3. Check if command generation resulted in no action (e.g., no relevant staged files)
+  // 4. Check if command generation resulted in no action (e.g., no relevant staged files)
   if (!command || command.length === 0) {
     UI.printSkipped(check, 'No relevant files to check');
     return { ...baseResult, skipped: true };
@@ -555,14 +601,14 @@ async function runCheck(check: Check, ctx: AppContext): Promise<CommandResult> {
 
   UI.printCheckStart(check, command, uiMode);
 
-  // 4. Execute the command
+  // 5. Execute the command
   const startTime = Date.now();
   const result = await Shell.exec(command, { cwd: ctx.rootDir });
   const duration = Date.now() - startTime;
 
   const finalResult = { ...baseResult, ...result, duration };
 
-  // 5. Determine success (using custom logic if provided)
+  // 6. Determine success (using custom logic if provided)
   if (isSuccess) {
     const success = isSuccess(result, runMode);
     // If the custom logic says it failed, ensure the exit code is non-zero,
