@@ -5,3 +5,4 @@
 
 export * from './r2Provider.js';
 export * from './kvProvider.js';
+export * from './d1Provider.js';

@@ -175,6 +175,7 @@ const ConfigSchema = z.object({
           'surrealdb',
           'cloudflare-r2',
           'cloudflare-kv',
+          'cloudflare-d1',
         ]),
       )
       .default('in-memory'),

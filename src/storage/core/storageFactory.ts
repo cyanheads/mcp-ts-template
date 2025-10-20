@@ -6,7 +6,11 @@
  * @module src/storage/core/storageFactory
  */
 import { container } from 'tsyringe';
-import type { R2Bucket, KVNamespace } from '@cloudflare/workers-types';
+import type {
+  R2Bucket,
+  KVNamespace,
+  D1Database,
+} from '@cloudflare/workers-types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type Surreal from 'surrealdb';
 
@@ -20,6 +24,7 @@ import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.
 import { SurrealKvProvider } from '@/storage/providers/surrealdb/kv/surrealKvProvider.js';
 import { R2Provider } from '@/storage/providers/cloudflare/r2Provider.js';
 import { KvProvider } from '@/storage/providers/cloudflare/kvProvider.js';
+import { D1Provider } from '@/storage/providers/cloudflare/d1Provider.js';
 import { logger, requestContextService } from '@/utils/index.js';
 
 const isServerless =
@@ -39,6 +44,8 @@ export interface StorageFactoryDeps {
   readonly r2Bucket?: R2Bucket;
   /** Cloudflare KV namespace binding */
   readonly kvNamespace?: KVNamespace;
+  /** Cloudflare D1 database binding */
+  readonly d1Database?: D1Database;
 }
 
 /**
@@ -89,9 +96,13 @@ export function createStorageProvider(
 
   if (
     isServerless &&
-    !['in-memory', 'surrealdb', 'cloudflare-r2', 'cloudflare-kv'].includes(
-      providerType,
-    )
+    ![
+      'in-memory',
+      'surrealdb',
+      'cloudflare-r2',
+      'cloudflare-kv',
+      'cloudflare-d1',
+    ].includes(providerType)
   ) {
     logger.warning(
       `Forcing 'in-memory' storage provider in serverless environment (configured: ${providerType}).`,
@@ -205,6 +216,34 @@ export function createStorageProvider(
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
         'Cloudflare KV storage is only available in a Cloudflare Worker environment.',
+        context,
+      );
+    case 'cloudflare-d1':
+      if (isServerless) {
+        if (deps.d1Database) {
+          return new D1Provider(deps.d1Database);
+        }
+
+        // Type guard to check if globalThis has DB binding
+        function hasD1Database(obj: unknown): obj is { DB: D1Database } {
+          return typeof obj === 'object' && obj !== null && 'DB' in obj;
+        }
+
+        const globalWithBinding: unknown = globalThis;
+        if (!hasD1Database(globalWithBinding)) {
+          throw new McpError(
+            JsonRpcErrorCode.ConfigurationError,
+            'DB binding not available in globalThis. Ensure wrangler.toml is configured correctly with D1 database binding.',
+            context,
+          );
+        }
+
+        // After type guard, globalWithBinding is narrowed to { DB: D1Database }
+        return new D1Provider(globalWithBinding.DB);
+      }
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        'Cloudflare D1 storage is only available in a Cloudflare Worker environment.',
         context,
       );
     default: {
