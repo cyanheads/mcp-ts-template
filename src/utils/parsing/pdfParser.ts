@@ -1,6 +1,7 @@
 /**
  * @fileoverview Provides a utility class for creating, modifying, and parsing PDF documents.
  * Wraps the 'pdf-lib' npm library with structured error handling and logging.
+ * Uses 'unpdf' for robust text extraction compatible with Cloudflare Workers.
  * @module src/utils/parsing/pdfParser
  */
 import {
@@ -13,6 +14,7 @@ import {
   rgb,
   type RGB,
 } from 'pdf-lib';
+import { extractText as unpdfExtractText, getDocumentProxy } from 'unpdf';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
@@ -259,8 +261,39 @@ export interface FillFormOptions {
 }
 
 /**
+ * Options for extracting text from a PDF document.
+ */
+export interface ExtractTextOptions {
+  /**
+   * Whether to merge all pages into a single string.
+   * If true, returns text as a single string.
+   * If false, returns text as an array with one string per page.
+   * Defaults to false.
+   */
+  mergePages?: boolean;
+}
+
+/**
+ * Result from extracting text from a PDF document.
+ */
+export interface ExtractTextResult {
+  /**
+   * Total number of pages in the PDF.
+   */
+  totalPages: number;
+
+  /**
+   * Extracted text content.
+   * String array if mergePages is false (one entry per page).
+   * Single string if mergePages is true (all pages concatenated).
+   */
+  text: string | string[];
+}
+
+/**
  * Utility class for creating, modifying, and parsing PDF documents.
  * Wraps the 'pdf-lib' library with structured error handling and logging.
+ * Uses 'unpdf' for robust text extraction compatible with Cloudflare Workers.
  */
 export class PdfParser {
   /**
@@ -941,21 +974,31 @@ export class PdfParser {
   }
 
   /**
-   * Extracts text content from all pages of a PDF document.
-   * Note: pdf-lib has limited text extraction capabilities.
-   * For robust text extraction, consider using pdf-parse or pdfjs-dist.
+   * Extracts text content from all pages of a PDF document using unpdf.
+   * This method uses the 'unpdf' library which is compatible with Cloudflare Workers
+   * and other serverless environments.
    *
    * @param doc - The PDFDocument to extract text from.
+   * @param options - Optional extraction options (mergePages).
    * @param context - Optional RequestContext for logging and error correlation.
-   * @returns Array of text strings, one per page.
+   * @returns Promise resolving to an object with totalPages and text (string or string[]).
    * @throws {McpError} If text extraction fails.
    * @example
    * ```typescript
-   * const textPages = pdfParser.extractText(doc);
-   * console.log(textPages[0]); // Text from first page
+   * // Extract text as array (one string per page)
+   * const result = await pdfParser.extractText(doc);
+   * console.log(result.text[0]); // Text from first page
+   *
+   * // Extract text as single merged string
+   * const merged = await pdfParser.extractText(doc, { mergePages: true });
+   * console.log(merged.text); // All text concatenated
    * ```
    */
-  extractText(doc: PDFDocument, context?: RequestContext): string[] {
+  async extractText(
+    doc: PDFDocument,
+    options?: ExtractTextOptions,
+    context?: RequestContext,
+  ): Promise<ExtractTextResult> {
     const logContext =
       context ||
       requestContextService.createRequestContext({
@@ -963,30 +1006,49 @@ export class PdfParser {
       });
 
     try {
-      logger.debug('Extracting text from PDF.', {
+      const pageCount = doc.getPageCount();
+      const mergePages = options?.mergePages ?? false;
+
+      logger.debug('Extracting text from PDF using unpdf.', {
         ...logContext,
-        pageCount: doc.getPageCount(),
+        pageCount,
+        mergePages,
       });
 
-      // Note: pdf-lib doesn't have native text extraction.
-      // This is a placeholder implementation.
-      // For production use, integrate pdf-parse or pdfjs-dist.
+      // Convert PDFDocument to bytes
+      const pdfBytes = await doc.save();
 
-      const pages = doc.getPages();
-      const textPages: string[] = [];
+      // Create document proxy for unpdf
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const pdfProxy = await getDocumentProxy(pdfBytes);
 
-      for (let i = 0; i < pages.length; i++) {
-        // pdf-lib doesn't expose text extraction APIs directly.
-        // This would require parsing the content streams.
-        textPages.push('[Text extraction not implemented - use pdf-parse]');
+      // Extract text using unpdf with explicit type handling
+      let result: { totalPages: number; text: string | string[] };
+
+      if (mergePages) {
+        // Call with mergePages: true for merged text
+        const merged = await unpdfExtractText(pdfProxy, { mergePages: true });
+        result = merged;
+      } else {
+        // Call with mergePages: false for per-page text
+        const perPage = await unpdfExtractText(pdfProxy, {
+          mergePages: false,
+        });
+        result = perPage;
       }
 
-      logger.warning(
-        'Text extraction is not fully implemented in pdf-lib. Consider using pdf-parse or pdfjs-dist for robust text extraction.',
-        logContext,
-      );
+      logger.debug('Successfully extracted text from PDF.', {
+        ...logContext,
+        totalPages: result.totalPages,
+        textLength: Array.isArray(result.text)
+          ? result.text.reduce((sum, t) => sum + t.length, 0)
+          : result.text.length,
+      });
 
-      return textPages;
+      return {
+        totalPages: result.totalPages,
+        text: result.text,
+      };
     } catch (e: unknown) {
       const error = e as Error;
       logger.error('Failed to extract text from PDF.', {
