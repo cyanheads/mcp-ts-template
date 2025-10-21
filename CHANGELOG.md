@@ -7,6 +7,63 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.5.4] - 2025-10-21
+
+### Added
+
+- **Formatting Utilities**: Added comprehensive formatting utilities for structured output generation.
+  - Added `DiffFormatter` class with git-style diff generation in [src/utils/formatting/diffFormatter.ts](src/utils/formatting/diffFormatter.ts).
+    - Supports unified, patch, and inline diff formats with configurable context lines.
+    - Includes line-level and word-level diff methods for different use cases.
+    - Provides diff statistics (additions, deletions, total changes).
+    - Uses `diff@^8.0.2` library (jsdiff) for robust diff generation.
+  - Added `TableFormatter` class for multi-format table rendering in [src/utils/formatting/tableFormatter.ts](src/utils/formatting/tableFormatter.ts).
+    - Supports markdown, ASCII, grid (Unicode), and compact table styles.
+    - Configurable column alignment (left, center, right) and width constraints.
+    - Header styling options (bold, uppercase, none).
+    - Automatic truncation with ellipsis for long content.
+  - Added `TreeFormatter` class for hierarchical data visualization in [src/utils/formatting/treeFormatter.ts](src/utils/formatting/treeFormatter.ts).
+    - Supports ASCII, Unicode box-drawing, and compact tree styles.
+    - Configurable icons for folders and files.
+    - Optional metadata display alongside nodes.
+    - Circular reference detection and max depth limiting.
+  - Exported all formatters through barrel export in [src/utils/formatting/index.ts](src/utils/formatting/index.ts).
+  - Added comprehensive unit tests for all formatters in [tests/utils/formatting/](tests/utils/formatting/).
+- **Parsing Utilities**: Added frontmatter parser for markdown documents.
+  - Added `FrontmatterParser` class in [src/utils/parsing/frontmatterParser.ts](src/utils/parsing/frontmatterParser.ts).
+    - Extracts and parses YAML frontmatter from markdown (Obsidian/Jekyll-style).
+    - Leverages existing `yamlParser` for YAML parsing with LLM `<think>` block handling.
+    - Returns structured result with frontmatter object, content, and detection flag.
+  - Exported frontmatter parser through barrel export in [src/utils/parsing/index.ts](src/utils/parsing/index.ts).
+  - Added comprehensive unit tests in [tests/utils/parsing/frontmatterParser.test.ts](tests/utils/parsing/frontmatterParser.test.ts).
+
+### Changed
+
+- **Dependencies**: Updated multiple dependencies to latest versions for security and compatibility improvements.
+  - Updated `@cloudflare/workers-types` from `4.20251011.0` to `4.20251014.0` in [package.json](package.json) and [bun.lock](bun.lock).
+  - Updated `@types/node` from `24.9.0` to `24.9.1` in [package.json](package.json) and [bun.lock](bun.lock).
+  - Updated `openai` from `6.5.0` to `6.6.0` in [package.json](package.json) and [bun.lock](bun.lock).
+  - Updated `typescript-eslint` from `8.46.1` to `8.46.2` in [package.json](package.json) and [bun.lock](bun.lock).
+  - Updated `vite` from `7.1.10` to `7.1.11` in [package.json](package.json) and [bun.lock](bun.lock).
+  - Updated `hono` from `4.10.0` to `4.10.1` in [package.json](package.json) and [bun.lock](bun.lock).
+  - Added `diff@^8.0.2` dependency for diff formatting utility.
+  - Added `@types/diff@^8.0.0` for TypeScript type definitions.
+- **Test Coverage**: Updated formatting utilities test suite to include new formatter exports.
+  - Updated [tests/utils/formatting/index.test.ts](tests/utils/formatting/index.test.ts) to verify exports of all formatters.
+- **Version Bump**: Incremented project version from `2.5.3` to `2.5.4` in [package.json:3](package.json#L3).
+
+### Fixed
+
+- **Type Safety**: Removed unnecessary type assertion in encoding utility.
+  - Changed `bytes.buffer as ArrayBuffer` to `bytes.buffer` in [src/utils/internal/encoding.ts:47](src/utils/internal/encoding.ts#L47).
+  - TypeScript correctly infers `Uint8Array.buffer` as `ArrayBuffer` without explicit casting.
+
+### Documentation
+
+- **Tree Structure**: Updated [docs/tree.md](docs/tree.md) generation timestamp to 2025-10-21 04:50:55 reflecting new formatter and parser files.
+
+---
+
 ## [2.5.3] - 2025-10-20
 
 ### Changed
