@@ -7,6 +7,22 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.5.3] - 2025-10-20
+
+### Changed
+
+- **Dependencies**: Updated multiple dependencies to latest versions for security and compatibility improvements.
+  - Updated `@cloudflare/workers-types` from `4.20251011.0` to `4.20251014.0` in [package.json:73](package.json#L73) and [bun.lock](bun.lock).
+  - Updated `@types/node` from `24.9.0` to `24.9.1` in [package.json:91](package.json#L91) and [bun.lock](bun.lock).
+  - Updated `openai` from `6.5.0` to `6.6.0` in [package.json:116](package.json#L116) and [bun.lock](bun.lock).
+- **Server Configuration**: Enhanced [server.json](server.json) metadata structure.
+  - Added explicit `version` field to both stdio and http package configurations for better version tracking.
+  - Removed duplicate `mcpName` field (already defined in repository object) to eliminate redundancy.
+  - Updated version from `2.5.1` to `2.5.3` in [server.json:9](server.json#L9).
+- **Version Bump**: Incremented project version from `2.5.2` to `2.5.3` in [package.json:3](package.json#L3) and updated README.md version badge.
+
+---
+
 ## [2.5.2] - 2025-10-20
 
 ### Added
