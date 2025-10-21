@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-20 16:10:55
+Generated on: 2025-10-21 04:50:55
 
 ```
 mcp-ts-template
@@ -454,8 +454,11 @@ mcp-ts-template
 │   │   └── errors.ts
 │   ├── utils
 │   │   ├── formatting
+│   │   │   ├── diffFormatter.ts
 │   │   │   ├── index.ts
-│   │   │   └── markdownBuilder.ts
+│   │   │   ├── markdownBuilder.ts
+│   │   │   ├── tableFormatter.ts
+│   │   │   └── treeFormatter.ts
 │   │   ├── internal
 │   │   │   ├── error-handler
 │   │   │   │   ├── errorHandler.ts
@@ -483,6 +486,7 @@ mcp-ts-template
 │   │   ├── parsing
 │   │   │   ├── csvParser.ts
 │   │   │   ├── dateParser.ts
+│   │   │   ├── frontmatterParser.ts
 │   │   │   ├── index.ts
 │   │   │   ├── jsonParser.ts
 │   │   │   ├── pdfParser.ts
@@ -631,8 +635,11 @@ mcp-ts-template
 │   │   └── errors.test.ts
 │   ├── utils
 │   │   ├── formatting
+│   │   │   ├── diffFormatter.test.ts
 │   │   │   ├── index.test.ts
-│   │   │   └── markdownBuilder.test.ts
+│   │   │   ├── markdownBuilder.test.ts
+│   │   │   ├── tableFormatter.test.ts
+│   │   │   └── treeFormatter.test.ts
 │   │   ├── internal
 │   │   │   ├── error-handler
 │   │   │   │   ├── errorHandler.test.ts
@@ -662,6 +669,7 @@ mcp-ts-template
 │   │   ├── parsing
 │   │   │   ├── csvParser.test.ts
 │   │   │   ├── dateParser.test.ts
+│   │   │   ├── frontmatterParser.test.ts
 │   │   │   ├── index.test.ts
 │   │   │   ├── jsonParser.test.ts
 │   │   │   ├── pdfParser.test.ts
