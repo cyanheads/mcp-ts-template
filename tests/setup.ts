@@ -24,7 +24,6 @@ let offset = 0;
     originalNow = Date.now;
     base = originalNow();
     offset = 0;
-    // @ts-ignore
     Date.now = () => base + offset;
   }
 };
@@ -37,7 +36,6 @@ let offset = 0;
 };
 (vi as any).useRealTimers = () => {
   if (originalNow) {
-    // @ts-ignore
     Date.now = originalNow;
     originalNow = null;
   }

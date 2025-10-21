@@ -12,7 +12,7 @@ import type {
   ToolAnnotations,
   ToolDefinition,
 } from '@/mcp-server/tools/utils/index.js';
-import { markdown } from '@/utils/index.js';
+import { markdown, getStringProperty } from '@/utils/index.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { type RequestContext, logger } from '@/utils/index.js';
@@ -153,9 +153,9 @@ async function echoToolLogic(
     const errorData: Record<string, unknown> = {
       requestId: appContext.requestId,
     };
-    if (typeof (appContext as Record<string, unknown>).traceId === 'string') {
-      errorData.traceId = (appContext as Record<string, unknown>)
-        .traceId as string;
+    const traceId = getStringProperty(appContext, 'traceId');
+    if (traceId) {
+      errorData.traceId = traceId;
     }
     throw new McpError(
       JsonRpcErrorCode.ValidationError,

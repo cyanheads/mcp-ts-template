@@ -9,7 +9,12 @@ import type Surreal from 'surrealdb';
 
 import { SurrealdbClient } from '@/container/tokens.js';
 import { McpError, JsonRpcErrorCode } from '@/types-global/errors.js';
-import { ErrorHandler, logger, type RequestContext } from '@/utils/index.js';
+import {
+  ErrorHandler,
+  logger,
+  type RequestContext,
+  isRecord,
+} from '@/utils/index.js';
 import type {
   IGraphProvider,
   Edge,
@@ -210,16 +215,21 @@ export class SurrealGraphProvider implements IGraphProvider {
               : [pathElement];
 
             for (const element of elements) {
-              if (typeof element === 'object' && element !== null) {
+              if (isRecord(element)) {
                 // Check if it's an edge (has 'in' and 'out' properties)
                 if ('in' in element && 'out' in element) {
-                  const elem = element as Record<string, unknown>;
                   const elementId =
-                    typeof elem.id === 'string' ? elem.id : String(elem.id);
+                    typeof element.id === 'string'
+                      ? element.id
+                      : String(element.id);
                   const elementOut =
-                    typeof elem.out === 'string' ? elem.out : String(elem.out);
+                    typeof element.out === 'string'
+                      ? element.out
+                      : String(element.out);
                   const elementIn =
-                    typeof elem.in === 'string' ? elem.in : String(elem.in);
+                    typeof element.in === 'string'
+                      ? element.in
+                      : String(element.in);
 
                   const edge: Edge = {
                     id: elementId || '',
@@ -227,7 +237,7 @@ export class SurrealGraphProvider implements IGraphProvider {
                     from: elementOut || '',
                     to: elementIn || '',
                     data: Object.fromEntries(
-                      Object.entries(elem).filter(
+                      Object.entries(element).filter(
                         ([key]) => !['id', 'in', 'out'].includes(key),
                       ),
                     ),
@@ -235,15 +245,16 @@ export class SurrealGraphProvider implements IGraphProvider {
                   graphPath.edges.push(edge);
                 } else {
                   // It's a vertex
-                  const elem = element as Record<string, unknown>;
                   const elementId =
-                    typeof elem.id === 'string' ? elem.id : String(elem.id);
+                    typeof element.id === 'string'
+                      ? element.id
+                      : String(element.id);
 
                   const vertex = {
                     id: elementId || '',
                     table: this.extractTableName(elementId || ''),
                     data: Object.fromEntries(
-                      Object.entries(elem).filter(([key]) => key !== 'id'),
+                      Object.entries(element).filter(([key]) => key !== 'id'),
                     ),
                   };
                   graphPath.vertices.push(vertex);

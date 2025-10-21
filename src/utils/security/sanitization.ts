@@ -9,6 +9,7 @@ import sanitizeHtml from 'sanitize-html';
 import validator from 'validator';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { isRecord } from '@/utils/types/guards.js';
 import { logger, requestContextService } from '@/utils/index.js';
 
 const isServerless =
@@ -689,6 +690,9 @@ export class Sanitization {
       return;
     }
 
+    // Type guard ensures obj is a Record<string, unknown>
+    if (!isRecord(obj)) return;
+
     const normalize = (str: string): string =>
       str.toLowerCase().replace(/[^a-z0-9]/g, '');
     const normalizedSensitiveSet = new Set(
@@ -700,7 +704,7 @@ export class Sanitization {
 
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        const value = (obj as Record<string, unknown>)[key];
+        const value = obj[key];
         const normalizedKey = normalize(key);
         // Split into words for token-based matching (camelCase, snake_case, kebab-case)
         const keyWords = key
@@ -714,7 +718,7 @@ export class Sanitization {
         const isSensitive = isExactSensitive || isWordSensitive;
 
         if (isSensitive) {
-          (obj as Record<string, unknown>)[key] = '[REDACTED]';
+          obj[key] = '[REDACTED]';
         } else if (value && typeof value === 'object') {
           this.redactSensitiveFields(value);
         }

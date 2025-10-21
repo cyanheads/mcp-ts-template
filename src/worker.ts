@@ -23,7 +23,7 @@ import {
   requestContextService,
 } from '@/utils/index.js';
 import { logger } from '@/utils/internal/logger.js';
-import { Hono, type Env as HonoEnv } from 'hono';
+import { Hono } from 'hono';
 
 /**
  * Define Cloudflare Worker Bindings with proper type safety.
@@ -67,10 +67,13 @@ export interface CloudflareBindings {
   [key: string]: unknown;
 }
 
-// Define the complete Hono environment for the worker.
-interface WorkerEnv extends HonoEnv {
+/**
+ * Define the complete Hono environment for the worker.
+ * This type is used to configure the Hono app with Cloudflare-specific bindings.
+ */
+type WorkerEnv = {
   Bindings: CloudflareBindings;
-}
+};
 
 // Use a Promise to ensure the app is only initialized once per worker instance.
 let appPromise: Promise<Hono<WorkerEnv>> | null = null;
@@ -215,14 +218,9 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
       // Create the MCP Server instance.
       const mcpServer = await createMcpServerInstance();
 
-      // Create the Hono application.
-      // We need to use unknown intermediate because TypeScript can't directly prove
-      // that the Hono<HttpBindings> from createHttpApp is compatible with Hono<WorkerEnv>
-      // even though they're structurally compatible at runtime
-      const app = createHttpApp(
-        mcpServer,
-        workerContext,
-      ) as unknown as Hono<WorkerEnv>;
+      // Create the Hono application with Cloudflare Worker bindings.
+      // createHttpApp is generic and accepts the binding type as a type parameter.
+      const app = createHttpApp<CloudflareBindings>(mcpServer, workerContext);
 
       const initDuration = Date.now() - initStartTime;
       logger.info('Cloudflare Worker initialized successfully.', {

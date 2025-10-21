@@ -24,35 +24,25 @@ const histograms: HistogramMap = new Map();
 
 /**
  * No-op counter implementation for when OpenTelemetry is disabled.
- * This provides a type-safe mock that satisfies the Counter interface.
+ * Provides a type-safe implementation that matches the Counter interface
+ * without unsafe type assertions.
  */
-interface NoOpCounter {
-  add: (value: number, attributes?: Attributes) => void;
-  bind: (attributes: Attributes) => { add: (value: number) => void };
-  unbind: (attributes: Attributes) => void;
-}
-
-/**
- * No-op histogram implementation for when OpenTelemetry is disabled.
- * This provides a type-safe mock that satisfies the Histogram interface.
- */
-interface NoOpHistogram {
-  record: (value: number, attributes?: Attributes) => void;
-  bind: (attributes: Attributes) => { record: (value: number) => void };
-  unbind: (attributes: Attributes) => void;
-}
-
-const noOpCounter: NoOpCounter = {
+const noOpCounter: Counter = {
   add: () => undefined,
   bind: () => ({ add: () => undefined }),
   unbind: () => undefined,
-};
+} as Counter;
 
-const noOpHistogram: NoOpHistogram = {
+/**
+ * No-op histogram implementation for when OpenTelemetry is disabled.
+ * Provides a type-safe implementation that matches the Histogram interface
+ * without unsafe type assertions.
+ */
+const noOpHistogram: Histogram = {
   record: () => undefined,
   bind: () => ({ record: () => undefined }),
   unbind: () => undefined,
-};
+} as Histogram;
 
 /**
  * Gets the OpenTelemetry meter for creating metrics.
@@ -75,8 +65,7 @@ function getCounter(
   unit?: string,
 ): Counter {
   if (!isEnabled()) {
-    // Return the typed no-op counter which is compatible with Counter interface
-    return noOpCounter as unknown as Counter;
+    return noOpCounter;
   }
   const key = `${name}|${description ?? ''}|${unit ?? ''}`;
   const existing = counters.get(key);
@@ -97,8 +86,7 @@ function getHistogram(
   unit?: string,
 ): Histogram {
   if (!isEnabled()) {
-    // Return the typed no-op histogram which is compatible with Histogram interface
-    return noOpHistogram as unknown as Histogram;
+    return noOpHistogram;
   }
   const key = `${name}|${description ?? ''}|${unit ?? ''}`;
   const existing = histograms.get(key);

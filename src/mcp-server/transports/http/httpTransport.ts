@@ -45,11 +45,26 @@ class McpSessionTransport extends StreamableHTTPTransport {
   }
 }
 
-export function createHttpApp(
+/**
+ * Creates a Hono HTTP application for the MCP server.
+ *
+ * This function is generic and can create apps with different binding types:
+ * - Node.js environments use HonoNodeBindings (default)
+ * - Cloudflare Workers use CloudflareBindings
+ *
+ * The function itself doesn't access bindings; they're only used at runtime
+ * when the app processes requests in its specific environment.
+ *
+ * @template TBindings - The Hono binding type (must extend object, defaults to HonoNodeBindings for Node.js)
+ * @param mcpServer - The MCP server instance
+ * @param parentContext - Parent request context for logging
+ * @returns Configured Hono application with the specified binding type
+ */
+export function createHttpApp<TBindings extends object = HonoNodeBindings>(
   mcpServer: McpServer,
   parentContext: RequestContext,
-): Hono<{ Bindings: HonoNodeBindings }> {
-  const app = new Hono<{ Bindings: HonoNodeBindings }>();
+): Hono<{ Bindings: TBindings }> {
+  const app = new Hono<{ Bindings: TBindings }>();
   const transportContext = {
     ...parentContext,
     component: 'HttpTransportSetup',
@@ -364,8 +379,8 @@ async function isPortInUse(
   });
 }
 
-function startHttpServerWithRetry(
-  app: Hono<{ Bindings: HonoNodeBindings }>,
+function startHttpServerWithRetry<TBindings extends object = HonoNodeBindings>(
+  app: Hono<{ Bindings: TBindings }>,
   initialPort: number,
   host: string,
   maxRetries: number,

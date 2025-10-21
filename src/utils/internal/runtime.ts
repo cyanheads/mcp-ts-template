@@ -24,22 +24,59 @@ const safeHas = (key: string): boolean => {
   }
 };
 
-const isNode =
-  typeof process !== 'undefined' &&
-  typeof (process as unknown as { versions?: { node?: string } }).versions
-    ?.node === 'string';
+/**
+ * Safely checks if process.versions.node exists and is a string.
+ * Uses try-catch to handle environments where property access might be restricted.
+ */
+const hasNodeVersion = (): boolean => {
+  try {
+    return (
+      typeof process !== 'undefined' &&
+      typeof process.versions === 'object' &&
+      process.versions !== null &&
+      typeof process.versions.node === 'string'
+    );
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Safely checks if globalThis.performance.now is a function.
+ * Uses try-catch to handle environments where property access might be restricted.
+ */
+const hasPerformanceNowFunction = (): boolean => {
+  try {
+    return (
+      typeof globalThis.performance === 'object' &&
+      globalThis.performance !== null &&
+      typeof globalThis.performance.now === 'function'
+    );
+  } catch {
+    return false;
+  }
+};
+
+const isNode = hasNodeVersion();
 const hasProcess = typeof process !== 'undefined';
 const hasBuffer = typeof Buffer !== 'undefined';
 const hasTextEncoder = safeHas('TextEncoder');
-const hasPerformanceNow =
-  typeof (globalThis as { performance?: { now?: () => number } }).performance
-    ?.now === 'function';
+const hasPerformanceNow = hasPerformanceNowFunction();
+
+/**
+ * Safely checks if WorkerGlobalScope exists.
+ * Cloudflare Workers and other worker environments expose this.
+ */
+const hasWorkerGlobalScope = (): boolean => {
+  try {
+    return 'WorkerGlobalScope' in globalThis;
+  } catch {
+    return false;
+  }
+};
 
 // Cloudflare Workers expose "Web Worker"-like environment (self, caches, fetch, etc.)
-const isWorkerLike =
-  !isNode &&
-  typeof (globalThis as { WorkerGlobalScope?: unknown }).WorkerGlobalScope !==
-    'undefined';
+const isWorkerLike = !isNode && hasWorkerGlobalScope();
 const isBrowserLike = !isNode && !isWorkerLike && safeHas('window');
 
 export const runtimeCaps: RuntimeCapabilities = {

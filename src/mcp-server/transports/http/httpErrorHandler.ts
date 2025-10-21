@@ -11,20 +11,30 @@ import type { StatusCode } from 'hono/utils/http-status';
 import { config } from '@/config/index.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
+import {
+  ErrorHandler,
+  logger,
+  requestContextService,
+  getProperty,
+} from '@/utils/index.js';
 
 /**
  * A centralized error handling middleware for Hono.
  * This function is registered with `app.onError()` and will catch any errors
  * thrown from preceding middleware or route handlers.
  *
+ * Generic to support different binding types (Node.js, Cloudflare Workers, etc).
+ *
+ * @template TBindings - The Hono binding type (defaults to HonoNodeBindings)
  * @param err - The error that was thrown.
  * @param c - The Hono context object for the request.
  * @returns A Response object containing the formatted JSON-RPC error.
  */
-export const httpErrorHandler = async (
+export const httpErrorHandler = async <
+  TBindings extends object = HonoNodeBindings,
+>(
   err: Error,
-  c: Context<{ Bindings: HonoNodeBindings }>,
+  c: Context<{ Bindings: TBindings }>,
 ): Promise<Response> => {
   const context = requestContextService.createRequestContext({
     operation: 'httpErrorHandler',
@@ -97,13 +107,8 @@ export const httpErrorHandler = async (
   if (c.req.raw.bodyUsed === false) {
     try {
       const body: unknown = await c.req.json();
-      if (body && typeof body === 'object' && 'id' in body) {
-        const id = (body as Record<string, unknown>).id;
-        requestId =
-          typeof id === 'string' || typeof id === 'number' ? id : null;
-      } else {
-        requestId = null;
-      }
+      const id = getProperty(body, 'id');
+      requestId = typeof id === 'string' || typeof id === 'number' ? id : null;
       logger.debug('Extracted JSON-RPC request ID from body.', {
         ...context,
         jsonRpcId: requestId,

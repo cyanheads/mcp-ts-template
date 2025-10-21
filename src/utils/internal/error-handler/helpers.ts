@@ -5,6 +5,7 @@
  */
 
 import { McpError } from '@/types-global/errors.js';
+import { isAggregateError } from '@/utils/types/guards.js';
 import { getCompiledPattern } from './mappings.js';
 
 /**
@@ -54,11 +55,8 @@ export function getErrorMessage(error: unknown): string {
   try {
     if (error instanceof Error) {
       // AggregateError should surface combined messages succinctly
-      if (
-        'errors' in error &&
-        Array.isArray((error as unknown as { errors: unknown[] }).errors)
-      ) {
-        const inner = (error as unknown as { errors: unknown[] }).errors
+      if (isAggregateError(error)) {
+        const inner = error.errors
           .map((e) => (e instanceof Error ? e.message : String(e)))
           .filter(Boolean)
           .slice(0, 3)

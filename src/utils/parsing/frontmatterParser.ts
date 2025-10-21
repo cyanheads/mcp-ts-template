@@ -112,7 +112,12 @@ export class FrontmatterParser {
 
       logger.debug('Frontmatter parsed successfully.', {
         ...logContext,
-        frontmatterKeys: Object.keys(parsedFrontmatter as object),
+        frontmatterKeys:
+          parsedFrontmatter &&
+          typeof parsedFrontmatter === 'object' &&
+          !Array.isArray(parsedFrontmatter)
+            ? Object.keys(parsedFrontmatter)
+            : [],
       });
 
       return {
