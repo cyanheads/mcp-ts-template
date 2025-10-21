@@ -65,17 +65,18 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
  * const result = await debouncedFetch('3'); // Only this resolves
  * ```
  */
-export function debounceAsync<T extends (...args: unknown[]) => Promise<unknown>>(
-  fn: T,
-  delayMs: number,
-): (...args: Parameters<T>) => Promise<ReturnType<T>> {
+export function debounceAsync<
+  T extends (...args: unknown[]) => Promise<unknown>,
+>(fn: T, delayMs: number): (...args: Parameters<T>) => Promise<ReturnType<T>> {
   let timeoutId: NodeJS.Timeout | number | undefined;
   let pendingPromise: {
     resolve: (value: ReturnType<T>) => void;
     reject: (reason: unknown) => void;
   } | null = null;
 
-  return function debouncedAsync(...args: Parameters<T>): Promise<ReturnType<T>> {
+  return function debouncedAsync(
+    ...args: Parameters<T>
+  ): Promise<ReturnType<T>> {
     // Clear the previous timeout
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId as NodeJS.Timeout);

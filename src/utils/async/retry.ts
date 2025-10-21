@@ -84,10 +84,7 @@ export async function retry<T>(
       const result = await fn();
 
       if (attempt > 1) {
-        logger.info(
-          `Operation succeeded after ${attempt} attempt(s)`,
-          context,
-        );
+        logger.info(`Operation succeeded after ${attempt} attempt(s)`, context);
       }
 
       return result;
@@ -106,14 +103,11 @@ export async function retry<T>(
 
       // If this was the last attempt, throw
       if (attempt === maxAttempts) {
-        logger.error(
-          `All ${maxAttempts} retry attempts failed`,
-          {
-            ...context,
-            maxAttempts,
-            error: error instanceof Error ? error.message : String(error),
-          },
-        );
+        logger.error(`All ${maxAttempts} retry attempts failed`, {
+          ...context,
+          maxAttempts,
+          error: error instanceof Error ? error.message : String(error),
+        });
         break;
       }
 
@@ -155,7 +149,8 @@ export async function retry<T>(
     `Operation failed after ${maxAttempts} attempts`,
     {
       attempts: maxAttempts,
-      lastError: lastError instanceof Error ? lastError.message : String(lastError),
+      lastError:
+        lastError instanceof Error ? lastError.message : String(lastError),
     },
   );
 }

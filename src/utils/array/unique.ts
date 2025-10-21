@@ -40,10 +40,7 @@ export function unique<T>(array: T[]): T[] {
  * uniqueBy(['hello', 'world', 'HELLO'], s => s.toLowerCase()); // ['hello', 'world']
  * ```
  */
-export function uniqueBy<T>(
-  array: T[],
-  keyFn: (item: T) => unknown,
-): T[] {
+export function uniqueBy<T>(array: T[], keyFn: (item: T) => unknown): T[] {
   const seen = new Set();
   const result: T[] = [];
 

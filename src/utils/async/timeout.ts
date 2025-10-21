@@ -40,11 +40,9 @@ export async function withTimeout<T>(
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
       reject(
-        new McpError(
-          JsonRpcErrorCode.InternalError,
-          timeoutMessage,
-          { timeoutMs },
-        ),
+        new McpError(JsonRpcErrorCode.InternalError, timeoutMessage, {
+          timeoutMs,
+        }),
       );
     }, timeoutMs);
   });

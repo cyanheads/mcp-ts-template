@@ -106,8 +106,9 @@ export async function parallel<T>(
   }
 
   // Create worker promises up to concurrency limit
-  const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, () =>
-    runNext(),
+  const workers = Array.from(
+    { length: Math.min(concurrency, tasks.length) },
+    () => runNext(),
   );
 
   await Promise.all(workers);
