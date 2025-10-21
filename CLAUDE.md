@@ -172,17 +172,17 @@ See Section IV for full workflow, Section XIV for comprehensive checklist.
 
 #### Directly Imported Utilities (`src/utils/`)
 
-- `logger`, `requestContextService`, `sanitization`, `fetchWithTimeout`, `measureToolExecution`, `pdfParser`, `markdown()` from `@/utils/index.js`
+- `logger`, `requestContextService`, `sanitization`, `fetchWithTimeout`, `measureToolExecution`, `pdfParser`, `frontmatterParser`, `markdown()`, `diffFormatter`, `tableFormatter`, `treeFormatter` from `@/utils/index.js`
 - `ErrorHandler.tryCatch` (for services/setup code, NOT tool/resource logic)
 
-**Response Formatters:** Simple: `[{ type: 'text', text: lines.join('\n') }]`. Complex: `markdown()` helper (see `template-echo-message.tool.ts`)
+**Response Formatters:** Simple: `[{ type: 'text', text: lines.join('\n') }]`. Complex: `markdown()` helper, `diffFormatter`, `tableFormatter`, `treeFormatter` (see `template-echo-message.tool.ts`)
 
 #### Utils Modules (`src/utils/`)
 
-| Module        | Key Exports                                                                                      |
-| ------------- | ------------------------------------------------------------------------------------------------ |
-| `parsing/`    | `csvParser`, `yamlParser`, `xmlParser`, `jsonParser`, `pdfParser` (handles LLM `<think>` blocks) |
-| `formatting/` | `MarkdownBuilder`, `markdown()` helper                                                           |
+| Module        | Key Exports                                                                                                               |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `parsing/`    | `csvParser`, `yamlParser`, `xmlParser`, `jsonParser`, `pdfParser`, `frontmatterParser` (handles LLM `<think>` blocks)    |
+| `formatting/` | `MarkdownBuilder`, `markdown()` helper, `diffFormatter`, `tableFormatter`, `treeFormatter`                                |
 | `security/`   | `sanitization`, `rateLimiter`, `idGenerator`                                                     |
 | `network/`    | `fetchWithTimeout`                                                                               |
 | `scheduling/` | `scheduler` (node-cron wrapper)                                                                  |
