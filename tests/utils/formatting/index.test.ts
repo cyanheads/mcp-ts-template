@@ -45,7 +45,16 @@ describe('Formatting Utilities Barrel Export', () => {
     it('should export all expected symbols', async () => {
       const formattingModule = await import('@/utils/formatting/index.js');
 
-      const expectedExports = ['MarkdownBuilder', 'markdown'];
+      const expectedExports = [
+        'MarkdownBuilder',
+        'markdown',
+        'tableFormatter',
+        'TableFormatter',
+        'diffFormatter',
+        'DiffFormatter',
+        'treeFormatter',
+        'TreeFormatter',
+      ];
 
       expectedExports.forEach((exportName) => {
         expect(formattingModule).toHaveProperty(exportName);
@@ -56,7 +65,16 @@ describe('Formatting Utilities Barrel Export', () => {
       const formattingModule = await import('@/utils/formatting/index.js');
 
       const exports = Object.keys(formattingModule);
-      const knownExports = ['MarkdownBuilder', 'markdown'];
+      const knownExports = [
+        'MarkdownBuilder',
+        'markdown',
+        'tableFormatter',
+        'TableFormatter',
+        'diffFormatter',
+        'DiffFormatter',
+        'treeFormatter',
+        'TreeFormatter',
+      ];
 
       exports.forEach((exportName) => {
         expect(knownExports).toContain(exportName);
