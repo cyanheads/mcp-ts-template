@@ -179,15 +179,15 @@ See Section IV for full workflow, Section XIV for comprehensive checklist.
 
 #### Utils Modules (`src/utils/`)
 
-| Module        | Key Exports                                                                                                               |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `parsing/`    | `csvParser`, `yamlParser`, `xmlParser`, `jsonParser`, `pdfParser`, `frontmatterParser` (handles LLM `<think>` blocks)    |
-| `formatting/` | `MarkdownBuilder`, `markdown()` helper, `diffFormatter`, `tableFormatter`, `treeFormatter`                                |
-| `security/`   | `sanitization`, `rateLimiter`, `idGenerator`                                                     |
-| `network/`    | `fetchWithTimeout`                                                                               |
-| `scheduling/` | `scheduler` (node-cron wrapper)                                                                  |
-| `internal/`   | `logger`, `requestContextService`, `ErrorHandler`, `performance`                                 |
-| `telemetry/`  | OpenTelemetry instrumentation                                                                    |
+| Module        | Key Exports                                                                                                           |
+| ------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `parsing/`    | `csvParser`, `yamlParser`, `xmlParser`, `jsonParser`, `pdfParser`, `frontmatterParser` (handles LLM `<think>` blocks) |
+| `formatting/` | `MarkdownBuilder`, `markdown()` helper, `diffFormatter`, `tableFormatter`, `treeFormatter`                            |
+| `security/`   | `sanitization`, `rateLimiter`, `idGenerator`                                                                          |
+| `network/`    | `fetchWithTimeout`                                                                                                    |
+| `scheduling/` | `scheduler` (node-cron wrapper)                                                                                       |
+| `internal/`   | `logger`, `requestContextService`, `ErrorHandler`, `performance`                                                      |
+| `telemetry/`  | OpenTelemetry instrumentation                                                                                         |
 
 ---
 

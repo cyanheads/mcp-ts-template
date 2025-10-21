@@ -7,6 +7,48 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.5.5] - 2025-10-20
+
+### Added
+
+- **Type Guard Utilities**: Added comprehensive type guard library for safe runtime type narrowing in [src/utils/types/guards.ts](src/utils/types/guards.ts).
+  - Basic type guards: `isObject()`, `isRecord()`, `isString()`, `isNumber()` for fundamental type checking.
+  - Property checking: `hasProperty()`, `hasPropertyOfType()` for safe object property access.
+  - Error type guards: `isAggregateError()`, `isErrorWithCode()`, `isErrorWithStatus()` for error handling.
+  - Safe property accessors: `getProperty()`, `getStringProperty()`, `getNumberProperty()` to replace unsafe type assertions.
+  - Exported through barrel in [src/utils/types/index.ts](src/utils/types/index.ts).
+  - Integrated into main utils export in [src/utils/index.ts](src/utils/index.ts).
+
+### Changed
+
+- **Type Safety Improvements**: Replaced unsafe type assertions with proper type guards across the codebase.
+  - Updated [template-echo-message.tool.ts](src/mcp-server/tools/definitions/template-echo-message.tool.ts) to use `getStringProperty()` for safe `traceId` extraction.
+  - Updated [httpErrorHandler.ts](src/mcp-server/transports/http/httpErrorHandler.ts) to use `getProperty()` for safe request ID extraction.
+  - Updated [surrealGraph.provider.ts](src/services/graph/providers/surrealGraph.provider.ts) to use `isRecord()` type guard instead of manual object checks.
+  - Updated [sanitization.ts](src/utils/security/sanitization.ts) to use `isRecord()` guard for safer object property access.
+  - Updated [helpers.ts](src/utils/internal/error-handler/helpers.ts) to use `isAggregateError()` guard.
+  - Updated [frontmatterParser.ts](src/utils/parsing/frontmatterParser.ts) with robust type checking before `Object.keys()` call.
+- **Generic Type Parameters**: Enhanced transport layer with proper generic binding types for cross-platform compatibility.
+  - Made `httpErrorHandler()` generic with `TBindings` parameter to support different environments (Node.js, Cloudflare Workers).
+  - Made `createHttpApp()` generic with `TBindings` parameter with comprehensive JSDoc documentation.
+  - Made `startHttpServerWithRetry()` generic with `TBindings` parameter.
+  - Updated [worker.ts](src/worker.ts) to use proper generic type parameter instead of unsafe type assertion.
+  - Changed `WorkerEnv` from interface to type alias for consistency.
+- **Runtime Detection**: Improved runtime environment detection with safer property access in [runtime.ts](src/utils/internal/runtime.ts).
+  - Added `hasNodeVersion()` helper with try-catch for restricted property access.
+  - Added `hasPerformanceNowFunction()` helper with try-catch protection.
+  - Added `hasWorkerGlobalScope()` helper for safer Cloudflare Workers detection.
+  - Enhanced documentation for all runtime capability checks.
+- **Metrics Registry**: Simplified no-op metric implementations in [registry.ts](src/utils/metrics/registry.ts).
+  - Removed redundant `NoOpCounter` and `NoOpHistogram` interfaces.
+  - Streamlined no-op counter and histogram to directly satisfy OpenTelemetry interfaces.
+  - Simplified `getCounter()` and `getHistogram()` return logic.
+- **Test Infrastructure**: Removed unnecessary `@ts-ignore` comments in [tests/setup.ts](tests/setup.ts) after type safety improvements.
+- **Documentation**: Minor formatting fix in [CLAUDE.md](CLAUDE.md) Utils Modules table alignment.
+- **Version Bump**: Incremented project version from `2.5.4` to `2.5.5` in [package.json](package.json) and [server.json](server.json).
+
+---
+
 ## [2.5.4] - 2025-10-21
 
 ### Added
