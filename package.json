@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "2.5.2",
+  "version": "2.5.3",
   "mcpName": "io.github.cyanheads/mcp-ts-template",
   "description": "The definitive, production-grade template for building powerful and scalable Model Context Protocol (MCP) servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.",
   "main": "dist/index.js",
@@ -70,7 +70,7 @@
     "typescript": "5.9.3"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20251011.0",
+    "@cloudflare/workers-types": "^4.20251014.0",
     "@eslint/js": "^9.38.0",
     "@hono/mcp": "^0.1.4",
     "@hono/node-server": "^1.19.5",
@@ -88,7 +88,7 @@
     "@supabase/supabase-js": "^2.76.0",
     "@types/bun": "^1.3.0",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^24.9.0",
+    "@types/node": "^24.9.1",
     "@types/node-cron": "^3.0.11",
     "@types/papaparse": "^5.3.16",
     "@types/sanitize-html": "^2.16.0",
@@ -113,7 +113,7 @@
     "js-yaml": "^4.1.0",
     "msw": "^2.11.6",
     "node-cron": "^4.2.1",
-    "openai": "^6.5.0",
+    "openai": "^6.6.0",
     "papaparse": "^5.5.3",
     "partial-json": "^0.1.7",
     "pdf-lib": "^1.17.1",
