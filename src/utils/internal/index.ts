@@ -5,6 +5,7 @@
  * @module src/utils/internal
  */
 
+export * from './encoding.js';
 export * from './error-handler/index.js';
 export * from './health.js';
 export * from './logger.js';

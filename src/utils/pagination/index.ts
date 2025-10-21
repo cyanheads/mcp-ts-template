@@ -14,7 +14,7 @@
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import type { RequestContext } from '@/utils/index.js';
-import { logger } from '@/utils/index.js';
+import { logger, stringToBase64Url, base64UrlToString } from '@/utils/index.js';
 
 /**
  * Generic pagination state that can be encoded into a cursor.
@@ -43,18 +43,18 @@ export interface PaginatedResult<T> {
 
 /**
  * Encodes pagination state into an opaque cursor string.
- * Uses base64-encoded JSON for transparency during development.
- * Can be optimized to use more compact/opaque formats in production if needed.
+ * Uses base64url-encoded JSON for transparency during development.
+ * Base64URL encoding is URL-safe and works across all runtime environments.
  *
  * @param state - The pagination state to encode
- * @returns Base64-encoded cursor string
+ * @returns Base64url-encoded cursor string
  * @throws {McpError} If encoding fails
  */
 export function encodeCursor(state: PaginationState): string {
   try {
     const jsonString = JSON.stringify(state);
-    const base64 = Buffer.from(jsonString, 'utf-8').toString('base64url');
-    return base64;
+    const base64url = stringToBase64Url(jsonString);
+    return base64url;
   } catch (error: unknown) {
     throw new McpError(
       JsonRpcErrorCode.InternalError,
@@ -78,7 +78,7 @@ export function decodeCursor(
   context: RequestContext,
 ): PaginationState {
   try {
-    const jsonString = Buffer.from(cursor, 'base64url').toString('utf-8');
+    const jsonString = base64UrlToString(cursor);
     const state = JSON.parse(jsonString) as PaginationState;
 
     // Validate required fields

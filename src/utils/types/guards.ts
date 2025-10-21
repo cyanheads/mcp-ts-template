@@ -231,3 +231,235 @@ export function getNumberProperty<K extends PropertyKey>(
   const value = getProperty(obj, key);
   return isNumber(value) ? value : undefined;
 }
+
+/**
+ * Type guard to check if a value is a boolean.
+ *
+ * @param value - Value to check
+ * @returns True if value is a boolean
+ *
+ * @example
+ * ```typescript
+ * if (isBoolean(value)) {
+ *   // value is now typed as boolean
+ *   console.log(value ? 'yes' : 'no');
+ * }
+ * ```
+ */
+export function isBoolean(value: unknown): value is boolean {
+  return typeof value === 'boolean';
+}
+
+/**
+ * Type guard to check if a value is a BigInt.
+ *
+ * @param value - Value to check
+ * @returns True if value is a BigInt
+ *
+ * @example
+ * ```typescript
+ * if (isBigInt(value)) {
+ *   // value is now typed as bigint
+ *   console.log(value.toString());
+ * }
+ * ```
+ */
+export function isBigInt(value: unknown): value is bigint {
+  return typeof value === 'bigint';
+}
+
+/**
+ * Type guard to check if a value is a function.
+ *
+ * @param value - Value to check
+ * @returns True if value is a function
+ *
+ * @example
+ * ```typescript
+ * if (isFunction(value)) {
+ *   // value is now typed as a callable function
+ *   value();
+ * }
+ * ```
+ */
+export function isFunction(
+  value: unknown,
+): value is (...args: unknown[]) => unknown {
+  return typeof value === 'function';
+}
+
+/**
+ * Type guard to check if a value is an array.
+ *
+ * @param value - Value to check
+ * @returns True if value is an array
+ *
+ * @example
+ * ```typescript
+ * if (isArray(value)) {
+ *   // value is now typed as unknown[]
+ *   console.log(value.length);
+ * }
+ * ```
+ */
+export function isArray<T = unknown>(value: unknown): value is T[] {
+  return Array.isArray(value);
+}
+
+/**
+ * Type guard to check if a value is defined (not null or undefined).
+ *
+ * @param value - Value to check
+ * @returns True if value is not null or undefined
+ *
+ * @example
+ * ```typescript
+ * const value: string | null | undefined = getValue();
+ * if (isDefined(value)) {
+ *   // value is now typed as string
+ *   console.log(value.toUpperCase());
+ * }
+ * ```
+ */
+export function isDefined<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined;
+}
+
+/**
+ * Type guard to check if a value is null.
+ *
+ * @param value - Value to check
+ * @returns True if value is null
+ *
+ * @example
+ * ```typescript
+ * if (isNull(value)) {
+ *   // value is now typed as null
+ *   console.log('Value is null');
+ * }
+ * ```
+ */
+export function isNull(value: unknown): value is null {
+  return value === null;
+}
+
+/**
+ * Type guard to check if a value is undefined.
+ *
+ * @param value - Value to check
+ * @returns True if value is undefined
+ *
+ * @example
+ * ```typescript
+ * if (isUndefined(value)) {
+ *   // value is now typed as undefined
+ *   console.log('Value is undefined');
+ * }
+ * ```
+ */
+export function isUndefined(value: unknown): value is undefined {
+  return value === undefined;
+}
+
+/**
+ * Type guard to check if a value is a Date object.
+ * Also validates that the Date is valid (not Invalid Date).
+ *
+ * @param value - Value to check
+ * @returns True if value is a valid Date object
+ *
+ * @example
+ * ```typescript
+ * if (isDate(value)) {
+ *   // value is now typed as Date
+ *   console.log(value.toISOString());
+ * }
+ * ```
+ */
+export function isDate(value: unknown): value is Date {
+  return value instanceof Date && !Number.isNaN(value.getTime());
+}
+
+/**
+ * Type guard to check if a value is a RegExp.
+ *
+ * @param value - Value to check
+ * @returns True if value is a RegExp
+ *
+ * @example
+ * ```typescript
+ * if (isRegExp(value)) {
+ *   // value is now typed as RegExp
+ *   console.log(value.test('test'));
+ * }
+ * ```
+ */
+export function isRegExp(value: unknown): value is RegExp {
+  return value instanceof RegExp;
+}
+
+/**
+ * Type guard to check if a value is a Promise.
+ *
+ * @param value - Value to check
+ * @returns True if value is a Promise
+ *
+ * @example
+ * ```typescript
+ * if (isPromise(value)) {
+ *   // value is now typed as Promise<unknown>
+ *   await value;
+ * }
+ * ```
+ */
+export function isPromise<T = unknown>(value: unknown): value is Promise<T> {
+  return value instanceof Promise;
+}
+
+/**
+ * Safely get a boolean property from an object.
+ *
+ * @param obj - Object to get property from
+ * @param key - Property key
+ * @returns Boolean value or undefined if property doesn't exist or is not a boolean
+ *
+ * @example
+ * ```typescript
+ * const isActive = getBooleanProperty(config, 'active');
+ * if (isActive !== undefined) {
+ *   // isActive is typed as boolean
+ *   console.log(isActive ? 'Active' : 'Inactive');
+ * }
+ * ```
+ */
+export function getBooleanProperty<K extends PropertyKey>(
+  obj: unknown,
+  key: K,
+): boolean | undefined {
+  const value = getProperty(obj, key);
+  return isBoolean(value) ? value : undefined;
+}
+
+/**
+ * Safely get an array property from an object.
+ *
+ * @param obj - Object to get property from
+ * @param key - Property key
+ * @returns Array value or undefined if property doesn't exist or is not an array
+ *
+ * @example
+ * ```typescript
+ * const items = getArrayProperty(data, 'items');
+ * if (items) {
+ *   // items is typed as unknown[]
+ *   console.log(`Found ${items.length} items`);
+ * }
+ * ```
+ */
+export function getArrayProperty<K extends PropertyKey, T = unknown>(
+  obj: unknown,
+  key: K,
+): T[] | undefined {
+  const value = getProperty(obj, key);
+  return isArray<T>(value) ? value : undefined;
+}
