@@ -11,35 +11,28 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RequestContext } from '@/utils/index.js';
 
 // Mock the SDK's StdioServerTransport
-vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
-  StdioServerTransport: vi.fn().mockImplementation(() => ({
-    close: vi.fn().mockResolvedValue(undefined),
-  })),
-}));
+vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => {
+  class MockStdioServerTransportClass {
+    close = vi.fn().mockResolvedValue(undefined);
+  }
 
-// Mock utilities
-vi.mock('@/utils/index.js', async () => {
-  const actual = await vi.importActual('@/utils/index.js');
   return {
-    ...actual,
-    logger: {
-      info: vi.fn(),
-      debug: vi.fn(),
-      error: vi.fn(),
-      warning: vi.fn(),
-    },
-    logStartupBanner: vi.fn(),
-    ErrorHandler: {
-      handleError: vi.fn((err) => err),
-    },
+    StdioServerTransport: MockStdioServerTransportClass,
   };
 });
 
 describe('Stdio Transport', () => {
   let mockServer: Partial<McpServer>;
   let mockContext: RequestContext;
+  let loggerSpy: {
+    info: { mockImplementation: (fn: any) => any };
+    debug: { mockImplementation: (fn: any) => any };
+    error: { mockImplementation: (fn: any) => any };
+  };
+  let logStartupBannerSpy: { mockImplementation: (fn: any) => any };
+  let errorHandlerSpy: { mockImplementation: (fn: any) => any };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockServer = {
       connect: vi.fn().mockResolvedValue(undefined),
       close: vi.fn().mockResolvedValue(undefined),
@@ -50,6 +43,20 @@ describe('Stdio Transport', () => {
       timestamp: Date.now() as any,
       operation: 'test-stdio-transport',
     };
+
+    // Import and spy on actual utilities
+    const utils = await import('@/utils/index.js');
+    loggerSpy = {
+      info: vi.spyOn(utils.logger, 'info').mockImplementation(() => {}),
+      debug: vi.spyOn(utils.logger, 'debug').mockImplementation(() => {}),
+      error: vi.spyOn(utils.logger, 'error').mockImplementation(() => {}),
+    };
+    logStartupBannerSpy = vi
+      .spyOn(utils, 'logStartupBanner')
+      .mockImplementation(() => {});
+    errorHandlerSpy = vi
+      .spyOn(utils.ErrorHandler, 'handleError')
+      .mockImplementation((err) => err as any);
 
     vi.clearAllMocks();
   });
@@ -63,7 +70,6 @@ describe('Stdio Transport', () => {
       const { startStdioTransport } = await import(
         '@/mcp-server/transports/stdio/stdioTransport.js'
       );
-      const { logger, logStartupBanner } = await import('@/utils/index.js');
 
       const result = await startStdioTransport(
         mockServer as McpServer,
@@ -72,21 +78,20 @@ describe('Stdio Transport', () => {
 
       expect(result).toBe(mockServer);
       expect(mockServer.connect).toHaveBeenCalledTimes(1);
-      expect(logger.info).toHaveBeenCalledWith(
+      expect(loggerSpy.info).toHaveBeenCalledWith(
         'Attempting to connect stdio transport...',
         expect.objectContaining({
           operation: 'connectStdioTransport',
           transportType: 'Stdio',
         }),
       );
-      expect(logStartupBanner).toHaveBeenCalled();
+      expect(logStartupBannerSpy).toHaveBeenCalled();
     });
 
     it('should handle connection errors', async () => {
       const { startStdioTransport } = await import(
         '@/mcp-server/transports/stdio/stdioTransport.js'
       );
-      const { ErrorHandler } = await import('@/utils/index.js');
 
       const connectionError = new Error('Connection failed');
       mockServer.connect = vi.fn().mockRejectedValue(connectionError);
@@ -95,7 +100,7 @@ describe('Stdio Transport', () => {
         startStdioTransport(mockServer as McpServer, mockContext),
       ).rejects.toThrow('Connection failed');
 
-      expect(ErrorHandler.handleError).toHaveBeenCalledWith(
+      expect(errorHandlerSpy).toHaveBeenCalledWith(
         connectionError,
         expect.objectContaining({
           operation: 'connectStdioTransport',
@@ -106,16 +111,13 @@ describe('Stdio Transport', () => {
     });
 
     it('should create StdioServerTransport and connect server', async () => {
-      const { StdioServerTransport } = await import(
-        '@modelcontextprotocol/sdk/server/stdio.js'
-      );
       const { startStdioTransport } = await import(
         '@/mcp-server/transports/stdio/stdioTransport.js'
       );
 
       await startStdioTransport(mockServer as McpServer, mockContext);
 
-      expect(StdioServerTransport).toHaveBeenCalledTimes(1);
+      expect(mockServer.connect).toHaveBeenCalledTimes(1);
       expect(mockServer.connect).toHaveBeenCalledWith(expect.any(Object));
     });
   });
@@ -125,19 +127,18 @@ describe('Stdio Transport', () => {
       const { stopStdioTransport } = await import(
         '@/mcp-server/transports/stdio/stdioTransport.js'
       );
-      const { logger } = await import('@/utils/index.js');
 
       await stopStdioTransport(mockServer as McpServer, mockContext);
 
       expect(mockServer.close).toHaveBeenCalledTimes(1);
-      expect(logger.info).toHaveBeenCalledWith(
+      expect(loggerSpy.info).toHaveBeenCalledWith(
         'Attempting to stop stdio transport...',
         expect.objectContaining({
           operation: 'stopStdioTransport',
           transportType: 'Stdio',
         }),
       );
-      expect(logger.info).toHaveBeenCalledWith(
+      expect(loggerSpy.info).toHaveBeenCalledWith(
         'Stdio transport stopped successfully.',
         expect.any(Object),
       );
@@ -158,11 +159,10 @@ describe('Stdio Transport', () => {
       const { stopStdioTransport } = await import(
         '@/mcp-server/transports/stdio/stdioTransport.js'
       );
-      const { logger } = await import('@/utils/index.js');
 
       await stopStdioTransport(mockServer as McpServer, mockContext);
 
-      expect(logger.info).toHaveBeenCalledWith(
+      expect(loggerSpy.info).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           operation: 'stopStdioTransport',

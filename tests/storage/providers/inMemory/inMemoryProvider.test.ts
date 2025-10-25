@@ -18,7 +18,7 @@ describe('InMemoryProvider (unit)', () => {
   let provider: InMemoryProvider;
   const tenantId = 'tenant-a';
 
-  let nowSpy: ReturnType<typeof vi.spyOn> | undefined;
+  let nowSpy: { mockRestore: () => void } | undefined;
   let now = 0;
 
   beforeEach(() => {
