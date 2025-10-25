@@ -432,6 +432,7 @@ function startHttpServerWithRetry<TBindings extends object = HonoNodeBindings>(
                 });
                 logStartupBanner(
                   `\n🚀 MCP Server running at: ${serverAddress}`,
+                  'http',
                 );
               },
             );
