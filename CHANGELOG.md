@@ -7,6 +7,61 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.5.6] - 2025-10-25
+
+### Changed
+
+- **Dependencies**: Updated all package versions to latest releases for security and compatibility improvements.
+  - Updated OpenTelemetry packages from `0.206.x` to `0.207.x` across core, SDK, exporters, and instrumentation modules in [package.json](package.json) and [bun.lock](bun.lock).
+  - Updated `@modelcontextprotocol/sdk` from `1.20.1` to `1.20.2` with improved protocol handling.
+  - Updated `@supabase/supabase-js` from `2.76.0` to `2.76.1` including all sub-packages (auth-js, functions-js, postgrest-js, realtime-js, storage-js).
+  - Updated `@types/bun` and `bun-types` from `1.3.0` to `1.3.1` with improved type definitions.
+  - Updated `@vitest/coverage-v8` from `3.2.4` to `4.0.3` with enhanced coverage reporting.
+  - Updated `vitest` from `3.2.4` to `4.0.3` with improved test runner performance.
+  - Updated `hono` from `4.10.1` to `4.10.3` with latest framework enhancements.
+  - Updated `openai` from `6.6.0` to `6.7.0` with latest OpenAI SDK features.
+  - Updated `vite` from `7.1.11` to `7.1.12` with build optimizations.
+  - Changed all package version pins from specific versions to `"latest"` in [package.json](package.json) for easier maintenance.
+- **Build Configuration**: Modified build script to externalize pino dependencies.
+  - Added `--external pino --external pino-pretty` flags to build command in [package.json:32](package.json#L32).
+  - Prevents bundling of logger dependencies in production builds for better performance.
+
+### Fixed
+
+- **STDIO Transport Compliance**: Fixed critical issue where logger was polluting stdout/stderr in STDIO mode, violating MCP specification requirement that stdout must remain clean for JSON-RPC protocol messages.
+  - Enhanced logger to track transport type and suppress console output when not in TTY environment in [src/utils/internal/logger.ts:77-273](src/utils/internal/logger.ts#L77-L273).
+  - Added TTY checks before all `console.warn()` and `console.error()` calls to prevent stderr pollution in STDIO mode.
+  - Modified logger flush error handling to only log to console when both TTY is available AND not in STDIO mode.
+  - Logger initialization now accepts optional `transportType` parameter for context-aware output routing.
+  - Fixed startup banner to route output to stderr in STDIO mode instead of stdout in [src/utils/internal/startupBanner.ts:9-43](src/utils/internal/startupBanner.ts#L9-L43).
+  - Updated HTTP transport to pass `'http'` transport type to banner in [src/mcp-server/transports/http/httpTransport.ts:435](src/mcp-server/transports/http/httpTransport.ts#L435).
+  - Updated STDIO transport to pass `'stdio'` transport type to banner in [src/mcp-server/transports/stdio/stdioTransport.ts:77](src/mcp-server/transports/stdio/stdioTransport.ts#L77).
+  - Ensures MCP protocol compliance by keeping stdout reserved exclusively for JSON-RPC messages.
+
+### Added
+
+- **Test Coverage**: Added comprehensive test coverage for previously untested infrastructure components.
+  - Added 465 lines of tests for resource handler factory in [tests/mcp-server/resources/utils/resourceHandlerFactory.test.ts](tests/mcp-server/resources/utils/resourceHandlerFactory.test.ts).
+  - Covers resource registration, parameter validation, response formatting, error handling, and list capabilities.
+  - Added dependency injection tests in [tests/storage/core/storageFactory.test.ts](tests/storage/core/storageFactory.test.ts).
+  - Validates Supabase and SurrealDB client injection patterns.
+  - Covers edge cases for missing configuration and empty paths.
+  - Enhanced storage validation tests in [tests/storage/core/storageValidation.test.ts](tests/storage/core/storageValidation.test.ts).
+  - Added 200+ lines of edge case tests for key, prefix, and cursor validation.
+  - Covers invalid types, special characters, path traversal, TTL validation, and base64 cursor validation.
+  - Enhanced STDIO transport tests in [tests/mcp-server/transports/stdio/stdioTransport.test.ts](tests/mcp-server/transports/stdio/stdioTransport.test.ts).
+  - Fixed mocking strategy to properly spy on utility functions instead of replacing modules.
+  - Improved test reliability with proper async handling and error scenarios.
+  - Enhanced in-memory provider tests in [tests/storage/providers/inMemory/inMemoryProvider.test.ts](tests/storage/providers/inMemory/inMemoryProvider.test.ts).
+  - Improved type safety with better spy type definitions.
+
+### Documentation
+
+- **Tree Structure**: Updated [docs/tree.md](docs/tree.md) generation timestamp to 2025-10-25 19:28:56 reflecting new test files and directory structure.
+- **Version Bump**: Incremented project version from `2.5.5` to `2.5.6` in [package.json:3](package.json#L3) and [server.json:9,44](server.json#L9,L44).
+
+---
+
 ## [2.5.5] - 2025-10-20
 
 ### Added
