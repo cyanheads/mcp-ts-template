@@ -1,11 +1,9 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-21 04:50:55
+Generated on: 2025-10-25 19:28:56
 
 ```
 mcp-ts-template
-├── .clinerules
-│   └── AGENTS.md
 ├── .github
 │   ├── codeql
 │   │   └── codeql-config.yml
@@ -141,6 +139,7 @@ mcp-ts-template
 │   │   │   │   └── storageValidation.ts.html
 │   │   │   └── providers
 │   │   │       ├── cloudflare
+│   │   │       │   ├── d1Provider.ts.html
 │   │   │       │   ├── index.html
 │   │   │       │   ├── kvProvider.ts.html
 │   │   │       │   └── r2Provider.ts.html
@@ -202,8 +201,11 @@ mcp-ts-template
 │   │   │   └── index.html
 │   │   ├── utils
 │   │   │   ├── formatting
+│   │   │   │   ├── diffFormatter.ts.html
 │   │   │   │   ├── index.html
-│   │   │   │   └── markdownBuilder.ts.html
+│   │   │   │   ├── markdownBuilder.ts.html
+│   │   │   │   ├── tableFormatter.ts.html
+│   │   │   │   └── treeFormatter.ts.html
 │   │   │   ├── internal
 │   │   │   │   ├── error-handler
 │   │   │   │   │   ├── errorHandler.ts.html
@@ -229,6 +231,7 @@ mcp-ts-template
 │   │   │   ├── parsing
 │   │   │   │   ├── csvParser.ts.html
 │   │   │   │   ├── dateParser.ts.html
+│   │   │   │   ├── frontmatterParser.ts.html
 │   │   │   │   ├── index.html
 │   │   │   │   ├── jsonParser.ts.html
 │   │   │   │   ├── pdfParser.ts.html
@@ -242,12 +245,15 @@ mcp-ts-template
 │   │   │   │   ├── index.html
 │   │   │   │   ├── rateLimiter.ts.html
 │   │   │   │   └── sanitization.ts.html
-│   │   │   └── telemetry
-│   │   │       ├── index.html
-│   │   │       ├── instrumentation.ts.html
-│   │   │       ├── metrics.ts.html
-│   │   │       ├── semconv.ts.html
-│   │   │       └── trace.ts.html
+│   │   │   ├── telemetry
+│   │   │   │   ├── index.html
+│   │   │   │   ├── instrumentation.ts.html
+│   │   │   │   ├── metrics.ts.html
+│   │   │   │   ├── semconv.ts.html
+│   │   │   │   └── trace.ts.html
+│   │   │   └── types
+│   │   │       ├── guards.ts.html
+│   │   │       └── index.html
 │   │   ├── index.html
 │   │   ├── index.ts.html
 │   │   └── worker.ts.html
@@ -506,6 +512,9 @@ mcp-ts-template
 │   │   │   ├── metrics.ts
 │   │   │   ├── semconv.ts
 │   │   │   └── trace.ts
+│   │   ├── types
+│   │   │   ├── guards.ts
+│   │   │   └── index.ts
 │   │   └── index.ts
 │   ├── index.ts
 │   └── worker.ts
@@ -626,6 +635,21 @@ mcp-ts-template
 │   │   │   │   ├── supabase.types.test.ts
 │   │   │   │   └── supabaseProvider.test.ts
 │   │   │   └── surrealdb
+│   │   │       ├── auth
+│   │   │       │   ├── authManager.test.ts
+│   │   │       │   ├── permissionHelpers.test.ts
+│   │   │       │   └── scopeDefinitions.test.ts
+│   │   │       ├── core
+│   │   │       │   ├── connectionManager.test.ts
+│   │   │       │   ├── queryBuilder.test.ts
+│   │   │       │   ├── surrealDbClient.test.ts
+│   │   │       │   └── transactionManager.test.ts
+│   │   │       ├── events
+│   │   │       │   ├── eventManager.test.ts
+│   │   │       │   └── triggerBuilder.test.ts
+│   │   │       ├── functions
+│   │   │       │   ├── customFunctions.test.ts
+│   │   │       │   └── functionRegistry.test.ts
 │   │   │       ├── surrealdb.types.test.ts
 │   │   │       └── surrealKvProvider.test.ts
 │   │   ├── index.test.ts
@@ -689,6 +713,8 @@ mcp-ts-template
 │   │   │   ├── metrics.test.ts
 │   │   │   ├── semconv.test.ts
 │   │   │   └── trace.test.ts
+│   │   ├── types
+│   │   │   └── guards.test.ts
 │   │   └── index.test.ts
 │   ├── index.test.ts
 │   ├── setup.ts
