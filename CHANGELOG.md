@@ -7,6 +7,24 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.5.7] - 2025-10-27
+
+### Changed
+
+- **Dependencies**: Updated testing and validation packages to latest versions for improved security and stability.
+  - Updated `@types/validator` from `13.15.3` to `13.15.4` with improved type definitions in [package.json](package.json) and [bun.lock](bun.lock).
+  - Updated `@vitest/coverage-v8` from `4.0.3` to `4.0.4` with enhanced coverage reporting.
+  - Updated `axios` from `1.12.2` to `1.13.0` with latest HTTP client improvements.
+  - Updated `validator` from `13.15.15` to `13.15.20` with latest validation enhancements.
+  - Updated `vitest` from `4.0.3` to `4.0.4` with improved test runner performance.
+  - Corresponding updates in [bun.lock](bun.lock) for all @vitest packages and dependencies.
+
+### Documentation
+
+- **Version Bump**: Incremented project version from `2.5.6` to `2.5.7` in [package.json:3](package.json#L3), [server.json:9,15,47,53](server.json#L9,L15,L47,L53), and [README.md:10](README.md#L10).
+
+---
+
 ## [2.5.6] - 2025-10-25
 
 ### Changed
