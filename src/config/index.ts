@@ -181,6 +181,29 @@ const ConfigSchema = z.object({
       .default('in-memory'),
     filesystemPath: z.string().default('./.storage'), // This remains, but will only be used if providerType is 'filesystem'
   }),
+  // Experimental: Task store configuration
+  tasks: z.object({
+    storeType: z
+      .preprocess(
+        (val) => {
+          const str = emptyStringAsUndefined(val);
+          if (typeof str === 'string') {
+            const lower = str.toLowerCase();
+            const aliasMap: Record<string, string> = {
+              mem: 'in-memory',
+              memory: 'in-memory',
+              persistent: 'storage',
+            };
+            return aliasMap[lower] ?? lower;
+          }
+          return str;
+        },
+        z.enum(['in-memory', 'storage']),
+      )
+      .default('in-memory'),
+    tenantId: z.string().default('system-tasks'),
+    defaultTtlMs: z.coerce.number().nullable().optional(),
+  }),
   openTelemetry: z.object({
     enabled: z.coerce.boolean().default(false),
     serviceName: z.string(),
@@ -314,6 +337,11 @@ const parseConfig = () => {
     storage: {
       providerType: env.STORAGE_PROVIDER_TYPE,
       filesystemPath: env.STORAGE_FILESYSTEM_PATH,
+    },
+    tasks: {
+      storeType: env.TASK_STORE_TYPE,
+      tenantId: env.TASK_STORE_TENANT_ID,
+      defaultTtlMs: env.TASK_STORE_DEFAULT_TTL_MS,
     },
     openTelemetry: {
       enabled: env.OTEL_ENABLED,

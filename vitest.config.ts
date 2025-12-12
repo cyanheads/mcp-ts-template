@@ -3,6 +3,10 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  // Inline zod to fix Vite SSR transform issues with Zod 4
+  ssr: {
+    noExternal: ['zod'],
+  },
   test: {
     globals: true,
     environment: 'node',

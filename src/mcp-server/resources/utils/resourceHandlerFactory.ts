@@ -110,7 +110,7 @@ export async function registerResource<
         resourceName,
         template,
         {
-          name: title,
+          title,
           description: def.description,
           mimeType,
           ...(def.examples && { examples: def.examples }),
