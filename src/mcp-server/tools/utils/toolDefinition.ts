@@ -7,8 +7,8 @@
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type {
   ContentBlock,
-  Request as McpRequest,
-  Notification,
+  ServerNotification,
+  ServerRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
@@ -42,7 +42,7 @@ export interface ToolAnnotations {
  * A type alias for the SDK's `RequestHandlerExtra` context, making it more
  * specific and easier to reference in our tool logic signatures.
  */
-export type SdkContext = RequestHandlerExtra<McpRequest, Notification>;
+export type SdkContext = RequestHandlerExtra<ServerRequest, ServerNotification>;
 
 /**
  * Represents the complete, self-contained definition of an MCP tool.
