@@ -7,6 +7,69 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.6.0] - 2025-12-12
+
+### Added
+
+- **Tasks API Support (Experimental)**: Implemented MCP SDK 1.24 Tasks API for long-running async operations with polling-based status tracking.
+  - Added `TaskManager` class in [src/mcp-server/tasks/taskManager.ts](src/mcp-server/tasks/taskManager.ts) for managing task lifecycle and storage.
+  - Added `TaskToolDefinition` type in [src/mcp-server/tasks/types.ts](src/mcp-server/tasks/types.ts) for defining task-based tools with `createTask`, `getTask`, and `getTaskResult` handlers.
+  - Added helper functions `isTaskToolDefinition()` and `hasTaskSupport()` for runtime task tool detection.
+  - Added type re-exports from SDK in [src/mcp-server/tasks/index.ts](src/mcp-server/tasks/index.ts) for convenient access to `Task`, `TaskStatus`, `RequestTaskStore`.
+  - Added DI token `TaskManagerToken` in [src/container/tokens.ts](src/container/tokens.ts) for dependency injection.
+- **Task Tool Template**: Added comprehensive example task tool demonstrating the Tasks API pattern.
+  - Added [src/mcp-server/tools/definitions/template-async-countdown.task-tool.ts](src/mcp-server/tools/definitions/template-async-countdown.task-tool.ts) implementing a countdown timer with progress updates.
+  - Demonstrates background work with `taskStore.updateTaskStatus()`, terminal states, and result storage.
+  - Includes `simulateFailure` option for testing error handling flows.
+- **Zod 4 SSR Compatibility**: Added preload script to resolve Zod 4 ESM/SSR issues with Vitest.
+  - Added [tests/bun-preload.ts](tests/bun-preload.ts) that sets `process.argv0` to trigger non-edge SSR mode.
+  - Updated [bunfig.toml](bunfig.toml) to use new preload script.
+  - Updated [vitest.config.ts](vitest.config.ts) with `ssr: { noExternal: ['zod'] }` configuration.
+- **SDK Migration Documentation**: Added [docs/mcp-sdk-changes.md](docs/mcp-sdk-changes.md) documenting breaking changes and migration steps from SDK 1.20 to 1.24.
+
+### Changed
+
+- **MCP SDK Upgrade**: Upgraded `@modelcontextprotocol/sdk` from `1.20.2` to `1.24.3` in [package.json](package.json).
+  - Server now uses `server.tool()` API with structured `handler: { logic }` pattern.
+  - Updated tool registration in [src/mcp-server/tools/tool-registration.ts](src/mcp-server/tools/tool-registration.ts) to use new API.
+  - Task tools registered via `server.experimental.tasks.registerToolTask()`.
+  - Updated [src/mcp-server/server.ts](src/mcp-server/server.ts) to enable experimental tasks capability.
+- **Zod Upgrade**: Upgraded `zod` from `3.23.8` to `4.1.13` in [package.json](package.json).
+  - Updated test files to use `schema.shape` instead of direct property access for Zod 4 compatibility.
+  - Affected files include tests for tool handlers, resource handlers, and schema validation.
+- **Dependency Restructuring**: Reorganized dependencies in [package.json](package.json) for clearer separation.
+  - Moved build/development tools to `devDependencies`.
+  - Updated `resolutions` block for consistent package versions across workspaces.
+- **OpenTelemetry Updates**: Updated OpenTelemetry packages to latest versions.
+  - Updated `@opentelemetry/api` from `1.9.0` to `1.10.0`.
+  - Updated `@opentelemetry/core` from `2.0.1` to `2.0.2`.
+  - Updated `@opentelemetry/sdk-node` from `0.207.0` to `0.208.0`.
+  - Updated instrumentation packages to `0.208.0`.
+- **Other Dependency Updates**: Various package updates for security and compatibility.
+  - Updated `hono` from `4.10.3` to `4.10.8`.
+  - Updated `typescript` from `5.9.2` to `5.9.3`.
+  - Updated `@types/node` from `24.0.3` to `24.0.7`.
+  - Updated `vite` from `7.1.12` to `7.1.14`.
+  - Updated `vitest` and `@vitest/coverage-v8` from `4.0.4` to `4.0.6`.
+
+### Fixed
+
+- **Test Infrastructure Compatibility**: Fixed test setup for Bun and Vitest compatibility with Zod 4.
+  - Updated [tests/setup.ts](tests/setup.ts) with improved mock implementations for crypto and streams.
+  - Fixed schema access patterns in test files using `inputSchema.shape` for Zod 4.
+  - Resolved SSR bundling issues with Zod 4's new ESM structure.
+
+### Documentation
+
+- **Agent Protocol**: Updated [CLAUDE.md](CLAUDE.md) with Section IV.B documenting Task Tool development workflow.
+  - Added quick start guide for creating task tools with the `.task-tool.ts` suffix convention.
+  - Documented `TaskToolDefinition` structure and `RequestTaskStore` API.
+  - Added key concepts for task lifecycle management.
+- **README Updates**: Updated [README.md](README.md) with current tool count (6 tools) and SDK version badge.
+- **Version Bump**: Incremented project version from `2.5.7` to `2.6.0` in [package.json:3](package.json#L3).
+
+---
+
 ## [2.5.7] - 2025-10-27
 
 ### Changed
