@@ -1,13 +1,13 @@
 <div align="center">
   <h1>mcp-ts-template</h1>
   <p><b>Production-grade TypeScript template for building Model Context Protocol (MCP) servers. Ships with declarative tools/resources, robust error handling, DI, easy auth, optional OpenTelemetry, and first-class support for both local and edge (Cloudflare Workers) runtimes.</b>
-  <div>5 Tools • 1 Resource • 1 Prompt</div>
+  <div>6 Tools • 1 Resource • 1 Prompt</div>
   </p>
 </div>
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.5.7-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.20.2-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.23-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-76.12%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
+[![Version](https://img.shields.io/badge/Version-2.6.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--06--18-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-06-18/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.24.3-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-76.12%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
 
 </div>
 
@@ -74,13 +74,14 @@ This template includes working examples to get you started.
 
 ### Tools
 
-| Tool                                | Description                                                       |
-| :---------------------------------- | :---------------------------------------------------------------- |
-| **`template_echo_message`**         | Echoes a message back with optional formatting and repetition.    |
-| **`template_cat_fact`**             | Fetches a random cat fact from an external API.                   |
-| **`template_madlibs_elicitation`**  | Demonstrates elicitation by asking for words to complete a story. |
-| **`template_code_review_sampling`** | Uses the LLM service to perform a simulated code review.          |
-| **`template_image_test`**           | Returns a test image as a base64-encoded data URI.                |
+| Tool                                | Description                                                              |
+| :---------------------------------- | :----------------------------------------------------------------------- |
+| **`template_echo_message`**         | Echoes a message back with optional formatting and repetition.           |
+| **`template_cat_fact`**             | Fetches a random cat fact from an external API.                          |
+| **`template_madlibs_elicitation`**  | Demonstrates elicitation by asking for words to complete a story.        |
+| **`template_code_review_sampling`** | Uses the LLM service to perform a simulated code review.                 |
+| **`template_image_test`**           | Returns a test image as a base64-encoded data URI.                       |
+| **`template_async_countdown`**      | Demonstrates MCP Tasks API with an async countdown timer (experimental). |
 
 ### Resources
 

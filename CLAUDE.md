@@ -55,6 +55,7 @@ Separation of concerns maps directly to the filesystem. Always place files in th
 | **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**.                                                                                                                                                                                        |
 | **`src/mcp-server/tools/utils/`**           | **Shared tool utilities:** Core tool infrastructure (`ToolDefinition`, `toolHandlerFactory`)                                                                                                                                                                                                                                      |
 | **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                                                                                                       |
+| **`src/mcp-server/tasks/`**                 | **Tasks API infrastructure (experimental).** Contains `TaskManager`, `TaskToolDefinition`, and type re-exports from SDK. Task tool definitions go in `tools/definitions/` with `.task-tool.ts` suffix.                                                                                                                            |
 | **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth.                                                                             |
 | **`src/services/`**                         | **External service integrations** following a consistent domain-driven pattern:<br>- Each service domain (e.g., `llm/`, `speech/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`, and `index.ts`<br>- Use DI for all service dependencies. See **Service Development Pattern** below. |
 | **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, surrealdb, cloudflare-r2, cloudflare-kv).                                                                                                                                                                                                         |
@@ -135,6 +136,44 @@ Separation of concerns maps directly to the filesystem. Always place files in th
 - [ ] **11. Test:** `bun run dev:stdio` or `dev:http`, verify with MCP client
 
 See Section IV for full workflow, Section XIV for comprehensive checklist.
+
+---
+
+## IV.B. Quick Start: Creating a Task Tool (Experimental)
+
+Task tools enable long-running async operations using the MCP Tasks API. They follow a "call-now, fetch-later" pattern where clients can poll for status and retrieve results after completion.
+
+> **Note:** Tasks API is experimental (SDK 1.24+) and may change without notice.
+
+- [ ] **1. Study template:** [template-async-countdown.task-tool.ts](src/mcp-server/tools/definitions/template-async-countdown.task-tool.ts)
+- [ ] **2. Create file:** `src/mcp-server/tools/definitions/[name].task-tool.ts` (note: `.task-tool.ts` suffix)
+- [ ] **3. Define schemas:** `InputSchema` and optional `OutputSchema`
+- [ ] **4. Implement task handlers:**
+  ```typescript
+  taskHandlers: {
+    createTask: async (args, extra) => {
+      const task = await extra.taskStore.createTask({ ttl: 120000, pollInterval: 1000 });
+      startBackgroundWork(task.taskId, args, extra.taskStore);
+      return { task };
+    },
+    getTask: async (_args, extra) => {
+      return await extra.taskStore.getTask(extra.taskId);
+    },
+    getTaskResult: async (_args, extra) => {
+      return await extra.taskStore.getTaskResult(extra.taskId) as CallToolResult;
+    }
+  }
+  ```
+- [ ] **5. Set execution mode:** `execution: { taskSupport: 'required' }` or `'optional'`
+- [ ] **6. Export as `TaskToolDefinition`:** Import from `@/mcp-server/tasks/index.js`
+- [ ] **7. Register:** Add to `allToolDefinitions` in [index.ts](src/mcp-server/tools/definitions/index.ts)
+
+**Key Concepts:**
+
+- `RequestTaskStore` provides `createTask`, `getTask`, `storeTaskResult`, `getTaskResult`, `updateTaskStatus`
+- Background work updates status via `taskStore.updateTaskStatus(taskId, 'working', 'message...')`
+- Terminal states: `completed`, `failed`, `cancelled` — use `storeTaskResult` for completion
+- Task tools are auto-detected by `isTaskToolDefinition()` and registered via `server.experimental.tasks.registerToolTask()`
 
 ---
 

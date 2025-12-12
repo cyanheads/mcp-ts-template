@@ -59,7 +59,7 @@ describe('Resource Handler Factory', () => {
         'test-resource',
         expect.anything(), // ResourceTemplate
         expect.objectContaining({
-          name: 'test-resource',
+          title: 'test-resource',
           description: 'Test resource',
           mimeType: 'application/json',
         }),
@@ -85,7 +85,7 @@ describe('Resource Handler Factory', () => {
         'custom-resource',
         expect.anything(),
         expect.objectContaining({
-          name: 'Custom Resource Title',
+          title: 'Custom Resource Title',
           mimeType: 'text/plain',
         }),
         expect.any(Function),

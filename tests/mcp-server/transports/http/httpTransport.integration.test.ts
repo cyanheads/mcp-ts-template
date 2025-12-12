@@ -48,9 +48,8 @@ describe('HTTP Transport Integration - RPC Handling', () => {
     };
 
     // Import createHttpApp
-    const { createHttpApp } = await import(
-      '@/mcp-server/transports/http/httpTransport.js'
-    );
+    const { createHttpApp } =
+      await import('@/mcp-server/transports/http/httpTransport.js');
 
     const app = createHttpApp(mockMcpServer as McpServer, mockContext);
 
@@ -95,9 +94,8 @@ describe('HTTP Transport Integration - RPC Handling', () => {
       configurable: true,
     });
 
-    const { createHttpApp } = await import(
-      '@/mcp-server/transports/http/httpTransport.js'
-    );
+    const { createHttpApp } =
+      await import('@/mcp-server/transports/http/httpTransport.js');
 
     const app = createHttpApp(mockMcpServer as McpServer, mockContext);
 
@@ -162,9 +160,8 @@ describe('HTTP Transport Integration - OAuth Metadata', () => {
       'https://auth.example.com/.well-known/jwks.json',
     );
 
-    const { createHttpApp } = await import(
-      '@/mcp-server/transports/http/httpTransport.js'
-    );
+    const { createHttpApp } =
+      await import('@/mcp-server/transports/http/httpTransport.js');
 
     const app = createHttpApp(mockMcpServer as McpServer, mockContext);
 

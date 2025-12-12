@@ -9,8 +9,12 @@ import { config } from '@/config/index.js';
 import { logger } from '@/utils/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 
-// Mock the jose module - use factory function to avoid hoisting issues
-vi.mock('jose');
+// Mock the jose module with factory function for Bun compatibility
+// Vitest auto-mocks with vi.mock('jose') but Bun requires explicit factory
+vi.mock('jose', () => ({
+  createRemoteJWKSet: vi.fn(),
+  jwtVerify: vi.fn(),
+}));
 
 // Import mocked jose to get references to mocked functions
 import * as jose from 'jose';

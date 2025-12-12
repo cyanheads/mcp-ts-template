@@ -3,15 +3,41 @@
  * @module tests/mcp-server/tools/utils/toolHandlerFactory.test.ts
  */
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
+import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import type {
+  ServerNotification,
+  ServerRequest,
+} from '@modelcontextprotocol/sdk/types.js';
 import { createMcpToolHandler } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
 import { McpError, JsonRpcErrorCode } from '@/types-global/errors.js';
 import type { RequestContext } from '@/utils/index.js';
 
+type MockSdkContext = RequestHandlerExtra<ServerRequest, ServerNotification>;
+
+/**
+ * Creates a minimal mock SDK context for testing.
+ * Uses type assertion since we're mocking the SDK context.
+ */
+function createMockSdkContext(
+  overrides: Record<string, unknown> = {},
+): MockSdkContext {
+  return {
+    signal: new AbortController().signal,
+    requestId: 'test-request-id',
+    sendNotification: () => Promise.resolve(),
+    sendRequest: () => Promise.resolve({}) as never,
+    ...overrides,
+  } as MockSdkContext;
+}
+
 describe('createMcpToolHandler', () => {
   describe('Basic Functionality', () => {
     it('should create a handler that executes logic and returns structured content', async () => {
+      const inputSchema = z.object({ message: z.string() });
+
       const mockLogic = async (
-        input: { message: string },
+        input: z.infer<typeof inputSchema>,
         _context: RequestContext,
         _sdkContext: Record<string, unknown>,
       ) => {
@@ -20,10 +46,14 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const result = await handler({ message: 'hello' }, {});
+      const result = await handler(
+        { message: 'hello' },
+        createMockSdkContext(),
+      );
 
       expect(result.structuredContent).toEqual({
         echo: 'hello',
@@ -35,22 +65,25 @@ describe('createMcpToolHandler', () => {
     });
 
     it('should use default response formatter when none provided', async () => {
+      const inputSchema = z.object({});
       const mockLogic = async () => ({ result: 'success' });
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const result = await handler({}, {});
+      const result = await handler({}, createMockSdkContext());
 
       expect(result.content![0]!.type).toBe('text');
-      const text = result.content![0]!.text;
+      const text = (result.content![0] as { text: string }).text;
       expect(text).toContain('"result"');
       expect(text).toContain('"success"');
     });
 
     it('should use custom response formatter when provided', async () => {
+      const inputSchema = z.object({});
       const mockLogic = async () => ({ data: 'custom' });
       const customFormatter = (result: { data: string }) => [
         { type: 'text' as const, text: `Custom: ${result.data}` },
@@ -58,19 +91,23 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
         responseFormatter: customFormatter,
       });
 
-      const result = await handler({}, {});
+      const result = await handler({}, createMockSdkContext());
 
-      expect(result.content![0]!.text).toBe('Custom: custom');
+      expect((result.content![0] as { text: string }).text).toBe(
+        'Custom: custom',
+      );
     });
   });
 
   describe('Context Handling', () => {
     it('should extract sessionId from SDK context when present', async () => {
       let capturedContext: RequestContext | undefined;
+      const inputSchema = z.object({});
 
       const mockLogic = async (
         _input: unknown,
@@ -83,28 +120,30 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const sdkContext = {
-        sessionId: 'test-session-123',
-      };
-
-      await handler({}, sdkContext);
+      await handler(
+        {},
+        createMockSdkContext({ sessionId: 'test-session-123' }),
+      );
 
       expect(capturedContext).toBeDefined();
       expect(capturedContext!.requestId).toBeDefined();
     });
 
     it('should handle missing sessionId gracefully', async () => {
+      const inputSchema = z.object({});
       const mockLogic = async () => ({ success: true });
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const result = await handler({}, {});
+      const result = await handler({}, createMockSdkContext());
 
       expect(result.structuredContent).toEqual({ success: true });
     });
@@ -112,6 +151,7 @@ describe('createMcpToolHandler', () => {
     it('should pass both appContext and sdkContext to logic function', async () => {
       let capturedAppContext: RequestContext | undefined;
       let capturedSdkContext: Record<string, unknown> | undefined;
+      const inputSchema = z.object({ test: z.string().optional() });
 
       const mockLogic = async (
         _input: unknown,
@@ -125,12 +165,13 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const testSdkContext = {
+      const testSdkContext = createMockSdkContext({
         sessionId: 'test-session',
-      };
+      });
 
       await handler({ test: 'input' }, testSdkContext);
 
@@ -144,6 +185,7 @@ describe('createMcpToolHandler', () => {
     it('should add elicitInput to appContext when SDK supports it', async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let capturedContext: any;
+      const inputSchema = z.object({});
 
       const mockLogic = async (
         _input: unknown,
@@ -156,6 +198,7 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
@@ -166,11 +209,7 @@ describe('createMcpToolHandler', () => {
         return { elicited: args.message };
       };
 
-      const sdkContext = {
-        elicitInput: mockElicitInput,
-      };
-
-      await handler({}, sdkContext);
+      await handler({}, createMockSdkContext({ elicitInput: mockElicitInput }));
 
       expect(capturedContext).toBeDefined();
       expect('elicitInput' in capturedContext).toBe(true);
@@ -179,6 +218,7 @@ describe('createMcpToolHandler', () => {
 
     it('should not add elicitInput when SDK does not support it', async () => {
       let capturedContext: RequestContext | undefined;
+      const inputSchema = z.object({});
 
       const mockLogic = async (
         _input: unknown,
@@ -191,10 +231,11 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      await handler({}, {});
+      await handler({}, createMockSdkContext());
 
       expect(capturedContext).toBeDefined();
       expect('elicitInput' in capturedContext!).toBe(false);
@@ -203,6 +244,7 @@ describe('createMcpToolHandler', () => {
 
   describe('Error Handling', () => {
     it('should catch and format McpError correctly', async () => {
+      const inputSchema = z.object({});
       const mockLogic = async () => {
         throw new McpError(
           JsonRpcErrorCode.InvalidParams,
@@ -213,14 +255,17 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const result = await handler({}, {});
+      const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
       expect(result.content![0]!.type).toBe('text');
-      expect(result.content![0]!.text).toContain('Test error message');
+      expect((result.content![0] as { text: string }).text).toContain(
+        'Test error message',
+      );
       expect(result.structuredContent).toMatchObject({
         code: JsonRpcErrorCode.InvalidParams,
         message: 'Test error message',
@@ -228,34 +273,44 @@ describe('createMcpToolHandler', () => {
     });
 
     it('should convert generic errors to McpError', async () => {
+      const inputSchema = z.object({});
       const mockLogic = async () => {
         throw new Error('Generic error');
       };
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const result = await handler({}, {});
+      const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
-      expect(result.content![0]!.text).toContain('Error:');
+      expect((result.content![0] as { text: string }).text).toContain('Error:');
       expect(result.structuredContent!.code).toBeDefined();
       expect(result.structuredContent!.message).toBeDefined();
     });
 
     it('should handle errors with input context for debugging', async () => {
+      const inputSchema = z.object({
+        userId: z.number(),
+        action: z.string(),
+      });
       const mockLogic = async () => {
         throw new McpError(JsonRpcErrorCode.InternalError, 'Processing failed');
       };
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const result = await handler({ userId: 123, action: 'test' }, {});
+      const result = await handler(
+        { userId: 123, action: 'test' },
+        createMockSdkContext(),
+      );
 
       expect(result.isError).toBe(true);
       expect(result.structuredContent!.code).toBe(
@@ -264,6 +319,7 @@ describe('createMcpToolHandler', () => {
     });
 
     it('should preserve error data in structured content', async () => {
+      const inputSchema = z.object({});
       const errorData = {
         field: 'email',
         constraint: 'format',
@@ -280,10 +336,11 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const result = await handler({}, {});
+      const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
       expect(result.structuredContent!.data).toBeDefined();
@@ -292,6 +349,7 @@ describe('createMcpToolHandler', () => {
 
   describe('Performance Measurement Integration', () => {
     it('should successfully complete measureToolExecution', async () => {
+      const inputSchema = z.object({});
       const mockLogic = async () => {
         // Simulate some work
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -300,16 +358,18 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const result = await handler({}, {});
+      const result = await handler({}, createMockSdkContext());
 
       expect(result.structuredContent).toEqual({ result: 'success' });
       expect(result.isError).toBeUndefined();
     });
 
     it('should measure execution even when errors occur', async () => {
+      const inputSchema = z.object({});
       const mockLogic = async () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
         throw new Error('Measured error');
@@ -317,10 +377,11 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const result = await handler({}, {});
+      const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
     });
@@ -329,6 +390,7 @@ describe('createMcpToolHandler', () => {
   describe('Input and Tool Name Tracking', () => {
     it('should include tool name in operation context', async () => {
       let capturedContext: RequestContext | undefined;
+      const inputSchema = z.object({});
 
       const mockLogic = async (
         _input: unknown,
@@ -341,26 +403,32 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'my_custom_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      await handler({}, {});
+      await handler({}, createMockSdkContext());
 
       expect(capturedContext).toBeDefined();
       expect(capturedContext!.operation).toBe('HandleToolRequest');
     });
 
     it('should include input in additional context', async () => {
+      const inputSchema = z.object({
+        userId: z.string(),
+        action: z.string(),
+      });
       const mockLogic = async () => ({ success: true });
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
       const testInput = { userId: 'user-123', action: 'test' };
 
-      const result = await handler(testInput, {});
+      const result = await handler(testInput, createMockSdkContext());
 
       expect(result.structuredContent).toEqual({ success: true });
     });
@@ -368,14 +436,16 @@ describe('createMcpToolHandler', () => {
 
   describe('Response Structure', () => {
     it('should return both structuredContent and content fields', async () => {
+      const inputSchema = z.object({});
       const mockLogic = async () => ({ key: 'value' });
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
       });
 
-      const result = await handler({}, {});
+      const result = await handler({}, createMockSdkContext());
 
       expect(result).toHaveProperty('structuredContent');
       expect(result).toHaveProperty('content');
@@ -383,6 +453,7 @@ describe('createMcpToolHandler', () => {
     });
 
     it('should format content as ContentBlock array', async () => {
+      const inputSchema = z.object({});
       const mockLogic = async () => ({ data: 'test' });
       const formatter = (result: { data: string }) => [
         { type: 'text' as const, text: result.data },
@@ -391,11 +462,12 @@ describe('createMcpToolHandler', () => {
 
       const handler = createMcpToolHandler({
         toolName: 'test_tool',
+        inputSchema,
         logic: mockLogic,
         responseFormatter: formatter,
       });
 
-      const result = await handler({}, {});
+      const result = await handler({}, createMockSdkContext());
 
       expect(result.content).toHaveLength(2);
       expect(result.content![0]!.type).toBe('text');

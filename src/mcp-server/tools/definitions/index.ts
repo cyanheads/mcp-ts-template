@@ -10,14 +10,20 @@ import { codeReviewSamplingTool } from './template-code-review-sampling.tool.js'
 import { echoTool } from './template-echo-message.tool.js';
 import { imageTestTool } from './template-image-test.tool.js';
 import { madlibsElicitationTool } from './template-madlibs-elicitation.tool.js';
+// Task tools (experimental)
+import { asyncCountdownTaskTool } from './template-async-countdown.task-tool.js';
 
 /**
  * An array containing all tool definitions for easy iteration.
+ * Includes both regular tools and task-based tools (experimental).
  */
 export const allToolDefinitions = [
+  // Regular tools
   catFactTool,
   codeReviewSamplingTool,
   echoTool,
   imageTestTool,
   madlibsElicitationTool,
+  // Task tools (experimental)
+  asyncCountdownTaskTool,
 ];

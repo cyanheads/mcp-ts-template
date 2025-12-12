@@ -167,8 +167,9 @@ describe('ToolRegistry', () => {
       const call = mockServer.registerTool.mock.calls[0];
       expect(call[1].inputSchema).toBeDefined();
       expect(call[1].outputSchema).toBeDefined();
-      expect(call[1].inputSchema.name).toBeDefined();
-      expect(call[1].outputSchema.greeting).toBeDefined();
+      // In Zod 4, schema properties are accessed via .shape
+      expect(call[1].inputSchema.shape.name).toBeDefined();
+      expect(call[1].outputSchema.shape.greeting).toBeDefined();
     });
   });
 
@@ -319,8 +320,9 @@ describe('ToolRegistry', () => {
 
       expect(mockServer.registerTool).toHaveBeenCalledTimes(1);
       const call = mockServer.registerTool.mock.calls[0];
-      expect(call[1].inputSchema.user).toBeDefined();
-      expect(call[1].inputSchema.settings).toBeDefined();
+      // In Zod 4, schema properties are accessed via .shape
+      expect(call[1].inputSchema.shape.user).toBeDefined();
+      expect(call[1].inputSchema.shape.settings).toBeDefined();
     });
   });
 });

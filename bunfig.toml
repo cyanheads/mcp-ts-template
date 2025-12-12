@@ -13,7 +13,8 @@ frozenLockfile = false
 bun = true
 
 [test]
-# Preload the setup file to ensure 'reflect-metadata' is imported before tests run.
-preload = ["./tests/setup.ts"]
+# Preload script that ensures Zod is loaded natively before Vitest's Vite transform
+# This fixes Zod 4 SSR issues when running 'bun test'
+preload = ["./tests/bun-preload.ts"]
 # Enable test coverage reporting. Reporters and ignore patterns will be set in 'package.json' scripts.
 coverage = true

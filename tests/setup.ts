@@ -4,6 +4,9 @@ import 'reflect-metadata';
 
 import { beforeAll, afterAll, afterEach, vi } from 'vitest';
 
+// Detect if we're running under Bun's native test runner vs Vitest
+const IS_BUN_TEST = typeof Bun !== 'undefined' && !process.env.VITEST;
+
 // Ensure test env so logger suppresses noisy warnings
 if (typeof process !== 'undefined' && process.env && !process.env.NODE_ENV) {
   process.env.NODE_ENV = 'test';
@@ -16,40 +19,81 @@ if (!(vi as any).mock && typeof (vi as any).module === 'function') {
   (vi as any).mock = (vi as any).module.bind(vi);
 }
 
+// Shim vi.mocked for Bun's test runner
+if (typeof (vi as any).mocked !== 'function') {
+  (vi as any).mocked = <T>(fn: T): T => fn;
+}
+
+// Shim vi.waitFor for Bun's test runner (not available in Vitest's vi object under Bun)
+if (typeof (vi as any).waitFor !== 'function') {
+  (vi as any).waitFor = async (
+    callback: () => unknown | Promise<unknown>,
+    options?: { timeout?: number; interval?: number },
+  ) => {
+    const timeout = options?.timeout ?? 1000;
+    const interval = options?.interval ?? 50;
+    const start = Date.now();
+
+    while (Date.now() - start < timeout) {
+      try {
+        const result = await callback();
+        if (result !== undefined) return result;
+        return;
+      } catch {
+        await new Promise((r) => setTimeout(r, interval));
+      }
+    }
+    throw new Error(`vi.waitFor timed out after ${timeout}ms`);
+  };
+}
+
 let originalNow: (() => number) | null = null;
 let base = 0;
 let offset = 0;
-(vi as any).useFakeTimers = () => {
-  if (!originalNow) {
-    originalNow = Date.now;
-    base = originalNow();
+if (typeof (vi as any).useFakeTimers !== 'function') {
+  (vi as any).useFakeTimers = () => {
+    if (!originalNow) {
+      originalNow = Date.now;
+      base = originalNow();
+      offset = 0;
+      Date.now = () => base + offset;
+    }
+  };
+}
+if (typeof (vi as any).advanceTimersByTime !== 'function') {
+  (vi as any).advanceTimersByTime = (ms: number) => {
+    offset += ms;
+  };
+}
+if (typeof (vi as any).setSystemTime !== 'function') {
+  (vi as any).setSystemTime = (d: Date | number) => {
+    base = typeof d === 'number' ? d : (d as Date).getTime();
     offset = 0;
-    Date.now = () => base + offset;
-  }
-};
-(vi as any).advanceTimersByTime = (ms: number) => {
-  offset += ms;
-};
-(vi as any).setSystemTime = (d: Date | number) => {
-  base = typeof d === 'number' ? d : (d as Date).getTime();
-  offset = 0;
-};
-(vi as any).useRealTimers = () => {
-  if (originalNow) {
-    Date.now = originalNow;
-    originalNow = null;
-  }
-};
+  };
+}
+if (typeof (vi as any).useRealTimers !== 'function') {
+  (vi as any).useRealTimers = () => {
+    if (originalNow) {
+      Date.now = originalNow;
+      originalNow = null;
+    }
+  };
+}
 
 // Pre-mock modules that are imported before tests call vi.mock
-// Skip these mocks for integration tests so we exercise the real stack.
+// Skip these mocks for:
+// - Integration tests (so we exercise the real stack)
+// - Bun's test runner (mocking behavior differs and breaks AsyncLocalStorage)
+//
 // IMPORTANT: Vitest's module mocking can interfere with AsyncLocalStorage context propagation
 // in some test scenarios. If you encounter "getStore is not a function" errors with
 // AsyncLocalStorage, the issue is likely with test isolation settings in vitest.config.ts.
 // Solution: Ensure poolOptions.forks.isolate = true (each test file gets clean module state).
 // See: https://github.com/vitest-dev/vitest/issues/5858
 const IS_INTEGRATION = process.env.INTEGRATION === '1';
-if (!IS_INTEGRATION) {
+const SKIP_GLOBAL_MOCKS = IS_INTEGRATION || IS_BUN_TEST;
+
+if (!SKIP_GLOBAL_MOCKS) {
   try {
     (vi as any).mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
       class McpServer {

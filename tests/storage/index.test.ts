@@ -166,16 +166,14 @@ describe('Storage Barrel Export', () => {
   describe('Re-export Integrity', () => {
     it('should maintain function identity across imports', async () => {
       // Import from the source module and verify it's the same reference
-      const { StorageService: DirectStorageService } = await import(
-        '@/storage/core/StorageService.js'
-      );
+      const { StorageService: DirectStorageService } =
+        await import('@/storage/core/StorageService.js');
       expect(storageIndex.StorageService).toBe(DirectStorageService);
     });
 
     it('should maintain factory function identity', async () => {
-      const { createStorageProvider: DirectFactory } = await import(
-        '@/storage/core/storageFactory.js'
-      );
+      const { createStorageProvider: DirectFactory } =
+        await import('@/storage/core/storageFactory.js');
       expect(storageIndex.createStorageProvider).toBe(DirectFactory);
     });
 

@@ -9,6 +9,7 @@ import { container } from 'tsyringe';
 
 import {
   CreateMcpServerInstance,
+  TaskManagerToken,
   TransportManagerToken,
 } from '@/container/tokens.js';
 import {
@@ -20,6 +21,7 @@ import {
   ToolRegistry,
   registerTools,
 } from '@/mcp-server/tools/tool-registration.js';
+import { TaskManager } from '@/mcp-server/tasks/index.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
 import { logger } from '@/utils/index.js';
 
@@ -30,6 +32,9 @@ export const registerMcpServices = () => {
   // --- Register Registries ---
   container.registerSingleton(ToolRegistry);
   container.registerSingleton(ResourceRegistry);
+
+  // --- Register Task Manager (experimental) ---
+  container.registerSingleton(TaskManagerToken, TaskManager);
 
   // --- Register Tools & Resources (via modular functions) ---
   registerTools(container);

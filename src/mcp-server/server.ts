@@ -47,17 +47,21 @@ export async function createMcpServerInstance(): Promise<McpServer> {
     {
       name: config.mcpServerName,
       version: config.mcpServerVersion,
-      description: config.mcpServerDescription,
     },
     {
       capabilities: {
         logging: {},
         resources: { listChanged: true },
         tools: { listChanged: true },
-        elicitation: {},
-        sampling: {}, // MCP 2025-06-18: Allow tools to request LLM completions from clients
-        prompts: { listChanged: true }, // MCP 2025-06-18: Provide structured message templates
-        roots: { listChanged: true }, // MCP 2025-06-18: Workspace/filesystem context awareness
+        prompts: { listChanged: true },
+        // Experimental: Tasks API for long-running async operations
+        tasks: {
+          list: {},
+          cancel: {},
+          requests: {
+            tools: { call: {} },
+          },
+        },
       },
     },
   );

@@ -51,9 +51,8 @@ describe('TransportManager', () => {
 
       await manager.start();
 
-      const { startHttpTransport } = await import(
-        '@/mcp-server/transports/http/httpTransport.js'
-      );
+      const { startHttpTransport } =
+        await import('@/mcp-server/transports/http/httpTransport.js');
       expect(startHttpTransport).toHaveBeenCalledTimes(1);
       expect(startHttpTransport).toHaveBeenCalledWith(
         mockMcpServer,
@@ -78,9 +77,8 @@ describe('TransportManager', () => {
 
       await manager.start();
 
-      const { startStdioTransport } = await import(
-        '@/mcp-server/transports/stdio/stdioTransport.js'
-      );
+      const { startStdioTransport } =
+        await import('@/mcp-server/transports/stdio/stdioTransport.js');
       expect(startStdioTransport).toHaveBeenCalledTimes(1);
       expect(startStdioTransport).toHaveBeenCalledWith(
         mockMcpServer,
@@ -150,9 +148,8 @@ describe('TransportManager', () => {
 
       await manager.stop('SIGTERM');
 
-      const { stopHttpTransport } = await import(
-        '@/mcp-server/transports/http/httpTransport.js'
-      );
+      const { stopHttpTransport } =
+        await import('@/mcp-server/transports/http/httpTransport.js');
       expect(stopHttpTransport).toHaveBeenCalledTimes(1);
 
       // Restore original value
@@ -177,9 +174,8 @@ describe('TransportManager', () => {
 
       await manager.stop('SIGTERM');
 
-      const { stopStdioTransport } = await import(
-        '@/mcp-server/transports/stdio/stdioTransport.js'
-      );
+      const { stopStdioTransport } =
+        await import('@/mcp-server/transports/stdio/stdioTransport.js');
       expect(stopStdioTransport).toHaveBeenCalledTimes(1);
 
       // Restore original value

@@ -71,9 +71,8 @@ describe('Graph Service Barrel Exports', () => {
 
   describe('Import Compatibility', () => {
     it('should support named imports', async () => {
-      const { GraphService, SurrealGraphProvider } = await import(
-        '@/services/graph/index.js'
-      );
+      const { GraphService, SurrealGraphProvider } =
+        await import('@/services/graph/index.js');
 
       expect(GraphService).toBeDefined();
       expect(SurrealGraphProvider).toBeDefined();
@@ -161,9 +160,8 @@ describe('Graph Service Barrel Exports', () => {
     it('should not include unnecessary code when using specific exports', async () => {
       // This is more of a build-time concern, but we can verify
       // that imports are properly structured
-      const { SurrealGraphProvider } = await import(
-        '@/services/graph/index.js'
-      );
+      const { SurrealGraphProvider } =
+        await import('@/services/graph/index.js');
 
       expect(SurrealGraphProvider).toBeDefined();
     });
