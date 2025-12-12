@@ -149,12 +149,12 @@ export class StorageBackedTaskStore implements TaskStore {
       requestId,
     };
 
-    // Store with TTL if specified
+    // Store with TTL if specified (convert ms to seconds for StorageService)
     await this.storage.set(
       this.getTaskKey(taskId),
       storedTask,
       context,
-      actualTtl ? { ttl: actualTtl } : undefined,
+      actualTtl ? { ttl: Math.ceil(actualTtl / 1000) } : undefined,
     );
 
     return task;
@@ -195,12 +195,12 @@ export class StorageBackedTaskStore implements TaskStore {
     stored.task.status = status;
     stored.task.lastUpdatedAt = new Date().toISOString();
 
-    // Re-store with TTL reset (if ttl is set)
+    // Re-store with TTL reset (if ttl is set, convert ms to seconds)
     await this.storage.set(
       key,
       stored,
       context,
-      stored.task.ttl ? { ttl: stored.task.ttl } : undefined,
+      stored.task.ttl ? { ttl: Math.ceil(stored.task.ttl / 1000) } : undefined,
     );
   }
 
@@ -249,13 +249,13 @@ export class StorageBackedTaskStore implements TaskStore {
     }
     stored.task.lastUpdatedAt = new Date().toISOString();
 
-    // Re-store, reset TTL if transitioning to terminal state
+    // Re-store, reset TTL if transitioning to terminal state (convert ms to seconds)
     const shouldResetTtl = isTerminal(status) && stored.task.ttl;
     await this.storage.set(
       key,
       stored,
       context,
-      shouldResetTtl ? { ttl: stored.task.ttl! } : undefined,
+      shouldResetTtl ? { ttl: Math.ceil(stored.task.ttl! / 1000) } : undefined,
     );
   }
 

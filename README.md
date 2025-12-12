@@ -74,14 +74,14 @@ This template includes working examples to get you started.
 
 ### Tools
 
-| Tool                                | Description                                                                |
-| :---------------------------------- | :------------------------------------------------------------------------- |
-| **`template_echo_message`**         | Echoes a message back with optional formatting and repetition.             |
-| **`template_cat_fact`**             | Fetches a random cat fact from an external API.                            |
-| **`template_madlibs_elicitation`**  | Demonstrates elicitation by asking for words to complete a story.          |
-| **`template_code_review_sampling`** | Uses the LLM service to perform a simulated code review.                   |
-| **`template_image_test`**           | Returns a test image as a base64-encoded data URI.                         |
-| **`template_async_countdown`**      | Demonstrates MCP Tasks API with an async countdown timer (experimental).   |
+| Tool                                | Description                                                              |
+| :---------------------------------- | :----------------------------------------------------------------------- |
+| **`template_echo_message`**         | Echoes a message back with optional formatting and repetition.           |
+| **`template_cat_fact`**             | Fetches a random cat fact from an external API.                          |
+| **`template_madlibs_elicitation`**  | Demonstrates elicitation by asking for words to complete a story.        |
+| **`template_code_review_sampling`** | Uses the LLM service to perform a simulated code review.                 |
+| **`template_image_test`**           | Returns a test image as a base64-encoded data URI.                       |
+| **`template_async_countdown`**      | Demonstrates MCP Tasks API with an async countdown timer (experimental). |
 
 ### Resources
 

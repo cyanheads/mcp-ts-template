@@ -179,11 +179,8 @@ async function runCountdown(
       const failedAt = new Date();
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
-      const progress = Math.round(
-        ((seconds - (failedAt.getTime() - startedAt.getTime()) / 1000) /
-          seconds) *
-          100,
-      );
+      const elapsedSeconds = (failedAt.getTime() - startedAt.getTime()) / 1000;
+      const progress = Math.round((elapsedSeconds / seconds) * 100);
 
       const result: Output = {
         success: false,
