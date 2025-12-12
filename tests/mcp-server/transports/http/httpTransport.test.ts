@@ -27,11 +27,14 @@ vi.mock('@/config/index.js', () => ({
   },
 }));
 
-vi.mock('@/mcp-server/transports/auth/index.js', () => ({
-  authContext: vi.fn(),
-  createAuthMiddleware: vi.fn(),
-  createAuthStrategy: vi.fn(() => null),
-}));
+vi.mock('@/mcp-server/transports/auth/index.js', () => {
+  const { AsyncLocalStorage } = require('async_hooks');
+  return {
+    authContext: new AsyncLocalStorage(),
+    createAuthMiddleware: vi.fn(),
+    createAuthStrategy: vi.fn(() => null),
+  };
+});
 
 vi.mock('@/mcp-server/transports/http/httpErrorHandler.js', () => ({
   httpErrorHandler: vi.fn(async (err, c) =>

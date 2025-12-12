@@ -67,9 +67,8 @@ describe('Stdio Transport', () => {
 
   describe('startStdioTransport', () => {
     it('should successfully start stdio transport', async () => {
-      const { startStdioTransport } = await import(
-        '@/mcp-server/transports/stdio/stdioTransport.js'
-      );
+      const { startStdioTransport } =
+        await import('@/mcp-server/transports/stdio/stdioTransport.js');
 
       const result = await startStdioTransport(
         mockServer as McpServer,
@@ -89,9 +88,8 @@ describe('Stdio Transport', () => {
     });
 
     it('should handle connection errors', async () => {
-      const { startStdioTransport } = await import(
-        '@/mcp-server/transports/stdio/stdioTransport.js'
-      );
+      const { startStdioTransport } =
+        await import('@/mcp-server/transports/stdio/stdioTransport.js');
 
       const connectionError = new Error('Connection failed');
       mockServer.connect = vi.fn().mockRejectedValue(connectionError);
@@ -111,9 +109,8 @@ describe('Stdio Transport', () => {
     });
 
     it('should create StdioServerTransport and connect server', async () => {
-      const { startStdioTransport } = await import(
-        '@/mcp-server/transports/stdio/stdioTransport.js'
-      );
+      const { startStdioTransport } =
+        await import('@/mcp-server/transports/stdio/stdioTransport.js');
 
       await startStdioTransport(mockServer as McpServer, mockContext);
 
@@ -124,9 +121,8 @@ describe('Stdio Transport', () => {
 
   describe('stopStdioTransport', () => {
     it('should successfully stop stdio transport', async () => {
-      const { stopStdioTransport } = await import(
-        '@/mcp-server/transports/stdio/stdioTransport.js'
-      );
+      const { stopStdioTransport } =
+        await import('@/mcp-server/transports/stdio/stdioTransport.js');
 
       await stopStdioTransport(mockServer as McpServer, mockContext);
 
@@ -145,9 +141,8 @@ describe('Stdio Transport', () => {
     });
 
     it('should handle null server gracefully', async () => {
-      const { stopStdioTransport } = await import(
-        '@/mcp-server/transports/stdio/stdioTransport.js'
-      );
+      const { stopStdioTransport } =
+        await import('@/mcp-server/transports/stdio/stdioTransport.js');
 
       // Should not throw
       await expect(
@@ -156,9 +151,8 @@ describe('Stdio Transport', () => {
     });
 
     it('should log context with correct operation', async () => {
-      const { stopStdioTransport } = await import(
-        '@/mcp-server/transports/stdio/stdioTransport.js'
-      );
+      const { stopStdioTransport } =
+        await import('@/mcp-server/transports/stdio/stdioTransport.js');
 
       await stopStdioTransport(mockServer as McpServer, mockContext);
 

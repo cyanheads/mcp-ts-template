@@ -3,9 +3,17 @@
  * @module tests/utils/parsing/dateParser.test
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as chrono from 'chrono-node';
 
 import { JsonRpcErrorCode } from '../../../src/types-global/errors.js';
+
+// Mock chrono-node before importing dependent modules
+vi.mock('chrono-node', () => ({
+  parseDate: vi.fn(() => null),
+  parse: vi.fn(() => []),
+}));
+
+// Import after mock is set up
+import * as chrono from 'chrono-node';
 import {
   parseDateString,
   parseDateStringDetailed,
