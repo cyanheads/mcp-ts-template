@@ -12,6 +12,8 @@ import { imageTestTool } from './template-image-test.tool.js';
 import { madlibsElicitationTool } from './template-madlibs-elicitation.tool.js';
 // Task tools (experimental)
 import { asyncCountdownTaskTool } from './template-async-countdown.task-tool.js';
+// App tools (MCP Apps extension)
+import { dataExplorerAppTool } from './template-data-explorer.app-tool.js';
 
 /**
  * An array containing all tool definitions for easy iteration.
@@ -26,4 +28,6 @@ export const allToolDefinitions = [
   madlibsElicitationTool,
   // Task tools (experimental)
   asyncCountdownTaskTool,
+  // App tools (MCP Apps extension)
+  dataExplorerAppTool,
 ];
