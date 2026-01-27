@@ -7,6 +7,32 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.7.0] - 2026-01-27
+
+### Added
+
+- **MCP Apps Support (SEP-1865)**: Integrated the MCP Apps extension for interactive UI rendering within AI conversations.
+  - Added `@modelcontextprotocol/ext-apps` dependency (`^1.0.1`) for server-side app registration and client-side `App` class.
+  - Added `_meta` field to `ToolDefinition` interface for protocol-level metadata (used by `io.modelcontextprotocol/ui` extension).
+  - Propagated `_meta` through tool registration in `ToolRegistry`.
+- **Data Explorer App Tool**: Added `template_data_explorer` tool generating sample sales data with an interactive UI.
+  - Added [src/mcp-server/tools/definitions/template-data-explorer.app-tool.ts](src/mcp-server/tools/definitions/template-data-explorer.app-tool.ts) with sortable, filterable table and text fallback.
+  - Added [src/mcp-server/resources/definitions/data-explorer-ui.app-resource.ts](src/mcp-server/resources/definitions/data-explorer-ui.app-resource.ts) serving the self-contained HTML app.
+- **MCP Apps Documentation**: Added [docs/mcp-apps.md](docs/mcp-apps.md) covering architecture, security model, and implementation guide.
+
+### Changed
+
+- **Protocol Version Handling**: Replaced hardcoded protocol version array with `SUPPORTED_PROTOCOL_VERSIONS` from SDK in HTTP transport.
+- **Logs Path Resolution**: Config now resolves `logsPath` relative to project root using `import.meta.url` for consistent behavior across working directories.
+
+### Dependencies
+
+- Upgraded `@hono/node-server` from `^1.19.7` to `^1.19.9`.
+- Upgraded `hono` from `^4.10.8` to `^4.11.6`.
+- Upgraded `zod` from `^4.1.13` to `^4.3.6`.
+
+---
+
 ## [2.6.1] - 2026-01-27
 
 ### Changed

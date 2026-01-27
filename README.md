@@ -1,7 +1,7 @@
 <div align="center">
   <h1>mcp-ts-template</h1>
   <p><b>Production-grade TypeScript template for building Model Context Protocol (MCP) servers. Ships with declarative tools/resources, robust error handling, DI, easy auth, optional OpenTelemetry, and first-class support for both local and edge (Cloudflare Workers) runtimes.</b>
-  <div>6 Tools • 1 Resource • 1 Prompt</div>
+  <div>7 Tools • 2 Resources • 1 Prompt</div>
   </p>
 </div>
 
@@ -82,12 +82,14 @@ This template includes working examples to get you started.
 | **`template_code_review_sampling`** | Uses the LLM service to perform a simulated code review.                 |
 | **`template_image_test`**           | Returns a test image as a base64-encoded data URI.                       |
 | **`template_async_countdown`**      | Demonstrates MCP Tasks API with an async countdown timer (experimental). |
+| **`template_data_explorer`**        | Generates sample sales data with an interactive explorer UI (MCP Apps).  |
 
 ### Resources
 
-| Resource   | URI                | Description                                   |
-| :--------- | :----------------- | :-------------------------------------------- |
-| **`echo`** | `echo://{message}` | A simple resource that echoes back a message. |
+| Resource               | URI                                      | Description                                                  |
+| :--------------------- | :--------------------------------------- | :----------------------------------------------------------- |
+| **`echo`**             | `echo://{message}`                       | A simple resource that echoes back a message.                |
+| **`data-explorer-ui`** | `ui://template-data-explorer/app.html`   | Interactive HTML app for the data explorer tool (MCP Apps).  |
 
 ### Prompts
 
