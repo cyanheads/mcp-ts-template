@@ -10,6 +10,7 @@
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { type ServerType, serve } from '@hono/node-server';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import http from 'http';
@@ -252,7 +253,7 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     // Per MCP Spec 2025-06-18: MCP-Protocol-Version header MUST be validated
     // Server MUST respond with 400 Bad Request for unsupported versions
     // We default to 2025-03-26 for backward compatibility if not provided
-    const supportedVersions = ['2025-03-26', '2025-06-18'];
+    const supportedVersions = SUPPORTED_PROTOCOL_VERSIONS;
     if (!supportedVersions.includes(protocolVersion)) {
       logger.warning('Unsupported MCP protocol version requested.', {
         ...transportContext,

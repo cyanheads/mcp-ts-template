@@ -396,7 +396,16 @@ const parseConfig = () => {
   const finalRawConfig = {
     ...rawConfig,
     pkg: parsedPkg,
-    logsPath: rawConfig.logsPath ?? (hasFileSystemAccess ? 'logs' : undefined),
+    logsPath: hasFileSystemAccess
+      ? (() => {
+          // Derive project root from this module's URL (src/config/index.ts → ../../)
+          // URL API is universal (Node, Bun, Workers) — no node:path/node:url imports needed
+          const root = new URL('../..', import.meta.url).pathname;
+          const logsDir = rawConfig.logsPath ?? 'logs';
+          if (logsDir.startsWith('/')) return logsDir;
+          return root.endsWith('/') ? `${root}${logsDir}` : `${root}/${logsDir}`;
+        })()
+      : undefined,
     mcpServerName: env.MCP_SERVER_NAME ?? parsedPkg.name,
     mcpServerVersion: env.MCP_SERVER_VERSION ?? parsedPkg.version,
     mcpServerDescription: env.MCP_SERVER_DESCRIPTION ?? parsedPkg.description,

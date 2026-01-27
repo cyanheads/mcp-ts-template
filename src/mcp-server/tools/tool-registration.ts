@@ -121,6 +121,7 @@ export class ToolRegistry {
             inputSchema: tool.inputSchema,
             outputSchema: tool.outputSchema,
             ...(tool.annotations && { annotations: tool.annotations }),
+            ...(tool._meta && { _meta: tool._meta }),
           },
           handler as ToolCallback<TInputSchema>,
         );

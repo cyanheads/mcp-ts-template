@@ -109,4 +109,12 @@ export interface ToolDefinition<
    * @returns An array of ContentBlocks to be sent to the client.
    */
   responseFormatter?: (result: z.infer<TOutputSchema>) => ContentBlock[];
+  /**
+   * Optional protocol-level metadata passed alongside the tool registration.
+   * Extensions use namespaced keys within `_meta` to attach additional semantics.
+   *
+   * Currently used by the MCP Apps extension (`io.modelcontextprotocol/ui`)
+   * to link a tool to an interactive UI resource.
+   */
+  _meta?: Record<string, unknown>;
 }
