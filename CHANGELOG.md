@@ -7,6 +7,28 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.6.1] - 2026-01-27
+
+### Changed
+
+- **Dependency Updates**: Updated all dependencies to latest versions.
+  - Upgraded `@modelcontextprotocol/sdk` from `1.24.3` to `1.25.3`.
+  - Upgraded `hono` from `4.10.8` to `4.11.6` (resolves JWT algorithm confusion vulnerabilities GHSA-3vhc-576x-3qv4, GHSA-f67f-6cw9-8mq4).
+  - Upgraded `zod` from `4.1.13` to `4.3.6`.
+  - Upgraded `@hono/node-server` from `1.19.7` to `1.19.9`.
+  - Upgraded OpenTelemetry packages to `0.211.0` / `2.5.0`.
+  - Upgraded `@supabase/supabase-js` from `2.87.1` to `2.93.1`.
+  - Upgraded `openai` from `6.10.0` to `6.16.0`.
+  - Upgraded `pino` from `10.1.0` to `10.3.0`.
+  - Various dev dependency updates (prettier, eslint, vitest, vite, typescript-eslint).
+
+### Security
+
+- **Hono JWT Vulnerabilities**: Resolved by upgrading `hono` to `4.11.6` (>= `4.11.4`).
+- **qs DoS Vulnerability**: Added `qs` resolution override to `6.14.1` to mitigate GHSA-6rw7-vpxm-498p in transitive `express › body-parser › qs` chain from `@modelcontextprotocol/sdk`.
+
+---
+
 ## [2.6.0] - 2025-12-12
 
 ### Added
