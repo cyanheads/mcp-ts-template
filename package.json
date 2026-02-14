@@ -171,7 +171,7 @@
     "@opentelemetry/sdk-trace-node": "^2.5.1",
     "@opentelemetry/semantic-conventions": "^1.39.0",
     "@supabase/supabase-js": "^2.95.3",
-    "ajv": "^8.17.1",
+    "ajv": "^8.18.0",
     "ajv-formats": "^3.0.1",
     "axios": "^1.13.5",
     "chrono-node": "^2.9.0",
