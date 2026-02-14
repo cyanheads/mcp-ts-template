@@ -278,14 +278,17 @@ describe('Sanitization Utility', () => {
       expect(updatedFields.length).toBeGreaterThan(initialFields.length);
     });
 
-    it('should return pino-compliant field names', () => {
+    it('should return pino-compliant wildcard redact paths', () => {
       const pinoFields = sanitization.getSensitivePinoFields();
       expect(Array.isArray(pinoFields)).toBe(true);
-      // Pino fields should not contain hyphens or underscores
-      pinoFields.forEach((field) => {
-        expect(field).not.toContain('-');
-        expect(field).not.toContain('_');
-      });
+      // Each sensitive field should generate three paths for nested matching
+      const baseFields = sanitization.getSensitiveFields();
+      for (const field of baseFields) {
+        expect(pinoFields).toContain(field); // top-level
+        expect(pinoFields).toContain(`*.${field}`); // one level deep
+        expect(pinoFields).toContain(`*.*.${field}`); // two levels deep
+      }
+      expect(pinoFields.length).toBe(baseFields.length * 3);
     });
   });
 });

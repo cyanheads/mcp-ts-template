@@ -29,7 +29,13 @@ export class XmlParser {
   private parser: FastXmlParser;
 
   constructor() {
-    this.parser = new FastXmlParser();
+    this.parser = new FastXmlParser({
+      // Explicitly disable entity processing to prevent XXE-style expansion attacks.
+      // These are off by default in fast-xml-parser v4, but being explicit guards
+      // against default changes in future versions.
+      processEntities: false,
+      htmlEntities: false,
+    });
   }
 
   /**

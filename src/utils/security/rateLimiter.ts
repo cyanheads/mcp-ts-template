@@ -218,7 +218,7 @@ export class RateLimiter {
       const waitTime = Math.ceil((entry.resetTime - now) / 1000);
       const errorMessage = (
         this.effectiveConfig.errorMessage ||
-        'Rate limit exceeded. Please try again in {waitTime}  seconds.'
+        'Rate limit exceeded. Please try again in {waitTime} seconds.'
       ).replace('{waitTime}', waitTime.toString());
 
       activeSpan?.addEvent('rate_limit_exceeded', {

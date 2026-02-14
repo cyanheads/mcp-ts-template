@@ -51,11 +51,19 @@ export class D1Provider implements IStorageProvider {
    * @param tableName - The name of the kv_store table (default: 'kv_store')
    * @throws {McpError} If db is not provided or invalid
    */
+  private static readonly SAFE_TABLE_NAME = /^[a-zA-Z_][a-zA-Z0-9_]{0,63}$/;
+
   constructor(db: D1Database, tableName = 'kv_store') {
     if (!db) {
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
         'D1Provider requires a valid D1Database instance.',
+      );
+    }
+    if (!D1Provider.SAFE_TABLE_NAME.test(tableName)) {
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        `D1Provider tableName must be a valid SQL identifier (letters, digits, underscores; start with letter or underscore; max 64 chars): ${tableName}`,
       );
     }
     this.db = db;

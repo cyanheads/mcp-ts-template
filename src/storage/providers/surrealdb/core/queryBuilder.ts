@@ -84,7 +84,10 @@ export class WhereBuilder {
   }
 
   /**
-   * Add a raw condition (use with caution).
+   * Add a raw SurrealQL condition. Intended for schema operations and internal queries only.
+   * @warning NEVER pass user-controlled input as the `condition` string — this is a direct
+   * injection vector. Use the parameterized methods (equals, startsWith, in, etc.) for any
+   * values derived from user input.
    */
   raw(condition: string, params?: QueryParams): this {
     this.conditions.push(condition);

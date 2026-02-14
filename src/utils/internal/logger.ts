@@ -178,6 +178,10 @@ export class Logger {
 
     const { default: path } = await import('path');
     return pino({
+      redact: {
+        paths: sanitization.getSensitivePinoFields(),
+        censor: '[REDACTED]',
+      },
       transport: {
         target: 'pino/file',
         options: {
