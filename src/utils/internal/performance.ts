@@ -6,7 +6,7 @@
  * @module src/utils/internal/performance
  */
 import { SpanStatusCode, trace } from '@opentelemetry/api';
-import type { performance as PerfHooksPerformance } from 'perf_hooks';
+import type { performance as PerfHooksPerformance } from 'node:perf_hooks';
 
 import { config } from '@/config/index.js';
 import { McpError } from '@/types-global/errors.js';

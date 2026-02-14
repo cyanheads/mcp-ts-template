@@ -680,10 +680,7 @@ export class Sanitization {
     try {
       if (!input || typeof input !== 'object') return input;
 
-      const clonedInput: unknown =
-        typeof globalThis.structuredClone === 'function'
-          ? globalThis.structuredClone(input)
-          : JSON.parse(JSON.stringify(input));
+      const clonedInput: unknown = structuredClone(input);
       this.redactSensitiveFields(clonedInput);
       return clonedInput;
     } catch (error: unknown) {

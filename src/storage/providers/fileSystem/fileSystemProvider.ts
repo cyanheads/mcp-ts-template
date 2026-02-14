@@ -9,9 +9,9 @@
  *
  * @module src/storage/providers/fileSystem/fileSystemProvider
  */
-import { existsSync, mkdirSync } from 'fs';
-import { readFile, readdir, rm, writeFile } from 'fs/promises';
-import path from 'path';
+import { existsSync, mkdirSync } from 'node:fs';
+import { readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import type {
   IStorageProvider,
