@@ -7,6 +7,32 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.8.2] - 2026-02-14
+
+### Changed
+
+- **scripts/clean.ts**: Refactored — added path traversal validation, removed shebang, simplified error handling with per-directory try/catch, deduplicated args, cleaner console output.
+- **scripts/devcheck.ts**: Major refactor — parallel check execution with buffered output (no interleaving), `--only <name>` filter, `--help` flag, `NO_COLOR`/`FORCE_COLOR` support, SIGINT/SIGTERM signal handling with child process cleanup, outdated package allowlist (`OUTDATED_ALLOWLIST`), expanded secrets check patterns, `performance.now()` for timing, slowest-check highlight in summary.
+- **scripts/devdocs.ts**: Refactored — Zod-validated config files, `--output`/`--no-clipboard` flags, batched single-invocation repomix calls, `?` glob support in pattern matching, SIGINT/SIGTERM graceful shutdown, `npm`→`bun` command references, dynamic year in prompt template, strict `parseArgs`, mutual exclusivity guard for `--git-diff`/`--git-staged`.
+- **scripts/tree.ts**: Refactored — `--ignore` and `--dry-run` flags, symlink cycle detection via `realpath`, output file auto-ignored from tree, sequential traversal to avoid fd pressure, unknown flag warnings, path escape validation.
+- **scripts/update-coverage.ts**: Refactored — full coverage stats parsing (statements/functions/branches/lines) with delta display, real Node.js binary resolution (bypasses Bun's injected shim), `--help` flag, distinct exit codes (0/1/2), pre-run coverage directory cleanup, only commits `coverage-final.json` (HTML gitignored).
+- **`.gitignore`**: Added `coverage/` with exclusion for `coverage/coverage-final.json`.
+
+### Added
+
+- **devcheck: Tests check**: Runs `vitest run` as part of the devcheck pipeline.
+- **devcheck: Unused Dependencies check**: Runs `depcheck` to detect unused packages.
+
+### Fixed
+
+- **tests/logger.test.ts**: Corrected assertion from `resolves.not.toThrow()` to `resolves.toBeUndefined()`.
+
+### Dependencies
+
+- Upgraded `ajv` from `^8.17.1` to `^8.18.0`.
+
+---
+
 ## [2.8.1] - 2026-02-14
 
 ### Changed
