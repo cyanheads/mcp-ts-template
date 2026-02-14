@@ -139,11 +139,11 @@ type EchoToolResponse = z.infer<typeof OutputSchema>;
 //
 // Pure business logic (no try/catch; throw McpError on failure)
 // -------------------------------------------------------------
-async function echoToolLogic(
+function echoToolLogic(
   input: EchoToolInput,
   appContext: RequestContext,
   _sdkContext: SdkContext,
-): Promise<EchoToolResponse> {
+): EchoToolResponse {
   logger.debug('Processing echo message logic.', {
     ...appContext,
     toolInput: input,
@@ -182,7 +182,7 @@ async function echoToolLogic(
     ...(input.includeTimestamp && { timestamp: new Date().toISOString() }),
   };
 
-  return Promise.resolve(response);
+  return response;
 }
 
 /**

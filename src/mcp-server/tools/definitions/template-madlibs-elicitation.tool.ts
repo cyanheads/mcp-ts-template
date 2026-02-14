@@ -114,7 +114,7 @@ async function madlibsToolLogic(
     adjective,
   };
 
-  return Promise.resolve(response);
+  return response;
 }
 
 // --- Response Formatter ---

@@ -160,56 +160,41 @@ Your review:`;
     focus: input.focus,
   });
 
-  try {
-    const samplingResult = await sdkContext.createMessage({
-      messages: [
-        {
-          role: 'user',
-          content: {
-            type: 'text',
-            text: prompt,
-          },
+  const samplingResult = await sdkContext.createMessage({
+    messages: [
+      {
+        role: 'user',
+        content: {
+          type: 'text',
+          text: prompt,
         },
-      ],
-      maxTokens: input.maxTokens,
-      temperature: 0.3, // Lower temperature for more consistent reviews
-      modelPreferences: {
-        hints: [{ name: 'claude-3-5-sonnet-20241022' }],
-        intelligencePriority: 0.8,
-        speedPriority: 0.2,
       },
-    });
+    ],
+    maxTokens: input.maxTokens,
+    temperature: 0.3, // Lower temperature for more consistent reviews
+    modelPreferences: {
+      hints: [{ name: 'claude-3-5-sonnet-20241022' }],
+      intelligencePriority: 0.8,
+      speedPriority: 0.2,
+    },
+  });
 
-    logger.info('Sampling completed successfully.', {
-      ...appContext,
-      model: samplingResult.model,
-      stopReason: samplingResult.stopReason,
-    });
+  logger.info('Sampling completed successfully.', {
+    ...appContext,
+    model: samplingResult.model,
+    stopReason: samplingResult.stopReason,
+  });
 
-    const response: CodeReviewToolResponse = {
-      code: input.code,
-      language: input.language,
-      focus: input.focus,
-      review: samplingResult.content.text,
-      tokenUsage: {
-        requested: input.maxTokens,
-        // Note: actual token usage might not be available from all clients
-      },
-    };
-
-    return response;
-  } catch (error) {
-    logger.error('Sampling request failed.', {
-      ...appContext,
-      error: error instanceof Error ? error.message : String(error),
-    });
-
-    throw new McpError(
-      JsonRpcErrorCode.InternalError,
-      `Failed to complete sampling request: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      { requestId: appContext.requestId, operation: 'codeReview.sample' },
-    );
-  }
+  return {
+    code: input.code,
+    language: input.language,
+    focus: input.focus,
+    review: samplingResult.content.text,
+    tokenUsage: {
+      requested: input.maxTokens,
+      // Note: actual token usage might not be available from all clients
+    },
+  };
 }
 
 // --- Response Formatter ---

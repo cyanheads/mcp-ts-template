@@ -128,7 +128,7 @@ describe('codeReviewSamplingTool', () => {
     }
   });
 
-  it('should throw an error if sampling request fails', async () => {
+  it('should propagate error if sampling request fails', async () => {
     const context = requestContextService.createRequestContext();
     const rawInput = {
       code: 'function broken() {}',
@@ -140,21 +140,14 @@ describe('codeReviewSamplingTool', () => {
       new Error('Sampling failed'),
     );
 
+    // Logic propagates the raw error; the handler factory normalizes it
     await expect(
       codeReviewSamplingTool.logic(
         parsedInput,
         context,
         mockSdkContextWithSampling,
       ),
-    ).rejects.toThrow(McpError);
-
-    await expect(
-      codeReviewSamplingTool.logic(
-        parsedInput,
-        context,
-        mockSdkContextWithSampling,
-      ),
-    ).rejects.toHaveProperty('code', JsonRpcErrorCode.InternalError);
+    ).rejects.toThrow('Sampling failed');
   });
 
   it('should format response correctly', () => {
