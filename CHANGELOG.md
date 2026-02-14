@@ -7,6 +7,23 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.8.3] - 2026-02-14
+
+### Added
+
+- **Server Unit Tests** (`tests/mcp-server/server.test.ts`): Comprehensive test suite for `createMcpServerInstance` — covers server initialization, registry resolution (Tool/Resource/Prompt/Roots), capability registration, logging behavior, and error handling for registration failures.
+- **Data Explorer App Tool Tests** (`tests/mcp-server/tools/definitions/template-data-explorer.app-tool.test.ts`): Test suite covering metadata, input schema validation, data generation logic (row structure, sequential IDs, date format, summary aggregation), output schema conformance, and response formatter output.
+- **Code Review Prompt Tests** (`tests/mcp-server/prompts/definitions/code-review.prompt.test.ts`): Replaced TODO stub with full test suite — metadata validation, arguments schema parsing, generate function output for all focus areas (general, security, performance, style), language specialization, examples toggle, and structured review sections.
+- **Error Handler Tests** (`tests/utils/internal/error-handler/errorHandler.test.ts`): Replaced TODO stub with comprehensive test suite covering `determineErrorCode` (type mappings, message classification, provider patterns), `handleError`, `formatError`, `tryCatch`, `tryAsResult`, `mapResult`, `flatMapResult`, `recoverResult`, `addBreadcrumb`, `tryCatchWithRetry`, `createExponentialBackoffStrategy`, and `mapError`.
+- **Error Handler Helpers Tests** (`tests/utils/internal/error-handler/helpers.test.ts`): Replaced TODO stub with tests for `getErrorName`, `getErrorMessage` (including AggregateError slicing), `createSafeRegex` (caching, flag normalization), `extractErrorCauseChain` (circular detection, maxDepth, cause types), and `serializeErrorCauseChain`.
+- **Error Handler Mappings Tests** (`tests/utils/internal/error-handler/mappings.test.ts`): Replaced TODO stub with tests for `getCompiledPattern` (caching, flag handling), `ERROR_TYPE_MAPPINGS` completeness, `COMPILED_ERROR_PATTERNS` (auth, permission, not-found, validation, conflict, rate-limit, timeout, Zod patterns), and `COMPILED_PROVIDER_PATTERNS` (AWS, HTTP status, database, Supabase, LLM, network patterns).
+
+### Changed
+
+- **Directory Tree**: Refreshed `docs/tree.md` to reflect new test files.
+
+---
+
 ## [2.8.2] - 2026-02-14
 
 ### Changed
