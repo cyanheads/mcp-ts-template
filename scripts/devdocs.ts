@@ -9,16 +9,16 @@
  *
  * @example
  * // Run all checks with statistics:
- * // npm run devdocs -- --stats src/
+ * // bun run devdocs -- --stats src/
  *
  * // Analyze only changed files:
- * // npm run devdocs -- --git-diff --include-rules
+ * // bun run devdocs -- --git-diff --include-rules
  *
  * // Preview without generating:
- * // npm run devdocs -- --dry-run src/
+ * // bun run devdocs -- --dry-run src/
  *
  * // Exclude test files:
- * // npm run devdocs -- --exclude "*.test.ts" --exclude "*.spec.ts" src/
+ * // bun run devdocs -- --exclude "*.test.ts" --exclude "*.spec.ts" src/
  */
 import clipboardy from 'clipboardy';
 import { execa } from 'execa';
@@ -26,39 +26,34 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { z } from 'zod';
 
 // =============================================================================
 // Embedded Dependencies
 // =============================================================================
 
 // picocolors (https://github.com/alexeyraspopov/picocolors) - MIT License
-// Embedded so the script runs without needing 'npm/bun install'.
-const isColorSupported = process.stdout.isTTY && process.env.TERM !== 'dumb';
+// Embedded to reduce external dependency count.
+// Respects NO_COLOR (https://no-color.org/) and FORCE_COLOR conventions.
+const isColorSupported =
+  !process.env.NO_COLOR &&
+  (process.env.FORCE_COLOR === '1' || !!process.stdout.isTTY);
 
 const createColor =
-  (open: string, close: string, re: RegExp, reset: string) =>
-  (str: string | number) =>
-    isColorSupported
-      ? open + ('' + str).replace(re, open + reset + open) + close
-      : '' + str;
+  (open: string, close: string, closeRe: RegExp) => (str: string | number) => {
+    if (!isColorSupported) return '' + str;
+    return open + ('' + str).replace(closeRe, close + open) + close;
+  };
 
 const c = {
-  bold: (s: string | number) =>
-    createColor('\x1b[1m', '\x1b[22m', /\\x1b\[22m/g, '\x1b[1m')(s),
-  dim: (s: string | number) =>
-    createColor('\x1b[2m', '\x1b[22m', /\\x1b\[22m/g, '\x1b[2m')(s),
-  red: (s: string | number) =>
-    createColor('\x1b[31m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[31m')(s),
-  green: (s: string | number) =>
-    createColor('\x1b[32m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[32m')(s),
-  yellow: (s: string | number) =>
-    createColor('\x1b[33m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[33m')(s),
-  blue: (s: string | number) =>
-    createColor('\x1b[34m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[34m')(s),
-  magenta: (s: string | number) =>
-    createColor('\x1b[35m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[35m')(s),
-  cyan: (s: string | number) =>
-    createColor('\x1b[36m', '\x1b[39m', /\\x1b\[39m/g, '\x1b[36m')(s),
+  bold: createColor('\x1b[1m', '\x1b[22m', /\x1b\[22m/g),
+  dim: createColor('\x1b[2m', '\x1b[22m', /\x1b\[22m/g),
+  red: createColor('\x1b[31m', '\x1b[39m', /\x1b\[39m/g),
+  green: createColor('\x1b[32m', '\x1b[39m', /\x1b\[39m/g),
+  yellow: createColor('\x1b[33m', '\x1b[39m', /\x1b\[39m/g),
+  blue: createColor('\x1b[34m', '\x1b[39m', /\x1b\[39m/g),
+  magenta: createColor('\x1b[35m', '\x1b[39m', /\x1b\[39m/g),
+  cyan: createColor('\x1b[36m', '\x1b[39m', /\x1b\[39m/g),
 };
 
 // =============================================================================
@@ -75,35 +70,39 @@ interface CliArgs {
     validate: boolean;
     exclude: string[];
     config: string | undefined;
+    output: string | undefined;
+    'no-clipboard': boolean;
     help: boolean;
   };
   positionals: string[];
 }
 
-interface DevDocsConfig {
-  excludePatterns?: string[];
-  includePaths?: string[];
-  includeRules?: boolean;
-  ignoredDependencies?: string[];
-  maxOutputSizeMB?: number;
-}
+const DevDocsConfigSchema = z.object({
+  excludePatterns: z.array(z.string()).optional(),
+  includePaths: z.array(z.string()).optional(),
+  includeRules: z.boolean().optional(),
+  ignoredDependencies: z.array(z.string()).optional(),
+  maxOutputSizeMB: z.number().positive().optional(),
+});
 
-interface Statistics {
+type DevDocsConfig = z.infer<typeof DevDocsConfigSchema>;
+
+interface PathStats {
   filesAnalyzed: number;
   totalLines: number;
   totalSize: number;
-  estimatedTokens: number;
-  duration: number;
   skippedFiles: number;
   warnings: string[];
 }
 
+interface Statistics extends PathStats {
+  estimatedTokens: number;
+  duration: number;
+}
+
 class DevDocsError extends Error {
-  constructor(
-    message: string,
-    public cause?: unknown,
-  ) {
-    super(message);
+  constructor(message: string, cause?: unknown) {
+    super(message, { cause });
     this.name = 'DevDocsError';
   }
 }
@@ -137,7 +136,7 @@ Review this code base file by file, line by line, to fully understand our code b
 Identify any issues, gaps, inconsistencies, etc.
 Additionally identify potential enhancements, including architectural changes, refactoring, etc.
 
-Identify the modern 2025, best-practice approaches for what we're trying to accomplish; preferring the latest stable versions of libraries and frameworks.
+Identify the modern ${new Date().getFullYear()}, best-practice approaches for what we're trying to accomplish; preferring the latest stable versions of libraries and frameworks.
 
 Skip adding unit/integration tests - that is handled externally.
 
@@ -160,34 +159,36 @@ Please remember:
 `.trim();
 
 const USAGE_INFO = `
-${c.bold('Usage:')} npm run devdocs -- [options] <file1> [<file2> ...]
+${c.bold('Usage:')} bun run devdocs -- [options] <file1> [<file2> ...]
 
 ${c.bold('Options:')}
   --include-rules      Include agent rules files (clinerules.md, agents.md)
   --dry-run           Preview what will be analyzed without generating output
   --stats             Show detailed statistics about analyzed files
-  --git-diff          Only analyze files changed in git working directory
+  --git-diff          Only analyze files with unstaged changes in git
   --git-staged        Only analyze files staged in git
   --exclude <pattern> Exclude files matching pattern (can be used multiple times)
   --config <path>     Path to custom config file
+  --output <path>     Custom output file path (default: docs/devdocs.md)
+  --no-clipboard      Skip copying output to clipboard
   --validate          Validate required tools before running
   -h, --help          Show this help message
 
 ${c.bold('Examples:')}
   ${c.dim('# Basic usage with statistics')}
-  npm run devdocs -- --stats src/
+  bun run devdocs -- --stats src/
 
   ${c.dim('# Analyze only changed files')}
-  npm run devdocs -- --git-diff --include-rules
+  bun run devdocs -- --git-diff --include-rules
 
   ${c.dim('# Preview without generating')}
-  npm run devdocs -- --dry-run src/
+  bun run devdocs -- --dry-run src/
 
   ${c.dim('# Exclude test files')}
-  npm run devdocs -- --exclude "*.test.ts" --exclude "*.spec.ts" src/
+  bun run devdocs -- --exclude "*.test.ts" --exclude "*.spec.ts" src/
 
   ${c.dim('# Use custom config')}
-  npm run devdocs -- --config .devdocsrc.json src/
+  bun run devdocs -- --config .devdocsrc.json src/
 
 ${c.bold('Config File (.devdocsrc or .devdocsrc.json):')}
   {
@@ -305,13 +306,15 @@ const UI = {
     UI.printSeparator();
   },
 
-  printFooter(success: boolean, outputPath?: string) {
+  printFooter(success: boolean, outputPath?: string, copiedToClipboard = true) {
     if (success && outputPath) {
       UI.log(
         `\n${c.bold(c.green('🎉 Documentation generated successfully!'))}`,
       );
       UI.log(`   ${c.dim('Location:')} ${c.cyan(outputPath)}`);
-      UI.log(`   ${c.dim('Copied to clipboard')}`);
+      if (copiedToClipboard) {
+        UI.log(`   ${c.dim('Copied to clipboard')}`);
+      }
     } else if (!success) {
       UI.log(
         `\n${c.bold(c.red('🛑 Documentation generation failed. Review errors above.'))}`,
@@ -340,6 +343,22 @@ const UI = {
 // =============================================================================
 // Utility Functions
 // =============================================================================
+
+/** Global abort controller for graceful shutdown. */
+const abortController = new AbortController();
+let shuttingDown = false;
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, () => {
+    if (shuttingDown) {
+      process.exit(130);
+    }
+    shuttingDown = true;
+    UI.printWarning(`Received ${signal}, shutting down...`);
+    abortController.abort();
+    setTimeout(() => process.exit(130), 3000);
+  });
+}
 
 /**
  * Formats bytes to human-readable size.
@@ -372,6 +391,17 @@ const exists = async (filePath: string): Promise<boolean> => {
 };
 
 /**
+ * Normalizes a file path for pattern matching by stripping leading './' prefixes.
+ */
+const normalizePath = (p: string): string => {
+  let result = p;
+  while (result.startsWith('./')) {
+    result = result.slice(2);
+  }
+  return result;
+};
+
+/**
  * Matches file path against glob-like patterns.
  *
  * @param filePath - The file path to test against patterns
@@ -382,25 +412,26 @@ const exists = async (filePath: string): Promise<boolean> => {
  * This function properly escapes all regex special characters before converting
  * glob patterns to regex, preventing regex injection and ReDoS attacks from
  * user-provided patterns (CLI args or config files).
- *
- * @example
- * matchesPattern('src/test.ts', ['*.ts']) // true
- * matchesPattern('src/utils/helper.ts', ['**\/util*\/**']) // true
- * matchesPattern('test.ts', ['test.ts']) // true (exact match)
  */
 const matchesPattern = (filePath: string, patterns: string[]): boolean => {
   if (patterns.length === 0) return false;
 
+  const normalizedPath = normalizePath(filePath);
+
   for (const pattern of patterns) {
+    const normalizedPattern = normalizePath(pattern);
+
     // Security: Properly escape regex chars while preserving glob wildcards
     // This prevents regex injection from user-provided patterns
-    const regexPattern = pattern
+    const regexPattern = normalizedPattern
       // Step 1: Temporarily mark glob patterns with placeholders
       .replace(/\*\*/g, '\x00DOUBLESTAR\x00')
       .replace(/\*/g, '\x00STAR\x00')
+      .replace(/\?/g, '\x00QUESTION\x00')
       // Step 2: Escape all regex special chars (except the placeholders)
       .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-      // Step 3: Convert glob * to regex [^/]* (matches any characters except /)
+      // Step 3: Convert glob wildcards to regex equivalents
+      .replace(/\x00QUESTION\x00/g, '[^/]')
       .replace(/\x00STAR\x00/g, '[^/]*')
       // Step 4: Handle **/ pattern specially - matches zero or more path segments
       .replace(/\x00DOUBLESTAR\x00\//g, '(?:.*/)?')
@@ -411,7 +442,7 @@ const matchesPattern = (filePath: string, patterns: string[]): boolean => {
 
     const regex = new RegExp(`^${regexPattern}$`);
 
-    if (regex.test(filePath) || filePath.includes(pattern)) {
+    if (regex.test(normalizedPath)) {
       return true;
     }
   }
@@ -440,17 +471,28 @@ const findProjectRoot = async (startPath: string): Promise<string> => {
 /**
  * Executes a command using execa, handling potential errors.
  */
-const executeCommand = async (
+async function executeCommand(
+  command: string,
+  args: string[],
+  captureOutput: true,
+): Promise<string>;
+async function executeCommand(
+  command: string,
+  args: string[],
+  captureOutput: false,
+): Promise<void>;
+async function executeCommand(
   command: string,
   args: string[],
   captureOutput: boolean,
-): Promise<string | void> => {
+): Promise<string | void> {
   try {
     const stdio = captureOutput ? 'pipe' : 'inherit';
     const result = await execa(command, args, {
       stdio,
       timeout: CONFIG.COMMAND_TIMEOUT_MS,
       maxBuffer: CONFIG.MAX_BUFFER_SIZE,
+      signal: abortController.signal,
     });
 
     if (captureOutput) {
@@ -460,7 +502,7 @@ const executeCommand = async (
     const message = `Error executing command: "${command} ${args.join(' ')}"`;
     throw new DevDocsError(message, error);
   }
-};
+}
 
 // =============================================================================
 // Core Logic
@@ -472,8 +514,8 @@ const executeCommand = async (
 const validateRequiredTools = async (): Promise<void> => {
   UI.printStep('Validating required tools...');
   const requiredTools = [
-    { command: 'npx', args: ['--version'], name: 'npx' },
-    { command: 'npx', args: ['repomix', '--version'], name: 'repomix' },
+    { command: 'bunx', args: ['--version'], name: 'bunx' },
+    { command: 'bunx', args: ['repomix', '--version'], name: 'repomix' },
   ];
 
   for (const tool of requiredTools) {
@@ -495,21 +537,23 @@ const validateRequiredTools = async (): Promise<void> => {
 const getGitChangedFiles = async (
   staged: boolean = false,
 ): Promise<string[]> => {
-  UI.printStep(`Getting ${staged ? 'staged' : 'changed'} files from git...`);
+  UI.printStep(`Getting ${staged ? 'staged' : 'unstaged'} files from git...`);
   try {
     const args = staged
       ? ['diff', '--cached', '--name-only', '--diff-filter=ACMR']
-      : ['diff', '--name-only', 'HEAD'];
-    const output = (await executeCommand('git', args, true)) as string;
+      : ['diff', '--name-only', '--diff-filter=ACMR'];
+    const output = await executeCommand('git', args, true);
 
     if (!output) {
-      UI.printWarning(`No ${staged ? 'staged' : 'changed'} files found in git`);
+      UI.printWarning(
+        `No ${staged ? 'staged' : 'unstaged'} files found in git`,
+      );
       return [];
     }
 
     const files = output.split('\n').filter(Boolean);
     UI.printSuccess(
-      `Found ${files.length} ${staged ? 'staged' : 'changed'} file(s)`,
+      `Found ${files.length} ${staged ? 'staged' : 'unstaged'} file(s)`,
     );
     return files;
   } catch (error: unknown) {
@@ -521,7 +565,7 @@ const getGitChangedFiles = async (
 };
 
 /**
- * Loads configuration from file.
+ * Loads and validates configuration from file.
  */
 const loadConfigFile = async (
   rootDir: string,
@@ -538,9 +582,19 @@ const loadConfigFile = async (
       );
       try {
         const content = await fs.readFile(configFilePath, 'utf-8');
-        const config = JSON.parse(content) as DevDocsConfig;
-        return config;
+        const raw = JSON.parse(content);
+        const result = DevDocsConfigSchema.safeParse(raw);
+        if (!result.success) {
+          const issues = result.error.issues
+            .map((i) => `  ${i.path.join('.')}: ${i.message}`)
+            .join('\n');
+          throw new DevDocsError(
+            `Invalid config file ${configFilePath}:\n${issues}`,
+          );
+        }
+        return result.data;
       } catch (error: unknown) {
+        if (error instanceof DevDocsError) throw error;
         throw new DevDocsError(
           `Failed to parse config file: ${configFilePath}`,
           error,
@@ -574,7 +628,7 @@ const generateFileTree = async (rootDir: string): Promise<string> => {
     );
   }
 
-  await executeCommand('npx', ['tsx', treeScriptPath], false);
+  await executeCommand('bun', ['run', treeScriptPath], false);
 
   UI.printSuccess(`File tree generated`);
 
@@ -589,108 +643,182 @@ const generateFileTree = async (rootDir: string): Promise<string> => {
 };
 
 /**
- * Analyzes a file for statistics.
+ * Gathers size statistics for a path using stat (size) and a streaming
+ * newline count (lines). Skips binary/unreadable files gracefully.
  */
-const analyzeFile = async (
-  filePath: string,
+const analyzePath = async (
+  targetPath: string,
 ): Promise<{ lines: number; size: number } | null> => {
   try {
-    const stats = await fs.stat(filePath);
-    if (!stats.isFile()) return null;
+    const stat = await fs.stat(targetPath);
 
-    const content = await fs.readFile(filePath, 'utf-8');
-    const lines = content.split('\n').length;
-    return { lines, size: stats.size };
+    if (stat.isFile()) {
+      try {
+        const content = await fs.readFile(targetPath, 'utf-8');
+        return { lines: content.split('\n').length, size: stat.size };
+      } catch {
+        // Binary or unreadable — use stat size, skip line count
+        return { lines: 0, size: stat.size };
+      }
+    }
+
+    if (stat.isDirectory()) {
+      let totalLines = 0;
+      let totalSize = 0;
+      const entries = await fs.readdir(targetPath, {
+        recursive: true,
+        withFileTypes: true,
+      });
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const fullPath = path.join(entry.parentPath, entry.name);
+        try {
+          const fileStat = await fs.stat(fullPath);
+          totalSize += fileStat.size;
+          const content = await fs.readFile(fullPath, 'utf-8');
+          totalLines += content.split('\n').length;
+        } catch {
+          // Skip unreadable files (binary, permission errors, etc.)
+        }
+      }
+      return { lines: totalLines, size: totalSize };
+    }
+
+    return null;
   } catch {
     return null;
   }
 };
 
 /**
- * Runs repomix on the specified file paths and concatenates output.
+ * Filters file paths, removing non-existent and excluded files.
+ * Returns the filtered list and stats about what was filtered.
  */
-const getRepomixOutputs = async (
+const filterFilePaths = async (
   filePaths: string[],
-  ignoredDeps: string[],
   excludePatterns: string[],
-  stats: Statistics,
-): Promise<string> => {
-  UI.printStep(`Running repomix on ${filePaths.length} path(s)...`);
+): Promise<{ filtered: string[]; skipped: number; warnings: string[] }> => {
+  const filtered: string[] = [];
+  let skipped = 0;
+  const warnings: string[] = [];
 
-  const tasks = filePaths.map(async (filePath, index) => {
+  for (const filePath of filePaths) {
     if (!(await exists(filePath))) {
       UI.printWarning(`File not found: "${filePath}". Skipping.`);
-      stats.skippedFiles++;
-      return null;
+      skipped++;
+      warnings.push(`Not found: ${filePath}`);
+      continue;
     }
 
     if (matchesPattern(filePath, excludePatterns)) {
-      UI.printInfo(`Excluding file: ${filePath}`);
-      stats.skippedFiles++;
-      return null;
+      UI.printInfo(`Excluding: ${filePath}`);
+      skipped++;
+      continue;
     }
 
-    UI.printInfo(`[${index + 1}/${filePaths.length}] Analyzing ${filePath}...`);
-
-    try {
-      const repomixArgs = ['repomix', filePath, '-o', '-'];
-      if (ignoredDeps.length > 0) {
-        repomixArgs.push('--ignore', ignoredDeps.join(','));
-      }
-      if (excludePatterns.length > 0) {
-        repomixArgs.push('--ignore', excludePatterns.join(','));
-      }
-
-      const output = await executeCommand('npx', repomixArgs, true);
-
-      if (output && output.length > 0) {
-        const fileStats = await analyzeFile(filePath);
-        if (fileStats) {
-          stats.filesAnalyzed++;
-          stats.totalLines += fileStats.lines;
-          stats.totalSize += fileStats.size;
-        }
-
-        return output;
-      }
-
-      UI.printWarning(`Repomix produced no output for ${filePath}. Skipping.`);
-      stats.skippedFiles++;
-      return null;
-    } catch (_error) {
-      UI.printWarning(`Repomix failed for ${filePath}. Skipping.`);
-      stats.skippedFiles++;
-      stats.warnings.push(`Failed to analyze: ${filePath}`);
-      return null;
-    }
-  });
-
-  const allOutputs = await Promise.all(tasks);
-  const successfulOutputs = allOutputs.filter(Boolean) as string[];
-
-  if (successfulOutputs.length === 0) {
-    throw new DevDocsError(
-      'Repomix failed to generate output for all provided files.',
-    );
+    filtered.push(filePath);
   }
 
-  if (successfulOutputs.length < filePaths.length) {
-    UI.printWarning('Some files failed or were skipped');
-  } else {
-    UI.printSuccess('All files analyzed successfully');
-  }
-
-  return successfulOutputs.join('\n\n---\n\n');
+  return { filtered, skipped, warnings };
 };
 
 /**
- * Reads package.json and extracts dependency names.
+ * Runs repomix on the filtered file paths in a single batched invocation.
  */
-const getIgnoredDependencies = async (
+const runRepomix = async (
+  filePaths: string[],
+  ignorePatterns: string[],
+): Promise<string> => {
+  UI.printStep(`Running repomix on ${filePaths.length} path(s)...`);
+
+  const repomixArgs = ['repomix', ...filePaths, '-o', '-'];
+  if (ignorePatterns.length > 0) {
+    repomixArgs.push('--ignore', ignorePatterns.join(','));
+  }
+
+  UI.printCommand(['bunx', ...repomixArgs]);
+
+  const output = await executeCommand('bunx', repomixArgs, true);
+
+  if (!output || output.length === 0) {
+    throw new DevDocsError(
+      'Repomix produced no output for the provided paths.',
+    );
+  }
+
+  UI.printSuccess(`Repomix analysis complete`);
+  return output;
+};
+
+/**
+ * Runs repomix and gathers path statistics.
+ * Returns the repomix output string and accumulated stats.
+ */
+const getRepomixOutputs = async (
+  filePaths: string[],
+  ignorePatterns: string[],
+  excludePatterns: string[],
+): Promise<{ output: string; stats: PathStats }> => {
+  // Filter before running repomix
+  const { filtered, skipped, warnings } = await filterFilePaths(
+    filePaths,
+    excludePatterns,
+  );
+
+  if (filtered.length === 0) {
+    throw new DevDocsError(
+      'No valid files remain after filtering. All paths were excluded or not found.',
+    );
+  }
+
+  if (filtered.length < filePaths.length) {
+    UI.printInfo(
+      `${filePaths.length - filtered.length} path(s) filtered out, ${filtered.length} remaining`,
+    );
+  }
+
+  // Run repomix as a single batched call
+  const output = await runRepomix(filtered, ignorePatterns);
+
+  // Gather stats for the analyzed paths
+  UI.printStep('Gathering file statistics...');
+  let totalLines = 0;
+  let totalSize = 0;
+  let filesAnalyzed = 0;
+
+  for (const filePath of filtered) {
+    const fileStats = await analyzePath(filePath);
+    if (fileStats) {
+      filesAnalyzed++;
+      totalLines += fileStats.lines;
+      totalSize += fileStats.size;
+    }
+  }
+
+  UI.printSuccess(`${filesAnalyzed} path(s) analyzed`);
+
+  return {
+    output,
+    stats: {
+      filesAnalyzed,
+      totalLines,
+      totalSize,
+      skippedFiles: skipped,
+      warnings,
+    },
+  };
+};
+
+/**
+ * Builds the list of patterns for repomix --ignore from config and package.json resolutions.
+ * Resolutions are version-pinning overrides (Yarn/pnpm) that indicate vendored or patched
+ * packages — these are excluded because repomix would otherwise include their source.
+ */
+const getRepomixIgnorePatterns = async (
   rootDir: string,
   configDeps?: string[],
 ): Promise<string[]> => {
-  const deps = new Set<string>(configDeps ?? []);
+  const patterns = new Set<string>(configDeps ?? []);
   const packageJsonPath = path.join(rootDir, 'package.json');
 
   try {
@@ -704,16 +832,17 @@ const getIgnoredDependencies = async (
       typeof packageJson.resolutions === 'object' &&
       packageJson.resolutions !== null
     ) {
-      const resolutions = Object.keys(packageJson.resolutions);
-      resolutions.forEach((dep) => deps.add(dep));
+      for (const dep of Object.keys(packageJson.resolutions)) {
+        patterns.add(dep);
+      }
     }
   } catch (_error) {
     UI.printWarning('Could not read package.json for resolutions');
   }
 
-  const result = Array.from(deps);
+  const result = Array.from(patterns);
   if (result.length > 0) {
-    UI.printInfo(`Ignoring ${result.length} dependencies`);
+    UI.printInfo(`Repomix ignoring ${result.length} pattern(s)`);
   }
   return result;
 };
@@ -782,15 +911,13 @@ const createDevDocsFile = async (
   treeContent: string,
   repomixContent: string,
   agentRulesContent: string | null,
-  stats: Statistics,
   maxOutputSizeMB: number,
-): Promise<string> => {
-  UI.printStep('Creating devdocs.md...');
-  const devDocsPath = path.resolve(
-    rootDir,
-    CONFIG.DOCS_DIR,
-    CONFIG.DEVDOCS_OUTPUT,
-  );
+  customOutputPath?: string,
+): Promise<{ content: string; warnings: string[] }> => {
+  const devDocsPath = customOutputPath
+    ? path.resolve(customOutputPath)
+    : path.resolve(rootDir, CONFIG.DOCS_DIR, CONFIG.DEVDOCS_OUTPUT);
+  UI.printStep(`Creating ${path.basename(devDocsPath)}...`);
 
   const contentParts = [
     PROMPT_TEMPLATE,
@@ -806,14 +933,13 @@ const createDevDocsFile = async (
   contentParts.push(FOCUS_PROMPT, repomixContent.trim(), REMINDER_FOOTER);
 
   const devdocsContent = contentParts.join('\n\n');
+  const warnings: string[] = [];
 
-  stats.estimatedTokens = estimateTokens(devdocsContent);
   const sizeInMB = devdocsContent.length / (1024 * 1024);
-
   if (sizeInMB > maxOutputSizeMB) {
     const warning = `Output size (${sizeInMB.toFixed(2)} MB) exceeds recommended maximum (${maxOutputSizeMB} MB)`;
     UI.printWarning(warning);
-    stats.warnings.push(warning);
+    warnings.push(warning);
   }
 
   try {
@@ -823,7 +949,7 @@ const createDevDocsFile = async (
     UI.printSuccess(
       `Documentation written to ${path.relative(rootDir, devDocsPath)}`,
     );
-    return devdocsContent;
+    return { content: devdocsContent, warnings };
   } catch (error: unknown) {
     throw new DevDocsError(`Failed to write ${CONFIG.DEVDOCS_OUTPUT}`, error);
   }
@@ -865,6 +991,7 @@ const performDryRun = async (
     const stats = await fs.stat(filePath);
     if (stats.isDirectory()) {
       UI.printDryRunFile('directory', filePath);
+      totalFiles++;
     } else if (matchesPattern(filePath, excludePatterns)) {
       UI.printDryRunFile('exclude', filePath);
       excludedFiles++;
@@ -893,10 +1020,12 @@ const parseCliArguments = (): CliArgs => {
         validate: { type: 'boolean', default: false },
         exclude: { type: 'string', multiple: true, default: [] },
         config: { type: 'string' },
+        output: { type: 'string', short: 'o' },
+        'no-clipboard': { type: 'boolean', default: false },
         help: { type: 'boolean', short: 'h', default: false },
       },
       allowPositionals: true,
-      strict: false,
+      strict: true,
     });
 
     return {
@@ -909,6 +1038,8 @@ const parseCliArguments = (): CliArgs => {
         validate: values.validate as boolean,
         exclude: (values.exclude as string[]) ?? [],
         config: values.config as string | undefined,
+        output: values.output as string | undefined,
+        'no-clipboard': values['no-clipboard'] as boolean,
         help: values.help as boolean,
       },
       positionals,
@@ -928,17 +1059,6 @@ const main = async () => {
   }
 
   UI.printHeader();
-
-  // Initialize statistics
-  const stats: Statistics = {
-    filesAnalyzed: 0,
-    totalLines: 0,
-    totalSize: 0,
-    estimatedTokens: 0,
-    duration: 0,
-    skippedFiles: 0,
-    warnings: [],
-  };
 
   // Find project root
   const scriptPath = fileURLToPath(import.meta.url);
@@ -960,10 +1080,26 @@ const main = async () => {
 
   // Determine file paths
   let filePaths = args.positionals;
+  const usingGitMode = args.values['git-diff'] || args.values['git-staged'];
 
-  if (args.values['git-diff'] || args.values['git-staged']) {
+  if (args.values['git-diff'] && args.values['git-staged']) {
+    UI.printWarning(
+      '--git-diff and --git-staged are mutually exclusive; using --git-staged',
+    );
+  }
+
+  if (usingGitMode) {
     const gitFiles = await getGitChangedFiles(args.values['git-staged']);
-    filePaths = gitFiles.length > 0 ? gitFiles : filePaths;
+    if (gitFiles.length > 0) {
+      filePaths = gitFiles;
+    } else if (filePaths.length > 0) {
+      UI.printWarning(
+        'No git changes found; falling back to positional arguments',
+      );
+    } else {
+      UI.printError('No git changes found and no positional paths provided');
+      process.exit(1);
+    }
   }
 
   if (config?.includePaths && filePaths.length === 0) {
@@ -988,36 +1124,51 @@ const main = async () => {
   }
 
   // Get ignored dependencies
-  const ignoredDeps = await getIgnoredDependencies(
+  const ignorePatterns = await getRepomixIgnorePatterns(
     rootDir,
     config?.ignoredDependencies,
   );
 
-  // Run all tasks concurrently
+  // Combine ignore patterns: repomix --ignore gets both dependency ignores and exclude patterns
+  const allIgnorePatterns = [...ignorePatterns, ...excludePatterns];
+
+  // Run tasks sequentially for clean console output
   UI.log('');
-  const [treeContent, agentRulesContent, allRepomixOutputs] = await Promise.all(
-    [
-      generateFileTree(rootDir),
-      includeRules ? getAgentRulesContent(rootDir) : Promise.resolve(null),
-      getRepomixOutputs(filePaths, ignoredDeps, excludePatterns, stats),
-    ],
+
+  const treeContent = await generateFileTree(rootDir);
+
+  const agentRulesContent = includeRules
+    ? await getAgentRulesContent(rootDir)
+    : null;
+
+  const { output: repomixOutput, stats: pathStats } = await getRepomixOutputs(
+    filePaths,
+    allIgnorePatterns,
+    excludePatterns,
   );
 
   // Create file
-  const content = await createDevDocsFile(
+  const { content, warnings: fileWarnings } = await createDevDocsFile(
     rootDir,
     treeContent,
-    allRepomixOutputs,
+    repomixOutput,
     agentRulesContent,
-    stats,
     maxOutputSizeMB,
+    args.values.output,
   );
 
   // Copy to clipboard
-  await copyToClipboard(content);
+  if (!args.values['no-clipboard']) {
+    await copyToClipboard(content);
+  }
 
-  // Update duration
-  stats.duration = (Date.now() - startTime) / 1000;
+  // Assemble final statistics
+  const stats: Statistics = {
+    ...pathStats,
+    warnings: [...pathStats.warnings, ...fileWarnings],
+    estimatedTokens: estimateTokens(content),
+    duration: (Date.now() - startTime) / 1000,
+  };
 
   // Print statistics if requested
   if (args.values.stats) {
@@ -1025,11 +1176,10 @@ const main = async () => {
   }
 
   // Print footer
-  const outputPath = path.relative(
-    rootDir,
-    path.join(rootDir, CONFIG.DOCS_DIR, CONFIG.DEVDOCS_OUTPUT),
-  );
-  UI.printFooter(true, outputPath);
+  const displayPath = args.values.output
+    ? path.relative(rootDir, path.resolve(args.values.output))
+    : path.join(CONFIG.DOCS_DIR, CONFIG.DEVDOCS_OUTPUT);
+  UI.printFooter(true, displayPath, !args.values['no-clipboard']);
 };
 
 // Entry point
