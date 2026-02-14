@@ -239,26 +239,32 @@ describe('R2Provider', () => {
   });
 
   describe('deleteMany', () => {
-    it('should count only successfully deleted keys', async () => {
-      const spy = vi
-        .spyOn(r2Provider, 'delete')
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false)
-        .mockResolvedValueOnce(true);
-
+    it('should batch delete all keys and return count', async () => {
       const count = await r2Provider.deleteMany(
         'tenant-1',
         ['key-1', 'key-2', 'key-3'],
         context,
       );
 
-      expect(count).toBe(2);
-      expect(spy).toHaveBeenCalledTimes(3);
+      expect(count).toBe(3);
+      // Single batch delete call with all R2 keys
+      expect(mockBucket.delete).toHaveBeenCalledTimes(1);
+      expect(mockBucket.delete).toHaveBeenCalledWith([
+        'tenant-1:key-1',
+        'tenant-1:key-2',
+        'tenant-1:key-3',
+      ]);
+    });
+
+    it('should return 0 for empty key list', async () => {
+      const count = await r2Provider.deleteMany('tenant-1', [], context);
+      expect(count).toBe(0);
+      expect(mockBucket.delete).not.toHaveBeenCalled();
     });
   });
 
   describe('clear', () => {
-    it('should iterate through pages and delete all keys for a tenant', async () => {
+    it('should iterate through pages and batch delete all keys for a tenant', async () => {
       mockBucket.list
         .mockResolvedValueOnce({
           objects: [{ key: 'tenant-1:key-1' }, { key: 'tenant-1:key-2' }],
@@ -273,7 +279,13 @@ describe('R2Provider', () => {
       const deletedCount = await r2Provider.clear('tenant-1', context);
 
       expect(deletedCount).toBe(3);
-      expect(mockBucket.delete).toHaveBeenCalledTimes(3);
+      // One batch delete per page
+      expect(mockBucket.delete).toHaveBeenCalledTimes(2);
+      expect(mockBucket.delete).toHaveBeenNthCalledWith(1, [
+        'tenant-1:key-1',
+        'tenant-1:key-2',
+      ]);
+      expect(mockBucket.delete).toHaveBeenNthCalledWith(2, ['tenant-1:key-3']);
       expect(mockBucket.list).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({ prefix: 'tenant-1:' }),

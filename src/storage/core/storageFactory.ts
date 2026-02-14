@@ -49,6 +49,25 @@ export interface StorageFactoryDeps {
 }
 
 /**
+ * Retrieves a Cloudflare binding from globalThis by key.
+ * Throws a ConfigurationError if the binding is not present.
+ */
+function getGlobalBinding<T>(
+  key: string,
+  context: ReturnType<typeof requestContextService.createRequestContext>,
+): T {
+  const g = globalThis as Record<string, unknown>;
+  if (!(key in g) || g[key] == null) {
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      `${key} binding not available in globalThis. Ensure wrangler.toml is configured correctly.`,
+      context,
+    );
+  }
+  return g[key] as T;
+}
+
+/**
  * Creates and returns a storage provider instance based on the provided configuration.
  *
  * This factory decouples the application from concrete storage implementations,
@@ -163,23 +182,8 @@ export function createStorageProvider(
         if (deps.r2Bucket) {
           return new R2Provider(deps.r2Bucket);
         }
-
-        // Type guard to check if globalThis has R2_BUCKET binding
-        function hasR2Bucket(obj: unknown): obj is { R2_BUCKET: R2Bucket } {
-          return typeof obj === 'object' && obj !== null && 'R2_BUCKET' in obj;
-        }
-
-        const globalWithBinding: unknown = globalThis;
-        if (!hasR2Bucket(globalWithBinding)) {
-          throw new McpError(
-            JsonRpcErrorCode.ConfigurationError,
-            'R2_BUCKET binding not available in globalThis. Ensure wrangler.toml is configured correctly.',
-            context,
-          );
-        }
-
-        // After type guard, globalWithBinding is narrowed to { R2_BUCKET: R2Bucket }
-        return new R2Provider(globalWithBinding.R2_BUCKET);
+        const r2Binding = getGlobalBinding<R2Bucket>('R2_BUCKET', context);
+        return new R2Provider(r2Binding);
       }
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
@@ -191,27 +195,11 @@ export function createStorageProvider(
         if (deps.kvNamespace) {
           return new KvProvider(deps.kvNamespace);
         }
-
-        // Type guard to check if globalThis has KV_NAMESPACE binding
-        function hasKVNamespace(
-          obj: unknown,
-        ): obj is { KV_NAMESPACE: KVNamespace } {
-          return (
-            typeof obj === 'object' && obj !== null && 'KV_NAMESPACE' in obj
-          );
-        }
-
-        const globalWithBinding: unknown = globalThis;
-        if (!hasKVNamespace(globalWithBinding)) {
-          throw new McpError(
-            JsonRpcErrorCode.ConfigurationError,
-            'KV_NAMESPACE binding not available in globalThis. Ensure wrangler.toml is configured correctly.',
-            context,
-          );
-        }
-
-        // After type guard, globalWithBinding is narrowed to { KV_NAMESPACE: KVNamespace }
-        return new KvProvider(globalWithBinding.KV_NAMESPACE);
+        const kvBinding = getGlobalBinding<KVNamespace>(
+          'KV_NAMESPACE',
+          context,
+        );
+        return new KvProvider(kvBinding);
       }
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
@@ -223,23 +211,8 @@ export function createStorageProvider(
         if (deps.d1Database) {
           return new D1Provider(deps.d1Database);
         }
-
-        // Type guard to check if globalThis has DB binding
-        function hasD1Database(obj: unknown): obj is { DB: D1Database } {
-          return typeof obj === 'object' && obj !== null && 'DB' in obj;
-        }
-
-        const globalWithBinding: unknown = globalThis;
-        if (!hasD1Database(globalWithBinding)) {
-          throw new McpError(
-            JsonRpcErrorCode.ConfigurationError,
-            'DB binding not available in globalThis. Ensure wrangler.toml is configured correctly with D1 database binding.',
-            context,
-          );
-        }
-
-        // After type guard, globalWithBinding is narrowed to { DB: D1Database }
-        return new D1Provider(globalWithBinding.DB);
+        const d1Binding = getGlobalBinding<D1Database>('DB', context);
+        return new D1Provider(d1Binding);
       }
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,

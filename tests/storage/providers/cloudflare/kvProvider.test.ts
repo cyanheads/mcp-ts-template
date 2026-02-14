@@ -81,18 +81,13 @@ describe('KvProvider', () => {
   });
 
   describe('delete', () => {
-    it('should return false if key does not exist', async () => {
-      mockKv.get.mockResolvedValue(null);
-      const result = await kvProvider.delete('tenant-1', 'key-1', context);
-      expect(result).toBe(false);
-      expect(mockKv.delete).not.toHaveBeenCalled();
-    });
-
-    it('should return true and call delete if key exists', async () => {
-      mockKv.get.mockResolvedValue('some value');
+    it('should call delete and return true (idempotent)', async () => {
+      mockKv.delete.mockResolvedValue(undefined);
       const result = await kvProvider.delete('tenant-1', 'key-1', context);
       expect(result).toBe(true);
       expect(mockKv.delete).toHaveBeenCalledWith('tenant-1:key-1');
+      // Should not check existence first — KV delete is idempotent
+      expect(mockKv.get).not.toHaveBeenCalled();
     });
   });
 

@@ -244,9 +244,14 @@ export class R2Provider implements IStorageProvider {
           return new Map<string, T>();
         }
 
+        const entries = await Promise.all(
+          keys.map(async (key) => {
+            const value = await this.get<T>(tenantId, key, context);
+            return [key, value] as const;
+          }),
+        );
         const results = new Map<string, T>();
-        for (const key of keys) {
-          const value = await this.get<T>(tenantId, key, context);
+        for (const [key, value] of entries) {
           if (value !== null) {
             results.set(key, value);
           }
@@ -297,9 +302,13 @@ export class R2Provider implements IStorageProvider {
           return 0;
         }
 
-        const promises = keys.map((key) => this.delete(tenantId, key, context));
-        const results = await Promise.all(promises);
-        return results.filter((deleted) => deleted).length;
+        logger.debug(
+          `[R2Provider] Batch deleting ${keys.length} keys`,
+          context,
+        );
+        const r2Keys = keys.map((key) => this.getR2Key(tenantId, key));
+        await this.bucket.delete(r2Keys);
+        return keys.length;
       },
       {
         operation: 'R2Provider.deleteMany',
@@ -327,10 +336,10 @@ export class R2Provider implements IStorageProvider {
           }
           const listed = await this.bucket.list(listOpts);
 
-          const deletePromises = listed.objects.map((obj) =>
-            this.bucket.delete(obj.key),
-          );
-          await Promise.all(deletePromises);
+          const objectKeys = listed.objects.map((obj) => obj.key);
+          if (objectKeys.length > 0) {
+            await this.bucket.delete(objectKeys);
+          }
           deletedCount += listed.objects.length;
 
           hasMore = listed.truncated;
