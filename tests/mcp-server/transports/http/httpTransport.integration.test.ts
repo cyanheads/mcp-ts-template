@@ -51,7 +51,10 @@ describe('HTTP Transport Integration - RPC Handling', () => {
     const { createHttpApp } =
       await import('@/mcp-server/transports/http/httpTransport.js');
 
-    const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+    const app = createHttpApp(
+      () => Promise.resolve(mockMcpServer as McpServer),
+      mockContext,
+    );
 
     // Test supported protocol version
     const request = new Request('http://localhost:3000/mcp', {
@@ -97,7 +100,10 @@ describe('HTTP Transport Integration - RPC Handling', () => {
     const { createHttpApp } =
       await import('@/mcp-server/transports/http/httpTransport.js');
 
-    const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+    const app = createHttpApp(
+      () => Promise.resolve(mockMcpServer as McpServer),
+      mockContext,
+    );
 
     const request = new Request('http://localhost:3000/mcp', {
       method: 'POST',
@@ -163,7 +169,10 @@ describe('HTTP Transport Integration - OAuth Metadata', () => {
     const { createHttpApp } =
       await import('@/mcp-server/transports/http/httpTransport.js');
 
-    const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+    const app = createHttpApp(
+      () => Promise.resolve(mockMcpServer as McpServer),
+      mockContext,
+    );
 
     const request = new Request(
       'http://localhost:3000/.well-known/oauth-protected-resource',

@@ -64,7 +64,10 @@ describe('HTTP Transport', () => {
 
   describe('createHttpApp', () => {
     test('should create Hono app instance', () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       expect(app).toBeDefined();
       expect(typeof app.fetch).toBe('function');
@@ -74,7 +77,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should configure CORS middleware', async () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       // Make an OPTIONS request to test CORS
       const request = new Request('http://localhost:3000/test', {
@@ -91,7 +97,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should register health endpoint', async () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/healthz', {
         method: 'GET',
@@ -105,7 +114,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should register MCP status endpoint', async () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'GET',
@@ -127,7 +139,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should register OAuth metadata endpoint when OAuth not configured', async () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request(
         'http://localhost:3000/.well-known/oauth-protected-resource',
@@ -149,7 +164,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should handle DELETE request in stateless mode', async () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'DELETE',
@@ -166,7 +184,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should handle DELETE request without session ID', async () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'DELETE',
@@ -184,7 +205,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should reject requests with invalid origin', async () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'POST',
@@ -207,7 +231,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should allow requests with valid origin', async () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'POST',
@@ -241,7 +268,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should reject unsupported MCP protocol version', async () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'POST',
@@ -265,7 +295,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should default to protocol version 2025-03-26 when not provided', async () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'POST',
@@ -295,7 +328,10 @@ describe('HTTP Transport', () => {
 
   describe('Error handling integration', () => {
     test('should use centralized error handler', async () => {
-      const app = createHttpApp(mockMcpServer as McpServer, mockContext);
+      const app = createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       // Simulate an error by accessing a non-existent route with proper method
       const request = new Request('http://localhost:3000/nonexistent', {

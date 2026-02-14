@@ -43,11 +43,16 @@ export class TransportManager {
       context,
     );
 
-    const mcpServer = await this.createMcpServer();
-
     if (this.config.mcpTransportType === 'http') {
-      this.serverInstance = await startHttpTransport(mcpServer, context);
+      // HTTP: pass factory so each request gets a fresh McpServer+transport pair
+      // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
+      this.serverInstance = await startHttpTransport(
+        this.createMcpServer,
+        context,
+      );
     } else if (this.config.mcpTransportType === 'stdio') {
+      // Stdio: single client, single connection — one server instance is correct
+      const mcpServer = await this.createMcpServer();
       this.serverInstance = await startStdioTransport(mcpServer, context);
     } else {
       // This case should ideally not be reached due to config validation,

@@ -62,7 +62,7 @@ class McpSessionTransport extends StreamableHTTPTransport {
  * @returns Configured Hono application with the specified binding type
  */
 export function createHttpApp<TBindings extends object = HonoNodeBindings>(
-  mcpServer: McpServer,
+  serverFactory: () => Promise<McpServer>,
   parentContext: RequestContext,
 ): Hono<{ Bindings: TBindings }> {
   const app = new Hono<{ Bindings: TBindings }>();
@@ -83,6 +83,13 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     config.mcpAllowedOrigins.length > 0
       ? config.mcpAllowedOrigins
       : '*';
+
+  if (allowedOrigin === '*') {
+    logger.warning(
+      'CORS origin set to wildcard (*). Set MCP_ALLOWED_ORIGINS for production deployments.',
+      transportContext,
+    );
+  }
 
   app.use(
     '*',
@@ -316,7 +323,11 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     const transport = new McpSessionTransport(sessionId);
 
     const handleRpc = async (): Promise<Response> => {
-      await mcpServer.connect(transport);
+      // SDK 1.26.0: Protocol.connect() throws if already connected.
+      // Create a fresh McpServer per request to prevent cross-client data leaks.
+      // See GHSA-345p-7cg4-v4c7.
+      const server = await serverFactory();
+      await server.connect(transport);
       const response = await transport.handleRequest(c);
 
       // MCP Spec 2025-06-18: For stateful sessions, return Mcp-Session-Id header
@@ -459,7 +470,7 @@ function startHttpServerWithRetry<TBindings extends object = HonoNodeBindings>(
 }
 
 export async function startHttpTransport(
-  mcpServer: McpServer,
+  serverFactory: () => Promise<McpServer>,
   parentContext: RequestContext,
 ): Promise<ServerType> {
   const transportContext = {
@@ -468,7 +479,7 @@ export async function startHttpTransport(
   };
   logger.info('Starting HTTP transport.', transportContext);
 
-  const app = createHttpApp(mcpServer, transportContext);
+  const app = createHttpApp(serverFactory, transportContext);
 
   const server = await startHttpServerWithRetry(
     app,

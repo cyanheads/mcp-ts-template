@@ -12,6 +12,7 @@ import type {
   KVNamespace,
   D1Database,
   Ai,
+  ScheduledController,
   IncomingRequestCfProperties as CfProperties,
 } from '@cloudflare/workers-types';
 
@@ -163,12 +164,6 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
         Object.assign(globalThis, { IS_SERVERLESS: true });
       }
 
-      // Inject environment variables from Cloudflare bindings
-      injectEnvVars(env);
-
-      // Store bindings globally for provider access
-      storeBindings(env);
-
       // Initialize core services lazily.
       composeContainer();
       await initializePerformance_Hrt();
@@ -215,12 +210,13 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
         storageProvider: env.STORAGE_PROVIDER_TYPE ?? 'in-memory',
       });
 
-      // Create the MCP Server instance.
-      const mcpServer = await createMcpServerInstance();
-
       // Create the Hono application with Cloudflare Worker bindings.
-      // createHttpApp is generic and accepts the binding type as a type parameter.
-      const app = createHttpApp<CloudflareBindings>(mcpServer, workerContext);
+      // Pass server factory so each request gets a fresh McpServer+transport pair
+      // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
+      const app = createHttpApp<CloudflareBindings>(
+        createMcpServerInstance,
+        workerContext,
+      );
 
       const initDuration = Date.now() - initStartTime;
       logger.info('Cloudflare Worker initialized successfully.', {
@@ -270,6 +266,11 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     try {
+      // Refresh bindings on every request — Cloudflare may rotate
+      // binding references between requests within the same isolate.
+      injectEnvVars(env);
+      storeBindings(env);
+
       const app = await initializeApp(env);
 
       // Extract Cloudflare-specific request metadata
@@ -343,24 +344,28 @@ export default {
    * crons = ["0 *\/6 * * *"]  # Run every 6 hours
    */
   async scheduled(
-    event: ScheduledEvent,
+    controller: ScheduledController,
     env: CloudflareBindings,
     _ctx: ExecutionContext,
   ): Promise<void> {
     try {
+      // Refresh bindings on every invocation
+      injectEnvVars(env);
+      storeBindings(env);
+
       // Initialize app to ensure services are ready
       await initializeApp(env);
 
       const scheduledContext = requestContextService.createRequestContext({
         operation: 'WorkerScheduled',
         isServerless: true,
-        cron: event.cron,
+        cron: controller.cron,
       });
 
       logger.info('Processing scheduled event.', {
         ...scheduledContext,
-        cron: event.cron,
-        scheduledTime: new Date(event.scheduledTime).toISOString(),
+        cron: controller.cron,
+        scheduledTime: new Date(controller.scheduledTime).toISOString(),
       });
 
       // Add your scheduled task logic here
@@ -372,7 +377,7 @@ export default {
       const errorContext = requestContextService.createRequestContext({
         operation: 'WorkerScheduled',
         isServerless: true,
-        cron: event.cron,
+        cron: controller.cron,
       });
 
       logger.error(
@@ -386,12 +391,3 @@ export default {
     }
   },
 };
-
-/**
- * Type definition for scheduled event.
- */
-interface ScheduledEvent {
-  cron: string;
-  scheduledTime: number;
-  type: 'scheduled';
-}
