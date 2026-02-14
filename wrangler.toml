@@ -6,7 +6,7 @@ main = "src/worker.ts"
 
 # The compatibility date ensures your worker runs on a recent version of the Workers runtime.
 # It's good practice to update this periodically.
-compatibility_date = "2025-09-24"
+compatibility_date = "2026-02-13"
 
 # Enable Node.js compatibility for Bun and other dependencies.
 compatibility_flags = ["nodejs_compat"]
@@ -17,7 +17,7 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ENVIRONMENT = "production"
 LOG_LEVEL = "info"
-STORAGE_PROVIDER_TYPE = "in-memory"  # Options: "in-memory", "cloudflare-kv", "cloudflare-r2"
+STORAGE_PROVIDER_TYPE = "in-memory"  # Options: "in-memory", "cloudflare-kv", "cloudflare-r2", "cloudflare-d1"
 # MCP_ALLOWED_ORIGINS = "https://example.com,https://app.example.com"
 
 # --- SECRETS (Add via CLI) ---
