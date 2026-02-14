@@ -114,8 +114,8 @@ describe('TaskManager', () => {
       expect(taskManager.getStoreType()).toBe('storage');
     });
 
-    it('should return -1 for task count (not available for storage store)', () => {
-      expect(taskManager.getTaskCount()).toBe(-1);
+    it('should return null for task count (not available for storage store)', () => {
+      expect(taskManager.getTaskCount()).toBeNull();
     });
 
     it('should return a TaskStore that is StorageBackedTaskStore', () => {

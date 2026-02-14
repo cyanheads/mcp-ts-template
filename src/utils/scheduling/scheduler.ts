@@ -4,14 +4,31 @@
  * defining, starting, stopping, and listing recurring tasks within the application.
  * @module src/utils/scheduling/scheduler
  */
-import {
-  validate as cronValidate,
-  createTask as cronCreateTask,
-  type ScheduledTask,
-} from 'node-cron';
+import type { ScheduledTask } from 'node-cron';
 
+import { runtimeCaps } from '@/utils/internal/runtime.js';
 import { type RequestContext, logger } from '@/utils/internal/index.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+
+/**
+ * Lazily loads the node-cron module. Cached after first successful import.
+ * Throws McpError if called outside a Node.js runtime (e.g., Cloudflare Workers).
+ */
+let cronModulePromise: Promise<typeof import('node-cron')> | null = null;
+
+async function loadCron(): Promise<typeof import('node-cron')> {
+  if (!runtimeCaps.isNode) {
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      'SchedulerService requires a Node.js runtime. Cron scheduling is not available in Workers or browser environments.',
+    );
+  }
+  if (!cronModulePromise) {
+    cronModulePromise = import('node-cron');
+  }
+  return cronModulePromise;
+}
 
 /**
  * Represents a scheduled job managed by the SchedulerService.
@@ -63,21 +80,23 @@ export class SchedulerService {
    * @param description - A description of the job.
    * @returns The newly created Job object.
    */
-  public schedule(
+  public async schedule(
     id: string,
     schedule: string,
     taskFunction: (context: RequestContext) => void | Promise<void>,
     description: string,
-  ): Job {
+  ): Promise<Job> {
     if (this.jobs.has(id)) {
       throw new Error(`Job with ID '${id}' already exists.`);
     }
 
-    if (!cronValidate(schedule)) {
+    const cron = await loadCron();
+
+    if (!cron.validate(schedule)) {
       throw new Error(`Invalid cron schedule: ${schedule}`);
     }
 
-    const task = cronCreateTask(schedule, async () => {
+    const task = cron.createTask(schedule, async () => {
       const job = this.jobs.get(id);
       if (job && job.isRunning) {
         logger.warning(

@@ -67,29 +67,22 @@ export class TaskManager {
     this.messageQueue = new InMemoryTaskMessageQueue();
 
     if (this.storeType === 'storage') {
-      // Use storage-backed task store for persistence
       this.taskStore = new StorageBackedTaskStore(storageService, {
         tenantId: config.tasks.tenantId,
         defaultTtl: config.tasks.defaultTtlMs ?? null,
       });
-      logger.info('TaskManager initialized with storage-backed task store', {
-        operation: 'TaskManager.constructor',
-        requestId: 'init',
-        timestamp: new Date().toISOString(),
-        storeType: this.storeType,
-        tenantId: config.tasks.tenantId,
-      });
     } else {
-      // Use in-memory task store (default)
       this.inMemoryTaskStore = new InMemoryTaskStore();
       this.taskStore = this.inMemoryTaskStore;
-      logger.info('TaskManager initialized with in-memory task store', {
-        operation: 'TaskManager.constructor',
-        requestId: 'init',
-        timestamp: new Date().toISOString(),
-        storeType: this.storeType,
-      });
     }
+
+    logger.info(`TaskManager initialized with ${this.storeType} task store`, {
+      operation: 'TaskManager.constructor',
+      requestId: 'init',
+      timestamp: new Date().toISOString(),
+      storeType: this.storeType,
+      ...(this.storeType === 'storage' && { tenantId: config.tasks.tenantId }),
+    });
   }
 
   /**
@@ -166,16 +159,16 @@ export class TaskManager {
 
   /**
    * Returns the current task count (for debugging/monitoring).
-   * Only available for in-memory store; returns -1 for storage-backed store.
+   * Only available for in-memory store; returns `null` for storage-backed store.
    *
-   * @returns The number of tasks currently tracked, or -1 if unavailable
+   * @returns The number of tasks currently tracked, or `null` if unavailable
    */
-  public getTaskCount(): number {
+  public getTaskCount(): number | null {
     if (this.inMemoryTaskStore) {
       return this.inMemoryTaskStore.getAllTasks().length;
     }
     // Storage-backed store doesn't have getAllTasks - would require listing
-    return -1;
+    return null;
   }
 
   /**

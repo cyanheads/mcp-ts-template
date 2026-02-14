@@ -122,7 +122,7 @@ describe('Scheduling Utilities Barrel Export', () => {
         // Test task
       };
 
-      const job = schedulerService.schedule(
+      const job = await schedulerService.schedule(
         jobId,
         schedule,
         taskFn,

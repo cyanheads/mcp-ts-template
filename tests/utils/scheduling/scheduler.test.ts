@@ -84,22 +84,22 @@ describe('schedulerService', () => {
     }
   });
 
-  it('refuses to schedule when the cron expression is invalid', () => {
+  it('refuses to schedule when the cron expression is invalid', async () => {
     validateMock.mockReturnValueOnce(false);
 
-    expect(() =>
+    await expect(
       schedulerService.schedule(
         'invalid',
         'bad pattern',
         () => undefined,
         'Bad job',
       ),
-    ).toThrowError('Invalid cron schedule: bad pattern');
+    ).rejects.toThrowError('Invalid cron schedule: bad pattern');
   });
 
   it('schedules a job, runs it successfully, and logs lifecycle events', async () => {
     const handler = vi.fn();
-    const job = schedulerService.schedule(
+    const job = await schedulerService.schedule(
       'job-1',
       '* * * * *',
       handler,
@@ -129,7 +129,7 @@ describe('schedulerService', () => {
   });
 
   it('prevents overlapping executions by logging a warning', async () => {
-    const job = schedulerService.schedule(
+    const job = await schedulerService.schedule(
       'job-overlap',
       '* * * * *',
       () => undefined,
@@ -151,7 +151,7 @@ describe('schedulerService', () => {
 
   it('captures errors thrown by the scheduled handler', async () => {
     const failure = new Error('boom');
-    const job = schedulerService.schedule(
+    const job = await schedulerService.schedule(
       'job-fail',
       '* * * * *',
       () => {
@@ -172,8 +172,8 @@ describe('schedulerService', () => {
     expect(job.isRunning).toBe(false);
   });
 
-  it('supports start, stop, and remove operations on jobs', () => {
-    const job = schedulerService.schedule(
+  it('supports start, stop, and remove operations on jobs', async () => {
+    const job = await schedulerService.schedule(
       'job-control',
       '* * * * *',
       () => undefined,
@@ -202,21 +202,53 @@ describe('schedulerService', () => {
     ).toBe(false);
   });
 
-  it('rejects duplicate job identifiers', () => {
-    schedulerService.schedule(
+  it('rejects duplicate job identifiers', async () => {
+    await schedulerService.schedule(
       'job-duplicate',
       '* * * * *',
       () => undefined,
       'First',
     );
 
-    expect(() =>
+    await expect(
       schedulerService.schedule(
         'job-duplicate',
         '* * * * *',
         () => undefined,
         'Second',
       ),
-    ).toThrowError("Job with ID 'job-duplicate' already exists.");
+    ).rejects.toThrowError("Job with ID 'job-duplicate' already exists.");
+  });
+});
+
+describe('schedulerService (non-Node runtime)', () => {
+  it('should throw McpError when scheduling in a non-Node runtime', async () => {
+    // Mock runtimeCaps to simulate a non-Node environment
+    vi.doMock('@/utils/internal/runtime.js', () => ({
+      runtimeCaps: {
+        isNode: false,
+        isWorkerLike: true,
+        isBrowserLike: false,
+        hasProcess: false,
+        hasBuffer: false,
+        hasTextEncoder: true,
+        hasPerformanceNow: true,
+      },
+    }));
+
+    // Reset the module cache so loadCron picks up the mocked runtimeCaps
+    vi.resetModules();
+
+    const { SchedulerService } =
+      await import('../../../src/utils/scheduling/scheduler.js');
+    const service = SchedulerService.getInstance();
+
+    await expect(
+      service.schedule('test', '* * * * *', () => undefined, 'Test'),
+    ).rejects.toThrow(/requires a Node\.js runtime/);
+
+    // Clean up
+    vi.doUnmock('@/utils/internal/runtime.js');
+    vi.resetModules();
   });
 });

@@ -403,7 +403,9 @@ const parseConfig = () => {
           const root = new URL('../..', import.meta.url).pathname;
           const logsDir = rawConfig.logsPath ?? 'logs';
           if (logsDir.startsWith('/')) return logsDir;
-          return root.endsWith('/') ? `${root}${logsDir}` : `${root}/${logsDir}`;
+          return root.endsWith('/')
+            ? `${root}${logsDir}`
+            : `${root}/${logsDir}`;
         })()
       : undefined,
     mcpServerName: env.MCP_SERVER_NAME ?? parsedPkg.name,

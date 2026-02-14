@@ -140,8 +140,10 @@ function dataExplorerLogic(
 // ─── Response Formatter (text fallback for non-app hosts) ─────────────────────
 
 function responseFormatter(result: DataExplorerOutput): ContentBlock[] {
-  const header = 'ID  | Region           | Product        | Units | Revenue    | Date';
-  const sep = '----|------------------|----------------|-------|------------|----------';
+  const header =
+    'ID  | Region           | Product        | Units | Revenue    | Date';
+  const sep =
+    '----|------------------|----------------|-------|------------|----------';
   const rows = result.rows.map(
     (r) =>
       `${String(r.id).padStart(3)} | ${r.region.padEnd(16)} | ${r.product.padEnd(14)} | ${String(r.units).padStart(5)} | $${r.revenue.toLocaleString('en-US').padStart(9)} | ${r.date}`,

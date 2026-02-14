@@ -80,7 +80,7 @@ export async function createMcpServerInstance(): Promise<McpServer> {
     promptRegistry.registerAll(server);
 
     const rootsRegistry = container.resolve(RootsRegistry);
-    void rootsRegistry.registerAll(server);
+    rootsRegistry.registerAll(server);
 
     logger.info('All MCP capabilities registered successfully', context);
   } catch (err) {

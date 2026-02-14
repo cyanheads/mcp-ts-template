@@ -13,13 +13,8 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     // Run tests in parallel with proper isolation to prevent mock pollution
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        maxForks: 11, // Use 11 of 12 available cores for maximum speed
-        minForks: 8, // Start with 8 workers for minimal ramp-up time
-        isolate: true, // CRITICAL: Each test file gets clean module state
-      },
-    },
+    maxWorkers: 4,
+    isolate: true,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

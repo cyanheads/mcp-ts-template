@@ -61,7 +61,7 @@ describe('config parsing', () => {
     ]);
     expect(parsed.devMcpScopes).toEqual(['scope:read', 'scope:write']);
     expect(parsed.storage.providerType).toBe('filesystem');
-    expect(parsed.logsPath).toBe('logs');
+    expect(parsed.logsPath).toMatch(/logs$/);
     expect(parsed.openTelemetry.enabled).toBe(true);
     expect(parsed.openTelemetry.logLevel).toBe('WARN');
     expect(parsed.openTelemetry.samplingRatio).toBe(0.5);
