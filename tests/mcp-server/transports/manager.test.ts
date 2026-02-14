@@ -54,8 +54,10 @@ describe('TransportManager', () => {
       const { startHttpTransport } =
         await import('@/mcp-server/transports/http/httpTransport.js');
       expect(startHttpTransport).toHaveBeenCalledTimes(1);
+      // HTTP transport receives the factory function, not a server instance
+      // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
       expect(startHttpTransport).toHaveBeenCalledWith(
-        mockMcpServer,
+        mockCreateMcpServer,
         expect.any(Object),
       );
 
@@ -113,10 +115,46 @@ describe('TransportManager', () => {
       });
     });
 
-    it('should create MCP server instance before starting transport', async () => {
+    it('should create MCP server instance for stdio transport', async () => {
+      const originalTransportType = config.mcpTransportType;
+      Object.defineProperty(config, 'mcpTransportType', {
+        value: 'stdio',
+        writable: true,
+        configurable: true,
+      });
+
       await manager.start();
 
+      // Stdio creates a single server instance up front
       expect(mockCreateMcpServer).toHaveBeenCalledTimes(1);
+
+      Object.defineProperty(config, 'mcpTransportType', {
+        value: originalTransportType,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    it('should pass factory (not instance) for HTTP transport', async () => {
+      const originalTransportType = config.mcpTransportType;
+      Object.defineProperty(config, 'mcpTransportType', {
+        value: 'http',
+        writable: true,
+        configurable: true,
+      });
+
+      // Re-create manager to avoid leftover state from beforeEach start
+      manager = new TransportManager(config, logger, mockCreateMcpServer);
+      await manager.start();
+
+      // HTTP transport receives factory — does NOT eagerly create an instance
+      expect(mockCreateMcpServer).not.toHaveBeenCalled();
+
+      Object.defineProperty(config, 'mcpTransportType', {
+        value: originalTransportType,
+        writable: true,
+        configurable: true,
+      });
     });
 
     it('should store server instance after successful start', async () => {

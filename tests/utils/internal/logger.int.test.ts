@@ -36,9 +36,7 @@ describe('Logger Integration (Pino)', () => {
     process.env.ENABLE_TEST_LOGS = 'true';
 
     // Use real timers for this test suite to avoid conflicts with setTimeout
-    if (typeof (vi as any).useRealTimers === 'function') {
-      (vi as any).useRealTimers();
-    }
+    vi.useRealTimers();
 
     // Clean up old logs if they exist
     if (existsSync(LOGS_DIR)) {

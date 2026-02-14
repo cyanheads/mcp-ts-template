@@ -26,6 +26,12 @@ export default defineConfig({
         '!src/config/index.ts',
         '!src/container/index.ts',
       ],
+      thresholds: {
+        lines: 65,
+        functions: 60,
+        branches: 55,
+        statements: 65,
+      },
     },
     fakeTimers: {
       toFake: [
