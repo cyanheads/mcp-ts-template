@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "2.8.1",
+  "version": "2.9.0",
   "mcpName": "io.github.cyanheads/mcp-ts-template",
   "description": "The definitive, production-grade template for building powerful and scalable Model Context Protocol (MCP) servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.",
   "main": "dist/index.js",
@@ -141,10 +141,10 @@
       "url": "https://www.buymeacoffee.com/cyanheads"
     }
   ],
-  "packageManager": "bun@1.2.21",
+  "packageManager": "bun@1.3.2",
   "engines": {
     "bun": ">=1.2.0",
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "depcheck": {
     "ignores": [
@@ -187,11 +187,9 @@
     "pdf-lib": "^1.17.1",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",
-    "reflect-metadata": "^0.2.2",
     "sanitize-html": "^2.17.0",
     "surrealdb": "^1.3.2",
     "tslib": "^2.8.1",
-    "tsyringe": "^4.10.0",
     "unpdf": "^1.4.0",
     "validator": "13.15.26",
     "zod": "^4.3.6"

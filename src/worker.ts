@@ -5,8 +5,6 @@
  * it for the Cloudflare Workers runtime with support for bindings (KV, R2, D1, AI).
  * @module src/worker
  */
-import 'reflect-metadata';
-
 import type {
   R2Bucket,
   KVNamespace,

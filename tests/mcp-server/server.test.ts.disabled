@@ -24,14 +24,20 @@ vi.mock('@/mcp-server/resources/utils/resourceHandlerFactory.js', () => ({
   registerResource: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { container } from 'tsyringe';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
+import { container } from '@/container/container.js';
+import {
+  ToolRegistryToken,
+  ResourceRegistryToken,
+  PromptRegistryToken,
+  RootsRegistryToken,
+} from '@/container/tokens.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
-import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
-import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
-import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
-import { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
+import type { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
+import type { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
+import type { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
+import type { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
 import { config } from '@/config/index.js';
 
 // Mock the registries
@@ -62,8 +68,7 @@ vi.mock('@/mcp-server/roots/roots-registration.js', () => ({
 describe('createMcpServerInstance', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset container state
-    container.clearInstances();
+    container.reset();
   });
 
   it('should create an McpServer instance with correct server info', async () => {
@@ -88,9 +93,7 @@ describe('createMcpServerInstance', () => {
     const mockToolRegistry = {
       registerAll: vi.fn().mockResolvedValue(undefined),
     };
-    container.register(ToolRegistry, {
-      useFactory: () => mockToolRegistry as unknown as ToolRegistry,
-    });
+    container.registerValue(ToolRegistryToken, mockToolRegistry as unknown as ToolRegistry);
 
     await createMcpServerInstance();
 
@@ -104,9 +107,7 @@ describe('createMcpServerInstance', () => {
     const mockResourceRegistry = {
       registerAll: vi.fn().mockResolvedValue(undefined),
     };
-    container.register(ResourceRegistry, {
-      useFactory: () => mockResourceRegistry as unknown as ResourceRegistry,
-    });
+    container.registerValue(ResourceRegistryToken, mockResourceRegistry as unknown as ResourceRegistry);
 
     await createMcpServerInstance();
 
@@ -120,9 +121,7 @@ describe('createMcpServerInstance', () => {
     const mockPromptRegistry = {
       registerAll: vi.fn(),
     };
-    container.register(PromptRegistry, {
-      useFactory: () => mockPromptRegistry as unknown as PromptRegistry,
-    });
+    container.registerValue(PromptRegistryToken, mockPromptRegistry as unknown as PromptRegistry);
 
     await createMcpServerInstance();
 
@@ -136,9 +135,7 @@ describe('createMcpServerInstance', () => {
     const mockRootsRegistry = {
       registerAll: vi.fn(),
     };
-    container.register(RootsRegistry, {
-      useFactory: () => mockRootsRegistry as unknown as RootsRegistry,
-    });
+    container.registerValue(RootsRegistryToken, mockRootsRegistry as unknown as RootsRegistry);
 
     await createMcpServerInstance();
 
@@ -153,9 +150,7 @@ describe('createMcpServerInstance', () => {
     const mockToolRegistry = {
       registerAll: vi.fn().mockRejectedValue(registrationError),
     };
-    container.register(ToolRegistry, {
-      useFactory: () => mockToolRegistry as unknown as ToolRegistry,
-    });
+    container.registerValue(ToolRegistryToken, mockToolRegistry as unknown as ToolRegistry);
 
     await expect(createMcpServerInstance()).rejects.toThrow(
       'Tool registration failed',
@@ -169,17 +164,13 @@ describe('createMcpServerInstance', () => {
     const mockToolRegistry = {
       registerAll: vi.fn().mockResolvedValue(undefined),
     };
-    container.register(ToolRegistry, {
-      useFactory: () => mockToolRegistry as unknown as ToolRegistry,
-    });
+    container.registerValue(ToolRegistryToken, mockToolRegistry as unknown as ToolRegistry);
 
     // Mock failing resource registration
     const mockResourceRegistry = {
       registerAll: vi.fn().mockRejectedValue(registrationError),
     };
-    container.register(ResourceRegistry, {
-      useFactory: () => mockResourceRegistry as unknown as ResourceRegistry,
-    });
+    container.registerValue(ResourceRegistryToken, mockResourceRegistry as unknown as ResourceRegistry);
 
     await expect(createMcpServerInstance()).rejects.toThrow(
       'Resource registration failed',

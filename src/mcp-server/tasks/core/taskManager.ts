@@ -10,12 +10,6 @@
  * @experimental These APIs are experimental and may change without notice.
  * @module src/mcp-server/tasks/core/taskManager
  */
-import { inject, injectable } from 'tsyringe';
-
-import {
-  AppConfig,
-  StorageService as StorageServiceToken,
-} from '@/container/tokens.js';
 import { type config as configType } from '@/config/index.js';
 import { StorageService } from '@/storage/core/StorageService.js';
 import { logger, type RequestContext } from '@/utils/index.js';
@@ -51,7 +45,6 @@ import { StorageBackedTaskStore } from './storageBackedTaskStore.js';
  *
  * @experimental
  */
-@injectable()
 export class TaskManager {
   private readonly taskStore: TaskStore;
   private readonly inMemoryTaskStore: InMemoryTaskStore | null = null;
@@ -59,10 +52,7 @@ export class TaskManager {
   private readonly storeType: 'in-memory' | 'storage';
   private isShuttingDown = false;
 
-  constructor(
-    @inject(AppConfig) config: typeof configType,
-    @inject(StorageServiceToken) storageService: StorageService,
-  ) {
+  constructor(config: typeof configType, storageService: StorageService) {
     this.storeType = config.tasks.storeType;
     this.messageQueue = new InMemoryTaskMessageQueue();
 

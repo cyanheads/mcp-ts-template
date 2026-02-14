@@ -4,10 +4,7 @@
  * @module src/services/graph/providers/surrealGraph.provider
  */
 
-import { inject, injectable } from 'tsyringe';
 import type Surreal from 'surrealdb';
-
-import { SurrealdbClient } from '@/container/tokens.js';
 import { McpError, JsonRpcErrorCode } from '@/types-global/errors.js';
 import {
   ErrorHandler,
@@ -35,11 +32,10 @@ import type { GraphStats } from '../types.js';
  * - Graph traversal operators (->, <-, <->)
  * - Path finding algorithms
  */
-@injectable()
 export class SurrealGraphProvider implements IGraphProvider {
   readonly name = 'surrealdb-graph';
 
-  constructor(@inject(SurrealdbClient) private readonly client: Surreal) {}
+  constructor(private readonly client: Surreal) {}
 
   async relate(
     from: string,

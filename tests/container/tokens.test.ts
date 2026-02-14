@@ -4,58 +4,61 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { Token } from '@/container/container.js';
 import * as tokens from '@/container/tokens.js';
+
+/** All exported token names. */
+const ALL_TOKEN_NAMES = [
+  'AppConfig',
+  'Logger',
+  'StorageService',
+  'StorageProvider',
+  'SupabaseAdminClient',
+  'SurrealdbClient',
+  'LlmProvider',
+  'RateLimiterService',
+  'SpeechService',
+  'GraphService',
+  'CreateMcpServerInstance',
+  'TransportManagerToken',
+  'TaskManagerToken',
+  'ToolRegistryToken',
+  'ResourceRegistryToken',
+  'PromptRegistryToken',
+  'RootsRegistryToken',
+  'ToolDefinitions',
+  'ResourceDefinitions',
+] as const;
+
+/** Helper to get all token values. */
+const getAllTokens = () =>
+  ALL_TOKEN_NAMES.map(
+    (name) => (tokens as Record<string, unknown>)[name] as Token<unknown>,
+  );
 
 describe('DI Tokens', () => {
   describe('Token Definitions', () => {
     it('should export all required tokens', () => {
-      expect(tokens.AppConfig).toBeDefined();
-      expect(tokens.Logger).toBeDefined();
-      expect(tokens.StorageService).toBeDefined();
-      expect(tokens.StorageProvider).toBeDefined();
-      expect(tokens.LlmProvider).toBeDefined();
-      expect(tokens.ToolDefinitions).toBeDefined();
-      expect(tokens.ResourceDefinitions).toBeDefined();
-      expect(tokens.CreateMcpServerInstance).toBeDefined();
-      expect(tokens.RateLimiterService).toBeDefined();
-      expect(tokens.TransportManagerToken).toBeDefined();
-      expect(tokens.SupabaseAdminClient).toBeDefined();
-      expect(tokens.SpeechService).toBeDefined();
+      for (const name of ALL_TOKEN_NAMES) {
+        expect(
+          (tokens as Record<string, unknown>)[name],
+          `Missing token: ${name}`,
+        ).toBeDefined();
+      }
     });
 
-    it('should define tokens as Symbol instances', () => {
-      expect(typeof tokens.AppConfig).toBe('symbol');
-      expect(typeof tokens.Logger).toBe('symbol');
-      expect(typeof tokens.StorageService).toBe('symbol');
-      expect(typeof tokens.StorageProvider).toBe('symbol');
-      expect(typeof tokens.LlmProvider).toBe('symbol');
-      expect(typeof tokens.ToolDefinitions).toBe('symbol');
-      expect(typeof tokens.ResourceDefinitions).toBe('symbol');
-      expect(typeof tokens.CreateMcpServerInstance).toBe('symbol');
-      expect(typeof tokens.RateLimiterService).toBe('symbol');
-      expect(typeof tokens.TransportManagerToken).toBe('symbol');
-      expect(typeof tokens.SupabaseAdminClient).toBe('symbol');
-      expect(typeof tokens.SpeechService).toBe('symbol');
+    it('should define tokens as Token<T> objects with symbol ids', () => {
+      for (const t of getAllTokens()) {
+        expect(typeof t).toBe('object');
+        expect(typeof t.id).toBe('symbol');
+        expect(typeof t.description).toBe('string');
+      }
     });
 
-    it('should have unique token values', () => {
-      const tokenValues = [
-        tokens.AppConfig,
-        tokens.Logger,
-        tokens.StorageService,
-        tokens.StorageProvider,
-        tokens.LlmProvider,
-        tokens.ToolDefinitions,
-        tokens.ResourceDefinitions,
-        tokens.CreateMcpServerInstance,
-        tokens.RateLimiterService,
-        tokens.TransportManagerToken,
-        tokens.SupabaseAdminClient,
-        tokens.SpeechService,
-      ];
-
-      const uniqueValues = new Set(tokenValues);
-      expect(uniqueValues.size).toBe(tokenValues.length);
+    it('should have unique token ids', () => {
+      const ids = getAllTokens().map((t) => t.id);
+      const unique = new Set(ids);
+      expect(unique.size).toBe(ids.length);
     });
 
     it('should have descriptive names for all tokens', () => {
@@ -90,10 +93,10 @@ describe('DI Tokens', () => {
         tokens.RateLimiterService,
       ];
 
-      coreTokens.forEach((token) => {
-        expect(typeof token).toBe('symbol');
-        expect(token).toBeDefined();
-      });
+      for (const t of coreTokens) {
+        expect(typeof t.id).toBe('symbol');
+        expect(t).toBeDefined();
+      }
     });
 
     it('should have MCP-specific tokens', () => {
@@ -104,10 +107,10 @@ describe('DI Tokens', () => {
         tokens.TransportManagerToken,
       ];
 
-      mcpTokens.forEach((token) => {
-        expect(typeof token).toBe('symbol');
-        expect(token).toBeDefined();
-      });
+      for (const t of mcpTokens) {
+        expect(typeof t.id).toBe('symbol');
+        expect(t).toBeDefined();
+      }
     });
 
     it('should have provider tokens', () => {
@@ -118,37 +121,33 @@ describe('DI Tokens', () => {
         tokens.SupabaseAdminClient,
       ];
 
-      providerTokens.forEach((token) => {
-        expect(typeof token).toBe('symbol');
-        expect(token).toBeDefined();
-      });
+      for (const t of providerTokens) {
+        expect(typeof t.id).toBe('symbol');
+        expect(t).toBeDefined();
+      }
     });
   });
 
   describe('Token Immutability', () => {
     it('should not allow reassignment of tokens', () => {
-      // Symbols are immutable by nature, but we can verify they can't be reassigned
       const originalValue = tokens.AppConfig;
 
-      // TypeScript would prevent this at compile time, but we test runtime behavior
       expect(() => {
         // @ts-expect-error - Testing runtime immutability
-        tokens.AppConfig = Symbol('NewAppConfig');
+        tokens.AppConfig = { id: Symbol('fake'), description: 'fake' };
       }).toThrow();
 
-      // Verify token hasn't changed
       expect(tokens.AppConfig).toBe(originalValue);
     });
   });
 
   describe('Token Usage in DI', () => {
-    it('should be suitable for use as DI container keys', () => {
-      // Symbols can be used as Map keys and object keys
+    it('should be suitable for use as DI container keys via token.id', () => {
       const testMap = new Map();
-      testMap.set(tokens.AppConfig, 'test-value');
+      testMap.set(tokens.AppConfig.id, 'test-value');
 
-      expect(testMap.get(tokens.AppConfig)).toBe('test-value');
-      expect(testMap.has(tokens.AppConfig)).toBe(true);
+      expect(testMap.get(tokens.AppConfig.id)).toBe('test-value');
+      expect(testMap.has(tokens.AppConfig.id)).toBe(true);
     });
 
     it('should maintain identity across references', () => {
@@ -161,21 +160,16 @@ describe('DI Tokens', () => {
   });
 
   describe('Token Count', () => {
-    it('should have exactly 15 tokens defined', () => {
-      const exportedSymbols = Object.values(tokens).filter(
-        (value) => typeof value === 'symbol',
-      );
+    it(`should have exactly ${ALL_TOKEN_NAMES.length} tokens defined`, () => {
+      // token() + Token type are also exported; count only Token<T> shaped objects
+      const exportedTokens = Object.values(tokens).filter((value) => {
+        if (typeof value !== 'object' || value === null || !('id' in value)) {
+          return false;
+        }
+        return typeof (value as { id: unknown }).id === 'symbol';
+      });
 
-      expect(exportedSymbols.length).toBe(15);
-    });
-
-    it('should export no additional non-symbol values', () => {
-      const exportedValues = Object.values(tokens);
-      const allSymbols = exportedValues.every(
-        (value) => typeof value === 'symbol',
-      );
-
-      expect(allSymbols).toBe(true);
+      expect(exportedTokens.length).toBe(ALL_TOKEN_NAMES.length);
     });
   });
 });

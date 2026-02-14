@@ -3,7 +3,7 @@
  * @module tests/container/registrations/core.test.ts
  */
 import { describe, expect, it, beforeAll } from 'vitest';
-import { container } from 'tsyringe';
+import { container } from '@/container/container.js';
 import { registerCoreServices } from '@/container/registrations/core.js';
 import {
   AppConfig,
@@ -14,8 +14,6 @@ import {
   RateLimiterService,
   SpeechService,
 } from '@/container/tokens.js';
-import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
-import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 
 describe('Core Service Registration', () => {
   beforeAll(() => {
@@ -47,8 +45,7 @@ describe('Core Service Registration', () => {
     });
 
     it('should register StorageProvider factory', () => {
-      const storageProvider =
-        container.resolve<IStorageProvider>(StorageProvider);
+      const storageProvider = container.resolve(StorageProvider);
 
       expect(storageProvider).toBeDefined();
       expect(typeof storageProvider.get).toBe('function');
@@ -71,7 +68,7 @@ describe('Core Service Registration', () => {
     it('should register LlmProvider', () => {
       // LlmProvider may throw if OPENROUTER_API_KEY is not set
       try {
-        const llmProvider = container.resolve<ILlmProvider>(LlmProvider);
+        const llmProvider = container.resolve(LlmProvider);
         expect(llmProvider).toBeDefined();
       } catch (error) {
         // Expected in test environment without API key
@@ -118,7 +115,7 @@ describe('Core Service Registration', () => {
       const config = container.resolve(AppConfig) as ReturnType<
         typeof import('@/config/index.js').parseConfig
       >;
-      const provider = container.resolve<IStorageProvider>(StorageProvider);
+      const provider = container.resolve(StorageProvider);
 
       expect(provider).toBeDefined();
       expect(config).toBeDefined();
@@ -131,8 +128,7 @@ describe('Core Service Registration', () => {
       const storageService = container.resolve(
         StorageService,
       ) as import('@/storage/core/StorageService.js').StorageService;
-      const storageProvider =
-        container.resolve<IStorageProvider>(StorageProvider);
+      const storageProvider = container.resolve(StorageProvider);
 
       expect(storageService).toBeDefined();
       expect(storageProvider).toBeDefined();
@@ -144,7 +140,7 @@ describe('Core Service Registration', () => {
     it('should create LlmProvider as OpenRouterProvider', () => {
       // LlmProvider may throw if OPENROUTER_API_KEY is not set
       try {
-        const llmProvider = container.resolve<ILlmProvider>(LlmProvider);
+        const llmProvider = container.resolve(LlmProvider);
         expect(llmProvider).toBeDefined();
       } catch (error) {
         // Expected in test environment without API key
@@ -177,7 +173,7 @@ describe('Core Service Registration', () => {
       const config = container.resolve(AppConfig) as ReturnType<
         typeof import('@/config/index.js').parseConfig
       >;
-      const provider = container.resolve<IStorageProvider>(StorageProvider);
+      const provider = container.resolve(StorageProvider);
 
       expect(config).toBeDefined();
       expect(provider).toBeDefined();

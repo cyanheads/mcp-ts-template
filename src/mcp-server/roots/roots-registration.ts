@@ -7,17 +7,14 @@
  * @module src/mcp-server/roots/roots-registration
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { inject, injectable } from 'tsyringe';
 
-import { Logger } from '@/container/tokens.js';
 import {
-  logger as defaultLogger,
+  type logger as defaultLogger,
   requestContextService,
 } from '@/utils/index.js';
 
-@injectable()
 export class RootsRegistry {
-  constructor(@inject(Logger) private logger: typeof defaultLogger) {}
+  constructor(private logger: typeof defaultLogger) {}
 
   /**
    * Registers roots handlers on the given MCP server.

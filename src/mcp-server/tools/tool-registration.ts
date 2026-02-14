@@ -8,13 +8,10 @@ import {
   McpServer,
   type ToolCallback,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { type DependencyContainer, injectable, injectAll } from 'tsyringe';
 import { ZodObject, type ZodRawShape } from 'zod';
 
-import { ToolDefinitions } from '@/container/index.js';
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
-import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
 import type { ToolDefinition } from '@/mcp-server/tools/utils/index.js';
 import { createMcpToolHandler } from '@/mcp-server/tools/utils/index.js';
 import {
@@ -22,14 +19,12 @@ import {
   isTaskToolDefinition,
 } from '@/mcp-server/tasks/index.js';
 
-@injectable()
 export class ToolRegistry {
   constructor(
-    @injectAll(ToolDefinitions, { isOptional: true })
-    private toolDefs: ToolDefinition<
-      ZodObject<ZodRawShape>,
-      ZodObject<ZodRawShape>
-    >[],
+    private toolDefs: (
+      | ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>
+      | TaskToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>
+    )[],
   ) {}
 
   /**
@@ -198,15 +193,3 @@ export class ToolRegistry {
     );
   }
 }
-
-/**
- * Registers all tool definitions with the provided dependency container.
- * This function uses multi-injection to register each tool under the `ToolDefinitions` token.
- *
- * @param {DependencyContainer} container - The tsyringe container instance to register tools with.
- */
-export const registerTools = (container: DependencyContainer): void => {
-  for (const tool of allToolDefinitions) {
-    container.register(ToolDefinitions, { useValue: tool });
-  }
-};

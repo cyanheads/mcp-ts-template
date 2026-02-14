@@ -3,8 +3,6 @@
  * @module src/services/speech/providers/elevenlabs
  */
 
-import { injectable } from 'tsyringe';
-
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   fetchWithTimeout,
@@ -42,7 +40,6 @@ interface ElevenLabsVoicesResponse {
  * ElevenLabs TTS provider.
  * Supports high-quality text-to-speech synthesis with customizable voices.
  */
-@injectable()
 export class ElevenLabsProvider implements ISpeechProvider {
   public readonly name = 'elevenlabs';
   public readonly supportsTTS = true;

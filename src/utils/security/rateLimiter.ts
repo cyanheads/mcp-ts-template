@@ -4,10 +4,7 @@
  * @module src/utils/security/rateLimiter
  */
 import { trace } from '@opentelemetry/api';
-import { inject, injectable } from 'tsyringe';
-
 import { config as ConfigType } from '@/config/index.js';
-import { AppConfig, Logger } from '@/container/tokens.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   type RequestContext,
@@ -47,15 +44,14 @@ export interface RateLimitEntry {
   lastAccess: number;
 }
 
-@injectable()
 export class RateLimiter {
   private readonly limits: Map<string, RateLimitEntry>;
   private cleanupTimer: NodeJS.Timeout | null = null;
   private readonly effectiveConfig: RateLimitConfig;
 
   constructor(
-    @inject(AppConfig) private config: typeof ConfigType,
-    @inject(Logger) private logger: typeof LoggerType,
+    private config: typeof ConfigType,
+    private logger: typeof LoggerType,
   ) {
     const defaultConfig: RateLimitConfig = {
       windowMs: 15 * 60 * 1000,

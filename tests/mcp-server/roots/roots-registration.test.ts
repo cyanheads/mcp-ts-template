@@ -5,10 +5,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { container } from 'tsyringe';
 
 import { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
-import { Logger } from '@/container/tokens.js';
 import { logger } from '@/utils/index.js';
 
 describe('Roots Registration', () => {
@@ -17,9 +15,6 @@ describe('Roots Registration', () => {
   let mockMcpServer: McpServer;
 
   beforeEach(() => {
-    // Clear any existing container registrations
-    container.clearInstances();
-
     // Create mock logger
     mockLogger = {
       debug: vi.fn(),
@@ -32,11 +27,8 @@ describe('Roots Registration', () => {
       emerg: vi.fn(),
     } as unknown as typeof logger;
 
-    // Register mock logger in container
-    container.registerInstance(Logger, mockLogger);
-
     // Create instance of RootsRegistry with mocked dependencies
-    rootsRegistry = container.resolve(RootsRegistry);
+    rootsRegistry = new RootsRegistry(mockLogger);
 
     // Create mock MCP server
     mockMcpServer = {

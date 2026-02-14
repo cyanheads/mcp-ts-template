@@ -7,21 +7,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-// Mock tsyringe container while preserving all decorator exports.
-// Must provide register/registerSingleton/registerInstance since transitive imports
-// (authFactory.ts, tool-registration.ts) call them at module load time.
+// Mock the container module to intercept resolve() calls.
+// Must preserve the `token` factory since tokens.ts calls it at import time.
 const mockResolve = vi.fn();
-vi.mock('tsyringe', async (importOriginal) => {
+vi.mock('@/container/container.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
-  const actualContainer = actual.container as Record<string, unknown>;
   return {
     ...actual,
     container: {
-      ...actualContainer,
       resolve: (...args: unknown[]) => mockResolve(...args),
-      register: vi.fn(),
-      registerSingleton: vi.fn(),
-      registerInstance: vi.fn(),
     },
   };
 });
@@ -59,10 +53,12 @@ vi.mock('@/config/index.js', () => ({
 
 import { createMcpServerInstance } from '@/mcp-server/server.js';
 import { logger, requestContextService } from '@/utils/index.js';
-import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
-import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
-import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
-import { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
+import {
+  ToolRegistryToken,
+  ResourceRegistryToken,
+  PromptRegistryToken,
+  RootsRegistryToken,
+} from '@/container/tokens.js';
 
 describe('createMcpServerInstance', () => {
   let mockToolRegistry: { registerAll: ReturnType<typeof vi.fn> };
@@ -81,10 +77,10 @@ describe('createMcpServerInstance', () => {
     mockRootsRegistry = { registerAll: vi.fn() };
 
     mockResolve.mockImplementation((token: unknown) => {
-      if (token === ToolRegistry) return mockToolRegistry;
-      if (token === ResourceRegistry) return mockResourceRegistry;
-      if (token === PromptRegistry) return mockPromptRegistry;
-      if (token === RootsRegistry) return mockRootsRegistry;
+      if (token === ToolRegistryToken) return mockToolRegistry;
+      if (token === ResourceRegistryToken) return mockResourceRegistry;
+      if (token === PromptRegistryToken) return mockPromptRegistry;
+      if (token === RootsRegistryToken) return mockRootsRegistry;
       throw new Error(`Unexpected token: ${String(token)}`);
     });
   });
@@ -105,7 +101,7 @@ describe('createMcpServerInstance', () => {
 
   it('should resolve and call ToolRegistry.registerAll', async () => {
     await createMcpServerInstance();
-    expect(mockResolve).toHaveBeenCalledWith(ToolRegistry);
+    expect(mockResolve).toHaveBeenCalledWith(ToolRegistryToken);
     expect(mockToolRegistry.registerAll).toHaveBeenCalledTimes(1);
     expect(mockToolRegistry.registerAll).toHaveBeenCalledWith(
       expect.any(McpServer),
@@ -114,19 +110,19 @@ describe('createMcpServerInstance', () => {
 
   it('should resolve and call ResourceRegistry.registerAll', async () => {
     await createMcpServerInstance();
-    expect(mockResolve).toHaveBeenCalledWith(ResourceRegistry);
+    expect(mockResolve).toHaveBeenCalledWith(ResourceRegistryToken);
     expect(mockResourceRegistry.registerAll).toHaveBeenCalledTimes(1);
   });
 
   it('should resolve and call PromptRegistry.registerAll', async () => {
     await createMcpServerInstance();
-    expect(mockResolve).toHaveBeenCalledWith(PromptRegistry);
+    expect(mockResolve).toHaveBeenCalledWith(PromptRegistryToken);
     expect(mockPromptRegistry.registerAll).toHaveBeenCalledTimes(1);
   });
 
   it('should resolve and call RootsRegistry.registerAll', async () => {
     await createMcpServerInstance();
-    expect(mockResolve).toHaveBeenCalledWith(RootsRegistry);
+    expect(mockResolve).toHaveBeenCalledWith(RootsRegistryToken);
     expect(mockRootsRegistry.registerAll).toHaveBeenCalledTimes(1);
   });
 

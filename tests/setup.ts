@@ -1,5 +1,3 @@
-import 'reflect-metadata';
-
 /**
  * @fileoverview Global test setup for Vitest.
  * Configures environment, pre-mocks heavy external modules,

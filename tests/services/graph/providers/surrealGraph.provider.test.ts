@@ -5,9 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { container } from 'tsyringe';
 import { SurrealGraphProvider } from '@/services/graph/providers/surrealGraph.provider.js';
-import { SurrealdbClient } from '@/container/tokens.js';
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import { requestContextService } from '@/utils/index.js';
 import type { RequestContext } from '@/utils/index.js';
@@ -24,12 +22,8 @@ describe('SurrealGraphProvider', () => {
   let context: RequestContext;
 
   beforeEach(() => {
-    // Clear and setup container
-    container.clearInstances();
     mockClient = createMockSurrealClient();
-    container.registerInstance(SurrealdbClient, mockClient as any);
-
-    provider = container.resolve(SurrealGraphProvider);
+    provider = new SurrealGraphProvider(mockClient as any);
     context = requestContextService.createRequestContext({
       operation: 'test-surreal-graph',
     });

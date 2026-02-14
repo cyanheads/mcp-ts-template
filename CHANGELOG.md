@@ -7,6 +7,35 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.9.0] - 2026-02-14
+
+### Changed
+
+- **TypeScript Target**: Bumped `target` and `lib` from `ES2022` to `ESNext`, unlocking modern language features without manual tsconfig bumps.
+- **Node.js Engine Requirement**: Raised minimum from Node 20 to Node 22 (current LTS). Bun minimum remains ≥1.2.0. Updated `packageManager` to `bun@1.3.2`.
+- **DI Container**: Replaced `tsyringe` (unmaintained, legacy decorators) with a custom ~140-line typed `Container` class. Zero external dependencies. `Token<T>` phantom branding provides fully type-safe resolution without casts.
+- **All 16 injectable classes**: Removed `@injectable()`, `@inject()`, `@injectAll()` decorators and tsyringe imports. Constructors unchanged — they receive plain typed parameters.
+- **Container registrations** (`core.ts`, `mcp.ts`): Rewrote from tsyringe's `container.register()` / `useClass` / `useFactory` API to new `registerValue` / `registerSingleton` / `registerFactory` / `registerMulti` API.
+- **Container consumers** (`server.ts`, `authFactory.ts`, `storageFactory.ts`, `index.ts`, `worker.ts`): Updated to use new container import path and token-based resolution.
+- **Node.js imports**: Added `node:` protocol prefix to 8 bare Node.js imports across 6 files (`fs`, `path`, `http`, `crypto`, `perf_hooks`).
+- **`fetchWithTimeout`**: Replaced manual `AbortController` + `setTimeout` + `clearTimeout` with `AbortSignal.timeout()`.
+- **`httpTransport`**: Replaced manual Promise executor with `Promise.withResolvers()` in `startHttpServerWithRetry`.
+- **`sanitization`**: Removed dead `structuredClone` fallback (globally available since Node 17+).
+- **Test setup**: Removed `import 'reflect-metadata'` from `tests/setup.ts`.
+- **Test suites**: Updated 10+ test files to use new container API or direct construction instead of tsyringe DI.
+
+### Added
+
+- **`src/container/container.ts`**: New typed DI container with `Token<T>`, `Container` class supporting `registerValue`, `registerFactory`, `registerSingleton`, `registerMulti`, `resolve`, `resolveAll`, `fork` (test isolation), `clearInstances`, and `reset`.
+
+### Removed
+
+- **`tsyringe`**: Removed from dependencies.
+- **`reflect-metadata`**: Removed from dependencies and tsconfig types.
+- **`experimentalDecorators`** and **`emitDecoratorMetadata`**: Removed from `tsconfig.json`. No decorators remain in the codebase.
+
+---
+
 ## [2.8.3] - 2026-02-14
 
 ### Added

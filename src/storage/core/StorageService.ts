@@ -5,9 +5,6 @@
  * provider via dependency injection.
  * @module src/storage/core/StorageService
  */
-import { injectable, inject } from 'tsyringe';
-
-import { StorageProvider } from '@/container/tokens.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger, type RequestContext } from '@/utils/index.js';
 import type {
@@ -60,9 +57,8 @@ function requireTenantId(context: RequestContext): string {
   return tenantId.trim();
 }
 
-@injectable()
 export class StorageService {
-  constructor(@inject(StorageProvider) private provider: IStorageProvider) {
+  constructor(private provider: IStorageProvider) {
     // Note: Cannot use structured logging in constructor as we don't have RequestContext yet
     // This is logged when the service is first instantiated by the DI container
   }

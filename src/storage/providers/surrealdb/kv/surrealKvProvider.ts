@@ -4,10 +4,7 @@
  * @module src/storage/providers/surrealdb/kv/surrealKvProvider
  */
 
-import { inject, injectable } from 'tsyringe';
 import type Surreal from 'surrealdb';
-
-import { SurrealdbClient } from '@/container/tokens.js';
 import type {
   IStorageProvider,
   StorageOptions,
@@ -39,16 +36,12 @@ const DEFAULT_LIST_LIMIT = 1000;
  * This provider uses composition with direct client injection for
  * improved modularity and testability.
  */
-@injectable()
 export class SurrealKvProvider implements IStorageProvider {
   private readonly tableName: string;
   private readonly client: Surreal;
   private readonly transactionManager: TransactionManager;
 
-  constructor(
-    @inject(SurrealdbClient) client: Surreal,
-    tableName: string = 'kv_store',
-  ) {
+  constructor(client: Surreal, tableName: string = 'kv_store') {
     this.client = client;
     this.tableName = tableName;
     this.transactionManager = new TransactionManager(this.client);

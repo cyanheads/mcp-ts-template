@@ -3,11 +3,9 @@
  * @module tests/storage/StorageService.test
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { container } from 'tsyringe';
 
 import { StorageService } from '@/storage/core/StorageService.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
-import { StorageProvider } from '@/container/tokens.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { requestContextService } from '@/utils/index.js';
 import type { RequestContext } from '@/utils/index.js';
@@ -17,10 +15,7 @@ describe('StorageService - Tenant ID Validation', () => {
   let baseContext: RequestContext;
 
   beforeEach(() => {
-    // Register a fresh in-memory provider for each test
-    container.clearInstances();
-    container.registerSingleton(StorageProvider, InMemoryProvider);
-    storageService = container.resolve(StorageService);
+    storageService = new StorageService(new InMemoryProvider());
 
     baseContext = requestContextService.createRequestContext({
       operation: 'test-storage-service',

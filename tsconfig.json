@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    // Target modern JavaScript
-    "target": "ES2022",
+    // Target latest JavaScript features
+    "target": "ESNext",
 
     // Use modern Node.js module system
     "module": "NodeNext",
@@ -38,18 +38,9 @@
     // Ensure consistent file naming
     "forceConsistentCasingInFileNames": true,
 
-    // Enable experimental decorators if needed
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-
     // Node.js specific
-    "lib": ["ES2022"],
-    "types": [
-      "bun-types",
-      "node",
-      "reflect-metadata",
-      "@cloudflare/workers-types"
-    ],
+    "lib": ["ESNext"],
+    "types": ["bun-types", "node", "@cloudflare/workers-types"],
 
     // Error on unused locals and parameters
     "noUnusedLocals": true,

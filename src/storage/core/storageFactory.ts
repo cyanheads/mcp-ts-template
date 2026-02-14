@@ -5,7 +5,8 @@
  * it defaults to `in-memory` to ensure compatibility.
  * @module src/storage/core/storageFactory
  */
-import { container } from 'tsyringe';
+import { container } from '@/container/container.js';
+import { SupabaseAdminClient, SurrealdbClient } from '@/container/tokens.js';
 import type {
   R2Bucket,
   KVNamespace,
@@ -155,8 +156,8 @@ export function createStorageProvider(
       if (deps.supabaseClient) {
         return new SupabaseProvider(deps.supabaseClient);
       }
-      // Fallback to DI container (backward-compatible)
-      return container.resolve(SupabaseProvider);
+      // Fallback: resolve Supabase client from DI container
+      return new SupabaseProvider(container.resolve(SupabaseAdminClient));
     case 'surrealdb':
       if (
         !config.surrealdb?.url ||
@@ -175,8 +176,11 @@ export function createStorageProvider(
           config.surrealdb.tableName,
         );
       }
-      // Fallback to DI container
-      return container.resolve(SurrealKvProvider);
+      // Fallback: resolve SurrealDB client from DI container
+      return new SurrealKvProvider(
+        container.resolve(SurrealdbClient),
+        config.surrealdb.tableName,
+      );
     case 'cloudflare-r2':
       if (isServerless) {
         if (deps.r2Bucket) {
