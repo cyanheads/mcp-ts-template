@@ -160,7 +160,7 @@ describe('Logger', () => {
     });
 
     it('should be safe to call close when not initialized', async () => {
-      await expect(logger.close()).resolves.not.toThrow();
+      await expect(logger.close()).resolves.toBeUndefined();
     });
   });
 
