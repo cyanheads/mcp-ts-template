@@ -64,7 +64,7 @@ Separation of concerns maps directly to the filesystem. Always place files in th
 | **`src/types-global/`**                     | **Global type definitions** shared across the codebase (e.g., error types).                                                                                                                                                                                                                                                       |
 | **`src/services/`**                         | **External service integrations** following a consistent domain-driven pattern:<br>- Each service domain (e.g., `llm/`, `speech/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`, and `index.ts`<br>- Use DI for all service dependencies. See **Service Development Pattern** below. |
 | **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, surrealdb, cloudflare).                                                                                                                                                                                                                           |
-| **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                                                                                                           |
+| **`src/container/`**                        | **Dependency Injection (custom typed container).** `Token<T>` phantom branding, service registration, and resolution. Zero external dependencies.                                                                                                                                                                                 |
 | **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, formatting, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                                                                                    |
 | **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                                                                                                    |
 
@@ -215,9 +215,9 @@ Prompts are reusable message templates that clients can discover and invoke. The
 
 > **All services:** `src/services/[service-name]/` with `core/` (interfaces), `providers/` (impls), `types.ts`, `index.ts`. See [docs/tree.md](docs/tree.md).
 
-**Patterns:** Single-provider (e.g., LLM) → direct DI `@inject(LlmProvider)`. Multi-provider (e.g., Speech) → create orchestrator for routing/aggregation.
+**Patterns:** Single-provider (e.g., LLM) → inject via constructor. Multi-provider (e.g., Speech) → create orchestrator for routing/aggregation.
 
-**Provider requirements:** Implement `I<Service>Provider`, `@injectable()`, `healthCheck()`, throw `McpError` on failure, name as `<name>.provider.ts`.
+**Provider requirements:** Implement `I<Service>Provider`, `healthCheck()`, throw `McpError` on failure, name as `<name>.provider.ts`. Register in `registrations/core.ts` via `container.registerSingleton(token, factory)`.
 
 **Add service:** Dir structure → Interface → Providers → Types → Barrel export → DI token (`tokens.ts`) → Register (`registrations/core.ts`)
 
@@ -227,17 +227,17 @@ Prompts are reusable message templates that clients can discover and invoke. The
 
 #### DI-Managed Services (tokens in `src/container/tokens.ts`)
 
-| Service           | Token                   | Usage                                                                   | Notes                          |
-| ----------------- | ----------------------- | ----------------------------------------------------------------------- | ------------------------------ |
-| `ILlmProvider`    | `LlmProvider`           | `@inject(LlmProvider) private llmProvider: ILlmProvider`                |                                |
-| `GraphService`    | `GraphService`          | `@inject(GraphService) private graphService: GraphService`              | Only when using graph features |
-| `StorageService`  | `StorageService`        | `@inject(StorageService) private storage: StorageService`               | Requires `context.tenantId`    |
-| `RateLimiter`     | `RateLimiterService`    | `@inject(RateLimiterService) private rateLimiter: RateLimiter`          |                                |
-| `Logger`          | `Logger`                | `@inject(Logger) private logger: typeof logger`                         | Pino-backed singleton          |
-| App Config        | `AppConfig`             | `@inject(AppConfig) private config: typeof configModule`                |                                |
-| Supabase Client   | `SupabaseAdminClient`   | `@inject(SupabaseAdminClient) private client: SupabaseClient<Database>` | Only when needed               |
-| SurrealDB Client  | `SurrealdbClient`       | `@inject(SurrealdbClient) private client: Surreal`                      | Only when needed               |
-| Transport Manager | `TransportManagerToken` | `@inject(TransportManagerToken) private tm: TransportManager`           |                                |
+| Service           | Token                   | Resolution                                    | Notes                          |
+| ----------------- | ----------------------- | --------------------------------------------- | ------------------------------ |
+| `ILlmProvider`    | `LlmProvider`           | `container.resolve(LlmProvider)`              |                                |
+| `GraphService`    | `GraphService`          | `container.resolve(GraphService)`             | Only when using graph features |
+| `StorageService`  | `StorageService`        | `container.resolve(StorageService)`           | Requires `context.tenantId`    |
+| `RateLimiter`     | `RateLimiterService`    | `container.resolve(RateLimiterService)`       |                                |
+| `Logger`          | `Logger`                | `container.resolve(Logger)`                   | Pino-backed singleton          |
+| App Config        | `AppConfig`             | `container.resolve(AppConfig)`                |                                |
+| Supabase Client   | `SupabaseAdminClient`   | `container.resolve(SupabaseAdminClient)`      | Only when needed               |
+| SurrealDB Client  | `SurrealdbClient`       | `container.resolve(SurrealdbClient)`          | Only when needed               |
+| Transport Manager | `TransportManagerToken` | `container.resolve(TransportManagerToken)`    |                                |
 
 **Graph Service:** Graph operations (relationships, traversals, pathfinding) via SurrealDB. Inject `GraphService`. Operations: `relate()`, `unrelate()`, `traverse()`, `shortestPath()`, `get{Outgoing|Incoming}Edges()`, `pathExists()`.
 
