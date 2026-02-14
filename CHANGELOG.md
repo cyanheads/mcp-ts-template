@@ -7,6 +7,57 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.8.0] - 2026-02-14
+
+### Security
+
+- **GHSA-345p-7cg4-v4c7 (MCP SDK 1.26.0)**: HTTP transport now creates a fresh `McpServer` per request to prevent cross-client data leaks. Stdio transport retains a single instance (single-client model).
+- **SSRF Protection**: Added `rejectPrivateIPs` option to `fetchWithTimeout` that blocks requests to RFC 1918 ranges, loopback, link-local, CGNAT, and known cloud metadata hostnames.
+- **XML Parser Hardening**: Explicitly disabled `processEntities` and `htmlEntities` in `fast-xml-parser` to guard against XXE-style expansion attacks.
+- **YAML Parser Hardening**: Pinned `js-yaml` to `DEFAULT_SCHEMA` to prevent unsafe type deserialization if future versions change defaults.
+- **HTML Sanitization**: Removed `style` from default allowed attributes (prevents CSS injection via `background:url()`, UI redress, `::before`/`::after` content injection). Added `rel="noopener noreferrer"` transform on all `<a>` tags to prevent tabnabbing.
+- **Pino Sensitive Field Redaction**: Logger now uses pino's `redact` option with wildcard paths (`*.field`, `*.*.field`) to censor sensitive data at multiple nesting depths.
+- **D1 Provider Table Name Validation**: Constructor now rejects table names that aren't valid SQL identifiers, preventing injection via dynamic table names.
+- **SurrealDB Query Builder**: Added `@warning` JSDoc to `raw()` method clarifying it must never receive user-controlled input.
+- **CORS Wildcard Warning**: HTTP transport now logs a warning when `MCP_ALLOWED_ORIGINS` is not set and CORS defaults to `*`.
+
+### Changed
+
+- **Cloudflare Worker Bindings**: Moved `injectEnvVars` and `storeBindings` calls from one-time init into per-request/per-scheduled-event handlers. Cloudflare may rotate binding references between requests within the same isolate.
+- **Worker Scheduled Handler**: Replaced custom `ScheduledEvent` interface with the SDK-provided `ScheduledController` type.
+- **Tool Logic Purity**: Removed `try/catch` blocks from `template_code_review_sampling` tool logic — errors now propagate to the handler factory as intended by the architecture.
+- **`withToolAuth`/`withResourceAuth`**: Removed unnecessary `Promise.resolve` wrappers; logic functions are called directly.
+- **Echo Tool**: `echoToolLogic` is now synchronous (was returning `Promise.resolve` of a sync value).
+- **Storage Factory**: Extracted shared `getGlobalBinding<T>()` helper, replacing three duplicated type-guard-and-throw patterns for R2, KV, and D1 bindings.
+- **KV Provider `delete`**: Now idempotent — calls `kv.delete()` directly without a preceding existence check (KV delete is a no-op for missing keys).
+- **KV/R2 Provider `getMany`**: Parallelized with `Promise.all` instead of sequential loop.
+- **R2 Provider `deleteMany`/`clear`**: Uses batch `bucket.delete(keys[])` instead of individual delete calls per key.
+- **TaskManager**: Consolidated duplicate logging blocks into a single post-init log statement. `getTaskCount()` returns `null` instead of `-1` for storage-backed stores.
+- **Scheduler**: `schedule()` is now `async` and lazily imports `node-cron` at first call. Throws `McpError` in non-Node runtimes (e.g., Cloudflare Workers).
+- **Sanitization**: Cached `normalizedSensitiveSet` and `wordSensitiveSet` with lazy rebuild on `setSensitiveFields()`.
+- **Vitest Config**: Simplified pool options to `maxWorkers: 4` with top-level `isolate: true`.
+- **Rate Limiter**: Fixed double-space typo in default error message.
+- **Config**: Reformatted ternary in `logsPath` resolution for readability.
+- **Server**: Removed `void` prefix on synchronous `rootsRegistry.registerAll()` call.
+
+### Dependencies
+
+- Upgraded `@modelcontextprotocol/sdk` from `^1.25.3` to `^1.26.0`.
+- Upgraded `hono` from `^4.11.6` to `^4.11.9`.
+- Upgraded `dotenv` from `^17.2.3` to `^17.3.1`.
+- Upgraded `fast-xml-parser` from `^5.3.3` to `^5.3.6`.
+- Upgraded `openai` from `^6.16.0` to `^6.22.0`.
+- Upgraded `pino` from `^10.3.0` to `^10.3.1`.
+- Upgraded `axios` from `^1.13.3` to `^1.13.5`.
+- Upgraded `@supabase/supabase-js` from `^2.93.1` to `^2.95.3`.
+- Upgraded OpenTelemetry packages to `0.212.0` / `2.5.1`.
+- Upgraded `eslint` from `^9.39.2` to `^10.0.0`.
+- Upgraded `typescript-eslint` from `8.54.0` to `8.55.0`.
+- Various other dev dependency bumps (msw, typedoc, vite-tsconfig-paths, globals, clipboardy, bun-types, @types/node, @cloudflare/workers-types).
+- Updated `wrangler.toml` `compatibility_date` to `2026-02-13`.
+
+---
+
 ## [2.7.0] - 2026-01-27
 
 ### Added
