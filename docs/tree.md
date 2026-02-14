@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2025-10-25 19:28:56
+Generated on: 2026-02-14 15:38:54
 
 ```
 mcp-ts-template
@@ -19,244 +19,6 @@ mcp-ts-template
 │   ├── archive1.md
 │   └── archive2.md
 ├── coverage
-│   ├── src
-│   │   ├── config
-│   │   │   ├── index.html
-│   │   │   └── index.ts.html
-│   │   ├── container
-│   │   │   ├── registrations
-│   │   │   │   ├── core.ts.html
-│   │   │   │   ├── index.html
-│   │   │   │   └── mcp.ts.html
-│   │   │   ├── index.html
-│   │   │   ├── index.ts.html
-│   │   │   └── tokens.ts.html
-│   │   ├── mcp-server
-│   │   │   ├── prompts
-│   │   │   │   ├── definitions
-│   │   │   │   │   ├── code-review.prompt.ts.html
-│   │   │   │   │   └── index.html
-│   │   │   │   ├── utils
-│   │   │   │   │   ├── index.html
-│   │   │   │   │   └── promptDefinition.ts.html
-│   │   │   │   ├── index.html
-│   │   │   │   └── prompt-registration.ts.html
-│   │   │   ├── resources
-│   │   │   │   ├── definitions
-│   │   │   │   │   ├── echo.resource.ts.html
-│   │   │   │   │   └── index.html
-│   │   │   │   ├── utils
-│   │   │   │   │   ├── index.html
-│   │   │   │   │   ├── resourceDefinition.ts.html
-│   │   │   │   │   └── resourceHandlerFactory.ts.html
-│   │   │   │   ├── index.html
-│   │   │   │   └── resource-registration.ts.html
-│   │   │   ├── roots
-│   │   │   │   ├── index.html
-│   │   │   │   └── roots-registration.ts.html
-│   │   │   ├── tools
-│   │   │   │   ├── definitions
-│   │   │   │   │   ├── index.html
-│   │   │   │   │   ├── template-cat-fact.tool.ts.html
-│   │   │   │   │   ├── template-code-review-sampling.tool.ts.html
-│   │   │   │   │   ├── template-echo-message.tool.ts.html
-│   │   │   │   │   ├── template-image-test.tool.ts.html
-│   │   │   │   │   └── template-madlibs-elicitation.tool.ts.html
-│   │   │   │   ├── utils
-│   │   │   │   │   ├── index.html
-│   │   │   │   │   ├── toolDefinition.ts.html
-│   │   │   │   │   └── toolHandlerFactory.ts.html
-│   │   │   │   ├── index.html
-│   │   │   │   └── tool-registration.ts.html
-│   │   │   ├── transports
-│   │   │   │   ├── auth
-│   │   │   │   │   ├── lib
-│   │   │   │   │   │   ├── authContext.ts.html
-│   │   │   │   │   │   ├── authTypes.ts.html
-│   │   │   │   │   │   ├── authUtils.ts.html
-│   │   │   │   │   │   ├── index.html
-│   │   │   │   │   │   └── withAuth.ts.html
-│   │   │   │   │   ├── strategies
-│   │   │   │   │   │   ├── authStrategy.ts.html
-│   │   │   │   │   │   ├── index.html
-│   │   │   │   │   │   ├── jwtStrategy.ts.html
-│   │   │   │   │   │   └── oauthStrategy.ts.html
-│   │   │   │   │   ├── authFactory.ts.html
-│   │   │   │   │   ├── authMiddleware.ts.html
-│   │   │   │   │   └── index.html
-│   │   │   │   ├── http
-│   │   │   │   │   ├── httpErrorHandler.ts.html
-│   │   │   │   │   ├── httpTransport.ts.html
-│   │   │   │   │   ├── httpTypes.ts.html
-│   │   │   │   │   ├── index.html
-│   │   │   │   │   ├── sessionIdUtils.ts.html
-│   │   │   │   │   └── sessionStore.ts.html
-│   │   │   │   ├── stdio
-│   │   │   │   │   ├── index.html
-│   │   │   │   │   └── stdioTransport.ts.html
-│   │   │   │   ├── index.html
-│   │   │   │   ├── ITransport.ts.html
-│   │   │   │   └── manager.ts.html
-│   │   │   ├── index.html
-│   │   │   └── server.ts.html
-│   │   ├── services
-│   │   │   ├── graph
-│   │   │   │   ├── core
-│   │   │   │   │   ├── GraphService.ts.html
-│   │   │   │   │   ├── IGraphProvider.ts.html
-│   │   │   │   │   └── index.html
-│   │   │   │   ├── providers
-│   │   │   │   │   ├── index.html
-│   │   │   │   │   └── surrealGraph.provider.ts.html
-│   │   │   │   ├── index.html
-│   │   │   │   └── types.ts.html
-│   │   │   ├── llm
-│   │   │   │   ├── core
-│   │   │   │   │   ├── ILlmProvider.ts.html
-│   │   │   │   │   └── index.html
-│   │   │   │   ├── providers
-│   │   │   │   │   ├── index.html
-│   │   │   │   │   └── openrouter.provider.ts.html
-│   │   │   │   ├── index.html
-│   │   │   │   └── types.ts.html
-│   │   │   └── speech
-│   │   │       ├── core
-│   │   │       │   ├── index.html
-│   │   │       │   ├── ISpeechProvider.ts.html
-│   │   │       │   └── SpeechService.ts.html
-│   │   │       ├── providers
-│   │   │       │   ├── elevenlabs.provider.ts.html
-│   │   │       │   ├── index.html
-│   │   │       │   └── whisper.provider.ts.html
-│   │   │       ├── index.html
-│   │   │       └── types.ts.html
-│   │   ├── storage
-│   │   │   ├── core
-│   │   │   │   ├── index.html
-│   │   │   │   ├── IStorageProvider.ts.html
-│   │   │   │   ├── storageFactory.ts.html
-│   │   │   │   ├── StorageService.ts.html
-│   │   │   │   └── storageValidation.ts.html
-│   │   │   └── providers
-│   │   │       ├── cloudflare
-│   │   │       │   ├── d1Provider.ts.html
-│   │   │       │   ├── index.html
-│   │   │       │   ├── kvProvider.ts.html
-│   │   │       │   └── r2Provider.ts.html
-│   │   │       ├── fileSystem
-│   │   │       │   ├── fileSystemProvider.ts.html
-│   │   │       │   └── index.html
-│   │   │       ├── inMemory
-│   │   │       │   ├── index.html
-│   │   │       │   └── inMemoryProvider.ts.html
-│   │   │       ├── supabase
-│   │   │       │   ├── index.html
-│   │   │       │   ├── supabase.types.ts.html
-│   │   │       │   └── supabaseProvider.ts.html
-│   │   │       └── surrealdb
-│   │   │           ├── auth
-│   │   │           │   ├── authManager.ts.html
-│   │   │           │   ├── index.html
-│   │   │           │   ├── permissionHelpers.ts.html
-│   │   │           │   └── scopeDefinitions.ts.html
-│   │   │           ├── core
-│   │   │           │   ├── connectionManager.ts.html
-│   │   │           │   ├── index.html
-│   │   │           │   ├── queryBuilder.ts.html
-│   │   │           │   ├── surrealDbClient.ts.html
-│   │   │           │   └── transactionManager.ts.html
-│   │   │           ├── events
-│   │   │           │   ├── eventManager.ts.html
-│   │   │           │   ├── eventTypes.ts.html
-│   │   │           │   ├── index.html
-│   │   │           │   └── triggerBuilder.ts.html
-│   │   │           ├── functions
-│   │   │           │   ├── customFunctions.ts.html
-│   │   │           │   ├── functionRegistry.ts.html
-│   │   │           │   └── index.html
-│   │   │           ├── graph
-│   │   │           │   ├── graphOperations.ts.html
-│   │   │           │   ├── graphTypes.ts.html
-│   │   │           │   ├── index.html
-│   │   │           │   ├── pathFinder.ts.html
-│   │   │           │   └── relationshipManager.ts.html
-│   │   │           ├── introspection
-│   │   │           │   ├── index.html
-│   │   │           │   └── schemaIntrospector.ts.html
-│   │   │           ├── kv
-│   │   │           │   ├── index.html
-│   │   │           │   └── surrealKvProvider.ts.html
-│   │   │           ├── migrations
-│   │   │           │   ├── index.html
-│   │   │           │   ├── migrationRunner.ts.html
-│   │   │           │   └── migrationTypes.ts.html
-│   │   │           ├── query
-│   │   │           │   ├── forLoopBuilder.ts.html
-│   │   │           │   ├── index.html
-│   │   │           │   └── subqueryBuilder.ts.html
-│   │   │           ├── index.html
-│   │   │           └── types.ts.html
-│   │   ├── types-global
-│   │   │   ├── errors.ts.html
-│   │   │   └── index.html
-│   │   ├── utils
-│   │   │   ├── formatting
-│   │   │   │   ├── diffFormatter.ts.html
-│   │   │   │   ├── index.html
-│   │   │   │   ├── markdownBuilder.ts.html
-│   │   │   │   ├── tableFormatter.ts.html
-│   │   │   │   └── treeFormatter.ts.html
-│   │   │   ├── internal
-│   │   │   │   ├── error-handler
-│   │   │   │   │   ├── errorHandler.ts.html
-│   │   │   │   │   ├── helpers.ts.html
-│   │   │   │   │   ├── index.html
-│   │   │   │   │   ├── mappings.ts.html
-│   │   │   │   │   └── types.ts.html
-│   │   │   │   ├── encoding.ts.html
-│   │   │   │   ├── health.ts.html
-│   │   │   │   ├── index.html
-│   │   │   │   ├── logger.ts.html
-│   │   │   │   ├── performance.ts.html
-│   │   │   │   ├── requestContext.ts.html
-│   │   │   │   ├── runtime.ts.html
-│   │   │   │   └── startupBanner.ts.html
-│   │   │   ├── metrics
-│   │   │   │   ├── index.html
-│   │   │   │   ├── registry.ts.html
-│   │   │   │   └── tokenCounter.ts.html
-│   │   │   ├── network
-│   │   │   │   ├── fetchWithTimeout.ts.html
-│   │   │   │   └── index.html
-│   │   │   ├── parsing
-│   │   │   │   ├── csvParser.ts.html
-│   │   │   │   ├── dateParser.ts.html
-│   │   │   │   ├── frontmatterParser.ts.html
-│   │   │   │   ├── index.html
-│   │   │   │   ├── jsonParser.ts.html
-│   │   │   │   ├── pdfParser.ts.html
-│   │   │   │   ├── xmlParser.ts.html
-│   │   │   │   └── yamlParser.ts.html
-│   │   │   ├── scheduling
-│   │   │   │   ├── index.html
-│   │   │   │   └── scheduler.ts.html
-│   │   │   ├── security
-│   │   │   │   ├── idGenerator.ts.html
-│   │   │   │   ├── index.html
-│   │   │   │   ├── rateLimiter.ts.html
-│   │   │   │   └── sanitization.ts.html
-│   │   │   ├── telemetry
-│   │   │   │   ├── index.html
-│   │   │   │   ├── instrumentation.ts.html
-│   │   │   │   ├── metrics.ts.html
-│   │   │   │   ├── semconv.ts.html
-│   │   │   │   └── trace.ts.html
-│   │   │   └── types
-│   │   │       ├── guards.ts.html
-│   │   │       └── index.html
-│   │   ├── index.html
-│   │   ├── index.ts.html
-│   │   └── worker.ts.html
 │   ├── base.css
 │   ├── block-navigation.js
 │   ├── coverage-final.json
@@ -283,7 +45,9 @@ mcp-ts-template
 │   │           ├── pagination.md
 │   │           ├── ping.md
 │   │           └── progress.md
+│   ├── mcp-apps.md
 │   ├── mcp-elicitation-summary.md
+│   ├── mcp-sdk-changes.md
 │   ├── publishing-mcp-server-registry.md
 │   ├── storage-surrealdb-setup.md
 │   ├── surrealdb-schema.surql
@@ -325,6 +89,7 @@ mcp-ts-template
 │   │   │   └── prompt-registration.ts
 │   │   ├── resources
 │   │   │   ├── definitions
+│   │   │   │   ├── data-explorer-ui.app-resource.ts
 │   │   │   │   ├── echo.resource.ts
 │   │   │   │   └── index.ts
 │   │   │   ├── utils
@@ -333,11 +98,21 @@ mcp-ts-template
 │   │   │   └── resource-registration.ts
 │   │   ├── roots
 │   │   │   └── roots-registration.ts
+│   │   ├── tasks
+│   │   │   ├── core
+│   │   │   │   ├── storageBackedTaskStore.ts
+│   │   │   │   ├── taskManager.ts
+│   │   │   │   └── taskTypes.ts
+│   │   │   ├── utils
+│   │   │   │   └── taskToolDefinition.ts
+│   │   │   └── index.ts
 │   │   ├── tools
 │   │   │   ├── definitions
 │   │   │   │   ├── index.ts
+│   │   │   │   ├── template-async-countdown.task-tool.ts
 │   │   │   │   ├── template-cat-fact.tool.ts
 │   │   │   │   ├── template-code-review-sampling.tool.ts
+│   │   │   │   ├── template-data-explorer.app-tool.ts
 │   │   │   │   ├── template-echo-message.tool.ts
 │   │   │   │   ├── template-image-test.tool.ts
 │   │   │   │   └── template-madlibs-elicitation.tool.ts
@@ -528,6 +303,8 @@ mcp-ts-template
 │   │   │   └── mcp.test.ts
 │   │   ├── index.test.ts
 │   │   └── tokens.test.ts
+│   ├── fixtures
+│   │   └── index.ts
 │   ├── mcp-server
 │   │   ├── prompts
 │   │   │   ├── definitions
@@ -539,22 +316,39 @@ mcp-ts-template
 │   │   │   ├── definitions
 │   │   │   │   ├── echo.resource.test.ts
 │   │   │   │   └── index.test.ts
+│   │   │   ├── schemas
+│   │   │   │   ├── __snapshots__
+│   │   │   │   │   └── schema-snapshots.test.ts.snap
+│   │   │   │   ├── json-schema-compatibility.test.ts
+│   │   │   │   └── schema-snapshots.test.ts
 │   │   │   ├── utils
 │   │   │   │   ├── resourceDefinition.test.ts
 │   │   │   │   └── resourceHandlerFactory.test.ts
 │   │   │   └── resource-registration.test.ts
 │   │   ├── roots
 │   │   │   └── roots-registration.test.ts
+│   │   ├── tasks
+│   │   │   ├── core
+│   │   │   │   ├── storageBackedTaskStore.test.ts
+│   │   │   │   └── taskManager.test.ts
+│   │   │   └── utils
+│   │   │       └── taskToolDefinition.test.ts
 │   │   ├── tools
 │   │   │   ├── definitions
 │   │   │   │   ├── index.test.ts
+│   │   │   │   ├── template-async-countdown.task-tool.test.ts
 │   │   │   │   ├── template-cat-fact.tool.test.ts
 │   │   │   │   ├── template-code-review-sampling.tool.test.ts
 │   │   │   │   ├── template-echo-message.tool.test.ts
 │   │   │   │   ├── template-image-test.tool.test.ts
 │   │   │   │   └── template-madlibs-elicitation.tool.test.ts
+│   │   │   ├── schemas
+│   │   │   │   ├── __snapshots__
+│   │   │   │   │   └── schema-snapshots.test.ts.snap
+│   │   │   │   ├── json-schema-compatibility.test.ts
+│   │   │   │   ├── schema-snapshots.test.ts
+│   │   │   │   └── zod4-compatibility.test.ts
 │   │   │   ├── utils
-│   │   │   │   ├── core
 │   │   │   │   ├── index.test.ts
 │   │   │   │   ├── toolDefinition.test.ts
 │   │   │   │   └── toolHandlerFactory.test.ts
@@ -625,6 +419,7 @@ mcp-ts-template
 │   │   │   └── storageValidation.test.ts
 │   │   ├── providers
 │   │   │   ├── cloudflare
+│   │   │   │   ├── d1Provider.test.ts
 │   │   │   │   ├── kvProvider.test.ts
 │   │   │   │   └── r2Provider.test.ts
 │   │   │   ├── fileSystem
@@ -676,6 +471,7 @@ mcp-ts-template
 │   │   │   ├── errorHandler.unit.test.ts
 │   │   │   ├── health.test.ts
 │   │   │   ├── logger.int.test.ts
+│   │   │   ├── logger.test.ts
 │   │   │   ├── performance.init.test.ts
 │   │   │   ├── performance.test.ts
 │   │   │   ├── requestContext.test.ts
@@ -706,6 +502,7 @@ mcp-ts-template
 │   │   │   ├── idGenerator.test.ts
 │   │   │   ├── index.test.ts
 │   │   │   ├── rateLimiter.test.ts
+│   │   │   ├── sanitization.property.test.ts
 │   │   │   └── sanitization.test.ts
 │   │   ├── telemetry
 │   │   │   ├── index.test.ts

@@ -7,6 +7,31 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.8.1] - 2026-02-14
+
+### Changed
+
+- **AGENTS.md (CLAUDE.md) v2.5.0**: Comprehensive documentation update — added prompts workflow (Section IV.C), file suffix conventions, expanded directory table with prompts/roots/config/types-global entries, updated MCP spec references to 2025-11-25, clarified server capabilities vs SDK context features, updated Graph/Storage service docs.
+- **Test Setup Simplification**: Removed Bun test runner compatibility layer (`tests/bun-preload.ts`, `bunfig.toml [test]` section). Tests now target Vitest exclusively, eliminating `vi.mock`/`vi.mocked`/`vi.waitFor`/fake-timer shims.
+- **Vitest Coverage Thresholds**: Added minimum coverage gates (lines: 65%, functions: 60%, branches: 55%, statements: 65%).
+- **Transport Manager Tests**: Updated assertions for SDK 1.26.0 security model — HTTP transport receives factory function, not a server instance; added dedicated stdio vs HTTP test cases.
+- **Integration Test Cleanup**: Simplified `vi.useRealTimers()` calls in `errorHandler.int.test.ts` and `logger.int.test.ts` (removed Bun type guards).
+- **Directory Tree**: Refreshed `docs/tree.md` — removed stale `coverage/src/` HTML entries, added new task/app/fixture/schema paths.
+
+### Added
+
+- **Test Fixtures Module** (`tests/fixtures/index.ts`): Shared factory functions for `RequestContext`, `SdkContext`, and mock Surreal client — reduces boilerplate across test files.
+- **Schema Snapshot Tests**: Added snapshot tests for tool and resource JSON Schema output (`tests/mcp-server/{tools,resources}/schemas/schema-snapshots.test.ts`) to guard against unintentional breaking changes.
+- **Logger Unit Tests** (`tests/utils/internal/logger.test.ts`): Covers singleton behavior, initialization, RFC5424 level mapping, rate limiting, error-level methods, and log level filtering.
+- **Sanitization Property Tests** (`tests/utils/security/sanitization.property.test.ts`): Property-based tests using `fast-check` for `sanitizeHtml`, `sanitizeString`, `sanitizeUrl`, `sanitizeJson`, `sanitizeNumber`, and `sanitizeForLogging`.
+- **Tool/Resource Barrel Export Tests**: Replaced TODO stubs with real validation — checks unique names, required metadata, valid schemas, and logic/taskHandlers presence.
+
+### Dependencies
+
+- Added `fast-check` (`^4.5.3`) as dev dependency for property-based testing.
+
+---
+
 ## [2.8.0] - 2026-02-14
 
 ### Security

@@ -1,8 +1,8 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.4.7
+**Version:** 2.5.0
 **Target Project:** mcp-ts-template
-**Last Updated:** 2024-10-15
+**Last Updated:** 2026-02-14
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
@@ -51,14 +51,19 @@ Separation of concerns maps directly to the filesystem. Always place files in th
 
 | Directory                                   | Purpose & Guidance                                                                                                                                                                                                                                                                                                                |
 | :------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`src/mcp-server/tools/definitions/`**     | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Follow the **Tool Development Workflow**.                                                                                                                                                                                                           |
-| **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Follow the **Resource Development Workflow**.                                                                                                                                                                                        |
+| **`src/mcp-server/tools/definitions/`**     | **MCP Tool definitions.** Add new capabilities here as `[tool-name].tool.ts`. Variants: `.task-tool.ts` (async tasks), `.app-tool.ts` (UI-enabled). Follow the **Tool Development Workflow**.                                                                                                                                     |
+| **`src/mcp-server/resources/definitions/`** | **MCP Resource definitions.** Add data sources or contexts as `[resource-name].resource.ts`. Variant: `.app-resource.ts` (linked UI). Follow the **Resource Development Workflow**.                                                                                                                                               |
+| **`src/mcp-server/prompts/definitions/`**   | **MCP Prompt definitions.** Add prompt templates as `[prompt-name].prompt.ts`. Follow the **Prompt Development Workflow** (Section IV.C).                                                                                                                                                                                         |
 | **`src/mcp-server/tools/utils/`**           | **Shared tool utilities:** Core tool infrastructure (`ToolDefinition`, `toolHandlerFactory`)                                                                                                                                                                                                                                      |
 | **`src/mcp-server/resources/utils/`**       | **Shared resource utilities,** including `ResourceDefinition` and resource handler factory.                                                                                                                                                                                                                                       |
+| **`src/mcp-server/prompts/utils/`**         | **Shared prompt utilities,** including `PromptDefinition` type.                                                                                                                                                                                                                                                                   |
+| **`src/mcp-server/roots/`**                 | **Roots capability registration.** Tracks client-provided root URIs via `RootsRegistry`.                                                                                                                                                                                                                                          |
 | **`src/mcp-server/tasks/`**                 | **Tasks API infrastructure (experimental).** Contains `TaskManager`, `TaskToolDefinition`, and type re-exports from SDK. Task tool definitions go in `tools/definitions/` with `.task-tool.ts` suffix.                                                                                                                            |
 | **`src/mcp-server/transports/`**            | **Transport implementations:**<br>- `http/` (Hono + `@hono/mcp` Streamable HTTP)<br>- `stdio/` (MCP spec stdio transport)<br>- `auth/` (strategies and helpers). HTTP mode can enforce JWT or OAuth. Stdio mode should not implement HTTP-based auth.                                                                             |
+| **`src/config/`**                           | **Configuration module.** Zod-validated config from environment variables. Derives `serviceName`/`version` from `package.json`.                                                                                                                                                                                                   |
+| **`src/types-global/`**                     | **Global type definitions** shared across the codebase (e.g., error types).                                                                                                                                                                                                                                                       |
 | **`src/services/`**                         | **External service integrations** following a consistent domain-driven pattern:<br>- Each service domain (e.g., `llm/`, `speech/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`, and `index.ts`<br>- Use DI for all service dependencies. See **Service Development Pattern** below. |
-| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, surrealdb, cloudflare-r2, cloudflare-kv).                                                                                                                                                                                                         |
+| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, surrealdb, cloudflare).                                                                                                                                                                                                                           |
 | **`src/container/`**                        | **Dependency Injection (`tsyringe`).** Service registration and tokens.                                                                                                                                                                                                                                                           |
 | **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, formatting, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                                                                                    |
 | **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                                                                                                    |
@@ -81,13 +86,14 @@ Separation of concerns maps directly to the filesystem. Always place files in th
 
 ---
 
-## IV. Tool & Resource Development Workflow
+## IV. Tool, Resource & Prompt Development Workflow
 
 **Common Steps (Tools & Resources):**
 
 1. **File Location**
    - **Tools:** `src/mcp-server/tools/definitions/[tool-name].tool.ts` (template: `template-echo-message.tool.ts`)
    - **Resources:** `src/mcp-server/resources/definitions/[resource-name].resource.ts` (template: `echo.resource.ts`)
+   - **Prompts:** `src/mcp-server/prompts/definitions/[prompt-name].prompt.ts` (template: `code-review.prompt.ts`)
 
 2. **Define the ToolDefinition or ResourceDefinition**
    - Export single `const` of type `ToolDefinition<InputSchema, OutputSchema>` or `ResourceDefinition<ParamsSchema, OutputSchema>` with:
@@ -110,14 +116,25 @@ Separation of concerns maps directly to the filesystem. Always place files in th
 4. **Register via Barrel Export**
    - **Tools:** Add to `src/mcp-server/tools/definitions/index.ts` → `allToolDefinitions`
    - **Resources:** Add to `src/mcp-server/resources/definitions/index.ts` → `allResourceDefinitions`
+   - **Prompts:** Add to `src/mcp-server/prompts/definitions/index.ts` → `allPromptDefinitions`
+
+**File Suffix Conventions:**
+
+- `.tool.ts` — standard tool
+- `.task-tool.ts` — async task tool (Section IV.B)
+- `.app-tool.ts` — UI-enabled tool (MCP Apps extension, links to an `.app-resource.ts`)
+- `.resource.ts` — standard resource
+- `.app-resource.ts` — UI resource linked to an app tool
+- `.prompt.ts` — prompt template
 
 **Resource-Specific Notes:**
 
 - Resources use `uriTemplate` (e.g., `echo://{message}`), `paramsSchema`, and optional `list()` for discovery
-- Logic signature: `(uri: URL, params, context) => result` (can be `async`)
+- Logic signature: `(uri: URL, params, context: RequestContext) => result` (can be `async`)
+- `list()` signature differs from `logic`: `(extra: RequestHandlerExtra) => ListResourcesResult` — receives `extra._meta?.cursor` for pagination, not `RequestContext`
 - See `echo.resource.ts` and Section IV.A for complete examples
 
-**Resource Pagination:** Resources returning large lists must implement pagination per [MCP spec 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/utils/pagination). Use `extractCursor(meta)`, `paginateArray(...)` from `@/utils/index.js`. Storage providers: use `encodeCursor`/`decodeCursor` from `@/storage/core/storageValidation.js` for tenant-bound cursors. Cursors are opaque; invalid cursors → `JsonRpcErrorCode.InvalidParams` (-32602). Include `nextCursor` only when more results exist.
+**Resource Pagination:** Resources returning large lists must implement pagination per [MCP spec 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/utils/pagination). Use `extractCursor(meta)`, `paginateArray(...)` from `@/utils/index.js`. Storage providers: use `encodeCursor`/`decodeCursor` from `@/storage/core/storageValidation.js` for tenant-bound cursors. Cursors are opaque; invalid cursors → `JsonRpcErrorCode.InvalidParams` (-32602). Include `nextCursor` only when more results exist.
 
 ---
 
@@ -143,7 +160,7 @@ See Section IV for full workflow, Section XIV for comprehensive checklist.
 
 Task tools enable long-running async operations using the MCP Tasks API. They follow a "call-now, fetch-later" pattern where clients can poll for status and retrieve results after completion.
 
-> **Note:** Tasks API is experimental (SDK 1.24+) and may change without notice.
+> **Note:** Tasks API is part of the [MCP spec 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks) as an experimental capability and may change without notice.
 
 - [ ] **1. Study template:** [template-async-countdown.task-tool.ts](src/mcp-server/tools/definitions/template-async-countdown.task-tool.ts)
 - [ ] **2. Create file:** `src/mcp-server/tools/definitions/[name].task-tool.ts` (note: `.task-tool.ts` suffix)
@@ -177,13 +194,30 @@ Task tools enable long-running async operations using the MCP Tasks API. They fo
 
 ---
 
+## IV.C. Quick Start: Creating Your First Prompt
+
+Prompts are reusable message templates that clients can discover and invoke. They follow the same definition → registration pattern as tools and resources.
+
+- [ ] **1. Study template:** [code-review.prompt.ts](src/mcp-server/prompts/definitions/code-review.prompt.ts) — understand: metadata → schema → generate → export
+- [ ] **2. Create file:** `src/mcp-server/prompts/definitions/[your-prompt-name].prompt.ts` (kebab-case)
+- [ ] **3. Define metadata:** `PROMPT_NAME` (snake_case), `PROMPT_DESCRIPTION` (user-facing)
+- [ ] **4. Create schema (optional):** `ArgumentsSchema` as `z.object()` — all fields need `.describe()`
+- [ ] **5. Implement `generate`:** `(args) => PromptMessage[]` — returns array of `{ role, content }` messages (can be `async`)
+- [ ] **6. Export `PromptDefinition`:** `export const myPrompt: PromptDefinition<typeof ArgumentsSchema> = { name, description, argumentsSchema, generate }`
+- [ ] **7. Register:** Add to `allPromptDefinitions` in [index.ts](src/mcp-server/prompts/definitions/index.ts)
+- [ ] **8. Quality check:** `bun run devcheck`
+
+**Key differences from tools:** No `logic`/`appContext`/`sdkContext` — prompts are simpler. The `generate` function receives validated args and returns `PromptMessage[]` directly. No auth wrappers needed.
+
+---
+
 ## V. Service Development Pattern
 
 > **All services:** `src/services/[service-name]/` with `core/` (interfaces), `providers/` (impls), `types.ts`, `index.ts`. See [docs/tree.md](docs/tree.md).
 
 **Patterns:** Single-provider (e.g., LLM) → direct DI `@inject(LlmProvider)`. Multi-provider (e.g., Speech) → create orchestrator for routing/aggregation.
 
-**Provider requirements:** Implement `I<Service>Provider`, `@injectable()`, `healthCheck()`, throw `McpError` on failure, name as `<name>.provider.ts` (kebab-case).
+**Provider requirements:** Implement `I<Service>Provider`, `@injectable()`, `healthCheck()`, throw `McpError` on failure, name as `<name>.provider.ts`.
 
 **Add service:** Dir structure → Interface → Providers → Types → Barrel export → DI token (`tokens.ts`) → Register (`registrations/core.ts`)
 
@@ -196,7 +230,7 @@ Task tools enable long-running async operations using the MCP Tasks API. They fo
 | Service           | Token                   | Usage                                                                   | Notes                          |
 | ----------------- | ----------------------- | ----------------------------------------------------------------------- | ------------------------------ |
 | `ILlmProvider`    | `LlmProvider`           | `@inject(LlmProvider) private llmProvider: ILlmProvider`                |                                |
-| `IGraphProvider`  | `GraphProvider`         | `@inject(GraphProvider) private graphProvider: IGraphProvider`          | Only when using graph features |
+| `GraphService`    | `GraphService`          | `@inject(GraphService) private graphService: GraphService`              | Only when using graph features |
 | `StorageService`  | `StorageService`        | `@inject(StorageService) private storage: StorageService`               | Requires `context.tenantId`    |
 | `RateLimiter`     | `RateLimiterService`    | `@inject(RateLimiterService) private rateLimiter: RateLimiter`          |                                |
 | `Logger`          | `Logger`                | `@inject(Logger) private logger: typeof logger`                         | Pino-backed singleton          |
@@ -205,9 +239,9 @@ Task tools enable long-running async operations using the MCP Tasks API. They fo
 | SurrealDB Client  | `SurrealdbClient`       | `@inject(SurrealdbClient) private client: Surreal`                      | Only when needed               |
 | Transport Manager | `TransportManagerToken` | `@inject(TransportManagerToken) private tm: TransportManager`           |                                |
 
-**Graph Service:** Graph operations (relationships, traversals, pathfinding) via SurrealDB. Inject `IGraphProvider`. Operations: `relate()`, `unrelate()`, `traverse()`, `shortestPath()`, `get{Outgoing|Incoming}Edges()`, `pathExists()`.
+**Graph Service:** Graph operations (relationships, traversals, pathfinding) via SurrealDB. Inject `GraphService`. Operations: `relate()`, `unrelate()`, `traverse()`, `shortestPath()`, `get{Outgoing|Incoming}Edges()`, `pathExists()`.
 
-**Storage:** `STORAGE_PROVIDER_TYPE` = `in-memory` | `filesystem` | `supabase` | `surrealdb` | `cloudflare-r2/kv`. Use DI-injected `StorageService`. Features: input validation, parallel batch ops (`getMany/setMany/deleteMany`), secure tenant-bound pagination, TTL support. See [storage docs](src/storage/README.md). SurrealDB: init schema via `docs/surrealdb-schema.surql`.
+**Storage:** `STORAGE_PROVIDER_TYPE` = `in-memory` | `filesystem` | `supabase` | `surrealdb` | `cloudflare-r2` | `cloudflare-kv` | `cloudflare-d1`. Use DI-injected `StorageService`. Features: input validation, parallel batch ops (`getMany/setMany/deleteMany`), secure tenant-bound pagination, TTL support. See [storage docs](src/storage/README.md). SurrealDB: init schema via `docs/surrealdb-schema.surql`.
 
 #### Directly Imported Utilities (`src/utils/`)
 
@@ -242,7 +276,7 @@ Task tools enable long-running async operations using the MCP Tasks API. They fo
 
 ## VIII. Transports & Server Lifecycle
 
-**`createMcpServerInstance`** (`server.ts`): Init context, create server with capabilities (logging, listChanged, elicitation, sampling, prompts, roots), register via DI. **`TransportManager`** (`transports/manager.ts`): Resolve factory, instantiate transport, handle lifecycle. **Worker** (`worker.ts`): Cloudflare adapter, `serverless` flag.
+**`createMcpServerInstance`** (`server.ts`): Init context, create server with declared capabilities (`logging`, `resources`/`tools`/`prompts` with `listChanged`, `tasks` with list/cancel/requests). Elicitation, sampling, and roots are SDK context features available to tool logic via `sdkContext`, not declared server capabilities. **`TransportManager`** (`transports/manager.ts`): Resolve factory, instantiate transport, handle lifecycle. **Worker** (`worker.ts`): Cloudflare adapter, `serverless` flag.
 
 ---
 
@@ -305,15 +339,15 @@ EOF
 
 ## XI. Configuration & Environment
 
-All config validated via Zod in `src/config/index.ts`. Derives `serviceName`/`version` from `package.json`.
+All config validated via Zod in `src/config/index.ts`. Config module derives `mcpServerName`/`mcpServerVersion` from `package.json` (overridable via `MCP_SERVER_NAME`/`MCP_SERVER_VERSION` env vars).
 
-| Category      | Key Variables                                                                                                   |
-| ------------- | --------------------------------------------------------------------------------------------------------------- |
-| **Transport** | `MCP_TRANSPORT_TYPE` (`stdio`\|`http`), `MCP_HTTP_PORT/HOST/PATH`                                               |
-| **Auth**      | `MCP_AUTH_MODE` (`none`\|`jwt`\|`oauth`), `MCP_AUTH_SECRET_KEY`, `OAUTH_*`                                      |
-| **Storage**   | `STORAGE_PROVIDER_TYPE` (`in-memory`\|`filesystem`\|`supabase`\|`surrealdb`\|`cloudflare-r2/kv`), `SURREALDB_*` |
-| **LLM**       | `OPENROUTER_API_KEY`, `OPENROUTER_APP_URL/NAME`, `LLM_DEFAULT_*`                                                |
-| **Telemetry** | `OTEL_ENABLED`, `OTEL_SERVICE_NAME/VERSION`, `OTEL_EXPORTER_OTLP_*`                                             |
+| Category      | Key Variables                                                                                                                                  |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Transport** | `MCP_TRANSPORT_TYPE` (`stdio`\|`http`), `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_HTTP_ENDPOINT_PATH`                                             |
+| **Auth**      | `MCP_AUTH_MODE` (`none`\|`jwt`\|`oauth`), `MCP_AUTH_SECRET_KEY`, `OAUTH_*`                                                                     |
+| **Storage**   | `STORAGE_PROVIDER_TYPE` (`in-memory`\|`filesystem`\|`supabase`\|`surrealdb`\|`cloudflare-r2`\|`cloudflare-kv`\|`cloudflare-d1`), `SURREALDB_*` |
+| **LLM**       | `OPENROUTER_API_KEY`, `OPENROUTER_APP_URL/NAME`, `LLM_DEFAULT_*`                                                                               |
+| **Telemetry** | `OTEL_ENABLED`, `OTEL_SERVICE_NAME/VERSION`, `OTEL_EXPORTER_OTLP_*`                                                                            |
 
 ---
 
@@ -335,7 +369,7 @@ All config validated via Zod in `src/config/index.ts`. Derives `serviceName`/`ve
 
 ## XIV. Quick Checklist
 
-- [ ] Implement pure logic in `*.tool.ts`/`*.resource.ts` (no `try...catch`, throw `McpError`)
+- [ ] Implement pure logic in `*.tool.ts`/`*.resource.ts`/`*.prompt.ts` (no `try...catch`, throw `McpError`)
 - [ ] Apply auth with `withToolAuth`/`withResourceAuth`
 - [ ] Use `logger` with `appContext`, `StorageService` (DI) for persistence
 - [ ] Use `sdkContext.elicitInput()`/`createMessage()` for client interaction
