@@ -108,9 +108,14 @@ export class Container {
   /** Create a child container that inherits registrations from this container. */
   fork(): Container {
     const child = new Container();
-    child.registry = new Map(this.registry);
+    child.registry = new Map(
+      [...this.registry.entries()].map(([k, v]) => [k, { ...v }]),
+    );
     child.multiRegistry = new Map(
-      [...this.multiRegistry.entries()].map(([k, v]) => [k, [...v]]),
+      [...this.multiRegistry.entries()].map(([k, v]) => [
+        k,
+        v.map((r) => ({ ...r })),
+      ]),
     );
     return child;
   }

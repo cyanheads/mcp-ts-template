@@ -42,8 +42,8 @@ export const registerCoreServices = () => {
   container.registerValue(Logger, logger);
 
   // Supabase client — lazy singleton, resolved on first use
-  container.registerSingleton(SupabaseAdminClient, () => {
-    const cfg = container.resolve(AppConfig);
+  container.registerSingleton(SupabaseAdminClient, (c) => {
+    const cfg = c.resolve(AppConfig);
     if (!cfg.supabase?.url || !cfg.supabase?.serviceRoleKey) {
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
@@ -60,8 +60,8 @@ export const registerCoreServices = () => {
   });
 
   // SurrealDB client — lazy singleton with async connection
-  container.registerSingleton(SurrealdbClient, () => {
-    const cfg = container.resolve(AppConfig);
+  container.registerSingleton(SurrealdbClient, (c) => {
+    const cfg = c.resolve(AppConfig);
     if (
       !cfg.surrealdb?.url ||
       !cfg.surrealdb?.namespace ||
