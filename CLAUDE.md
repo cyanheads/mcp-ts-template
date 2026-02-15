@@ -227,17 +227,17 @@ Prompts are reusable message templates that clients can discover and invoke. The
 
 #### DI-Managed Services (tokens in `src/container/tokens.ts`)
 
-| Service           | Token                   | Resolution                                    | Notes                          |
-| ----------------- | ----------------------- | --------------------------------------------- | ------------------------------ |
-| `ILlmProvider`    | `LlmProvider`           | `container.resolve(LlmProvider)`              |                                |
-| `GraphService`    | `GraphService`          | `container.resolve(GraphService)`             | Only when using graph features |
-| `StorageService`  | `StorageService`        | `container.resolve(StorageService)`           | Requires `context.tenantId`    |
-| `RateLimiter`     | `RateLimiterService`    | `container.resolve(RateLimiterService)`       |                                |
-| `Logger`          | `Logger`                | `container.resolve(Logger)`                   | Pino-backed singleton          |
-| App Config        | `AppConfig`             | `container.resolve(AppConfig)`                |                                |
-| Supabase Client   | `SupabaseAdminClient`   | `container.resolve(SupabaseAdminClient)`      | Only when needed               |
-| SurrealDB Client  | `SurrealdbClient`       | `container.resolve(SurrealdbClient)`          | Only when needed               |
-| Transport Manager | `TransportManagerToken` | `container.resolve(TransportManagerToken)`    |                                |
+| Service           | Token                   | Resolution                                 | Notes                          |
+| ----------------- | ----------------------- | ------------------------------------------ | ------------------------------ |
+| `ILlmProvider`    | `LlmProvider`           | `container.resolve(LlmProvider)`           |                                |
+| `GraphService`    | `GraphService`          | `container.resolve(GraphService)`          | Only when using graph features |
+| `StorageService`  | `StorageService`        | `container.resolve(StorageService)`        | Requires `context.tenantId`    |
+| `RateLimiter`     | `RateLimiterService`    | `container.resolve(RateLimiterService)`    |                                |
+| `Logger`          | `Logger`                | `container.resolve(Logger)`                | Pino-backed singleton          |
+| App Config        | `AppConfig`             | `container.resolve(AppConfig)`             |                                |
+| Supabase Client   | `SupabaseAdminClient`   | `container.resolve(SupabaseAdminClient)`   | Only when needed               |
+| SurrealDB Client  | `SurrealdbClient`       | `container.resolve(SurrealdbClient)`       | Only when needed               |
+| Transport Manager | `TransportManagerToken` | `container.resolve(TransportManagerToken)` |                                |
 
 **Graph Service:** Graph operations (relationships, traversals, pathfinding) via SurrealDB. Inject `GraphService`. Operations: `relate()`, `unrelate()`, `traverse()`, `shortestPath()`, `get{Outgoing|Incoming}Edges()`, `pathExists()`.
 

@@ -533,3 +533,663 @@ exports[`Tool Schema Snapshots > Tool: template_madlibs_elicitation > outputSche
   "type": "object",
 }
 `;
+
+exports[`Tool Schema Snapshots Tool: template_async_countdown inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "message": {
+      "description": "Optional message to include in the final result",
+      "type": "string",
+    },
+    "seconds": {
+      "description": "Number of seconds to count down (1-60)",
+      "maximum": 60,
+      "minimum": 1,
+      "type": "integer",
+    },
+    "simulateFailure": {
+      "description": "If true, simulates a failure at 50% progress (for testing)",
+      "type": "boolean",
+    },
+  },
+  "required": [
+    "seconds",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_async_countdown outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "properties": {
+    "completedAt": {
+      "description": "ISO timestamp when countdown ended",
+      "type": "string",
+    },
+    "duration": {
+      "description": "Actual duration in milliseconds",
+      "type": "number",
+    },
+    "message": {
+      "description": "Completion or cancellation message",
+      "type": "string",
+    },
+    "progress": {
+      "description": "Final progress percentage (0-100)",
+      "type": "number",
+    },
+    "startedAt": {
+      "description": "ISO timestamp when countdown started",
+      "type": "string",
+    },
+    "success": {
+      "description": "Whether the countdown completed successfully",
+      "type": "boolean",
+    },
+    "wasCancelled": {
+      "description": "Whether the task was cancelled",
+      "type": "boolean",
+    },
+  },
+  "required": [
+    "success",
+    "message",
+    "startedAt",
+    "completedAt",
+    "duration",
+    "progress",
+    "wasCancelled",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_cat_fact inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Parameters for fetching a random cat fact.",
+  "properties": {
+    "maxLength": {
+      "description": "Optional: The maximum character length of the cat fact to retrieve.",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer",
+    },
+  },
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_cat_fact outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Cat fact tool response payload.",
+  "properties": {
+    "fact": {
+      "description": "The retrieved cat fact.",
+      "type": "string",
+    },
+    "length": {
+      "description": "The character length of the cat fact.",
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer",
+    },
+    "requestedMaxLength": {
+      "description": "The maximum length that was requested for the fact.",
+      "maximum": 9007199254740991,
+      "minimum": -9007199254740991,
+      "type": "integer",
+    },
+    "timestamp": {
+      "description": "ISO 8601 timestamp of when the response was generated.",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+      "type": "string",
+    },
+  },
+  "required": [
+    "fact",
+    "length",
+    "timestamp",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_code_review_sampling inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Request an LLM-powered code review via sampling.",
+  "properties": {
+    "code": {
+      "description": "The code snippet to review.",
+      "maxLength": 10000,
+      "minLength": 1,
+      "type": "string",
+    },
+    "focus": {
+      "default": "general",
+      "description": "The focus area for the code review.",
+      "enum": [
+        "security",
+        "performance",
+        "style",
+        "general",
+      ],
+      "type": "string",
+    },
+    "language": {
+      "description": "Programming language of the code (e.g., "typescript", "python").",
+      "type": "string",
+    },
+    "maxTokens": {
+      "default": 500,
+      "description": "Maximum tokens for the LLM response.",
+      "maximum": 2000,
+      "minimum": 100,
+      "type": "integer",
+    },
+  },
+  "required": [
+    "code",
+    "focus",
+    "maxTokens",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_code_review_sampling outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Code review tool response payload.",
+  "properties": {
+    "code": {
+      "description": "The original code snippet.",
+      "type": "string",
+    },
+    "focus": {
+      "description": "The review focus area.",
+      "type": "string",
+    },
+    "language": {
+      "description": "The programming language.",
+      "type": "string",
+    },
+    "review": {
+      "description": "The LLM-generated code review summary.",
+      "type": "string",
+    },
+    "tokenUsage": {
+      "additionalProperties": false,
+      "description": "Token usage information.",
+      "properties": {
+        "actual": {
+          "description": "Actual tokens used (if available).",
+          "type": "number",
+        },
+        "requested": {
+          "description": "Requested max tokens.",
+          "type": "number",
+        },
+      },
+      "required": [
+        "requested",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "code",
+    "focus",
+    "review",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_data_explorer inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Parameters for generating sample sales data.",
+  "properties": {
+    "rowCount": {
+      "default": 20,
+      "description": "Number of sample rows to generate (5–100).",
+      "maximum": 100,
+      "minimum": 5,
+      "type": "integer",
+    },
+  },
+  "required": [
+    "rowCount",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_data_explorer outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Sales data explorer response payload.",
+  "properties": {
+    "generatedAt": {
+      "description": "ISO 8601 timestamp when data was generated.",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+      "type": "string",
+    },
+    "rows": {
+      "description": "Generated sales data rows.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "description": "Sale date (YYYY-MM-DD).",
+            "type": "string",
+          },
+          "id": {
+            "description": "Unique row identifier.",
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "product": {
+            "description": "Product name.",
+            "type": "string",
+          },
+          "region": {
+            "description": "Sales region name.",
+            "type": "string",
+          },
+          "revenue": {
+            "description": "Revenue in USD.",
+            "type": "number",
+          },
+          "units": {
+            "description": "Units sold.",
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+        },
+        "required": [
+          "id",
+          "region",
+          "product",
+          "units",
+          "revenue",
+          "date",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "summary": {
+      "additionalProperties": false,
+      "description": "Aggregate summary of the dataset.",
+      "properties": {
+        "totalRevenue": {
+          "description": "Sum of all revenue.",
+          "type": "number",
+        },
+        "totalRows": {
+          "description": "Total number of rows.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "totalUnits": {
+          "description": "Sum of all units sold.",
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "totalRows",
+        "totalRevenue",
+        "totalUnits",
+      ],
+      "type": "object",
+    },
+  },
+  "required": [
+    "rows",
+    "generatedAt",
+    "summary",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_echo_message inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Echo a message with optional formatting and repetition.",
+  "properties": {
+    "includeTimestamp": {
+      "default": false,
+      "description": "Whether to include an ISO 8601 timestamp in the response.",
+      "type": "boolean",
+    },
+    "message": {
+      "description": "The message to echo back. To trigger a test error, provide 'TRIGGER_ERROR'.",
+      "maxLength": 1000,
+      "minLength": 1,
+      "type": "string",
+    },
+    "mode": {
+      "default": "standard",
+      "description": "How to format the message ('standard' | 'uppercase' | 'lowercase').",
+      "enum": [
+        "standard",
+        "uppercase",
+        "lowercase",
+      ],
+      "type": "string",
+    },
+    "repeat": {
+      "default": 1,
+      "description": "Number of times to repeat the formatted message.",
+      "maximum": 5,
+      "minimum": 1,
+      "type": "integer",
+    },
+  },
+  "required": [
+    "message",
+    "mode",
+    "repeat",
+    "includeTimestamp",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_echo_message outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Echo tool response payload.",
+  "properties": {
+    "formattedMessage": {
+      "description": "The message after applying the specified formatting.",
+      "type": "string",
+    },
+    "mode": {
+      "description": "The formatting mode that was applied.",
+      "enum": [
+        "standard",
+        "uppercase",
+        "lowercase",
+      ],
+      "type": "string",
+    },
+    "originalMessage": {
+      "description": "The original message provided in the input.",
+      "type": "string",
+    },
+    "repeatCount": {
+      "description": "The number of times the message was repeated.",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer",
+    },
+    "repeatedMessage": {
+      "description": "The final message repeated the requested number of times.",
+      "type": "string",
+    },
+    "timestamp": {
+      "description": "Optional ISO 8601 timestamp of when the response was generated.",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+      "type": "string",
+    },
+  },
+  "required": [
+    "originalMessage",
+    "formattedMessage",
+    "repeatedMessage",
+    "mode",
+    "repeatCount",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_image_test inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Parameters for fetching a random image.",
+  "properties": {
+    "trigger": {
+      "default": true,
+      "description": "A trigger to invoke the tool and fetch a new cat image.",
+      "type": "boolean",
+    },
+  },
+  "required": [
+    "trigger",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_image_test outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Image tool response payload.",
+  "properties": {
+    "data": {
+      "description": "Base64 encoded image data.",
+      "type": "string",
+    },
+    "mimeType": {
+      "description": "The MIME type of the image (e.g., 'image/jpeg').",
+      "type": "string",
+    },
+  },
+  "required": [
+    "data",
+    "mimeType",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_madlibs_elicitation inputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Inputs for the Mad Libs game. Any missing fields will be elicited.",
+  "properties": {
+    "adjective": {
+      "description": "An adjective for the story.",
+      "type": "string",
+    },
+    "noun": {
+      "description": "A noun for the story.",
+      "type": "string",
+    },
+    "verb": {
+      "description": "A verb (past tense) for the story.",
+      "type": "string",
+    },
+  },
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
+
+exports[`Tool Schema Snapshots Tool: template_madlibs_elicitation outputSchema JSON output should be stable 1`] = `
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "The completed Mad Libs story and the words used.",
+  "properties": {
+    "adjective": {
+      "description": "The adjective used in the story.",
+      "type": "string",
+    },
+    "noun": {
+      "description": "The noun used in the story.",
+      "type": "string",
+    },
+    "story": {
+      "description": "The final, generated Mad Libs story.",
+      "type": "string",
+    },
+    "verb": {
+      "description": "The verb used in the story.",
+      "type": "string",
+    },
+  },
+  "required": [
+    "story",
+    "noun",
+    "verb",
+    "adjective",
+  ],
+  "type": "object",
+  "~standard": {
+    "jsonSchema": {
+      "input": [Function],
+      "output": [Function],
+    },
+    "validate": [Function],
+    "vendor": "zod",
+    "version": 1,
+  },
+}
+`;
