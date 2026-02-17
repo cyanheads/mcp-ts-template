@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-14 17:36:55
+Generated on: 2026-02-17 12:38:32
 
 ```
 mcp-ts-template/
@@ -291,6 +291,7 @@ mcp-ts-template/
 │   │   ├── registrations/
 │   │   │   ├── core.test.ts
 │   │   │   └── mcp.test.ts
+│   │   ├── container.test.ts
 │   │   ├── index.test.ts
 │   │   └── tokens.test.ts
 │   ├── fixtures/
@@ -304,6 +305,7 @@ mcp-ts-template/
 │   │   │   └── prompt-registration.test.ts
 │   │   ├── resources/
 │   │   │   ├── definitions/
+│   │   │   │   ├── data-explorer-ui.app-resource.test.ts
 │   │   │   │   ├── echo.resource.test.ts
 │   │   │   │   └── index.test.ts
 │   │   │   ├── schemas/
@@ -371,8 +373,7 @@ mcp-ts-template/
 │   │   │   │   └── stdioTransport.test.ts
 │   │   │   ├── ITransport.test.ts
 │   │   │   └── manager.test.ts
-│   │   ├── server.test.ts
-│   │   └── server.test.ts.disabled
+│   │   └── server.test.ts
 │   ├── mocks/
 │   │   ├── handlers.ts
 │   │   └── server.ts

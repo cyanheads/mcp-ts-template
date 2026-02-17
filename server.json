@@ -6,14 +6,14 @@
     "url": "https://github.com/cyanheads/mcp-ts-template",
     "source": "github"
   },
-  "version": "2.8.1",
+  "version": "2.9.2",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "mcp-ts-template",
       "runtimeHint": "bun",
-      "version": "2.8.1",
+      "version": "2.9.2",
       "packageArguments": [
         {
           "type": "positional",
@@ -42,7 +42,7 @@
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "mcp-ts-template",
       "runtimeHint": "bun",
-      "version": "2.8.1",
+      "version": "2.9.2",
       "packageArguments": [
         {
           "type": "positional",
