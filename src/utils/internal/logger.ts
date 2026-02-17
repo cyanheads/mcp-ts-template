@@ -244,6 +244,10 @@ export class Logger {
     );
   }
 
+  async [Symbol.asyncDispose](): Promise<void> {
+    return this.close();
+  }
+
   public async close(): Promise<void> {
     if (!this.initialized) return Promise.resolve();
     this.info(
