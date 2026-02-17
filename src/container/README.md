@@ -2,14 +2,15 @@
 
 ## Overview
 
-The `container/` directory manages dependency injection (DI) using [tsyringe](https://github.com/microsoft/tsyringe). This module provides centralized registration and resolution of services, ensuring loose coupling and testability.
+The `container/` directory implements a minimal, type-safe DI container with zero external dependencies. No decorators, no `reflect-metadata`, no runtime magic — just typed tokens and factory functions.
 
 **Key Files:**
 
-- **[tokens.ts](tokens.ts)** - DI tokens (symbols for interface resolution)
-- **[registrations/core.ts](registrations/core.ts)** - Core service registration
-- **[registrations/mcp.ts](registrations/mcp.ts)** - MCP-specific registration
-- **[index.ts](index.ts)** - Barrel export and container instance
+- **[container.ts](container.ts)** — `Container` class, `Token<T>`, `token<T>()` factory
+- **[tokens.ts](tokens.ts)** — All DI tokens with phantom-typed interfaces
+- **[registrations/core.ts](registrations/core.ts)** — Core service registration (config, logging, storage, LLM, etc.)
+- **[registrations/mcp.ts](registrations/mcp.ts)** — MCP-specific registration (tools, resources, prompts, transport)
+- **[index.ts](index.ts)** — Barrel export and `composeContainer()` entry point
 
 ---
 
@@ -18,30 +19,28 @@ The `container/` directory manages dependency injection (DI) using [tsyringe](ht
 ```
 ┌─────────────────────────────────────────────────┐
 │            Application Entry Point              │
-│              (src/index.ts)                     │
+│              (src/index.ts)                      │
 └────────────────┬────────────────────────────────┘
                  │
-                 │ Imports container
+                 │ composeContainer()
                  │
 ┌────────────────▼────────────────────────────────┐
-│              Container Module                   │
-│                                                 │
-│  ┌──────────────────────────────────────────┐   │
-│  │         Registration Phase               │   │
-│  │  - Core services (Logger, Storage)       │   │
-│  │  - MCP services (Server, Transport)      │   │
-│  │  - External services (LLM, Speech)       │   │
-│  └──────────────────────────────────────────┘   │
-│                                                 │
-│  ┌──────────────────────────────────────────┐   │
-│  │         Resolution Phase                 │   │
-│  │  - Constructor injection                 │   │
-│  │  - @inject() decorator                   │   │
-│  │  - container.resolve()                   │   │
-│  └──────────────────────────────────────────┘   │
+│              Container Module                    │
+│                                                  │
+│  ┌──────────────────────────────────────────┐    │
+│  │         Registration Phase               │    │
+│  │  registerCoreServices()                  │    │
+│  │  registerMcpServices()                   │    │
+│  └──────────────────────────────────────────┘    │
+│                                                  │
+│  ┌──────────────────────────────────────────┐    │
+│  │         Resolution Phase                 │    │
+│  │  container.resolve(token)                │    │
+│  │  container.resolveAll(multiToken)        │    │
+│  └──────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────┘
                  │
-                 │ Injected services
+                 │ Resolved services
                  │
 ┌────────────────▼────────────────────────────────┐
 │            Application Components               │
@@ -51,129 +50,139 @@ The `container/` directory manages dependency injection (DI) using [tsyringe](ht
 
 ---
 
-## DI Tokens
+## Tokens
+
+Tokens use phantom typing via `Token<T>` to carry the resolved type at compile time. This enables fully type-safe resolution without casts.
 
 **File:** [tokens.ts](tokens.ts)
 
-Tokens are symbols used to identify injectable services.
-
 ```typescript
-/**
- * Token for Logger service
- */
-export const Logger = Symbol('Logger');
+import { token } from '@/container/container.js';
+import type { logger } from '@/utils/internal/logger.js';
 
-/**
- * Token for Storage service
- */
-export const StorageService = Symbol('StorageService');
-
-/**
- * Token for LLM provider
- */
-export const LlmProvider = Symbol('ILlmProvider');
+// The phantom type parameter ensures resolve() returns the correct type
+export const Logger = token<typeof logger>('Logger');
+export const AppConfig = token<ReturnType<typeof parseConfig>>('AppConfig');
 ```
 
 ### Available Tokens
 
-| Token                     | Interface/Type             | Purpose                                 |
-| ------------------------- | -------------------------- | --------------------------------------- |
-| `Logger`                  | `typeof logger`            | Structured logging (Pino)               |
-| `AppConfig`               | `ReturnType<parseConfig>`  | Application configuration               |
-| `StorageService`          | `StorageService`           | Data persistence abstraction            |
-| `StorageProvider`         | `IStorageProvider`         | Storage provider implementation         |
-| `LlmProvider`             | `ILlmProvider`             | Large Language Model integration        |
-| `GraphService`            | `GraphService`             | Graph database operations               |
-| `SpeechService`           | `SpeechService`            | TTS/STT orchestrator                    |
-| `RateLimiterService`      | `RateLimiter`              | Rate limiting                           |
-| `SupabaseAdminClient`     | `SupabaseClient<Database>` | Supabase admin client                   |
-| `SurrealdbClient`         | `Surreal`                  | SurrealDB client                        |
-| `TransportManagerToken`   | `TransportManager`         | Transport lifecycle manager             |
-| `ToolDefinitions`         | `ToolDefinition[]`         | Multi-injection token for MCP tools     |
-| `ResourceDefinitions`     | `ResourceDefinition[]`     | Multi-injection token for MCP resources |
-| `CreateMcpServerInstance` | `() => Promise<McpServer>` | Factory for creating MCP server         |
+| Token                     | Type                         | Purpose                         |
+| ------------------------- | ---------------------------- | ------------------------------- |
+| `AppConfig`               | `ReturnType<parseConfig>`    | Application configuration       |
+| `Logger`                  | `typeof logger`              | Structured logging (Pino)       |
+| `StorageService`          | `StorageService`             | Data persistence abstraction    |
+| `StorageProvider`         | `IStorageProvider`           | Storage provider implementation |
+| `LlmProvider`             | `ILlmProvider`               | LLM integration                 |
+| `RateLimiterService`      | `RateLimiter`                | Rate limiting                   |
+| `SpeechService`           | `SpeechService`              | TTS/STT orchestrator            |
+| `GraphService`            | `GraphService`               | Graph database operations       |
+| `SupabaseAdminClient`     | `SupabaseClient<Database>`   | Supabase admin client           |
+| `SurrealdbClient`         | `Surreal`                    | SurrealDB client                |
+| `CreateMcpServerInstance` | `() => Promise<McpServer>`   | Factory for MCP server          |
+| `TransportManagerToken`   | `TransportManager`           | Transport lifecycle manager     |
+| `TaskManagerToken`        | `TaskManager`                | MCP Tasks API manager           |
+| `ToolRegistryToken`       | `ToolRegistry`               | Tool registration registry      |
+| `ResourceRegistryToken`   | `ResourceRegistry`           | Resource registration registry  |
+| `PromptRegistryToken`     | `PromptRegistry`             | Prompt registration registry    |
+| `RootsRegistryToken`      | `RootsRegistry`              | Roots capability registry       |
+| `ToolDefinitions`         | (multi) Tool definitions     | All registered tool definitions |
+| `ResourceDefinitions`     | (multi) Resource definitions | All registered resources        |
+
+---
+
+## Container API
+
+**File:** [container.ts](container.ts)
+
+### Registration
+
+```typescript
+// Pre-built value (always singleton)
+container.registerValue(Logger, logger);
+
+// Singleton factory — instantiated once on first resolve()
+container.registerSingleton(
+  StorageService,
+  (c) => new StorageServiceClass(c.resolve(StorageProvider)),
+);
+
+// Transient factory — new instance per resolve()
+container.registerFactory(MyToken, (c) => new MyService(c.resolve(Logger)));
+
+// Singleton factory with explicit option
+container.registerFactory(MyToken, factory, { singleton: true });
+
+// Multi-registration — collect multiple values under one token
+for (const tool of allToolDefinitions) {
+  container.registerMulti(ToolDefinitions, tool);
+}
+```
+
+### Resolution
+
+```typescript
+// Single value — throws if not registered
+const logger = container.resolve(Logger);
+
+// Multi-token — returns T[] (empty array if none registered)
+const tools = container.resolveAll(ToolDefinitions);
+
+// Check existence
+if (container.has(SpeechService)) {
+  /* ... */
+}
+```
+
+### Test Isolation
+
+```typescript
+// Fork — creates a child container with shallow-copied registrations
+const child = container.fork();
+
+// Clear singleton instances (registrations remain)
+container.clearInstances();
+
+// Full reset — remove all registrations and instances
+container.reset();
+```
 
 ---
 
 ## Service Registration
-
-### Multi-Injection Pattern (MCP Tools & Resources)
-
-**Special Case:** `ToolDefinitions` and `ResourceDefinitions` use a multi-injection pattern where multiple values are registered under the same token:
-
-```typescript
-// In tool-registration.ts
-export const registerTools = (container: DependencyContainer): void => {
-  for (const tool of allToolDefinitions) {
-    container.register(ToolDefinitions, { useValue: tool });
-  }
-};
-
-// In resource-registration.ts
-export const registerResources = (container: DependencyContainer): void => {
-  for (const resource of allResourceDefinitions) {
-    container.register(ResourceDefinitions, { useValue: resource });
-  }
-};
-```
-
-These are then resolved using `@injectAll()`:
-
-```typescript
-@injectable()
-export class ToolRegistry {
-  constructor(
-    @injectAll(ToolDefinitions, { isOptional: true })
-    private toolDefs: ToolDefinition<
-      ZodObject<ZodRawShape>,
-      ZodObject<ZodRawShape>
-    >[],
-  ) {}
-}
-```
 
 ### Core Services
 
 **File:** [registrations/core.ts](registrations/core.ts)
 
 ```typescript
-import { container, Lifecycle } from 'tsyringe';
+import { container } from '@/container/container.js';
 import {
-  Logger,
   AppConfig,
-  StorageService,
+  Logger,
   StorageProvider,
-} from '../tokens.js';
-import { logger } from '@/utils/index.js';
-import { parseConfig } from '@/config/index.js';
-import { StorageService as StorageServiceImpl } from '@/storage/core/StorageService.js';
-import { createStorageProvider } from '@/storage/core/storageFactory.js';
+  StorageService,
+} from '@/container/tokens.js';
 
-/**
- * Register core services
- */
-export function registerCoreServices(): void {
-  // Configuration (parsed and registered as a static value)
+export const registerCoreServices = () => {
   const config = parseConfig();
-  container.register(AppConfig, { useValue: config });
 
-  // Logger (as a static value)
-  container.register(Logger, { useValue: logger });
+  // Static values
+  container.registerValue(AppConfig, config);
+  container.registerValue(Logger, logger);
 
-  // Storage provider factory
-  container.register(StorageProvider, {
-    useFactory: (c) => createStorageProvider(c.resolve(AppConfig)),
+  // Factory with dependency resolution
+  container.registerSingleton(StorageProvider, (c) => {
+    const cfg = c.resolve(AppConfig);
+    return createStorageProvider(cfg, deps);
   });
 
-  // Storage service (singleton)
-  container.register(
+  // Service depending on another service
+  container.registerSingleton(
     StorageService,
-    { useClass: StorageServiceImpl },
-    { lifecycle: Lifecycle.Singleton },
+    (c) => new StorageServiceClass(c.resolve(StorageProvider)),
   );
-
-  // ... other core services
-}
+};
 ```
 
 ### MCP Services
@@ -181,190 +190,70 @@ export function registerCoreServices(): void {
 **File:** [registrations/mcp.ts](registrations/mcp.ts)
 
 ```typescript
-import { container } from 'tsyringe';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { CreateMcpServerInstance, TransportManagerToken } from '../tokens.js';
-import { TransportManager } from '@/mcp-server/transports/manager.js';
-import { createMcpServerInstance } from '@/mcp-server/server.js';
-import {
-  ToolRegistry,
-  registerTools,
-} from '@/mcp-server/tools/tool-registration.js';
-import {
-  ResourceRegistry,
-  registerResources,
-} from '@/mcp-server/resources/resource-registration.js';
+import { container } from '@/container/container.js';
+import { ToolDefinitions, ToolRegistryToken } from '@/container/tokens.js';
 
-/**
- * Register MCP-specific services
- */
-export function registerMcpServices(): void {
-  // Register registries as singletons
-  container.registerSingleton(ToolRegistry);
-  container.registerSingleton(ResourceRegistry);
+export const registerMcpServices = () => {
+  // Multi-register all tool definitions
+  for (const tool of allToolDefinitions) {
+    container.registerMulti(ToolDefinitions, tool);
+  }
 
-  // Register tools & resources (via modular functions)
-  registerTools(container);
-  registerResources(container);
-
-  // Register the server factory function
-  container.register<() => Promise<McpServer>>(CreateMcpServerInstance, {
-    useValue: createMcpServerInstance,
-  });
-
-  // Register TransportManager
-  container.registerSingleton(TransportManagerToken, TransportManager);
-}
+  // Registry consumes multi-registered definitions
+  container.registerSingleton(
+    ToolRegistryToken,
+    (c) => new ToolRegistry(c.resolveAll(ToolDefinitions)),
+  );
+};
 ```
 
 ---
 
-## Service Lifetimes
-
-### Singleton (Default)
-
-**One instance per application:**
+## Container Lifecycle
 
 ```typescript
-container.registerSingleton(StorageService, StorageServiceImpl);
+// src/index.ts
+import { composeContainer } from '@/container/index.js';
+
+// Called once at startup — registers all services
+composeContainer();
 ```
 
-Use for:
-
-- Stateless services
-- Shared resources (logger, config)
-- Connection pools
-
-### Transient
-
-**New instance per resolution:**
-
-```typescript
-container.register(MyService, MyServiceImpl, {
-  lifecycle: Lifecycle.Transient,
-});
-```
-
-Use for:
-
-- Stateful operations
-- Request-scoped services (not recommended, use context instead)
-
-### Instance (Value)
-
-**Pre-created instance:**
-
-```typescript
-container.register(Logger, { useValue: logger });
-```
-
-Use for:
-
-- Pre-configured objects
-- Constants
-- External dependencies
-
----
-
-## Using Dependency Injection
-
-### Constructor Injection (Recommended)
-
-```typescript
-import { injectable, inject } from 'tsyringe';
-import { StorageService, Logger } from '@/container/tokens.js';
-import type { logger } from '@/utils/index.js';
-
-@injectable()
-export class MyTool {
-  constructor(
-    @inject(StorageService) private storage: StorageService,
-    @inject(Logger) private logger: typeof logger,
-  ) {
-    // Services are now available
-  }
-
-  async execute() {
-    this.logger.info('Executing tool');
-    const data = await this.storage.get('tenant1', 'key1');
-    return data;
-  }
-}
-
-// Resolution (automatic in tool/resource handlers)
-const tool = container.resolve(MyTool);
-await tool.execute();
-```
-
-### Manual Resolution
-
-```typescript
-import { container } from 'tsyringe';
-import { StorageService } from '@/container/tokens.js';
-
-// Resolve service directly
-const storage = container.resolve<StorageService>(StorageService);
-await storage.set('tenant1', 'key1', 'value1');
-```
-
-### Optional Dependencies
-
-```typescript
-import { injectable, inject, optional } from 'tsyringe';
-
-@injectable()
-export class MyService {
-  constructor(
-    @inject(RequiredService) private required: RequiredService,
-    @inject(OptionalService) @optional() private optional?: OptionalService,
-  ) {
-    if (this.optional) {
-      // Use optional service
-    }
-  }
-}
-```
+`composeContainer()` is idempotent (guarded by `isContainerComposed` flag). It calls `registerCoreServices()` then `registerMcpServices()`.
 
 ---
 
 ## Adding a New Service
 
-### Step 1: Define Token
+### 1. Define Token
 
 **File:** [tokens.ts](tokens.ts)
 
 ```typescript
-/**
- * Token for MyService
- */
-export const MyService = Symbol('IMyService');
+import type { IMyService } from '@/services/my-service/core/IMyService.js';
+
+export const MyService = token<IMyService>('MyService');
 ```
 
-### Step 2: Create Service
-
-**File:** `src/services/my-service/core/IMyService.ts`
+### 2. Create Service
 
 ```typescript
+// src/services/my-service/core/IMyService.ts
 export interface IMyService {
   execute(): Promise<void>;
 }
-```
 
-**File:** `src/services/my-service/providers/my.provider.ts`
-
-```typescript
-import { injectable } from 'tsyringe';
-import type { IMyService } from '../core/IMyService.js';
-
-@injectable()
+// src/services/my-service/providers/my.provider.ts
 export class MyServiceImpl implements IMyService {
+  constructor(private logger: typeof import('@/utils/index.js').logger) {}
+
   async execute(): Promise<void> {
-    // Implementation
+    this.logger.info('Executing');
   }
 }
 ```
 
-### Step 3: Register Service
+### 3. Register
 
 **File:** [registrations/core.ts](registrations/core.ts)
 
@@ -372,130 +261,53 @@ export class MyServiceImpl implements IMyService {
 import { MyService } from '../tokens.js';
 import { MyServiceImpl } from '@/services/my-service/providers/my.provider.js';
 
-export function registerCoreServices(): void {
-  // ... existing registrations
-
-  // Register new service
-  container.registerSingleton(MyService, MyServiceImpl);
-}
+// Inside registerCoreServices():
+container.registerSingleton(
+  MyService,
+  (c) => new MyServiceImpl(c.resolve(Logger)),
+);
 ```
 
-### Step 4: Use Service
+### 4. Use
 
 ```typescript
-import { injectable, inject } from 'tsyringe';
+import { container } from '@/container/index.js';
 import { MyService } from '@/container/tokens.js';
-import type { IMyService } from '@/services/my-service/core/IMyService.js';
 
-@injectable()
-export class MyTool {
-  constructor(@inject(MyService) private myService: IMyService) {}
-
-  async execute() {
-    await this.myService.execute();
-  }
-}
-```
-
----
-
-## Conditional Registration
-
-### Environment-Based Registration
-
-```typescript
-export function registerCoreServices(): void {
-  // Register storage provider based on config
-  const storageType = config.STORAGE_PROVIDER_TYPE;
-
-  if (storageType === 'supabase') {
-    container.registerSingleton(StorageProviderToken, SupabaseProvider);
-  } else if (storageType === 'surrealdb') {
-    container.registerSingleton(StorageProviderToken, SurrealKvProvider);
-  } else {
-    container.registerSingleton(StorageProviderToken, InMemoryProvider);
-  }
-}
-```
-
-### Feature Flags
-
-```typescript
-import { GraphService as GraphServiceClass } from '@/services/graph/core/GraphService.js';
-import { SurrealGraphProvider } from '@/services/graph/providers/surrealGraph.provider.js';
-
-export function registerCoreServices(): void {
-  // Register GraphService with factory (uses SurrealDB client)
-  container.register<GraphServiceClass>(GraphService, {
-    useFactory: (c) => {
-      const surrealClient = c.resolve<Surreal>(SurrealdbClient);
-      const graphProvider = new SurrealGraphProvider(surrealClient);
-      return new GraphServiceClass(graphProvider);
-    },
-  });
-}
+const myService = container.resolve(MyService);
+await myService.execute();
 ```
 
 ---
 
 ## Testing with DI
 
-### Mocking Dependencies
+### Forking for Isolation
 
 ```typescript
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { container } from 'tsyringe';
-import { StorageService } from '@/container/tokens.js';
-import { MyTool } from './my-tool.js';
+import { container } from '@/container/container.js';
+import { Logger } from '@/container/tokens.js';
 
-describe('MyTool', () => {
+describe('MyService', () => {
+  let testContainer: typeof container;
+
   beforeEach(() => {
-    // Create child container for test isolation
-    container.clearInstances();
-
-    // Mock storage service
-    const mockStorage = {
-      get: vi.fn().mockResolvedValue('mock-value'),
-      set: vi.fn().mockResolvedValue(true),
-    };
-
-    container.register(StorageService, { useValue: mockStorage as any });
+    testContainer = container.fork();
+    testContainer.registerValue(Logger, mockLogger);
   });
 
-  afterEach(() => {
-    // Clean up
-    container.clearInstances();
-  });
-
-  it('uses storage service', async () => {
-    const tool = container.resolve(MyTool);
-    const result = await tool.execute();
-
-    expect(result).toBe('mock-value');
+  it('uses injected logger', () => {
+    const service = testContainer.resolve(MyService);
+    // service uses mockLogger
   });
 });
 ```
 
-### Child Containers
+### Clearing Singleton State
 
 ```typescript
-import { container } from 'tsyringe';
-
-describe('MyTest', () => {
-  let childContainer: DependencyContainer;
-
-  beforeEach(() => {
-    // Create isolated container
-    childContainer = container.createChildContainer();
-
-    // Register test-specific services
-    childContainer.register(Logger, { useValue: mockLogger });
-  });
-
-  it('uses child container', () => {
-    const tool = childContainer.resolve(MyTool);
-    // Test with isolated dependencies
-  });
+afterEach(() => {
+  container.clearInstances(); // Resets singletons, keeps registrations
 });
 ```
 
@@ -503,301 +315,17 @@ describe('MyTest', () => {
 
 ## Best Practices
 
-### 1. Use Interfaces, Not Implementations
-
-```typescript
-// ❌ Bad - depends on concrete class
-@injectable()
-export class MyTool {
-  constructor(
-    @inject(StorageService) private storage: InMemoryProvider, // ❌
-  ) {}
-}
-
-// ✅ Good - depends on interface
-@injectable()
-export class MyTool {
-  constructor(
-    @inject(StorageService) private storage: StorageService, // ✅
-  ) {}
-}
-```
-
-### 2. Inject All Dependencies
-
-```typescript
-// ❌ Bad - creates dependency directly
-@injectable()
-export class MyTool {
-  private logger = logger; // ❌ Global import
-
-  async execute() {
-    this.logger.info('Executing');
-  }
-}
-
-// ✅ Good - injects dependency
-@injectable()
-export class MyTool {
-  constructor(
-    @inject(Logger) private logger: typeof logger, // ✅
-  ) {}
-
-  async execute() {
-    this.logger.info('Executing');
-  }
-}
-```
-
-### 3. Use Singleton for Stateless Services
-
-```typescript
-// ✅ Good - stateless service is singleton
-container.registerSingleton(MyStatelessService, MyStatelessServiceImpl);
-
-// ⚠️ Careful - stateful service might need transient
-container.register(MyStatefulService, MyStatefulServiceImpl, {
-  lifecycle: Lifecycle.Transient,
-});
-```
-
-### 4. Register Early, Resolve Late
-
-```typescript
-// ❌ Bad - resolve at module level
-export const storage = container.resolve<StorageService>(StorageService);
-
-// ✅ Good - resolve in function/constructor
-@injectable()
-export class MyTool {
-  constructor(@inject(StorageService) private storage: StorageService) {}
-}
-```
-
-### 5. Keep Registration Centralized
-
-```typescript
-// ❌ Bad - register in multiple places
-container.registerSingleton(MyService, MyServiceImpl); // in moduleA
-container.registerSingleton(MyService, MyServiceImpl); // in moduleB
-
-// ✅ Good - register once in registrations/
-export function registerCoreServices(): void {
-  container.registerSingleton(MyService, MyServiceImpl);
-}
-```
-
----
-
-## Advanced Patterns
-
-### Factory Registration
-
-```typescript
-container.register(MyService, {
-  useFactory: (c) => {
-    const config = c.resolve<typeof configModule>(AppConfig);
-    return new MyServiceImpl(config.MY_SERVICE_URL);
-  },
-});
-```
-
-### Lazy Loading
-
-```typescript
-@injectable()
-export class MyTool {
-  constructor(
-    @inject(delay(() => ExpensiveService)) private expensive: ExpensiveService,
-  ) {}
-}
-```
-
-### Named Registrations
-
-```typescript
-// Register multiple implementations
-container.register('PrimaryStorage', { useClass: SupabaseProvider });
-container.register('CacheStorage', { useClass: InMemoryProvider });
-
-// Resolve specific implementation
-@injectable()
-export class MyTool {
-  constructor(
-    @inject('PrimaryStorage') private primary: IStorageProvider,
-    @inject('CacheStorage') private cache: IStorageProvider,
-  ) {}
-}
-```
-
----
-
-## Troubleshooting
-
-### Error: "Cannot resolve ..."
-
-**Cause:** Service not registered or circular dependency
-
-**Solution:**
-
-1. Check service is registered in `registrations/`
-2. Verify token matches
-3. Check for circular dependencies
-
-### Error: "Reflect.getOwnMetadata is not a function"
-
-**Cause:** Missing `reflect-metadata` import
-
-**Solution:** Ensure `reflect-metadata` is imported at app entry point:
-
-```typescript
-import 'reflect-metadata';
-```
-
-### Error: Multiple instances when expecting singleton
-
-**Cause:** Registering service multiple times
-
-**Solution:** Ensure service is registered only once:
-
-```typescript
-// Check if already registered
-if (!container.isRegistered(MyService)) {
-  container.registerSingleton(MyService, MyServiceImpl);
-}
-```
-
-### Error: "injectable() decorator missing"
-
-**Cause:** Forgot `@injectable()` decorator
-
-**Solution:** Add decorator to class:
-
-```typescript
-@injectable()
-export class MyService {
-  // ...
-}
-```
-
----
-
-## Circular Dependencies
-
-### Detecting Circular Dependencies
-
-**Error message:**
-
-```
-Maximum call stack size exceeded
-```
-
-**Common causes:**
-
-- ServiceA depends on ServiceB
-- ServiceB depends on ServiceA
-
-### Resolving Circular Dependencies
-
-**Option 1: Use `@inject()` with `delay()`**
-
-```typescript
-import { injectable, inject, delay } from 'tsyringe';
-
-@injectable()
-export class ServiceA {
-  constructor(@inject(delay(() => ServiceB)) private serviceB: ServiceB) {}
-}
-```
-
-**Option 2: Introduce intermediate service**
-
-```typescript
-// Break cycle with interface
-export interface ISharedData {
-  getData(): string;
-}
-
-@injectable()
-export class ServiceA {
-  constructor(@inject(SharedDataToken) private data: ISharedData) {}
-}
-
-@injectable()
-export class ServiceB {
-  constructor(@inject(SharedDataToken) private data: ISharedData) {}
-}
-```
-
-**Option 3: Refactor to eliminate cycle**
-
-```typescript
-// Extract common logic to third service
-@injectable()
-export class CommonService {
-  commonLogic() {
-    // Shared logic
-  }
-}
-
-@injectable()
-export class ServiceA {
-  constructor(@inject(CommonService) private common: CommonService) {}
-}
-
-@injectable()
-export class ServiceB {
-  constructor(@inject(CommonService) private common: CommonService) {}
-}
-```
-
----
-
-## Container Lifecycle
-
-### Initialization
-
-```typescript
-// src/index.ts
-import 'reflect-metadata';
-import { composeContainer } from '@/container/index.js';
-
-// Register all services at startup
-composeContainer();
-```
-
-The `composeContainer()` function internally calls both `registerCoreServices()` and `registerMcpServices()`:
-
-```typescript
-// src/container/index.ts
-export function composeContainer(): void {
-  if (isContainerComposed) {
-    return;
-  }
-
-  registerCoreServices();
-  registerMcpServices();
-
-  isContainerComposed = true;
-}
-```
-
-### Cleanup
-
-```typescript
-// Clear instances (for testing)
-container.clearInstances();
-
-// Reset entire container (use with caution)
-container.reset();
-```
+1. **Depend on interfaces, not implementations** — tokens carry interface types
+2. **Register early, resolve late** — all registration happens in `composeContainer()`, resolution happens at runtime
+3. **Keep registration centralized** — all in `registrations/core.ts` or `registrations/mcp.ts`
+4. **Use singletons for stateless services** — config, logger, storage, providers
+5. **Use `fork()` in tests** — isolates test state without affecting the global container
 
 ---
 
 ## See Also
 
-- [Services Module](../services/README.md) - Service development pattern
-- [MCP Server Module](../mcp-server/README.md) - Using DI in tools/resources
-- [Storage Module](../storage/README.md) - Storage service injection
-- [tsyringe Documentation](https://github.com/microsoft/tsyringe) - Official docs
-- [CLAUDE.md](../../CLAUDE.md) - Architectural mandate (Section VI)
+- [Services Module](../services/README.md) — Service development pattern
+- [MCP Server Module](../mcp-server/README.md) — Using DI in tools/resources
+- [Storage Module](../storage/README.md) — Storage service injection
+- [AGENTS.md](../../AGENTS.md) — Architectural mandate (Section VI)

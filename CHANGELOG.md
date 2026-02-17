@@ -7,6 +7,32 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.9.3] - 2026-02-17
+
+### Added
+
+- **CI Workflow** (`.github/workflows/ci.yml`): Added GitHub Actions CI pipeline with lint/typecheck/build and test jobs, concurrency groups, and coverage artifact upload.
+- **Logger `asyncDispose`** (`src/utils/internal/logger.ts`): Added `Symbol.asyncDispose` support for `using` declarations.
+
+### Changed
+
+- **ESLint Config**: Added stricter type-aware rules for `src/` — `no-floating-promises` (error), `await-thenable` (error), `no-unnecessary-type-assertion` (warn).
+- **TypeScript Config**: Added `noUncheckedSideEffectImports: true` for stricter side-effect import checking.
+- **ErrorSeverity** (`src/utils/internal/error-handler/types.ts`): Converted from `enum` to `const` object + type union for better tree-shaking and runtime safety.
+- **`scripts/fetch-openapi-spec.ts`**: Replaced `axios` with native `fetch` API.
+- **`publish-mcp` script**: Switched from custom `validate-mcp-publish-schema.ts` to `bunx mcp-publisher publish`.
+- **Coverage Thresholds** (`vitest.config.ts`): Raised from 65/60/55/65 to 80/75/70/80 (lines/functions/branches/statements).
+- **Container README** (`src/container/README.md`): Full rewrite to reflect custom DI container API — removed tsyringe references, documented `Token<T>`, `registerValue`/`registerSingleton`/`registerFactory`/`registerMulti`, `fork()`, and `clearInstances()`.
+- **Tests**: Replaced TODO stubs with real tests for tool utils barrel, `ToolDefinition` types, auth barrel exports, and stdio transport barrel. Cleaned up stale schema snapshots.
+
+### Removed
+
+- **`axios`**, **`ajv`**, **`ajv-formats`**, **`tslib`** dependencies.
+- **`.github/workflows/publish.yml`**: Replaced by CI workflow.
+- **`scripts/validate-mcp-publish-schema.ts`**: Replaced by `mcp-publisher` CLI.
+
+---
+
 ## [2.9.2] - 2026-02-17
 
 ### Added

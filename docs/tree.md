@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-17 12:58:23
+Generated on: 2026-02-17 15:04:21
 
 ```
 mcp-ts-template/
@@ -8,7 +8,7 @@ mcp-ts-template/
 │   ├── codeql/
 │   │   └── codeql-config.yml
 │   ├── workflows/
-│   │   └── publish.yml
+│   │   └── ci.yml
 │   └── FUNDING.yml
 ├── .husky/
 │   └── pre-commit
@@ -56,8 +56,7 @@ mcp-ts-template/
 │   ├── fetch-openapi-spec.ts
 │   ├── make-executable.ts
 │   ├── tree.ts
-│   ├── update-coverage.ts
-│   └── validate-mcp-publish-schema.ts
+│   └── update-coverage.ts
 ├── src/
 │   ├── config/
 │   │   └── index.ts

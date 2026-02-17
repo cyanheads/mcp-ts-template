@@ -284,7 +284,7 @@ Prompts are reusable message templates that clients can discover and invoke. The
 
 ## IX. Code Style, Validation, and Security
 
-**JSDoc:** `@fileoverview`, `@module` required. **Validation:** Zod schemas, all fields need `.describe()`. **Logging:** Include `RequestContext`, use `logger.{debug|info|notice|warning|error|crit|emerg}`. **Errors:** Logic throws `McpError`, handlers catch. `ErrorHandler.tryCatch` for services only. **Secrets:** `src/config/index.ts` only. **Rate Limiting:** DI-injected `RateLimiter`. **Telemetry:** Auto-init, no manual spans.
+**JSDoc:** `@fileoverview`, `@module` required. **Validation:** Zod schemas, all fields need `.describe()`. **Logging:** Include `RequestContext`, use `logger.{debug|info|notice|warning|error|crit|emerg}`. **Errors:** Logic throws `McpError`, handlers catch. `ErrorHandler.tryCatch` for services only. **Secrets:** `src/config/index.ts` only. **Rate Limiting:** DI-injected `RateLimiter`. **Telemetry:** Auto-init, no manual spans. **Imports:** Barrel exports (`index.ts`) are used for module public APIs (e.g., `@/utils/index.js`, `definitions/index.ts`). Cross-module imports should use the public barrel, not reach into another module's internals.
 
 ---
 
