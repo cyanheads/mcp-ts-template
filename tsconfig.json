@@ -13,6 +13,7 @@
     "exactOptionalPropertyTypes": true,
     "useUnknownInCatchVariables": true,
     "verbatimModuleSyntax": true,
+    "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
 
     // Module interop for CommonJS compatibility

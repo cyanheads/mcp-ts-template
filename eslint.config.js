@@ -87,6 +87,16 @@ export default [
     },
   },
 
+  // Stricter type-aware rules for source files
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+    },
+  },
+
   // Restrict console usage in src/ - use structured logger instead
   // Allow warn/error for early boot failures and log for user-facing banners
   // Scripts (CLI tools) are exempt as console output is their primary interface
