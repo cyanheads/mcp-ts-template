@@ -3,8 +3,11 @@
  * @fileoverview Update Coverage Script
  * @module scripts/update-coverage
  *
- * Runs test coverage, parses results, and optionally commits the JSON summary to git.
- * Only `coverage-final.json` is committed — HTML reports and other artifacts are gitignored.
+ * Runs test coverage via Istanbul provider, parses results, updates the
+ * README badge, and optionally commits changes to git.
+ *
+ * Istanbul instruments at the AST level — no node:inspector dependency,
+ * runs natively under Bun without Node.js workarounds.
  *
  * Usage:
  *   bun run scripts/update-coverage.ts           # Dry run (no commit)
@@ -18,7 +21,6 @@
  */
 
 import { $ } from 'bun';
-import { execFileSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
@@ -58,6 +60,7 @@ const ROOT_DIR = resolve(import.meta.dirname ?? process.cwd(), '..');
 const COVERAGE_DIR = join(ROOT_DIR, 'coverage');
 const COVERAGE_JSON = join(COVERAGE_DIR, 'coverage-final.json');
 const COVERAGE_JSON_REL = 'coverage/coverage-final.json';
+const README_PATH = join(ROOT_DIR, 'README.md');
 
 const KNOWN_FLAGS = new Set(['--commit', '--help']);
 
@@ -72,7 +75,7 @@ function printHelp(): void {
   console.log(`Usage: bun run scripts/update-coverage.ts [options]
 
 Options:
-  --commit    Commit coverage-final.json to git (default: dry run)
+  --commit    Commit coverage-final.json and README badge to git (default: dry run)
   --help      Show this help message
 
 Exit codes:
@@ -117,13 +120,12 @@ async function isGitRepo(): Promise<boolean> {
 
 async function hasChanges(): Promise<boolean> {
   try {
-    const result = await $`git status --porcelain ${COVERAGE_JSON_REL}`.text();
+    const result =
+      await $`git status --porcelain ${COVERAGE_JSON_REL} README.md`.text();
     return result.trim().length > 0;
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Failed to check git status for ${COVERAGE_JSON_REL}: ${msg}`,
-    );
+    throw new Error(`Failed to check git status: ${msg}`);
   }
 }
 
@@ -131,48 +133,17 @@ async function hasChanges(): Promise<boolean> {
 // Coverage execution
 // ---------------------------------------------------------------------------
 
-/**
- * Resolve the real Node.js binary, skipping Bun's injected shim.
- * Bun places a fake `node` in a temp dir (e.g. /tmp/bun-node-*) that
- * shadows the real binary. We use `which -a` to find all candidates
- * and pick the first one that isn't a Bun shim.
- */
-function resolveRealNode(): string {
-  const allNodes = execFileSync('which', ['-a', 'node'], { encoding: 'utf-8' })
-    .trim()
-    .split('\n')
-    .filter(Boolean);
-
-  const realNode = allNodes.find((p) => !p.includes('bun-node'));
-  if (realNode) return realNode;
-
-  // Fallback: if every candidate looks like a Bun shim, try the first one
-  // and let it fail with a clear error downstream.
-  if (allNodes.length > 0) return allNodes[0]!;
-
-  throw new Error(
-    'Could not find a Node.js binary. Install Node.js or ensure it is on PATH.',
-  );
-}
-
 function cleanCoverageDir(): void {
   rmSync(COVERAGE_DIR, { recursive: true, force: true });
 }
 
 async function runCoverage(): Promise<boolean> {
-  console.log('Running test coverage...\n');
+  console.log('Running test coverage (Istanbul provider)...\n');
 
   try {
-    // Run vitest under Node via child_process — Bun lacks node:inspector
-    // support required by @vitest/coverage-v8. Bun injects its own `node`
-    // shim into PATH (e.g. /tmp/bun-node-*/node), so we resolve the real
-    // Node binary by filtering out Bun shims from `which -a node`.
-    const nodeBin = resolveRealNode();
-    const vitest = join(ROOT_DIR, 'node_modules', 'vitest', 'vitest.mjs');
-    execFileSync(nodeBin, [vitest, 'run', '--coverage'], {
-      cwd: ROOT_DIR,
-      stdio: 'inherit',
-    });
+    // Istanbul instruments at the AST level — runs natively under Bun
+    // without the node:inspector dependency that V8 coverage requires.
+    await $`bunx vitest run --coverage`.cwd(ROOT_DIR);
     console.log('\nCoverage generation complete\n');
     return true;
   } catch (error: unknown) {
@@ -253,6 +224,54 @@ async function getCoverageStats(quiet = false): Promise<CoverageStats | null> {
 }
 
 // ---------------------------------------------------------------------------
+// README badge update
+// ---------------------------------------------------------------------------
+
+/**
+ * Pick a shields.io color based on the coverage percentage.
+ */
+function badgeColor(pct: number): string {
+  if (pct >= 80) return 'brightgreen';
+  if (pct >= 70) return 'green';
+  if (pct >= 60) return 'yellowgreen';
+  if (pct >= 50) return 'yellow';
+  if (pct >= 40) return 'orange';
+  return 'red';
+}
+
+async function updateReadmeBadge(stats: CoverageStats): Promise<boolean> {
+  const readmeFile = Bun.file(README_PATH);
+  if (!(await readmeFile.exists())) {
+    console.warn('README.md not found — skipping badge update');
+    return false;
+  }
+
+  const content = await readmeFile.text();
+  const pct = parseFloat(stats.statements.pct);
+  const color = badgeColor(pct);
+  const newBadge = `[![Code Coverage](https://img.shields.io/badge/Coverage-${stats.statements.pct}%25-${color}.svg?style=flat-square)](./coverage/index.html)`;
+
+  // Match any existing coverage badge (any percentage, any color)
+  const badgePattern =
+    /\[!\[Code Coverage\]\(https:\/\/img\.shields\.io\/badge\/Coverage-[\d.]+%25-\w+\.svg\?style=flat-square\)\]\(\.\/coverage\/index\.html\)/;
+
+  if (!badgePattern.test(content)) {
+    console.warn('Coverage badge not found in README.md — skipping update');
+    return false;
+  }
+
+  const updated = content.replace(badgePattern, newBadge);
+  if (updated === content) {
+    console.log('README badge already up to date');
+    return false;
+  }
+
+  await Bun.write(README_PATH, updated);
+  console.log(`README badge updated → ${stats.statements.pct}% (${color})\n`);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // Display
 // ---------------------------------------------------------------------------
 
@@ -313,7 +332,7 @@ async function commitChanges(stats: CoverageStats | null): Promise<boolean> {
 
   try {
     const message = buildCommitMessage(stats);
-    await $`git add ${COVERAGE_JSON_REL}`;
+    await $`git add ${COVERAGE_JSON_REL} README.md`;
     await $`git commit -m ${message}`;
     console.log('Coverage changes committed\n');
     return true;
@@ -363,6 +382,7 @@ async function main() {
   const stats = await getCoverageStats();
   if (stats) {
     printStats(stats, previousStats);
+    await updateReadmeBadge(stats);
   }
 
   const changed = await hasChanges();
@@ -377,7 +397,7 @@ async function main() {
 
   try {
     const statusOutput =
-      await $`git status --short ${COVERAGE_JSON_REL}`.text();
+      await $`git status --short ${COVERAGE_JSON_REL} README.md`.text();
     if (statusOutput.trim()) {
       console.log('Changes:\n' + statusOutput);
     }

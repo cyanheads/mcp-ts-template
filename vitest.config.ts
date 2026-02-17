@@ -16,16 +16,10 @@ export default defineConfig({
     maxWorkers: 4,
     isolate: true,
     coverage: {
-      provider: 'v8',
+      provider: 'istanbul',
       reporter: ['text', 'json', 'html'],
       include: ['src/**/*.ts'],
-      exclude: [
-        'src/**/*.d.ts',
-        'src/**/index.ts',
-        '!src/index.ts',
-        '!src/config/index.ts',
-        '!src/container/index.ts',
-      ],
+      exclude: ['src/**/*.d.ts'],
       thresholds: {
         lines: 65,
         functions: 60,
