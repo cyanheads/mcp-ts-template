@@ -7,6 +7,20 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.9.1] - 2026-02-17
+
+### Changed
+
+- **Storage factory**: Removed hidden dependency on global DI container. `createStorageProvider` now requires Supabase/SurrealDB clients via the `deps` parameter instead of falling back to `container.resolve()`. The DI registration in `core.ts` resolves clients and passes them through, keeping the factory DI-agnostic and `fork()`-safe.
+- **DI registration order** (`core.ts`): Reordered `RateLimiterService` before `LlmProvider` so registration order matches dependency order.
+- **`sanitization.ts`**: Fixed dynamic `import('path')` → `import('node:path')` for consistency with the `node:` prefix migration.
+
+### Removed
+
+- **`server.test.ts.disabled`**: Deleted superseded test file — fully replaced by the new `server.test.ts` suite.
+
+---
+
 ## [2.9.0] - 2026-02-14
 
 ### Changed

@@ -26,7 +26,10 @@ import { SurrealGraphProvider } from '@/services/graph/providers/surrealGraph.pr
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
 import { SpeechService as SpeechServiceClass } from '@/services/speech/index.js';
 import { StorageService as StorageServiceClass } from '@/storage/core/StorageService.js';
-import { createStorageProvider } from '@/storage/core/storageFactory.js';
+import {
+  createStorageProvider,
+  type StorageFactoryDeps,
+} from '@/storage/core/storageFactory.js';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/index.js';
@@ -101,15 +104,31 @@ export const registerCoreServices = () => {
     return db;
   });
 
-  // Storage provider — factory depends on AppConfig
-  container.registerSingleton(StorageProvider, (c) =>
-    createStorageProvider(c.resolve(AppConfig)),
-  );
+  // Storage provider — resolve DB clients here so storageFactory stays DI-agnostic
+  container.registerSingleton(StorageProvider, (c) => {
+    const cfg = c.resolve(AppConfig);
+    const pt = cfg.storage.providerType;
+    const deps: StorageFactoryDeps = {
+      ...(pt === 'supabase' && {
+        supabaseClient: c.resolve(SupabaseAdminClient),
+      }),
+      ...(pt === 'surrealdb' && {
+        surrealdbClient: c.resolve(SurrealdbClient),
+      }),
+    };
+    return createStorageProvider(cfg, deps);
+  });
 
   // StorageService — singleton, receives provider via container
   container.registerSingleton(
     StorageService,
     (c) => new StorageServiceClass(c.resolve(StorageProvider)),
+  );
+
+  // RateLimiter — registered before LlmProvider (which depends on it)
+  container.registerSingleton(
+    RateLimiterService,
+    (c) => new RateLimiter(c.resolve(AppConfig), c.resolve(Logger)),
   );
 
   // LLM Provider
@@ -121,12 +140,6 @@ export const registerCoreServices = () => {
         c.resolve(AppConfig),
         c.resolve(Logger),
       ),
-  );
-
-  // RateLimiter — singleton
-  container.registerSingleton(
-    RateLimiterService,
-    (c) => new RateLimiter(c.resolve(AppConfig), c.resolve(Logger)),
   );
 
   // SpeechService — configuration-driven factory

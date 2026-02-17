@@ -16,9 +16,9 @@ const isServerless =
   typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
 
 // Dynamically import 'path' only in non-serverless environments
-let pathModule: typeof import('path') | undefined;
+let pathModule: typeof import('node:path') | undefined;
 if (!isServerless) {
-  import('path')
+  import('node:path')
     .then((mod) => {
       pathModule = mod.default;
     })
