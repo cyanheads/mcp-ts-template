@@ -1,6 +1,6 @@
 <div align="center">
   <h1>mcp-ts-template</h1>
-  <p><b>Production-grade TypeScript template for building Model Context Protocol (MCP) servers. Ships with declarative tools/resources, robust error handling, DI, easy auth, optional OpenTelemetry, and first-class support for both local and edge (Cloudflare Workers) runtimes.</b>
+  <p><b>TypeScript template for building Model Context Protocol (MCP) servers. Ships with declarative tools/resources, pluggable auth, multi-backend storage, OpenTelemetry observability, and first-class support for both local and edge (Cloudflare Workers) runtimes.</b>
   <div>7 Tools • 2 Resources • 1 Prompt</div>
   </p>
 </div>

@@ -2,7 +2,7 @@
   "name": "mcp-ts-template",
   "version": "2.9.2",
   "mcpName": "io.github.cyanheads/mcp-ts-template",
-  "description": "The definitive, production-grade template for building powerful and scalable Model Context Protocol (MCP) servers with TypeScript, featuring built-in observability (OpenTelemetry), declarative tooling, robust error handling, and a modular, DI-driven architecture.",
+  "description": "TypeScript template for MCP servers with declarative tools/resources, pluggable auth, multi-backend storage, OpenTelemetry observability, and Cloudflare Workers support.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
