@@ -7,6 +7,22 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.9.2] - 2026-02-17
+
+### Added
+
+- **DI Container Tests** (`tests/container/container.test.ts`): Comprehensive test suite for `Container` class and `token()` factory — covers `registerValue`, `registerFactory`, `registerSingleton`, `registerMulti`/`resolveAll`, `has`, `fork` (isolation, deep-copy semantics), `clearInstances`, `reset`, and registration overwrite behavior.
+- **Session ID Utils Tests** (`tests/.../sessionIdUtils.test.ts`): Replaced TODO stub with real tests for `generateSecureSessionId` (length, uniqueness, hex format) and `validateSessionIdFormat` (valid/invalid inputs, boundary cases).
+- **Request Context Tests** (`tests/.../requestContext.test.ts`): Added tests for default context creation and `withAuthInfo` — tenant propagation, `sub` fallback to `clientId`, parent context inheritance.
+- **Rate Limiter Tests** (`tests/.../rateLimiter.test.ts`): Added tests for LRU eviction (`maxTrackedKeys`), custom `keyGenerator`, `errorMessage` with `{waitTime}` substitution, and window reset after expiry.
+
+### Changed
+
+- **`scripts/devcheck.ts`**: Added opt-in flag pattern (`requiresFlag` property on `Check`). Tests check changed from opt-out (`--no-test`) to opt-in (`--test`), so `devcheck` no longer runs the full test suite by default. Help output now separates opt-out and opt-in sections.
+- **Dependencies**: Bumped `@cloudflare/workers-types` (4.20260214→4.20260217), `typescript-eslint` (8.55→8.56), `@opentelemetry/auto-instrumentations-node` (0.69→0.70), `@opentelemetry/instrumentation-pino` (0.57→0.58).
+
+---
+
 ## [2.9.1] - 2026-02-17
 
 ### Changed
