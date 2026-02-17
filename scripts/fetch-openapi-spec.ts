@@ -14,7 +14,6 @@
  * // Fetch spec from a direct file URL
  * // ts-node --esm scripts/fetch-openapi-spec.ts https://petstore3.swagger.io/api/v3/openapi.json docs/api/petstore_v3
  */
-import axios, { AxiosError } from 'axios';
 import fs from 'fs/promises';
 import yaml from 'js-yaml';
 import path from 'path';
@@ -72,28 +71,20 @@ async function tryFetch(
 ): Promise<{ data: string; contentType: string | null } | null> {
   try {
     console.log(`Attempting to fetch from: ${url}`);
-    const response = await axios.get<string>(url, {
-      responseType: 'text',
-      validateStatus: (status) => status >= 200 && status < 300,
-    });
-    const rawContentType = (response.headers as Record<string, unknown>)[
-      'content-type'
-    ];
-    const contentType =
-      typeof rawContentType === 'string' ? rawContentType : null;
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn(`Failed to fetch from ${url} (Status: ${response.status})`);
+      return null;
+    }
+    const contentType = response.headers.get('content-type');
+    const data = await response.text();
     console.log(
       `Successfully fetched (Status: ${response.status}, Content-Type: ${contentType || 'N/A'})`,
     );
-    return { data: response.data, contentType };
+    return { data, contentType };
   } catch (error: unknown) {
-    let status = 'Unknown';
-    if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError;
-      status = axiosError.response
-        ? String(axiosError.response.status)
-        : 'Network Error';
-    }
-    console.warn(`Failed to fetch from ${url} (Status: ${status})`);
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Failed to fetch from ${url} (${message})`);
     return null;
   }
 }
