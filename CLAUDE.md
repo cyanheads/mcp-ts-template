@@ -1,8 +1,8 @@
 # Agent Protocol & Architectural Mandate
 
-**Version:** 2.5.0
+**Version:** 2.6.0
 **Target Project:** mcp-ts-template
-**Last Updated:** 2026-02-14
+**Last Updated:** 2026-02-17
 
 This document defines the operational rules for contributing to this codebase. Follow it exactly.
 
@@ -238,6 +238,8 @@ Prompts are reusable message templates that clients can discover and invoke. The
 | Supabase Client   | `SupabaseAdminClient`   | `container.resolve(SupabaseAdminClient)`   | Only when needed               |
 | SurrealDB Client  | `SurrealdbClient`       | `container.resolve(SurrealdbClient)`       | Only when needed               |
 | Transport Manager | `TransportManagerToken` | `container.resolve(TransportManagerToken)` |                                |
+| `SpeechService`   | `SpeechService`         | `container.resolve(SpeechService)`         | TTS/STT provider orchestrator  |
+| `TaskManager`     | `TaskManagerToken`      | `container.resolve(TaskManagerToken)`      | For MCP Tasks API support      |
 
 **Graph Service:** Graph operations (relationships, traversals, pathfinding) via SurrealDB. Inject `GraphService`. Operations: `relate()`, `unrelate()`, `traverse()`, `shortestPath()`, `get{Outgoing|Incoming}Edges()`, `pathExists()`.
 
@@ -326,14 +328,14 @@ EOF
 
 ## X. Checks & Workflow Commands
 
-| Command                    | Purpose                                                                                        |
-| -------------------------- | ---------------------------------------------------------------------------------------------- |
-| `bun run rebuild`          | Clean, rebuild, clear logs (after dep changes)                                                 |
-| `bun run devcheck`         | **USE OFTEN** Lint, format, typecheck, security (flags: `--no-fix`, `--no-lint`, `--no-audit`) |
-| `bun run test`             | Unit/integration tests                                                                         |
-| `bun run dev:stdio/http`   | Development mode                                                                               |
-| `bun run start:stdio/http` | Production mode (after build)                                                                  |
-| `bun run build:worker`     | Cloudflare Worker bundle                                                                       |
+| Command                    | Purpose                                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `bun run rebuild`          | Clean, rebuild, clear logs (after dep changes)                                                                     |
+| `bun run devcheck`         | **USE OFTEN** Lint, format, typecheck, security (opt-out: `--no-fix`, `--no-lint`, `--no-audit`; opt-in: `--test`) |
+| `bun run test`             | Unit/integration tests                                                                                             |
+| `bun run dev:stdio/http`   | Development mode                                                                                                   |
+| `bun run start:stdio/http` | Production mode (after build)                                                                                      |
+| `bun run build:worker`     | Cloudflare Worker bundle                                                                                           |
 
 ---
 

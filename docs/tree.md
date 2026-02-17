@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-17 12:38:32
+Generated on: 2026-02-17 12:58:23
 
 ```
 mcp-ts-template/
@@ -438,6 +438,17 @@ mcp-ts-template/
 │   │   │       ├── functions/
 │   │   │       │   ├── customFunctions.test.ts
 │   │   │       │   └── functionRegistry.test.ts
+│   │   │       ├── graph/
+│   │   │       │   ├── graphOperations.test.ts
+│   │   │       │   ├── pathFinder.test.ts
+│   │   │       │   └── relationshipManager.test.ts
+│   │   │       ├── introspection/
+│   │   │       │   └── schemaIntrospector.test.ts
+│   │   │       ├── migrations/
+│   │   │       │   └── migrationRunner.test.ts
+│   │   │       ├── query/
+│   │   │       │   ├── forLoopBuilder.test.ts
+│   │   │       │   └── subqueryBuilder.test.ts
 │   │   │       ├── surrealdb.types.test.ts
 │   │   │       └── surrealKvProvider.test.ts
 │   │   ├── index.test.ts

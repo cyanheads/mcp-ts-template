@@ -15,8 +15,22 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 - **Session ID Utils Tests** (`tests/.../sessionIdUtils.test.ts`): Replaced TODO stub with real tests for `generateSecureSessionId` (length, uniqueness, hex format) and `validateSessionIdFormat` (valid/invalid inputs, boundary cases).
 - **Request Context Tests** (`tests/.../requestContext.test.ts`): Added tests for default context creation and `withAuthInfo` — tenant propagation, `sub` fallback to `clientId`, parent context inheritance.
 - **Rate Limiter Tests** (`tests/.../rateLimiter.test.ts`): Added tests for LRU eviction (`maxTrackedKeys`), custom `keyGenerator`, `errorMessage` with `{waitTime}` substitution, and window reset after expiry.
+- **Speech Provider Type Guard Tests** (`tests/.../ISpeechProvider.test.ts`): Replaced stub with tests for `supportsTTS` and `supportsSTT` type guard functions.
+- **SpeechService Orchestrator Tests** (`tests/.../SpeechService.test.ts`): Replaced stub with tests for `createSpeechProvider` factory, `SpeechService` constructor (no/TTS/STT/both providers), accessor methods (`getTTSProvider`, `getSTTProvider`), and `healthCheck` reporting.
+- **ElevenLabs Provider Tests** (`tests/.../elevenlabs.provider.test.ts`): Replaced stub with tests for constructor validation, `textToSpeech` (success, empty/overlong text, custom voice settings, API errors), `speechToText` (not supported), `getVoices` mapping, and `healthCheck`.
+- **Whisper Provider Tests** (`tests/.../whisper.provider.test.ts`): Replaced stub with tests for constructor validation, `speechToText` (Buffer/base64 input, missing/oversize audio, timestamps, language options, API errors), `textToSpeech`/`getVoices` (not supported), and `healthCheck`.
+- **Startup Banner Tests** (`tests/.../startupBanner.test.ts`): Added coverage for stdio transport (`console.error` to avoid stdout pollution), http transport (`console.log`), and non-TTY stdio suppression.
+- **SurrealDB Graph Operations Tests** (`tests/.../graph/graphOperations.test.ts`): Tests for `createEdge` (with/without data, empty result, client errors), `traverseOut`/`traverseIn`/`traverseBoth` (hop count, edge filters, empty results), and `deleteEdge`.
+- **SurrealDB Path Finder Tests** (`tests/.../graph/pathFinder.test.ts`): Tests for `shortestPath` (reachable/unreachable, default/custom maxLength), `findAllPaths`, `detectCycle` (cycle present/absent, custom maxDepth), and `getDegree` (in/out/total, missing data).
+- **SurrealDB Relationship Manager Tests** (`tests/.../graph/relationshipManager.test.ts`): Tests for relationship CRUD, batch operations, and query filtering.
+- **SurrealDB Schema Introspector Tests** (`tests/.../introspection/schemaIntrospector.test.ts`): Tests for `getTableInfo` (fields, required/optional detection, unique indexes, events, empty/missing sections), `getDatabaseSchema` (multi-table, empty DB), `listTables`, and `listFunctions`.
+- **SurrealDB Migration Runner Tests** (`tests/.../migrations/migrationRunner.test.ts`): Tests for `initialize` (table creation), `migrate` up/down (order, duration, stop-on-failure, empty list), `getHistory`, and `createPlan` (unapplied filtering, reverse rollback order, failed migration exclusion).
+- **SurrealDB FOR Loop Builder Tests** (`tests/.../query/forLoopBuilder.test.ts`): Tests for fluent API (`create`/`in`/`do`/`doAll`/`build`), validation errors, `range`/`array`/`query` helpers, and `nested` (2-3 levels, empty config).
+- **SurrealDB Subquery Builder Tests** (`tests/.../query/subqueryBuilder.test.ts`): Tests for `buildSubquery` (wrapping, alias), static helpers (`where`, `field`, `exists`, `in`, `notIn`, `arrayAccess`), and `subquery()` factory.
 
 ### Changed
+
+- **AGENTS.md**: Bumped to v2.6.0 — added `SpeechService` and `TaskManager` to DI-managed services table, clarified `devcheck` flag documentation (opt-out vs opt-in).
 
 - **`scripts/devcheck.ts`**: Added opt-in flag pattern (`requiresFlag` property on `Check`). Tests check changed from opt-out (`--no-test`) to opt-in (`--test`), so `devcheck` no longer runs the full test suite by default. Help output now separates opt-out and opt-in sections.
 - **Dependencies**: Bumped `@cloudflare/workers-types` (4.20260214→4.20260217), `typescript-eslint` (8.55→8.56), `@opentelemetry/auto-instrumentations-node` (0.69→0.70), `@opentelemetry/instrumentation-pino` (0.57→0.58).
