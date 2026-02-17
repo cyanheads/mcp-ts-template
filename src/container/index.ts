@@ -5,9 +5,6 @@
  * the configured container and all DI tokens.
  * @module src/container
  */
-import 'reflect-metadata';
-import { container } from 'tsyringe';
-
 import { registerCoreServices } from '@/container/registrations/core.js';
 import { registerMcpServices } from '@/container/registrations/mcp.js';
 
@@ -28,6 +25,6 @@ export function composeContainer(): void {
   isContainerComposed = true;
 }
 
-// --- Export DI tokens and the container instance ---
+// --- Export DI tokens, container, and token type ---
 export * from '@/container/tokens.js';
-export default container;
+export { container, type Token } from '@/container/container.js';

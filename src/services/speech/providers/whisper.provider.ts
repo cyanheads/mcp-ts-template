@@ -3,8 +3,6 @@
  * @module src/services/speech/providers/whisper
  */
 
-import { injectable } from 'tsyringe';
-
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   fetchWithTimeout,
@@ -42,7 +40,6 @@ interface WhisperTranscriptionResponse {
  * OpenAI Whisper STT provider.
  * Supports high-quality speech-to-text transcription in multiple languages.
  */
-@injectable()
 export class WhisperProvider implements ISpeechProvider {
   public readonly name = 'openai-whisper';
   public readonly supportsTTS = false;

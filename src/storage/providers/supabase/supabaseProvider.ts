@@ -4,11 +4,7 @@
  * Assumes a table with columns: `key` (text), `value` (jsonb), and `expires_at` (timestamptz).
  * @module src/storage/providers/supabase/supabaseProvider
  */
-import { inject, injectable } from 'tsyringe';
-
 import { SupabaseClient } from '@supabase/supabase-js';
-
-import { SupabaseAdminClient } from '@/container/tokens.js';
 import type {
   IStorageProvider,
   StorageOptions,
@@ -28,12 +24,8 @@ import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
 const TABLE_NAME = 'kv_store';
 const DEFAULT_LIST_LIMIT = 1000;
 
-@injectable()
 export class SupabaseProvider implements IStorageProvider {
-  constructor(
-    @inject(SupabaseAdminClient)
-    private readonly client: SupabaseClient<Database>,
-  ) {}
+  constructor(private readonly client: SupabaseClient<Database>) {}
 
   private getClient() {
     return this.client;

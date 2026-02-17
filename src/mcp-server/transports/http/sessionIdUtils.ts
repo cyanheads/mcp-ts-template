@@ -2,7 +2,7 @@
  * @fileoverview Utilities for generating and validating cryptographically secure session IDs.
  * @module src/mcp-server/transports/http/sessionIdUtils
  */
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
 
 import { runtimeCaps } from '@/utils/internal/runtime.js';
 

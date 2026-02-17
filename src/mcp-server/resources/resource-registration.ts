@@ -5,19 +5,14 @@
  * @module src/mcp-server/resources/resource-registration
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { type DependencyContainer, injectable, injectAll } from 'tsyringe';
 import { ZodObject, type ZodRawShape } from 'zod';
 
-import { ResourceDefinitions } from '@/container/index.js';
-import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
 import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { registerResource } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
 import { logger, requestContextService } from '@/utils/index.js';
 
-@injectable()
 export class ResourceRegistry {
   constructor(
-    @injectAll(ResourceDefinitions, { isOptional: true })
     private resourceDefs: ResourceDefinition<
       ZodObject<ZodRawShape>,
       ZodObject<ZodRawShape> | undefined
@@ -41,15 +36,3 @@ export class ResourceRegistry {
     }
   }
 }
-
-/**
- * Registers all resource definitions with the provided dependency container.
- * This function uses multi-injection to register each resource under the `ResourceDefinitions` token.
- *
- * @param {DependencyContainer} container - The tsyringe container instance to register resources with.
- */
-export const registerResources = (container: DependencyContainer): void => {
-  for (const resource of allResourceDefinitions) {
-    container.register(ResourceDefinitions, { useValue: resource });
-  }
-};

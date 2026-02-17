@@ -10,10 +10,7 @@ import {
   type ChatCompletionChunk,
 } from 'openai/resources/chat/completions';
 import { Stream } from 'openai/streaming';
-import { inject, injectable } from 'tsyringe';
-
 import { config as ConfigType } from '@/config/index.js';
-import { AppConfig, Logger, RateLimiterService } from '@/container/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/index.js';
 import { logger as LoggerType } from '@/utils/internal/logger.js';
@@ -35,7 +32,6 @@ export interface OpenRouterClientOptions {
   siteName?: string;
 }
 
-@injectable()
 export class OpenRouterProvider implements ILlmProvider {
   private readonly client: OpenAI;
   private readonly defaultParams: {
@@ -48,9 +44,9 @@ export class OpenRouterProvider implements ILlmProvider {
   };
 
   constructor(
-    @inject(RateLimiterService) private rateLimiter: RateLimiter,
-    @inject(AppConfig) private config: typeof ConfigType,
-    @inject(Logger) private logger: typeof LoggerType,
+    private rateLimiter: RateLimiter,
+    private config: typeof ConfigType,
+    private logger: typeof LoggerType,
   ) {
     const context = requestContextService.createRequestContext({
       operation: 'OpenRouterProvider.constructor',

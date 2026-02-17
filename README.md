@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.8.1-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.26.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-76.12%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
+[![Version](https://img.shields.io/badge/Version-2.9.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.26.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-76.12%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
 
 </div>
 
@@ -22,7 +22,7 @@
 - **Abstracted Storage**: Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `SurrealDB`, `Cloudflare D1/KV/R2`) without changing business logic. Features secure opaque cursor pagination, parallel batch operations, and comprehensive validation.
 - **Graph Database Operations**: Optional graph service for relationship management, graph traversals, and pathfinding algorithms (SurrealDB provider).
 - **Full-Stack Observability**: Get deep insights with structured logging (Pino) and optional, auto-instrumented OpenTelemetry for traces and metrics.
-- **Dependency Injection**: Built with `tsyringe` for a clean, decoupled, and testable architecture.
+- **Dependency Injection**: Custom typed DI container with `Token<T>` phantom branding — zero external dependencies, fully type-safe resolution.
 - **Service Integrations**: Pluggable services for external APIs, including LLM providers (OpenRouter), text-to-speech (ElevenLabs), and graph operations (SurrealDB).
 - **Rich Built-in Utility Suite**: Helpers for parsing (PDF, YAML, CSV, frontmatter), formatting (diffs, tables, trees, markdown), scheduling, security, and more.
 - **Edge-Ready**: Write code once and run it seamlessly on your local machine or at the edge on Cloudflare Workers.
@@ -61,7 +61,7 @@ This template follows a modular, domain-driven architecture with clear separatio
 **Key Modules:**
 
 - **[MCP Server](src/mcp-server/)** - Tools, resources, prompts, and transport layer implementations
-- **[Container](src/container/)** - Dependency injection setup with tsyringe for clean architecture
+- **[Container](src/container/)** - Typed dependency injection container with zero external dependencies
 - **[Services](src/services/)** - External service integrations (LLM, Speech, Graph) with pluggable providers
 - **[Storage](src/storage/)** - Abstracted persistence layer with multiple backend support
 - **[Utilities](src/utils/)** - Cross-cutting concerns (logging, security, parsing, telemetry)
@@ -264,7 +264,7 @@ Each major module includes comprehensive documentation with architecture diagram
   - SDK context and client interaction
   - Response formatting and error handling
 
-- **[Container Guide](src/container/)** - Dependency injection with tsyringe
+- **[Container Guide](src/container/)** - Typed dependency injection container
   - Understanding DI tokens and registration
   - Service lifetimes (singleton, transient, instance)
   - Constructor injection patterns

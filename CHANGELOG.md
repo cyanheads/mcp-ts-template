@@ -7,6 +7,82 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.9.2] - 2026-02-17
+
+### Added
+
+- **DI Container Tests** (`tests/container/container.test.ts`): Comprehensive test suite for `Container` class and `token()` factory — covers `registerValue`, `registerFactory`, `registerSingleton`, `registerMulti`/`resolveAll`, `has`, `fork` (isolation, deep-copy semantics), `clearInstances`, `reset`, and registration overwrite behavior.
+- **Session ID Utils Tests** (`tests/.../sessionIdUtils.test.ts`): Replaced TODO stub with real tests for `generateSecureSessionId` (length, uniqueness, hex format) and `validateSessionIdFormat` (valid/invalid inputs, boundary cases).
+- **Request Context Tests** (`tests/.../requestContext.test.ts`): Added tests for default context creation and `withAuthInfo` — tenant propagation, `sub` fallback to `clientId`, parent context inheritance.
+- **Rate Limiter Tests** (`tests/.../rateLimiter.test.ts`): Added tests for LRU eviction (`maxTrackedKeys`), custom `keyGenerator`, `errorMessage` with `{waitTime}` substitution, and window reset after expiry.
+
+### Changed
+
+- **`scripts/devcheck.ts`**: Added opt-in flag pattern (`requiresFlag` property on `Check`). Tests check changed from opt-out (`--no-test`) to opt-in (`--test`), so `devcheck` no longer runs the full test suite by default. Help output now separates opt-out and opt-in sections.
+- **Dependencies**: Bumped `@cloudflare/workers-types` (4.20260214→4.20260217), `typescript-eslint` (8.55→8.56), `@opentelemetry/auto-instrumentations-node` (0.69→0.70), `@opentelemetry/instrumentation-pino` (0.57→0.58).
+
+---
+
+## [2.9.1] - 2026-02-17
+
+### Changed
+
+- **Storage factory**: Removed hidden dependency on global DI container. `createStorageProvider` now requires Supabase/SurrealDB clients via the `deps` parameter instead of falling back to `container.resolve()`. The DI registration in `core.ts` resolves clients and passes them through, keeping the factory DI-agnostic and `fork()`-safe.
+- **DI registration order** (`core.ts`): Reordered `RateLimiterService` before `LlmProvider` so registration order matches dependency order.
+- **`sanitization.ts`**: Fixed dynamic `import('path')` → `import('node:path')` for consistency with the `node:` prefix migration.
+
+### Removed
+
+- **`server.test.ts.disabled`**: Deleted superseded test file — fully replaced by the new `server.test.ts` suite.
+
+---
+
+## [2.9.0] - 2026-02-14
+
+### Changed
+
+- **TypeScript Target**: Bumped `target` and `lib` from `ES2022` to `ESNext`, unlocking modern language features without manual tsconfig bumps.
+- **Node.js Engine Requirement**: Raised minimum from Node 20 to Node 22 (current LTS). Bun minimum remains ≥1.2.0. Updated `packageManager` to `bun@1.3.2`.
+- **DI Container**: Replaced `tsyringe` (unmaintained, legacy decorators) with a custom ~140-line typed `Container` class. Zero external dependencies. `Token<T>` phantom branding provides fully type-safe resolution without casts.
+- **All 16 injectable classes**: Removed `@injectable()`, `@inject()`, `@injectAll()` decorators and tsyringe imports. Constructors unchanged — they receive plain typed parameters.
+- **Container registrations** (`core.ts`, `mcp.ts`): Rewrote from tsyringe's `container.register()` / `useClass` / `useFactory` API to new `registerValue` / `registerSingleton` / `registerFactory` / `registerMulti` API.
+- **Container consumers** (`server.ts`, `authFactory.ts`, `storageFactory.ts`, `index.ts`, `worker.ts`): Updated to use new container import path and token-based resolution.
+- **Node.js imports**: Added `node:` protocol prefix to 8 bare Node.js imports across 6 files (`fs`, `path`, `http`, `crypto`, `perf_hooks`).
+- **`fetchWithTimeout`**: Replaced manual `AbortController` + `setTimeout` + `clearTimeout` with `AbortSignal.timeout()`.
+- **`httpTransport`**: Replaced manual Promise executor with `Promise.withResolvers()` in `startHttpServerWithRetry`.
+- **`sanitization`**: Removed dead `structuredClone` fallback (globally available since Node 17+).
+- **Test setup**: Removed `import 'reflect-metadata'` from `tests/setup.ts`.
+- **Test suites**: Updated 10+ test files to use new container API or direct construction instead of tsyringe DI.
+
+### Added
+
+- **`src/container/container.ts`**: New typed DI container with `Token<T>`, `Container` class supporting `registerValue`, `registerFactory`, `registerSingleton`, `registerMulti`, `resolve`, `resolveAll`, `fork` (test isolation), `clearInstances`, and `reset`.
+
+### Removed
+
+- **`tsyringe`**: Removed from dependencies.
+- **`reflect-metadata`**: Removed from dependencies and tsconfig types.
+- **`experimentalDecorators`** and **`emitDecoratorMetadata`**: Removed from `tsconfig.json`. No decorators remain in the codebase.
+
+---
+
+## [2.8.3] - 2026-02-14
+
+### Added
+
+- **Server Unit Tests** (`tests/mcp-server/server.test.ts`): Comprehensive test suite for `createMcpServerInstance` — covers server initialization, registry resolution (Tool/Resource/Prompt/Roots), capability registration, logging behavior, and error handling for registration failures.
+- **Data Explorer App Tool Tests** (`tests/mcp-server/tools/definitions/template-data-explorer.app-tool.test.ts`): Test suite covering metadata, input schema validation, data generation logic (row structure, sequential IDs, date format, summary aggregation), output schema conformance, and response formatter output.
+- **Code Review Prompt Tests** (`tests/mcp-server/prompts/definitions/code-review.prompt.test.ts`): Replaced TODO stub with full test suite — metadata validation, arguments schema parsing, generate function output for all focus areas (general, security, performance, style), language specialization, examples toggle, and structured review sections.
+- **Error Handler Tests** (`tests/utils/internal/error-handler/errorHandler.test.ts`): Replaced TODO stub with comprehensive test suite covering `determineErrorCode` (type mappings, message classification, provider patterns), `handleError`, `formatError`, `tryCatch`, `tryAsResult`, `mapResult`, `flatMapResult`, `recoverResult`, `addBreadcrumb`, `tryCatchWithRetry`, `createExponentialBackoffStrategy`, and `mapError`.
+- **Error Handler Helpers Tests** (`tests/utils/internal/error-handler/helpers.test.ts`): Replaced TODO stub with tests for `getErrorName`, `getErrorMessage` (including AggregateError slicing), `createSafeRegex` (caching, flag normalization), `extractErrorCauseChain` (circular detection, maxDepth, cause types), and `serializeErrorCauseChain`.
+- **Error Handler Mappings Tests** (`tests/utils/internal/error-handler/mappings.test.ts`): Replaced TODO stub with tests for `getCompiledPattern` (caching, flag handling), `ERROR_TYPE_MAPPINGS` completeness, `COMPILED_ERROR_PATTERNS` (auth, permission, not-found, validation, conflict, rate-limit, timeout, Zod patterns), and `COMPILED_PROVIDER_PATTERNS` (AWS, HTTP status, database, Supabase, LLM, network patterns).
+
+### Changed
+
+- **Directory Tree**: Refreshed `docs/tree.md` to reflect new test files.
+
+---
+
 ## [2.8.2] - 2026-02-14
 
 ### Changed

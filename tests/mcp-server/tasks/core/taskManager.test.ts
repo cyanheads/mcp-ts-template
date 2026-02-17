@@ -3,7 +3,7 @@
  * @module tests/mcp-server/tasks/core/taskManager.test
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { container } from 'tsyringe';
+import { container } from '@/container/container.js';
 
 import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { StorageBackedTaskStore } from '@/mcp-server/tasks/core/storageBackedTaskStore.js';
@@ -16,12 +16,20 @@ import {
 } from '@/container/tokens.js';
 import type { config as configType } from '@/config/index.js';
 
+/** Helper to set up storage dependencies in the new container. */
+function registerStorageDeps() {
+  container.registerSingleton(StorageProvider, () => new InMemoryProvider());
+  container.registerSingleton(
+    StorageServiceToken,
+    (c) => new StorageService(c.resolve(StorageProvider)),
+  );
+}
+
 describe('TaskManager', () => {
   beforeEach(() => {
-    container.clearInstances();
+    container.reset();
     // Register base dependencies
-    container.registerSingleton(StorageProvider, InMemoryProvider);
-    container.registerSingleton(StorageServiceToken, StorageService);
+    registerStorageDeps();
   });
 
   describe('with in-memory store (default)', () => {
@@ -37,8 +45,8 @@ describe('TaskManager', () => {
         },
       } as typeof configType;
 
-      container.register(AppConfig, { useValue: mockConfig });
-      const storageService = container.resolve(StorageService);
+      container.registerValue(AppConfig, mockConfig);
+      const storageService = container.resolve(StorageServiceToken);
       taskManager = new TaskManager(mockConfig, storageService);
     });
 
@@ -105,8 +113,8 @@ describe('TaskManager', () => {
         },
       } as typeof configType;
 
-      container.register(AppConfig, { useValue: mockConfig });
-      const storageService = container.resolve(StorageService);
+      container.registerValue(AppConfig, mockConfig);
+      const storageService = container.resolve(StorageServiceToken);
       taskManager = new TaskManager(mockConfig, storageService);
     });
 
@@ -138,8 +146,8 @@ describe('TaskManager', () => {
         },
       } as typeof configType;
 
-      container.register(AppConfig, { useValue: mockConfig });
-      const storageService = container.resolve(StorageService);
+      container.registerValue(AppConfig, mockConfig);
+      const storageService = container.resolve(StorageServiceToken);
       const tm = new TaskManager(mockConfig, storageService);
 
       expect(tm.getStoreType()).toBe('in-memory');
@@ -154,8 +162,8 @@ describe('TaskManager', () => {
         },
       } as typeof configType;
 
-      container.register(AppConfig, { useValue: mockConfig });
-      const storageService = container.resolve(StorageService);
+      container.registerValue(AppConfig, mockConfig);
+      const storageService = container.resolve(StorageServiceToken);
       const tm = new TaskManager(mockConfig, storageService);
 
       expect(tm.getStoreType()).toBe('storage');

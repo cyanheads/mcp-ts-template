@@ -14,13 +14,15 @@
  * @module src/mcp-server/server
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { container } from 'tsyringe';
 
 import { config } from '@/config/index.js';
-import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
-import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
-import { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
-import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
+import { container } from '@/container/container.js';
+import {
+  PromptRegistryToken,
+  ResourceRegistryToken,
+  RootsRegistryToken,
+  ToolRegistryToken,
+} from '@/container/tokens.js';
 import { logger, requestContextService } from '@/utils/index.js';
 
 /**
@@ -70,16 +72,16 @@ export async function createMcpServerInstance(): Promise<McpServer> {
     logger.debug('Registering all MCP capabilities via registries...', context);
 
     // Resolve and use registry services
-    const toolRegistry = container.resolve(ToolRegistry);
+    const toolRegistry = container.resolve(ToolRegistryToken);
     await toolRegistry.registerAll(server);
 
-    const resourceRegistry = container.resolve(ResourceRegistry);
+    const resourceRegistry = container.resolve(ResourceRegistryToken);
     await resourceRegistry.registerAll(server);
 
-    const promptRegistry = container.resolve(PromptRegistry);
+    const promptRegistry = container.resolve(PromptRegistryToken);
     promptRegistry.registerAll(server);
 
-    const rootsRegistry = container.resolve(RootsRegistry);
+    const rootsRegistry = container.resolve(RootsRegistryToken);
     rootsRegistry.registerAll(server);
 
     logger.info('All MCP capabilities registered successfully', context);

@@ -16,9 +16,9 @@ const isServerless =
   typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
 
 // Dynamically import 'path' only in non-serverless environments
-let pathModule: typeof import('path') | undefined;
+let pathModule: typeof import('node:path') | undefined;
 if (!isServerless) {
-  import('path')
+  import('node:path')
     .then((mod) => {
       pathModule = mod.default;
     })
@@ -680,10 +680,7 @@ export class Sanitization {
     try {
       if (!input || typeof input !== 'object') return input;
 
-      const clonedInput: unknown =
-        typeof globalThis.structuredClone === 'function'
-          ? globalThis.structuredClone(input)
-          : JSON.parse(JSON.stringify(input));
+      const clonedInput: unknown = structuredClone(input);
       this.redactSensitiveFields(clonedInput);
       return clonedInput;
     } catch (error: unknown) {

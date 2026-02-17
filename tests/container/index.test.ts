@@ -3,7 +3,7 @@
  * @module tests/container/index.test.ts
  */
 import { describe, expect, it, beforeAll } from 'vitest';
-import { container } from 'tsyringe';
+import { container } from '@/container/container.js';
 import { composeContainer } from '@/container/index.js';
 import {
   AppConfig,

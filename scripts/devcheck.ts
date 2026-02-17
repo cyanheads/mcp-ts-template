@@ -28,6 +28,9 @@
  * // Skip specific checks:
  * // bun run scripts/devcheck.ts --no-lint --no-audit
  *
+ * // Enable optional checks (e.g., tests are off by default):
+ * // bun run scripts/devcheck.ts --test
+ *
  * // Run only a single check (case-insensitive partial match):
  * // bun run scripts/devcheck.ts --only lint
  */
@@ -127,6 +130,8 @@ interface Check {
   canFix: boolean;
   /** If true, this check is skipped in fast mode (typically network-bound or very slow). */
   slowCheck?: boolean;
+  /** If true, check is off by default — only runs when its flag is explicitly provided. */
+  requiresFlag?: boolean;
   tip?: (c: Colors) => string;
   /**
    * Optional predicate to determine success.
@@ -369,9 +374,9 @@ const ALL_CHECKS: Check[] = [
   },
   {
     name: 'Tests',
-    flag: '--no-test',
+    flag: '--test',
     canFix: false,
-    slowCheck: true,
+    requiresFlag: true,
     getCommand: (ctx) => [
       path.join(ctx.rootDir, 'node_modules', '.bin', 'vitest'),
       'run',
@@ -642,10 +647,20 @@ function printHelp() {
     `  ${c.yellow('--only <name>')}   Run only the named check (case-insensitive partial match)`,
   );
   UI.log(`  ${c.yellow('--help')}          Show this help message\n`);
+  const optOutChecks = ALL_CHECKS.filter((ch) => !ch.requiresFlag);
+  const optInChecks = ALL_CHECKS.filter((ch) => ch.requiresFlag);
+
   UI.log(`${c.bold('Skip individual checks:')}`);
-  for (const check of ALL_CHECKS) {
+  for (const check of optOutChecks) {
     const slow = check.slowCheck ? c.dim(' (slow)') : '';
     UI.log(`  ${c.yellow(check.flag.padEnd(18))} Skip ${check.name}${slow}`);
+  }
+
+  if (optInChecks.length > 0) {
+    UI.log(`\n${c.bold('Enable optional checks (off by default):')}`);
+    for (const check of optInChecks) {
+      UI.log(`  ${c.yellow(check.flag.padEnd(18))} Run ${check.name}`);
+    }
   }
   UI.log('');
 }
@@ -731,10 +746,19 @@ async function runCheck(check: Check, ctx: AppContext): Promise<CommandResult> {
     }
   }
 
-  // 2. Check for skip flag
-  if (ctx.flags.has(check.flag)) {
-    log.push(UI.formatSkipped(check, `Flag ${check.flag} provided`));
-    return { ...baseResult, skipped: true };
+  // 2. Handle opt-in vs opt-out flags
+  if (check.requiresFlag) {
+    // Opt-in: only runs when flag is explicitly provided
+    if (!ctx.flags.has(check.flag)) {
+      log.push(UI.formatSkipped(check, `Pass ${check.flag} to enable`));
+      return { ...baseResult, skipped: true };
+    }
+  } else {
+    // Opt-out: runs by default, skip when flag is provided
+    if (ctx.flags.has(check.flag)) {
+      log.push(UI.formatSkipped(check, `Flag ${check.flag} provided`));
+      return { ...baseResult, skipped: true };
+    }
   }
 
   // 3. Skip slow checks in fast mode

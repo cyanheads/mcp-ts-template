@@ -5,7 +5,6 @@
  * it defaults to `in-memory` to ensure compatibility.
  * @module src/storage/core/storageFactory
  */
-import { container } from 'tsyringe';
 import type {
   R2Bucket,
   KVNamespace,
@@ -92,14 +91,15 @@ function getGlobalBinding<T>(
  *
  * @example
  * ```typescript
- * // Standard usage via DI
- * const config = container.resolve<AppConfig>(AppConfig);
- * const provider = createStorageProvider(config);
+ * // Standard usage — DI container resolves clients and passes via deps
+ * const provider = createStorageProvider(config, {
+ *   supabaseClient: resolvedSupabaseClient,
+ * });
  *
- * // Worker usage with pre-resolved bindings
+ * // Worker usage with Cloudflare bindings
  * const provider = createStorageProvider(config, {
  *   r2Bucket: env.R2_BUCKET,
- *   kvNamespace: env.KV_NAMESPACE
+ *   kvNamespace: env.KV_NAMESPACE,
  * });
  * ```
  */
@@ -152,11 +152,14 @@ export function createStorageProvider(
           context,
         );
       }
-      if (deps.supabaseClient) {
-        return new SupabaseProvider(deps.supabaseClient);
+      if (!deps.supabaseClient) {
+        throw new McpError(
+          JsonRpcErrorCode.ConfigurationError,
+          'Supabase client must be provided via deps for the supabase storage provider.',
+          context,
+        );
       }
-      // Fallback to DI container (backward-compatible)
-      return container.resolve(SupabaseProvider);
+      return new SupabaseProvider(deps.supabaseClient);
     case 'surrealdb':
       if (
         !config.surrealdb?.url ||
@@ -169,14 +172,17 @@ export function createStorageProvider(
           context,
         );
       }
-      if (deps.surrealdbClient) {
-        return new SurrealKvProvider(
-          deps.surrealdbClient,
-          config.surrealdb.tableName,
+      if (!deps.surrealdbClient) {
+        throw new McpError(
+          JsonRpcErrorCode.ConfigurationError,
+          'SurrealDB client must be provided via deps for the surrealdb storage provider.',
+          context,
         );
       }
-      // Fallback to DI container
-      return container.resolve(SurrealKvProvider);
+      return new SurrealKvProvider(
+        deps.surrealdbClient,
+        config.surrealdb.tableName,
+      );
     case 'cloudflare-r2':
       if (isServerless) {
         if (deps.r2Bucket) {

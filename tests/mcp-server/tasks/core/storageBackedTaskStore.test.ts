@@ -3,7 +3,7 @@
  * @module tests/mcp-server/tasks/core/storageBackedTaskStore.test
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { container } from 'tsyringe';
+import { container } from '@/container/container.js';
 
 import { StorageBackedTaskStore } from '@/mcp-server/tasks/core/storageBackedTaskStore.js';
 import { StorageService } from '@/storage/core/StorageService.js';
@@ -26,10 +26,13 @@ describe('StorageBackedTaskStore', () => {
   const testRequestId: RequestId = 1;
 
   beforeEach(() => {
-    container.clearInstances();
-    container.registerSingleton(StorageProvider, InMemoryProvider);
-    container.registerSingleton(StorageServiceToken, StorageService);
-    storageService = container.resolve(StorageService);
+    container.reset();
+    container.registerSingleton(StorageProvider, () => new InMemoryProvider());
+    container.registerSingleton(
+      StorageServiceToken,
+      (c) => new StorageService(c.resolve(StorageProvider)),
+    );
+    storageService = container.resolve(StorageServiceToken);
 
     taskStore = new StorageBackedTaskStore(storageService, {
       tenantId: 'test-tasks',

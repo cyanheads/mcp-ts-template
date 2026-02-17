@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-14 15:54:52
+Generated on: 2026-02-14 17:36:55
 
 ```
 mcp-ts-template/
@@ -65,6 +65,7 @@ mcp-ts-template/
 │   │   ├── registrations/
 │   │   │   ├── core.ts
 │   │   │   └── mcp.ts
+│   │   ├── container.ts
 │   │   ├── index.ts
 │   │   ├── README.md
 │   │   └── tokens.ts
@@ -328,6 +329,7 @@ mcp-ts-template/
 │   │   │   │   ├── template-async-countdown.task-tool.test.ts
 │   │   │   │   ├── template-cat-fact.tool.test.ts
 │   │   │   │   ├── template-code-review-sampling.tool.test.ts
+│   │   │   │   ├── template-data-explorer.app-tool.test.ts
 │   │   │   │   ├── template-echo-message.tool.test.ts
 │   │   │   │   ├── template-image-test.tool.test.ts
 │   │   │   │   └── template-madlibs-elicitation.tool.test.ts
@@ -369,6 +371,7 @@ mcp-ts-template/
 │   │   │   │   └── stdioTransport.test.ts
 │   │   │   ├── ITransport.test.ts
 │   │   │   └── manager.test.ts
+│   │   ├── server.test.ts
 │   │   └── server.test.ts.disabled
 │   ├── mocks/
 │   │   ├── handlers.ts

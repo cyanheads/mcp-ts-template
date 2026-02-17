@@ -4,14 +4,7 @@
  */
 import type { ServerType } from '@hono/node-server';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { inject, injectable } from 'tsyringe';
-
 import type { AppConfig as AppConfigType } from '../../config/index.js';
-import {
-  AppConfig,
-  CreateMcpServerInstance,
-  Logger,
-} from '../../container/tokens.js';
 import { requestContextService } from '../../utils/index.js';
 import type { logger as LoggerType } from '../../utils/index.js';
 import { startHttpTransport, stopHttpTransport } from './http/httpTransport.js';
@@ -21,14 +14,12 @@ import {
   stopStdioTransport,
 } from './stdio/stdioTransport.js';
 
-@injectable()
 export class TransportManager {
   private serverInstance: TransportServer | null = null;
 
   constructor(
-    @inject(AppConfig) private config: AppConfigType,
-    @inject(Logger) private logger: typeof LoggerType,
-    @inject(CreateMcpServerInstance)
+    private config: AppConfigType,
+    private logger: typeof LoggerType,
     private createMcpServer: () => Promise<McpServer>,
   ) {}
 

@@ -9,7 +9,7 @@
  * during application startup.
  * @module src/utils/security/idGenerator
  */
-import { randomUUID as cryptoRandomUUID, randomBytes } from 'crypto';
+import { randomUUID as cryptoRandomUUID, randomBytes } from 'node:crypto';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 

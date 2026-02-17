@@ -5,10 +5,7 @@
  * @module src/mcp-server/transports/auth/strategies/OauthStrategy
  */
 import { type JWTVerifyResult, createRemoteJWKSet, jwtVerify } from 'jose';
-import { inject, injectable } from 'tsyringe';
-
 import { type config as ConfigType } from '@/config/index.js';
-import { AppConfig, Logger } from '@/container/tokens.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
@@ -18,13 +15,12 @@ import {
   requestContextService,
 } from '@/utils/index.js';
 
-@injectable()
 export class OauthStrategy implements AuthStrategy {
   private readonly jwks: ReturnType<typeof createRemoteJWKSet>;
 
   constructor(
-    @inject(AppConfig) private config: typeof ConfigType,
-    @inject(Logger) private logger: typeof LoggerType,
+    private config: typeof ConfigType,
+    private logger: typeof LoggerType,
   ) {
     const context = requestContextService.createRequestContext({
       operation: 'OauthStrategy.constructor',

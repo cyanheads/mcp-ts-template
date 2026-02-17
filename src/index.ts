@@ -29,7 +29,6 @@ import {
   initializeOpenTelemetry,
   shutdownOpenTelemetry,
 } from '@/utils/telemetry/instrumentation.js';
-import 'reflect-metadata';
 
 import {
   initializePerformance_Hrt,
@@ -38,12 +37,13 @@ import {
 import { type McpLogLevel, logger } from '@/utils/internal/logger.js';
 
 import { config as appConfigType } from '@/config/index.js';
-import container, {
+import {
+  container,
   AppConfig,
   TransportManagerToken,
   composeContainer,
 } from '@/container/index.js';
-import { TransportManager } from '@/mcp-server/transports/manager.js';
+import type { TransportManager } from '@/mcp-server/transports/manager.js';
 
 // The container is now composed in start(), so we must resolve config there.
 let config: typeof appConfigType;
@@ -101,7 +101,7 @@ const start = async (): Promise<void> => {
     // Initialize DI container first
     composeContainer();
     // Now it's safe to resolve dependencies
-    config = container.resolve<typeof appConfigType>(AppConfig);
+    config = container.resolve(AppConfig);
   } catch (_error) {
     // This will catch the McpError from parseConfig
     if (process.stdout.isTTY) {
@@ -158,7 +158,7 @@ const start = async (): Promise<void> => {
     requestContextService.createRequestContext({ operation: 'StorageInit' }),
   );
 
-  transportManager = container.resolve<TransportManager>(TransportManagerToken);
+  transportManager = container.resolve(TransportManagerToken);
 
   const startupContext = requestContextService.createRequestContext({
     operation: 'ServerStartup',

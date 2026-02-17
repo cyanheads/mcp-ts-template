@@ -2,7 +2,7 @@
  * @fileoverview Defines custom types for the Hono HTTP transport layer.
  * @module src/mcp-server/transports/http/httpTypes
  */
-import type { IncomingMessage, ServerResponse } from 'http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 
 /**
  * Extends Hono's Bindings to include the raw Node.js request and response objects.

@@ -111,9 +111,6 @@ export async function fetchWithTimeout(
     assertNotPrivateUrl(urlString);
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
   const operationDescription = `fetch ${options?.method || 'GET'} ${urlString}`;
 
   logger.debug(
@@ -127,9 +124,8 @@ export async function fetchWithTimeout(
   try {
     const response = await fetch(url, {
       ...fetchInit,
-      signal: controller.signal,
+      signal: AbortSignal.timeout(timeoutMs),
     });
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorBody = await response
@@ -163,8 +159,10 @@ export async function fetchWithTimeout(
     );
     return response;
   } catch (error: unknown) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (
+      error instanceof Error &&
+      (error.name === 'TimeoutError' || error.name === 'AbortError')
+    ) {
       logger.error(`${operationDescription} timed out after ${timeoutMs}ms.`, {
         ...context,
         errorSource: 'FetchTimeout',
@@ -176,7 +174,6 @@ export async function fetchWithTimeout(
       );
     }
 
-    // Log and re-throw other errors as McpError
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(
       `Network error during ${operationDescription}: ${errorMessage}`,
@@ -188,12 +185,11 @@ export async function fetchWithTimeout(
     );
 
     if (error instanceof McpError) {
-      // If it's already an McpError, re-throw it
       throw error;
     }
 
     throw new McpError(
-      JsonRpcErrorCode.ServiceUnavailable, // Generic error for network/service issues
+      JsonRpcErrorCode.ServiceUnavailable,
       `Network error during ${operationDescription}: ${errorMessage}`,
       {
         ...context,

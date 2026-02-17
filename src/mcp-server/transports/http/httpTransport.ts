@@ -13,7 +13,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import http from 'http';
+import http from 'node:http';
 
 import { config } from '@/config/index.js';
 import {
@@ -407,66 +407,67 @@ function startHttpServerWithRetry<TBindings extends object = HonoNodeBindings>(
     startContext,
   );
 
-  return new Promise((resolve, reject) => {
-    const tryBind = (port: number, attempt: number) => {
-      if (attempt > maxRetries + 1) {
-        const error = new Error(
-          `Failed to bind to any port after ${maxRetries} retries.`,
-        );
-        logger.fatal(error.message, { ...startContext, port, attempt });
-        return reject(error);
-      }
+  const { promise, resolve, reject } = Promise.withResolvers<ServerType>();
 
-      isPortInUse(port, host, { ...startContext, port, attempt })
-        .then((inUse) => {
-          if (inUse) {
-            logger.warning(`Port ${port} is in use, retrying...`, {
-              ...startContext,
-              port,
-              attempt,
-            });
-            setTimeout(
-              () => tryBind(port + 1, attempt + 1),
-              config.mcpHttpPortRetryDelayMs,
-            );
-            return;
-          }
+  const tryBind = (port: number, attempt: number) => {
+    if (attempt > maxRetries + 1) {
+      const error = new Error(
+        `Failed to bind to any port after ${maxRetries} retries.`,
+      );
+      logger.fatal(error.message, { ...startContext, port, attempt });
+      return reject(error);
+    }
 
-          try {
-            const serverInstance = serve(
-              { fetch: app.fetch, port, hostname: host },
-              (info) => {
-                const serverAddress = `http://${info.address}:${info.port}${config.mcpHttpEndpointPath}`;
-                logger.info(`HTTP transport listening at ${serverAddress}`, {
-                  ...startContext,
-                  port,
-                  address: serverAddress,
-                });
-                logStartupBanner(
-                  `\n🚀 MCP Server running at: ${serverAddress}`,
-                  'http',
-                );
-              },
-            );
-            resolve(serverInstance);
-          } catch (err: unknown) {
-            logger.warning(
-              `Binding attempt failed for port ${port}, retrying...`,
-              { ...startContext, port, attempt, error: String(err) },
-            );
-            setTimeout(
-              () => tryBind(port + 1, attempt + 1),
-              config.mcpHttpPortRetryDelayMs,
-            );
-          }
-        })
-        .catch((err) =>
-          reject(err instanceof Error ? err : new Error(String(err))),
-        );
-    };
+    isPortInUse(port, host, { ...startContext, port, attempt })
+      .then((inUse) => {
+        if (inUse) {
+          logger.warning(`Port ${port} is in use, retrying...`, {
+            ...startContext,
+            port,
+            attempt,
+          });
+          setTimeout(
+            () => tryBind(port + 1, attempt + 1),
+            config.mcpHttpPortRetryDelayMs,
+          );
+          return;
+        }
 
-    tryBind(initialPort, 1);
-  });
+        try {
+          const serverInstance = serve(
+            { fetch: app.fetch, port, hostname: host },
+            (info) => {
+              const serverAddress = `http://${info.address}:${info.port}${config.mcpHttpEndpointPath}`;
+              logger.info(`HTTP transport listening at ${serverAddress}`, {
+                ...startContext,
+                port,
+                address: serverAddress,
+              });
+              logStartupBanner(
+                `\n🚀 MCP Server running at: ${serverAddress}`,
+                'http',
+              );
+            },
+          );
+          resolve(serverInstance);
+        } catch (err: unknown) {
+          logger.warning(
+            `Binding attempt failed for port ${port}, retrying...`,
+            { ...startContext, port, attempt, error: String(err) },
+          );
+          setTimeout(
+            () => tryBind(port + 1, attempt + 1),
+            config.mcpHttpPortRetryDelayMs,
+          );
+        }
+      })
+      .catch((err) =>
+        reject(err instanceof Error ? err : new Error(String(err))),
+      );
+  };
+
+  tryBind(initialPort, 1);
+  return promise;
 }
 
 export async function startHttpTransport(

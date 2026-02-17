@@ -6,10 +6,7 @@
  * @module src/mcp-server/transports/auth/strategies/JwtStrategy
  */
 import { jwtVerify } from 'jose';
-import { injectable, inject } from 'tsyringe';
-
 import { config as ConfigType } from '@/config/index.js';
-import { AppConfig, Logger } from '@/container/tokens.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   ErrorHandler,
@@ -19,7 +16,6 @@ import {
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 
-@injectable()
 export class JwtStrategy implements AuthStrategy {
   private readonly secretKey: Uint8Array | null;
   private readonly env: string;
@@ -27,8 +23,8 @@ export class JwtStrategy implements AuthStrategy {
   private readonly devMcpScopes: string[];
 
   constructor(
-    @inject(AppConfig) private config: typeof ConfigType,
-    @inject(Logger) private logger: typeof LoggerType,
+    private config: typeof ConfigType,
+    private logger: typeof LoggerType,
   ) {
     const context = requestContextService.createRequestContext({
       operation: 'JwtStrategy.constructor',

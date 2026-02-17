@@ -13,9 +13,9 @@ describe('Application Entry Point', () => {
       expect(true).toBe(true);
     });
 
-    it('should import reflect-metadata for DI support', () => {
-      // reflect-metadata must be imported before any DI code
-      // This is verified by the module loading successfully
+    it('should use custom typed DI container', () => {
+      // The container uses Token<T> for type-safe resolution
+      // No reflect-metadata or decorators needed
       expect(true).toBe(true);
     });
   });
