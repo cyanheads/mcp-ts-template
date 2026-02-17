@@ -12,18 +12,20 @@ import type { McpError } from '@/types-global/errors.js';
  * Severity levels for errors, extending beyond basic logging levels.
  * Enables fine-grained categorization and alerting based on error impact.
  */
-export enum ErrorSeverity {
+export const ErrorSeverity = {
   /** Informational errors that don't require action */
-  Info = 'info',
+  Info: 'info',
   /** Warnings that should be monitored */
-  Warning = 'warning',
+  Warning: 'warning',
   /** Errors requiring attention */
-  Error = 'error',
+  Error: 'error',
   /** Critical errors requiring immediate action */
-  Critical = 'critical',
+  Critical: 'critical',
   /** System-threatening errors */
-  Fatal = 'fatal',
-}
+  Fatal: 'fatal',
+} as const;
+
+export type ErrorSeverity = (typeof ErrorSeverity)[keyof typeof ErrorSeverity];
 
 /**
  * Breadcrumb entry for tracking execution path leading to an error.
