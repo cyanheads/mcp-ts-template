@@ -28,7 +28,7 @@ describe('logStartupBanner', () => {
     restoreIsTTY();
   });
 
-  it('logs the banner when stdout is a TTY', () => {
+  it('logs the banner via console.log when stdout is a TTY (no transport)', () => {
     Object.defineProperty(process.stdout, 'isTTY', {
       configurable: true,
       value: true,
@@ -48,9 +48,54 @@ describe('logStartupBanner', () => {
     });
 
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     logStartupBanner('Should not appear');
 
     expect(logSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('uses console.error for stdio transport to avoid stdout pollution', () => {
+    Object.defineProperty(process.stdout, 'isTTY', {
+      configurable: true,
+      value: true,
+    });
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    logStartupBanner('STDIO banner', 'stdio');
+
+    expect(errorSpy).toHaveBeenCalledWith('STDIO banner');
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it('uses console.log for http transport', () => {
+    Object.defineProperty(process.stdout, 'isTTY', {
+      configurable: true,
+      value: true,
+    });
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    logStartupBanner('HTTP banner', 'http');
+
+    expect(logSpy).toHaveBeenCalledWith('HTTP banner');
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not log stdio transport when not a TTY', () => {
+    Object.defineProperty(process.stdout, 'isTTY', {
+      configurable: true,
+      value: false,
+    });
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    logStartupBanner('Should not appear', 'stdio');
+
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 });
