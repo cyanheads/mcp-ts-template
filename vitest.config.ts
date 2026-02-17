@@ -21,10 +21,10 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.d.ts'],
       thresholds: {
-        lines: 65,
-        functions: 60,
-        branches: 55,
-        statements: 65,
+        lines: 80,
+        functions: 75,
+        branches: 70,
+        statements: 80,
       },
     },
     fakeTimers: {
