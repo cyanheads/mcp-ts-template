@@ -129,4 +129,74 @@ describe('requestContextService', () => {
       );
     });
   });
+
+  it('creates a context with defaults when called with no arguments', () => {
+    const context = requestContextService.createRequestContext();
+    expect(context.requestId).toBe('CTX-TEST-ID');
+    expect(context.timestamp).toBeDefined();
+    expect(typeof context.timestamp).toBe('string');
+  });
+
+  describe('withAuthInfo', () => {
+    it('populates auth context from AuthInfo', () => {
+      const authInfo = {
+        subject: 'user-42',
+        scopes: ['read', 'write'],
+        clientId: 'client-abc',
+        token: 'jwt-token-xyz',
+        tenantId: 'tenant-1',
+      };
+
+      const context = requestContextService.withAuthInfo(authInfo);
+
+      expect(context.tenantId).toBe('tenant-1');
+      expect(context.auth).toBeDefined();
+      expect(context.auth!.sub).toBe('user-42');
+      expect(context.auth!.scopes).toEqual(['read', 'write']);
+      expect(context.auth!.clientId).toBe('client-abc');
+      expect(context.auth!.token).toBe('jwt-token-xyz');
+      expect(context.auth!.tenantId).toBe('tenant-1');
+    });
+
+    it('uses clientId as sub fallback when subject is undefined', () => {
+      const authInfo = {
+        scopes: ['read'],
+        clientId: 'service-account',
+        token: 'tok',
+      };
+
+      const context = requestContextService.withAuthInfo(authInfo);
+      expect(context.auth!.sub).toBe('service-account');
+    });
+
+    it('omits tenantId from auth when not provided', () => {
+      const authInfo = {
+        subject: 'u',
+        scopes: [],
+        clientId: 'c',
+        token: 't',
+      };
+
+      const context = requestContextService.withAuthInfo(authInfo);
+      expect(context.auth!.tenantId).toBeUndefined();
+    });
+
+    it('inherits properties from a parent context', () => {
+      const parent = requestContextService.createRequestContext({
+        additionalContext: { tracing: true },
+      });
+      const authInfo = {
+        subject: 'u',
+        scopes: [],
+        clientId: 'c',
+        token: 't',
+        tenantId: 'tid',
+      };
+
+      const context = requestContextService.withAuthInfo(authInfo, parent);
+      expect(context.requestId).toBe(parent.requestId);
+      expect(context.tracing).toBe(true);
+      expect(context.auth).toBeDefined();
+    });
+  });
 });
