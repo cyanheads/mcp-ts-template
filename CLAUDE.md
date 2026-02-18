@@ -225,7 +225,7 @@ Prompts are reusable message templates that clients can discover and invoke. The
 
 ## VI. Core Services & Utilities
 
-#### DI-Managed Services (tokens in `src/container/tokens.ts`)
+#### DI-Managed Services (tokens in `src/container/core/tokens.ts`)
 
 | Service           | Token                   | Resolution                                 | Notes                         |
 | ----------------- | ----------------------- | ------------------------------------------ | ----------------------------- |
