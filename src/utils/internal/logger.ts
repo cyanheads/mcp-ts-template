@@ -258,43 +258,26 @@ export class Logger {
     this.flushSuppressedMessages();
 
     // Wait for all pending writes to complete
+    const flushPino = (pinoInstance: PinoLogger | undefined, label: string) => {
+      const { promise, resolve } = Promise.withResolvers<void>();
+      if (pinoInstance != null) {
+        pinoInstance.flush((err) => {
+          // Only log to console if TTY AND not in STDIO mode
+          // In STDIO mode, stdout is reserved for MCP JSON-RPC, so avoid polluting stderr with shutdown noise
+          if (err && process.stderr?.isTTY && this.transportType !== 'stdio') {
+            console.error(`Error flushing ${label}:`, err);
+          }
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+      return promise;
+    };
+
     await Promise.all([
-      new Promise<void>((resolve) => {
-        if (this.pinoLogger) {
-          this.pinoLogger.flush((err) => {
-            // Only log to console if TTY AND not in STDIO mode
-            // In STDIO mode, stdout is reserved for MCP JSON-RPC, so avoid polluting stderr with shutdown noise
-            if (
-              err &&
-              process.stderr?.isTTY &&
-              this.transportType !== 'stdio'
-            ) {
-              console.error('Error flushing main logger:', err);
-            }
-            resolve();
-          });
-        } else {
-          resolve();
-        }
-      }),
-      new Promise<void>((resolve) => {
-        if (this.interactionLogger) {
-          this.interactionLogger.flush((err) => {
-            // Only log to console if TTY AND not in STDIO mode
-            // In STDIO mode, stdout is reserved for MCP JSON-RPC, so avoid polluting stderr with shutdown noise
-            if (
-              err &&
-              process.stderr?.isTTY &&
-              this.transportType !== 'stdio'
-            ) {
-              console.error('Error flushing interaction logger:', err);
-            }
-            resolve();
-          });
-        } else {
-          resolve();
-        }
-      }),
+      flushPino(this.pinoLogger, 'main logger'),
+      flushPino(this.interactionLogger, 'interaction logger'),
     ]);
 
     this.initialized = false;

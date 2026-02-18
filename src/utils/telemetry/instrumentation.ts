@@ -242,11 +242,10 @@ export async function shutdownOpenTelemetry(timeoutMs = 5000): Promise<void> {
 
   try {
     const shutdownPromise = sdk.shutdown();
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(
-        () => reject(new Error('OpenTelemetry SDK shutdown timeout')),
-        timeoutMs,
-      ),
+    const { promise: timeoutPromise, reject } = Promise.withResolvers<never>();
+    setTimeout(
+      () => reject(new Error('OpenTelemetry SDK shutdown timeout')),
+      timeoutMs,
     );
 
     await Promise.race([shutdownPromise, timeoutPromise]);
