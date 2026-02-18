@@ -7,6 +7,29 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.9.4] - 2026-02-18
+
+### Added
+
+- **MCP Protocol Conformance Tests** (`tests/conformance/`): Full protocol-level test suite using `InMemoryTransport` — validates initialization handshake, capability negotiation, tool/resource/prompt listing and invocation, lifecycle management (graceful disconnect, reconnection, concurrent operations).
+- **Property-Based Fuzz Testing** (`tests/mcp-server/tools/fuzz/`): Automated fuzz tests using `fast-check` and `@traversable/zod-test` — derives arbitraries from Zod schemas, validates schema parsing, logic invariants (only `McpError` thrown), output schema conformance, and response formatter safety across all registered tools.
+- **Vitest Conformance Config** (`vitest.conformance.ts`): Separate vitest configuration for conformance tests (no mocks, sequential execution, real module resolution).
+- **Test Scripts**: Added `test:conformance` and `test:fuzz` npm scripts.
+- **Enhancement Ideas** (`docs/enhancement-ideas.md`): Documented future enhancement candidates — streaming responses, completions support, tool composition, resource subscriptions, scaffolding CLI, and more.
+
+### Changed
+
+- **Logger Flush** (`src/utils/internal/logger.ts`): Refactored duplicate flush logic into a `flushPino` helper using `Promise.withResolvers()`.
+- **Telemetry Shutdown** (`src/utils/telemetry/instrumentation.ts`): Refactored shutdown timeout to use `Promise.withResolvers()`.
+- **Vitest Config** (`vitest.config.ts`): Excluded `tests/conformance/**` from default test run (conformance tests have their own config).
+
+### Dependencies
+
+- Added `@traversable/registry`, `@traversable/zod-test`, `@traversable/zod-types` (devDependencies) for schema-driven fuzz testing.
+- Bumped `@cloudflare/workers-types` (4.20260217 → 4.20260218).
+
+---
+
 ## [2.9.3] - 2026-02-17
 
 ### Added

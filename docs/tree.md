@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-17 15:04:21
+Generated on: 2026-02-18 13:30:34
 
 ```
 mcp-ts-template/
@@ -35,12 +35,14 @@ mcp-ts-template/
 │   │           ├── pagination.md
 │   │           ├── ping.md
 │   │           └── progress.md
+│   ├── enhancement-ideas.md
 │   ├── mcp-apps.md
 │   ├── mcp-elicitation-summary.md
 │   ├── mcp-sdk-changes.md
 │   ├── publishing-mcp-server-registry.md
 │   ├── storage-surrealdb-setup.md
 │   └── surrealdb-schema.surql
+├── patches/
 ├── schemas/
 │   ├── surrealdb/
 │   │   ├── surrealdb-events-schema.surql
@@ -286,6 +288,15 @@ mcp-ts-template/
 │   ├── config/
 │   │   ├── index.int.test.ts
 │   │   └── index.test.ts
+│   ├── conformance/
+│   │   ├── helpers/
+│   │   │   ├── assertions.ts
+│   │   │   └── server-harness.ts
+│   │   ├── lifecycle.test.ts
+│   │   ├── prompts.test.ts
+│   │   ├── protocol-init.test.ts
+│   │   ├── resources.test.ts
+│   │   └── tools.test.ts
 │   ├── container/
 │   │   ├── registrations/
 │   │   │   ├── core.test.ts
@@ -334,6 +345,8 @@ mcp-ts-template/
 │   │   │   │   ├── template-echo-message.tool.test.ts
 │   │   │   │   ├── template-image-test.tool.test.ts
 │   │   │   │   └── template-madlibs-elicitation.tool.test.ts
+│   │   │   ├── fuzz/
+│   │   │   │   └── tool-input-fuzz.test.ts
 │   │   │   ├── schemas/
 │   │   │   │   ├── __snapshots__/
 │   │   │   │   │   └── schema-snapshots.test.ts.snap
@@ -544,6 +557,7 @@ mcp-ts-template/
 ├── tsdoc.json
 ├── typedoc.json
 ├── vitest.config.ts
+├── vitest.conformance.ts
 └── wrangler.toml
 ```
 
