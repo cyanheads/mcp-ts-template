@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-18 13:30:34
+Generated on: 2026-02-18 14:07:45
 
 ```
 mcp-ts-template/
@@ -35,21 +35,11 @@ mcp-ts-template/
 │   │           ├── pagination.md
 │   │           ├── ping.md
 │   │           └── progress.md
-│   ├── enhancement-ideas.md
 │   ├── mcp-apps.md
 │   ├── mcp-elicitation-summary.md
 │   ├── mcp-sdk-changes.md
-│   ├── publishing-mcp-server-registry.md
-│   ├── storage-surrealdb-setup.md
-│   └── surrealdb-schema.surql
-├── patches/
+│   └── publishing-mcp-server-registry.md
 ├── schemas/
-│   ├── surrealdb/
-│   │   ├── surrealdb-events-schema.surql
-│   │   ├── surrealdb-functions-schema.surql
-│   │   ├── surrealdb-graph-schema.surql
-│   │   ├── surrealdb-schema.surql
-│   │   └── surrealdb-secure-schema.surql
 │   └── cloudflare-d1-schema.sql
 ├── scripts/
 │   ├── clean.ts
@@ -146,7 +136,6 @@ mcp-ts-template/
 │   │   │   │   ├── GraphService.ts
 │   │   │   │   └── IGraphProvider.ts
 │   │   │   ├── providers/
-│   │   │   │   └── surrealGraph.provider.ts
 │   │   │   ├── index.ts
 │   │   │   └── types.ts
 │   │   ├── llm/
@@ -182,44 +171,9 @@ mcp-ts-template/
 │   │   │   │   └── fileSystemProvider.ts
 │   │   │   ├── inMemory/
 │   │   │   │   └── inMemoryProvider.ts
-│   │   │   ├── supabase/
-│   │   │   │   ├── supabase.types.ts
-│   │   │   │   └── supabaseProvider.ts
-│   │   │   └── surrealdb/
-│   │   │       ├── auth/
-│   │   │       │   ├── authManager.ts
-│   │   │       │   ├── permissionHelpers.ts
-│   │   │       │   └── scopeDefinitions.ts
-│   │   │       ├── core/
-│   │   │       │   ├── connectionManager.ts
-│   │   │       │   ├── queryBuilder.ts
-│   │   │       │   ├── surrealDbClient.ts
-│   │   │       │   └── transactionManager.ts
-│   │   │       ├── events/
-│   │   │       │   ├── eventManager.ts
-│   │   │       │   ├── eventTypes.ts
-│   │   │       │   └── triggerBuilder.ts
-│   │   │       ├── functions/
-│   │   │       │   ├── customFunctions.ts
-│   │   │       │   └── functionRegistry.ts
-│   │   │       ├── graph/
-│   │   │       │   ├── graphOperations.ts
-│   │   │       │   ├── graphTypes.ts
-│   │   │       │   ├── pathFinder.ts
-│   │   │       │   └── relationshipManager.ts
-│   │   │       ├── introspection/
-│   │   │       │   └── schemaIntrospector.ts
-│   │   │       ├── kv/
-│   │   │       │   └── surrealKvProvider.ts
-│   │   │       ├── migrations/
-│   │   │       │   ├── migrationRunner.ts
-│   │   │       │   └── migrationTypes.ts
-│   │   │       ├── query/
-│   │   │       │   ├── forLoopBuilder.ts
-│   │   │       │   └── subqueryBuilder.ts
-│   │   │       ├── index.ts
-│   │   │       ├── README.md
-│   │   │       └── types.ts
+│   │   │   └── supabase/
+│   │   │       ├── supabase.types.ts
+│   │   │       └── supabaseProvider.ts
 │   │   ├── index.ts
 │   │   └── README.md
 │   ├── types-global/
@@ -396,8 +350,6 @@ mcp-ts-template/
 │   │   │   ├── core/
 │   │   │   │   ├── GraphService.test.ts
 │   │   │   │   └── IGraphProvider.test.ts
-│   │   │   ├── providers/
-│   │   │   │   └── surrealGraph.provider.test.ts
 │   │   │   ├── index.test.ts
 │   │   │   └── types.test.ts
 │   │   ├── llm/
@@ -431,38 +383,9 @@ mcp-ts-template/
 │   │   │   │   └── fileSystemProvider.test.ts
 │   │   │   ├── inMemory/
 │   │   │   │   └── inMemoryProvider.test.ts
-│   │   │   ├── supabase/
-│   │   │   │   ├── supabase.types.test.ts
-│   │   │   │   └── supabaseProvider.test.ts
-│   │   │   └── surrealdb/
-│   │   │       ├── auth/
-│   │   │       │   ├── authManager.test.ts
-│   │   │       │   ├── permissionHelpers.test.ts
-│   │   │       │   └── scopeDefinitions.test.ts
-│   │   │       ├── core/
-│   │   │       │   ├── connectionManager.test.ts
-│   │   │       │   ├── queryBuilder.test.ts
-│   │   │       │   ├── surrealDbClient.test.ts
-│   │   │       │   └── transactionManager.test.ts
-│   │   │       ├── events/
-│   │   │       │   ├── eventManager.test.ts
-│   │   │       │   └── triggerBuilder.test.ts
-│   │   │       ├── functions/
-│   │   │       │   ├── customFunctions.test.ts
-│   │   │       │   └── functionRegistry.test.ts
-│   │   │       ├── graph/
-│   │   │       │   ├── graphOperations.test.ts
-│   │   │       │   ├── pathFinder.test.ts
-│   │   │       │   └── relationshipManager.test.ts
-│   │   │       ├── introspection/
-│   │   │       │   └── schemaIntrospector.test.ts
-│   │   │       ├── migrations/
-│   │   │       │   └── migrationRunner.test.ts
-│   │   │       ├── query/
-│   │   │       │   ├── forLoopBuilder.test.ts
-│   │   │       │   └── subqueryBuilder.test.ts
-│   │   │       ├── surrealdb.types.test.ts
-│   │   │       └── surrealKvProvider.test.ts
+│   │   │   └── supabase/
+│   │   │       ├── supabase.types.test.ts
+│   │   │       └── supabaseProvider.test.ts
 │   │   ├── index.test.ts
 │   │   ├── storageProviderCompliance.test.ts
 │   │   └── StorageService.test.ts

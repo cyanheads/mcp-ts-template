@@ -7,6 +7,25 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.9.5] - 2026-02-18
+
+### Removed
+
+- **SurrealDB storage provider** (`src/storage/providers/surrealdb/`): Removed entire SurrealDB storage provider (19 source files) including auth, graph, events, functions, migrations, introspection, and query builder modules.
+- **SurrealDB graph provider** (`src/services/graph/providers/surrealGraph.provider.ts`): Removed SurrealDB-backed graph provider. Graph service interface and core remain for future provider implementations.
+- **SurrealDB schemas** (`schemas/surrealdb/`): Removed all 5 SurrealQL schema files and `docs/surrealdb-schema.surql`.
+- **SurrealDB documentation** (`docs/storage-surrealdb-setup.md`): Removed setup guide.
+- **SurrealDB dependency**: Removed `surrealdb` npm package.
+- **DI tokens**: Removed `SurrealdbClient` and `GraphService` tokens and their container registrations.
+
+### Changed
+
+- Updated storage factory, config schema, and DI registrations to remove SurrealDB references.
+- Updated AGENTS.md, README.md, storage README, and services README to reflect removal.
+- Updated all affected tests (storage factory, DI tokens, graph service barrel, graph types).
+
+---
+
 ## [2.9.4] - 2026-02-18
 
 ### Added

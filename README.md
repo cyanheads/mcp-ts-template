@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.9.4-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.26.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-86.30%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
+[![Version](https://img.shields.io/badge/Version-2.9.5-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.26.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-86.30%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
 
 </div>
 
@@ -19,11 +19,10 @@
 - **Elicitation Support**: Tools can interactively prompt the user for missing parameters during execution, streamlining user workflows.
 - **Robust Error Handling**: A unified `McpError` system ensures consistent, structured error responses across the server.
 - **Pluggable Authentication**: Secure your server with zero-fuss support for `none`, `jwt`, or `oauth` modes.
-- **Abstracted Storage**: Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `SurrealDB`, `Cloudflare D1/KV/R2`) without changing business logic. Features secure opaque cursor pagination, parallel batch operations, and comprehensive validation.
-- **Graph Database Operations**: Optional graph service for relationship management, graph traversals, and pathfinding algorithms (SurrealDB provider).
+- **Abstracted Storage**: Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `Cloudflare D1/KV/R2`) without changing business logic. Features secure opaque cursor pagination, parallel batch operations, and comprehensive validation.
 - **Full-Stack Observability**: Get deep insights with structured logging (Pino) and optional, auto-instrumented OpenTelemetry for traces and metrics.
 - **Dependency Injection**: Custom typed DI container with `Token<T>` phantom branding — zero external dependencies, fully type-safe resolution.
-- **Service Integrations**: Pluggable services for external APIs, including LLM providers (OpenRouter), text-to-speech (ElevenLabs), and graph operations (SurrealDB).
+- **Service Integrations**: Pluggable services for external APIs, including LLM providers (OpenRouter) and text-to-speech (ElevenLabs).
 - **Rich Built-in Utility Suite**: Helpers for parsing (PDF, YAML, CSV, frontmatter), formatting (diffs, tables, trees, markdown), scheduling, security, and more.
 - **Edge-Ready**: Write code once and run it seamlessly on your local machine or at the edge on Cloudflare Workers.
 
@@ -157,15 +156,10 @@ All configuration is centralized and validated at startup in `src/config/index.t
 | `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.                                                                         | `none`      |
 | `MCP_AUTH_SECRET_KEY`       | **Required for `jwt` auth mode.** A 32+ character secret.                                                               | `(none)`    |
 | `OAUTH_ISSUER_URL`          | **Required for `oauth` auth mode.** URL of the OIDC provider.                                                           | `(none)`    |
-| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `surrealdb`, `cloudflare-d1`, `cloudflare-kv`, `cloudflare-r2`. | `in-memory` |
+| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-d1`, `cloudflare-kv`, `cloudflare-r2`.              | `in-memory` |
 | `STORAGE_FILESYSTEM_PATH`   | **Required for `filesystem` storage.** Path to the storage directory.                                                   | `(none)`    |
 | `SUPABASE_URL`              | **Required for `supabase` storage.** Your Supabase project URL.                                                         | `(none)`    |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Required for `supabase` storage.** Your Supabase service role key.                                                    | `(none)`    |
-| `SURREALDB_URL`             | **Required for `surrealdb` storage.** SurrealDB endpoint (e.g., `wss://cloud.surrealdb.com/rpc`).                       | `(none)`    |
-| `SURREALDB_NAMESPACE`       | **Required for `surrealdb` storage.** SurrealDB namespace.                                                              | `(none)`    |
-| `SURREALDB_DATABASE`        | **Required for `surrealdb` storage.** SurrealDB database name.                                                          | `(none)`    |
-| `SURREALDB_USERNAME`        | **Optional for `surrealdb` storage.** Database username for authentication.                                             | `(none)`    |
-| `SURREALDB_PASSWORD`        | **Optional for `surrealdb` storage.** Database password for authentication.                                             | `(none)`    |
 | `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                                                                                  | `false`     |
 | `LOG_LEVEL`                 | The minimum level for logging (`debug`, `info`, `warn`, `error`).                                                       | `info`      |
 | `OPENROUTER_API_KEY`        | API key for OpenRouter LLM service.                                                                                     | `(none)`    |
@@ -178,8 +172,7 @@ All configuration is centralized and validated at startup in `src/config/index.t
 ### Storage
 
 - **Service**: A DI-managed `StorageService` provides a consistent API for persistence. **Never access `fs` or other storage SDKs directly from tool logic.**
-- **Providers**: The default is `in-memory`. Node-only providers include `filesystem`. Edge-compatible providers include `supabase`, `surrealdb`, `cloudflare-kv`, and `cloudflare-r2`.
-- **SurrealDB Setup**: When using `surrealdb` provider, initialize the database schema using `docs/surrealdb-schema.surql` before first use.
+- **Providers**: The default is `in-memory`. Node-only providers include `filesystem`. Edge-compatible providers include `supabase`, `cloudflare-kv`, and `cloudflare-r2`.
 - **Multi-Tenancy**: The `StorageService` requires `context.tenantId`. This is automatically propagated from the `tid` claim in a JWT when auth is enabled.
 - **Advanced Features**:
   - **Secure Pagination**: Opaque cursors with tenant ID binding prevent cross-tenant attacks
@@ -274,7 +267,6 @@ Each major module includes comprehensive documentation with architecture diagram
 - **[Services Guide](src/services/)** - External service integration patterns
   - LLM provider integration (OpenRouter)
   - Speech services (TTS/STT with ElevenLabs, Whisper)
-  - Graph database operations (SurrealDB)
   - Creating custom service providers
   - Health checks and error handling
 

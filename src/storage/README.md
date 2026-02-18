@@ -40,7 +40,7 @@ StorageService (DI-injected facade)
       ↓
 IStorageProvider interface
       ↓
-Concrete Provider (in-memory, filesystem, supabase, surrealdb, cloudflare-kv, cloudflare-r2)
+Concrete Provider (in-memory, filesystem, supabase, cloudflare-kv, cloudflare-r2)
 ```
 
 See the [root README](../../README.md#-configuration) for general storage configuration.
@@ -71,7 +71,6 @@ src/storage/
 │   ├── inMemory/                 # In-memory (Map-based)
 │   ├── fileSystem/               # Local filesystem (Node only)
 │   ├── supabase/                 # PostgreSQL via Supabase
-│   ├── surrealdb/                # SurrealDB with graph capabilities
 │   └── cloudflare/               # KV and R2 (Workers only)
 └── index.ts                # Barrel exports
 ```
@@ -82,14 +81,13 @@ src/storage/
 
 ### Provider Comparison
 
-| Provider          | Runtime     | Setup  | Persistence | Edge | TTL Strategy                   | Batch Strategy    | Best For                                            |
-| :---------------- | :---------- | :----- | :---------- | :--- | :----------------------------- | :---------------- | :-------------------------------------------------- |
-| **In-Memory**     | Both        | None   | ❌ Volatile | ✅   | Proactive (`setTimeout`)       | Parallel          | Development, testing, caching                       |
-| **FileSystem**    | Node only   | Low    | ✅ Durable  | ❌   | Lazy (delete on access)        | Parallel          | Local development, single-server deployments        |
-| **Supabase**      | Both        | Medium | ✅ Durable  | ✅   | SQL filtering + lazy cleanup   | SQL batch upsert  | PostgreSQL-backed apps, Supabase users              |
-| **SurrealDB**     | Both        | Medium | ✅ Durable  | ✅   | Query filtering + lazy cleanup | Transaction-based | Graph queries, complex data models, SurrealDB Cloud |
-| **Cloudflare KV** | Worker only | Low    | ✅ Durable  | ✅   | Native KV TTL                  | Parallel          | Edge KV storage, global distribution                |
-| **Cloudflare R2** | Worker only | Low    | ✅ Durable  | ✅   | Envelope metadata (lazy)       | Parallel          | Edge blob storage, large objects (up to 5TB)        |
+| Provider          | Runtime     | Setup  | Persistence | Edge | TTL Strategy                 | Batch Strategy   | Best For                                     |
+| :---------------- | :---------- | :----- | :---------- | :--- | :--------------------------- | :--------------- | :------------------------------------------- |
+| **In-Memory**     | Both        | None   | ❌ Volatile | ✅   | Proactive (`setTimeout`)     | Parallel         | Development, testing, caching                |
+| **FileSystem**    | Node only   | Low    | ✅ Durable  | ❌   | Lazy (delete on access)      | Parallel         | Local development, single-server deployments |
+| **Supabase**      | Both        | Medium | ✅ Durable  | ✅   | SQL filtering + lazy cleanup | SQL batch upsert | PostgreSQL-backed apps, Supabase users       |
+| **Cloudflare KV** | Worker only | Low    | ✅ Durable  | ✅   | Native KV TTL                | Parallel         | Edge KV storage, global distribution         |
+| **Cloudflare R2** | Worker only | Low    | ✅ Durable  | ✅   | Envelope metadata (lazy)     | Parallel         | Edge blob storage, large objects (up to 5TB) |
 
 ### Configuration Quick Reference
 
@@ -129,20 +127,6 @@ CREATE INDEX idx_kv_store_expires ON kv_store(expires_at) WHERE expires_at IS NO
 CREATE INDEX idx_kv_store_prefix ON kv_store(tenant_id, key text_pattern_ops);
 ```
 
-**SurrealDB**:
-
-```bash
-STORAGE_PROVIDER_TYPE=surrealdb
-SURREALDB_URL=wss://cloud.surrealdb.com/rpc          # Required (ws:// or wss://)
-SURREALDB_NAMESPACE=production                       # Required
-SURREALDB_DATABASE=mcp_server                        # Required
-SURREALDB_USERNAME=root                              # Optional (for auth)
-SURREALDB_PASSWORD=secret                            # Optional (for auth)
-SURREALDB_TABLE_NAME=kv_store                        # Optional (default: kv_store)
-```
-
-Initialize schema: `surreal import docs/surrealdb-schema.surql` or see [schema file](../../docs/surrealdb-schema.surql).
-
 **Cloudflare KV**:
 
 ```toml
@@ -170,13 +154,6 @@ STORAGE_PROVIDER_TYPE=cloudflare-r2
 ```
 
 ### Provider-Specific Notes
-
-**SurrealDB Advanced Features:**
-
-- Modular architecture: Core, Auth, Graph, Events, Functions, Migrations, Introspection
-- Transaction support: `provider.withTransaction(async (client) => { ... })`
-- Query builder: `select(...).from(...).where(...).limit(...)`
-- Graph operations: Available via `GraphService` (relationships, traversals, pathfinding)
 
 **Cloudflare KV:**
 
@@ -297,7 +274,7 @@ For storage-specific cursors, use `encodeCursor/decodeCursor` from `@/storage/co
 | **Cross-tenant data access** | Cursor validation, tenant ID validation, namespace isolation        |
 | **Path traversal**           | Input sanitization, path resolution checks, allowlist characters    |
 | **Resource exhaustion**      | Pagination limits, key/prefix length limits, batch operation limits |
-| **Injection attacks**        | Parameterized queries (Supabase/SurrealDB), input sanitization      |
+| **Injection attacks**        | Parameterized queries (Supabase), input sanitization                |
 | **Null byte injection**      | Validation rejects keys containing `\0`                             |
 
 ---
@@ -551,7 +528,7 @@ async set(tenantId: string, key: string, value: unknown, context: RequestContext
     };
     await this.client.set(key, JSON.stringify(envelope));
 
-    // Option C: Database timestamp (Supabase, SurrealDB)
+    // Option C: Database timestamp (Supabase)
     const expiresAt = new Date(Date.now() + options.ttl * 1000);
     await this.db.upsert({ tenant_id: tenantId, key, value: serialized, expires_at: expiresAt });
   }
@@ -644,7 +621,6 @@ const configSchema = z.object({
       'in-memory',
       'filesystem',
       'supabase',
-      'surrealdb',
       'cloudflare-kv',
       'cloudflare-r2',
       '{provider-name}', // Add this
@@ -720,7 +696,6 @@ See complete examples:
 
 - Simple: [InMemoryProvider](providers/inMemory/inMemoryProvider.ts)
 - Intermediate: [FileSystemProvider](providers/fileSystem/fileSystemProvider.ts)
-- Advanced: [SurrealKvProvider](providers/surrealdb/kv/surrealKvProvider.ts)
 
 ---
 
@@ -735,7 +710,6 @@ See complete examples:
 | `Invalid cursor format or tenant mismatch`                                | Cursor tampered or wrong tenant     | Never parse/modify cursors client-side. Use same tenant that generated cursor.                                   |
 | `STORAGE_FILESYSTEM_PATH must be set for the filesystem storage provider` | Missing env var                     | Add `STORAGE_FILESYSTEM_PATH=/path/to/storage` to `.env`                                                         |
 | `SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set`                  | Missing Supabase credentials        | Add credentials to `.env`                                                                                        |
-| SurrealDB connection timeout                                              | Incorrect URL, firewall, or auth    | Verify URL format (`ws://` or `wss://`), check firewall, verify credentials                                      |
 | Cloudflare KV/R2 not available                                            | Provider used in non-serverless env | Use `in-memory`, `filesystem`, or other providers locally                                                        |
 
 ### Performance Tips
@@ -754,19 +728,17 @@ await storage.setMany(entries, context);
 
 **TTL Cleanup Strategies:**
 
-| Provider          | Strategy                 | Recommendation                                                  |
-| :---------------- | :----------------------- | :-------------------------------------------------------------- |
-| **In-Memory**     | Proactive (`setTimeout`) | Automatic (no action needed)                                    |
-| **FileSystem**    | Lazy (delete on access)  | Use cron for large datasets                                     |
-| **Supabase**      | Lazy + periodic SQL      | Run `DELETE FROM kv_store WHERE expires_at < NOW()` daily       |
-| **SurrealDB**     | Lazy + periodic query    | Run `DELETE FROM kv_store WHERE expires_at < time::now()` daily |
-| **Cloudflare KV** | Native (automatic)       | Automatic (no action needed)                                    |
-| **Cloudflare R2** | Lazy (delete on access)  | Consider R2 lifecycle policies                                  |
+| Provider          | Strategy                 | Recommendation                                            |
+| :---------------- | :----------------------- | :-------------------------------------------------------- |
+| **In-Memory**     | Proactive (`setTimeout`) | Automatic (no action needed)                              |
+| **FileSystem**    | Lazy (delete on access)  | Use cron for large datasets                               |
+| **Supabase**      | Lazy + periodic SQL      | Run `DELETE FROM kv_store WHERE expires_at < NOW()` daily |
+| **Cloudflare KV** | Native (automatic)       | Automatic (no action needed)                              |
+| **Cloudflare R2** | Lazy (delete on access)  | Consider R2 lifecycle policies                            |
 
 **Provider-Specific Optimizations:**
 
 - **Supabase**: Create indexes on `(tenant_id, key)` and `expires_at`
-- **SurrealDB**: Use transactions for batch writes, leverage query builder
 - **Cloudflare KV**: Use `cacheTtl` for reads, minimize `list()` calls
 - **Cloudflare R2**: Minimize `list()` calls (expensive), use lifecycle policies
 - **FileSystem**: Avoid `list()` with TTL on large directories, use SSD

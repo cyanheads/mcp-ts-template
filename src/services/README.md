@@ -8,7 +8,7 @@ The `services/` directory contains external service integrations following a con
 
 - **[llm/](llm/)** - Large Language Model providers (OpenRouter)
 - **[speech/](speech/)** - Text-to-Speech and Speech-to-Text providers (ElevenLabs, Whisper)
-- **[graph/](graph/)** - Graph database operations (SurrealDB)
+- **[graph/](graph/)** - Graph database operations (no provider currently registered)
 
 ---
 
@@ -43,7 +43,7 @@ The `services/` directory contains external service integrations following a con
                  │
 ┌────────────────▼────────────────────────────────┐
 │              Provider Layer                     │
-│   (OpenRouter, ElevenLabs, SurrealDB, etc.)     │
+│   (OpenRouter, ElevenLabs, etc.)                 │
 └────────────────┬────────────────────────────────┘
                  │
                  │ HTTP/API calls
@@ -106,7 +106,7 @@ class MyTool {
 }
 ```
 
-### Multi-Provider Pattern with Orchestrator (Speech, Graph)
+### Multi-Provider Pattern with Orchestrator (Speech)
 
 When a domain has multiple providers or complex operations, use an orchestrator:
 
@@ -129,36 +129,6 @@ class MyTool {
       voice: { voiceId: 'en-US-Neural2-F' },
     });
     return audio;
-  }
-}
-```
-
-**Graph Service Example:**
-
-```typescript
-import { injectable, inject } from 'tsyringe';
-import { GraphProvider } from '@/container/tokens.js';
-import type { IGraphProvider } from '@/services/graph/core/IGraphProvider.js';
-import { requestContextService } from '@/utils/index.js';
-
-@injectable()
-class MyTool {
-  constructor(@inject(GraphProvider) private graphProvider: IGraphProvider) {}
-
-  async execute() {
-    const context = requestContextService.createRequestContext({
-      operation: 'graph-query',
-    });
-
-    // Direct provider access for graph operations
-    const path = await this.graphProvider.shortestPath(
-      'user:alice',
-      'user:bob',
-      context,
-      { algorithm: 'bfs' },
-    );
-
-    return path;
   }
 }
 ```
@@ -464,20 +434,6 @@ container.register<[Service]Service>([Service]ServiceToken, {
 });
 ```
 
-**For services with singleton providers (like Graph with SurrealDB):**
-
-```typescript
-import { SurrealGraphProvider } from '@/services/graph/providers/surrealGraph.provider.js';
-import { GraphProvider } from '@/container/tokens.js';
-import type { IGraphProvider } from '@/services/graph/core/IGraphProvider.js';
-
-// In registerCoreServices():
-container.registerSingleton<IGraphProvider>(GraphProvider, (c) => {
-  const surrealClient = c.resolve(SurrealdbClient);
-  return new SurrealGraphProvider(surrealClient);
-});
-```
-
 ### Step 7: Export from Barrel
 
 **`src/services/[service]/index.ts`:**
@@ -604,7 +560,7 @@ const transcript = await speechService.speechToText({
 
 **Purpose:** Graph database operations (nodes, edges, traversals, pathfinding)
 
-**Provider:** SurrealDB
+**Provider:** None currently registered
 
 **Orchestrator:** [GraphService](graph/core/GraphService.ts)
 
@@ -621,16 +577,6 @@ const transcript = await speechService.speechToText({
 - `pathExists(from, to, context, maxDepth)` - Check if path exists between vertices
 - `getStats(context)` - Get graph statistics (vertex/edge counts, type distributions)
 - `healthCheck()` - Provider health check
-
-**Configuration:**
-
-```bash
-SURREALDB_URL=ws://localhost:8000/rpc
-SURREALDB_NAMESPACE=mcp_server
-SURREALDB_DATABASE=main
-SURREALDB_USERNAME=root
-SURREALDB_PASSWORD=root
-```
 
 **Usage Example:**
 

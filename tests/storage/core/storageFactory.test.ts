@@ -9,7 +9,6 @@ import { createStorageProvider } from '@/storage/core/storageFactory.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
-import { SurrealKvProvider } from '@/storage/providers/surrealdb/kv/surrealKvProvider.js';
 import { McpError } from '@/types-global/errors.js';
 
 // Mock Supabase client
@@ -142,84 +141,6 @@ describe('createStorageProvider', () => {
     });
   });
 
-  describe('surrealdb provider', () => {
-    it('should create SurrealKvProvider with provided client', () => {
-      const mockConfig = {
-        storage: {
-          providerType: 'surrealdb' as const,
-        },
-        surrealdb: {
-          url: 'ws://127.0.0.1:8000/rpc',
-          namespace: 'test-namespace',
-          database: 'test-database',
-          tableName: 'kv_store',
-        },
-      } as AppConfig;
-
-      const mockClient = {
-        query: vi.fn(),
-        connect: vi.fn(),
-        close: vi.fn(),
-      };
-
-      // Provide the client to avoid DI container issues
-      const provider = createStorageProvider(mockConfig, {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        surrealdbClient: mockClient as any,
-      });
-
-      expect(provider).toBeInstanceOf(SurrealKvProvider);
-    });
-
-    it('should throw McpError when surrealdb URL is missing', () => {
-      const mockConfig = {
-        storage: {
-          providerType: 'surrealdb' as const,
-        },
-        surrealdb: {
-          url: undefined,
-          namespace: 'test',
-          database: 'test',
-        },
-      } as unknown as AppConfig;
-
-      expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
-      expect(() => createStorageProvider(mockConfig)).toThrow(
-        /SURREALDB_URL, SURREALDB_NAMESPACE, and SURREALDB_DATABASE must be set/,
-      );
-    });
-
-    it('should throw McpError when surrealdb namespace is missing', () => {
-      const mockConfig = {
-        storage: {
-          providerType: 'surrealdb' as const,
-        },
-        surrealdb: {
-          url: 'ws://127.0.0.1:8000/rpc',
-          namespace: undefined,
-          database: 'test',
-        },
-      } as unknown as AppConfig;
-
-      expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
-    });
-
-    it('should throw McpError when surrealdb database is missing', () => {
-      const mockConfig = {
-        storage: {
-          providerType: 'surrealdb' as const,
-        },
-        surrealdb: {
-          url: 'ws://127.0.0.1:8000/rpc',
-          namespace: 'test',
-          database: undefined,
-        },
-      } as unknown as AppConfig;
-
-      expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
-    });
-  });
-
   describe('cloudflare providers', () => {
     it('should throw error for R2 provider outside serverless environment', () => {
       const mockConfig = {
@@ -302,33 +223,6 @@ describe('createStorageProvider', () => {
 
       expect(provider).toBeInstanceOf(SupabaseProvider);
     });
-
-    it('should use provided SurrealDB client when available', () => {
-      const mockConfig = {
-        storage: {
-          providerType: 'surrealdb' as const,
-        },
-        surrealdb: {
-          url: 'ws://127.0.0.1:8000/rpc',
-          namespace: 'test',
-          database: 'test',
-          tableName: 'kv_store',
-        },
-      } as AppConfig;
-
-      const mockClient = {
-        query: vi.fn(),
-        connect: vi.fn(),
-        close: vi.fn(),
-      };
-
-      const provider = createStorageProvider(mockConfig, {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        surrealdbClient: mockClient as any,
-      });
-
-      expect(provider).toBeInstanceOf(SurrealKvProvider);
-    });
   });
 
   describe('edge cases', () => {
@@ -401,51 +295,6 @@ describe('createStorageProvider', () => {
         supabase: {
           url: 'https://test.supabase.co',
           serviceRoleKey: '',
-        },
-      } as AppConfig;
-
-      expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
-    });
-
-    it('should handle missing SurrealDB namespace', () => {
-      const mockConfig = {
-        storage: {
-          providerType: 'surrealdb' as const,
-        },
-        surrealdb: {
-          url: 'ws://127.0.0.1:8000/rpc',
-          namespace: '',
-          database: 'test',
-        },
-      } as AppConfig;
-
-      expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
-    });
-
-    it('should handle missing SurrealDB database', () => {
-      const mockConfig = {
-        storage: {
-          providerType: 'surrealdb' as const,
-        },
-        surrealdb: {
-          url: 'ws://127.0.0.1:8000/rpc',
-          namespace: 'test',
-          database: '',
-        },
-      } as AppConfig;
-
-      expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
-    });
-
-    it('should handle empty SurrealDB URL', () => {
-      const mockConfig = {
-        storage: {
-          providerType: 'surrealdb' as const,
-        },
-        surrealdb: {
-          url: '',
-          namespace: 'test',
-          database: 'test',
         },
       } as AppConfig;
 

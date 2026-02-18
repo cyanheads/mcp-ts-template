@@ -5,13 +5,11 @@
  * @module src/container/registrations/core
  */
 import { createClient } from '@supabase/supabase-js';
-import Surreal from 'surrealdb';
 
 import { parseConfig } from '@/config/index.js';
 import { container } from '@/container/container.js';
 import {
   AppConfig,
-  GraphService,
   LlmProvider,
   Logger,
   RateLimiterService,
@@ -19,10 +17,7 @@ import {
   StorageProvider,
   StorageService,
   SupabaseAdminClient,
-  SurrealdbClient,
 } from '@/container/tokens.js';
-import { GraphService as GraphServiceClass } from '@/services/graph/core/GraphService.js';
-import { SurrealGraphProvider } from '@/services/graph/providers/surrealGraph.provider.js';
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
 import { SpeechService as SpeechServiceClass } from '@/services/speech/index.js';
 import { StorageService as StorageServiceClass } from '@/storage/core/StorageService.js';
@@ -62,48 +57,6 @@ export const registerCoreServices = () => {
     );
   });
 
-  // SurrealDB client — lazy singleton with async connection
-  container.registerSingleton(SurrealdbClient, (c) => {
-    const cfg = c.resolve(AppConfig);
-    if (
-      !cfg.surrealdb?.url ||
-      !cfg.surrealdb?.namespace ||
-      !cfg.surrealdb?.database
-    ) {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
-        'SurrealDB URL, namespace, and database are required for SurrealDB client.',
-      );
-    }
-
-    const db = new Surreal();
-
-    db.connect(cfg.surrealdb.url, {
-      namespace: cfg.surrealdb.namespace,
-      database: cfg.surrealdb.database,
-      ...(cfg.surrealdb.username &&
-        cfg.surrealdb.password && {
-          auth: {
-            username: cfg.surrealdb.username,
-            password: cfg.surrealdb.password,
-          },
-        }),
-    })
-      .then(() => {
-        logger.info('Connected to SurrealDB');
-      })
-      .catch((err: Error) => {
-        logger.error('Failed to connect to SurrealDB', {
-          requestId: 'surrealdb-init',
-          timestamp: new Date().toISOString(),
-          operation: 'SurrealDB.connect',
-          error: err instanceof Error ? err.message : String(err),
-        });
-      });
-
-    return db;
-  });
-
   // Storage provider — resolve DB clients here so storageFactory stays DI-agnostic
   container.registerSingleton(StorageProvider, (c) => {
     const cfg = c.resolve(AppConfig);
@@ -111,9 +64,6 @@ export const registerCoreServices = () => {
     const deps: StorageFactoryDeps = {
       ...(pt === 'supabase' && {
         supabaseClient: c.resolve(SupabaseAdminClient),
-      }),
-      ...(pt === 'surrealdb' && {
-        surrealdbClient: c.resolve(SurrealdbClient),
       }),
     };
     return createStorageProvider(cfg, deps);
@@ -184,13 +134,6 @@ export const registerCoreServices = () => {
         : undefined;
 
     return new SpeechServiceClass(ttsConfig, sttConfig);
-  });
-
-  // GraphService — depends on SurrealDB
-  container.registerSingleton(GraphService, (c) => {
-    const surrealClient = c.resolve(SurrealdbClient);
-    const graphProvider = new SurrealGraphProvider(surrealClient);
-    return new GraphServiceClass(graphProvider);
   });
 
   logger.info('Core services registered with the DI container.');

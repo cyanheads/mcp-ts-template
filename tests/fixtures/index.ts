@@ -36,20 +36,3 @@ export function createTestSdkContext(
     ...overrides,
   } as unknown as SdkContext;
 }
-
-/**
- * Create a mock Surreal client for storage provider tests.
- */
-export function createMockSurrealClient() {
-  return {
-    query: vi.fn().mockResolvedValue([]),
-    select: vi.fn().mockResolvedValue([]),
-    create: vi.fn().mockResolvedValue({}),
-    update: vi.fn().mockResolvedValue({}),
-    delete: vi.fn().mockResolvedValue({}),
-    merge: vi.fn().mockResolvedValue({}),
-    signin: vi.fn().mockResolvedValue('token'),
-    signup: vi.fn().mockResolvedValue('token'),
-    close: vi.fn().mockResolvedValue(undefined),
-  };
-}

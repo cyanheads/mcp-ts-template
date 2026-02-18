@@ -13,11 +13,6 @@ describe('Graph Service Barrel Exports', () => {
       expect(GraphModule.GraphService).toBeDefined();
       expect(typeof GraphModule.GraphService).toBe('function');
     });
-
-    it('should export SurrealGraphProvider', () => {
-      expect(GraphModule.SurrealGraphProvider).toBeDefined();
-      expect(typeof GraphModule.SurrealGraphProvider).toBe('function');
-    });
   });
 
   describe('Type Exports', () => {
@@ -51,12 +46,11 @@ describe('Graph Service Barrel Exports', () => {
     it('should have expected exports count', () => {
       const exports = Object.keys(GraphModule);
 
-      // Should have at least GraphService and SurrealGraphProvider
-      expect(exports.length).toBeGreaterThanOrEqual(2);
+      // Should have at least GraphService
+      expect(exports.length).toBeGreaterThanOrEqual(1);
 
       // Check for core exports
       expect(exports).toContain('GraphService');
-      expect(exports).toContain('SurrealGraphProvider');
     });
 
     it('should not export internal implementation details', () => {
@@ -71,18 +65,15 @@ describe('Graph Service Barrel Exports', () => {
 
   describe('Import Compatibility', () => {
     it('should support named imports', async () => {
-      const { GraphService, SurrealGraphProvider } =
-        await import('@/services/graph/index.js');
+      const { GraphService } = await import('@/services/graph/index.js');
 
       expect(GraphService).toBeDefined();
-      expect(SurrealGraphProvider).toBeDefined();
     });
 
     it('should support namespace import', async () => {
       const GraphNamespace = await import('@/services/graph/index.js');
 
       expect(GraphNamespace.GraphService).toBeDefined();
-      expect(GraphNamespace.SurrealGraphProvider).toBeDefined();
     });
 
     it('should support type-only imports', () => {
@@ -119,11 +110,6 @@ describe('Graph Service Barrel Exports', () => {
       expect(GraphModule.GraphService).toBeDefined();
     });
 
-    it('should re-export from providers correctly', () => {
-      // SurrealGraphProvider should be the same as importing from providers
-      expect(GraphModule.SurrealGraphProvider).toBeDefined();
-    });
-
     it('should re-export types correctly', () => {
       // Type re-exports should compile without errors
       type CoreTypes = {
@@ -156,21 +142,12 @@ describe('Graph Service Barrel Exports', () => {
       expect(GraphService).toBeDefined();
       expect(typeof GraphService).toBe('function');
     });
-
-    it('should not include unnecessary code when using specific exports', async () => {
-      // This is more of a build-time concern, but we can verify
-      // that imports are properly structured
-      const { SurrealGraphProvider } =
-        await import('@/services/graph/index.js');
-
-      expect(SurrealGraphProvider).toBeDefined();
-    });
   });
 
   describe('Backward Compatibility', () => {
     it('should maintain stable export names', () => {
       // These export names should remain stable across versions
-      const stableExports = ['GraphService', 'SurrealGraphProvider'];
+      const stableExports = ['GraphService'];
 
       const exports = Object.keys(GraphModule);
 
@@ -184,7 +161,6 @@ describe('Graph Service Barrel Exports', () => {
       const patterns = [
         () => import('@/services/graph/index.js'),
         () => import('@/services/graph/core/GraphService.js'),
-        () => import('@/services/graph/providers/surrealGraph.provider.js'),
       ];
 
       for (const pattern of patterns) {

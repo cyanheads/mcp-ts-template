@@ -14,13 +14,11 @@ import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
 import type { RateLimiter } from '@/utils/security/rateLimiter.js';
 import type { TransportManager } from '@/mcp-server/transports/manager.js';
 import type { SpeechService as SpeechServiceClass } from '@/services/speech/index.js';
-import type { GraphService as GraphServiceClass } from '@/services/graph/core/GraphService.js';
 import type { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import type { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
 import type { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type Surreal from 'surrealdb';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
 import type { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import type { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
@@ -37,13 +35,11 @@ export const StorageProvider = token<IStorageProvider>('IStorageProvider');
 export const SupabaseAdminClient = token<SupabaseClient<Database>>(
   'SupabaseAdminClient',
 );
-export const SurrealdbClient = token<Surreal>('SurrealdbClient');
 
 // --- Service tokens ---
 export const LlmProvider = token<ILlmProvider>('ILlmProvider');
 export const RateLimiterService = token<RateLimiter>('RateLimiterService');
 export const SpeechService = token<SpeechServiceClass>('SpeechService');
-export const GraphService = token<GraphServiceClass>('GraphService');
 
 // --- MCP server tokens ---
 export const CreateMcpServerInstance = token<() => Promise<McpServer>>(

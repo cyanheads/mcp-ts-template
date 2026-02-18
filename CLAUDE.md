@@ -63,7 +63,7 @@ Separation of concerns maps directly to the filesystem. Always place files in th
 | **`src/config/`**                           | **Configuration module.** Zod-validated config from environment variables. Derives `serviceName`/`version` from `package.json`.                                                                                                                                                                                                   |
 | **`src/types-global/`**                     | **Global type definitions** shared across the codebase (e.g., error types).                                                                                                                                                                                                                                                       |
 | **`src/services/`**                         | **External service integrations** following a consistent domain-driven pattern:<br>- Each service domain (e.g., `llm/`, `speech/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`, and `index.ts`<br>- Use DI for all service dependencies. See **Service Development Pattern** below. |
-| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, surrealdb, cloudflare).                                                                                                                                                                                                                           |
+| **`src/storage/`**                          | **Abstractions and provider implementations** (in-memory, filesystem, supabase, cloudflare).                                                                                                                                                                                                                                      |
 | **`src/container/`**                        | **Dependency Injection (custom typed container).** `Token<T>` phantom branding, service registration, and resolution. Zero external dependencies.                                                                                                                                                                                 |
 | **`src/utils/`**                            | **Global utilities.** Includes logging, performance, parsing, network, security, formatting, and telemetry. Note: The error handling module is located at `src/utils/internal/error-handler/`.                                                                                                                                    |
 | **`tests/`**                                | **Unit/integration tests.** Mirrors `src/` for easy navigation and includes compliance suites.                                                                                                                                                                                                                                    |
@@ -227,23 +227,19 @@ Prompts are reusable message templates that clients can discover and invoke. The
 
 #### DI-Managed Services (tokens in `src/container/tokens.ts`)
 
-| Service           | Token                   | Resolution                                 | Notes                          |
-| ----------------- | ----------------------- | ------------------------------------------ | ------------------------------ |
-| `ILlmProvider`    | `LlmProvider`           | `container.resolve(LlmProvider)`           |                                |
-| `GraphService`    | `GraphService`          | `container.resolve(GraphService)`          | Only when using graph features |
-| `StorageService`  | `StorageService`        | `container.resolve(StorageService)`        | Requires `context.tenantId`    |
-| `RateLimiter`     | `RateLimiterService`    | `container.resolve(RateLimiterService)`    |                                |
-| `Logger`          | `Logger`                | `container.resolve(Logger)`                | Pino-backed singleton          |
-| App Config        | `AppConfig`             | `container.resolve(AppConfig)`             |                                |
-| Supabase Client   | `SupabaseAdminClient`   | `container.resolve(SupabaseAdminClient)`   | Only when needed               |
-| SurrealDB Client  | `SurrealdbClient`       | `container.resolve(SurrealdbClient)`       | Only when needed               |
-| Transport Manager | `TransportManagerToken` | `container.resolve(TransportManagerToken)` |                                |
-| `SpeechService`   | `SpeechService`         | `container.resolve(SpeechService)`         | TTS/STT provider orchestrator  |
-| `TaskManager`     | `TaskManagerToken`      | `container.resolve(TaskManagerToken)`      | For MCP Tasks API support      |
+| Service           | Token                   | Resolution                                 | Notes                         |
+| ----------------- | ----------------------- | ------------------------------------------ | ----------------------------- |
+| `ILlmProvider`    | `LlmProvider`           | `container.resolve(LlmProvider)`           |                               |
+| `StorageService`  | `StorageService`        | `container.resolve(StorageService)`        | Requires `context.tenantId`   |
+| `RateLimiter`     | `RateLimiterService`    | `container.resolve(RateLimiterService)`    |                               |
+| `Logger`          | `Logger`                | `container.resolve(Logger)`                | Pino-backed singleton         |
+| App Config        | `AppConfig`             | `container.resolve(AppConfig)`             |                               |
+| Supabase Client   | `SupabaseAdminClient`   | `container.resolve(SupabaseAdminClient)`   | Only when needed              |
+| Transport Manager | `TransportManagerToken` | `container.resolve(TransportManagerToken)` |                               |
+| `SpeechService`   | `SpeechService`         | `container.resolve(SpeechService)`         | TTS/STT provider orchestrator |
+| `TaskManager`     | `TaskManagerToken`      | `container.resolve(TaskManagerToken)`      | For MCP Tasks API support     |
 
-**Graph Service:** Graph operations (relationships, traversals, pathfinding) via SurrealDB. Inject `GraphService`. Operations: `relate()`, `unrelate()`, `traverse()`, `shortestPath()`, `get{Outgoing|Incoming}Edges()`, `pathExists()`.
-
-**Storage:** `STORAGE_PROVIDER_TYPE` = `in-memory` | `filesystem` | `supabase` | `surrealdb` | `cloudflare-r2` | `cloudflare-kv` | `cloudflare-d1`. Use DI-injected `StorageService`. Features: input validation, parallel batch ops (`getMany/setMany/deleteMany`), secure tenant-bound pagination, TTL support. See [storage docs](src/storage/README.md). SurrealDB: init schema via `docs/surrealdb-schema.surql`.
+**Storage:** `STORAGE_PROVIDER_TYPE` = `in-memory` | `filesystem` | `supabase` | `cloudflare-r2` | `cloudflare-kv` | `cloudflare-d1`. Use DI-injected `StorageService`. Features: input validation, parallel batch ops (`getMany/setMany/deleteMany`), secure tenant-bound pagination, TTL support. See [storage docs](src/storage/README.md).
 
 #### Directly Imported Utilities (`src/utils/`)
 
@@ -343,13 +339,13 @@ EOF
 
 All config validated via Zod in `src/config/index.ts`. Config module derives `mcpServerName`/`mcpServerVersion` from `package.json` (overridable via `MCP_SERVER_NAME`/`MCP_SERVER_VERSION` env vars).
 
-| Category      | Key Variables                                                                                                                                  |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Transport** | `MCP_TRANSPORT_TYPE` (`stdio`\|`http`), `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_HTTP_ENDPOINT_PATH`                                             |
-| **Auth**      | `MCP_AUTH_MODE` (`none`\|`jwt`\|`oauth`), `MCP_AUTH_SECRET_KEY`, `OAUTH_*`                                                                     |
-| **Storage**   | `STORAGE_PROVIDER_TYPE` (`in-memory`\|`filesystem`\|`supabase`\|`surrealdb`\|`cloudflare-r2`\|`cloudflare-kv`\|`cloudflare-d1`), `SURREALDB_*` |
-| **LLM**       | `OPENROUTER_API_KEY`, `OPENROUTER_APP_URL/NAME`, `LLM_DEFAULT_*`                                                                               |
-| **Telemetry** | `OTEL_ENABLED`, `OTEL_SERVICE_NAME/VERSION`, `OTEL_EXPORTER_OTLP_*`                                                                            |
+| Category      | Key Variables                                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Transport** | `MCP_TRANSPORT_TYPE` (`stdio`\|`http`), `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_HTTP_ENDPOINT_PATH`                 |
+| **Auth**      | `MCP_AUTH_MODE` (`none`\|`jwt`\|`oauth`), `MCP_AUTH_SECRET_KEY`, `OAUTH_*`                                         |
+| **Storage**   | `STORAGE_PROVIDER_TYPE` (`in-memory`\|`filesystem`\|`supabase`\|`cloudflare-r2`\|`cloudflare-kv`\|`cloudflare-d1`) |
+| **LLM**       | `OPENROUTER_API_KEY`, `OPENROUTER_APP_URL/NAME`, `LLM_DEFAULT_*`                                                   |
+| **Telemetry** | `OTEL_ENABLED`, `OTEL_SERVICE_NAME/VERSION`, `OTEL_EXPORTER_OTLP_*`                                                |
 
 ---
 

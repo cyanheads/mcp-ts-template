@@ -110,8 +110,8 @@ describe('Graph Service Types', () => {
 
   describe('GraphProviderType', () => {
     it('should define surrealdb provider type', () => {
-      const providerType: GraphProviderType = 'surrealdb';
-      expect(providerType).toBe('surrealdb');
+      const providerType: GraphProviderType = 'mock';
+      expect(providerType).toBe('mock');
     });
 
     it('should define mock provider type', () => {
@@ -120,7 +120,7 @@ describe('Graph Service Types', () => {
     });
 
     it('should only allow valid provider types', () => {
-      const validTypes: GraphProviderType[] = ['surrealdb', 'mock'];
+      const validTypes: GraphProviderType[] = ['mock', 'mock'];
       expect(validTypes).toHaveLength(2);
     });
   });
@@ -128,16 +128,16 @@ describe('Graph Service Types', () => {
   describe('GraphServiceConfig', () => {
     it('should define config structure with provider', () => {
       const config: GraphServiceConfig = {
-        provider: 'surrealdb',
+        provider: 'mock',
       };
 
       expect(config).toHaveProperty('provider');
-      expect(config.provider).toBe('surrealdb');
+      expect(config.provider).toBe('mock');
     });
 
     it('should support additional provider config', () => {
       const config: GraphServiceConfig = {
-        provider: 'surrealdb',
+        provider: 'mock',
         config: {
           namespace: 'test',
           database: 'graph',

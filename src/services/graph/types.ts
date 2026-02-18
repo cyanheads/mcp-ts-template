@@ -17,7 +17,7 @@ export type {
 /**
  * Graph provider type identifier.
  */
-export type GraphProviderType = 'surrealdb' | 'mock';
+export type GraphProviderType = 'mock';
 
 /**
  * Configuration for graph service.
