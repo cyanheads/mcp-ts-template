@@ -4,7 +4,7 @@
  * enabling fully type-safe container resolution without casts.
  * @module src/container/tokens
  */
-import { token } from '@/container/container.js';
+import { token } from '@/container/core/container.js';
 
 import type { parseConfig } from '@/config/index.js';
 import type { logger } from '@/utils/internal/logger.js';

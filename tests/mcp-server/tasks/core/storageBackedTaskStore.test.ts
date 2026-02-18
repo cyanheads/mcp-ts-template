@@ -3,7 +3,7 @@
  * @module tests/mcp-server/tasks/core/storageBackedTaskStore.test
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { container } from '@/container/container.js';
+import { container } from '@/container/core/container.js';
 
 import { StorageBackedTaskStore } from '@/mcp-server/tasks/core/storageBackedTaskStore.js';
 import { StorageService } from '@/storage/core/StorageService.js';
@@ -11,7 +11,7 @@ import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.
 import {
   StorageProvider,
   StorageService as StorageServiceToken,
-} from '@/container/tokens.js';
+} from '@/container/core/tokens.js';
 import type { Request, RequestId } from '@modelcontextprotocol/sdk/types.js';
 
 describe('StorageBackedTaskStore', () => {

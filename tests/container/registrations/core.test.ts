@@ -3,7 +3,7 @@
  * @module tests/container/registrations/core.test.ts
  */
 import { describe, expect, it, beforeAll } from 'vitest';
-import { container } from '@/container/container.js';
+import { container } from '@/container/core/container.js';
 import { registerCoreServices } from '@/container/registrations/core.js';
 import {
   AppConfig,
@@ -13,7 +13,7 @@ import {
   LlmProvider,
   RateLimiterService,
   SpeechService,
-} from '@/container/tokens.js';
+} from '@/container/core/tokens.js';
 
 describe('Core Service Registration', () => {
   beforeAll(() => {

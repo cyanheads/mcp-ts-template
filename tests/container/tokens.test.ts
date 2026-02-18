@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Token } from '@/container/container.js';
-import * as tokens from '@/container/tokens.js';
+import type { Token } from '@/container/core/container.js';
+import * as tokens from '@/container/core/tokens.js';
 
 /** All exported token names. */
 const ALL_TOKEN_NAMES = [

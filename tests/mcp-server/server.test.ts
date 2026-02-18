@@ -10,7 +10,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 // Mock the container module to intercept resolve() calls.
 // Must preserve the `token` factory since tokens.ts calls it at import time.
 const mockResolve = vi.fn();
-vi.mock('@/container/container.js', async (importOriginal) => {
+vi.mock('@/container/core/container.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
@@ -58,7 +58,7 @@ import {
   ResourceRegistryToken,
   PromptRegistryToken,
   RootsRegistryToken,
-} from '@/container/tokens.js';
+} from '@/container/core/tokens.js';
 
 describe('createMcpServerInstance', () => {
   let mockToolRegistry: { registerAll: ReturnType<typeof vi.fn> };

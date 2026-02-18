@@ -1009,7 +1009,7 @@ async logic(input, appContext, sdkContext) {
 // ✅ Good - use DI-injected services from appContext
 // Services are injected at server startup and made available through context
 import { container } from 'tsyringe';
-import { StorageService } from '@/container/tokens.js';
+import { StorageService } from '@/container/core/tokens.js';
 
 async logic(input, appContext, sdkContext) {
   // Resolve service from container

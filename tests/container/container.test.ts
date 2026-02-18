@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { Container, token } from '../../src/container/container.js';
+import { Container, token } from '../../src/container/core/container.js';
 
 describe('token()', () => {
   it('returns a Token with a unique symbol id and the given description', () => {

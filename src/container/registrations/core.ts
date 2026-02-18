@@ -7,7 +7,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 import { parseConfig } from '@/config/index.js';
-import { container } from '@/container/container.js';
+import { container } from '@/container/core/container.js';
 import {
   AppConfig,
   LlmProvider,
@@ -17,7 +17,7 @@ import {
   StorageProvider,
   StorageService,
   SupabaseAdminClient,
-} from '@/container/tokens.js';
+} from '@/container/core/tokens.js';
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
 import { SpeechService as SpeechServiceClass } from '@/services/speech/index.js';
 import { StorageService as StorageServiceClass } from '@/storage/core/StorageService.js';

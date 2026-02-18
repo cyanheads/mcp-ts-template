@@ -3,7 +3,7 @@
  * @module tests/container/registrations/mcp.test.ts
  */
 import { describe, expect, it, beforeAll } from 'vitest';
-import { container } from '@/container/container.js';
+import { container } from '@/container/core/container.js';
 import { registerCoreServices } from '@/container/registrations/core.js';
 import { registerMcpServices } from '@/container/registrations/mcp.js';
 import {
@@ -11,7 +11,7 @@ import {
   TransportManagerToken,
   ToolRegistryToken,
   ResourceRegistryToken,
-} from '@/container/tokens.js';
+} from '@/container/core/tokens.js';
 
 describe('MCP Service Registration', () => {
   beforeAll(() => {

@@ -6,8 +6,8 @@ The `container/` directory implements a minimal, type-safe DI container with zer
 
 **Key Files:**
 
-- **[container.ts](container.ts)** — `Container` class, `Token<T>`, `token<T>()` factory
-- **[tokens.ts](tokens.ts)** — All DI tokens with phantom-typed interfaces
+- **[core/container.ts](core/container.ts)** — `Container` class, `Token<T>`, `token<T>()` factory
+- **[core/tokens.ts](core/tokens.ts)** — All DI tokens with phantom-typed interfaces
 - **[registrations/core.ts](registrations/core.ts)** — Core service registration (config, logging, storage, LLM, etc.)
 - **[registrations/mcp.ts](registrations/mcp.ts)** — MCP-specific registration (tools, resources, prompts, transport)
 - **[index.ts](index.ts)** — Barrel export and `composeContainer()` entry point
@@ -54,10 +54,10 @@ The `container/` directory implements a minimal, type-safe DI container with zer
 
 Tokens use phantom typing via `Token<T>` to carry the resolved type at compile time. This enables fully type-safe resolution without casts.
 
-**File:** [tokens.ts](tokens.ts)
+**File:** [core/tokens.ts](core/tokens.ts)
 
 ```typescript
-import { token } from '@/container/container.js';
+import { token } from '@/container/core/container.js';
 import type { logger } from '@/utils/internal/logger.js';
 
 // The phantom type parameter ensures resolve() returns the correct type
@@ -76,9 +76,7 @@ export const AppConfig = token<ReturnType<typeof parseConfig>>('AppConfig');
 | `LlmProvider`             | `ILlmProvider`               | LLM integration                 |
 | `RateLimiterService`      | `RateLimiter`                | Rate limiting                   |
 | `SpeechService`           | `SpeechService`              | TTS/STT orchestrator            |
-| `GraphService`            | `GraphService`               | Graph database operations       |
 | `SupabaseAdminClient`     | `SupabaseClient<Database>`   | Supabase admin client           |
-| `SurrealdbClient`         | `Surreal`                    | SurrealDB client                |
 | `CreateMcpServerInstance` | `() => Promise<McpServer>`   | Factory for MCP server          |
 | `TransportManagerToken`   | `TransportManager`           | Transport lifecycle manager     |
 | `TaskManagerToken`        | `TaskManager`                | MCP Tasks API manager           |
@@ -93,7 +91,7 @@ export const AppConfig = token<ReturnType<typeof parseConfig>>('AppConfig');
 
 ## Container API
 
-**File:** [container.ts](container.ts)
+**File:** [core/container.ts](core/container.ts)
 
 ### Registration
 
@@ -156,13 +154,13 @@ container.reset();
 **File:** [registrations/core.ts](registrations/core.ts)
 
 ```typescript
-import { container } from '@/container/container.js';
+import { container } from '@/container/core/container.js';
 import {
   AppConfig,
   Logger,
   StorageProvider,
   StorageService,
-} from '@/container/tokens.js';
+} from '@/container/core/tokens.js';
 
 export const registerCoreServices = () => {
   const config = parseConfig();
@@ -190,8 +188,8 @@ export const registerCoreServices = () => {
 **File:** [registrations/mcp.ts](registrations/mcp.ts)
 
 ```typescript
-import { container } from '@/container/container.js';
-import { ToolDefinitions, ToolRegistryToken } from '@/container/tokens.js';
+import { container } from '@/container/core/container.js';
+import { ToolDefinitions, ToolRegistryToken } from '@/container/core/tokens.js';
 
 export const registerMcpServices = () => {
   // Multi-register all tool definitions
@@ -227,7 +225,7 @@ composeContainer();
 
 ### 1. Define Token
 
-**File:** [tokens.ts](tokens.ts)
+**File:** [core/tokens.ts](core/tokens.ts)
 
 ```typescript
 import type { IMyService } from '@/services/my-service/core/IMyService.js';
@@ -258,7 +256,7 @@ export class MyServiceImpl implements IMyService {
 **File:** [registrations/core.ts](registrations/core.ts)
 
 ```typescript
-import { MyService } from '../tokens.js';
+import { MyService } from '@/container/core/tokens.js';
 import { MyServiceImpl } from '@/services/my-service/providers/my.provider.js';
 
 // Inside registerCoreServices():
@@ -272,7 +270,7 @@ container.registerSingleton(
 
 ```typescript
 import { container } from '@/container/index.js';
-import { MyService } from '@/container/tokens.js';
+import { MyService } from '@/container/core/tokens.js';
 
 const myService = container.resolve(MyService);
 await myService.execute();
@@ -285,8 +283,8 @@ await myService.execute();
 ### Forking for Isolation
 
 ```typescript
-import { container } from '@/container/container.js';
-import { Logger } from '@/container/tokens.js';
+import { container } from '@/container/core/container.js';
+import { Logger } from '@/container/core/tokens.js';
 
 describe('MyService', () => {
   let testContainer: typeof container;

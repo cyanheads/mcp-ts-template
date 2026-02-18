@@ -26,5 +26,5 @@ export function composeContainer(): void {
 }
 
 // --- Export DI tokens, container, and token type ---
-export * from '@/container/tokens.js';
-export { container, type Token } from '@/container/container.js';
+export * from '@/container/core/tokens.js';
+export { container, type Token } from '@/container/core/container.js';

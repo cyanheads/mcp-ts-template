@@ -16,13 +16,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { config } from '@/config/index.js';
-import { container } from '@/container/container.js';
+import { container } from '@/container/core/container.js';
 import {
   PromptRegistryToken,
   ResourceRegistryToken,
   RootsRegistryToken,
   ToolRegistryToken,
-} from '@/container/tokens.js';
+} from '@/container/core/tokens.js';
 import { logger, requestContextService } from '@/utils/index.js';
 
 /**

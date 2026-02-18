@@ -584,7 +584,7 @@ export const {Provider}Client = Symbol.for('{Provider}Client');
 **File:** `src/container/registrations/core.ts`
 
 ```typescript
-import { {Provider}Client } from '@/container/tokens.js';
+import { {Provider}Client } from '@/container/core/tokens.js';
 import { {Provider}Provider } from '@/storage/providers/{provider-name}/{provider-name}Provider.js';
 
 // In registerCoreServices():

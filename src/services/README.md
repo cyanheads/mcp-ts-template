@@ -80,7 +80,7 @@ When a domain has a single provider, inject it directly:
 
 ```typescript
 import { injectable, inject } from 'tsyringe';
-import { LlmProvider } from '@/container/tokens.js';
+import { LlmProvider } from '@/container/core/tokens.js';
 import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
 import { requestContextService } from '@/utils/index.js';
 
@@ -114,7 +114,7 @@ When a domain has multiple providers or complex operations, use an orchestrator:
 
 ```typescript
 import { injectable, inject } from 'tsyringe';
-import { SpeechService } from '@/container/tokens.js';
+import { SpeechService } from '@/container/core/tokens.js';
 import type { SpeechService as SpeechServiceType } from '@/services/speech/core/SpeechService.js';
 
 @injectable()
@@ -169,7 +169,7 @@ All providers must adhere to the following requirements:
 
 import { inject, injectable } from 'tsyringe';
 import { McpError, JsonRpcErrorCode } from '@/types-global/errors.js';
-import { AppConfig, Logger } from '@/container/tokens.js';
+import { AppConfig, Logger } from '@/container/core/tokens.js';
 import { logger as LoggerType } from '@/utils/internal/logger.js';
 import { requestContextService, type RequestContext } from '@/utils/index.js';
 import { config as ConfigType } from '@/config/index.js';
@@ -390,7 +390,7 @@ export const [Service]Provider = Symbol.for('I[Service]Provider');
 
 ```typescript
 import { [Name]Provider } from '@/services/[service]/providers/[name].provider.js';
-import { [Service]Provider } from '@/container/tokens.js';
+import { [Service]Provider } from '@/container/core/tokens.js';
 import type { I[Service]Provider } from '@/services/[service]/core/I[Service]Provider.js';
 
 // In registerCoreServices():
@@ -403,7 +403,7 @@ container.register<I[Service]Provider>([Service]Provider, {
 
 ```typescript
 import { [Service]Service } from '@/services/[service]/core/[Service]Service.js';
-import { [Service]Service as [Service]ServiceToken } from '@/container/tokens.js';
+import { [Service]Service as [Service]ServiceToken } from '@/container/core/tokens.js';
 import type { [Service]ProviderConfig } from '@/services/[service]/types.js';
 
 // In registerCoreServices():
@@ -480,7 +480,7 @@ LLM_DEFAULT_TEMPERATURE=0.7
 
 ```typescript
 import { inject } from 'tsyringe';
-import { LlmProvider } from '@/container/tokens.js';
+import { LlmProvider } from '@/container/core/tokens.js';
 import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
 import { requestContextService } from '@/utils/index.js';
 
@@ -582,7 +582,7 @@ const transcript = await speechService.speechToText({
 
 ```typescript
 import { inject } from 'tsyringe';
-import { GraphProvider } from '@/container/tokens.js';
+import { GraphProvider } from '@/container/core/tokens.js';
 import type { IGraphProvider } from '@/services/graph/core/IGraphProvider.js';
 import { requestContextService } from '@/utils/index.js';
 
@@ -634,7 +634,7 @@ console.log(
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { container } from 'tsyringe';
 import { [Name]Provider } from '@/services/[service]/providers/[name].provider.js';
-import { AppConfig, Logger } from '@/container/tokens.js';
+import { AppConfig, Logger } from '@/container/core/tokens.js';
 import { requestContextService } from '@/utils/index.js';
 import { McpError } from '@/types-global/errors.js';
 

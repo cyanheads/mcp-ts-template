@@ -3,7 +3,7 @@
  * @module tests/mcp-server/tasks/core/taskManager.test
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { container } from '@/container/container.js';
+import { container } from '@/container/core/container.js';
 
 import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { StorageBackedTaskStore } from '@/mcp-server/tasks/core/storageBackedTaskStore.js';
@@ -13,7 +13,7 @@ import {
   AppConfig,
   StorageProvider,
   StorageService as StorageServiceToken,
-} from '@/container/tokens.js';
+} from '@/container/core/tokens.js';
 import type { config as configType } from '@/config/index.js';
 
 /** Helper to set up storage dependencies in the new container. */

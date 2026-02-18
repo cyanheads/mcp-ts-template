@@ -3,7 +3,7 @@
  * @module tests/container/index.test.ts
  */
 import { describe, expect, it, beforeAll } from 'vitest';
-import { container } from '@/container/container.js';
+import { container } from '@/container/core/container.js';
 import { composeContainer } from '@/container/index.js';
 import {
   AppConfig,
@@ -11,7 +11,7 @@ import {
   StorageService,
   LlmProvider,
   RateLimiterService,
-} from '@/container/tokens.js';
+} from '@/container/core/tokens.js';
 
 describe('Container Composition', () => {
   // Compose container once for all tests since it's designed to be called once at app startup

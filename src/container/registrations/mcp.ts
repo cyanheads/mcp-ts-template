@@ -4,7 +4,7 @@
  * the tools and resources themselves, and the factory for creating the MCP server instance.
  * @module src/container/registrations/mcp
  */
-import { container } from '@/container/container.js';
+import { container } from '@/container/core/container.js';
 import {
   AppConfig,
   CreateMcpServerInstance,
@@ -18,7 +18,7 @@ import {
   ToolDefinitions,
   ToolRegistryToken,
   TransportManagerToken,
-} from '@/container/tokens.js';
+} from '@/container/core/tokens.js';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
 import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
