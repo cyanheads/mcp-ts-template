@@ -575,7 +575,7 @@ case '{provider-name}':
 
 If your provider requires a pre-configured client, register it in the DI container.
 
-**File:** `src/container/tokens.ts`
+**File:** `src/container/core/tokens.ts`
 
 ```typescript
 export const {Provider}Client = Symbol.for('{Provider}Client');

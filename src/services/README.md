@@ -376,7 +376,7 @@ Create `providers/[name].provider.ts` following the template above.
 
 ### Step 5: Add DI Token
 
-**`src/container/tokens.ts`:**
+**`src/container/core/tokens.ts`:**
 
 ```typescript
 export const [Service]Provider = Symbol.for('I[Service]Provider');
