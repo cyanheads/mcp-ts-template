@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-18 14:07:45
+Generated on: 2026-02-18 14:11:47
 
 ```
 mcp-ts-template/
@@ -53,13 +53,14 @@ mcp-ts-template/
 │   ├── config/
 │   │   └── index.ts
 │   ├── container/
+│   │   ├── core/
+│   │   │   ├── container.ts
+│   │   │   └── tokens.ts
 │   │   ├── registrations/
 │   │   │   ├── core.ts
 │   │   │   └── mcp.ts
-│   │   ├── container.ts
 │   │   ├── index.ts
-│   │   ├── README.md
-│   │   └── tokens.ts
+│   │   └── README.md
 │   ├── mcp-server/
 │   │   ├── prompts/
 │   │   │   ├── definitions/

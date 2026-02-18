@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.9.5-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.26.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-86.30%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
+[![Version](https://img.shields.io/badge/Version-2.9.6-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.26.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-86.30%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
 
 </div>
 
@@ -148,21 +148,21 @@ bun install
 
 All configuration is centralized and validated at startup in `src/config/index.ts`. Key environment variables in your `.env` file include:
 
-| Variable                    | Description                                                                                                             | Default     |
-| :-------------------------- | :---------------------------------------------------------------------------------------------------------------------- | :---------- |
-| `MCP_TRANSPORT_TYPE`        | The transport to use: `stdio` or `http`.                                                                                | `http`      |
-| `MCP_HTTP_PORT`             | The port for the HTTP server.                                                                                           | `3010`      |
-| `MCP_HTTP_HOST`             | The hostname for the HTTP server.                                                                                       | `127.0.0.1` |
-| `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.                                                                         | `none`      |
-| `MCP_AUTH_SECRET_KEY`       | **Required for `jwt` auth mode.** A 32+ character secret.                                                               | `(none)`    |
-| `OAUTH_ISSUER_URL`          | **Required for `oauth` auth mode.** URL of the OIDC provider.                                                           | `(none)`    |
-| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-d1`, `cloudflare-kv`, `cloudflare-r2`.              | `in-memory` |
-| `STORAGE_FILESYSTEM_PATH`   | **Required for `filesystem` storage.** Path to the storage directory.                                                   | `(none)`    |
-| `SUPABASE_URL`              | **Required for `supabase` storage.** Your Supabase project URL.                                                         | `(none)`    |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Required for `supabase` storage.** Your Supabase service role key.                                                    | `(none)`    |
-| `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                                                                                  | `false`     |
-| `LOG_LEVEL`                 | The minimum level for logging (`debug`, `info`, `warn`, `error`).                                                       | `info`      |
-| `OPENROUTER_API_KEY`        | API key for OpenRouter LLM service.                                                                                     | `(none)`    |
+| Variable                    | Description                                                                                                | Default     |
+| :-------------------------- | :--------------------------------------------------------------------------------------------------------- | :---------- |
+| `MCP_TRANSPORT_TYPE`        | The transport to use: `stdio` or `http`.                                                                   | `http`      |
+| `MCP_HTTP_PORT`             | The port for the HTTP server.                                                                              | `3010`      |
+| `MCP_HTTP_HOST`             | The hostname for the HTTP server.                                                                          | `127.0.0.1` |
+| `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.                                                            | `none`      |
+| `MCP_AUTH_SECRET_KEY`       | **Required for `jwt` auth mode.** A 32+ character secret.                                                  | `(none)`    |
+| `OAUTH_ISSUER_URL`          | **Required for `oauth` auth mode.** URL of the OIDC provider.                                              | `(none)`    |
+| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-d1`, `cloudflare-kv`, `cloudflare-r2`. | `in-memory` |
+| `STORAGE_FILESYSTEM_PATH`   | **Required for `filesystem` storage.** Path to the storage directory.                                      | `(none)`    |
+| `SUPABASE_URL`              | **Required for `supabase` storage.** Your Supabase project URL.                                            | `(none)`    |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Required for `supabase` storage.** Your Supabase service role key.                                       | `(none)`    |
+| `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                                                                     | `false`     |
+| `LOG_LEVEL`                 | The minimum level for logging (`debug`, `info`, `warn`, `error`).                                          | `info`      |
+| `OPENROUTER_API_KEY`        | API key for OpenRouter LLM service.                                                                        | `(none)`    |
 
 ### Authentication & Authorization
 

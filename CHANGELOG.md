@@ -7,6 +7,16 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.9.6] - 2026-02-18
+
+### Changed
+
+- **Container module structure**: Moved `container.ts` and `tokens.ts` into `src/container/core/` subdirectory for clearer separation between core DI primitives and registration logic.
+- Updated all imports across source, tests, and documentation to use `@/container/core/container.js` and `@/container/core/tokens.js`.
+- Cleaned up container README token table — removed stale `GraphService` and `SurrealdbClient` entries from previous SurrealDB removal.
+
+---
+
 ## [2.9.5] - 2026-02-18
 
 ### Removed
