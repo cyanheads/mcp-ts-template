@@ -43,7 +43,7 @@ See [docs/tree.md](docs/tree.md) for the complete visual tree. Respect the estab
 | `src/mcp-server/transports/` | Transport implementations: `http/` (Hono + `@hono/mcp` Streamable HTTP), `stdio/` (MCP spec stdio), `auth/` (strategies and helpers). HTTP can enforce JWT/OAuth. Stdio should not implement HTTP-based auth. |
 | `src/config/` | Zod-validated config from environment variables. Derives `serviceName`/`version` from `package.json`. |
 | `src/types-global/` | Global type definitions shared across the codebase (error types, etc.). |
-| `src/services/` | External service integrations. Each domain (e.g. `llm/`, `speech/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`, `index.ts`. Use DI for all service deps. |
+| `src/services/` | External service integrations. Each domain (e.g. `llm/`, `speech/`, `graph/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`, `index.ts`. Use DI for all service deps. |
 | `src/storage/` | Storage abstractions and provider implementations (in-memory, filesystem, supabase, cloudflare). |
 | `src/container/` | Dependency injection (custom typed container). `Token<T>` phantom branding, service registration/resolution. Zero external deps. |
 | `src/utils/` | Global utilities: logging, performance, parsing, network, security, formatting, telemetry. Error handling is at `src/utils/internal/error-handler/`. |

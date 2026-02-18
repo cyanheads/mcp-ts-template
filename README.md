@@ -100,7 +100,7 @@ This template includes working examples to get you started.
 
 ### MCP Client Settings/Configuration
 
-Add the following to your MCP Client configuration file (e.g., `cline_mcp_settings.json`).
+Add the following to your MCP client configuration file.
 
 ```json
 {
@@ -148,21 +148,21 @@ bun install
 
 All configuration is centralized and validated at startup in `src/config/index.ts`. Key environment variables in your `.env` file include:
 
-| Variable                    | Description                                                                                                | Default     |
-| :-------------------------- | :--------------------------------------------------------------------------------------------------------- | :---------- |
-| `MCP_TRANSPORT_TYPE`        | The transport to use: `stdio` or `http`.                                                                   | `http`      |
-| `MCP_HTTP_PORT`             | The port for the HTTP server.                                                                              | `3010`      |
-| `MCP_HTTP_HOST`             | The hostname for the HTTP server.                                                                          | `127.0.0.1` |
-| `MCP_AUTH_MODE`             | Authentication mode: `none`, `jwt`, or `oauth`.                                                            | `none`      |
-| `MCP_AUTH_SECRET_KEY`       | **Required for `jwt` auth mode.** A 32+ character secret.                                                  | `(none)`    |
-| `OAUTH_ISSUER_URL`          | **Required for `oauth` auth mode.** URL of the OIDC provider.                                              | `(none)`    |
-| `STORAGE_PROVIDER_TYPE`     | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-d1`, `cloudflare-kv`, `cloudflare-r2`. | `in-memory` |
-| `STORAGE_FILESYSTEM_PATH`   | **Required for `filesystem` storage.** Path to the storage directory.                                      | `(none)`    |
-| `SUPABASE_URL`              | **Required for `supabase` storage.** Your Supabase project URL.                                            | `(none)`    |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Required for `supabase` storage.** Your Supabase service role key.                                       | `(none)`    |
-| `OTEL_ENABLED`              | Set to `true` to enable OpenTelemetry.                                                                     | `false`     |
-| `LOG_LEVEL`                 | The minimum level for logging (`debug`, `info`, `warn`, `error`).                                          | `info`      |
-| `OPENROUTER_API_KEY`        | API key for OpenRouter LLM service.                                                                        | `(none)`    |
+| Variable                  | Description                                                                                                | Default      |
+| :------------------------ | :--------------------------------------------------------------------------------------------------------- | :----------- |
+| `MCP_TRANSPORT_TYPE`      | The transport to use: `stdio` or `http`.                                                                   | `stdio`      |
+| `MCP_HTTP_PORT`           | The port for the HTTP server.                                                                              | `3010`       |
+| `MCP_HTTP_HOST`           | The hostname for the HTTP server.                                                                          | `127.0.0.1`  |
+| `MCP_LOG_LEVEL`           | Logging level (`fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`).                              | `debug`      |
+| `MCP_AUTH_MODE`           | Authentication mode: `none`, `jwt`, or `oauth`.                                                            | `none`       |
+| `MCP_AUTH_SECRET_KEY`     | **Required for `jwt` auth mode.** A 32+ character secret.                                                  | `(none)`     |
+| `OAUTH_ISSUER_URL`        | **Required for `oauth` auth mode.** URL of the OIDC provider.                                              | `(none)`     |
+| `STORAGE_PROVIDER_TYPE`   | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-d1`, `cloudflare-kv`, `cloudflare-r2`. | `in-memory`  |
+| `STORAGE_FILESYSTEM_PATH` | Path to the storage directory (for `filesystem` provider).                                                 | `./.storage` |
+| `SUPABASE_URL`            | **Required for `supabase` storage.** Your Supabase project URL.                                            | `(none)`     |
+| `SUPABASE_ANON_KEY`       | **Required for `supabase` storage.** Your Supabase anon key.                                               | `(none)`     |
+| `OTEL_ENABLED`            | Set to `true` to enable OpenTelemetry.                                                                     | `false`      |
+| `OPENROUTER_API_KEY`      | API key for OpenRouter LLM service.                                                                        | `(none)`     |
 
 ### Authentication & Authorization
 
