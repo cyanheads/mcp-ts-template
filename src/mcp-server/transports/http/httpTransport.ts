@@ -195,6 +195,24 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     });
   });
 
+  // Create auth strategy and middleware if auth is enabled
+  // IMPORTANT: Auth middleware must be registered BEFORE route handlers
+  // so Hono applies it to all subsequent routes on this path.
+  const authStrategy = createAuthStrategy();
+  if (authStrategy) {
+    const authMiddleware = createAuthMiddleware(authStrategy);
+    app.use(config.mcpHttpEndpointPath, authMiddleware);
+    logger.info(
+      'Authentication middleware enabled for MCP endpoint.',
+      transportContext,
+    );
+  } else {
+    logger.info(
+      'Authentication is disabled; MCP endpoint is unprotected.',
+      transportContext,
+    );
+  }
+
   // MCP Spec 2025-06-18: DELETE endpoint for session termination
   // Clients SHOULD send DELETE to explicitly terminate sessions
   // https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management
@@ -229,22 +247,6 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
 
     return c.json({ status: 'terminated', sessionId }, 200);
   });
-
-  // Create auth strategy and middleware if auth is enabled
-  const authStrategy = createAuthStrategy();
-  if (authStrategy) {
-    const authMiddleware = createAuthMiddleware(authStrategy);
-    app.use(config.mcpHttpEndpointPath, authMiddleware);
-    logger.info(
-      'Authentication middleware enabled for MCP endpoint.',
-      transportContext,
-    );
-  } else {
-    logger.info(
-      'Authentication is disabled; MCP endpoint is unprotected.',
-      transportContext,
-    );
-  }
 
   // JSON-RPC over HTTP (Streamable)
   app.all(config.mcpHttpEndpointPath, async (c) => {

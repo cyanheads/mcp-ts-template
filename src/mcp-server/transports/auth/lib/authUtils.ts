@@ -4,7 +4,11 @@
  * @module src/mcp-server/transports/auth/core/authUtils
  */
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import {
+  logger,
+  type RequestContext,
+  requestContextService,
+} from '@/utils/index.js';
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 
 /**
@@ -14,15 +18,24 @@ import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
  * If auth is enabled, it strictly enforces scope checks.
  *
  * @param requiredScopes - An array of scope strings that are mandatory for the operation.
+ * @param parentContext - Optional parent request context for trace correlation.
  * @throws {McpError} Throws an error with `JsonRpcErrorCode.Forbidden` if authentication
  *   is active and one or more required scopes are not present in the validated token.
  */
-export function withRequiredScopes(requiredScopes: string[]): void {
-  const operationName = 'withRequiredScopesCheck';
-  const initialContext = requestContextService.createRequestContext({
-    operation: operationName,
-    additionalContext: { requiredScopes },
-  });
+export function withRequiredScopes(
+  requiredScopes: string[],
+  parentContext?: RequestContext,
+): void {
+  const initialContext = parentContext
+    ? {
+        ...parentContext,
+        operation: 'withRequiredScopesCheck',
+        requiredScopes,
+      }
+    : requestContextService.createRequestContext({
+        operation: 'withRequiredScopesCheck',
+        additionalContext: { requiredScopes },
+      });
 
   const store = authContext.getStore();
 

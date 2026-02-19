@@ -43,7 +43,6 @@ export function createAuthMiddleware(
       throw new McpError(
         JsonRpcErrorCode.Unauthorized,
         'Missing or invalid Authorization header. Bearer scheme required.',
-        context,
       );
     }
 
@@ -56,7 +55,6 @@ export function createAuthMiddleware(
       throw new McpError(
         JsonRpcErrorCode.Unauthorized,
         'Authentication token is missing.',
-        context,
       );
     }
 

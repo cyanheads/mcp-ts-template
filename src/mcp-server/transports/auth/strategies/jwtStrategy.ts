@@ -107,7 +107,6 @@ export class JwtStrategy implements AuthStrategy {
         throw new McpError(
           JsonRpcErrorCode.Unauthorized,
           "Invalid token: missing 'cid' or 'client_id' claim.",
-          context,
         );
       }
 
@@ -129,7 +128,6 @@ export class JwtStrategy implements AuthStrategy {
         throw new McpError(
           JsonRpcErrorCode.Unauthorized,
           'Token must contain valid, non-empty scopes.',
-          context,
         );
       }
 

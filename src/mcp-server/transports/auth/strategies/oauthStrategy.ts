@@ -142,7 +142,6 @@ export class OauthStrategy implements AuthStrategy {
         throw new McpError(
           JsonRpcErrorCode.Unauthorized,
           'Token must contain valid, non-empty scopes.',
-          context,
         );
       }
 
@@ -156,7 +155,6 @@ export class OauthStrategy implements AuthStrategy {
         throw new McpError(
           JsonRpcErrorCode.Unauthorized,
           "Token must contain a 'client_id' claim.",
-          context,
         );
       }
 

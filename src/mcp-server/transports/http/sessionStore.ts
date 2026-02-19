@@ -44,11 +44,25 @@ interface Session {
 export class SessionStore {
   private sessions: Map<string, Session> = new Map();
   private staleTimeout: number;
+  private cleanupInterval: ReturnType<typeof setInterval>;
 
   constructor(staleTimeoutMs: number) {
     this.staleTimeout = staleTimeoutMs;
-    // Clean up stale sessions every minute
-    setInterval(() => this.cleanupStaleSessions(), 60_000);
+    // Clean up stale sessions every minute. unref() prevents blocking graceful shutdown.
+    this.cleanupInterval = setInterval(
+      () => this.cleanupStaleSessions(),
+      60_000,
+    );
+    this.cleanupInterval.unref?.();
+  }
+
+  /**
+   * Stops the cleanup interval and clears all sessions.
+   * Call this during transport shutdown to prevent resource leaks.
+   */
+  destroy(): void {
+    clearInterval(this.cleanupInterval);
+    this.sessions.clear();
   }
 
   /**
