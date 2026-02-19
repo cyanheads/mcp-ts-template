@@ -7,6 +7,42 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.9.7] - 2026-02-19
+
+### Fixed
+
+- **Auth middleware ordering**: Moved auth middleware registration before route handlers in HTTP transport, preventing potential auth bypass on DELETE session endpoint.
+- **Log level alignment**: Config now validates log levels against RFC 5424 / MCP spec values (`debug`, `info`, `notice`, `warning`, `error`, `crit`, `alert`, `emerg`) with aliases for legacy names (`warn` → `warning`, `fatal` → `emerg`, `trace` → `debug`). Eliminated redundant log level normalization at startup.
+- **Resource annotations**: Replaced incorrect tool-style annotations (`readOnlyHint`, `openWorldHint`) with MCP spec `Annotations` type (`audience`, `priority`, `lastModified`). Annotations are now actually propagated to clients during resource registration.
+- **Task store errors**: Replaced raw `Error` throws with structured `McpError` instances using proper JSON-RPC error codes.
+- **Auth error leakage**: Removed request context objects from `McpError` detail fields in auth middleware and strategies, preventing internal state from leaking into error responses.
+- **Elicitation schema**: Changed elicitation input schema from bare `{ type: 'string' }` to spec-compliant `{ type: 'object', properties: { value: { type: 'string' } } }`.
+- **Cat fact tool annotation**: Removed incorrect `idempotentHint` from random cat fact tool (non-deterministic endpoint).
+
+### Changed
+
+- **Prompt validation**: Prompt handler now validates incoming arguments against the prompt's `argumentsSchema` via Zod before passing to `generate()`. Code review prompt `focus` field narrowed from freeform string to enum.
+- **Session store lifecycle**: Added `destroy()` method and `unref()` on cleanup interval to support graceful shutdown.
+- **Auth trace correlation**: `withRequiredScopes()` now accepts optional parent context for proper trace propagation through auth checks.
+- **Task manager request IDs**: Replaced hardcoded `'init'`/`'shutdown'` request IDs with unique generated IDs for proper log correlation.
+- **Countdown task tool**: Added schema-level descriptions and replaced bare type cast with `InputSchema.parse()` validation.
+- **Data explorer**: Replaced hardcoded `2025` year in sample data with `new Date().getFullYear()`.
+
+### Removed
+
+- Redundant `ElicitableContext` type and elicitation forwarding in tool handler factory (already available via `sdkContext`).
+- Redundant `response.ok` error handling in ElevenLabs and Whisper speech providers (`fetchWithTimeout` already handles this).
+- Redundant `parseConfig()` call in container registration (now uses pre-parsed singleton).
+
+### Dependencies
+
+- Bumped `@cloudflare/workers-types` (4.20260218 → 4.20260219).
+- Bumped `@types/node` (25.2.3 → 25.3.0).
+- Bumped `@supabase/supabase-js` (2.96.0 → 2.97.0).
+- Bumped `sanitize-html` (2.17.0 → 2.17.1).
+
+---
+
 ## [2.9.6] - 2026-02-18
 
 ### Changed
