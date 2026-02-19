@@ -42,7 +42,7 @@ describe('Configuration Service', () => {
     const config = parseConfig();
 
     expect(config.environment).toBe('production');
-    expect(config.logLevel).toBe('warn');
+    expect(config.logLevel).toBe('warning');
     expect(config.mcpHttpPort).toBe(8080);
     expect(config.storage.providerType).toBe('filesystem');
   });
@@ -66,7 +66,7 @@ describe('Configuration Service', () => {
     it('should handle aliases for logLevel', async () => {
       process.env.MCP_LOG_LEVEL = 'warning';
       const { parseConfig: p1 } = await import('../../src/config/index.js');
-      expect(p1().logLevel).toBe('warn');
+      expect(p1().logLevel).toBe('warning');
 
       process.env.MCP_LOG_LEVEL = 'err';
       const { parseConfig: p2 } = await import('../../src/config/index.js');

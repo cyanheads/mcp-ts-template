@@ -126,31 +126,12 @@ const start = async (): Promise<void> => {
   // Initialize the high-resolution timer
   await initializePerformance_Hrt();
 
-  const validMcpLogLevels: McpLogLevel[] = [
-    'debug',
-    'info',
-    'notice',
-    'warning',
-    'error',
-    'crit',
-    'alert',
-    'emerg',
-  ];
-  const initialLogLevelConfig = config.logLevel;
-
-  let validatedMcpLogLevel: McpLogLevel = 'info';
-  if (validMcpLogLevels.includes(initialLogLevelConfig as McpLogLevel)) {
-    validatedMcpLogLevel = initialLogLevelConfig as McpLogLevel;
-  } else {
-    if (process.stdout.isTTY) {
-      console.warn(
-        `[Startup Warning] Invalid MCP_LOG_LEVEL "${initialLogLevelConfig}". Defaulting to "info".`,
-      );
-    }
-  }
-
+  // Config module already validates and normalizes log level to McpLogLevel values.
   // Pass transport type to logger to ensure STDIO mode uses plain JSON (no ANSI colors)
-  await logger.initialize(validatedMcpLogLevel, config.mcpTransportType);
+  await logger.initialize(
+    config.logLevel as McpLogLevel,
+    config.mcpTransportType,
+  );
 
   // Storage Service is now initialized in the container
   logger.info(

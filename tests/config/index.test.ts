@@ -52,7 +52,7 @@ describe('config parsing', () => {
 
     const parsed = parseConfig();
 
-    expect(parsed.logLevel).toBe('warn');
+    expect(parsed.logLevel).toBe('warning');
     expect(parsed.environment).toBe('production');
     expect(parsed.mcpSessionMode).toBe('auto');
     expect(parsed.mcpAllowedOrigins).toEqual([

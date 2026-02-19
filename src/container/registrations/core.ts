@@ -6,7 +6,7 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-import { parseConfig } from '@/config/index.js';
+import { config as parsedConfig } from '@/config/index.js';
 import { container } from '@/container/core/container.js';
 import {
   AppConfig,
@@ -34,9 +34,7 @@ import { RateLimiter } from '@/utils/security/rateLimiter.js';
  * Registers core application services and values with the container.
  */
 export const registerCoreServices = () => {
-  const config = parseConfig();
-
-  container.registerValue(AppConfig, config);
+  container.registerValue(AppConfig, parsedConfig);
   container.registerValue(Logger, logger);
 
   // Supabase client — lazy singleton, resolved on first use

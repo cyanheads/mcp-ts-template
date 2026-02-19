@@ -54,16 +54,29 @@ const ConfigSchema = z.object({
         const str = emptyStringAsUndefined(val);
         if (typeof str === 'string') {
           const lower = str.toLowerCase();
+          // Normalize common aliases to RFC5424/MCP log level names
           const aliasMap: Record<string, string> = {
-            warning: 'warn',
+            warn: 'warning',
             err: 'error',
             information: 'info',
+            fatal: 'emerg',
+            trace: 'debug',
+            silent: 'emerg',
           };
           return aliasMap[lower] ?? lower;
         }
         return str;
       },
-      z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
+      z.enum([
+        'debug',
+        'info',
+        'notice',
+        'warning',
+        'error',
+        'crit',
+        'alert',
+        'emerg',
+      ]),
     )
     .default('debug'),
   logsPath: z.string().optional(), // Made optional as it's Node-specific
