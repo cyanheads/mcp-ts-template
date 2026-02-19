@@ -172,17 +172,7 @@ export class WhisperProvider implements ISpeechProvider {
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error(`Whisper API error: ${response.status}`, context);
-
-        throw new McpError(
-          JsonRpcErrorCode.InternalError,
-          `Whisper API error: ${response.status} - ${errorText}`,
-          context,
-        );
-      }
-
+      // fetchWithTimeout already throws McpError on non-ok responses
       const data = (await response.json()) as WhisperTranscriptionResponse;
 
       // Convert word timestamps if present

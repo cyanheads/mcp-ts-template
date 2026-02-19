@@ -127,17 +127,7 @@ export class ElevenLabsProvider implements ISpeechProvider {
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error(`ElevenLabs API error: ${response.status}`, context);
-
-        throw new McpError(
-          JsonRpcErrorCode.InternalError,
-          `ElevenLabs API error: ${response.status} - ${errorText}`,
-          context,
-        );
-      }
-
+      // fetchWithTimeout already throws McpError on non-ok responses
       const audioBuffer = Buffer.from(await response.arrayBuffer());
 
       logger.info(
@@ -203,16 +193,7 @@ export class ElevenLabsProvider implements ISpeechProvider {
         },
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error(`Failed to fetch voices: ${response.status}`, context);
-
-        throw new McpError(
-          JsonRpcErrorCode.InternalError,
-          `Failed to fetch voices: ${response.status} - ${errorText}`,
-        );
-      }
-
+      // fetchWithTimeout already throws McpError on non-ok responses
       const data = (await response.json()) as ElevenLabsVoicesResponse;
 
       const voices: Voice[] = data.voices.map((v) => ({

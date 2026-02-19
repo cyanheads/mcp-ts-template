@@ -123,14 +123,16 @@ describe('ElevenLabsProvider', () => {
     });
 
     it('should throw on API error response', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 401,
-        text: () => Promise.resolve('Unauthorized'),
-      } as unknown as Response);
+      // fetchWithTimeout throws McpError on non-ok responses
+      mockFetch.mockRejectedValue(
+        new McpError(
+          -32003,
+          'Fetch failed for https://api.elevenlabs.test/v1/text-to-speech/voice-123. Status: 401',
+        ),
+      );
 
       await expect(provider.textToSpeech({ text: 'Hello' })).rejects.toThrow(
-        'ElevenLabs API error: 401',
+        'Fetch failed',
       );
     });
 
@@ -194,11 +196,13 @@ describe('ElevenLabsProvider', () => {
     });
 
     it('should throw on API error', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 500,
-        text: () => Promise.resolve('Server Error'),
-      } as unknown as Response);
+      // fetchWithTimeout throws McpError on non-ok responses
+      mockFetch.mockRejectedValue(
+        new McpError(
+          -32003,
+          'Fetch failed for https://api.elevenlabs.test/v1/voices. Status: 500',
+        ),
+      );
 
       await expect(provider.getVoices()).rejects.toThrow(McpError);
     });

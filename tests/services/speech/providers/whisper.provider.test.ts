@@ -176,15 +176,17 @@ describe('WhisperProvider', () => {
     });
 
     it('should throw on API error response', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 400,
-        text: () => Promise.resolve('Bad Request'),
-      } as unknown as Response);
+      // fetchWithTimeout throws McpError on non-ok responses
+      mockFetch.mockRejectedValue(
+        new McpError(
+          -32003,
+          'Fetch failed for https://api.openai.test/v1/audio/transcriptions. Status: 400',
+        ),
+      );
 
       await expect(
         provider.speechToText({ audio: Buffer.from('audio') }),
-      ).rejects.toThrow('Whisper API error: 400');
+      ).rejects.toThrow('Fetch failed');
     });
 
     it('should wrap network errors in McpError', async () => {
