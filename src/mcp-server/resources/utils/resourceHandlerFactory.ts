@@ -114,6 +114,7 @@ export async function registerResource<
           description: def.description,
           mimeType,
           ...(def.examples && { examples: def.examples }),
+          ...(def.annotations && { annotations: def.annotations }),
         },
         async (uri, params, callContext): Promise<ReadResourceResult> => {
           const sessionId =

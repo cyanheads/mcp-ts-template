@@ -31,34 +31,39 @@ const TOOL_DESCRIPTION =
 // Schemas
 // ============================================================================
 
-const InputSchema = z.object({
-  seconds: z
-    .number()
-    .int()
-    .min(1)
-    .max(60)
-    .describe('Number of seconds to count down (1-60)'),
-  message: z
-    .string()
-    .optional()
-    .describe('Optional message to include in the final result'),
-  simulateFailure: z
-    .boolean()
-    .optional()
-    .describe('If true, simulates a failure at 50% progress (for testing)'),
-});
+const InputSchema = z
+  .object({
+    seconds: z
+      .number()
+      .int()
+      .min(1)
+      .max(60)
+      .describe('Number of seconds to count down (1-60)'),
+    message: z
+      .string()
+      .optional()
+      .describe('Optional message to include in the final result'),
+    simulateFailure: z
+      .boolean()
+      .optional()
+      .describe('If true, simulates a failure at 50% progress (for testing)'),
+  })
+  .describe('Parameters for the async countdown task.');
 
-const OutputSchema = z.object({
-  success: z.boolean().describe('Whether the countdown completed successfully'),
-  message: z.string().describe('Completion or cancellation message'),
-  startedAt: z.string().describe('ISO timestamp when countdown started'),
-  completedAt: z.string().describe('ISO timestamp when countdown ended'),
-  duration: z.number().describe('Actual duration in milliseconds'),
-  progress: z.number().describe('Final progress percentage (0-100)'),
-  wasCancelled: z.boolean().describe('Whether the task was cancelled'),
-});
+const OutputSchema = z
+  .object({
+    success: z
+      .boolean()
+      .describe('Whether the countdown completed successfully'),
+    message: z.string().describe('Completion or cancellation message'),
+    startedAt: z.string().describe('ISO timestamp when countdown started'),
+    completedAt: z.string().describe('ISO timestamp when countdown ended'),
+    duration: z.number().describe('Actual duration in milliseconds'),
+    progress: z.number().describe('Final progress percentage (0-100)'),
+    wasCancelled: z.boolean().describe('Whether the task was cancelled'),
+  })
+  .describe('Result of the completed async countdown task.');
 
-type Input = z.infer<typeof InputSchema>;
 type Output = z.infer<typeof OutputSchema>;
 
 // ============================================================================
@@ -268,7 +273,7 @@ export const asyncCountdownTaskTool: TaskToolDefinition<
      * Validates input, creates the task, and starts background execution.
      */
     createTask: async (args, extra) => {
-      const input = args as Input;
+      const input = InputSchema.parse(args);
 
       // Create task with appropriate TTL based on countdown duration
       // TTL = countdown time + 60s buffer for result retrieval

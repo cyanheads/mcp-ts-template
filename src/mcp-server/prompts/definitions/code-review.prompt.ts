@@ -16,16 +16,16 @@ const ArgumentsSchema = z.object({
     .optional()
     .describe('Programming language of the code to review.'),
   focus: z
-    .string()
+    .enum(['security', 'performance', 'style', 'general'])
     .optional()
     .describe(
-      "The primary focus area for the code review ('security' | 'performance' | 'style' | 'general'). Defaults to 'general'.",
+      "The primary focus area for the code review. Defaults to 'general'.",
     ),
   includeExamples: z
-    .string()
+    .enum(['true', 'false'])
     .optional()
     .describe(
-      "Whether to include example improvements in the review ('true' | 'false'). Defaults to 'false'.",
+      "Whether to include example improvements in the review. Defaults to 'false'.",
     ),
 });
 
@@ -34,7 +34,7 @@ export const codeReviewPrompt: PromptDefinition<typeof ArgumentsSchema> = {
   description: PROMPT_DESCRIPTION,
   argumentsSchema: ArgumentsSchema,
   generate: (args) => {
-    const focus = (args.focus as string) || 'general';
+    const focus = args.focus ?? 'general';
     const includeExamples = args.includeExamples === 'true';
 
     const focusGuidance: Record<string, string> = {

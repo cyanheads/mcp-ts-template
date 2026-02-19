@@ -15,6 +15,7 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import type { StorageService } from '@/storage/core/StorageService.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { idGenerator, type RequestContext } from '@/utils/index.js';
 import type { Task, TaskStore, CreateTaskOptions } from './taskTypes.js';
 import { isTerminal } from './taskTypes.js';
@@ -181,12 +182,16 @@ export class StorageBackedTaskStore implements TaskStore {
 
     const stored = await this.storage.get<StoredTask>(key, context);
     if (!stored) {
-      throw new Error(`Task with ID ${taskId} not found`);
+      throw new McpError(
+        JsonRpcErrorCode.InvalidRequest,
+        `Task with ID ${taskId} not found`,
+      );
     }
 
     // Don't allow storing results for tasks already in terminal state
     if (isTerminal(stored.task.status)) {
-      throw new Error(
+      throw new McpError(
+        JsonRpcErrorCode.InvalidRequest,
         `Cannot store result for task ${taskId} in terminal status '${stored.task.status}'. Task results can only be stored once.`,
       );
     }
@@ -212,11 +217,17 @@ export class StorageBackedTaskStore implements TaskStore {
     );
 
     if (!stored) {
-      throw new Error(`Task with ID ${taskId} not found`);
+      throw new McpError(
+        JsonRpcErrorCode.InvalidRequest,
+        `Task with ID ${taskId} not found`,
+      );
     }
 
     if (!stored.result) {
-      throw new Error(`Task ${taskId} has no result stored`);
+      throw new McpError(
+        JsonRpcErrorCode.InvalidRequest,
+        `Task ${taskId} has no result stored`,
+      );
     }
 
     return stored.result;
@@ -233,12 +244,16 @@ export class StorageBackedTaskStore implements TaskStore {
 
     const stored = await this.storage.get<StoredTask>(key, context);
     if (!stored) {
-      throw new Error(`Task with ID ${taskId} not found`);
+      throw new McpError(
+        JsonRpcErrorCode.InvalidRequest,
+        `Task with ID ${taskId} not found`,
+      );
     }
 
     // Don't allow transitions from terminal states
     if (isTerminal(stored.task.status)) {
-      throw new Error(
+      throw new McpError(
+        JsonRpcErrorCode.InvalidRequest,
         `Cannot update task ${taskId} from terminal status '${stored.task.status}' to '${status}'. Terminal states (completed, failed, cancelled) cannot transition to other states.`,
       );
     }

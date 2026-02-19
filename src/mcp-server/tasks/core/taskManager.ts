@@ -12,7 +12,7 @@
  */
 import { type config as configType } from '@/config/index.js';
 import { StorageService } from '@/storage/core/StorageService.js';
-import { logger, type RequestContext } from '@/utils/index.js';
+import { idGenerator, logger, type RequestContext } from '@/utils/index.js';
 import {
   InMemoryTaskStore,
   InMemoryTaskMessageQueue,
@@ -68,7 +68,7 @@ export class TaskManager {
 
     logger.info(`TaskManager initialized with ${this.storeType} task store`, {
       operation: 'TaskManager.constructor',
-      requestId: 'init',
+      requestId: idGenerator.generate('req'),
       timestamp: new Date().toISOString(),
       storeType: this.storeType,
       ...(this.storeType === 'storage' && { tenantId: config.tasks.tenantId }),
@@ -133,7 +133,7 @@ export class TaskManager {
 
     const logContext = context ?? {
       operation: 'TaskManager.cleanup',
-      requestId: 'shutdown',
+      requestId: idGenerator.generate('req'),
       timestamp: new Date().toISOString(),
     };
 

@@ -73,11 +73,22 @@ async function elicitAndValidate(
   }
 
   const elicitedUnknown: unknown = await sdkContext.elicitInput({
-    message: `I need a ${partOfSpeech}.`,
-    schema: { type: 'string' },
+    message: `I need a ${partOfSpeech}. Please provide one below.`,
+    schema: {
+      type: 'object' as const,
+      properties: {
+        value: {
+          type: 'string' as const,
+          description: `A ${partOfSpeech} for the Mad Libs story`,
+        },
+      },
+      required: ['value'],
+    },
   });
 
-  const validation = z.string().min(1).safeParse(elicitedUnknown);
+  const validation = z
+    .object({ value: z.string().min(1) })
+    .safeParse(elicitedUnknown);
   if (!validation.success) {
     throw new McpError(
       JsonRpcErrorCode.InvalidParams,
@@ -85,7 +96,7 @@ async function elicitAndValidate(
       { provided: elicitedUnknown },
     );
   }
-  return validation.data;
+  return validation.data.value;
 }
 
 // --- Pure business logic ---

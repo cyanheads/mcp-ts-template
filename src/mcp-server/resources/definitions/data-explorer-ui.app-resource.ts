@@ -312,7 +312,7 @@ export const dataExplorerUiResource: ResourceDefinition<typeof ParamsSchema> = {
   uriTemplate: 'ui://template-data-explorer/app.html',
   paramsSchema: ParamsSchema,
   mimeType: RESOURCE_MIME_TYPE,
-  annotations: { readOnlyHint: true },
+  annotations: { audience: ['user'] },
   list: (_extra) => ({
     resources: [
       {

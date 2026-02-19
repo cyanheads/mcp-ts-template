@@ -40,7 +40,7 @@ describe('madlibsElicitationTool', () => {
   });
 
   it('should elicit a noun if it is missing', async () => {
-    const mockElicitInput = vi.fn().mockResolvedValue('robot');
+    const mockElicitInput = vi.fn().mockResolvedValue({ value: 'robot' });
     const sdkContextWithElicit = {
       ...mockSdkContext,
       elicitInput: mockElicitInput,
@@ -55,8 +55,17 @@ describe('madlibsElicitationTool', () => {
     );
 
     expect(mockElicitInput).toHaveBeenCalledWith({
-      message: 'I need a noun.',
-      schema: { type: 'string' },
+      message: 'I need a noun. Please provide one below.',
+      schema: {
+        type: 'object',
+        properties: {
+          value: {
+            type: 'string',
+            description: 'A noun for the Mad Libs story',
+          },
+        },
+        required: ['value'],
+      },
     });
     expect(result.story).toBe('The silly robot danced over the lazy dog.');
     expect(result.noun).toBe('robot');
@@ -65,9 +74,9 @@ describe('madlibsElicitationTool', () => {
   it('should elicit all parts of speech if none are provided', async () => {
     const mockElicitInput = vi
       .fn()
-      .mockResolvedValueOnce('unicorn') // noun
-      .mockResolvedValueOnce('flew') // verb
-      .mockResolvedValueOnce('sparkly'); // adjective
+      .mockResolvedValueOnce({ value: 'unicorn' }) // noun
+      .mockResolvedValueOnce({ value: 'flew' }) // verb
+      .mockResolvedValueOnce({ value: 'sparkly' }); // adjective
 
     const sdkContextWithElicit = {
       ...mockSdkContext,

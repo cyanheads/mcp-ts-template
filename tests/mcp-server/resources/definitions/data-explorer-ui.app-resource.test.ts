@@ -21,8 +21,8 @@ describe('dataExplorerUiResource', () => {
     expect(dataExplorerUiResource.mimeType).toBe(RESOURCE_MIME_TYPE);
   });
 
-  it('has a readOnly annotation', () => {
-    expect(dataExplorerUiResource.annotations?.readOnlyHint).toBe(true);
+  it('has an audience annotation', () => {
+    expect(dataExplorerUiResource.annotations?.audience).toEqual(['user']);
   });
 
   it('uses the correct URI template', () => {

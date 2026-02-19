@@ -108,7 +108,7 @@ function generateSalesData(rowCount: number): DataExplorerOutput {
       product: PRODUCTS[Math.floor(Math.random() * PRODUCTS.length)]!,
       units,
       revenue: units * pricePerUnit,
-      date: `2025-${month}-${day}`,
+      date: `${new Date().getFullYear()}-${month}-${day}`,
     };
   });
 

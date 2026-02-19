@@ -16,14 +16,16 @@ import type { ZodObject, ZodRawShape, z } from 'zod';
 import type { RequestContext } from '@/utils/index.js';
 
 /**
- * Optional UI/display hints for resources.
+ * Optional annotations providing clients additional context about a resource.
+ * Mirrors the MCP SDK's Annotations type.
  */
 export interface ResourceAnnotations {
-  [key: string]: unknown;
-  /** A hint indicating the resource is read-only. */
-  readOnlyHint?: boolean;
-  /** A hint indicating the resource may call external dynamic systems. */
-  openWorldHint?: boolean;
+  /** Describes who the intended customer of this object or data is. */
+  audience?: ('user' | 'assistant')[];
+  /** Describes how important this data is (0 = least, 1 = most). */
+  priority?: number;
+  /** The timestamp of the last modification, as an ISO 8601 string. */
+  lastModified?: string;
 }
 
 /**

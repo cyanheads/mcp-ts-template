@@ -4,6 +4,7 @@ exports[`Tool Schema Snapshots > Tool: template_async_countdown > inputSchema JS
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
+  "description": "Parameters for the async countdown task.",
   "properties": {
     "message": {
       "description": "Optional message to include in the final result",
@@ -31,6 +32,7 @@ exports[`Tool Schema Snapshots > Tool: template_async_countdown > outputSchema J
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
+  "description": "Result of the completed async countdown task.",
   "properties": {
     "completedAt": {
       "description": "ISO timestamp when countdown ended",

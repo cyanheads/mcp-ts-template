@@ -81,7 +81,7 @@ export const echoResourceDefinition: ResourceDefinition<
   outputSchema: OutputSchema,
   mimeType: 'application/json',
   examples: [{ name: 'Basic echo', uri: 'echo://hello' }],
-  annotations: { readOnlyHint: true },
+  annotations: { audience: ['user', 'assistant'] },
   list: (_extra) => {
     // For pagination support, extract cursor and use pagination utilities:
     // const cursor = extractCursor(_extra._meta);

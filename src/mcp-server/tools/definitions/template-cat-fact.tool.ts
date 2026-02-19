@@ -62,7 +62,6 @@ const TOOL_DESCRIPTION =
 const TOOL_ANNOTATIONS: ToolAnnotations = {
   readOnlyHint: true,
   openWorldHint: true,
-  idempotentHint: true,
 };
 /** --------------------------------------------------------- */
 
