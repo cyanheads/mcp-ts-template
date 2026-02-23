@@ -7,6 +7,26 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.9.8] - 2026-02-22
+
+### Fixed
+
+- **SDK context serialization**: Tool and resource handler factories no longer spread the raw SDK context object into `parentContext`. The SDK context contains native objects (e.g. `AbortSignal`) that crash Pino's serializer. Factories now extract only plain-data fields (`requestId`, `sessionId`).
+- **Logs path resolution**: Config module now detects whether it is running from bundled (`dist/`) or source (`src/`) paths and adjusts the project root derivation depth accordingly. Previously always assumed two levels, which overshot the project root when running from `dist/`.
+
+### Changed
+
+- **Elicitation test assertions**: Updated `toolHandlerFactory` tests to assert `elicitInput` lives on `sdkContext` (not `appContext`), matching the actual handler contract.
+
+### Dependencies
+
+- Bumped `@cloudflare/workers-types` (4.20260219 → 4.20260302).
+- Bumped `eslint` (10.0.0 → 10.0.1).
+- Bumped `@modelcontextprotocol/ext-apps` (1.0.1 → 1.1.0).
+- Bumped `fast-xml-parser` (5.3.6 → 5.3.7).
+
+---
+
 ## [2.9.7] - 2026-02-19
 
 ### Fixed
