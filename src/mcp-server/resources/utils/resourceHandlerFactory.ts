@@ -122,9 +122,16 @@ export async function registerResource<
               ? callContext.sessionId
               : undefined;
 
+          // Extract only plain-data fields from callContext — spreading the raw SDK
+          // object copies native objects (AbortSignal) that crash Pino serialization.
           const handlerContext: RequestContext =
             requestContextService.createRequestContext({
-              parentContext: callContext,
+              parentContext: {
+                ...(typeof callContext?.requestId === 'string'
+                  ? { requestId: callContext.requestId }
+                  : {}),
+                ...(sessionId ? { sessionId } : {}),
+              },
               operation: 'HandleResourceRead',
               additionalContext: {
                 resourceUri: uri.href,

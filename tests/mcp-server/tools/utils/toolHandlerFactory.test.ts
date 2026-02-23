@@ -182,17 +182,19 @@ describe('createMcpToolHandler', () => {
   });
 
   describe('Elicitation Support', () => {
-    it('should add elicitInput to appContext when SDK supports it', async () => {
+    it('should pass elicitInput via sdkContext (not appContext) when SDK supports it', async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let capturedContext: any;
+      let capturedSdk: any;
+      let capturedApp: RequestContext | undefined;
       const inputSchema = z.object({});
 
       const mockLogic = async (
         _input: unknown,
         context: RequestContext,
-        _sdkContext: Record<string, unknown>,
+        sdkContext: Record<string, unknown>,
       ) => {
-        capturedContext = context;
+        capturedApp = context;
+        capturedSdk = sdkContext;
         return { success: true };
       };
 
@@ -211,21 +213,24 @@ describe('createMcpToolHandler', () => {
 
       await handler({}, createMockSdkContext({ elicitInput: mockElicitInput }));
 
-      expect(capturedContext).toBeDefined();
-      expect('elicitInput' in capturedContext).toBe(true);
-      expect(typeof capturedContext.elicitInput).toBe('function');
+      // elicitInput should be on sdkContext, not leaked into appContext
+      expect(capturedSdk).toBeDefined();
+      expect(typeof capturedSdk.elicitInput).toBe('function');
+      expect(capturedApp).toBeDefined();
+      expect('elicitInput' in capturedApp!).toBe(false);
     });
 
-    it('should not add elicitInput when SDK does not support it', async () => {
-      let capturedContext: RequestContext | undefined;
+    it('should not have elicitInput on sdkContext when SDK does not support it', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let capturedSdk: any;
       const inputSchema = z.object({});
 
       const mockLogic = async (
         _input: unknown,
-        context: RequestContext,
-        _sdkContext: Record<string, unknown>,
+        _context: RequestContext,
+        sdkContext: Record<string, unknown>,
       ) => {
-        capturedContext = context;
+        capturedSdk = sdkContext;
         return { success: true };
       };
 
@@ -237,8 +242,8 @@ describe('createMcpToolHandler', () => {
 
       await handler({}, createMockSdkContext());
 
-      expect(capturedContext).toBeDefined();
-      expect('elicitInput' in capturedContext!).toBe(false);
+      expect(capturedSdk).toBeDefined();
+      expect('elicitInput' in capturedSdk).toBe(false);
     });
   });
 
