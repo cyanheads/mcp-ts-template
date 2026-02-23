@@ -389,14 +389,14 @@ const parseConfig = () => {
     pkg: parsedPkg,
     logsPath: hasFileSystemAccess
       ? (() => {
-          // Derive project root from this module's URL (src/config/index.ts → ../../)
-          // URL API is universal (Node, Bun, Workers) — no node:path/node:url imports needed
-          const root = new URL('../..', import.meta.url).pathname;
+          // Bundled (dist/index.js) is one level deep; source (src/config/index.ts) is two.
+          // Detect bundle path to avoid overshooting the project root.
+          const depth = import.meta.url.includes('/dist/') ? '..' : '../..';
+          const p = new URL(depth, import.meta.url).pathname;
+          const root = p.endsWith('/') ? p.slice(0, -1) : p;
           const logsDir = rawConfig.logsPath ?? 'logs';
           if (logsDir.startsWith('/')) return logsDir;
-          return root.endsWith('/')
-            ? `${root}${logsDir}`
-            : `${root}/${logsDir}`;
+          return `${root}/${logsDir}`;
         })()
       : undefined,
     mcpServerName: env.MCP_SERVER_NAME ?? parsedPkg.name,
