@@ -324,6 +324,7 @@ throw new McpError(JsonRpcErrorCode.InvalidParams, 'Missing required field: name
 | `ConfigurationError` | -32008 | Missing env var, invalid config |
 | `ValidationError` | -32007 | Business rule violation (not schema — use `InvalidParams` for that) |
 | `Conflict` | -32002 | Duplicate key, version mismatch, concurrent modification |
+| `InitializationFailed` | -32009 | Server/component startup failure |
 | `DatabaseError` | -32010 | Storage/persistence layer failure |
 | `InternalError` | -32603 | Unexpected failure, catch-all for programmer errors |
 
@@ -524,7 +525,8 @@ import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 | `network/` | `fetchWithTimeout` |
 | `scheduling/` | `scheduler` (node-cron wrapper) |
 | `pagination/` | `extractCursor`, `paginateArray` |
-| `internal/` | `logger`, `requestContextService`, `ErrorHandler`, `performance`, `runtimeCaps` |
+| `internal/` | `logger`, `requestContextService`, `ErrorHandler`, `performance`, `runtimeCaps`, `encoding` |
+| `types/` | `isErrorWithCode`, `isRecord` (type guard utilities) |
 | `telemetry/` | OpenTelemetry instrumentation |
 
 All imports use direct file paths: `@/utils/<module>/<file>.js`.
