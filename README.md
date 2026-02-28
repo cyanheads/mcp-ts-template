@@ -122,7 +122,7 @@ Add the following to your MCP client configuration file.
 
 ### Prerequisites
 
-- [Bun v1.3.2](https://bun.sh/) or higher.
+- [Bun v1.2.0](https://bun.sh/) or higher.
 
 ### Installation
 
@@ -153,7 +153,7 @@ All configuration is centralized and validated at startup in `src/config/index.t
 | `MCP_TRANSPORT_TYPE`      | The transport to use: `stdio` or `http`.                                                                   | `stdio`      |
 | `MCP_HTTP_PORT`           | The port for the HTTP server.                                                                              | `3010`       |
 | `MCP_HTTP_HOST`           | The hostname for the HTTP server.                                                                          | `127.0.0.1`  |
-| `MCP_LOG_LEVEL`           | Logging level (`fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`).                              | `debug`      |
+| `MCP_LOG_LEVEL`           | Logging level (`debug`, `info`, `notice`, `warning`, `error`, `crit`, `alert`, `emerg`).                   | `debug`      |
 | `MCP_AUTH_MODE`           | Authentication mode: `none`, `jwt`, or `oauth`.                                                            | `none`       |
 | `MCP_AUTH_SECRET_KEY`     | **Required for `jwt` auth mode.** A 32+ character secret.                                                  | `(none)`     |
 | `DEV_MCP_AUTH_BYPASS`     | Set to `true` to bypass JWT auth in development (requires no secret key).                                  | `false`      |
@@ -192,17 +192,17 @@ All configuration is centralized and validated at startup in `src/config/index.t
 
   ```sh
   # One-time build
-  bun rebuild
+  bun run rebuild
 
   # Run the built server
-  bun start:http
+  bun run start:http
   # or
-  bun start:stdio
+  bun run start:stdio
   ```
 
 - **Run checks and tests**:
   ```sh
-  bun devcheck # Lints, formats, type-checks, and more
+  bun run devcheck # Lints, formats, type-checks, and more
   bun run test # Runs the test suite (Do not use 'bun test' directly as it may not work correctly)
   ```
 
@@ -211,36 +211,38 @@ All configuration is centralized and validated at startup in `src/config/index.t
 1.  **Build the Worker bundle**:
 
 ```sh
-bun build:worker
+bun run build:worker
 ```
 
 2.  **Run locally with Wrangler**:
 
 ```sh
-bun deploy:dev
+bun run deploy:dev
 ```
 
 3.  **Deploy to Cloudflare**:
 
 ```sh
-bun deploy:prod
+bun run deploy:prod
 ```
 
 > **Note**: The `wrangler.toml` file is pre-configured to enable `nodejs_compat` for best results.
 
 ## Project structure
 
-| Directory                              | Purpose & Contents                                                                   | Guide                                |
-| :------------------------------------- | :----------------------------------------------------------------------------------- | :----------------------------------- |
-| `src/mcp-server/tools/definitions`     | Tool definitions (`*.tool.ts`). Add new capabilities here.                           | [MCP Guide](src/mcp-server/)      |
-| `src/mcp-server/resources/definitions` | Resource definitions (`*.resource.ts`). Add new data sources here.                   | [MCP Guide](src/mcp-server/)      |
-| `src/mcp-server/transports`            | HTTP and STDIO transports, including auth middleware.                                | [MCP Guide](src/mcp-server/)      |
-| `src/storage`                          | `StorageService` abstraction and provider implementations.                           | [Storage Guide](src/storage/)     |
-| `src/services`                         | External service integrations (e.g., OpenRouter LLM provider).                       | [Services Guide](src/services/)   |
-| `src/container`                        | DI container registrations and tokens.                                               | [Container Guide](src/container/) |
-| `src/utils`                            | Core utilities for logging, error handling, performance, security, and telemetry.    |                                      |
-| `src/config`                           | Environment variable parsing and validation with Zod.                                |                                      |
-| `tests/`                               | Unit and integration tests, mirroring the `src/` directory structure.                |                                      |
+| Directory                               | Purpose & Contents                                                                   | Guide                                |
+| :-------------------------------------- | :----------------------------------------------------------------------------------- | :----------------------------------- |
+| `src/mcp-server/tools/definitions`      | Tool definitions (`*.tool.ts`). Add new capabilities here.                           | [MCP Guide](src/mcp-server/)      |
+| `src/mcp-server/resources/definitions`  | Resource definitions (`*.resource.ts`). Add new data sources here.                   | [MCP Guide](src/mcp-server/)      |
+| `src/mcp-server/prompts/definitions`    | Prompt definitions (`*.prompt.ts`). Add new prompt templates here.                   | [MCP Guide](src/mcp-server/)      |
+| `src/mcp-server/tasks`                  | Async task infrastructure (MCP Tasks API, experimental).                             | [MCP Guide](src/mcp-server/)      |
+| `src/mcp-server/transports`             | HTTP and STDIO transports, including auth middleware.                                 | [MCP Guide](src/mcp-server/)      |
+| `src/storage`                           | `StorageService` abstraction and provider implementations.                           | [Storage Guide](src/storage/)     |
+| `src/services`                          | External service integrations (LLM, Speech, Graph) with pluggable providers.         | [Services Guide](src/services/)   |
+| `src/container`                         | DI container registrations and tokens.                                               | [Container Guide](src/container/) |
+| `src/utils`                             | Core utilities for logging, error handling, performance, security, and telemetry.    |                                      |
+| `src/config`                            | Environment variable parsing and validation with Zod.                                |                                      |
+| `tests/`                                | Unit and integration tests, mirroring the `src/` directory structure.                |                                      |
 
 ## Documentation
 
@@ -250,7 +252,7 @@ Each module directory has its own README with architecture details and examples.
 
 - [MCP Server Guide](src/mcp-server/) — Building tools, resources, auth, transports, SDK context, response formatting
 - [Container Guide](src/container/) — DI tokens, registration, service lifetimes, testing with mocks
-- [Services Guide](src/services/) — LLM (OpenRouter), Speech (ElevenLabs, Whisper), custom providers
+- [Services Guide](src/services/) — LLM (OpenRouter), Speech (ElevenLabs, Whisper), Graph, custom providers
 - [Storage Guide](src/storage/) — Provider implementations, multi-tenancy, pagination, batch ops, TTL
 
 ### Other references
