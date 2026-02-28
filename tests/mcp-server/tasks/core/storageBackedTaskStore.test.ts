@@ -347,6 +347,93 @@ describe('StorageBackedTaskStore', () => {
     });
   });
 
+  describe('session ownership', () => {
+    it('should allow creator session to access task', async () => {
+      const task = await taskStore.createTask(
+        { ttl: 30000 },
+        testRequestId,
+        testRequest,
+        'session-1',
+      );
+      const retrieved = await taskStore.getTask(task.taskId, 'session-1');
+      expect(retrieved).not.toBeNull();
+      expect(retrieved?.taskId).toBe(task.taskId);
+    });
+
+    it('should reject different session from accessing task', async () => {
+      const task = await taskStore.createTask(
+        { ttl: 30000 },
+        testRequestId,
+        testRequest,
+        'session-1',
+      );
+      await expect(taskStore.getTask(task.taskId, 'session-2')).rejects.toThrow(/access denied/i);
+    });
+
+    it('should allow access to tasks created without sessionId (backwards compat)', async () => {
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
+      const retrieved = await taskStore.getTask(task.taskId, 'any-session');
+      expect(retrieved).not.toBeNull();
+    });
+
+    it('should enforce ownership on getTaskResult', async () => {
+      const task = await taskStore.createTask(
+        { ttl: 30000 },
+        testRequestId,
+        testRequest,
+        'session-1',
+      );
+      await taskStore.storeTaskResult(
+        task.taskId,
+        'completed',
+        { content: [{ type: 'text', text: 'Done' }] },
+        'session-1',
+      );
+      await expect(taskStore.getTaskResult(task.taskId, 'session-2')).rejects.toThrow(
+        /access denied/i,
+      );
+    });
+
+    it('should enforce ownership on storeTaskResult', async () => {
+      const task = await taskStore.createTask(
+        { ttl: 30000 },
+        testRequestId,
+        testRequest,
+        'session-1',
+      );
+      await expect(
+        taskStore.storeTaskResult(
+          task.taskId,
+          'completed',
+          { content: [{ type: 'text', text: 'Done' }] },
+          'session-2',
+        ),
+      ).rejects.toThrow(/access denied/i);
+    });
+
+    it('should enforce ownership on updateTaskStatus', async () => {
+      const task = await taskStore.createTask(
+        { ttl: 30000 },
+        testRequestId,
+        testRequest,
+        'session-1',
+      );
+      await expect(
+        taskStore.updateTaskStatus(task.taskId, 'working', 'progress', 'session-2'),
+      ).rejects.toThrow(/access denied/i);
+    });
+
+    it('should filter listTasks by sessionId', async () => {
+      await taskStore.createTask({ ttl: 30000 }, 1, testRequest, 'session-1');
+      await taskStore.createTask({ ttl: 30000 }, 2, testRequest, 'session-2');
+      await taskStore.createTask({ ttl: 30000 }, 3, testRequest); // no session
+
+      const result = await taskStore.listTasks(undefined, 'session-1');
+      // Should see own task + unbound task, but not session-2's task
+      expect(result.tasks.length).toBe(2);
+    });
+  });
+
   describe('configuration options', () => {
     it('should use custom tenant ID', async () => {
       const customStore = new StorageBackedTaskStore(storageService, {

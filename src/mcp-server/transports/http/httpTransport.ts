@@ -226,6 +226,28 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
       return c.json({ error: 'Session termination not supported in stateless mode' }, 405);
     }
 
+    // SECURITY: Validate session ownership before termination
+    const authInfo = authContext.getStore()?.authInfo;
+    const sessionIdentity: SessionIdentity | undefined = authInfo
+      ? Object.fromEntries(
+          Object.entries({
+            tenantId: authInfo.tenantId,
+            clientId: authInfo.clientId,
+            subject: authInfo.subject,
+          }).filter(([, v]) => v != null),
+        )
+      : undefined;
+
+    if (!sessionStore.isValidForIdentity(sessionId, sessionIdentity)) {
+      logger.warning('Session termination rejected - ownership validation failed', {
+        ...transportContext,
+        sessionId,
+        requestTenant: sessionIdentity?.tenantId,
+        requestClient: sessionIdentity?.clientId,
+      });
+      return c.json({ error: 'Session not found or access denied' }, 404);
+    }
+
     // Terminate the session in the store
     sessionStore.terminate(sessionId);
 

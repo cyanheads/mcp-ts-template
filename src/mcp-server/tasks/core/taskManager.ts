@@ -64,6 +64,9 @@ export class TaskManager {
         defaultTtl: config.tasks.defaultTtlMs ?? null,
       });
     } else {
+      // NOTE: The SDK's InMemoryTaskStore does not enforce session ownership.
+      // Only StorageBackedTaskStore validates that callers own the tasks they access.
+      // This is a known SDK limitation (sessionId params are accepted but ignored).
       this.inMemoryTaskStore = new InMemoryTaskStore();
       this.taskStore = this.inMemoryTaskStore;
     }

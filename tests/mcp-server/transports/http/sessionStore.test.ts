@@ -228,6 +228,50 @@ describe('SessionStore - Security & Tenant Isolation', () => {
     });
   });
 
+  describe('Subject Isolation', () => {
+    it('should REJECT session reuse across different subjects', () => {
+      const user1: SessionIdentity = {
+        tenantId: 'tenant-a',
+        clientId: 'client-1',
+        subject: 'user-1@example.com',
+      };
+      store.getOrCreate(SESSION_1, user1);
+
+      const user2: SessionIdentity = {
+        tenantId: 'tenant-a',
+        clientId: 'client-1',
+        subject: 'user-2@example.com',
+      };
+      expect(store.isValidForIdentity(SESSION_1, user2)).toBe(false);
+    });
+
+    it('should accept same subject for bound session', () => {
+      const identity: SessionIdentity = {
+        tenantId: 'tenant-a',
+        clientId: 'client-1',
+        subject: 'user-1@example.com',
+      };
+      store.getOrCreate(SESSION_1, identity);
+      expect(store.isValidForIdentity(SESSION_1, identity)).toBe(true);
+    });
+
+    it('should validate when only subject is set', () => {
+      const identity: SessionIdentity = { subject: 'user-1@example.com' };
+      store.getOrCreate(SESSION_1, identity);
+
+      expect(store.isValidForIdentity(SESSION_1, { subject: 'user-1@example.com' })).toBe(true);
+      expect(store.isValidForIdentity(SESSION_1, { subject: 'user-2@example.com' })).toBe(false);
+    });
+
+    it('should REJECT unauthenticated request for subject-bound session', () => {
+      const identity: SessionIdentity = { subject: 'user-1@example.com' };
+      store.getOrCreate(SESSION_1, identity);
+
+      expect(store.isValidForIdentity(SESSION_1)).toBe(false);
+      expect(store.isValidForIdentity(SESSION_1, undefined)).toBe(false);
+    });
+  });
+
   describe('Staleness & Cleanup', () => {
     it('should invalidate stale sessions', async () => {
       // Use a very short timeout for faster test execution

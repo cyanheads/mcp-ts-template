@@ -252,6 +252,16 @@ const ConfigSchema = z
       .optional(),
   })
   .superRefine((data, ctx) => {
+    // Production guard: reject dev bypass in production regardless of auth mode
+    if (data.environment === 'production' && data.devMcpAuthBypass) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['devMcpAuthBypass'],
+        message:
+          'DEV_MCP_AUTH_BYPASS cannot be enabled in production (NODE_ENV=production). This flag is for development only.',
+      });
+    }
+
     // JWT mode: require secret key of sufficient length (unless dev bypass is on)
     if (data.mcpAuthMode === 'jwt' && !data.devMcpAuthBypass) {
       if (!data.mcpAuthSecretKey) {

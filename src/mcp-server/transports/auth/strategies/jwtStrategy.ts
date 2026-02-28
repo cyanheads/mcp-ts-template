@@ -48,7 +48,7 @@ export class JwtStrategy implements AuthStrategy {
     } else if (!secretKey) {
       // devMcpAuthBypass is explicitly true — opt-in dev bypass
       this.logger.warning(
-        'MCP_AUTH_SECRET_KEY is not set. JWT auth bypassed via DEV_MCP_AUTH_BYPASS=true.',
+        `MCP_AUTH_SECRET_KEY is not set. JWT auth bypassed via DEV_MCP_AUTH_BYPASS=true (environment: ${this.config.environment}).`,
         context,
       );
       this.secretKey = null;

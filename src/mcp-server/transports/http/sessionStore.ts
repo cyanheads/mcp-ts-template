@@ -140,6 +140,7 @@ export class SessionStore {
    * 2. Staleness timeout
    * 3. Tenant ID match (if session has tenantId)
    * 4. Client ID match (if session has clientId)
+   * 5. Subject match (if session has subject)
    *
    * @param sessionId - The session identifier
    * @param identity - The identity to validate against (from auth)
@@ -158,7 +159,7 @@ export class SessionStore {
     }
 
     // If session has no identity bound, allow (backwards compatibility / no-auth mode)
-    if (!session.tenantId && !session.clientId) {
+    if (!session.tenantId && !session.clientId && !session.subject) {
       return true;
     }
 
@@ -191,6 +192,15 @@ export class SessionStore {
       warn('Session client mismatch - possible hijacking attempt', {
         sessionClient: session.clientId,
         requestClient: identity.clientId,
+      });
+      return false;
+    }
+
+    // Verify subject match — reject if session is bound but request lacks or mismatches
+    if (session.subject && session.subject !== identity.subject) {
+      warn('Session subject mismatch - possible hijacking attempt', {
+        sessionSubject: session.subject,
+        requestSubject: identity.subject,
       });
       return false;
     }

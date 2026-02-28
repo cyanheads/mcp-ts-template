@@ -58,6 +58,33 @@ describe('config parsing', () => {
     expect(parsed.llmDefaultTemperature).toBeCloseTo(0.7);
   });
 
+  it('rejects DEV_MCP_AUTH_BYPASS=true in production', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.DEV_MCP_AUTH_BYPASS = 'true';
+    process.env.MCP_AUTH_MODE = 'jwt';
+    process.env.MCP_AUTH_SECRET_KEY = 'a-secret-key-that-is-at-least-32-chars';
+
+    let thrown: unknown;
+    try {
+      parseConfig();
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(McpError);
+    const mcpError = thrown as McpError;
+    expect(mcpError.code).toBe(JsonRpcErrorCode.ConfigurationError);
+  });
+
+  it('allows DEV_MCP_AUTH_BYPASS=true in development', () => {
+    process.env.NODE_ENV = 'development';
+    process.env.DEV_MCP_AUTH_BYPASS = 'true';
+    process.env.MCP_AUTH_MODE = 'jwt';
+
+    const parsed = parseConfig();
+    expect(parsed.devMcpAuthBypass).toBe(true);
+  });
+
   it('throws a configuration error when validation fails', async () => {
     // Mock console.error BEFORE setting isTTY to suppress output during tests
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

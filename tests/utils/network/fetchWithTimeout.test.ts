@@ -178,4 +178,201 @@ describe('fetchWithTimeout', () => {
       }),
     );
   });
+
+  describe('SSRF protection', () => {
+    describe('hostname/IP pattern checks', () => {
+      const ssrfOpts = { rejectPrivateIPs: true };
+
+      it('should reject localhost', async () => {
+        await expect(
+          fetchWithTimeout('http://localhost/secrets', 1000, context, ssrfOpts),
+        ).rejects.toMatchObject({
+          code: JsonRpcErrorCode.ValidationError,
+          message: expect.stringContaining('private/internal hostname'),
+        });
+      });
+
+      it('should reject 127.x.x.x', async () => {
+        await expect(
+          fetchWithTimeout('http://127.0.0.1/metadata', 1000, context, ssrfOpts),
+        ).rejects.toMatchObject({ code: JsonRpcErrorCode.ValidationError });
+      });
+
+      it('should reject 10.x.x.x', async () => {
+        await expect(
+          fetchWithTimeout('http://10.0.0.1/internal', 1000, context, ssrfOpts),
+        ).rejects.toMatchObject({ code: JsonRpcErrorCode.ValidationError });
+      });
+
+      it('should reject 192.168.x.x', async () => {
+        await expect(
+          fetchWithTimeout('http://192.168.1.1/admin', 1000, context, ssrfOpts),
+        ).rejects.toMatchObject({ code: JsonRpcErrorCode.ValidationError });
+      });
+
+      it('should reject 169.254.169.254 (cloud metadata)', async () => {
+        await expect(
+          fetchWithTimeout('http://169.254.169.254/latest/meta-data/', 1000, context, ssrfOpts),
+        ).rejects.toMatchObject({ code: JsonRpcErrorCode.ValidationError });
+      });
+
+      it('should reject metadata.google.internal', async () => {
+        await expect(
+          fetchWithTimeout(
+            'http://metadata.google.internal/computeMetadata/v1/',
+            1000,
+            context,
+            ssrfOpts,
+          ),
+        ).rejects.toMatchObject({ code: JsonRpcErrorCode.ValidationError });
+      });
+
+      it('should reject IPv6 loopback ::1', async () => {
+        await expect(
+          fetchWithTimeout('http://[::1]/secrets', 1000, context, ssrfOpts),
+        ).rejects.toMatchObject({ code: JsonRpcErrorCode.ValidationError });
+      });
+
+      it('should reject IPv6 loopback full form', async () => {
+        await expect(
+          fetchWithTimeout('http://[0:0:0:0:0:0:0:1]/secrets', 1000, context, ssrfOpts),
+        ).rejects.toMatchObject({ code: JsonRpcErrorCode.ValidationError });
+      });
+
+      it('should reject 172.16-31.x.x', async () => {
+        await expect(
+          fetchWithTimeout('http://172.16.0.1/', 1000, context, ssrfOpts),
+        ).rejects.toMatchObject({ code: JsonRpcErrorCode.ValidationError });
+        await expect(
+          fetchWithTimeout('http://172.31.255.255/', 1000, context, ssrfOpts),
+        ).rejects.toMatchObject({ code: JsonRpcErrorCode.ValidationError });
+      });
+
+      it('should reject RFC 6598 CGNAT range', async () => {
+        await expect(
+          fetchWithTimeout('http://100.64.0.1/', 1000, context, ssrfOpts),
+        ).rejects.toMatchObject({ code: JsonRpcErrorCode.ValidationError });
+      });
+
+      it('should allow public IPs when SSRF protection is enabled', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok', { status: 200 }));
+        // 8.8.8.8 is a public IP — string check passes, DNS resolution skipped for literal IPs
+        const result = await fetchWithTimeout('https://8.8.8.8', 1000, context, ssrfOpts);
+        expect(result.status).toBe(200);
+      });
+    });
+
+    describe('redirect validation', () => {
+      it('should reject redirect to private IP', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+          new Response(null, {
+            status: 302,
+            headers: { location: 'http://169.254.169.254/metadata' },
+          }),
+        );
+
+        await expect(
+          fetchWithTimeout('https://public.example.com', 1000, context, {
+            rejectPrivateIPs: true,
+          }),
+        ).rejects.toMatchObject({
+          code: JsonRpcErrorCode.ValidationError,
+        });
+      });
+
+      it('should reject redirect to localhost', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+          new Response(null, {
+            status: 301,
+            headers: { location: 'http://localhost/admin' },
+          }),
+        );
+
+        await expect(
+          fetchWithTimeout('https://public.example.com', 1000, context, {
+            rejectPrivateIPs: true,
+          }),
+        ).rejects.toMatchObject({
+          code: JsonRpcErrorCode.ValidationError,
+          message: expect.stringContaining('private/internal hostname'),
+        });
+      });
+
+      it('should reject excessive redirects', async () => {
+        // Every fetch returns a redirect to a public URL
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+          new Response(null, {
+            status: 302,
+            headers: { location: 'https://example.com/loop' },
+          }),
+        );
+
+        await expect(
+          fetchWithTimeout('https://loop.example.com', 1000, context, {
+            rejectPrivateIPs: true,
+          }),
+        ).rejects.toMatchObject({
+          code: JsonRpcErrorCode.ValidationError,
+          message: expect.stringContaining('Too many redirects'),
+        });
+      });
+
+      it('should follow safe redirects', async () => {
+        const fetchMock = vi
+          .spyOn(globalThis, 'fetch')
+          .mockResolvedValueOnce(
+            new Response(null, {
+              status: 301,
+              headers: { location: 'https://new.example.com/page' },
+            }),
+          )
+          .mockResolvedValueOnce(new Response('ok', { status: 200 }));
+
+        const result = await fetchWithTimeout('https://old.example.com', 1000, context, {
+          rejectPrivateIPs: true,
+        });
+        expect(result.status).toBe(200);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      });
+
+      it('should reject redirect missing Location header', async () => {
+        vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(null, { status: 302 }));
+
+        await expect(
+          fetchWithTimeout('https://public.example.com', 1000, context, {
+            rejectPrivateIPs: true,
+          }),
+        ).rejects.toMatchObject({
+          code: JsonRpcErrorCode.ServiceUnavailable,
+          message: expect.stringContaining('missing Location header'),
+        });
+      });
+
+      it('should not use manual redirect mode when SSRF protection is disabled', async () => {
+        const fetchMock = vi
+          .spyOn(globalThis, 'fetch')
+          .mockResolvedValue(new Response('ok', { status: 200 }));
+
+        await fetchWithTimeout('https://example.com', 1000, context);
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          'https://example.com',
+          expect.not.objectContaining({ redirect: 'manual' }),
+        );
+      });
+
+      it('should use manual redirect mode when SSRF protection is enabled', async () => {
+        const fetchMock = vi
+          .spyOn(globalThis, 'fetch')
+          .mockResolvedValue(new Response('ok', { status: 200 }));
+
+        await fetchWithTimeout('https://8.8.8.8', 1000, context, { rejectPrivateIPs: true });
+
+        expect(fetchMock).toHaveBeenCalledWith(
+          'https://8.8.8.8',
+          expect.objectContaining({ redirect: 'manual' }),
+        );
+      });
+    });
+  });
 });
