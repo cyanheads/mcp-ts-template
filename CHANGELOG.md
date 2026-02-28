@@ -85,8 +85,13 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - **Cloudflare KV TTL enforcement**: `KvProvider` now enforces a minimum TTL of 60 seconds (Cloudflare KV's platform minimum) instead of passing through sub-60-second values that would fail silently.
 - **`encoding.ts`**: `arrayBufferToBase64` now chunked in 32 KB blocks to avoid stack overflow on large buffers in browser/Worker environments. `base64ToString` optimized to avoid intermediate array allocation from `split('')`.
 - **`requestContext.ts`**: `createRequestContext()` now strips `requestId` and `timestamp` from `additionalContext` to prevent callers from accidentally overwriting generated correlation IDs.
-- **`fetchWithTimeout.ts`**: Added optional `signal` parameter to combine an external `AbortSignal` (e.g., `sdkContext.signal`) with the internal timeout. Error data in thrown `McpError` objects now includes only `requestId`/`operation` instead of spreading the full context object.
+- **`fetchWithTimeout.ts`**: Added optional `signal` parameter to combine an external `AbortSignal` (e.g., `sdkContext.signal`) with the internal timeout. Error data in thrown `McpError` objects now includes only `requestId`/`operation` instead of spreading the full context object. Added DNS resolution validation (Node.js only) — resolves hostnames and checks all A/AAAA records against private/reserved ranges before connecting, closing DNS rebinding SSRF vectors. Added IPv6 private range detection (`fe80:`, `fc00::/7`, `::1`, IPv4-mapped addresses). SSRF-protected requests now follow redirects manually with validation on each hop (max 5 redirects), preventing redirect-based SSRF bypasses.
 - **`sanitization.ts`**: Replaced fire-and-forget `import('node:path').then()` chain with top-level `await import()`, eliminating a race condition where `sanitizePath` could run before `pathModule` was assigned.
+- **`config/index.ts`**: Added production guard — `DEV_MCP_AUTH_BYPASS=true` is now rejected at config validation when `NODE_ENV=production`, preventing accidental auth bypass in production deployments.
+- **`storageBackedTaskStore.ts`**: Tasks are now bound to the session that created them. All task operations (`getTask`, `getTaskResult`, `storeTaskResult`, `updateTaskStatus`) enforce ownership via `assertOwnership()`. `listTasks` filters results to show only the caller's tasks and unbound (legacy) tasks. Tasks created without a sessionId remain accessible by any session for backwards compatibility.
+- **`httpTransport.ts`**: Session termination (`DELETE /mcp`) now validates session ownership before allowing termination, preventing cross-session termination attacks.
+- **`sessionStore.ts`**: Added `subject` claim validation to session identity checks. Sessions bound to a subject now reject requests with a mismatched or missing subject, closing a session reuse vector across different authenticated users.
+- **`jwtStrategy.ts`**: Dev bypass warning log now includes the current environment name for easier audit trail.
 
 ### Tests
 
@@ -103,6 +108,10 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - **`template-madlibs-elicitation.tool.test.ts`**: Updated all mock return values for the new `{ action, content }` elicitation response shape. Added `"should throw on user decline"` test case.
 - **`jwtStrategy.test.ts`**: Updated bypass tests to use `devMcpAuthBypass` config flag instead of environment-based conditions.
 - **`kvProvider.test.ts`**, **`r2Provider.test.ts`**: Updated pagination tests to use tenant-bound encoded cursors via `encodeCursor`/`decodeCursor`.
+- **`config/index.test.ts`**: Added tests for production guard rejecting `DEV_MCP_AUTH_BYPASS=true` in production and allowing it in development.
+- **`storageBackedTaskStore.test.ts`**: Added session ownership suite (6 cases): creator access, cross-session rejection, backwards-compat unbound access, ownership enforcement on `getTaskResult`/`storeTaskResult`/`updateTaskStatus`, and `listTasks` session filtering.
+- **`sessionStore.test.ts`**: Added subject isolation suite (4 cases): cross-subject rejection, same-subject acceptance, subject-only binding, and unauthenticated request rejection for subject-bound sessions.
+- **`fetchWithTimeout.test.ts`**: Added comprehensive SSRF protection suite covering hostname/IP pattern checks (localhost, 127.x, 10.x, 192.168.x, 169.254.169.254, metadata.google.internal, IPv6 loopback, 172.16-31.x, CGNAT range, public IP allowlist) and redirect validation (redirect to private IP, redirect to localhost, excessive redirects, safe redirect following, missing Location header, manual redirect mode toggle).
 
 ### Removed
 
