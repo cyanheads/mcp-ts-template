@@ -13,7 +13,7 @@ import type {
   ServerRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
-import { McpError } from '@/types-global/errors.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { measureToolExecution } from '@/utils/internal/performance.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
@@ -111,7 +111,9 @@ export function createMcpToolHandler<
       const mcpError =
         handled instanceof McpError
           ? handled
-          : new McpError(-32603, handled.message, { originalError: handled.name });
+          : new McpError(JsonRpcErrorCode.InternalError, handled.message, {
+              originalError: handled.name,
+            });
 
       return {
         isError: true,

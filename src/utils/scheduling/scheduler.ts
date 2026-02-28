@@ -87,33 +87,31 @@ export class SchedulerService {
     description: string,
   ): Promise<Job> {
     if (this.jobs.has(id)) {
-      throw new Error(`Job with ID '${id}' already exists.`);
+      throw new McpError(JsonRpcErrorCode.Conflict, `Job with ID '${id}' already exists.`);
     }
 
     const cron = await loadCron();
 
     if (!cron.validate(schedule)) {
-      throw new Error(`Invalid cron schedule: ${schedule}`);
+      throw new McpError(JsonRpcErrorCode.InvalidParams, `Invalid cron schedule: ${schedule}`);
     }
 
     const task = cron.createTask(schedule, async () => {
       const job = this.jobs.get(id);
+      const context = requestContextService.createRequestContext({
+        operation: `scheduler:job:${id}`,
+        jobId: id,
+        schedule,
+      });
+
       if (job?.isRunning) {
-        logger.warning(`Job '${id}' is already running. Skipping this execution.`, {
-          requestId: `job-skip-${id}`,
-          timestamp: new Date().toISOString(),
-        });
+        logger.warning(`Job '${id}' is already running. Skipping this execution.`, context);
         return;
       }
 
       if (job) {
         job.isRunning = true;
       }
-
-      const context = requestContextService.createRequestContext({
-        jobId: id,
-        schedule,
-      });
 
       logger.info(`Starting job '${id}'...`, context);
       try {
@@ -137,11 +135,12 @@ export class SchedulerService {
       isRunning: false,
     };
 
-    this.jobs.set(id, newJob);
-    logger.info(`Job '${id}' scheduled: ${description}`, {
-      requestId: `job-schedule-${id}`,
-      timestamp: new Date().toISOString(),
+    const context = requestContextService.createRequestContext({
+      operation: 'scheduler:schedule',
+      jobId: id,
     });
+    this.jobs.set(id, newJob);
+    logger.info(`Job '${id}' scheduled: ${description}`, context);
     return newJob;
   }
 
@@ -150,15 +149,13 @@ export class SchedulerService {
    * @param id - The ID of the job to start.
    */
   public start(id: string): void {
-    const job = this.jobs.get(id);
-    if (!job) {
-      throw new Error(`Job with ID '${id}' not found.`);
-    }
+    const job = this.resolveJob(id);
     void job.task.start();
-    logger.info(`Job '${id}' started.`, {
-      requestId: `job-start-${id}`,
-      timestamp: new Date().toISOString(),
+    const context = requestContextService.createRequestContext({
+      operation: 'scheduler:start',
+      jobId: id,
     });
+    logger.info(`Job '${id}' started.`, context);
   }
 
   /**
@@ -166,15 +163,13 @@ export class SchedulerService {
    * @param id - The ID of the job to stop.
    */
   public stop(id: string): void {
-    const job = this.jobs.get(id);
-    if (!job) {
-      throw new Error(`Job with ID '${id}' not found.`);
-    }
+    const job = this.resolveJob(id);
     void job.task.stop();
-    logger.info(`Job '${id}' stopped.`, {
-      requestId: `job-stop-${id}`,
-      timestamp: new Date().toISOString(),
+    const context = requestContextService.createRequestContext({
+      operation: 'scheduler:stop',
+      jobId: id,
     });
+    logger.info(`Job '${id}' stopped.`, context);
   }
 
   /**
@@ -182,16 +177,23 @@ export class SchedulerService {
    * @param id - The ID of the job to remove.
    */
   public remove(id: string): void {
-    const job = this.jobs.get(id);
-    if (!job) {
-      throw new Error(`Job with ID '${id}' not found.`);
-    }
+    const job = this.resolveJob(id);
     void job.task.stop();
     this.jobs.delete(id);
-    logger.info(`Job '${id}' removed.`, {
-      requestId: `job-remove-${id}`,
-      timestamp: new Date().toISOString(),
+    const context = requestContextService.createRequestContext({
+      operation: 'scheduler:remove',
+      jobId: id,
     });
+    logger.info(`Job '${id}' removed.`, context);
+  }
+
+  /** Resolves a job by ID or throws NotFound. */
+  private resolveJob(id: string): Job {
+    const job = this.jobs.get(id);
+    if (!job) {
+      throw new McpError(JsonRpcErrorCode.NotFound, `Job with ID '${id}' not found.`);
+    }
+    return job;
   }
 
   /**

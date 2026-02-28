@@ -169,7 +169,7 @@ export class RateLimiter {
 
     if (!entry || now >= entry.resetTime) {
       // Check if we need to evict an entry before adding a new one
-      const maxKeys = this.effectiveConfig.maxTrackedKeys || 10000;
+      const maxKeys = this.effectiveConfig.maxTrackedKeys ?? 10000;
       if (!entry && this.limits.size >= maxKeys) {
         this.evictLRUEntry();
         activeSpan?.addEvent('rate_limit_lru_eviction', {

@@ -83,7 +83,7 @@ export class OpenRouterProvider implements ILlmProvider {
 
       this.logger.info('OpenRouter provider instance created and ready.', context);
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       this.logger.error('Failed to construct OpenRouter client', {
         ...context,
         error: error.message,
