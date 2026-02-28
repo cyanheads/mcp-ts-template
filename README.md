@@ -291,7 +291,7 @@ For a strict set of rules when using this template with an AI agent, please refe
 - **Logic Throws, Handlers Catch**: Never use `try/catch` in your tool/resource `logic`. Throw an `McpError` instead.
 - **Use Elicitation for Missing Input**: If a tool requires user input that wasn't provided, use the `elicitInput` function from the `SdkContext` to ask the user for it.
 - **Pass the Context**: Always pass the `RequestContext` object through your call stack.
-- **Use the Barrel Exports**: Register new tools and resources only in the `index.ts` barrel files.
+- **Direct File Imports**: Import from the defining file, not from barrel `index.ts`. Register new tools/resources in `definitions/index.ts`.
 
 ## ❓ FAQ
 

@@ -354,7 +354,7 @@ for await (const key of streamKeys('user:', context)) {
 ### Usage from Tools
 
 ```typescript
-import type { ToolDefinition } from '@/mcp-server/tools/utils/index.js';
+import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
 import { z } from 'zod';
 
 const myStorageTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {

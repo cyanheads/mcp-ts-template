@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-28 06:00:00
+Generated on: 2026-02-28 07:26:03
 
 ```
 mcp-ts-template/
@@ -12,8 +12,7 @@ mcp-ts-template/
 ├── .vscode/
 │   └── settings.json
 ├── changelog/
-│   ├── archive1.md
-│   └── archive2.md
+│   └── archive.md
 ├── docs/
 │   ├── mcp-specification/
 │   │   └── 2025-06-18/
@@ -81,9 +80,8 @@ mcp-ts-template/
 │   │   │   │   ├── storageBackedTaskStore.ts
 │   │   │   │   ├── taskManager.ts
 │   │   │   │   └── taskTypes.ts
-│   │   │   ├── utils/
-│   │   │   │   └── taskToolDefinition.ts
-│   │   │   └── index.ts
+│   │   │   └── utils/
+│   │   │       └── taskToolDefinition.ts
 │   │   ├── tools/
 │   │   │   ├── definitions/
 │   │   │   │   ├── index.ts
@@ -95,7 +93,6 @@ mcp-ts-template/
 │   │   │   │   ├── template-image-test.tool.ts
 │   │   │   │   └── template-madlibs-elicitation.tool.ts
 │   │   │   ├── utils/
-│   │   │   │   ├── index.ts
 │   │   │   │   ├── toolDefinition.ts
 │   │   │   │   └── toolHandlerFactory.ts
 │   │   │   └── tool-registration.ts
@@ -111,17 +108,14 @@ mcp-ts-template/
 │   │   │   │   │   ├── jwtStrategy.ts
 │   │   │   │   │   └── oauthStrategy.ts
 │   │   │   │   ├── authFactory.ts
-│   │   │   │   ├── authMiddleware.ts
-│   │   │   │   └── index.ts
+│   │   │   │   └── authMiddleware.ts
 │   │   │   ├── http/
 │   │   │   │   ├── httpErrorHandler.ts
 │   │   │   │   ├── httpTransport.ts
 │   │   │   │   ├── httpTypes.ts
-│   │   │   │   ├── index.ts
 │   │   │   │   ├── sessionIdUtils.ts
 │   │   │   │   └── sessionStore.ts
 │   │   │   ├── stdio/
-│   │   │   │   ├── index.ts
 │   │   │   │   └── stdioTransport.ts
 │   │   │   ├── ITransport.ts
 │   │   │   └── manager.ts
@@ -133,14 +127,12 @@ mcp-ts-template/
 │   │   │   │   ├── GraphService.ts
 │   │   │   │   └── IGraphProvider.ts
 │   │   │   ├── providers/
-│   │   │   ├── index.ts
 │   │   │   └── types.ts
 │   │   ├── llm/
 │   │   │   ├── core/
 │   │   │   │   └── ILlmProvider.ts
 │   │   │   ├── providers/
 │   │   │   │   └── openrouter.provider.ts
-│   │   │   ├── index.ts
 │   │   │   └── types.ts
 │   │   ├── speech/
 │   │   │   ├── core/
@@ -149,7 +141,6 @@ mcp-ts-template/
 │   │   │   ├── providers/
 │   │   │   │   ├── elevenlabs.provider.ts
 │   │   │   │   └── whisper.provider.ts
-│   │   │   ├── index.ts
 │   │   │   └── types.ts
 │   │   └── README.md
 │   ├── storage/
@@ -161,7 +152,6 @@ mcp-ts-template/
 │   │   ├── providers/
 │   │   │   ├── cloudflare/
 │   │   │   │   ├── d1Provider.ts
-│   │   │   │   ├── index.ts
 │   │   │   │   ├── kvProvider.ts
 │   │   │   │   └── r2Provider.ts
 │   │   │   ├── fileSystem/
@@ -171,14 +161,12 @@ mcp-ts-template/
 │   │   │   └── supabase/
 │   │   │       ├── supabase.types.ts
 │   │   │       └── supabaseProvider.ts
-│   │   ├── index.ts
 │   │   └── README.md
 │   ├── types-global/
 │   │   └── errors.ts
 │   ├── utils/
 │   │   ├── formatting/
 │   │   │   ├── diffFormatter.ts
-│   │   │   ├── index.ts
 │   │   │   ├── markdownBuilder.ts
 │   │   │   ├── tableFormatter.ts
 │   │   │   └── treeFormatter.ts
@@ -186,41 +174,34 @@ mcp-ts-template/
 │   │   │   ├── error-handler/
 │   │   │   │   ├── errorHandler.ts
 │   │   │   │   ├── helpers.ts
-│   │   │   │   ├── index.ts
 │   │   │   │   ├── mappings.ts
 │   │   │   │   └── types.ts
 │   │   │   ├── encoding.ts
 │   │   │   ├── health.ts
-│   │   │   ├── index.ts
 │   │   │   ├── logger.ts
 │   │   │   ├── performance.ts
 │   │   │   ├── requestContext.ts
 │   │   │   ├── runtime.ts
 │   │   │   └── startupBanner.ts
 │   │   ├── metrics/
-│   │   │   ├── index.ts
 │   │   │   ├── registry.ts
 │   │   │   └── tokenCounter.ts
 │   │   ├── network/
-│   │   │   ├── fetchWithTimeout.ts
-│   │   │   └── index.ts
+│   │   │   └── fetchWithTimeout.ts
 │   │   ├── pagination/
-│   │   │   └── index.ts
+│   │   │   └── pagination.ts
 │   │   ├── parsing/
 │   │   │   ├── csvParser.ts
 │   │   │   ├── dateParser.ts
 │   │   │   ├── frontmatterParser.ts
-│   │   │   ├── index.ts
 │   │   │   ├── jsonParser.ts
 │   │   │   ├── pdfParser.ts
 │   │   │   ├── xmlParser.ts
 │   │   │   └── yamlParser.ts
 │   │   ├── scheduling/
-│   │   │   ├── index.ts
 │   │   │   └── scheduler.ts
 │   │   ├── security/
 │   │   │   ├── idGenerator.ts
-│   │   │   ├── index.ts
 │   │   │   ├── rateLimiter.ts
 │   │   │   └── sanitization.ts
 │   │   ├── telemetry/
@@ -229,10 +210,8 @@ mcp-ts-template/
 │   │   │   ├── metrics.ts
 │   │   │   ├── semconv.ts
 │   │   │   └── trace.ts
-│   │   ├── types/
-│   │   │   ├── guards.ts
-│   │   │   └── index.ts
-│   │   └── index.ts
+│   │   └── types/
+│   │       └── guards.ts
 │   ├── index.ts
 │   └── worker.ts
 ├── tests/
@@ -305,7 +284,6 @@ mcp-ts-template/
 │   │   │   │   ├── schema-snapshots.test.ts
 │   │   │   │   └── zod4-compatibility.test.ts
 │   │   │   ├── utils/
-│   │   │   │   ├── index.test.ts
 │   │   │   │   ├── toolDefinition.test.ts
 │   │   │   │   └── toolHandlerFactory.test.ts
 │   │   │   └── tool-registration.test.ts
@@ -321,18 +299,15 @@ mcp-ts-template/
 │   │   │   │   │   ├── jwtStrategy.test.ts
 │   │   │   │   │   └── oauthStrategy.test.ts
 │   │   │   │   ├── authFactory.test.ts
-│   │   │   │   ├── authMiddleware.test.ts
-│   │   │   │   └── index.test.ts
+│   │   │   │   └── authMiddleware.test.ts
 │   │   │   ├── http/
 │   │   │   │   ├── httpErrorHandler.test.ts
 │   │   │   │   ├── httpTransport.integration.test.ts
 │   │   │   │   ├── httpTransport.test.ts
 │   │   │   │   ├── httpTypes.test.ts
-│   │   │   │   ├── index.test.ts
 │   │   │   │   ├── sessionIdUtils.test.ts
 │   │   │   │   └── sessionStore.test.ts
 │   │   │   ├── stdio/
-│   │   │   │   ├── index.test.ts
 │   │   │   │   └── stdioTransport.test.ts
 │   │   │   ├── ITransport.test.ts
 │   │   │   └── manager.test.ts
@@ -347,7 +322,6 @@ mcp-ts-template/
 │   │   │   ├── core/
 │   │   │   │   ├── GraphService.test.ts
 │   │   │   │   └── IGraphProvider.test.ts
-│   │   │   ├── index.test.ts
 │   │   │   └── types.test.ts
 │   │   ├── llm/
 │   │   │   ├── core/
@@ -355,7 +329,6 @@ mcp-ts-template/
 │   │   │   ├── providers/
 │   │   │   │   ├── openrouter.provider.test.ts
 │   │   │   │   └── openrouter.provider.test.ts.disabled
-│   │   │   ├── index.test.ts
 │   │   │   └── types.test.ts
 │   │   └── speech/
 │   │       ├── core/
@@ -383,7 +356,6 @@ mcp-ts-template/
 │   │   │   └── supabase/
 │   │   │       ├── supabase.types.test.ts
 │   │   │       └── supabaseProvider.test.ts
-│   │   ├── index.test.ts
 │   │   ├── storageProviderCompliance.test.ts
 │   │   └── StorageService.test.ts
 │   ├── types-global/
@@ -391,7 +363,6 @@ mcp-ts-template/
 │   ├── utils/
 │   │   ├── formatting/
 │   │   │   ├── diffFormatter.test.ts
-│   │   │   ├── index.test.ts
 │   │   │   ├── markdownBuilder.test.ts
 │   │   │   ├── tableFormatter.test.ts
 │   │   │   └── treeFormatter.test.ts
@@ -414,29 +385,24 @@ mcp-ts-template/
 │   │   │   ├── runtime.test.ts
 │   │   │   └── startupBanner.test.ts
 │   │   ├── metrics/
-│   │   │   ├── index.test.ts
 │   │   │   ├── registry.test.ts
 │   │   │   └── tokenCounter.test.ts
 │   │   ├── network/
-│   │   │   ├── fetchWithTimeout.test.ts
-│   │   │   └── index.test.ts
+│   │   │   └── fetchWithTimeout.test.ts
 │   │   ├── pagination/
 │   │   │   └── index.test.ts
 │   │   ├── parsing/
 │   │   │   ├── csvParser.test.ts
 │   │   │   ├── dateParser.test.ts
 │   │   │   ├── frontmatterParser.test.ts
-│   │   │   ├── index.test.ts
 │   │   │   ├── jsonParser.test.ts
 │   │   │   ├── pdfParser.test.ts
 │   │   │   ├── xmlParser.test.ts
 │   │   │   └── yamlParser.test.ts
 │   │   ├── scheduling/
-│   │   │   ├── index.test.ts
 │   │   │   └── scheduler.test.ts
 │   │   ├── security/
 │   │   │   ├── idGenerator.test.ts
-│   │   │   ├── index.test.ts
 │   │   │   ├── rateLimiter.test.ts
 │   │   │   ├── sanitization.property.test.ts
 │   │   │   └── sanitization.test.ts
@@ -446,9 +412,8 @@ mcp-ts-template/
 │   │   │   ├── metrics.test.ts
 │   │   │   ├── semconv.test.ts
 │   │   │   └── trace.test.ts
-│   │   ├── types/
-│   │   │   └── guards.test.ts
-│   │   └── index.test.ts
+│   │   └── types/
+│   │       └── guards.test.ts
 │   ├── index.test.ts
 │   ├── setup.ts
 │   └── worker.test.ts
