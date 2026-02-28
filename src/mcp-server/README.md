@@ -2,15 +2,13 @@
 
 ## Overview
 
-The `mcp-server/` directory contains the Model Context Protocol (MCP) server implementation, including tools, resources, prompts, and transport layers. This module implements the [MCP specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18).
+The `mcp-server/` directory contains the MCP server implementation: tools, resources, prompts, and transport layers. Implements the [MCP specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18).
 
-**Structure:**
-
-- **[tools/](tools/)** - Tool definitions and utilities
-- **[resources/](resources/)** - Resource definitions and utilities
-- **[prompts/](prompts/)** - Prompt definitions and registration
-- **[roots/](roots/)** - Root directory definitions
-- **[transports/](transports/)** - HTTP and stdio transport implementations
+- [tools/](tools/) — Tool definitions and utilities
+- [resources/](resources/) — Resource definitions and utilities
+- [prompts/](prompts/) — Prompt definitions and registration
+- [roots/](roots/) — Root directory definitions
+- [transports/](transports/) — HTTP and stdio transport implementations
 
 ---
 
@@ -50,11 +48,11 @@ The `mcp-server/` directory contains the Model Context Protocol (MCP) server imp
 
 ---
 
-## Server Lifecycle
+## Server lifecycle
 
 ### 1. Initialization
 
-**File:** [server.ts](server.ts)
+File: [server.ts](server.ts)
 
 ```typescript
 export async function createMcpServerInstance(
@@ -62,7 +60,7 @@ export async function createMcpServerInstance(
 ): Promise<Server>;
 ```
 
-**Steps:**
+Steps:
 
 1. Create request context
 2. Initialize MCP Server with capabilities
@@ -70,18 +68,11 @@ export async function createMcpServerInstance(
 4. Set up lifecycle handlers
 5. Return configured server instance
 
-**Capabilities:**
+Capabilities: `logging`, `listChanged`, `elicitation`, `sampling`, `prompts`, `roots`.
 
-- `logging` - Structured logging support
-- `listChanged` - Dynamic capability updates
-- `elicitation` - Interactive parameter collection
-- `sampling` - LLM integration
-- `prompts` - Prompt templates
-- `roots` - Root directory access
+### 2. Transport setup
 
-### 2. Transport Setup
-
-**File:** [transports/manager.ts](transports/manager.ts)
+File: [transports/manager.ts](transports/manager.ts)
 
 ```typescript
 export class TransportManager {
@@ -90,14 +81,14 @@ export class TransportManager {
 }
 ```
 
-**Transports:**
+Transports:
 
-- **HTTP** - Server-Sent Events (SSE) with optional auth
-- **stdio** - Standard input/output pipes
+- HTTP — Server-Sent Events (SSE) with optional auth
+- stdio — Standard input/output pipes
 
-### 3. Request Handling
+### 3. Request handling
 
-**Flow:**
+Flow:
 
 ```
 Client Request
@@ -117,28 +108,24 @@ Response Formatter
 Client Response
 ```
 
-### 4. Registry Services
+### 4. Registry services
 
-**Purpose:** Automate discovery and registration of MCP capabilities via DI
+Registry services automate discovery and registration of MCP capabilities via DI:
 
-The server uses registry services to automatically discover and register tools, resources, prompts, and roots:
+- `ToolRegistry` — Discovers and registers all tool definitions
+- `ResourceRegistry` — Discovers and registers all resource definitions
+- `PromptRegistry` — Discovers and registers all prompt definitions
+- `RootsRegistry` — Enables roots capability for workspace context
 
-**Registry Classes:**
+Registration flow:
 
-- `ToolRegistry` - Discovers and registers all tool definitions
-- `ResourceRegistry` - Discovers and registers all resource definitions
-- `PromptRegistry` - Discovers and registers all prompt definitions
-- `RootsRegistry` - Enables roots capability for workspace context
+1. Create definitions in their `definitions/` directories
+2. Add to barrel export arrays (`allToolDefinitions`, `allResourceDefinitions`, etc.)
+3. `registerTools()` / `registerResources()` register definitions with the DI container
+4. Registry services resolve definitions from the container
+5. Registries call `.registerAll(server)` to register with the MCP server instance
 
-**How It Works:**
-
-1. **Definition Phase**: Create tool/resource/prompt definitions in their respective `definitions/` directories
-2. **Export Phase**: Add definitions to barrel export arrays (`allToolDefinitions`, `allResourceDefinitions`, etc.)
-3. **Registration Phase**: `registerTools()` / `registerResources()` functions register definitions with DI container
-4. **Discovery Phase**: Registry services resolve definitions from container via `@injectAll()` decorator
-5. **Server Phase**: Registries call `.registerAll(server)` to register with MCP server instance
-
-**Example Flow (Tools):**
+Example (tools):
 
 ```typescript
 // 1. Define tool
@@ -159,24 +146,15 @@ const toolRegistry = container.resolve(ToolRegistry);
 await toolRegistry.registerAll(server);
 ```
 
-**Benefits:**
-
-- **Zero boilerplate**: Just export your definition, registration is automatic
-- **Type safety**: Container ensures all definitions match expected types
-- **Modularity**: Easy to add/remove capabilities without touching registration code
-- **Testability**: Registry services can be mocked for testing
-
 ---
 
 ## Tools
 
-**Purpose:** Executable capabilities that perform actions
+Executable capabilities that perform actions.
 
-**Location:** [tools/definitions/](tools/definitions/)
+Location: [tools/definitions/](tools/definitions/). See [tools/README.md](tools/README.md) for the full guide.
 
-**See:** [tools/README.md](tools/README.md) for complete guide
-
-### Quick Example
+### Quick example
 
 ```typescript
 /**
@@ -220,9 +198,9 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
   };
 ```
 
-### Tool Registration
+### Tool registration
 
-**File:** [tools/definitions/index.ts](tools/definitions/index.ts)
+File: [tools/definitions/index.ts](tools/definitions/index.ts)
 
 ```typescript
 export const allToolDefinitions = [
@@ -232,9 +210,9 @@ export const allToolDefinitions = [
 ] as const;
 ```
 
-### Tool Annotations
+### Tool annotations
 
-Tools can include optional annotations to provide hints about their behavior:
+Tools can include optional annotations to hint at their behavior:
 
 ```typescript
 interface ToolAnnotations {
@@ -255,7 +233,7 @@ interface ToolAnnotations {
 }
 ```
 
-**Example:**
+Example:
 
 ```typescript
 const TOOL_ANNOTATIONS: ToolAnnotations = {
@@ -273,19 +251,17 @@ export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
   };
 ```
 
-**Note:** Annotations are hints only and do not provide safety guarantees. Clients should not rely on them for security or correctness.
+Annotations are hints only, not safety guarantees. Clients should not rely on them for security or correctness.
 
 ---
 
 ## Resources
 
-**Purpose:** Readable data sources exposed via URI templates
+Readable data sources exposed via URI templates.
 
-**Location:** [resources/definitions/](resources/definitions/)
+Location: [resources/definitions/](resources/definitions/). See [resources/README.md](resources/README.md) for the full guide.
 
-**See:** [resources/README.md](resources/README.md) for complete guide
-
-### Quick Example
+### Quick example
 
 ```typescript
 /**
@@ -330,9 +306,9 @@ export const echoResource: ResourceDefinition<
 };
 ```
 
-### Resource Registration
+### Resource registration
 
-**File:** [resources/definitions/index.ts](resources/definitions/index.ts)
+File: [resources/definitions/index.ts](resources/definitions/index.ts)
 
 ```typescript
 export const allResourceDefinitions = [
@@ -345,11 +321,11 @@ export const allResourceDefinitions = [
 
 ## Prompts
 
-**Purpose:** Reusable prompt templates with variable substitution
+Reusable prompt templates with variable substitution.
 
-**Location:** [prompts/definitions/](prompts/definitions/)
+Location: [prompts/definitions/](prompts/definitions/)
 
-### Quick Example
+### Quick example
 
 ```typescript
 /**
@@ -393,21 +369,19 @@ export const codeReviewPrompt: PromptDefinition<typeof ArgumentsSchema> = {
 
 ## Transports
 
-### HTTP Transport
+### HTTP transport
 
-**File:** [transports/http/httpTransport.ts](transports/http/httpTransport.ts)
+File: [transports/http/httpTransport.ts](transports/http/httpTransport.ts)
 
-**Features:**
-
-- Server-Sent Events (SSE) for streaming per MCP Spec 2025-06-18
+- SSE streaming per MCP Spec 2025-06-18
 - Session management (stateful/stateless modes)
 - Optional authentication (JWT/OAuth) with identity-bound sessions
-- CORS support with Origin header validation (DNS rebinding protection)
+- CORS with Origin header validation (DNS rebinding protection)
 - Health check endpoint
 - OAuth Protected Resource Metadata (RFC 9728)
 - MCP-Protocol-Version header validation
 
-**Configuration:**
+Configuration:
 
 ```bash
 MCP_TRANSPORT_TYPE=http
@@ -421,42 +395,30 @@ MCP_SESSION_MODE=stateful
 MCP_STATEFUL_SESSION_STALE_TIMEOUT_MS=3600000  # 1 hour
 ```
 
-**Endpoints:**
+Endpoints:
 
-- `GET /healthz` - Health check (unauthenticated)
-- `GET /.well-known/oauth-protected-resource` - OAuth metadata per RFC 9728 (unauthenticated)
-- `GET /mcp` - Server status info (unauthenticated)
-- `POST /mcp` - JSON-RPC requests (authenticated if auth enabled, returns `Mcp-Session-Id` header)
-- `DELETE /mcp` - Session termination (requires `Mcp-Session-Id` header, stateful mode only)
-- `OPTIONS /mcp` - CORS preflight
+| Endpoint | Description |
+| :--- | :--- |
+| `GET /healthz` | Health check (unauthenticated) |
+| `GET /.well-known/oauth-protected-resource` | OAuth metadata per RFC 9728 (unauthenticated) |
+| `GET /mcp` | Server status info (unauthenticated) |
+| `POST /mcp` | JSON-RPC requests (authenticated if auth enabled, returns `Mcp-Session-Id` header) |
+| `DELETE /mcp` | Session termination (requires `Mcp-Session-Id` header, stateful mode only) |
+| `OPTIONS /mcp` | CORS preflight |
 
-**Session Management:**
+Session management (MCP Spec 2025-06-18):
 
-The HTTP transport implements MCP Spec 2025-06-18 session management:
+- Stateful mode: sessions bound to authenticated identity (`tenantId`, `clientId`, `subject`). Clients receive `Mcp-Session-Id` in responses and must send it in subsequent requests. Sessions auto-expire after inactivity timeout. DELETE endpoint terminates sessions.
+- Stateless mode: each request is independent. Session ID generated for tracing only. DELETE returns 405.
 
-- **Stateful mode**: Server maintains session state with identity binding
-  - Sessions are bound to authenticated identity (`tenantId`, `clientId`, `subject`)
-  - Prevents session hijacking across different authenticated users
-  - Automatic session expiration after inactivity timeout
-  - Clients receive `Mcp-Session-Id` header in all responses
-  - Clients MUST send `Mcp-Session-Id` header in subsequent requests
-  - DELETE endpoint explicitly terminates sessions
+Security:
 
-- **Stateless mode**: No server-side session state
-  - Each request is independent
-  - Session ID still generated for tracing purposes
-  - DELETE endpoint returns 405 Method Not Allowed
+- Origin header validation (DNS rebinding protection per MCP spec)
+- MCP-Protocol-Version validation (rejects unsupported versions with 400)
+- Session identity binding (prevents hijacking in multi-tenant scenarios)
+- OAuth discovery via RFC 9728 metadata endpoint
 
-**Security Features:**
-
-1. **Origin Header Validation**: Protects against DNS rebinding attacks per MCP spec
-2. **MCP-Protocol-Version Validation**: Rejects unsupported protocol versions (400 Bad Request)
-3. **Session Identity Binding**: Prevents session hijacking in multi-tenant scenarios
-4. **OAuth Discovery**: RFC 9728 metadata endpoint for OAuth client discovery
-
-**Authentication:**
-
-See [transports/auth/README.md](transports/auth/README.md) for details.
+Auth: See [transports/auth/README.md](transports/auth/README.md).
 
 ```bash
 # JWT mode
@@ -471,35 +433,28 @@ OAUTH_JWKS_URI=https://auth.example.com/.well-known/jwks.json
 MCP_SERVER_RESOURCE_IDENTIFIER=https://api.example.com/mcp  # Optional, defaults to audience
 ```
 
-### stdio Transport
+### stdio transport
 
-**File:** [transports/stdio/index.ts](transports/stdio/index.ts)
+File: [transports/stdio/index.ts](transports/stdio/index.ts)
 
-**Features:**
+Standard input/output communication. No authentication (host-managed). Suitable for local MCP clients.
 
-- Standard input/output communication
-- No authentication (host-managed)
-- Suitable for local MCP clients
-
-**Configuration:**
+Configuration:
 
 ```bash
 MCP_TRANSPORT_TYPE=stdio
 ```
 
-**Usage:**
+Usage:
 
 ```bash
-# Development
-bun run dev:stdio
-
-# Production
-bun run start:stdio
+bun run dev:stdio    # Development
+bun run start:stdio  # Production
 ```
 
 ---
 
-## Request Context
+## Request context
 
 Every request includes context for tracing and multi-tenancy:
 
@@ -525,7 +480,7 @@ interface RequestContext {
 }
 ```
 
-**Usage in Tools:**
+Usage in tools:
 
 ```typescript
 async logic(input, appContext, sdkContext) {
@@ -548,11 +503,11 @@ async logic(input, appContext, sdkContext) {
 
 ---
 
-## Authentication & Authorization
+## Authentication and authorization
 
-### Tool-Level Authorization
+### Tool-level authorization
 
-**File:** [transports/auth/lib/withAuth.ts](transports/auth/lib/withAuth.ts)
+File: [transports/auth/lib/withAuth.ts](transports/auth/lib/withAuth.ts)
 
 ```typescript
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
@@ -573,7 +528,7 @@ export const myTool: ToolDefinition<typeof InputSchema> = {
 };
 ```
 
-### Resource-Level Authorization
+### Resource-level authorization
 
 ```typescript
 import { withResourceAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
@@ -593,11 +548,9 @@ export const myResource: ResourceDefinition<typeof ParamsSchema> = {
 };
 ```
 
-### Security Features
+### Security
 
-**Session Identity Binding (HTTP Transport):**
-
-The HTTP transport binds sessions to authenticated identities to prevent session hijacking in multi-tenant scenarios:
+The HTTP transport binds sessions to authenticated identities to prevent session hijacking:
 
 ```typescript
 // Session is created with identity binding
@@ -613,22 +566,15 @@ if (!sessionStore.isValidForIdentity(sessionId, sessionIdentity)) {
 }
 ```
 
-**Security Benefits:**
+This prevents User A from using User B's session ID, enforces tenant isolation, and auto-expires stale sessions.
 
-1. **Prevents session hijacking**: User A cannot use User B's session ID
-2. **Multi-tenant isolation**: Sessions are tenant-bound
-3. **Audit trail**: Session identity tracked for compliance
-4. **Automatic cleanup**: Stale sessions expire after timeout
-
-**OAuth Discovery (RFC 9728):**
-
-The HTTP transport provides OAuth Protected Resource Metadata for client discovery:
+OAuth Protected Resource Metadata (RFC 9728) for client discovery:
 
 ```bash
 GET /.well-known/oauth-protected-resource
 ```
 
-**Response:**
+Response:
 
 ```json
 {
@@ -641,20 +587,13 @@ GET /.well-known/oauth-protected-resource
 }
 ```
 
-**Use Cases:**
-
-- OAuth client auto-configuration
-- Authorization server discovery
-- Resource documentation discovery
-- JWKS endpoint discovery
+Clients use this for OAuth auto-configuration, authorization server discovery, and JWKS endpoint discovery.
 
 ---
 
-## Error Handling
+## Error handling
 
-### The McpError Pattern
-
-**Rule:** Logic throws, handlers catch
+Logic throws, handlers catch:
 
 ```typescript
 import { McpError, JsonRpcErrorCode } from '@/types-global/errors.js';
@@ -682,18 +621,13 @@ async logic(input, appContext, sdkContext) {
 }
 ```
 
-**Error Codes:**
-
-- `InvalidParams` (-32602) - Invalid input
-- `InternalError` (-32603) - Server error
-- `MethodNotFound` (-32601) - Unknown tool/resource
-- `InvalidRequest` (-32600) - Malformed request
+Error codes: `InvalidParams` (-32602), `InternalError` (-32603), `MethodNotFound` (-32601), `InvalidRequest` (-32600).
 
 ---
 
-## SDK Context
+## SDK context
 
-The `sdkContext` parameter provides access to MCP SDK capabilities and protocol-level features:
+The `sdkContext` parameter provides access to MCP SDK capabilities:
 
 ```typescript
 interface SdkContext {
@@ -720,9 +654,9 @@ interface SdkContext {
 }
 ```
 
-### Elicitation (Interactive Parameter Collection)
+### Elicitation
 
-Interactive collection of missing parameters from the client:
+Collect missing parameters from the client interactively:
 
 ```typescript
 async logic(input, appContext, sdkContext) {
@@ -742,9 +676,9 @@ async logic(input, appContext, sdkContext) {
 }
 ```
 
-### Sampling (LLM Integration)
+### Sampling
 
-Request LLM completions from the client per MCP Spec 2025-06-18:
+Request LLM completions from the client (MCP Spec 2025-06-18):
 
 ```typescript
 async logic(input, appContext, sdkContext) {
@@ -766,9 +700,7 @@ async logic(input, appContext, sdkContext) {
 }
 ```
 
-### Request Cancellation
-
-Handle request cancellation gracefully:
+### Request cancellation
 
 ```typescript
 async logic(input, appContext, sdkContext) {
@@ -791,9 +723,9 @@ async logic(input, appContext, sdkContext) {
 }
 ```
 
-### Send Notifications
+### Notifications
 
-Send notifications to the client without expecting a response:
+Send notifications to the client (no response expected):
 
 ```typescript
 async logic(input, appContext, sdkContext) {
@@ -812,15 +744,15 @@ async logic(input, appContext, sdkContext) {
 
 ---
 
-## Response Formatting
+## Response formatting
 
-### Simple Text Response
+### Simple text
 
 ```typescript
 responseFormatter: (result) => [{ type: 'text', text: result.message }];
 ```
 
-### Markdown Response
+### Markdown
 
 ```typescript
 import { markdown } from '@/utils/index.js';
@@ -837,7 +769,7 @@ responseFormatter: (result) => [
 ];
 ```
 
-### Binary Response (Images)
+### Binary (images)
 
 ```typescript
 responseFormatter: (result) => [
@@ -853,7 +785,7 @@ responseFormatter: (result) => [
 
 ## Testing
 
-### Tool Testing Pattern
+### Tool testing pattern
 
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -900,7 +832,7 @@ describe('myTool', () => {
 
 ### Logging
 
-All requests are automatically logged with context:
+All requests are logged with context automatically:
 
 ```typescript
 logger.info('Tool execution started', {
@@ -919,17 +851,13 @@ Automatic instrumentation tracks:
 - Input/output payload sizes
 - Error codes
 
-**Metrics:**
-
-- `mcp_tool_execution_duration_ms`
-- `mcp_tool_execution_success`
-- `mcp_tool_payload_size_bytes`
+Metrics: `mcp_tool_execution_duration_ms`, `mcp_tool_execution_success`, `mcp_tool_payload_size_bytes`.
 
 ---
 
-## Best Practices
+## Best practices
 
-### 1. Pure Logic Functions
+### Pure logic functions
 
 ```typescript
 // ❌ Bad - side effects in logic
@@ -946,7 +874,7 @@ async logic(input, appContext, sdkContext) {
 }
 ```
 
-### 2. Descriptive Schemas
+### Descriptive schemas
 
 ```typescript
 // ❌ Bad - no descriptions
@@ -967,7 +895,7 @@ const InputSchema = z.object({
 });
 ```
 
-### 3. Proper Error Handling
+### Error handling in logic
 
 ```typescript
 // ❌ Bad - swallow errors
@@ -993,9 +921,9 @@ async logic(input) {
 }
 ```
 
-### 4. Use Dependency Injection for Services
+### Dependency injection for services
 
-Tools and resources use declarative definitions, not classes. For services, use DI:
+Tools and resources are declarative definitions, not classes. For services, use DI:
 
 ```typescript
 // ❌ Bad - direct instantiation in logic
@@ -1018,7 +946,7 @@ async logic(input, appContext, sdkContext) {
 }
 ```
 
-**Declarative Tool Pattern:**
+Declarative tool pattern:
 
 ```typescript
 // Tools are declarative definitions, not classes
@@ -1039,44 +967,19 @@ export const myTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
 
 ## Troubleshooting
 
-### Tool Not Registered
-
-**Error:** Tool not found when calling from client
-
-**Solution:** Ensure tool is exported in [tools/definitions/index.ts](tools/definitions/index.ts)
-
-### Schema Validation Fails
-
-**Error:** Input validation error
-
-**Solution:** Check Zod schema has proper `.describe()` calls and matches client input
-
-### Authentication Required
-
-**Error:** 401 Unauthorized
-
-**Solution:**
-
-1. Check `MCP_AUTH_MODE` configuration
-2. Verify JWT/OAuth token is provided
-3. Check scopes in `withToolAuth` wrapper
-
-### Transport Connection Issues
-
-**Error:** Cannot connect to server
-
-**Solution:**
-
-1. Verify `MCP_TRANSPORT_TYPE` is set correctly
-2. For HTTP: Check `MCP_HTTP_PORT` and firewall
-3. For stdio: Check process can spawn correctly
+| Problem | Fix |
+| :--- | :--- |
+| Tool not found | Ensure tool is exported in [tools/definitions/index.ts](tools/definitions/index.ts) |
+| Input validation error | Check Zod schema has `.describe()` calls and matches client input |
+| 401 Unauthorized | Check `MCP_AUTH_MODE`, verify token, check scopes in `withToolAuth` |
+| Cannot connect to server | Verify `MCP_TRANSPORT_TYPE`. HTTP: check port/firewall. stdio: check process spawn. |
 
 ---
 
-## See Also
+## See also
 
-- [Tools Module](tools/README.md) - Tool development guide
-- [Resources Module](resources/README.md) - Resource development guide
-- [Transports Module](transports/README.md) - Transport configuration
-- [Services Module](../services/README.md) - External service integration
-- [CLAUDE.md](../../CLAUDE.md) - Architectural mandate
+- [Tools](tools/README.md) — Tool development guide
+- [Resources](resources/README.md) — Resource development guide
+- [Transports](transports/README.md) — Transport configuration
+- [Services](../services/README.md) — External service integration
+- [CLAUDE.md](../../CLAUDE.md) — Architectural mandate

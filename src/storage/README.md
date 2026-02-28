@@ -1,37 +1,17 @@
 # Storage Module
 
-**Version:** 2.4.6
-**Module:** `src/storage`
+Version: 2.4.6 | Module: `src/storage`
 
-Production-grade storage abstraction layer providing a unified interface for multiple backend implementations. Supports multi-tenancy, TTL expiration, batch operations, secure pagination, and comprehensive input validation.
-
----
-
-## Table of Contents
-
-1. [Overview](#overview)
-2. [Architecture](#architecture)
-3. [Supported Providers](#supported-providers)
-4. [Features](#features)
-5. [Usage Examples](#usage-examples)
-6. [Adding a New Provider](#adding-a-new-provider)
-7. [Troubleshooting](#troubleshooting)
-
----
+Storage abstraction layer with a unified interface across multiple backends. Supports multi-tenancy, TTL, batch operations, secure pagination, and input validation.
 
 ## Overview
 
-The storage module provides a **runtime-agnostic, provider-agnostic persistence layer** for the MCP server. All storage operations flow through a single `StorageService` facade, which delegates to a configured backend provider via dependency injection.
+All storage operations flow through `StorageService` (DI-injected facade), which delegates to a configured backend provider. Business logic never depends on concrete implementations.
 
-### Key Principles
-
-- **Abstraction**: Business logic never depends on concrete storage implementations
-- **Multi-Tenancy**: All operations require a `tenantId` for data isolation
-- **Security**: Centralized validation prevents path traversal, injection attacks, and cross-tenant data access
-- **Flexibility**: Swap providers via environment variables without code changes
-- **Edge-Ready**: Compatible with both Node.js and Cloudflare Workers runtimes
-
-### Design Philosophy
+- All operations require a `tenantId` for data isolation
+- Centralized validation prevents path traversal, injection, and cross-tenant access
+- Swap providers via environment variables without code changes
+- Compatible with both Node.js and Cloudflare Workers
 
 ```
 Application Code
@@ -43,22 +23,22 @@ IStorageProvider interface
 Concrete Provider (in-memory, filesystem, supabase, cloudflare-kv, cloudflare-r2)
 ```
 
-See the [root README](../../README.md#-configuration) for general storage configuration.
+See the [root README](../../README.md#configuration) for general storage configuration.
 
 ---
 
 ## Architecture
 
-### Core Components
+### Core components
 
-| Component               | Path                                                   | Purpose                                                                                                                                           |
-| :---------------------- | :----------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **`IStorageProvider`**  | [core/IStorageProvider.ts](core/IStorageProvider.ts)   | Interface contract all providers must implement. Defines `get`, `set`, `delete`, `list`, `getMany`, `setMany`, `deleteMany`, `clear`.             |
-| **`StorageService`**    | [core/StorageService.ts](core/StorageService.ts)       | DI-managed facade. Validates inputs, extracts tenant ID from context, delegates to provider. Registered in `src/container/registrations/core.ts`. |
-| **`storageFactory`**    | [core/storageFactory.ts](core/storageFactory.ts)       | Creates provider instances based on `STORAGE_PROVIDER_TYPE`. Handles runtime compatibility (serverless vs Node).                                  |
-| **`storageValidation`** | [core/storageValidation.ts](core/storageValidation.ts) | Centralized input validation (tenant IDs, keys, prefixes, options). Provides cursor encoding/decoding with tenant binding.                        |
+| Component           | Path                                                   | Purpose                                                                                                          |
+| :------------------ | :----------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| `IStorageProvider`  | [core/IStorageProvider.ts](core/IStorageProvider.ts)   | Interface contract. Defines `get`, `set`, `delete`, `list`, `getMany`, `setMany`, `deleteMany`, `clear`.         |
+| `StorageService`    | [core/StorageService.ts](core/StorageService.ts)       | DI-managed facade. Validates inputs, extracts tenant ID from context, delegates to provider.                     |
+| `storageFactory`    | [core/storageFactory.ts](core/storageFactory.ts)       | Creates provider instances based on `STORAGE_PROVIDER_TYPE`. Handles runtime compatibility (serverless vs Node). |
+| `storageValidation` | [core/storageValidation.ts](core/storageValidation.ts) | Input validation (tenant IDs, keys, prefixes, options). Cursor encoding/decoding with tenant binding.            |
 
-### Directory Structure
+### Directory structure
 
 ```
 src/storage/
@@ -77,35 +57,35 @@ src/storage/
 
 ---
 
-## Supported Providers
+## Supported providers
 
-### Provider Comparison
+### Provider comparison
 
-| Provider          | Runtime     | Setup  | Persistence | Edge | TTL Strategy                 | Batch Strategy   | Best For                                     |
-| :---------------- | :---------- | :----- | :---------- | :--- | :--------------------------- | :--------------- | :------------------------------------------- |
-| **In-Memory**     | Both        | None   | ❌ Volatile | ✅   | Proactive (`setTimeout`)     | Parallel         | Development, testing, caching                |
-| **FileSystem**    | Node only   | Low    | ✅ Durable  | ❌   | Lazy (delete on access)      | Parallel         | Local development, single-server deployments |
-| **Supabase**      | Both        | Medium | ✅ Durable  | ✅   | SQL filtering + lazy cleanup | SQL batch upsert | PostgreSQL-backed apps, Supabase users       |
-| **Cloudflare KV** | Worker only | Low    | ✅ Durable  | ✅   | Native KV TTL                | Parallel         | Edge KV storage, global distribution         |
-| **Cloudflare R2** | Worker only | Low    | ✅ Durable  | ✅   | Envelope metadata (lazy)     | Parallel         | Edge blob storage, large objects (up to 5TB) |
+| Provider       | Runtime     | Setup  | Persistent | Edge | TTL Strategy                 | Batch Strategy   | Best for                            |
+| :------------- | :---------- | :----- | :--------- | :--- | :--------------------------- | :--------------- | :---------------------------------- |
+| In-Memory      | Both        | None   | No         | Yes  | Proactive (`setTimeout`)     | Parallel         | Development, testing, caching       |
+| FileSystem     | Node only   | Low    | Yes        | No   | Lazy (delete on access)      | Parallel         | Local dev, single-server            |
+| Supabase       | Both        | Medium | Yes        | Yes  | SQL filtering + lazy cleanup | SQL batch upsert | PostgreSQL-backed apps              |
+| Cloudflare KV  | Worker only | Low    | Yes        | Yes  | Native KV TTL                | Parallel         | Edge KV, global distribution        |
+| Cloudflare R2  | Worker only | Low    | Yes        | Yes  | Envelope metadata (lazy)     | Parallel         | Edge blob storage, large objects    |
 
-### Configuration Quick Reference
+### Configuration quick reference
 
-**In-Memory** (default):
+In-Memory (default):
 
 ```bash
 STORAGE_PROVIDER_TYPE=in-memory
 # No additional config required
 ```
 
-**FileSystem**:
+FileSystem:
 
 ```bash
 STORAGE_PROVIDER_TYPE=filesystem
 STORAGE_FILESYSTEM_PATH=/path/to/storage  # Required
 ```
 
-**Supabase**:
+Supabase:
 
 ```bash
 STORAGE_PROVIDER_TYPE=supabase
@@ -127,7 +107,7 @@ CREATE INDEX idx_kv_store_expires ON kv_store(expires_at) WHERE expires_at IS NO
 CREATE INDEX idx_kv_store_prefix ON kv_store(tenant_id, key text_pattern_ops);
 ```
 
-**Cloudflare KV**:
+Cloudflare KV:
 
 ```toml
 # wrangler.toml
@@ -140,7 +120,7 @@ id = "your-kv-namespace-id"
 STORAGE_PROVIDER_TYPE=cloudflare-kv
 ```
 
-**Cloudflare R2**:
+Cloudflare R2:
 
 ```toml
 # wrangler.toml
@@ -153,61 +133,40 @@ bucket_name = "your-bucket-name"
 STORAGE_PROVIDER_TYPE=cloudflare-r2
 ```
 
-### Provider-Specific Notes
+### Provider-specific notes
 
-**Cloudflare KV:**
-
-- Eventually consistent (60s max propagation)
-- Strong consistency available with `cacheTtl=0`
-- `list()` operations limited to 1000 keys per request
-
-**Cloudflare R2:**
-
-- S3-compatible blob storage
-- 5TB per object limit (vs 25MB for KV)
-- **Note**: `list()` does not filter expired entries (performance cost)
-
-**FileSystem:**
-
-- Each key is a JSON file with envelope metadata
-- Supports nested keys via subdirectories
-- `list()` with TTL filtering can be slow for large datasets
+- Cloudflare KV: eventually consistent (60s max propagation), `cacheTtl=0` for strong consistency, `list()` limited to 1000 keys per request
+- Cloudflare R2: S3-compatible, 5TB per object (vs 25MB for KV), `list()` does not filter expired entries
+- FileSystem: each key is a JSON file with envelope metadata, nested keys via subdirectories, `list()` with TTL can be slow on large datasets
 
 ---
 
 ## Features
 
-### Multi-Tenancy
+### Multi-tenancy
 
-**All storage operations are scoped to a tenant.** The `StorageService` extracts `tenantId` from `RequestContext` and validates it before delegating to providers.
+All storage operations are scoped to a tenant. `StorageService` extracts `tenantId` from `RequestContext` and validates it before delegating to providers.
 
-**Tenant ID Sources:**
+Tenant ID sources:
 
-- **With Auth**: Auto-extracted from JWT claim `'tid'` → propagated via `requestContextService.withAuthInfo()`
-- **STDIO**: Explicitly set via `requestContextService.createRequestContext({ tenantId: '...' })`
+- With auth: auto-extracted from JWT `tid` claim via `requestContextService.withAuthInfo()`
+- STDIO: explicitly set via `requestContextService.createRequestContext({ tenantId: '...' })`
 
-**Validation Rules:**
+Validation: max 128 chars, `[a-zA-Z0-9._-]`, must start/end alphanumeric, no `..` or path traversal.
 
-- Maximum length: 128 characters
-- Allowed characters: `[a-zA-Z0-9._-]`
-- Must start and end with alphanumeric
-- No consecutive dots (`..`) or path traversal sequences (`../`, `..\\`)
+### TTL
 
-### Time-To-Live (TTL)
+All providers support TTL via `StorageOptions.ttl` (in seconds). `ttl=0` (immediate expiration) is handled correctly across all providers.
 
-All providers support TTL via `StorageOptions.ttl` (in seconds). **Important:** `ttl=0` (immediate expiration) is handled correctly across all providers. See [Provider Comparison](#provider-comparison) table for implementation strategies.
+### Batch operations
 
-### Batch Operations
+| Method              | Purpose                        | Performance Gain                           |
+| :------------------ | :----------------------------- | :----------------------------------------- |
+| `getMany<T>(keys[])` | Fetch multiple values          | 5-100x faster (depends on provider)        |
+| `setMany(entries)`   | Store multiple key-value pairs | 20-100x faster (single SQL batch/parallel) |
+| `deleteMany(keys[])` | Delete multiple keys           | Similar to `setMany`                       |
 
-Efficient alternatives to multiple individual calls:
-
-| Method                   | Purpose                        | Performance Gain                           |
-| :----------------------- | :----------------------------- | :----------------------------------------- |
-| **`getMany<T>(keys[])`** | Fetch multiple values          | 5-100x faster (depends on provider)        |
-| **`setMany(entries)`**   | Store multiple key-value pairs | 20-100x faster (single SQL batch/parallel) |
-| **`deleteMany(keys[])`** | Delete multiple keys           | Similar to `setMany`                       |
-
-**Example:**
+Example:
 
 ```typescript
 // ❌ Slow (100 round-trips):
@@ -221,14 +180,9 @@ await storage.setMany(entries, context);
 
 ### Pagination
 
-**Opaque Cursor System:**
+`list()` returns `ListResult` with `keys[]` and optional `nextCursor`. Cursors are tenant-bound (base64-encoded with HMAC validation), server-controlled page sizes (default: 1000). Invalid cursors throw `InvalidParams` (-32602).
 
-- `list()` returns `ListResult` with `keys[]` and optional `nextCursor`
-- Cursors are tenant-bound (base64-encoded with HMAC validation)
-- Page sizes are server-controlled (default: 1000)
-- Invalid cursors throw `JsonRpcErrorCode.InvalidParams` (-32602)
-
-**Usage:**
+Usage:
 
 ```typescript
 let cursor: string | undefined;
@@ -248,40 +202,35 @@ For resource pagination (MCP spec), use utilities from `@/utils/index.js`:
 
 For storage-specific cursors, use `encodeCursor/decodeCursor` from `@/storage/core/storageValidation.js`.
 
-### Validation & Security
+### Validation and security
 
-**Defense in Depth:**
+Validation is layered: `StorageService` validates all inputs before reaching providers, providers perform additional sanitization (path traversal checks), cursors are tenant-bound, and invalid input always throws `McpError`.
 
-1. **Service Layer**: `StorageService` validates all inputs before reaching providers
-2. **Provider Layer**: Providers perform additional sanitization (e.g., path traversal checks)
-3. **Cursor Binding**: Pagination cursors are tenant-bound to prevent cross-tenant attacks
-4. **Fail Closed**: Invalid input throws `McpError` (never coerced or silently ignored)
+Input validation:
 
-**Input Validation Rules:**
+| Input      | Max Length | Allowed Characters    | Additional Rules                                             |
+| :--------- | :--------- | :-------------------- | :----------------------------------------------------------- |
+| Tenant ID  | 128        | `[a-zA-Z0-9._-]`      | Must start/end with alphanumeric, no `..`, no path traversal |
+| Key        | 512        | Any except null bytes | No leading/trailing whitespace, not empty                    |
+| Prefix     | 512        | Any except null bytes | Can be empty string                                          |
+| TTL        | N/A        | Non-negative integer  | `0` = immediate expiration                                   |
+| List Limit | N/A        | Positive integer      | Default: 1000                                                |
 
-| Input          | Max Length | Allowed Characters    | Additional Rules                                             |
-| :------------- | :--------- | :-------------------- | :----------------------------------------------------------- |
-| **Tenant ID**  | 128        | `[a-zA-Z0-9._-]`      | Must start/end with alphanumeric, no `..`, no path traversal |
-| **Key**        | 512        | Any except null bytes | No leading/trailing whitespace, not empty                    |
-| **Prefix**     | 512        | Any except null bytes | Can be empty string                                          |
-| **TTL**        | N/A        | Non-negative integer  | `0` = immediate expiration                                   |
-| **List Limit** | N/A        | Positive integer      | Default: 1000                                                |
+Mitigated attack vectors:
 
-**Common Attack Vectors (Mitigated):**
-
-| Attack                       | Mitigation                                                          |
-| :--------------------------- | :------------------------------------------------------------------ |
-| **Cross-tenant data access** | Cursor validation, tenant ID validation, namespace isolation        |
-| **Path traversal**           | Input sanitization, path resolution checks, allowlist characters    |
-| **Resource exhaustion**      | Pagination limits, key/prefix length limits, batch operation limits |
-| **Injection attacks**        | Parameterized queries (Supabase), input sanitization                |
-| **Null byte injection**      | Validation rejects keys containing `\0`                             |
+| Attack                  | Mitigation                                                          |
+| :---------------------- | :------------------------------------------------------------------ |
+| Cross-tenant access     | Cursor validation, tenant ID validation, namespace isolation        |
+| Path traversal          | Input sanitization, path resolution checks, allowlist characters    |
+| Resource exhaustion     | Pagination limits, key/prefix length limits, batch operation limits |
+| Injection attacks       | Parameterized queries (Supabase), input sanitization                |
+| Null byte injection     | Validation rejects keys containing `\0`                             |
 
 ---
 
-## Usage Examples
+## Usage examples
 
-### Basic Operations
+### Basic operations
 
 ```typescript
 import { container } from 'tsyringe';
@@ -306,7 +255,7 @@ const session = await storage.get<{ userId: string }>('session:abc', context);
 await storage.delete('session:abc', context);
 ```
 
-### Batch Operations
+### Batch operations
 
 ```typescript
 // Batch set
@@ -351,7 +300,7 @@ for await (const key of streamKeys('user:', context)) {
 }
 ```
 
-### Usage from Tools
+### Usage from tools
 
 ```typescript
 import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
@@ -375,7 +324,7 @@ const myStorageTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
 };
 ```
 
-### With Authentication Context
+### With authentication context
 
 ```typescript
 import { requestContextService } from '@/utils/index.js';
@@ -391,21 +340,13 @@ await storage.set('user:data', { ... }, context);
 
 ---
 
-## Adding a New Provider
+## Adding a new provider
 
-This guide walks through creating a new storage provider. For a complete example, see existing providers in [src/storage/providers/](providers/).
+For a working example, see existing providers in [src/storage/providers/](providers/).
 
-### Prerequisites
+### Step 1: Create provider file
 
-- Familiarity with [IStorageProvider](core/IStorageProvider.ts) interface
-- Provider-specific SDK installed (e.g., `bun add redis`)
-- Environment variables planned
-
-### Step 1: Create Provider File
-
-**Location:** `src/storage/providers/{provider-name}/{provider-name}Provider.ts`
-
-**Template Structure:**
+`src/storage/providers/{provider-name}/{provider-name}Provider.ts`:
 
 ```typescript
 /**
@@ -452,49 +393,22 @@ export class {Provider}Provider implements IStorageProvider {
 }
 ```
 
-### Step 2: Implement IStorageProvider Methods
+### Step 2: Implement IStorageProvider methods
 
 All 8 methods are required:
 
-1. **`get<T>(tenantId, key, context): Promise<T | null>`**
-   - Return `null` if key doesn't exist or is expired
-   - Parse stored JSON and return typed value
-   - Use `ErrorHandler.tryCatch` wrapper
+| Method | Returns | Notes |
+| :--- | :--- | :--- |
+| `get<T>(tenantId, key, context)` | `T \| null` | Return `null` if missing/expired. Use `ErrorHandler.tryCatch`. |
+| `set(tenantId, key, value, context, options?)` | `void` | Serialize to JSON. Apply TTL if provided. Namespace by tenant. |
+| `delete(tenantId, key, context)` | `boolean` | `true` if existed, `false` otherwise. |
+| `list(tenantId, prefix, context, options?)` | `ListResult` | Filter by `{tenantId}:{prefix}*`. Return paginated, strip tenant prefix. |
+| `getMany<T>(tenantId, keys[], context)` | `Map<string, T>` | Batch fetch, only found keys. Skip unparseable. |
+| `setMany(tenantId, entries, context, options?)` | `void` | Batch write. Apply TTL. Use transactions if supported. |
+| `deleteMany(tenantId, keys[], context)` | `number` | Return count of deleted keys. |
+| `clear(tenantId, context)` | `number` | Delete all for tenant. Return count. Destructive — log with `logger.info`. |
 
-2. **`set(tenantId, key, value, context, options?): Promise<void>`**
-   - Serialize value to JSON
-   - Apply TTL if `options?.ttl` provided
-   - Namespace key by tenant
-
-3. **`delete(tenantId, key, context): Promise<boolean>`**
-   - Return `true` if key existed, `false` otherwise
-   - Log deletion with `logger.debug`
-
-4. **`list(tenantId, prefix, context, options?): Promise<ListResult>`**
-   - Filter keys by `{tenantId}:{prefix}*` pattern
-   - Return paginated results with `nextCursor`
-   - Strip tenant prefix from returned keys
-
-5. **`getMany<T>(tenantId, keys[], context): Promise<Map<string, T>>`**
-   - Batch fetch multiple keys (use provider-specific batch operations)
-   - Return `Map<string, T>` with only found keys
-   - Skip unparseable values
-
-6. **`setMany(tenantId, entries, context, options?): Promise<void>`**
-   - Batch write multiple key-value pairs
-   - Apply TTL to all entries if specified
-   - Use transactions if provider supports them
-
-7. **`deleteMany(tenantId, keys[], context): Promise<number>`**
-   - Batch delete multiple keys
-   - Return count of deleted keys
-
-8. **`clear(tenantId, context): Promise<number>`**
-   - Delete all keys for tenant
-   - Return count of deleted keys
-   - **DESTRUCTIVE**: Log with `logger.info`
-
-**Key Implementation Patterns:**
+Key implementation patterns:
 
 ```typescript
 // Wrap all methods with ErrorHandler.tryCatch
@@ -535,9 +449,9 @@ async set(tenantId: string, key: string, value: unknown, context: RequestContext
 }
 ```
 
-### Step 3: Add to Factory
+### Step 3: Add to factory
 
-**File:** `src/storage/core/storageFactory.ts`
+`src/storage/core/storageFactory.ts`:
 
 1. Import the provider:
 
@@ -573,15 +487,15 @@ case '{provider-name}':
 
 ### Step 4: Register with DI (if needed)
 
-If your provider requires a pre-configured client, register it in the DI container.
+If the provider needs a pre-configured client, register in DI.
 
-**File:** `src/container/core/tokens.ts`
+`src/container/core/tokens.ts`:
 
 ```typescript
 export const {Provider}Client = Symbol.for('{Provider}Client');
 ```
 
-**File:** `src/container/registrations/core.ts`
+`src/container/registrations/core.ts`:
 
 ```typescript
 import { {Provider}Client } from '@/container/core/tokens.js';
@@ -603,7 +517,7 @@ if (config.storage.providerType === '{provider-name}' && config.{provider}?.url)
 
 ### Step 5: Configuration
 
-**File:** `src/config/index.ts`
+`src/config/index.ts`:
 
 1. Add environment variables to schema:
 
@@ -645,9 +559,9 @@ const config: z.infer<typeof configSchema> = {
 
 ### Step 6: Testing
 
-**File:** `tests/storage/providers/{provider-name}/{provider-name}Provider.test.ts`
+`tests/storage/providers/{provider-name}/{provider-name}Provider.test.ts`:
 
-Use the compliance test suite to ensure your provider meets all interface requirements:
+Use the compliance test suite to verify your provider meets the interface:
 
 ```typescript
 import { describe, beforeAll, afterAll } from 'vitest';
@@ -679,20 +593,9 @@ Run tests: `bun run test tests/storage/providers/{provider-name}/`
 
 ### Step 7: Documentation
 
-1. **Update this README:**
-   - Add provider to [Provider Comparison](#provider-comparison) table
-   - Add configuration example to [Configuration Quick Reference](#configuration-quick-reference)
-   - Add provider-specific notes if applicable
+Update this README (provider comparison table, config quick reference), root README (env vars), and AGENTS.md (provider list).
 
-2. **Update root README:**
-   - Add environment variables to configuration table
-
-3. **Update AGENTS.md:**
-   - Add provider to storage provider list
-
-### Reference Implementation
-
-See complete examples:
+### Reference implementations
 
 - Simple: [InMemoryProvider](providers/inMemory/inMemoryProvider.ts)
 - Intermediate: [FileSystemProvider](providers/fileSystem/fileSystemProvider.ts)
@@ -701,51 +604,34 @@ See complete examples:
 
 ## Troubleshooting
 
-### Common Errors
+### Common errors
 
-| Error                                                                     | Cause                               | Solution                                                                                                         |
-| :------------------------------------------------------------------------ | :---------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
-| `Tenant ID is required for storage operations`                            | `context.tenantId` is missing       | **STDIO**: Set explicitly in `createRequestContext({ tenantId: '...' })`<br>**HTTP**: Ensure JWT has `tid` claim |
-| `Invalid tenant ID: exceeds maximum length of 128 characters`             | Tenant ID too long                  | Use shorter identifiers (UUIDs or short hashes)                                                                  |
-| `Invalid cursor format or tenant mismatch`                                | Cursor tampered or wrong tenant     | Never parse/modify cursors client-side. Use same tenant that generated cursor.                                   |
-| `STORAGE_FILESYSTEM_PATH must be set for the filesystem storage provider` | Missing env var                     | Add `STORAGE_FILESYSTEM_PATH=/path/to/storage` to `.env`                                                         |
-| `SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set`                  | Missing Supabase credentials        | Add credentials to `.env`                                                                                        |
-| Cloudflare KV/R2 not available                                            | Provider used in non-serverless env | Use `in-memory`, `filesystem`, or other providers locally                                                        |
+| Error                                                                     | Cause                               | Solution                                                                                             |
+| :------------------------------------------------------------------------ | :---------------------------------- | :--------------------------------------------------------------------------------------------------- |
+| `Tenant ID is required for storage operations`                            | `context.tenantId` is missing       | STDIO: set in `createRequestContext({ tenantId })`. HTTP: ensure JWT has `tid` claim.                |
+| `Invalid tenant ID: exceeds maximum length of 128 characters`             | Tenant ID too long                  | Use shorter identifiers (UUIDs or short hashes)                                                      |
+| `Invalid cursor format or tenant mismatch`                                | Cursor tampered or wrong tenant     | Never parse/modify cursors client-side. Use same tenant that generated cursor.                       |
+| `STORAGE_FILESYSTEM_PATH must be set for the filesystem storage provider` | Missing env var                     | Add `STORAGE_FILESYSTEM_PATH=/path/to/storage` to `.env`                                             |
+| `SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set`                  | Missing Supabase credentials        | Add credentials to `.env`                                                                            |
+| Cloudflare KV/R2 not available                                            | Provider used in non-serverless env | Use `in-memory`, `filesystem`, or other providers locally                                            |
 
-### Performance Tips
+### Performance tips
 
-**Use Batch Operations:**
+Use batch operations (`setMany`/`getMany`/`deleteMany`) instead of loops. Single batch vs 100 round-trips is 5-100x faster.
 
-```typescript
-// ❌ 100 round-trips:
-for (const key of keys) {
-  await storage.set(key, value, context);
-}
+TTL cleanup strategies:
 
-// ✅ 1 batch or parallel:
-await storage.setMany(entries, context);
-```
+| Provider       | Strategy                 | Recommendation                                            |
+| :------------- | :----------------------- | :-------------------------------------------------------- |
+| In-Memory      | Proactive (`setTimeout`) | Automatic                                                 |
+| FileSystem     | Lazy (delete on access)  | Use cron for large datasets                               |
+| Supabase       | Lazy + periodic SQL      | Run `DELETE FROM kv_store WHERE expires_at < NOW()` daily |
+| Cloudflare KV  | Native (automatic)       | Automatic                                                 |
+| Cloudflare R2  | Lazy (delete on access)  | Consider R2 lifecycle policies                            |
 
-**TTL Cleanup Strategies:**
+Provider-specific:
 
-| Provider          | Strategy                 | Recommendation                                            |
-| :---------------- | :----------------------- | :-------------------------------------------------------- |
-| **In-Memory**     | Proactive (`setTimeout`) | Automatic (no action needed)                              |
-| **FileSystem**    | Lazy (delete on access)  | Use cron for large datasets                               |
-| **Supabase**      | Lazy + periodic SQL      | Run `DELETE FROM kv_store WHERE expires_at < NOW()` daily |
-| **Cloudflare KV** | Native (automatic)       | Automatic (no action needed)                              |
-| **Cloudflare R2** | Lazy (delete on access)  | Consider R2 lifecycle policies                            |
-
-**Provider-Specific Optimizations:**
-
-- **Supabase**: Create indexes on `(tenant_id, key)` and `expires_at`
-- **Cloudflare KV**: Use `cacheTtl` for reads, minimize `list()` calls
-- **Cloudflare R2**: Minimize `list()` calls (expensive), use lifecycle policies
-- **FileSystem**: Avoid `list()` with TTL on large directories, use SSD
-
----
-
-**End of Storage Module Documentation**
-
-For general MCP server documentation, see the [root README](../../README.md).
-For strict development rules and agent guidance, see [AGENTS.md](../../AGENTS.md).
+- Supabase: create indexes on `(tenant_id, key)` and `expires_at`
+- Cloudflare KV: use `cacheTtl` for reads, minimize `list()` calls
+- Cloudflare R2: minimize `list()` calls (expensive), use lifecycle policies
+- FileSystem: avoid `list()` with TTL on large directories, use SSD

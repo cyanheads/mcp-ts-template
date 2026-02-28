@@ -4,13 +4,13 @@
 
 The `container/` directory implements a minimal, type-safe DI container with zero external dependencies. No decorators, no `reflect-metadata`, no runtime magic — just typed tokens and factory functions.
 
-**Key Files:**
+Key files:
 
-- **[core/container.ts](core/container.ts)** — `Container` class, `Token<T>`, `token<T>()` factory
-- **[core/tokens.ts](core/tokens.ts)** — All DI tokens with phantom-typed interfaces
-- **[registrations/core.ts](registrations/core.ts)** — Core service registration (config, logging, storage, LLM, etc.)
-- **[registrations/mcp.ts](registrations/mcp.ts)** — MCP-specific registration (tools, resources, prompts, transport)
-- **[index.ts](index.ts)** — Barrel export and `composeContainer()` entry point
+- [core/container.ts](core/container.ts) — `Container` class, `Token<T>`, `token<T>()` factory
+- [core/tokens.ts](core/tokens.ts) — All DI tokens with phantom-typed interfaces
+- [registrations/core.ts](registrations/core.ts) — Core service registration (config, logging, storage, LLM, etc.)
+- [registrations/mcp.ts](registrations/mcp.ts) — MCP-specific registration (tools, resources, prompts, transport)
+- [index.ts](index.ts) — Barrel export and `composeContainer()` entry point
 
 ---
 
@@ -54,7 +54,7 @@ The `container/` directory implements a minimal, type-safe DI container with zer
 
 Tokens use phantom typing via `Token<T>` to carry the resolved type at compile time. This enables fully type-safe resolution without casts.
 
-**File:** [core/tokens.ts](core/tokens.ts)
+File: [core/tokens.ts](core/tokens.ts)
 
 ```typescript
 import { token } from '@/container/core/container.js';
@@ -65,7 +65,7 @@ export const Logger = token<typeof logger>('Logger');
 export const AppConfig = token<ReturnType<typeof parseConfig>>('AppConfig');
 ```
 
-### Available Tokens
+### Available tokens
 
 | Token                     | Type                         | Purpose                         |
 | ------------------------- | ---------------------------- | ------------------------------- |
@@ -91,7 +91,7 @@ export const AppConfig = token<ReturnType<typeof parseConfig>>('AppConfig');
 
 ## Container API
 
-**File:** [core/container.ts](core/container.ts)
+File: [core/container.ts](core/container.ts)
 
 ### Registration
 
@@ -132,7 +132,7 @@ if (container.has(SpeechService)) {
 }
 ```
 
-### Test Isolation
+### Test isolation
 
 ```typescript
 // Fork — creates a child container with shallow-copied registrations
@@ -147,11 +147,11 @@ container.reset();
 
 ---
 
-## Service Registration
+## Service registration
 
-### Core Services
+### Core services
 
-**File:** [registrations/core.ts](registrations/core.ts)
+File: [registrations/core.ts](registrations/core.ts)
 
 ```typescript
 import { container } from '@/container/core/container.js';
@@ -183,9 +183,9 @@ export const registerCoreServices = () => {
 };
 ```
 
-### MCP Services
+### MCP services
 
-**File:** [registrations/mcp.ts](registrations/mcp.ts)
+File: [registrations/mcp.ts](registrations/mcp.ts)
 
 ```typescript
 import { container } from '@/container/core/container.js';
@@ -207,7 +207,7 @@ export const registerMcpServices = () => {
 
 ---
 
-## Container Lifecycle
+## Container lifecycle
 
 ```typescript
 // src/index.ts
@@ -221,11 +221,11 @@ composeContainer();
 
 ---
 
-## Adding a New Service
+## Adding a new service
 
-### 1. Define Token
+### 1. Define token
 
-**File:** [core/tokens.ts](core/tokens.ts)
+File: [core/tokens.ts](core/tokens.ts)
 
 ```typescript
 import type { IMyService } from '@/services/my-service/core/IMyService.js';
@@ -233,7 +233,7 @@ import type { IMyService } from '@/services/my-service/core/IMyService.js';
 export const MyService = token<IMyService>('MyService');
 ```
 
-### 2. Create Service
+### 2. Create service
 
 ```typescript
 // src/services/my-service/core/IMyService.ts
@@ -253,7 +253,7 @@ export class MyServiceImpl implements IMyService {
 
 ### 3. Register
 
-**File:** [registrations/core.ts](registrations/core.ts)
+File: [registrations/core.ts](registrations/core.ts)
 
 ```typescript
 import { MyService } from '@/container/core/tokens.js';
@@ -280,7 +280,7 @@ await myService.execute();
 
 ## Testing with DI
 
-### Forking for Isolation
+### Forking for isolation
 
 ```typescript
 import { container } from '@/container/core/container.js';
@@ -301,7 +301,7 @@ describe('MyService', () => {
 });
 ```
 
-### Clearing Singleton State
+### Clearing singleton state
 
 ```typescript
 afterEach(() => {
@@ -311,19 +311,19 @@ afterEach(() => {
 
 ---
 
-## Best Practices
+## Best practices
 
-1. **Depend on interfaces, not implementations** — tokens carry interface types
-2. **Register early, resolve late** — all registration happens in `composeContainer()`, resolution happens at runtime
-3. **Keep registration centralized** — all in `registrations/core.ts` or `registrations/mcp.ts`
-4. **Use singletons for stateless services** — config, logger, storage, providers
-5. **Use `fork()` in tests** — isolates test state without affecting the global container
+- Depend on interfaces, not implementations — tokens carry interface types
+- Register early, resolve late — all registration in `composeContainer()`, resolution at runtime
+- Keep registration centralized — `registrations/core.ts` or `registrations/mcp.ts`
+- Use singletons for stateless services — config, logger, storage, providers
+- Use `fork()` in tests — isolates state without affecting the global container
 
 ---
 
-## See Also
+## See also
 
-- [Services Module](../services/README.md) — Service development pattern
-- [MCP Server Module](../mcp-server/README.md) — Using DI in tools/resources
-- [Storage Module](../storage/README.md) — Storage service injection
-- [AGENTS.md](../../AGENTS.md) — Architectural mandate (Section VI)
+- [Services](../services/README.md) — Service development pattern
+- [MCP Server](../mcp-server/README.md) — Using DI in tools/resources
+- [Storage](../storage/README.md) — Storage service injection
+- [AGENTS.md](../../AGENTS.md) — Architectural mandate
