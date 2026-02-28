@@ -158,6 +158,7 @@ All configuration is centralized and validated at startup in `src/config/index.t
 | `MCP_AUTH_SECRET_KEY`     | **Required for `jwt` auth mode.** A 32+ character secret.                                                  | `(none)`     |
 | `DEV_MCP_AUTH_BYPASS`     | Set to `true` to bypass JWT auth in development (requires no secret key).                                  | `false`      |
 | `OAUTH_ISSUER_URL`        | **Required for `oauth` auth mode.** URL of the OIDC provider.                                              | `(none)`     |
+| `OAUTH_AUDIENCE`          | **Required for `oauth` auth mode.** Expected audience claim in the JWT.                                    | `(none)`     |
 | `STORAGE_PROVIDER_TYPE`   | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-d1`, `cloudflare-kv`, `cloudflare-r2`. | `in-memory`  |
 | `STORAGE_FILESYSTEM_PATH` | Path to the storage directory (for `filesystem` provider).                                                 | `./.storage` |
 | `SUPABASE_URL`            | **Required for `supabase` storage.** Your Supabase project URL.                                            | `(none)`     |
@@ -168,6 +169,7 @@ All configuration is centralized and validated at startup in `src/config/index.t
 ### Authentication and authorization
 
 - Modes: `none` (default), `jwt` (requires `MCP_AUTH_SECRET_KEY`), or `oauth` (requires `OAUTH_ISSUER_URL` and `OAUTH_AUDIENCE`).
+- In development, set `DEV_MCP_AUTH_BYPASS=true` to skip JWT validation without a secret key. Rejected in production.
 - Wrap tool/resource `logic` with `withToolAuth([...])` or `withResourceAuth([...])` for scope checks. Checks are bypassed when auth mode is `none`.
 
 ### Storage
