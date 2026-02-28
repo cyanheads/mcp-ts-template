@@ -55,10 +55,10 @@ export class ElevenLabsProvider implements ISpeechProvider {
     }
 
     this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || 'https://api.elevenlabs.io/v1';
-    this.defaultVoiceId = config.defaultVoiceId || 'EXAVITQu4vr4xnSDxMaL'; // Default: Bella
-    this.defaultModelId = config.defaultModelId || 'eleven_monolingual_v1';
-    this.timeout = config.timeout || 30000;
+    this.baseUrl = config.baseUrl ?? 'https://api.elevenlabs.io/v1';
+    this.defaultVoiceId = config.defaultVoiceId ?? 'EXAVITQu4vr4xnSDxMaL'; // Default: Bella
+    this.defaultModelId = config.defaultModelId ?? 'eleven_monolingual_v1';
+    this.timeout = config.timeout ?? 30000;
 
     logger.info(
       `ElevenLabs TTS provider initialized: ${this.baseUrl}, voice=${this.defaultVoiceId}`,
@@ -71,10 +71,10 @@ export class ElevenLabsProvider implements ISpeechProvider {
   async textToSpeech(options: TextToSpeechOptions): Promise<TextToSpeechResult> {
     const context = requestContextService.createRequestContext({
       operation: 'elevenlabs-tts',
-      ...(options.context || {}),
+      ...(options.context ?? {}),
     });
-    const voiceId = options.voice?.voiceId || this.defaultVoiceId;
-    const modelId = options.modelId || this.defaultModelId;
+    const voiceId = options.voice?.voiceId ?? this.defaultVoiceId;
+    const modelId = options.modelId ?? this.defaultModelId;
 
     logger.debug('Converting text to speech with ElevenLabs', context);
 

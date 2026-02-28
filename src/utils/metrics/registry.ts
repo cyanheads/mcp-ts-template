@@ -29,8 +29,6 @@ const histograms: HistogramMap = new Map();
  */
 const noOpCounter: Counter = {
   add: () => undefined,
-  bind: () => ({ add: () => undefined }),
-  unbind: () => undefined,
 } as Counter;
 
 /**
@@ -40,8 +38,6 @@ const noOpCounter: Counter = {
  */
 const noOpHistogram: Histogram = {
   record: () => undefined,
-  bind: () => ({ record: () => undefined }),
-  unbind: () => undefined,
 } as Histogram;
 
 /**

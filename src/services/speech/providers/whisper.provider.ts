@@ -54,9 +54,9 @@ export class WhisperProvider implements ISpeechProvider {
     }
 
     this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || 'https://api.openai.com/v1';
-    this.defaultModelId = config.defaultModelId || 'whisper-1';
-    this.timeout = config.timeout || 60000; // Longer timeout for audio processing
+    this.baseUrl = config.baseUrl ?? 'https://api.openai.com/v1';
+    this.defaultModelId = config.defaultModelId ?? 'whisper-1';
+    this.timeout = config.timeout ?? 60000; // Longer timeout for audio processing
 
     logger.info(
       `OpenAI Whisper STT provider initialized: ${this.baseUrl}, model=${this.defaultModelId}`,
@@ -79,9 +79,9 @@ export class WhisperProvider implements ISpeechProvider {
   async speechToText(options: SpeechToTextOptions): Promise<SpeechToTextResult> {
     const context = requestContextService.createRequestContext({
       operation: 'whisper-stt',
-      ...(options.context || {}),
+      ...(options.context ?? {}),
     });
-    const modelId = options.modelId || this.defaultModelId;
+    const modelId = options.modelId ?? this.defaultModelId;
 
     logger.debug('Converting speech to text with Whisper', context);
 

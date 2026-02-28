@@ -63,7 +63,7 @@ export class OpenRouterProvider implements ILlmProvider {
       };
 
       this.client = new OpenAI({
-        baseURL: options.baseURL || 'https://openrouter.ai/api/v1',
+        baseURL: options.baseURL ?? 'https://openrouter.ai/api/v1',
         apiKey: options.apiKey,
         defaultHeaders: {
           'HTTP-Referer': options.siteUrl,
@@ -103,7 +103,7 @@ export class OpenRouterProvider implements ILlmProvider {
 
     return {
       ...rest,
-      model: model || this.defaultParams.model,
+      model: model ?? this.defaultParams.model,
       temperature:
         temperature === null ? undefined : (temperature ?? this.defaultParams.temperature),
       top_p: topP === null ? undefined : (topP ?? this.defaultParams.topP),
@@ -145,7 +145,7 @@ export class OpenRouterProvider implements ILlmProvider {
 
     return await ErrorHandler.tryCatch(
       async () => {
-        const rateLimitKey = context.requestId || 'openrouter_default_key';
+        const rateLimitKey = context.requestId ?? 'openrouter_default_key';
         this.rateLimiter.check(rateLimitKey, context);
         const finalApiParams = this._prepareApiParameters(params) as OpenRouterChatParams;
         return await this._openRouterChatCompletionLogic(this.client, finalApiParams, context);

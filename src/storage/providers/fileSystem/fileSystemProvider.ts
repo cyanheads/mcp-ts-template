@@ -24,6 +24,7 @@ import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { sanitization } from '@/utils/security/sanitization.js';
+import { isErrorWithCode } from '@/utils/types/guards.js';
 
 const DEFAULT_LIST_LIMIT = 1000;
 
@@ -138,11 +139,7 @@ export class FileSystemProvider implements IStorageProvider {
           const data = await readFile(filePath, 'utf-8');
           return this.parseAndValidate<T>(data, tenantId, key, filePath, context);
         } catch (error: unknown) {
-          if (
-            error instanceof Error &&
-            'code' in error &&
-            (error as { code: string }).code === 'ENOENT'
-          ) {
+          if (isErrorWithCode(error) && error.code === 'ENOENT') {
             return null; // File not found
           }
           throw error; // Re-throw other errors
@@ -187,11 +184,7 @@ export class FileSystemProvider implements IStorageProvider {
           await rm(filePath);
           return true;
         } catch (error: unknown) {
-          if (
-            error instanceof Error &&
-            'code' in error &&
-            (error as { code: string }).code === 'ENOENT'
-          ) {
+          if (isErrorWithCode(error) && error.code === 'ENOENT') {
             return false; // File didn't exist
           }
           throw error;

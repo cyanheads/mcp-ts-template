@@ -119,8 +119,9 @@ export class SchedulerService {
       try {
         await Promise.resolve(taskFunction(context));
         logger.info(`Job '${id}' completed successfully.`, context);
-      } catch (error) {
-        logger.error(`Job '${id}' failed.`, error as Error, context);
+      } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        logger.error(`Job '${id}' failed.`, err, context);
       } finally {
         if (job) {
           job.isRunning = false;

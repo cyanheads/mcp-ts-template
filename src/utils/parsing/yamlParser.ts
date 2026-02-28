@@ -73,7 +73,7 @@ export class YamlParser {
       // Specifying it explicitly guards against default changes in future versions.
       return yaml.load(stringToParse, { schema: yaml.DEFAULT_SCHEMA }) as T;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       const errorLogContext =
         context ||
         requestContextService.createRequestContext({

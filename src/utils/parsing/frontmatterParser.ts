@@ -120,7 +120,7 @@ export class FrontmatterParser {
         hasFrontmatter: true,
       };
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       const errorLogContext =
         context ||
         requestContextService.createRequestContext({

@@ -72,7 +72,8 @@ const shutdown = async (signal: string): Promise<void> => {
 
     process.exit(0);
   } catch (error: unknown) {
-    logger.error('Critical error during shutdown process.', error as Error, shutdownContext);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error('Critical error during shutdown process.', err, shutdownContext);
     try {
       await logger.close();
     } catch (_e) {
@@ -145,11 +146,13 @@ const start = async (): Promise<void> => {
       void shutdown('uncaughtException');
     });
     process.on('unhandledRejection', (reason: unknown) => {
-      logger.fatal('FATAL: Unhandled promise rejection detected.', reason as Error, startupContext);
+      const err = reason instanceof Error ? reason : new Error(String(reason));
+      logger.fatal('FATAL: Unhandled promise rejection detected.', err, startupContext);
       void shutdown('unhandledRejection');
     });
   } catch (error: unknown) {
-    logger.fatal('CRITICAL ERROR DURING STARTUP.', error as Error, startupContext);
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.fatal('CRITICAL ERROR DURING STARTUP.', err, startupContext);
     await shutdownOpenTelemetry(); // Attempt to flush any startup-related traces
     process.exit(1);
   }

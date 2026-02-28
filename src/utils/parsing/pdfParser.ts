@@ -309,7 +309,7 @@ export class PdfParser {
       const doc = await PDFDocument.create();
       return doc;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to create PDF document.', {
         ...logContext,
         errorDetails: error.message,
@@ -358,7 +358,7 @@ export class PdfParser {
       const doc = await PDFDocument.load(pdfBytes);
       return doc;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to load PDF document.', {
         ...logContext,
         errorDetails: error.message,
@@ -425,7 +425,7 @@ export class PdfParser {
       const font = await doc.embedFont(StandardFonts[fontName]);
       return font;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to embed font.', {
         ...logContext,
         fontName,
@@ -484,7 +484,7 @@ export class PdfParser {
 
       return image;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to embed image.', {
         ...logContext,
         format: options.format,
@@ -701,7 +701,7 @@ export class PdfParser {
 
       return mergedPdf;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to merge PDF documents.', {
         ...logContext,
         errorDetails: error.message,
@@ -772,7 +772,7 @@ export class PdfParser {
 
       return results;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to split PDF document.', {
         ...logContext,
         errorDetails: error.message,
@@ -860,7 +860,7 @@ export class PdfParser {
 
       logger.debug('Successfully filled PDF form.', logContext);
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to fill PDF form.', {
         ...logContext,
         errorDetails: error.message,
@@ -1014,7 +1014,7 @@ export class PdfParser {
         text: result.text,
       };
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to extract text from PDF.', {
         ...logContext,
         errorDetails: error.message,
@@ -1060,7 +1060,7 @@ export class PdfParser {
       });
       return bytes;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to serialize PDF document.', {
         ...logContext,
         errorDetails: error.message,

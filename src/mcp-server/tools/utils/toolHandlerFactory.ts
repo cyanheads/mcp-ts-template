@@ -13,7 +13,7 @@ import type {
   ServerRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
-import type { McpError } from '@/types-global/errors.js';
+import { McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { measureToolExecution } from '@/utils/internal/performance.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
@@ -69,7 +69,10 @@ export function createMcpToolHandler<
     input: z.infer<TInputSchema>,
     callContext: Record<string, unknown>,
   ): Promise<CallToolResult> => {
-    // The `callContext` from the SDK is cast to our specific SdkContext type.
+    // The SDK types `extra` as `Record<string, unknown>` at this boundary, but the
+    // runtime object always carries the full SdkContext shape (signal, sendNotification,
+    // sendRequest, authInfo, and optional capabilities like elicitInput/createMessage).
+    // This cast is unavoidable at the SDK/app type boundary.
     const sdkContext = callContext as SdkContext;
 
     const sessionId = typeof sdkContext?.sessionId === 'string' ? sdkContext.sessionId : undefined;
@@ -98,11 +101,17 @@ export function createMcpToolHandler<
         content: responseFormatter(result),
       };
     } catch (error: unknown) {
-      const mcpError = ErrorHandler.handleError(error, {
+      // handleError always returns McpError when no errorMapper is provided,
+      // but its declared return type is the broader Error. Narrow with instanceof.
+      const handled = ErrorHandler.handleError(error, {
         operation: `tool:${toolName}`,
         context: appContext,
         input,
-      }) as McpError;
+      });
+      const mcpError =
+        handled instanceof McpError
+          ? handled
+          : new McpError(-32603, handled.message, { originalError: handled.name });
 
       return {
         isError: true,
