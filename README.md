@@ -1,6 +1,6 @@
 <div align="center">
   <h1>mcp-ts-template</h1>
-  <p><b>TypeScript template for building Model Context Protocol (MCP) servers. Ships with declarative tools/resources, pluggable auth, multi-backend storage, OpenTelemetry observability, and first-class support for both local and edge (Cloudflare Workers) runtimes.</b>
+  <p><b>TypeScript template for building Model Context Protocol (MCP) servers. Ships with declarative tools/resources, pluggable auth, multi-backend storage, OpenTelemetry observability, and support for both local and edge (Cloudflare Workers) runtimes.</b>
   <div>7 Tools • 2 Resources • 1 Prompt</div>
   </p>
 </div>
@@ -13,22 +13,22 @@
 
 ---
 
-## ✨ Features
+## Features
 
-- **Declarative Tools & Resources**: Define capabilities in single, self-contained files. The framework handles registration and execution.
-- **Elicitation Support**: Tools can interactively prompt the user for missing parameters during execution, streamlining user workflows.
-- **Robust Error Handling**: A unified `McpError` system ensures consistent, structured error responses across the server.
-- **Pluggable Authentication**: Secure your server with zero-fuss support for `none`, `jwt`, or `oauth` modes.
-- **Abstracted Storage**: Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `Cloudflare D1/KV/R2`) without changing business logic. Features secure opaque cursor pagination, parallel batch operations, and comprehensive validation.
-- **Full-Stack Observability**: Get deep insights with structured logging (Pino) and optional OpenTelemetry for HTTP request tracing, tool-call metrics, and log correlation.
-- **Dependency Injection**: Custom typed DI container with `Token<T>` phantom branding — zero external dependencies, fully type-safe resolution.
-- **Service Integrations**: Pluggable services for external APIs, including LLM providers (OpenRouter) and text-to-speech (ElevenLabs).
-- **Rich Built-in Utility Suite**: Helpers for parsing (PDF, YAML, CSV, frontmatter), formatting (diffs, tables, trees, markdown), scheduling, security, and more.
-- **Edge-Ready**: Write code once and run it seamlessly on your local machine or at the edge on Cloudflare Workers.
+- Define tools and resources in single, self-contained files. The framework handles registration.
+- Tools can prompt users for missing parameters mid-execution via elicitation.
+- Unified `McpError` system for consistent, structured error responses.
+- Auth modes: `none`, `jwt`, or `oauth`. Wrap logic with `withToolAuth`/`withResourceAuth`.
+- Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `Cloudflare D1/KV/R2`) without changing tool logic. Includes cursor pagination, batch ops, and input validation.
+- Structured logging (Pino) with optional OpenTelemetry for tracing and metrics.
+- Custom typed DI container with `Token<T>` phantom branding. No external deps.
+- Pluggable service integrations: LLM (OpenRouter), TTS (ElevenLabs).
+- Parsing helpers (PDF, YAML, CSV, frontmatter), formatting (diffs, tables, trees, markdown), scheduling, security.
+- Runs on local (stdio/HTTP) and edge (Cloudflare Workers) with the same code.
 
-## 🏗️ Architecture
+## Architecture
 
-This template follows a modular, domain-driven architecture with clear separation of concerns:
+Modular, domain-driven layout with clear separation of concerns:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -38,36 +38,34 @@ This template follows a modular, domain-driven architecture with clear separatio
                      ▼
 ┌─────────────────────────────────────────────────────────┐
 │           MCP Server (Tools, Resources)                 │
-│           📖 [MCP Server Guide](src/mcp-server/)        │
+│              [MCP Server Guide](src/mcp-server/)         │
 └────────────────────┬────────────────────────────────────┘
                      │ Dependency Injection
                      ▼
 ┌─────────────────────────────────────────────────────────┐
 │          Dependency Injection Container                 │
-│              📦 [Container Guide](src/container/)       │
+│              [Container Guide](src/container/)           │
 └────────────────────┬────────────────────────────────────┘
                      │
         ┌────────────┼────────────┐
         ▼            ▼            ▼
  ┌──────────┐   ┌──────────┐   ┌──────────┐
  │ Services │   │ Storage  │   │ Utilities│
- │ 🔌 [→]   │   │ 💾 [→]   │   │ 🛠️ [→]   │
+ │    [→]   │   │    [→]   │   │    [→]   │
  └──────────┘   └──────────┘   └──────────┘
 
 [→]: src/services/    [→]: src/storage/    [→]: src/utils/
 ```
 
-**Key Modules:**
+Key modules:
 
-- **[MCP Server](src/mcp-server/)** - Tools, resources, prompts, and transport layer implementations
-- **[Container](src/container/)** - Typed dependency injection container with zero external dependencies
-- **[Services](src/services/)** - External service integrations (LLM, Speech, Graph) with pluggable providers
-- **[Storage](src/storage/)** - Abstracted persistence layer with multiple backend support
-- **[Utilities](src/utils/)** - Cross-cutting concerns (logging, security, parsing, telemetry)
+- [MCP Server](src/mcp-server/) — Tools, resources, prompts, and transport layer
+- [Container](src/container/) — Typed DI container, no external deps
+- [Services](src/services/) — External integrations (LLM, Speech, Graph) with pluggable providers
+- [Storage](src/storage/) — Persistence layer with multiple backend support
+- [Utilities](src/utils/) — Logging, security, parsing, telemetry
 
-> 💡 **Tip**: Each module has its own comprehensive README with architecture diagrams, usage examples, and best practices. Click the links above to dive deeper!
-
-## 🛠️ Included Capabilities
+## Included capabilities
 
 This template includes working examples to get you started.
 
@@ -96,9 +94,9 @@ This template includes working examples to get you started.
 | :---------------- | :--------------------------------------------------------------- |
 | **`code-review`** | A structured prompt for guiding an LLM to perform a code review. |
 
-## 🚀 Getting Started
+## Getting started
 
-### MCP Client Settings/Configuration
+### MCP client configuration
 
 Add the following to your MCP client configuration file.
 
@@ -144,7 +142,7 @@ cd mcp-ts-template
 bun install
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 All configuration is centralized and validated at startup in `src/config/index.ts`. Key environment variables in your `.env` file include:
 
@@ -165,30 +163,26 @@ All configuration is centralized and validated at startup in `src/config/index.t
 | `OTEL_ENABLED`            | Set to `true` to enable OpenTelemetry.                                                                     | `false`      |
 | `OPENROUTER_API_KEY`      | API key for OpenRouter LLM service.                                                                        | `(none)`     |
 
-### Authentication & Authorization
+### Authentication and authorization
 
-- **Modes**: `none` (default), `jwt` (requires `MCP_AUTH_SECRET_KEY`), or `oauth` (requires `OAUTH_ISSUER_URL` and `OAUTH_AUDIENCE`).
-- **Enforcement**: Wrap your tool/resource `logic` functions with `withToolAuth([...])` or `withResourceAuth([...])` to enforce scope checks. Scope checks are bypassed for developer convenience when auth mode is `none`.
+- Modes: `none` (default), `jwt` (requires `MCP_AUTH_SECRET_KEY`), or `oauth` (requires `OAUTH_ISSUER_URL` and `OAUTH_AUDIENCE`).
+- Wrap tool/resource `logic` with `withToolAuth([...])` or `withResourceAuth([...])` for scope checks. Checks are bypassed when auth mode is `none`.
 
 ### Storage
 
-- **Service**: A DI-managed `StorageService` provides a consistent API for persistence. **Never access `fs` or other storage SDKs directly from tool logic.**
-- **Providers**: The default is `in-memory`. Node-only providers include `filesystem`. Edge-compatible providers include `supabase`, `cloudflare-kv`, and `cloudflare-r2`.
-- **Multi-Tenancy**: The `StorageService` requires `context.tenantId`. This is automatically propagated from the `tid` claim in a JWT when auth is enabled.
-- **Advanced Features**:
-  - **Secure Pagination**: Opaque cursors with tenant ID binding prevent cross-tenant attacks
-  - **Batch Operations**: Parallel execution for `getMany()`, `setMany()`, `deleteMany()`
-  - **TTL Support**: Time-to-live with proper expiration handling across all providers
-  - **Comprehensive Validation**: Centralized input validation for tenant IDs, keys, and options
+- DI-managed `StorageService` provides a consistent API for persistence. Never access `fs` or storage SDKs directly from tool logic.
+- Default provider is `in-memory`. Node-only: `filesystem`. Edge-compatible: `supabase`, `cloudflare-kv`, `cloudflare-r2`.
+- `StorageService` requires `context.tenantId`, auto-propagated from the JWT `tid` claim when auth is enabled.
+- Opaque cursor pagination with tenant binding, parallel batch ops (`getMany`/`setMany`/`deleteMany`), TTL support, centralized input validation.
 
 ### Observability
 
-- **Structured Logging**: Pino is integrated out-of-the-box. All logs are JSON and include the `RequestContext`.
-- **OpenTelemetry**: Disabled by default. Enable with `OTEL_ENABLED=true` and configure OTLP endpoints. HTTP request-level spans are generated via `@hono/otel` (works on Bun, where Node.js auto-instrumentation is a no-op). Tool-call metrics (duration, payload sizes, errors) are captured automatically. Pino logs auto-correlate to traces via `trace_id`/`span_id`.
+- Pino for structured JSON logging. All logs include `RequestContext`.
+- OpenTelemetry disabled by default. Enable with `OTEL_ENABLED=true`. HTTP spans via `@hono/otel` (works on Bun). Tool-call metrics (duration, payload sizes, errors) captured automatically. Pino logs correlate to traces via `trace_id`/`span_id`.
 
-## ▶️ Running the Server
+## Running the server
 
-### Local Development
+### Local development
 
 - **Build and run the production version**:
 
@@ -208,7 +202,7 @@ All configuration is centralized and validated at startup in `src/config/index.t
   bun run test # Runs the test suite (Do not use 'bun test' directly as it may not work correctly)
   ```
 
-### Cloudflare Workers
+### Cloudflare workers
 
 1.  **Build the Worker bundle**:
 
@@ -230,91 +224,64 @@ bun deploy:prod
 
 > **Note**: The `wrangler.toml` file is pre-configured to enable `nodejs_compat` for best results.
 
-## 📂 Project Structure
+## Project structure
 
 | Directory                              | Purpose & Contents                                                                   | Guide                                |
 | :------------------------------------- | :----------------------------------------------------------------------------------- | :----------------------------------- |
-| `src/mcp-server/tools/definitions`     | Your tool definitions (`*.tool.ts`). This is where you add new capabilities.         | [📖 MCP Guide](src/mcp-server/)      |
-| `src/mcp-server/resources/definitions` | Your resource definitions (`*.resource.ts`). This is where you add new data sources. | [📖 MCP Guide](src/mcp-server/)      |
-| `src/mcp-server/transports`            | Implementations for HTTP and STDIO transports, including auth middleware.            | [📖 MCP Guide](src/mcp-server/)      |
-| `src/storage`                          | The `StorageService` abstraction and all storage provider implementations.           | [💾 Storage Guide](src/storage/)     |
-| `src/services`                         | Integrations with external services (e.g., the default OpenRouter LLM provider).     | [🔌 Services Guide](src/services/)   |
-| `src/container`                        | Dependency injection container registrations and tokens.                             | [📦 Container Guide](src/container/) |
+| `src/mcp-server/tools/definitions`     | Tool definitions (`*.tool.ts`). Add new capabilities here.                           | [MCP Guide](src/mcp-server/)      |
+| `src/mcp-server/resources/definitions` | Resource definitions (`*.resource.ts`). Add new data sources here.                   | [MCP Guide](src/mcp-server/)      |
+| `src/mcp-server/transports`            | HTTP and STDIO transports, including auth middleware.                                | [MCP Guide](src/mcp-server/)      |
+| `src/storage`                          | `StorageService` abstraction and provider implementations.                           | [Storage Guide](src/storage/)     |
+| `src/services`                         | External service integrations (e.g., OpenRouter LLM provider).                       | [Services Guide](src/services/)   |
+| `src/container`                        | DI container registrations and tokens.                                               | [Container Guide](src/container/) |
 | `src/utils`                            | Core utilities for logging, error handling, performance, security, and telemetry.    |                                      |
 | `src/config`                           | Environment variable parsing and validation with Zod.                                |                                      |
 | `tests/`                               | Unit and integration tests, mirroring the `src/` directory structure.                |                                      |
 
-## 📚 Documentation
+## Documentation
 
-Each major module includes comprehensive documentation with architecture diagrams, usage examples, and best practices:
+Each module directory has its own README with architecture details and examples.
 
-### Core Modules
+### Core modules
 
-- **[MCP Server Guide](src/mcp-server/)** - Complete guide to building MCP tools and resources
-  - Creating tools with declarative definitions
-  - Resource development with URI templates
-  - Authentication and authorization
-  - Transport layer (HTTP/stdio) configuration
-  - SDK context and client interaction
-  - Response formatting and error handling
+- [MCP Server Guide](src/mcp-server/) — Building tools, resources, auth, transports, SDK context, response formatting
+- [Container Guide](src/container/) — DI tokens, registration, service lifetimes, testing with mocks
+- [Services Guide](src/services/) — LLM (OpenRouter), Speech (ElevenLabs, Whisper), custom providers
+- [Storage Guide](src/storage/) — Provider implementations, multi-tenancy, pagination, batch ops, TTL
 
-- **[Container Guide](src/container/)** - Typed dependency injection container
-  - Understanding DI tokens and registration
-  - Service lifetimes (singleton, transient, instance)
-  - Constructor injection patterns
-  - Testing with mocked dependencies
-  - Adding new services to the container
+### Other references
 
-- **[Services Guide](src/services/)** - External service integration patterns
-  - LLM provider integration (OpenRouter)
-  - Speech services (TTS/STT with ElevenLabs, Whisper)
-  - Creating custom service providers
-  - Health checks and error handling
+- [AGENTS.md](AGENTS.md) — Development rules for AI agents
+- [CHANGELOG.md](CHANGELOG.md) — Version history and breaking changes
+- [docs/tree.md](docs/tree.md) — Visual directory structure
+- [docs/publishing-mcp-server-registry.md](docs/publishing-mcp-server-registry.md) — Publishing to MCP Registry
 
-- **[Storage Guide](src/storage/)** - Abstracted persistence layer
-  - Storage provider implementations
-  - Multi-tenancy and tenant isolation
-  - Secure cursor-based pagination
-  - Batch operations and TTL support
-  - Provider-specific setup guides
+## Agent development guide
 
-### Additional Resources
+See `AGENTS.md` for the full rules when using this template with an AI agent. Key principles:
 
-- **[AGENTS.md](AGENTS.md)** - Strict development rules for AI agents
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history and breaking changes
-- **[docs/tree.md](docs/tree.md)** - Complete visual directory structure
-- **[docs/publishing-mcp-server-registry.md](docs/publishing-mcp-server-registry.md)** - Publishing guide for MCP Registry
+- Never use `try/catch` in tool/resource `logic`. Throw `McpError` instead — handlers catch.
+- Use `elicitInput` from `SdkContext` to ask for missing user input.
+- Pass `RequestContext` through the call stack.
+- Import from the defining file, not barrel `index.ts`. Register new tools/resources in `definitions/index.ts`.
 
-## 🧑‍💻 Agent Development Guide
+## FAQ
 
-For a strict set of rules when using this template with an AI agent, please refer to **`AGENTS.md`**. Key principles include:
+- **Does this work with both STDIO and Streamable HTTP?** Yes. Use `bun run dev:stdio` or `bun run dev:http`.
+- **Can I deploy this to the edge?** Yes. Run `bun run build:worker` and deploy with Wrangler.
+- **Do I have to use OpenTelemetry?** No, disabled by default. Set `OTEL_ENABLED=true` to enable.
+- **How do I publish my server to the MCP Registry?** See `docs/publishing-mcp-server-registry.md`.
 
-- **Logic Throws, Handlers Catch**: Never use `try/catch` in your tool/resource `logic`. Throw an `McpError` instead.
-- **Use Elicitation for Missing Input**: If a tool requires user input that wasn't provided, use the `elicitInput` function from the `SdkContext` to ask the user for it.
-- **Pass the Context**: Always pass the `RequestContext` object through your call stack.
-- **Direct File Imports**: Import from the defining file, not from barrel `index.ts`. Register new tools/resources in `definitions/index.ts`.
+## Contributing
 
-## ❓ FAQ
-
-- **Does this work with both STDIO and Streamable HTTP?**
-  - Yes. Both transports are first-class citizens. Use `bun run dev:stdio` or `bun run dev:http`.
-- **Can I deploy this to the edge?**
-  - Yes. The template is designed for Cloudflare Workers. Run `bun run build:worker` and deploy with Wrangler.
-- **Do I have to use OpenTelemetry?**
-  - No, it is disabled by default. Enable it by setting `OTEL_ENABLED=true` in your `.env` file.
-- **How do I publish my server to the MCP Registry?**
-  - Follow the step-by-step guide in `docs/publishing-mcp-server-registry.md`.
-
-## 🤝 Contributing
-
-Issues and pull requests are welcome! If you plan to contribute, please run the local checks and tests before submitting your PR.
+Issues and pull requests are welcome. Run checks and tests before submitting:
 
 ```sh
 bun run devcheck
-bun test
+bun run test
 ```
 
-## 📜 License
+## License
 
 This project is licensed under the Apache 2.0 License. See the [LICENSE](./LICENSE) file for details.
 
