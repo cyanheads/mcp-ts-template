@@ -728,12 +728,19 @@ Rules for the orchestrator (main conversation) when spawning subagents via the A
 ## Checklist
 
 - [ ] Pure logic in `*.tool.ts`/`*.resource.ts`/`*.prompt.ts` (no `try...catch`, throw `McpError`)
+- [ ] Zod schemas: all fields have `.describe()`, input/output schemas defined
+- [ ] JSDoc `@fileoverview` + `@module` header on every new/modified file
 - [ ] Auth applied with `withToolAuth`/`withResourceAuth`
 - [ ] Logger used with `appContext` spread, `StorageService` (DI) for persistence
 - [ ] `sdkContext` capabilities duck-typed with guards before use
+- [ ] `tenantId` set on `RequestContext` when using `StorageService`
 - [ ] Direct file imports — no barrel imports
+- [ ] Naming: kebab-case files, snake_case `TOOL_NAME`, correct suffix (`.tool.ts`/`.task-tool.ts`/`.app-tool.ts`/`.resource.ts`/`.prompt.ts`)
+- [ ] Task tools: `TaskToolDefinition` type, `taskHandlers` implemented, `.task-tool.ts` suffix
+- [ ] Resources with large lists: pagination via `extractCursor`/`paginateArray`
+- [ ] Secrets only in `src/config/index.ts` — no hardcoded credentials
 - [ ] Registered in `definitions/index.ts` registry
-- [ ] Tests added/updated (`bun test`) — logic tested directly, sdkContext mocked
-- [ ] **`bun devcheck` passes** (lint, format, typecheck, security)
+- [ ] Tests added/updated (`bun run test`) — logic tested directly, sdkContext mocked
+- [ ] **`bun run devcheck` passes** (lint, format, typecheck, security)
 - [ ] Smoke-tested local transports (`dev:stdio`/`http`)
 - [ ] Worker bundle validated (`build:worker`)
