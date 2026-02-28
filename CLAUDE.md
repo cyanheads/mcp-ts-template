@@ -617,6 +617,7 @@ Entry point: `src/worker.ts`. Exports standard Workers `{ fetch, scheduled }` ob
 - **Rate limiting:** DI-injected `RateLimiter`
 - **Telemetry:** auto-init, no manual spans
 - **Imports:** direct file imports everywhere. Barrels only for aggregation (see [Imports](#imports)).
+- **No fabricated signal:** Don't invent synthetic scores, composite metrics, or calculated "confidence percentages" from arbitrary weights. They look authoritative but are epistemically empty and mislead both users and AI agents. Surface real signal: actual API scores, direct measurements, factual orderings with interpretable criteria. If ranking/sorting, use transparent rules and document them.
 
 ---
 
