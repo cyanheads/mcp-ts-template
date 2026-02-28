@@ -54,7 +54,7 @@ const TOOL_DESCRIPTION =
  * - readOnlyHint?: boolean — True if tool does not modify environment.
  * - destructiveHint?: boolean — If not read-only, set true if updates can be destructive. Default true.
  * - idempotentHint?: boolean — If not read-only, true if repeat calls with same args have no additional effect.
- * - openWorldHint?: boolean — True if tool may interact with an open, external world (e.e., web search). Default true.
+ * - openWorldHint?: boolean — True if tool may interact with an open, external world (e.g., web search). Default true.
  *
  * Note: These are hints only. Clients should not rely on them for safety guarantees.
  */
@@ -67,9 +67,6 @@ const TOOL_ANNOTATIONS: ToolAnnotations = {
 // External API details
 const CAT_API_URL = 'https://cataas.com/cat';
 const API_TIMEOUT_MS = 5000;
-
-// API response validation
-// No external API used for this tool that requires schema validation based on an external response.
 
 //
 // Schemas (input and output)

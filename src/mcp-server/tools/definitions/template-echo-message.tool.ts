@@ -139,18 +139,11 @@ function echoToolLogic(
   });
 
   if (input.message === TEST_ERROR_TRIGGER_MESSAGE) {
-    const errorData: Record<string, unknown> = {
-      requestId: appContext.requestId,
-    };
     const traceId = getStringProperty(appContext, 'traceId');
-    if (traceId) {
-      errorData.traceId = traceId;
-    }
-    throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      'Deliberate failure triggered.',
-      errorData,
-    );
+    throw new McpError(JsonRpcErrorCode.ValidationError, 'Deliberate failure triggered.', {
+      requestId: appContext.requestId,
+      ...(traceId && { traceId }),
+    });
   }
 
   const formattedMessage =
@@ -162,7 +155,7 @@ function echoToolLogic(
 
   const repeatedMessage = Array(input.repeat).fill(formattedMessage).join(' ');
 
-  const response: EchoToolResponse = {
+  return {
     originalMessage: input.message,
     formattedMessage,
     repeatedMessage,
@@ -170,37 +163,10 @@ function echoToolLogic(
     repeatCount: input.repeat,
     ...(input.includeTimestamp && { timestamp: new Date().toISOString() }),
   };
-
-  return response;
 }
 
 /**
  * Formats a concise human-readable summary while structuredContent carries the full payload.
- *
- * @example Before (manual string concatenation):
- * ```typescript
- * const lines = [
- *   `Echo (mode=${result.mode}, repeat=${result.repeatCount})`,
- *   preview,
- *   result.timestamp ? `timestamp=${result.timestamp}` : undefined,
- * ].filter(Boolean) as string[];
- * return [{ type: 'text', text: lines.join('\n') }];
- * ```
- *
- * @example After (using MarkdownBuilder):
- * ```typescript
- * // For tight line formatting without blank lines, use text() with manual newlines
- * const md = markdown()
- *   .text(`Echo (mode=${result.mode}, repeat=${result.repeatCount})\n`)
- *   .text(`${preview}`);
- *
- * // Apply conditional content after builder is initialized
- * md.when(!!result.timestamp, () => {
- *   md.text(`\ntimestamp=${result.timestamp}`);
- * });
- *
- * return [{ type: 'text', text: md.build() }];
- * ```
  */
 function responseFormatter(result: EchoToolResponse): ContentBlock[] {
   const preview =

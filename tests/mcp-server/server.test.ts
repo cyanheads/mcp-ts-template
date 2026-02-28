@@ -140,9 +140,8 @@ describe('createMcpServerInstance', () => {
     await expect(createMcpServerInstance()).rejects.toThrow('tool registration failed');
     expect(logger.error).toHaveBeenCalledWith(
       'Failed to register MCP capabilities',
-      expect.objectContaining({
-        error: 'tool registration failed',
-      }),
+      expect.objectContaining({ message: 'tool registration failed' }),
+      expect.any(Object),
     );
   });
 
@@ -160,9 +159,8 @@ describe('createMcpServerInstance', () => {
     await expect(createMcpServerInstance()).rejects.toBe('string error');
     expect(logger.error).toHaveBeenCalledWith(
       'Failed to register MCP capabilities',
-      expect.objectContaining({
-        error: 'string error',
-      }),
+      expect.objectContaining({ message: 'string error' }),
+      expect.any(Object),
     );
   });
 });

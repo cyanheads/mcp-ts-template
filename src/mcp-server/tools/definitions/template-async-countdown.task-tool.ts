@@ -39,6 +39,7 @@ const InputSchema = z
     simulateFailure: z
       .boolean()
       .optional()
+      .default(false)
       .describe('If true, simulates a failure at 50% progress (for testing)'),
   })
   .describe('Parameters for the async countdown task.');
@@ -269,7 +270,7 @@ export const asyncCountdownTaskTool: TaskToolDefinition<typeof InputSchema, type
         task.taskId,
         input.seconds,
         input.message,
-        input.simulateFailure ?? false,
+        input.simulateFailure,
         extra.taskStore,
       );
 
