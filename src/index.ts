@@ -25,7 +25,6 @@ if (isStdioMode || isHttpModeWithoutTty) {
   process.env.FORCE_COLOR = '0'; // Disable forced coloring
 }
 
-import type { config as appConfigType } from '@/config/index.js';
 import {
   AppConfig,
   composeContainer,
@@ -41,8 +40,6 @@ import {
   shutdownOpenTelemetry,
 } from '@/utils/telemetry/instrumentation.js';
 
-// The container is now composed in start(), so we must resolve config there.
-let config: typeof appConfigType;
 let transportManager: TransportManager;
 let isShuttingDown = false;
 
@@ -85,10 +82,8 @@ const shutdown = async (signal: string): Promise<void> => {
 
 const start = async (): Promise<void> => {
   try {
-    // Initialize DI container first
+    // Initialize DI container first — config is parsed and validated here
     composeContainer();
-    // Now it's safe to resolve dependencies
-    config = container.resolve(AppConfig);
   } catch (_error) {
     // This will catch the McpError from parseConfig
     if (process.stdout.isTTY) {
@@ -99,6 +94,8 @@ const start = async (): Promise<void> => {
     await shutdownOpenTelemetry();
     process.exit(1);
   }
+
+  const config = container.resolve(AppConfig);
 
   // Initialize OpenTelemetry before logger to capture all spans
   // This must happen before logger initialization for proper instrumentation
@@ -117,7 +114,6 @@ const start = async (): Promise<void> => {
   // Pass transport type to logger to ensure STDIO mode uses plain JSON (no ANSI colors)
   await logger.initialize(config.logLevel as McpLogLevel, config.mcpTransportType);
 
-  // Storage Service is now initialized in the container
   logger.info(
     `Storage service initialized with provider: ${config.storage.providerType}`,
     requestContextService.createRequestContext({ operation: 'StorageInit' }),

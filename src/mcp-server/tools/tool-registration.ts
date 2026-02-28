@@ -35,17 +35,11 @@ export class ToolRegistry {
       operation: 'ToolRegistry.registerAll',
     });
 
-    const regularTools: ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>[] = [];
-    const taskTools: TaskToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>[] = [];
-
-    // Separate regular tools from task tools
-    for (const toolDef of this.toolDefs) {
-      if (isTaskToolDefinition(toolDef)) {
-        taskTools.push(toolDef);
-      } else {
-        regularTools.push(toolDef);
-      }
-    }
+    const regularTools = this.toolDefs.filter(
+      (d): d is ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>> =>
+        !isTaskToolDefinition(d),
+    );
+    const taskTools = this.toolDefs.filter(isTaskToolDefinition);
 
     logger.info(
       `Registering ${regularTools.length} regular tool(s) and ${taskTools.length} task tool(s)...`,

@@ -66,26 +66,26 @@ export async function createMcpServerInstance(): Promise<McpServer> {
   try {
     logger.debug('Registering all MCP capabilities via registries...', context);
 
-    // Resolve and use registry services
-    const toolRegistry = container.resolve(ToolRegistryToken);
-    await toolRegistry.registerAll(server);
+    // Resolve and use registry services — tool and resource registration run in parallel
+    const [toolRegistry, resourceRegistry, promptRegistry, rootsRegistry] = [
+      container.resolve(ToolRegistryToken),
+      container.resolve(ResourceRegistryToken),
+      container.resolve(PromptRegistryToken),
+      container.resolve(RootsRegistryToken),
+    ];
 
-    const resourceRegistry = container.resolve(ResourceRegistryToken);
-    await resourceRegistry.registerAll(server);
+    await Promise.all([toolRegistry.registerAll(server), resourceRegistry.registerAll(server)]);
 
-    const promptRegistry = container.resolve(PromptRegistryToken);
     promptRegistry.registerAll(server);
-
-    const rootsRegistry = container.resolve(RootsRegistryToken);
     rootsRegistry.registerAll(server);
 
     logger.info('All MCP capabilities registered successfully', context);
   } catch (err) {
-    logger.error('Failed to register MCP capabilities', {
-      ...context,
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-    });
+    logger.error(
+      'Failed to register MCP capabilities',
+      err instanceof Error ? err : new Error(String(err)),
+      context,
+    );
     throw err;
   }
 

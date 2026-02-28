@@ -269,9 +269,6 @@ export default {
         colo: cfProperties?.colo,
       });
 
-      // Use ctx.waitUntil for background tasks (future enhancement)
-      // Example: ctx.waitUntil(someBackgroundTask());
-
       return await app.fetch(request, env, ctx);
     } catch (error: unknown) {
       const requestId = request.headers.get('cf-ray');
@@ -331,7 +328,6 @@ export default {
 
       logger.info('Processing scheduled event.', {
         ...scheduledContext,
-        cron: controller.cron,
         scheduledTime: new Date(controller.scheduledTime).toISOString(),
       });
 
