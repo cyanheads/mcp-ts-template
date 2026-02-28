@@ -27,6 +27,12 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - **Import convention**: All ~160 source and test files migrated from barrel imports to direct file imports. `src/utils/pagination/index.ts` renamed to `src/utils/pagination/pagination.ts`.
 - **CLAUDE.md**: Updated import guidelines, documented direct-import convention and allowed barrel files, refined context object docs.
 - **Changelog archives**: Consolidated `changelog/archive1.md` and `changelog/archive2.md` into single `changelog/archive.md`.
+- **Formatting utilities** (`src/utils/formatting/`):
+  - `markdownBuilder`: Added `emoji` param to `h4()` for consistency with `h1`–`h3`. Fixed `section()` unsafe cast with proper overload signatures.
+  - `diffFormatter`: Implemented `formatInline` (was a no-op returning raw patch). Removed trivial `isEqual()` method. Removed redundant `splitLines` method. Consolidated `getStats()` to single reduce pass. Fixed `error as Error` casts with proper `instanceof` narrowing.
+  - `tableFormatter`: Implemented `bold` header style (was silently ignored). Added markdown alignment separators (`:---`, `---:`, `:---:`). Fixed truncation edge case for narrow columns. Removed redundant type cast.
+  - `treeFormatter`: Extracted `ResolvedTreeOptions` type alias (was repeated 4×). Fixed ASCII style to distinguish last child (`\--`) from non-last (`+--`). Fixed `getChildPrefix` to handle non-space indent characters.
+  - All formatters: Fixed JSDoc examples from barrel imports to direct imports. Fixed error narrowing in catch blocks.
 
 ### Removed
 
