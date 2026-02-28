@@ -5,7 +5,7 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 describe('HTTP Transport Integration - Server Lifecycle', () => {
   afterEach(() => {

@@ -5,8 +5,8 @@
 
 import { type Span, trace } from '@opentelemetry/api';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+import * as idGeneratorModule from '@/utils/security/idGenerator.js';
 import { authContext } from '../../../src/mcp-server/transports/auth/lib/authContext.js';
-import * as utilsIndex from '../../../src/utils/index.js';
 import { logger } from '../../../src/utils/internal/logger.js';
 import { requestContextService } from '../../../src/utils/internal/requestContext.js';
 
@@ -24,7 +24,7 @@ describe('requestContextService', () => {
     originalConfig = {
       ...(requestContextService as unknown as { config: Record<string, unknown> }).config,
     };
-    idSpy = vi.spyOn(utilsIndex, 'generateRequestContextId').mockReturnValue('CTX-TEST-ID');
+    idSpy = vi.spyOn(idGeneratorModule, 'generateRequestContextId').mockReturnValue('CTX-TEST-ID');
   });
 
   afterEach(() => {

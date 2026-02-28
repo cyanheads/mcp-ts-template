@@ -6,10 +6,10 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { dataExplorerAppTool } from '@/mcp-server/tools/definitions/template-data-explorer.app-tool.js';
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 // Suppress logger output
-vi.mock('@/utils/index.js', async (importOriginal) => {
+vi.mock('@/utils/internal/logger.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,

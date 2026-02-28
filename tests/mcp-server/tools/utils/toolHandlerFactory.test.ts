@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createMcpToolHandler } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 type MockSdkContext = RequestHandlerExtra<ServerRequest, ServerNotification>;
 

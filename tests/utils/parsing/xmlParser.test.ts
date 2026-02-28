@@ -3,9 +3,8 @@
  * @module tests/utils/parsing/xmlParser.test
  */
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-
+import { logger } from '@/utils/internal/logger.js';
 import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
-import { logger } from '../../../src/utils/index.js';
 import { XmlParser } from '../../../src/utils/parsing/xmlParser.js';
 
 describe('XmlParser', () => {

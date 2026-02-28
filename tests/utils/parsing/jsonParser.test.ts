@@ -3,9 +3,9 @@
  * @module tests/utils/parsing/jsonParser.test
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
-import { logger, requestContextService } from '../../../src/utils/index.js';
 import { Allow, JsonParser, jsonParser } from '../../../src/utils/parsing/jsonParser.js';
 
 describe('JsonParser', () => {

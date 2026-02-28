@@ -6,9 +6,8 @@
  */
 import { SpanStatusCode, trace } from '@opentelemetry/api';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
-import { ErrorHandler } from '../../../src/utils/internal/error-handler/index.js';
 import { logger } from '../../../src/utils/internal/logger.js';
 
 // Suppress logger stdout output for this test by mocking the underlying pino logger

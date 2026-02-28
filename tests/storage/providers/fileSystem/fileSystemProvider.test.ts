@@ -8,7 +8,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
 import { McpError } from '@/types-global/errors.js';
-import { requestContextService } from '@/utils/index.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 const TEST_STORAGE_PATH = path.join(process.cwd(), '.test-storage-fs');
 

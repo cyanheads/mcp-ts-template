@@ -4,8 +4,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { z } from 'zod';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { echoResourceDefinition } from '../../../../src/mcp-server/resources/definitions/echo.resource.js';
-import { requestContextService } from '../../../../src/utils/index.js';
 
 describe('echoResourceDefinition', () => {
   it('should have the correct name, title, and description', () => {

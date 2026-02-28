@@ -9,7 +9,7 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 // Mock the SDK's StdioServerTransport
 vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => {
@@ -46,15 +46,17 @@ describe('Stdio Transport', () => {
     };
 
     // Import and spy on actual utilities
-    const utils = await import('@/utils/index.js');
+    const loggerModule = await import('@/utils/internal/logger.js');
+    const bannerModule = await import('@/utils/internal/startupBanner.js');
+    const errorModule = await import('@/utils/internal/error-handler/errorHandler.js');
     loggerSpy = {
-      info: vi.spyOn(utils.logger, 'info').mockImplementation(() => {}),
-      debug: vi.spyOn(utils.logger, 'debug').mockImplementation(() => {}),
-      error: vi.spyOn(utils.logger, 'error').mockImplementation(() => {}),
+      info: vi.spyOn(loggerModule.logger, 'info').mockImplementation(() => {}),
+      debug: vi.spyOn(loggerModule.logger, 'debug').mockImplementation(() => {}),
+      error: vi.spyOn(loggerModule.logger, 'error').mockImplementation(() => {}),
     };
-    logStartupBannerSpy = vi.spyOn(utils, 'logStartupBanner').mockImplementation(() => {});
+    logStartupBannerSpy = vi.spyOn(bannerModule, 'logStartupBanner').mockImplementation(() => {});
     errorHandlerSpy = vi
-      .spyOn(utils.ErrorHandler, 'handleError')
+      .spyOn(errorModule.ErrorHandler, 'handleError')
       .mockImplementation((err) => err as any);
 
     vi.clearAllMocks();

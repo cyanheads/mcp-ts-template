@@ -5,9 +5,8 @@
 
 import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { describe, expect, it } from 'vitest';
-
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { dataExplorerUiResource } from '../../../../src/mcp-server/resources/definitions/data-explorer-ui.app-resource.js';
-import { requestContextService } from '../../../../src/utils/index.js';
 
 describe('dataExplorerUiResource', () => {
   it('has the correct name, title, and description', () => {

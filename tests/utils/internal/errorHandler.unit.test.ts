@@ -4,9 +4,8 @@
  */
 import { trace } from '@opentelemetry/api';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
-
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
-import { ErrorHandler } from '../../../src/utils/internal/error-handler/index.js';
 import { logger } from '../../../src/utils/internal/logger.js';
 
 describe('ErrorHandler (unit)', () => {

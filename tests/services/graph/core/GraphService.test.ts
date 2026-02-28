@@ -12,8 +12,7 @@ import type {
   IGraphProvider,
   TraversalResult,
 } from '@/services/graph/core/IGraphProvider.js';
-import type { RequestContext } from '@/utils/index.js';
-import { requestContextService } from '@/utils/index.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 // Mock provider for testing
 class MockGraphProvider implements IGraphProvider {

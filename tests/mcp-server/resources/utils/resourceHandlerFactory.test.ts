@@ -9,7 +9,7 @@ import { z } from 'zod';
 import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { registerResource } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 describe('Resource Handler Factory', () => {
   let mockServer: MockedMcpServer;

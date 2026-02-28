@@ -4,10 +4,10 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { KvProvider } from '../../../../src/storage/providers/cloudflare/kvProvider.js';
 import { McpError } from '../../../../src/types-global/errors.js';
-import type { RequestContext } from '../../../../src/utils/index.js';
-import { requestContextService } from '../../../../src/utils/index.js';
 
 // Mock KVNamespace
 const createMockKvNamespace = () => ({

@@ -23,11 +23,10 @@ describe('LLM Service Types', () => {
       expect(typeof typesModule).toBe('object');
     });
 
-    it('should be importable from services/llm barrel', async () => {
-      const llmModule = await import('@/services/llm/index.js');
+    it('should be importable from core module', async () => {
+      const coreModule = await import('@/services/llm/core/ILlmProvider.js');
 
-      // Verify that types are re-exported through the barrel
-      expect(llmModule).toBeDefined();
+      expect(coreModule).toBeDefined();
     });
   });
 

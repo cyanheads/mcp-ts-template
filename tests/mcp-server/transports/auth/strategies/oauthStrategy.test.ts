@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { config } from '@/config/index.js';
 import { OauthStrategy } from '@/mcp-server/transports/auth/strategies/oauthStrategy.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
 
 // Mock the jose module with factory function for Bun compatibility
 // Vitest auto-mocks with vi.mock('jose') but Bun requires explicit factory

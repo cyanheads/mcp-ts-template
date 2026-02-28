@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { config } from '@/config/index.js';
 import { JwtStrategy } from '@/mcp-server/transports/auth/strategies/jwtStrategy.js';
 import { McpError } from '@/types-global/errors.js';
-import { logger } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;

@@ -7,8 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { StorageService } from '@/storage/core/StorageService.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import type { RequestContext } from '@/utils/index.js';
-import { requestContextService } from '@/utils/index.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 describe('StorageService - Tenant ID Validation', () => {
   let storageService: StorageService;

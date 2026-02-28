@@ -7,7 +7,8 @@ import type { ParseConfig, ParseError, ParseResult } from 'papaparse';
 import Papa from 'papaparse';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { csvParser } from '@/utils/parsing/csvParser.js';
 
 afterEach(() => {

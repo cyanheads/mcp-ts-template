@@ -4,12 +4,12 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SdkContext } from '@/mcp-server/tools/utils/index.js';
+import type { SdkContext } from '@/mcp-server/tools/utils/toolDefinition.js';
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import { withResourceAuth, withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 describe('withAuth Utilities', () => {
   let mockRequestContext: RequestContext;

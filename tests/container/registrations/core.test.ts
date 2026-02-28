@@ -33,7 +33,9 @@ describe('Core Service Registration', () => {
     });
 
     it('should register Logger as a value', () => {
-      const logger = container.resolve(Logger) as typeof import('@/utils/index.js').logger;
+      const logger = container.resolve(
+        Logger,
+      ) as typeof import('@/utils/internal/logger.js').logger;
 
       expect(logger).toBeDefined();
       expect(typeof logger.info).toBe('function');

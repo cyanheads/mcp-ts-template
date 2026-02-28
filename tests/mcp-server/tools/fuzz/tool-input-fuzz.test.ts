@@ -18,11 +18,11 @@ import { zxTest } from '@traversable/zod-test';
 import fc from 'fast-check';
 import { describe, expect, it, vi } from 'vitest';
 import type { ZodObject, ZodRawShape } from 'zod';
-import { isTaskToolDefinition } from '@/mcp-server/tasks/index.js';
+import { isTaskToolDefinition } from '@/mcp-server/tasks/utils/taskToolDefinition.js';
 import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
 import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
 import { McpError } from '@/types-global/errors.js';
-import { requestContextService } from '@/utils/index.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 /** Widened type alias for uniform property access across tool definitions. */
 type AnyToolDef = ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>;

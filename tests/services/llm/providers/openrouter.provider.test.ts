@@ -6,7 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { config } from '@/config/index.js';
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
 import { McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import type { RateLimiter } from '@/utils/security/rateLimiter.js';
 
 describe('OpenRouterProvider', () => {

@@ -6,10 +6,9 @@
 import { HttpResponse, http } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { imageTestTool } from '../../../../src/mcp-server/tools/definitions/template-image-test.tool.js';
 import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
-import { requestContextService } from '../../../../src/utils/index.js';
 
 // Create a fake image buffer (e.g., a simple 1x1 GIF)
 const fakeImageBuffer = Buffer.from('R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=', 'base64');

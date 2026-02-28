@@ -21,7 +21,7 @@ vi.mock('@/container/core/container.js', async (importOriginal) => {
 });
 
 // Mock logger and requestContextService
-vi.mock('@/utils/index.js', async (importOriginal) => {
+vi.mock('@/utils/internal/logger.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
@@ -31,6 +31,13 @@ vi.mock('@/utils/index.js', async (importOriginal) => {
       warning: vi.fn(),
       error: vi.fn(),
     },
+  };
+});
+
+vi.mock('@/utils/internal/requestContext.js', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
     requestContextService: {
       createRequestContext: vi.fn(() => ({
         requestId: 'test-req-id',
@@ -58,7 +65,8 @@ import {
   ToolRegistryToken,
 } from '@/container/core/tokens.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 describe('createMcpServerInstance', () => {
   let mockToolRegistry: { registerAll: ReturnType<typeof vi.fn> };

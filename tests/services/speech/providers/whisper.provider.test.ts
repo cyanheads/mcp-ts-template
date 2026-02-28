@@ -8,7 +8,7 @@ import { WhisperProvider } from '@/services/speech/providers/whisper.provider.js
 import { McpError } from '@/types-global/errors.js';
 
 // Mock fetchWithTimeout
-vi.mock('@/utils/index.js', async (importOriginal) => {
+vi.mock('@/utils/network/fetchWithTimeout.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
@@ -16,7 +16,7 @@ vi.mock('@/utils/index.js', async (importOriginal) => {
   };
 });
 
-import { fetchWithTimeout } from '@/utils/index.js';
+import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
 
 const mockFetch = vi.mocked(fetchWithTimeout);
 

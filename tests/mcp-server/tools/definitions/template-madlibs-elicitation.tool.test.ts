@@ -3,10 +3,9 @@
  * @module tests/mcp-server/tools/definitions/template-madlibs-elicitation.tool.test
  */
 import { describe, expect, it, vi } from 'vitest';
-
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { madlibsElicitationTool } from '../../../../src/mcp-server/tools/definitions/template-madlibs-elicitation.tool.js';
 import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
-import { requestContextService } from '../../../../src/utils/index.js';
 
 describe('madlibsElicitationTool', () => {
   const mockSdkContext = {

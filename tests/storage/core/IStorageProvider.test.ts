@@ -10,7 +10,7 @@ import type {
   ListResult,
   StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 describe('IStorageProvider Interface', () => {
   describe('Interface Contract', () => {

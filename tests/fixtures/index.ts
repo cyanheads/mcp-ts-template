@@ -5,7 +5,7 @@
  */
 import { vi } from 'vitest';
 import type { SdkContext } from '@/mcp-server/tools/utils/toolDefinition.js';
-import { type RequestContext, requestContextService } from '@/utils/index.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Create a test RequestContext with sensible defaults.

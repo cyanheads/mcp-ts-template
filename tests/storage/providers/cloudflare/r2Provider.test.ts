@@ -3,10 +3,10 @@
  * @module tests/storage/providers/cloudflare/r2Provider.test
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { R2Provider } from '../../../../src/storage/providers/cloudflare/r2Provider.js';
 import { McpError } from '../../../../src/types-global/errors.js';
-import type { RequestContext } from '../../../../src/utils/index.js';
-import { requestContextService } from '../../../../src/utils/index.js';
 
 // Mock R2Bucket
 const createMockR2Bucket = () => ({

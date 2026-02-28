@@ -4,10 +4,9 @@
  * @module tests/utils/pagination/index.test
  */
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
-
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
-import type { RequestContext } from '../../../src/utils/index.js';
-import { logger, requestContextService } from '../../../src/utils/index.js';
 import {
   DEFAULT_PAGINATION_CONFIG,
   decodeCursor,
@@ -15,7 +14,7 @@ import {
   extractCursor,
   type PaginationState,
   paginateArray,
-} from '../../../src/utils/pagination/index.js';
+} from '../../../src/utils/pagination/pagination.js';
 
 describe('Pagination Utilities', () => {
   let context: RequestContext;

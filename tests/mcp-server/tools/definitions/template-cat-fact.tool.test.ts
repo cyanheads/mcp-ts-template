@@ -5,10 +5,9 @@
 import { HttpResponse, http } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { catFactTool } from '../../../../src/mcp-server/tools/definitions/template-cat-fact.tool.js';
 import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
-import { requestContextService } from '../../../../src/utils/index.js';
 import * as fetchModule from '../../../../src/utils/network/fetchWithTimeout.js';
 
 const server = setupServer(

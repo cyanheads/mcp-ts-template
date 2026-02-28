@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { DiffFormatter, diffFormatter } from '@/utils/formatting/diffFormatter.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 describe('DiffFormatter', () => {
   const oldText = `function hello() {

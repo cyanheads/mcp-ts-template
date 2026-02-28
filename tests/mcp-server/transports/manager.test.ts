@@ -7,7 +7,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { config } from '@/config/index.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
-import { logger } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
 
 // Mock the transport modules
 vi.mock('@/mcp-server/transports/http/httpTransport.js', () => ({

@@ -3,10 +3,10 @@
  * @module tests/storage/providers/cloudflare/d1Provider.test
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { D1Provider } from '../../../../src/storage/providers/cloudflare/d1Provider.js';
 import { McpError } from '../../../../src/types-global/errors.js';
-import type { RequestContext } from '../../../../src/utils/index.js';
-import { requestContextService } from '../../../../src/utils/index.js';
 
 // Mock D1Database
 const createMockD1Database = () => ({

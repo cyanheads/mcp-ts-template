@@ -5,7 +5,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { frontmatterParser } from '@/utils/parsing/frontmatterParser.js';
 
 describe('frontmatterParser.parse', () => {

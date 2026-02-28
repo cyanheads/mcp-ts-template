@@ -56,7 +56,9 @@ describe('Container Composition', () => {
     });
 
     it('should resolve Logger instance', () => {
-      const logger = container.resolve(Logger) as typeof import('@/utils/index.js').logger;
+      const logger = container.resolve(
+        Logger,
+      ) as typeof import('@/utils/internal/logger.js').logger;
 
       expect(logger).toBeDefined();
       expect(typeof logger.info).toBe('function');

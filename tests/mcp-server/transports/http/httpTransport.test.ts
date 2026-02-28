@@ -6,7 +6,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 // Mock dependencies
 vi.mock('@/config/index.js', () => ({
@@ -28,12 +28,18 @@ vi.mock('@/config/index.js', () => ({
   },
 }));
 
-vi.mock('@/mcp-server/transports/auth/index.js', () => {
+vi.mock('@/mcp-server/transports/auth/authFactory.js', () => ({
+  createAuthStrategy: vi.fn(() => null),
+}));
+
+vi.mock('@/mcp-server/transports/auth/authMiddleware.js', () => ({
+  createAuthMiddleware: vi.fn(),
+}));
+
+vi.mock('@/mcp-server/transports/auth/lib/authContext.js', () => {
   const { AsyncLocalStorage } = require('node:async_hooks');
   return {
     authContext: new AsyncLocalStorage(),
-    createAuthMiddleware: vi.fn(),
-    createAuthStrategy: vi.fn(() => null),
   };
 });
 

@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
-import { requestContextService } from '@/utils/index.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 import { storageProviderTests } from '../../storageProviderCompliance.test.js';
 

@@ -4,7 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
-import { logger } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
 
 describe('PromptRegistry', () => {
   let mockServer: any;

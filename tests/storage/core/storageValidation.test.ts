@@ -14,7 +14,7 @@ import {
   validateTenantId,
 } from '@/storage/core/storageValidation.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 describe('Storage Validation', () => {
   const context: RequestContext = {

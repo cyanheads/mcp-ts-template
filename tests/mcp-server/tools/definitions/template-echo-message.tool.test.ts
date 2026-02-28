@@ -3,13 +3,12 @@
  * @module tests/mcp-server/tools/definitions/template-echo-message.tool.test
  */
 import { describe, expect, it, vi } from 'vitest';
-
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import {
   echoTool,
   TEST_ERROR_TRIGGER_MESSAGE,
 } from '../../../../src/mcp-server/tools/definitions/template-echo-message.tool.js';
 import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
-import { requestContextService } from '../../../../src/utils/index.js';
 
 describe('echoTool', () => {
   const mockSdkContext = {
