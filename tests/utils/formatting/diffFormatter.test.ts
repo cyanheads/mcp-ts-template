@@ -24,6 +24,7 @@ describe('DiffFormatter', () => {
       expect(diffFormatter.diff).toBeInstanceOf(Function);
       expect(diffFormatter.diffLines).toBeInstanceOf(Function);
       expect(diffFormatter.diffWords).toBeInstanceOf(Function);
+      expect(diffFormatter.getStats).toBeInstanceOf(Function);
     });
   });
 
@@ -170,24 +171,6 @@ describe('DiffFormatter', () => {
       const result = diffFormatter.diffWords('old words here', '');
 
       expect(result).toContain('[-old words here-]');
-    });
-  });
-
-  describe('isEqual() method', () => {
-    it('should return true for identical strings', () => {
-      expect(diffFormatter.isEqual('same', 'same')).toBe(true);
-    });
-
-    it('should return false for different strings', () => {
-      expect(diffFormatter.isEqual('different', 'strings')).toBe(false);
-    });
-
-    it('should return true for empty strings', () => {
-      expect(diffFormatter.isEqual('', '')).toBe(true);
-    });
-
-    it('should be case-sensitive', () => {
-      expect(diffFormatter.isEqual('Test', 'test')).toBe(false);
     });
   });
 
@@ -375,6 +358,12 @@ describe('DiffFormatter', () => {
       // Patch should include headers, unified should not
       expect(patch).toContain('---');
       expect(unified).not.toContain('---');
+
+      // Inline should use visual markers, not raw diff prefixes
+      expect(inline).not.toContain('@@');
+      expect(inline).not.toContain('---');
+      expect(inline).toContain('[-');
+      expect(inline).toContain('[+');
 
       // All should contain some diff content
       expect(unified).toBeTruthy();

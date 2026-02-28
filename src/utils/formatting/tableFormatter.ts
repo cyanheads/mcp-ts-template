@@ -137,8 +137,9 @@ export class TableFormatter {
       return '';
     }
 
-    // Extract headers from first object
-    const headers = Object.keys(data[0] as Record<string, unknown>);
+    // Extract headers from first object (safe: length checked above)
+    const firstRow = data[0] as T;
+    const headers = Object.keys(firstRow);
 
     // Convert objects to 2D array
     const rows = data.map((obj) => headers.map((header) => this.stringify(obj[header])));
@@ -241,15 +242,16 @@ export class TableFormatter {
 
       return result;
     } catch (error: unknown) {
-      const err = error as Error;
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       logger.error('Failed to render table', {
         ...logContext,
-        error: err.message,
+        error: message,
       });
 
-      throw new McpError(JsonRpcErrorCode.InternalError, `Failed to render table: ${err.message}`, {
+      throw new McpError(JsonRpcErrorCode.InternalError, `Failed to render table: ${message}`, {
         ...logContext,
-        originalError: err.stack,
+        originalError: stack,
       });
     }
   }
@@ -260,6 +262,8 @@ export class TableFormatter {
    */
   private applyHeaderStyle(headers: string[], style: 'bold' | 'uppercase' | 'none'): string[] {
     switch (style) {
+      case 'bold':
+        return headers.map((h) => `**${h}**`);
       case 'uppercase':
         return headers.map((h) => h.toUpperCase());
       default:
@@ -346,10 +350,16 @@ export class TableFormatter {
     );
     lines.push(`|${pad}${headerCells.join(`${pad}|${pad}`)}${pad}|`);
 
-    // Separator row
+    // Separator row (with alignment indicators for markdown)
     const separators = columns.map((col) => {
-      const dashes = '-'.repeat(col.width);
-      return dashes;
+      switch (col.alignment) {
+        case 'right':
+          return `${'-'.repeat(Math.max(col.width - 1, 1))}:`;
+        case 'center':
+          return `:${'-'.repeat(Math.max(col.width - 2, 1))}:`;
+        default:
+          return '-'.repeat(col.width);
+      }
     });
     lines.push(`|${pad}${separators.join(`${pad}|${pad}`)}${pad}|`);
 
@@ -487,7 +497,8 @@ export class TableFormatter {
 
     // Truncate if needed
     if (options.truncate && text.length > column.width) {
-      text = `${text.substring(0, column.width - 3)}...`;
+      const visibleChars = Math.max(column.width - 3, 0);
+      text = `${text.substring(0, visibleChars)}...`;
     }
 
     // Apply alignment padding
@@ -542,7 +553,7 @@ export class TableFormatter {
  *
  * @example
  * ```typescript
- * import { tableFormatter } from '@/utils/index.js';
+ * import { tableFormatter } from '@/utils/formatting/tableFormatter.js';
  *
  * const data = [
  *   { name: 'Alice', age: 30, role: 'Engineer' },

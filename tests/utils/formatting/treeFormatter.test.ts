@@ -48,7 +48,8 @@ describe('TreeFormatter', () => {
       const result = treeFormatter.format(simpleTree, { style: 'ascii' });
 
       expect(result).toContain('root');
-      expect(result).toContain('+--'); // ASCII tree chars
+      expect(result).toContain('+--'); // ASCII tree chars for non-last children
+      expect(result).toContain('\\--'); // ASCII tree chars for last child
       expect(result).not.toContain('├'); // No unicode
     });
 

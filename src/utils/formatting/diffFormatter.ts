@@ -117,14 +117,10 @@ export class DiffFormatter {
     };
 
     try {
-      // Split into lines for diffing
-      const oldLines = this.splitLines(oldText);
-      const newLines = this.splitLines(newText);
-
       logger.debug('Generating diff', {
         ...logContext,
-        oldLines: oldLines.length,
-        newLines: newLines.length,
+        oldLines: oldText.split('\n').length,
+        newLines: newText.split('\n').length,
         format: opts.format,
       });
 
@@ -148,17 +144,17 @@ export class DiffFormatter {
 
       return result;
     } catch (error: unknown) {
-      const err = error as Error;
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       logger.error('Failed to generate diff', {
         ...logContext,
-        error: err.message,
+        error: message,
       });
 
-      throw new McpError(
-        JsonRpcErrorCode.InternalError,
-        `Failed to generate diff: ${err.message}`,
-        { ...logContext, originalError: err.stack },
-      );
+      throw new McpError(JsonRpcErrorCode.InternalError, `Failed to generate diff: ${message}`, {
+        ...logContext,
+        originalError: stack,
+      });
     }
   }
 
@@ -266,16 +262,17 @@ export class DiffFormatter {
 
       return result;
     } catch (error: unknown) {
-      const err = error as Error;
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       logger.error('Failed to generate word diff', {
         ...logContext,
-        error: err.message,
+        error: message,
       });
 
       throw new McpError(
         JsonRpcErrorCode.InternalError,
-        `Failed to generate word diff: ${err.message}`,
-        { ...logContext, originalError: err.stack },
+        `Failed to generate word diff: ${message}`,
+        { ...logContext, originalError: stack },
       );
     }
   }
@@ -322,45 +319,39 @@ export class DiffFormatter {
   }
 
   /**
-   * Format diff as inline changes.
+   * Format diff as inline changes — strips file/hunk headers and uses
+   * visual markers for additions and deletions.
    * @private
    */
   private formatInline(patch: string): string {
-    // Keep the patch as-is for inline format
-    // In a more advanced implementation, this could format
-    // changes inline with visual markers
-    return patch;
-  }
+    const lines = patch.split('\n');
+    const result: string[] = [];
 
-  /**
-   * Split text into lines, preserving line endings.
-   * @private
-   */
-  private splitLines(text: string): string[] {
-    if (!text) {
-      return [];
+    for (const line of lines) {
+      // Skip file headers and hunk markers
+      if (
+        line.startsWith('Index:') ||
+        line.startsWith('===') ||
+        line.startsWith('---') ||
+        line.startsWith('+++') ||
+        line.startsWith('@@') ||
+        line.startsWith('\\ No newline')
+      ) {
+        continue;
+      }
+
+      if (line.startsWith('-')) {
+        result.push(`[-${line.substring(1)}-]`);
+      } else if (line.startsWith('+')) {
+        result.push(`[+${line.substring(1)}+]`);
+      } else if (line.startsWith(' ')) {
+        result.push(line.substring(1));
+      } else if (line !== '') {
+        result.push(line);
+      }
     }
-    return text.split(/\r?\n/);
-  }
 
-  /**
-   * Check if two text strings are identical.
-   * Useful for quick comparison before generating diffs.
-   *
-   * @param text1 - First text string
-   * @param text2 - Second text string
-   * @returns True if texts are identical
-   *
-   * @example
-   * ```typescript
-   * if (!diffFormatter.isEqual(oldText, newText)) {
-   *   const diff = diffFormatter.diff(oldText, newText);
-   *   console.log(diff);
-   * }
-   * ```
-   */
-  isEqual(text1: string, text2: string): boolean {
-    return text1 === text2;
+    return result.join('\n');
   }
 
   /**
@@ -393,24 +384,23 @@ export class DiffFormatter {
     try {
       const changes = Diff.diffLines(oldText, newText);
 
-      const additions = changes.filter((c) => c.added).reduce((sum, c) => sum + (c.count || 0), 0);
-
-      const deletions = changes
-        .filter((c) => c.removed)
-        .reduce((sum, c) => sum + (c.count || 0), 0);
-
-      return {
-        additions,
-        deletions,
-        changes: additions + deletions,
-      };
-    } catch (error: unknown) {
-      const err = error as Error;
-      throw new McpError(
-        JsonRpcErrorCode.InternalError,
-        `Failed to get diff stats: ${err.message}`,
-        { ...logContext, originalError: err.stack },
+      const stats = changes.reduce(
+        (acc, c) => {
+          if (c.added) acc.additions += c.count || 0;
+          else if (c.removed) acc.deletions += c.count || 0;
+          return acc;
+        },
+        { additions: 0, deletions: 0 },
       );
+
+      return { ...stats, changes: stats.additions + stats.deletions };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+      throw new McpError(JsonRpcErrorCode.InternalError, `Failed to get diff stats: ${message}`, {
+        ...logContext,
+        originalError: stack,
+      });
     }
   }
 }
@@ -421,7 +411,7 @@ export class DiffFormatter {
  *
  * @example
  * ```typescript
- * import { diffFormatter } from '@/utils/index.js';
+ * import { diffFormatter } from '@/utils/formatting/diffFormatter.js';
  *
  * const oldCode = `function hello() {
  *   console.log('Hi');
@@ -433,18 +423,16 @@ export class DiffFormatter {
  *
  * // Generate unified diff
  * const diff = diffFormatter.diff(oldCode, newCode);
- * console.log(diff);
+ *
+ * // Inline diff with visual markers
+ * const inline = diffFormatter.diff(oldCode, newCode, { format: 'inline' });
  *
  * // Get statistics
  * const stats = diffFormatter.getStats(oldCode, newCode);
  * console.log(`Changes: +${stats.additions} -${stats.deletions}`);
  *
  * // Word-level diff for prose
- * const wordDiff = diffFormatter.diffWords(
- *   'The quick brown fox',
- *   'The fast brown dog'
- * );
- * console.log(wordDiff);
+ * const wordDiff = diffFormatter.diffWords('The quick brown fox', 'The fast brown dog');
  * ```
  */
 export const diffFormatter = new DiffFormatter();

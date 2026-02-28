@@ -65,10 +65,12 @@ export class MarkdownBuilder {
   /**
    * Add a level 4 heading.
    * @param text - The heading text
+   * @param emoji - Optional emoji to prepend
    * @returns this builder for chaining
    */
-  h4(text: string): this {
-    this.sections.push(`#### ${text}\n\n`);
+  h4(text: string, emoji?: string): this {
+    const prefix = emoji ? `${emoji} ` : '';
+    this.sections.push(`#### ${prefix}${text}\n\n`);
     return this;
   }
 
@@ -210,13 +212,24 @@ export class MarkdownBuilder {
    *
    * @param title - The section heading
    * @param levelOrContent - Heading level (2-4) or callback function
-   * @param content - Callback function (if level is provided)
+   * @param content - Callback function (required if level is provided)
    * @returns this builder for chaining
    */
+  section(title: string, content: () => void): this;
+  section(title: string, level: 2 | 3 | 4, content: () => void): this;
   section(title: string, levelOrContent: 2 | 3 | 4 | (() => void), content?: () => void): this {
-    const level = typeof levelOrContent === 'function' ? 2 : levelOrContent;
-    const callback =
-      typeof levelOrContent === 'function' ? levelOrContent : (content as () => void);
+    let level: 2 | 3 | 4;
+    let callback: () => void;
+
+    if (typeof levelOrContent === 'function') {
+      level = 2;
+      callback = levelOrContent;
+    } else {
+      level = levelOrContent;
+      // Safe: the overload signatures guarantee content is provided when level is a number
+      callback = content ?? (() => {});
+    }
+
     switch (level) {
       case 2:
         this.h2(title);

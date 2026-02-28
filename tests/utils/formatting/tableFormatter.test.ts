@@ -138,22 +138,28 @@ describe('TableFormatter', () => {
       expect(lines.length).toBeGreaterThan(0);
     });
 
-    it('should align columns to the right', () => {
+    it('should render right-alignment indicators in markdown separators', () => {
       const result = tableFormatter.formatRaw(headers, rows, {
         style: 'markdown',
         alignment: { Age: 'right', Score: 'right' },
       });
 
+      // Right-aligned columns use trailing colon in separator
+      const separatorLine = result.split('\n')[1];
+      expect(separatorLine).toMatch(/-+:/);
       expect(result).toContain('Age');
       expect(result).toContain('Score');
     });
 
-    it('should center-align columns', () => {
+    it('should render center-alignment indicators in markdown separators', () => {
       const result = tableFormatter.formatRaw(headers, rows, {
         style: 'markdown',
         alignment: { Name: 'center' },
       });
 
+      // Center-aligned columns use leading and trailing colons in separator
+      const separatorLine = result.split('\n')[1];
+      expect(separatorLine).toMatch(/:-+:/);
       expect(result).toContain('Alice');
       expect(result).toContain('Bob');
     });
@@ -234,13 +240,13 @@ describe('TableFormatter', () => {
       expect(result).toContain('Age');
     });
 
-    it('should handle bold header style', () => {
+    it('should apply bold header style (markdown wrapping)', () => {
       const result = tableFormatter.formatRaw(headers, rows, {
         headerStyle: 'bold',
       });
 
-      expect(result).toContain('Name');
-      expect(result).toContain('Age');
+      expect(result).toContain('**Name**');
+      expect(result).toContain('**Age**');
     });
   });
 

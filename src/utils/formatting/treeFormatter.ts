@@ -82,6 +82,14 @@ export interface TreeFormatterOptions {
 }
 
 /**
+ * Resolved tree formatter options with all defaults applied.
+ * maxDepth remains optional since `undefined` means no limit.
+ */
+type ResolvedTreeOptions = Required<Omit<TreeFormatterOptions, 'maxDepth'>> & {
+  maxDepth: number | undefined;
+};
+
+/**
  * Utility class for formatting hierarchical data as tree structures.
  * Visualizes nested data like directory structures, org charts, or any hierarchical data.
  */
@@ -90,9 +98,7 @@ export class TreeFormatter {
    * Default formatting options.
    * @private
    */
-  private readonly defaultOptions: Required<Omit<TreeFormatterOptions, 'maxDepth'>> & {
-    maxDepth: number | undefined;
-  } = {
+  private readonly defaultOptions: ResolvedTreeOptions = {
     style: 'unicode',
     maxDepth: undefined,
     showMetadata: false,
@@ -183,15 +189,16 @@ export class TreeFormatter {
         throw error;
       }
 
-      const err = error as Error;
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       logger.error('Failed to format tree', {
         ...logContext,
-        error: err.message,
+        error: message,
       });
 
-      throw new McpError(JsonRpcErrorCode.InternalError, `Failed to format tree: ${err.message}`, {
+      throw new McpError(JsonRpcErrorCode.InternalError, `Failed to format tree: ${message}`, {
         ...logContext,
-        originalError: err.stack,
+        originalError: stack,
       });
     }
   }
@@ -249,11 +256,12 @@ export class TreeFormatter {
         throw error;
       }
 
-      const err = error as Error;
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       throw new McpError(
         JsonRpcErrorCode.InternalError,
-        `Failed to format multiple trees: ${err.message}`,
-        { ...logContext, originalError: err.stack },
+        `Failed to format multiple trees: ${message}`,
+        { ...logContext, originalError: stack },
       );
     }
   }
@@ -327,7 +335,7 @@ export class TreeFormatter {
       case 'unicode':
         return isLast ? '└── ' : '├── ';
       case 'ascii':
-        return isLast ? '+-- ' : '+-- ';
+        return isLast ? '\\-- ' : '+-- ';
       case 'compact':
         return '';
       default:
@@ -340,11 +348,14 @@ export class TreeFormatter {
    * @private
    */
   private getChildPrefix(isLast: boolean, style: TreeStyle, indent: string): string {
+    // When not the last child, replace the first character of indent with a vertical
+    // connector so the tree lines stay visually connected. Pad to match indent width.
+    const padding = indent.length > 1 ? ' '.repeat(indent.length - 1) : '';
     switch (style) {
       case 'unicode':
-        return isLast ? indent : `│${indent.substring(1)}`;
+        return isLast ? indent : `│${padding}`;
       case 'ascii':
-        return isLast ? indent : `|${indent.substring(1)}`;
+        return isLast ? indent : `|${padding}`;
       case 'compact':
         return indent;
       default:
@@ -400,7 +411,7 @@ export class TreeFormatter {
  *
  * @example
  * ```typescript
- * import { treeFormatter } from '@/utils/index.js';
+ * import { treeFormatter } from '@/utils/formatting/treeFormatter.js';
  *
  * // Simple directory tree
  * const tree = {
