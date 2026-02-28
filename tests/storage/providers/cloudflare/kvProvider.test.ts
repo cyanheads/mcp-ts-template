@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
+import { encodeCursor } from '../../../../src/storage/core/storageValidation.js';
 import { KvProvider } from '../../../../src/storage/providers/cloudflare/kvProvider.js';
 import { McpError } from '../../../../src/types-global/errors.js';
 
@@ -106,18 +107,21 @@ describe('KvProvider', () => {
         cursor: 'next-cursor',
       });
 
+      // Pass a tenant-bound cursor (as the provider now decodes before forwarding to KV)
+      const tenantBoundCursor = encodeCursor('prev-cursor', 'tenant-1');
       const result = await kvProvider.list('tenant-1', 'page', context, {
         limit: 5,
-        cursor: 'prev-cursor',
+        cursor: tenantBoundCursor,
       });
 
       expect(result.keys).toEqual(['page-1']);
-      expect(result.nextCursor).toBe('next-cursor');
+      // nextCursor should now be tenant-bound encoded
+      expect(result.nextCursor).toBe(encodeCursor('next-cursor', 'tenant-1'));
       expect(mockKv.list).toHaveBeenCalledWith(
         expect.objectContaining({
           prefix: 'tenant-1:page',
           limit: 5,
-          cursor: 'prev-cursor',
+          cursor: 'prev-cursor', // decoded native cursor passed to KV
         }),
       );
     });

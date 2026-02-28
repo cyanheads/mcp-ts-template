@@ -79,7 +79,7 @@ describe('JwtStrategy', () => {
       expect(() => new JwtStrategy(config, logger)).toThrow(McpError);
     });
 
-    it('should allow missing secret key in development', () => {
+    it('should allow missing secret key when devMcpAuthBypass is true', () => {
       Object.defineProperty(config, 'environment', {
         value: 'development',
         writable: true,
@@ -87,6 +87,11 @@ describe('JwtStrategy', () => {
       });
       Object.defineProperty(config, 'mcpAuthSecretKey', {
         value: undefined,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(config, 'devMcpAuthBypass', {
+        value: true,
         writable: true,
         configurable: true,
       });
@@ -220,7 +225,7 @@ describe('JwtStrategy', () => {
       await expect(strategy.verify(token)).rejects.toThrow(McpError);
     });
 
-    it('should bypass verification in development mode without secret', async () => {
+    it('should bypass verification when devMcpAuthBypass is true', async () => {
       Object.defineProperty(config, 'environment', {
         value: 'development',
         writable: true,
@@ -228,6 +233,11 @@ describe('JwtStrategy', () => {
       });
       Object.defineProperty(config, 'mcpAuthSecretKey', {
         value: undefined,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(config, 'devMcpAuthBypass', {
+        value: true,
         writable: true,
         configurable: true,
       });

@@ -5,6 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
+import { encodeCursor } from '../../../../src/storage/core/storageValidation.js';
 import { R2Provider } from '../../../../src/storage/providers/cloudflare/r2Provider.js';
 import { McpError } from '../../../../src/types-global/errors.js';
 
@@ -154,19 +155,22 @@ describe('R2Provider', () => {
         .mockResolvedValueOnce(listedResponse)
         .mockResolvedValueOnce({ objects: [], truncated: false });
 
+      // Pass a tenant-bound cursor (provider decodes before forwarding to R2)
+      const tenantBoundCursor = encodeCursor('incoming-cursor', 'tenant-1');
       const result = await r2Provider.list('tenant-1', 'key', context, {
         limit: 2,
-        cursor: 'incoming-cursor',
+        cursor: tenantBoundCursor,
       });
 
       expect(result.keys).toEqual(['key-a', 'key-b']);
-      expect(result.nextCursor).toBe('cursor-token');
+      // nextCursor should be tenant-bound encoded
+      expect(result.nextCursor).toBe(encodeCursor('cursor-token', 'tenant-1'));
       expect(mockBucket.list).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
           prefix: 'tenant-1:key',
           limit: 3,
-          cursor: 'incoming-cursor',
+          cursor: 'incoming-cursor', // decoded native cursor passed to R2
         }),
       );
     });

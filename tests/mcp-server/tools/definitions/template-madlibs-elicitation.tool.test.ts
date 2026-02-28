@@ -32,7 +32,9 @@ describe('madlibsElicitationTool', () => {
   });
 
   it('should elicit a noun if it is missing', async () => {
-    const mockElicitInput = vi.fn().mockResolvedValue({ value: 'robot' });
+    const mockElicitInput = vi
+      .fn()
+      .mockResolvedValue({ action: 'accept', content: { value: 'robot' } });
     const sdkContextWithElicit = {
       ...mockSdkContext,
       elicitInput: mockElicitInput,
@@ -66,9 +68,9 @@ describe('madlibsElicitationTool', () => {
   it('should elicit all parts of speech if none are provided', async () => {
     const mockElicitInput = vi
       .fn()
-      .mockResolvedValueOnce({ value: 'unicorn' }) // noun
-      .mockResolvedValueOnce({ value: 'flew' }) // verb
-      .mockResolvedValueOnce({ value: 'sparkly' }); // adjective
+      .mockResolvedValueOnce({ action: 'accept', content: { value: 'unicorn' } }) // noun
+      .mockResolvedValueOnce({ action: 'accept', content: { value: 'flew' } }) // verb
+      .mockResolvedValueOnce({ action: 'accept', content: { value: 'sparkly' } }); // adjective
 
     const sdkContextWithElicit = {
       ...mockSdkContext,
@@ -101,8 +103,23 @@ describe('madlibsElicitationTool', () => {
     await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.InvalidRequest);
   });
 
-  it('should throw an error if elicited input is invalid', async () => {
-    const mockElicitInput = vi.fn().mockResolvedValue(''); // Empty string
+  it('should throw an error if user declines elicitation', async () => {
+    const mockElicitInput = vi.fn().mockResolvedValue({ action: 'decline' });
+    const sdkContextWithElicit = {
+      ...mockSdkContext,
+      elicitInput: mockElicitInput,
+    };
+    const appContext = requestContextService.createRequestContext();
+    const rawInput = {};
+    const parsedInput = madlibsElicitationTool.inputSchema.parse(rawInput);
+    const promise = madlibsElicitationTool.logic(parsedInput, appContext, sdkContextWithElicit);
+
+    await expect(promise).rejects.toThrow(McpError);
+    await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.InvalidRequest);
+  });
+
+  it('should throw an error if elicited content is empty', async () => {
+    const mockElicitInput = vi.fn().mockResolvedValue({ action: 'accept', content: { value: '' } });
     const sdkContextWithElicit = {
       ...mockSdkContext,
       elicitInput: mockElicitInput,
