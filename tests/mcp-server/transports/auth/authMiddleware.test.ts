@@ -273,7 +273,7 @@ describe('Auth Middleware', () => {
       await expect(middleware(mockContext, mockNext)).rejects.toThrow('Custom auth error');
     });
 
-    it('should wrap non-McpError exceptions', async () => {
+    it('should propagate non-McpError exceptions from strategy', async () => {
       mockStrategy.verify = vi.fn(async () => {
         throw new Error('Unexpected error');
       });

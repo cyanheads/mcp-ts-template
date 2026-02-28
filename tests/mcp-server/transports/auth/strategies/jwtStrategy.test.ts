@@ -290,5 +290,23 @@ describe('JwtStrategy', () => {
       await expect(strategy.verify(token)).rejects.toThrow(McpError);
       await expect(strategy.verify(token)).rejects.toThrow(/non-empty scopes/);
     });
+
+    it('should populate expiresAt from the JWT exp claim', async () => {
+      const beforeSign = Math.floor(Date.now() / 1000);
+      const token = await new SignJWT({
+        cid: 'test-client',
+        scp: ['tool:read'],
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('1h')
+        .sign(testSecretBytes);
+
+      const authInfo = await strategy.verify(token);
+
+      expect(typeof authInfo.expiresAt).toBe('number');
+      // exp should be ~1 hour from now (3600s), well above current time
+      expect(authInfo.expiresAt).toBeGreaterThan(beforeSign);
+      expect(authInfo.expiresAt).toBeLessThanOrEqual(beforeSign + 3601);
+    });
   });
 });
