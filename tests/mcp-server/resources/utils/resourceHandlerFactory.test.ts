@@ -3,12 +3,11 @@
  * @module tests/mcp-server/resources/utils/resourceHandlerFactory.test
  */
 
-import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import { z } from 'zod';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-
-import { registerResource } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
 import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
+import { registerResource } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import type { RequestContext } from '@/utils/index.js';
 
@@ -36,14 +35,11 @@ describe('Resource Handler Factory', () => {
         result: z.string().describe('Result'),
       });
 
-      const mockLogic = vi.fn((_uri: URL, params, _context: RequestContext) => {
-        return { result: `Echo: ${params.message}` };
-      });
+      const mockLogic = vi.fn((_uri: URL, params, _context: RequestContext) => ({
+        result: `Echo: ${params.message}`,
+      }));
 
-      const resourceDef: ResourceDefinition<
-        typeof ParamsSchema,
-        typeof OutputSchema
-      > = {
+      const resourceDef: ResourceDefinition<typeof ParamsSchema, typeof OutputSchema> = {
         name: 'test-resource',
         description: 'Test resource',
         uriTemplate: 'test://{message}',
@@ -151,11 +147,9 @@ describe('Resource Handler Factory', () => {
         message: z.string(),
       });
 
-      const mockLogic = vi.fn(
-        async (_uri: URL, params, _context: RequestContext) => {
-          return { result: `Processed: ${params.message}` };
-        },
-      );
+      const mockLogic = vi.fn(async (_uri: URL, params, _context: RequestContext) => ({
+        result: `Processed: ${params.message}`,
+      }));
 
       const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
         name: 'invoke-test',
@@ -218,17 +212,11 @@ describe('Resource Handler Factory', () => {
       if (!handler) throw new Error('Handler not registered');
 
       // Test with invalid parameters
-      await expect(
-        handler(new URL('test://test'), { count: 'invalid' }, {}),
-      ).rejects.toThrow();
+      await expect(handler(new URL('test://test'), { count: 'invalid' }, {})).rejects.toThrow();
 
-      await expect(
-        handler(new URL('test://test'), { count: 0 }, {}),
-      ).rejects.toThrow();
+      await expect(handler(new URL('test://test'), { count: 0 }, {})).rejects.toThrow();
 
-      await expect(
-        handler(new URL('test://test'), { count: 101 }, {}),
-      ).rejects.toThrow();
+      await expect(handler(new URL('test://test'), { count: 101 }, {})).rejects.toThrow();
 
       // Test with valid parameters
       const result = await handler(new URL('test://test'), { count: 50 }, {});
@@ -241,17 +229,13 @@ describe('Resource Handler Factory', () => {
 
       const mockLogic = vi.fn(async () => ({ data: 'test-data' }));
 
-      const customFormatter = vi.fn(
-        (result: unknown, meta: { uri: URL; mimeType: string }) => {
-          return [
-            {
-              uri: meta.uri.href,
-              text: `Custom: ${JSON.stringify(result)}`,
-              mimeType: meta.mimeType,
-            },
-          ];
+      const customFormatter = vi.fn((result: unknown, meta: { uri: URL; mimeType: string }) => [
+        {
+          uri: meta.uri.href,
+          text: `Custom: ${JSON.stringify(result)}`,
+          mimeType: meta.mimeType,
         },
-      );
+      ]);
 
       const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
         name: 'formatter-test',
@@ -302,9 +286,7 @@ describe('Resource Handler Factory', () => {
       const handler = mockServer.resource.mock.calls[0]?.[3];
       if (!handler) throw new Error('Handler not registered');
 
-      await expect(handler(new URL('test://test'), {}, {})).rejects.toThrow(
-        McpError,
-      );
+      await expect(handler(new URL('test://test'), {}, {})).rejects.toThrow(McpError);
     });
 
     it('should validate response format', async () => {
@@ -313,9 +295,7 @@ describe('Resource Handler Factory', () => {
       const mockLogic = vi.fn(async () => ({ data: 'test' }));
 
       // Formatter that returns invalid format (not an array)
-      const invalidFormatter = vi.fn(() => {
-        return { invalid: 'format' } as any;
-      });
+      const invalidFormatter = vi.fn(() => ({ invalid: 'format' }) as any);
 
       const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
         name: 'invalid-format-test',
@@ -331,9 +311,7 @@ describe('Resource Handler Factory', () => {
       const handler = mockServer.resource.mock.calls[0]?.[3];
       if (!handler) throw new Error('Handler not registered');
 
-      await expect(handler(new URL('test://test'), {}, {})).rejects.toThrow(
-        /must return an array/,
-      );
+      await expect(handler(new URL('test://test'), {}, {})).rejects.toThrow(/must return an array/);
     });
 
     it('should validate content blocks have required uri property', async () => {
@@ -342,11 +320,9 @@ describe('Resource Handler Factory', () => {
       const mockLogic = vi.fn(async () => ({ data: 'test' }));
 
       // Formatter that returns array but without uri property
-      const invalidFormatter = vi.fn(() => {
-        return [
-          { text: 'missing uri property', mimeType: 'text/plain' },
-        ] as any;
-      });
+      const invalidFormatter = vi.fn(
+        () => [{ text: 'missing uri property', mimeType: 'text/plain' }] as any,
+      );
 
       const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
         name: 'missing-uri-test',
@@ -377,9 +353,7 @@ describe('Resource Handler Factory', () => {
         _uri: URL,
         params: z.infer<typeof ParamsSchema>,
         _context: RequestContext,
-      ) => {
-        return { result: params.value.toUpperCase() };
-      };
+      ) => ({ result: params.value.toUpperCase() });
 
       const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
         name: 'sync-test',
@@ -393,11 +367,7 @@ describe('Resource Handler Factory', () => {
 
       const handler = mockServer.resource.mock.calls[0]?.[3];
       if (!handler) throw new Error('Handler not registered');
-      const result = await handler(
-        new URL('test://hello'),
-        { value: 'hello' },
-        {},
-      );
+      const result = await handler(new URL('test://hello'), { value: 'hello' }, {});
 
       expect(result.contents[0].text).toBe(JSON.stringify({ result: 'HELLO' }));
     });
@@ -405,11 +375,9 @@ describe('Resource Handler Factory', () => {
     it('should pass sessionId to handler context when available', async () => {
       const ParamsSchema = z.object({});
 
-      const mockLogic = vi.fn(
-        async (_uri, _params, context: RequestContext) => {
-          return { sessionContext: context };
-        },
-      );
+      const mockLogic = vi.fn(async (_uri, _params, context: RequestContext) => ({
+        sessionContext: context,
+      }));
 
       const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
         name: 'session-test',
@@ -424,11 +392,7 @@ describe('Resource Handler Factory', () => {
       const handler = mockServer.resource.mock.calls[0]?.[3];
       if (!handler) throw new Error('Handler not registered');
 
-      await handler(
-        new URL('test://test'),
-        {},
-        { sessionId: 'test-session-123' },
-      );
+      await handler(new URL('test://test'), {}, { sessionId: 'test-session-123' });
 
       expect(mockLogic).toHaveBeenCalledWith(
         expect.anything(),

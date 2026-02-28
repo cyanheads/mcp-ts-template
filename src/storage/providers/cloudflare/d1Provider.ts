@@ -7,14 +7,11 @@ import type { D1Database } from '@cloudflare/workers-types';
 
 import type {
   IStorageProvider,
-  StorageOptions,
   ListOptions,
   ListResult,
+  StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
-import {
-  encodeCursor,
-  decodeCursor,
-} from '@/storage/core/storageValidation.js';
+import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler, logger, type RequestContext } from '@/utils/index.js';
 
@@ -89,12 +86,8 @@ export class D1Provider implements IStorageProvider {
    * Retrieves a value from the D1 database.
    * Returns null if the key doesn't exist or has expired.
    */
-  async get<T>(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<T | null> {
-    return ErrorHandler.tryCatch(
+  async get<T>(tenantId: string, key: string, context: RequestContext): Promise<T | null> {
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[D1Provider] Getting key: ${key}`, context);
 
@@ -151,7 +144,7 @@ export class D1Provider implements IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[D1Provider] Setting key: ${key}`, {
           ...context,
@@ -187,19 +180,13 @@ export class D1Provider implements IStorageProvider {
    * Deletes a key from the D1 database.
    * Returns true if the key existed, false otherwise.
    */
-  async delete(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<boolean> {
-    return ErrorHandler.tryCatch(
+  async delete(tenantId: string, key: string, context: RequestContext): Promise<boolean> {
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[D1Provider] Deleting key: ${key}`, context);
 
         const stmt = this.db
-          .prepare(
-            `DELETE FROM ${this.tableName} WHERE tenant_id = ? AND key = ?`,
-          )
+          .prepare(`DELETE FROM ${this.tableName} WHERE tenant_id = ? AND key = ?`)
           .bind(tenantId, key);
 
         const result = await stmt.run();
@@ -208,10 +195,7 @@ export class D1Provider implements IStorageProvider {
         const deleted = (result.meta?.changes ?? 0) > 0;
 
         if (deleted) {
-          logger.debug(
-            `[D1Provider] Successfully deleted key: ${key}`,
-            context,
-          );
+          logger.debug(`[D1Provider] Successfully deleted key: ${key}`, context);
         } else {
           logger.debug(`[D1Provider] Key to delete not found: ${key}`, context);
         }
@@ -236,7 +220,7 @@ export class D1Provider implements IStorageProvider {
     context: RequestContext,
     options?: ListOptions,
   ): Promise<ListResult> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[D1Provider] Listing keys with prefix: ${prefix}`, {
           ...context,
@@ -261,7 +245,7 @@ export class D1Provider implements IStorageProvider {
 
         // Query with prefix matching and TTL filtering
         const now = this.getNow();
-        let stmt;
+        let stmt: ReturnType<D1Database['prepare']>;
 
         if (lastKey) {
           // Cursor-based pagination: fetch keys after lastKey
@@ -301,13 +285,10 @@ export class D1Provider implements IStorageProvider {
         let nextCursor: string | undefined;
         if (hasMore && keys.length > 0) {
           // Use the last key from the results as the cursor
-          nextCursor = encodeCursor(keys[keys.length - 1]!.key, tenantId);
+          nextCursor = encodeCursor((keys[keys.length - 1] as { key: string }).key, tenantId);
         }
 
-        logger.debug(
-          `[D1Provider] Found ${keys.length} keys with prefix: ${prefix}`,
-          context,
-        );
+        logger.debug(`[D1Provider] Found ${keys.length} keys with prefix: ${prefix}`, context);
 
         return {
           keys: keys.map((row) => row.key),
@@ -332,16 +313,13 @@ export class D1Provider implements IStorageProvider {
     keys: string[],
     context: RequestContext,
   ): Promise<Map<string, T>> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         if (keys.length === 0) {
           return new Map<string, T>();
         }
 
-        logger.debug(
-          `[D1Provider] Getting ${keys.length} keys in batch`,
-          context,
-        );
+        logger.debug(`[D1Provider] Getting ${keys.length} keys in batch`, context);
 
         // Build SQL IN clause
         const placeholders = keys.map(() => '?').join(',');
@@ -370,10 +348,10 @@ export class D1Provider implements IStorageProvider {
             const parsed = JSON.parse(row.value) as T;
             results.set(row.key, parsed);
           } catch (error: unknown) {
-            logger.warning(
-              `[D1Provider] Failed to parse value for key: ${row.key}`,
-              { ...context, error },
-            );
+            logger.warning(`[D1Provider] Failed to parse value for key: ${row.key}`, {
+              ...context,
+              error,
+            });
             // Skip unparseable values
           }
         }
@@ -399,7 +377,7 @@ export class D1Provider implements IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         if (entries.size === 0) {
           return;
@@ -428,10 +406,7 @@ export class D1Provider implements IStorageProvider {
         // Execute as a single transaction
         await this.db.batch(statements);
 
-        logger.debug(
-          `[D1Provider] Successfully set ${entries.size} keys in batch`,
-          context,
-        );
+        logger.debug(`[D1Provider] Successfully set ${entries.size} keys in batch`, context);
       },
       {
         operation: 'D1Provider.setMany',
@@ -446,28 +421,19 @@ export class D1Provider implements IStorageProvider {
    * Uses D1's batch() API for atomic deletion.
    * Returns the count of successfully deleted keys.
    */
-  async deleteMany(
-    tenantId: string,
-    keys: string[],
-    context: RequestContext,
-  ): Promise<number> {
-    return ErrorHandler.tryCatch(
+  async deleteMany(tenantId: string, keys: string[], context: RequestContext): Promise<number> {
+    return await ErrorHandler.tryCatch(
       async () => {
         if (keys.length === 0) {
           return 0;
         }
 
-        logger.debug(
-          `[D1Provider] Deleting ${keys.length} keys in batch`,
-          context,
-        );
+        logger.debug(`[D1Provider] Deleting ${keys.length} keys in batch`, context);
 
         // Prepare batch delete statements
         const statements = keys.map((key) =>
           this.db
-            .prepare(
-              `DELETE FROM ${this.tableName} WHERE tenant_id = ? AND key = ?`,
-            )
+            .prepare(`DELETE FROM ${this.tableName} WHERE tenant_id = ? AND key = ?`)
             .bind(tenantId, key),
         );
 
@@ -480,10 +446,7 @@ export class D1Provider implements IStorageProvider {
           0,
         );
 
-        logger.debug(
-          `[D1Provider] Deleted ${deletedCount} of ${keys.length} keys`,
-          context,
-        );
+        logger.debug(`[D1Provider] Deleted ${deletedCount} of ${keys.length} keys`, context);
 
         return deletedCount;
       },
@@ -501,12 +464,9 @@ export class D1Provider implements IStorageProvider {
    * Useful for testing or tenant cleanup operations.
    */
   async clear(tenantId: string, context: RequestContext): Promise<number> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
-        logger.warning(
-          `[D1Provider] Clearing all keys for tenant: ${tenantId}`,
-          context,
-        );
+        logger.warning(`[D1Provider] Clearing all keys for tenant: ${tenantId}`, context);
 
         const stmt = this.db
           .prepare(`DELETE FROM ${this.tableName} WHERE tenant_id = ?`)
@@ -515,10 +475,7 @@ export class D1Provider implements IStorageProvider {
         const result = await stmt.run();
         const deletedCount = result.meta?.changes ?? 0;
 
-        logger.info(
-          `[D1Provider] Cleared ${deletedCount} keys for tenant: ${tenantId}`,
-          context,
-        );
+        logger.info(`[D1Provider] Cleared ${deletedCount} keys for tenant: ${tenantId}`, context);
 
         return deletedCount;
       },

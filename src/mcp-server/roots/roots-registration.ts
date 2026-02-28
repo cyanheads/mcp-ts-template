@@ -8,10 +8,7 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import {
-  type logger as defaultLogger,
-  requestContextService,
-} from '@/utils/index.js';
+import { type logger as defaultLogger, requestContextService } from '@/utils/index.js';
 
 export class RootsRegistry {
   constructor(private logger: typeof defaultLogger) {}
@@ -27,10 +24,7 @@ export class RootsRegistry {
       operation: 'RootsRegistry.registerAll',
     });
 
-    this.logger.debug(
-      'Roots capability enabled (client-provided roots)',
-      context,
-    );
+    this.logger.debug('Roots capability enabled (client-provided roots)', context);
 
     // Note: The MCP SDK handles roots automatically via the client-server protocol.
     // Servers receive roots from clients, not the other way around.

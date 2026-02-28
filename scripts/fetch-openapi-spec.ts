@@ -14,9 +14,9 @@
  * // Fetch spec from a direct file URL
  * // ts-node --esm scripts/fetch-openapi-spec.ts https://petstore3.swagger.io/api/v3/openapi.json docs/api/petstore_v3
  */
-import fs from 'fs/promises';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import yaml from 'js-yaml';
-import path from 'path';
 
 const projectRoot = process.cwd();
 
@@ -66,9 +66,7 @@ if (
  * @param url - The URL to fetch data from.
  * @returns A promise resolving to an object with data and content type, or null if fetch fails.
  */
-async function tryFetch(
-  url: string,
-): Promise<{ data: string; contentType: string | null } | null> {
+async function tryFetch(url: string): Promise<{ data: string; contentType: string | null } | null> {
   try {
     console.log(`Attempting to fetch from: ${url}`);
     const response = await fetch(url);
@@ -98,10 +96,7 @@ async function tryFetch(
 function parseSpec(data: string, contentType: string | null): object | null {
   try {
     const lowerContentType = contentType?.toLowerCase();
-    if (
-      lowerContentType?.includes('yaml') ||
-      lowerContentType?.includes('yml')
-    ) {
+    if (lowerContentType?.includes('yaml') || lowerContentType?.includes('yml')) {
       console.log('Parsing content as YAML based on Content-Type...');
       const parsed = yaml.load(data);
       if (parsed && typeof parsed === 'object') return parsed;
@@ -112,9 +107,7 @@ function parseSpec(data: string, contentType: string | null): object | null {
       if (parsed && typeof parsed === 'object') return parsed;
       return null;
     } else {
-      console.log(
-        'Content-Type is ambiguous or missing. Attempting to parse as YAML first...',
-      );
+      console.log('Content-Type is ambiguous or missing. Attempting to parse as YAML first...');
       try {
         const parsedYaml = yaml.load(data);
         // Basic validation: check if it's a non-null object.
@@ -131,28 +124,20 @@ function parseSpec(data: string, contentType: string | null): object | null {
             return parsedJson;
           }
         } catch (_jsonError) {
-          console.warn(
-            'Could not parse content as YAML or JSON after attempting both.',
-          );
+          console.warn('Could not parse content as YAML or JSON after attempting both.');
           return null;
         }
       }
       // If YAML parsing resulted in a non-object (e.g. string, number) but didn't throw
-      console.warn(
-        'Content parsed as YAML but was not a valid object structure. Trying JSON.',
-      );
+      console.warn('Content parsed as YAML but was not a valid object structure. Trying JSON.');
       try {
         const parsedJson = JSON.parse(data) as unknown;
         if (parsedJson && typeof parsedJson === 'object') {
-          console.log(
-            'Successfully parsed as JSON on second attempt for non-object YAML.',
-          );
+          console.log('Successfully parsed as JSON on second attempt for non-object YAML.');
           return parsedJson;
         }
       } catch (_jsonError) {
-        console.warn(
-          'Could not parse content as YAML or JSON after attempting both.',
-        );
+        console.warn('Could not parse content as YAML or JSON after attempting both.');
         return null;
       }
     }
@@ -176,14 +161,8 @@ async function fetchAndProcessSpec(): Promise<void> {
   let fetchedResult: { data: string; contentType: string | null } | null = null;
   const potentialUrls: string[] = [urlArg];
 
-  if (
-    !urlArg.endsWith('.yaml') &&
-    !urlArg.endsWith('.yml') &&
-    !urlArg.endsWith('.json')
-  ) {
-    const urlWithoutTrailingSlash = urlArg.endsWith('/')
-      ? urlArg.slice(0, -1)
-      : urlArg;
+  if (!urlArg.endsWith('.yaml') && !urlArg.endsWith('.yml') && !urlArg.endsWith('.json')) {
+    const urlWithoutTrailingSlash = urlArg.endsWith('/') ? urlArg.slice(0, -1) : urlArg;
     potentialUrls.push(`${urlWithoutTrailingSlash}/openapi.yaml`);
     potentialUrls.push(`${urlWithoutTrailingSlash}/openapi.json`);
   }
@@ -212,17 +191,11 @@ async function fetchAndProcessSpec(): Promise<void> {
   try {
     await fs.access(outputDirAbsolute);
   } catch (error: unknown) {
-    if (
-      error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      error.code === 'ENOENT'
-    ) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
       console.log(`Output directory not found. Creating: ${outputDirAbsolute}`);
       await fs.mkdir(outputDirAbsolute, { recursive: true });
     } else {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(
         `Error accessing output directory ${outputDirAbsolute}: ${errorMessage}. Aborting.`,
       );
@@ -243,11 +216,7 @@ async function fetchAndProcessSpec(): Promise<void> {
 
   try {
     console.log(`Saving JSON specification to: ${jsonOutputPath}`);
-    await fs.writeFile(
-      jsonOutputPath,
-      JSON.stringify(openapiSpec, null, 2),
-      'utf8',
-    );
+    await fs.writeFile(jsonOutputPath, JSON.stringify(openapiSpec, null, 2), 'utf8');
     console.log(`Successfully saved JSON specification.`);
   } catch (error: unknown) {
     console.error(

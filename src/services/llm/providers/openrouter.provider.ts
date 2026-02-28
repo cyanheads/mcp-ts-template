@@ -5,31 +5,22 @@
  * @module src/services/llm/providers/openrouter.provider
  */
 import OpenAI from 'openai';
-import {
-  type ChatCompletion,
-  type ChatCompletionChunk,
-} from 'openai/resources/chat/completions';
-import { Stream } from 'openai/streaming';
-import { config as ConfigType } from '@/config/index.js';
+import type { ChatCompletion, ChatCompletionChunk } from 'openai/resources/chat/completions';
+import type { Stream } from 'openai/streaming';
+import type { config as ConfigType } from '@/config/index.js';
+import type { ILlmProvider, OpenRouterChatParams } from '@/services/llm/core/ILlmProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/index.js';
-import { logger as LoggerType } from '@/utils/internal/logger.js';
-import {
-  type RequestContext,
-  requestContextService,
-} from '@/utils/internal/requestContext.js';
-import { RateLimiter } from '@/utils/security/rateLimiter.js';
+import type { logger as LoggerType } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
+import type { RateLimiter } from '@/utils/security/rateLimiter.js';
 import { sanitization } from '@/utils/security/sanitization.js';
-import type {
-  ILlmProvider,
-  OpenRouterChatParams,
-} from '@/services/llm/core/ILlmProvider.js';
 
 export interface OpenRouterClientOptions {
   apiKey: string;
   baseURL?: string;
-  siteUrl?: string;
   siteName?: string;
+  siteUrl?: string;
 }
 
 export class OpenRouterProvider implements ILlmProvider {
@@ -90,10 +81,7 @@ export class OpenRouterProvider implements ILlmProvider {
         minP: this.config.llmDefaultMinP,
       };
 
-      this.logger.info(
-        'OpenRouter provider instance created and ready.',
-        context,
-      );
+      this.logger.info('OpenRouter provider instance created and ready.', context);
     } catch (e: unknown) {
       const error = e as Error;
       this.logger.error('Failed to construct OpenRouter client', {
@@ -111,27 +99,15 @@ export class OpenRouterProvider implements ILlmProvider {
   // --- PRIVATE METHODS ---
 
   private _prepareApiParameters(params: OpenRouterChatParams) {
-    const {
-      model,
-      temperature,
-      top_p: topP,
-      max_tokens: maxTokens,
-      stream,
-      ...rest
-    } = params;
+    const { model, temperature, top_p: topP, max_tokens: maxTokens, stream, ...rest } = params;
 
     return {
       ...rest,
       model: model || this.defaultParams.model,
       temperature:
-        temperature === null
-          ? undefined
-          : (temperature ?? this.defaultParams.temperature),
+        temperature === null ? undefined : (temperature ?? this.defaultParams.temperature),
       top_p: topP === null ? undefined : (topP ?? this.defaultParams.topP),
-      max_tokens:
-        maxTokens === null
-          ? undefined
-          : (maxTokens ?? this.defaultParams.maxTokens),
+      max_tokens: maxTokens === null ? undefined : (maxTokens ?? this.defaultParams.maxTokens),
       ...(typeof stream === 'boolean' && { stream }),
     };
   }
@@ -171,14 +147,8 @@ export class OpenRouterProvider implements ILlmProvider {
       async () => {
         const rateLimitKey = context.requestId || 'openrouter_default_key';
         this.rateLimiter.check(rateLimitKey, context);
-        const finalApiParams = this._prepareApiParameters(
-          params,
-        ) as OpenRouterChatParams;
-        return await this._openRouterChatCompletionLogic(
-          this.client,
-          finalApiParams,
-          context,
-        );
+        const finalApiParams = this._prepareApiParameters(params) as OpenRouterChatParams;
+        return await this._openRouterChatCompletionLogic(this.client, finalApiParams, context);
       },
       { operation, context, input: sanitizedParams },
     );

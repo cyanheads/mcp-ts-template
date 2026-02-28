@@ -2,17 +2,14 @@
  * @fileoverview Tests for the StorageBackedTaskStore.
  * @module tests/mcp-server/tasks/core/storageBackedTaskStore.test
  */
+
+import type { Request, RequestId } from '@modelcontextprotocol/sdk/types.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { container } from '@/container/core/container.js';
-
+import { StorageProvider, StorageService as StorageServiceToken } from '@/container/core/tokens.js';
 import { StorageBackedTaskStore } from '@/mcp-server/tasks/core/storageBackedTaskStore.js';
 import { StorageService } from '@/storage/core/StorageService.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
-import {
-  StorageProvider,
-  StorageService as StorageServiceToken,
-} from '@/container/core/tokens.js';
-import type { Request, RequestId } from '@modelcontextprotocol/sdk/types.js';
 
 describe('StorageBackedTaskStore', () => {
   let taskStore: StorageBackedTaskStore;
@@ -60,36 +57,20 @@ describe('StorageBackedTaskStore', () => {
     });
 
     it('should use default TTL when not provided', async () => {
-      const task = await taskStore.createTask(
-        { pollInterval: 1000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ pollInterval: 1000 }, testRequestId, testRequest);
 
       expect(task.ttl).toBe(60000); // default from options
     });
 
     it('should use default poll interval when not provided', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       expect(task.pollInterval).toBe(1000); // default
     });
 
     it('should generate unique task IDs', async () => {
-      const task1 = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
-      const task2 = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task1 = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
+      const task2 = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       expect(task1.taskId).not.toBe(task2.taskId);
     });
@@ -117,11 +98,7 @@ describe('StorageBackedTaskStore', () => {
     });
 
     it('should return a copy of the task (not a reference)', async () => {
-      const created = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const created = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       const retrieved1 = await taskStore.getTask(created.taskId);
       const retrieved2 = await taskStore.getTask(created.taskId);
@@ -133,11 +110,7 @@ describe('StorageBackedTaskStore', () => {
 
   describe('updateTaskStatus', () => {
     it('should update task status', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       await taskStore.updateTaskStatus(task.taskId, 'working', 'Processing...');
 
@@ -147,11 +120,7 @@ describe('StorageBackedTaskStore', () => {
     });
 
     it('should update lastUpdatedAt timestamp', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
       const originalUpdatedAt = task.lastUpdatedAt;
 
       // Small delay to ensure timestamp changes
@@ -163,17 +132,13 @@ describe('StorageBackedTaskStore', () => {
     });
 
     it('should throw error for non-existent task', async () => {
-      await expect(
-        taskStore.updateTaskStatus('nonexistent', 'completed'),
-      ).rejects.toThrow('not found');
+      await expect(taskStore.updateTaskStatus('nonexistent', 'completed')).rejects.toThrow(
+        'not found',
+      );
     });
 
     it('should throw error when transitioning from terminal state', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       // Complete the task
       await taskStore.storeTaskResult(task.taskId, 'completed', {
@@ -181,19 +146,15 @@ describe('StorageBackedTaskStore', () => {
       });
 
       // Try to update status - should fail
-      await expect(
-        taskStore.updateTaskStatus(task.taskId, 'working', 'Retry'),
-      ).rejects.toThrow(/terminal status/i);
+      await expect(taskStore.updateTaskStatus(task.taskId, 'working', 'Retry')).rejects.toThrow(
+        /terminal status/i,
+      );
     });
   });
 
   describe('storeTaskResult', () => {
     it('should store result and update status to completed', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       await taskStore.storeTaskResult(task.taskId, 'completed', {
         content: [{ type: 'text', text: 'Success!' }],
@@ -204,11 +165,7 @@ describe('StorageBackedTaskStore', () => {
     });
 
     it('should store result and update status to failed', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       await taskStore.storeTaskResult(task.taskId, 'failed', {
         content: [{ type: 'text', text: 'Error occurred' }],
@@ -228,11 +185,7 @@ describe('StorageBackedTaskStore', () => {
     });
 
     it('should throw error when storing result for task in terminal state', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       // Store first result
       await taskStore.storeTaskResult(task.taskId, 'completed', {
@@ -250,11 +203,7 @@ describe('StorageBackedTaskStore', () => {
 
   describe('getTaskResult', () => {
     it('should retrieve stored result', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       const expectedResult = {
         content: [{ type: 'text' as const, text: 'Success!' }],
@@ -264,27 +213,17 @@ describe('StorageBackedTaskStore', () => {
 
       const result = await taskStore.getTaskResult(task.taskId);
       expect(result.content).toEqual(expectedResult.content);
-      expect(result.structuredContent).toEqual(
-        expectedResult.structuredContent,
-      );
+      expect(result.structuredContent).toEqual(expectedResult.structuredContent);
     });
 
     it('should throw error for non-existent task', async () => {
-      await expect(taskStore.getTaskResult('nonexistent')).rejects.toThrow(
-        'not found',
-      );
+      await expect(taskStore.getTaskResult('nonexistent')).rejects.toThrow('not found');
     });
 
     it('should throw error when no result stored', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
-      await expect(taskStore.getTaskResult(task.taskId)).rejects.toThrow(
-        'no result stored',
-      );
+      await expect(taskStore.getTaskResult(task.taskId)).rejects.toThrow('no result stored');
     });
   });
 
@@ -329,11 +268,7 @@ describe('StorageBackedTaskStore', () => {
 
   describe('deleteTask', () => {
     it('should delete an existing task', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       await taskStore.deleteTask(task.taskId);
 
@@ -343,9 +278,7 @@ describe('StorageBackedTaskStore', () => {
 
     it('should not throw error when deleting non-existent task', async () => {
       // Should not throw
-      await expect(
-        taskStore.deleteTask('nonexistent'),
-      ).resolves.toBeUndefined();
+      await expect(taskStore.deleteTask('nonexistent')).resolves.toBeUndefined();
     });
   });
 
@@ -370,11 +303,7 @@ describe('StorageBackedTaskStore', () => {
 
   describe('task state machine', () => {
     it('should allow working -> completed transition', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       await taskStore.storeTaskResult(task.taskId, 'completed', {
         content: [{ type: 'text', text: 'Done' }],
@@ -385,11 +314,7 @@ describe('StorageBackedTaskStore', () => {
     });
 
     it('should allow working -> failed transition', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       await taskStore.storeTaskResult(task.taskId, 'failed', {
         content: [{ type: 'text', text: 'Error' }],
@@ -401,28 +326,16 @@ describe('StorageBackedTaskStore', () => {
     });
 
     it('should allow working -> cancelled transition via updateTaskStatus', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
-      await taskStore.updateTaskStatus(
-        task.taskId,
-        'cancelled',
-        'User cancelled',
-      );
+      await taskStore.updateTaskStatus(task.taskId, 'cancelled', 'User cancelled');
 
       const updated = await taskStore.getTask(task.taskId);
       expect(updated?.status).toBe('cancelled');
     });
 
     it('should allow multiple working status updates', async () => {
-      const task = await taskStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await taskStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       await taskStore.updateTaskStatus(task.taskId, 'working', '25% complete');
       await taskStore.updateTaskStatus(task.taskId, 'working', '50% complete');
@@ -440,11 +353,7 @@ describe('StorageBackedTaskStore', () => {
         tenantId: 'custom-tenant',
       });
 
-      const task = await customStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await customStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       // Task should be retrievable
       const retrieved = await customStore.getTask(task.taskId);
@@ -457,11 +366,7 @@ describe('StorageBackedTaskStore', () => {
         keyPrefix: 'custom-prefix',
       });
 
-      const task = await customStore.createTask(
-        { ttl: 30000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await customStore.createTask({ ttl: 30000 }, testRequestId, testRequest);
 
       // Task should be retrievable
       const retrieved = await customStore.getTask(task.taskId);
@@ -474,11 +379,7 @@ describe('StorageBackedTaskStore', () => {
         defaultTtl: null,
       });
 
-      const task = await customStore.createTask(
-        { pollInterval: 1000 },
-        testRequestId,
-        testRequest,
-      );
+      const task = await customStore.createTask({ pollInterval: 1000 }, testRequestId, testRequest);
 
       expect(task.ttl).toBeNull();
     });

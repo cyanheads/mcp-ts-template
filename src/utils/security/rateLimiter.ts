@@ -4,11 +4,11 @@
  * @module src/utils/security/rateLimiter
  */
 import { trace } from '@opentelemetry/api';
-import { config as ConfigType } from '@/config/index.js';
+import type { config as ConfigType } from '@/config/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
+  type logger as LoggerType,
   type RequestContext,
-  logger as LoggerType,
   requestContextService,
 } from '@/utils/index.js';
 
@@ -16,20 +16,20 @@ import {
  * Defines configuration options for the {@link RateLimiter}.
  */
 export interface RateLimitConfig {
-  /** Time window in milliseconds. */
-  windowMs: number;
-  /** Maximum number of requests allowed in the window. */
-  maxRequests: number;
-  /** Custom error message template. Can include `{waitTime}` placeholder. */
-  errorMessage?: string;
-  /** If true, skip rate limiting in development. */
-  skipInDevelopment?: boolean;
-  /** Optional function to generate a custom key for rate limiting. */
-  keyGenerator?: (identifier: string, context?: RequestContext) => string;
   /** How often, in milliseconds, to clean up expired entries. */
   cleanupInterval?: number;
+  /** Custom error message template. Can include `{waitTime}` placeholder. */
+  errorMessage?: string;
+  /** Optional function to generate a custom key for rate limiting. */
+  keyGenerator?: (identifier: string, context?: RequestContext) => string;
+  /** Maximum number of requests allowed in the window. */
+  maxRequests: number;
   /** Maximum number of tracked keys. When exceeded, oldest entries are evicted (LRU). Default: 10000 */
   maxTrackedKeys?: number;
+  /** If true, skip rate limiting in development. */
+  skipInDevelopment?: boolean;
+  /** Time window in milliseconds. */
+  windowMs: number;
 }
 
 /**
@@ -38,10 +38,10 @@ export interface RateLimitConfig {
 export interface RateLimitEntry {
   /** Current request count. */
   count: number;
-  /** When the window resets (timestamp in milliseconds). */
-  resetTime: number;
   /** Last access timestamp for LRU eviction. */
   lastAccess: number;
+  /** When the window resets (timestamp in milliseconds). */
+  resetTime: number;
 }
 
 export class RateLimiter {
@@ -56,8 +56,7 @@ export class RateLimiter {
     const defaultConfig: RateLimitConfig = {
       windowMs: 15 * 60 * 1000,
       maxRequests: 100,
-      errorMessage:
-        'Rate limit exceeded. Please try again in {waitTime} seconds.',
+      errorMessage: 'Rate limit exceeded. Please try again in {waitTime} seconds.',
       skipInDevelopment: false,
       cleanupInterval: 5 * 60 * 1000,
       maxTrackedKeys: 10000,
@@ -131,10 +130,7 @@ export class RateLimiter {
           totalRemainingAfterClean: this.limits.size,
         },
       });
-      this.logger.debug(
-        `Cleaned up ${expiredCount} expired rate limit entries`,
-        logContext,
-      );
+      this.logger.debug(`Cleaned up ${expiredCount} expired rate limit entries`, logContext);
     }
   }
 
@@ -161,10 +157,7 @@ export class RateLimiter {
     const activeSpan = trace.getActiveSpan();
     activeSpan?.setAttribute('mcp.rate_limit.checked', true);
 
-    if (
-      this.effectiveConfig.skipInDevelopment &&
-      this.config.environment === 'development'
-    ) {
+    if (this.effectiveConfig.skipInDevelopment && this.config.environment === 'development') {
       activeSpan?.setAttribute('mcp.rate_limit.skipped', 'development');
       return;
     }
@@ -199,10 +192,7 @@ export class RateLimiter {
       entry.lastAccess = now; // Update LRU timestamp
     }
 
-    const remaining = Math.max(
-      0,
-      this.effectiveConfig.maxRequests - entry.count,
-    );
+    const remaining = Math.max(0, this.effectiveConfig.maxRequests - entry.count);
     activeSpan?.setAttributes({
       'mcp.rate_limit.limit': this.effectiveConfig.maxRequests,
       'mcp.rate_limit.count': entry.count,

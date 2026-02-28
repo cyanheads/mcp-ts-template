@@ -3,7 +3,7 @@
  * Guards against unintentional schema changes that could break MCP clients.
  * @module tests/mcp-server/resources/schemas/schema-snapshots
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';

@@ -121,17 +121,13 @@ describe('Storage Barrel Export', () => {
     it('should be a constructable class', () => {
       // Verify it's a constructor function
       expect(storageIndex.StorageService.prototype).toBeDefined();
-      expect(storageIndex.StorageService.prototype.constructor).toBe(
-        storageIndex.StorageService,
-      );
+      expect(storageIndex.StorageService.prototype.constructor).toBe(storageIndex.StorageService);
     });
 
     it('should have expected methods', () => {
       // Verify that StorageService is a proper class with a prototype
       expect(storageIndex.StorageService.prototype).toBeDefined();
-      expect(storageIndex.StorageService.prototype.constructor).toBe(
-        storageIndex.StorageService,
-      );
+      expect(storageIndex.StorageService.prototype.constructor).toBe(storageIndex.StorageService);
 
       // Core CRUD methods should exist (conceptual test)
       const expectedMethods = ['get', 'set', 'delete', 'has', 'list'];
@@ -166,20 +162,23 @@ describe('Storage Barrel Export', () => {
   describe('Re-export Integrity', () => {
     it('should maintain function identity across imports', async () => {
       // Import from the source module and verify it's the same reference
-      const { StorageService: DirectStorageService } =
-        await import('@/storage/core/StorageService.js');
+      const { StorageService: DirectStorageService } = await import(
+        '@/storage/core/StorageService.js'
+      );
       expect(storageIndex.StorageService).toBe(DirectStorageService);
     });
 
     it('should maintain factory function identity', async () => {
-      const { createStorageProvider: DirectFactory } =
-        await import('@/storage/core/storageFactory.js');
+      const { createStorageProvider: DirectFactory } = await import(
+        '@/storage/core/storageFactory.js'
+      );
       expect(storageIndex.createStorageProvider).toBe(DirectFactory);
     });
 
     it('should maintain validation function identity', async () => {
-      const { validateTenantId: DirectValidate, encodeCursor: DirectEncode } =
-        await import('@/storage/core/storageValidation.js');
+      const { validateTenantId: DirectValidate, encodeCursor: DirectEncode } = await import(
+        '@/storage/core/storageValidation.js'
+      );
       expect(storageIndex.validateTenantId).toBe(DirectValidate);
       expect(storageIndex.encodeCursor).toBe(DirectEncode);
     });

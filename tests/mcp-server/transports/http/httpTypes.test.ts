@@ -3,12 +3,9 @@
  * @module tests/mcp-server/transports/http/httpTypes.test
  */
 
-import { describe, test, expect } from 'vitest';
-import type { IncomingMessage, ServerResponse } from 'http';
-import type {
-  HonoNodeBindings,
-  HonoVariables,
-} from '@/mcp-server/transports/http/httpTypes.js';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { describe, expect, test } from 'vitest';
+import type { HonoNodeBindings, HonoVariables } from '@/mcp-server/transports/http/httpTypes.js';
 
 describe('HTTP Transport Types', () => {
   describe('HonoNodeBindings', () => {

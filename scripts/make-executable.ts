@@ -15,9 +15,9 @@
  * // Run directly with custom files:
  * // ts-node --esm scripts/make-executable.ts path/to/script1 path/to/script2
  */
-import fs from 'fs/promises';
-import os from 'os';
-import path from 'path';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
 const isUnix = os.platform() !== 'win32';
 const projectRoot = process.cwd();
@@ -31,8 +31,8 @@ const EXECUTABLE_MODE = 0o755; // rwxr-xr-x
  */
 interface ExecutableResult {
   file: string;
-  status: 'success' | 'error' | 'skipped';
   reason?: string;
+  status: 'success' | 'error' | 'skipped';
 }
 
 /**
@@ -43,29 +43,20 @@ interface ExecutableResult {
 const makeExecutable = async (): Promise<void> => {
   try {
     const targetFiles: string[] =
-      process.argv.slice(2).length > 0
-        ? process.argv.slice(2)
-        : ['dist/index.js'];
+      process.argv.slice(2).length > 0 ? process.argv.slice(2) : ['dist/index.js'];
 
     if (!isUnix) {
-      console.log(
-        'Skipping chmod operation: Script is running on Windows (not applicable).',
-      );
+      console.log('Skipping chmod operation: Script is running on Windows (not applicable).');
       return;
     }
 
-    console.log(
-      `Attempting to make files executable: ${targetFiles.join(', ')}`,
-    );
+    console.log(`Attempting to make files executable: ${targetFiles.join(', ')}`);
 
     const results = await Promise.allSettled(
       targetFiles.map(async (targetFile): Promise<ExecutableResult> => {
         const normalizedPath = path.resolve(projectRoot, targetFile);
 
-        if (
-          !normalizedPath.startsWith(projectRoot + path.sep) &&
-          normalizedPath !== projectRoot
-        ) {
+        if (!normalizedPath.startsWith(projectRoot + path.sep) && normalizedPath !== projectRoot) {
           return {
             file: targetFile,
             status: 'error',
@@ -86,9 +77,7 @@ const makeExecutable = async (): Promise<void> => {
               reason: 'File not found',
             };
           }
-          console.error(
-            `Error setting executable permission for ${targetFile}: ${err.message}`,
-          );
+          console.error(`Error setting executable permission for ${targetFile}: ${err.message}`);
           return { file: targetFile, status: 'error', reason: err.message };
         }
       }),
@@ -108,9 +97,7 @@ const makeExecutable = async (): Promise<void> => {
           console.warn(`Skipped ${file}: ${reason}`);
         }
       } else {
-        console.error(
-          `Unexpected failure for one of the files: ${result.reason}`,
-        );
+        console.error(`Unexpected failure for one of the files: ${result.reason}`);
         hasErrors = true;
       }
     });

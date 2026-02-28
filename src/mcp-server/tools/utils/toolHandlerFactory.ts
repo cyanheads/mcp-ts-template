@@ -13,15 +13,14 @@ import type {
   ServerRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
-
-import type { SdkContext } from './toolDefinition.js';
-import { McpError } from '@/types-global/errors.js';
+import type { McpError } from '@/types-global/errors.js';
 import {
   ErrorHandler,
-  type RequestContext,
   measureToolExecution,
+  type RequestContext,
   requestContextService,
 } from '@/utils/index.js';
+import type { SdkContext } from './toolDefinition.js';
 
 // Default formatter for successful responses
 const defaultResponseFormatter = (result: unknown): ContentBlock[] => [
@@ -75,18 +74,13 @@ export function createMcpToolHandler<
     // The `callContext` from the SDK is cast to our specific SdkContext type.
     const sdkContext = callContext as SdkContext;
 
-    const sessionId =
-      typeof sdkContext?.sessionId === 'string'
-        ? sdkContext.sessionId
-        : undefined;
+    const sessionId = typeof sdkContext?.sessionId === 'string' ? sdkContext.sessionId : undefined;
 
     // Extract only plain-data fields from sdkContext — spreading the raw SDK
     // object copies native objects (AbortSignal) that crash Pino serialization.
     const appContext = requestContextService.createRequestContext({
       parentContext: {
-        ...(typeof sdkContext?.requestId === 'string'
-          ? { requestId: sdkContext.requestId }
-          : {}),
+        ...(typeof sdkContext?.requestId === 'string' ? { requestId: sdkContext.requestId } : {}),
         ...(sessionId ? { sessionId } : {}),
       },
       operation: 'HandleToolRequest',

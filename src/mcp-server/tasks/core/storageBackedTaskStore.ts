@@ -8,45 +8,28 @@
  * @experimental These APIs are experimental and may change without notice.
  * @module src/mcp-server/tasks/core/storageBackedTaskStore
  */
-import type {
-  Request,
-  RequestId,
-  Result,
-} from '@modelcontextprotocol/sdk/types.js';
+import type { Request, RequestId, Result } from '@modelcontextprotocol/sdk/types.js';
 
 import type { StorageService } from '@/storage/core/StorageService.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { idGenerator, type RequestContext } from '@/utils/index.js';
-import type { Task, TaskStore, CreateTaskOptions } from './taskTypes.js';
+import type { CreateTaskOptions, Task, TaskStore } from './taskTypes.js';
 import { isTerminal } from './taskTypes.js';
 
 /**
  * Internal structure for storing task data in the storage backend.
  */
 interface StoredTask {
-  task: Task;
   request: Request;
   requestId: RequestId;
   result?: Result;
+  task: Task;
 }
 
 /**
  * Configuration options for StorageBackedTaskStore.
  */
 export interface StorageBackedTaskStoreOptions {
-  /**
-   * The tenant ID to use for storage operations.
-   * Tasks are stored under this tenant for isolation.
-   * @default 'system-tasks'
-   */
-  tenantId?: string;
-
-  /**
-   * Prefix for storage keys.
-   * @default 'tasks'
-   */
-  keyPrefix?: string;
-
   /**
    * Default TTL in milliseconds if not specified in task creation.
    * Set to null for unlimited lifetime.
@@ -55,10 +38,22 @@ export interface StorageBackedTaskStoreOptions {
   defaultTtl?: number | null;
 
   /**
+   * Prefix for storage keys.
+   * @default 'tasks'
+   */
+  keyPrefix?: string;
+
+  /**
    * Page size for listTasks pagination.
    * @default 10
    */
   pageSize?: number;
+  /**
+   * The tenant ID to use for storage operations.
+   * Tasks are stored under this tenant for isolation.
+   * @default 'system-tasks'
+   */
+  tenantId?: string;
 }
 
 /**
@@ -163,10 +158,7 @@ export class StorageBackedTaskStore implements TaskStore {
 
   async getTask(taskId: string, _sessionId?: string): Promise<Task | null> {
     const context = this.createContext('getTask');
-    const stored = await this.storage.get<StoredTask>(
-      this.getTaskKey(taskId),
-      context,
-    );
+    const stored = await this.storage.get<StoredTask>(this.getTaskKey(taskId), context);
 
     return stored ? { ...stored.task } : null;
   }
@@ -182,10 +174,7 @@ export class StorageBackedTaskStore implements TaskStore {
 
     const stored = await this.storage.get<StoredTask>(key, context);
     if (!stored) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        `Task with ID ${taskId} not found`,
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task with ID ${taskId} not found`);
     }
 
     // Don't allow storing results for tasks already in terminal state
@@ -211,23 +200,14 @@ export class StorageBackedTaskStore implements TaskStore {
 
   async getTaskResult(taskId: string, _sessionId?: string): Promise<Result> {
     const context = this.createContext('getTaskResult');
-    const stored = await this.storage.get<StoredTask>(
-      this.getTaskKey(taskId),
-      context,
-    );
+    const stored = await this.storage.get<StoredTask>(this.getTaskKey(taskId), context);
 
     if (!stored) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        `Task with ID ${taskId} not found`,
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task with ID ${taskId} not found`);
     }
 
     if (!stored.result) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        `Task ${taskId} has no result stored`,
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task ${taskId} has no result stored`);
     }
 
     return stored.result;
@@ -244,10 +224,7 @@ export class StorageBackedTaskStore implements TaskStore {
 
     const stored = await this.storage.get<StoredTask>(key, context);
     if (!stored) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        `Task with ID ${taskId} not found`,
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task with ID ${taskId} not found`);
     }
 
     // Don't allow transitions from terminal states
@@ -270,7 +247,7 @@ export class StorageBackedTaskStore implements TaskStore {
       key,
       stored,
       context,
-      shouldResetTtl ? { ttl: Math.ceil(stored.task.ttl! / 1000) } : undefined,
+      shouldResetTtl ? { ttl: Math.ceil((stored.task.ttl as number) / 1000) } : undefined,
     );
   }
 
@@ -332,9 +309,7 @@ export class StorageBackedTaskStore implements TaskStore {
         cursor ? { cursor, limit: 100 } : { limit: 100 },
       );
 
-      await Promise.all(
-        result.keys.map((key) => this.storage.delete(key, context)),
-      );
+      await Promise.all(result.keys.map((key) => this.storage.delete(key, context)));
 
       cursor = result.nextCursor;
     } while (cursor);

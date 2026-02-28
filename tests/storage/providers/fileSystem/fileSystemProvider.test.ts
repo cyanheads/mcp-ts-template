@@ -2,9 +2,10 @@
  * @fileoverview Tests for the FileSystem storage provider.
  * @module tests/storage/providers/fileSystem/fileSystemProvider.test.ts
  */
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { rmSync, existsSync, mkdirSync } from 'fs';
-import path from 'path';
+
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
 import { McpError } from '@/types-global/errors.js';
 import { requestContextService } from '@/utils/index.js';
@@ -13,9 +14,7 @@ const TEST_STORAGE_PATH = path.join(process.cwd(), '.test-storage-fs');
 
 describe('FileSystemProvider', () => {
   let provider: FileSystemProvider;
-  let testContext: ReturnType<
-    typeof requestContextService.createRequestContext
-  >;
+  let testContext: ReturnType<typeof requestContextService.createRequestContext>;
 
   beforeEach(() => {
     // Clean up any existing test storage
@@ -58,11 +57,7 @@ describe('FileSystemProvider', () => {
   describe('Basic CRUD Operations', () => {
     it('should set and get a value', async () => {
       await provider.set('tenant1', 'key1', { data: 'value1' }, testContext);
-      const result = await provider.get<{ data: string }>(
-        'tenant1',
-        'key1',
-        testContext,
-      );
+      const result = await provider.get<{ data: string }>('tenant1', 'key1', testContext);
 
       expect(result).toEqual({ data: 'value1' });
     });
@@ -83,11 +78,7 @@ describe('FileSystemProvider', () => {
     });
 
     it('should return false when deleting non-existent key', async () => {
-      const deleted = await provider.delete(
-        'tenant1',
-        'nonexistent',
-        testContext,
-      );
+      const deleted = await provider.delete('tenant1', 'nonexistent', testContext);
       expect(deleted).toBe(false);
     });
 
@@ -113,18 +104,8 @@ describe('FileSystemProvider', () => {
 
   describe('Tenant Isolation', () => {
     it('should isolate data between different tenants', async () => {
-      await provider.set(
-        'tenant1',
-        'shared-key',
-        { value: 'tenant1-data' },
-        testContext,
-      );
-      await provider.set(
-        'tenant2',
-        'shared-key',
-        { value: 'tenant2-data' },
-        testContext,
-      );
+      await provider.set('tenant1', 'shared-key', { value: 'tenant1-data' }, testContext);
+      await provider.set('tenant2', 'shared-key', { value: 'tenant2-data' }, testContext);
 
       const result1 = await provider.get('tenant1', 'shared-key', testContext);
       const result2 = await provider.get('tenant2', 'shared-key', testContext);
@@ -134,12 +115,7 @@ describe('FileSystemProvider', () => {
     });
 
     it('should not allow cross-tenant data access', async () => {
-      await provider.set(
-        'tenant1',
-        'key1',
-        { secret: 'tenant1-secret' },
-        testContext,
-      );
+      await provider.set('tenant1', 'key1', { secret: 'tenant1-secret' }, testContext);
 
       const result = await provider.get('tenant2', 'key1', testContext);
       expect(result).toBeNull();
@@ -162,35 +138,20 @@ describe('FileSystemProvider', () => {
   describe('Path Traversal Security', () => {
     it('should prevent path traversal with ../ in key', async () => {
       await expect(
-        provider.set(
-          'tenant1',
-          '../../../etc/passwd',
-          { data: 'evil' },
-          testContext,
-        ),
+        provider.set('tenant1', '../../../etc/passwd', { data: 'evil' }, testContext),
       ).rejects.toThrow(McpError);
     });
 
     it('should prevent path traversal with ../ in tenant ID', async () => {
       const evilProvider = new FileSystemProvider(TEST_STORAGE_PATH);
       await expect(
-        evilProvider.set(
-          '../../evil-tenant',
-          'key1',
-          { data: 'evil' },
-          testContext,
-        ),
+        evilProvider.set('../../evil-tenant', 'key1', { data: 'evil' }, testContext),
       ).rejects.toThrow(McpError);
     });
 
     it('should sanitize tenant IDs containing slashes', async () => {
       await expect(
-        provider.set(
-          'tenant/with/slashes',
-          'key1',
-          { data: 'test' },
-          testContext,
-        ),
+        provider.set('tenant/with/slashes', 'key1', { data: 'test' }, testContext),
       ).rejects.toThrow(McpError);
     });
   });
@@ -198,15 +159,9 @@ describe('FileSystemProvider', () => {
   describe('TTL and Expiration', () => {
     it('should respect TTL and expire entries', async () => {
       // Set with 200ms TTL (optimized for faster tests)
-      await provider.set(
-        'tenant1',
-        'expiring-key',
-        { data: 'temporary' },
-        testContext,
-        {
-          ttl: 0.2,
-        },
-      );
+      await provider.set('tenant1', 'expiring-key', { data: 'temporary' }, testContext, {
+        ttl: 0.2,
+      });
 
       // Should exist immediately
       let result = await provider.get('tenant1', 'expiring-key', testContext);
@@ -221,33 +176,18 @@ describe('FileSystemProvider', () => {
     });
 
     it('should allow entries without TTL', async () => {
-      await provider.set(
-        'tenant1',
-        'permanent-key',
-        { data: 'permanent' },
-        testContext,
-      );
+      await provider.set('tenant1', 'permanent-key', { data: 'permanent' }, testContext);
 
       // Wait a bit
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      const result = await provider.get(
-        'tenant1',
-        'permanent-key',
-        testContext,
-      );
+      const result = await provider.get('tenant1', 'permanent-key', testContext);
       expect(result).toEqual({ data: 'permanent' });
     });
 
     it('should filter out expired entries in list operation', async () => {
       await provider.set('tenant1', 'key1', { data: 'permanent' }, testContext);
-      await provider.set(
-        'tenant1',
-        'key2',
-        { data: 'temporary' },
-        testContext,
-        { ttl: 0.2 },
-      );
+      await provider.set('tenant1', 'key2', { data: 'temporary' }, testContext, { ttl: 0.2 });
 
       // Wait for expiration (300ms = 200ms TTL + 100ms buffer)
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -337,11 +277,7 @@ describe('FileSystemProvider', () => {
         await provider.set('tenant1', 'key2', { value: 2 }, testContext);
         await provider.set('tenant1', 'key3', { value: 3 }, testContext);
 
-        const deletedCount = await provider.deleteMany(
-          'tenant1',
-          ['key1', 'key2'],
-          testContext,
-        );
+        const deletedCount = await provider.deleteMany('tenant1', ['key1', 'key2'], testContext);
 
         expect(deletedCount).toBe(2);
 
@@ -482,29 +418,11 @@ describe('FileSystemProvider', () => {
 
   describe('Nested Keys (Path Support)', () => {
     it('should support nested path-like keys', async () => {
-      await provider.set(
-        'tenant1',
-        'users/123/profile',
-        { name: 'Test' },
-        testContext,
-      );
-      await provider.set(
-        'tenant1',
-        'users/123/settings',
-        { theme: 'dark' },
-        testContext,
-      );
+      await provider.set('tenant1', 'users/123/profile', { name: 'Test' }, testContext);
+      await provider.set('tenant1', 'users/123/settings', { theme: 'dark' }, testContext);
 
-      const profile = await provider.get(
-        'tenant1',
-        'users/123/profile',
-        testContext,
-      );
-      const settings = await provider.get(
-        'tenant1',
-        'users/123/settings',
-        testContext,
-      );
+      const profile = await provider.get('tenant1', 'users/123/profile', testContext);
+      const settings = await provider.get('tenant1', 'users/123/settings', testContext);
 
       expect(profile).toEqual({ name: 'Test' });
       expect(settings).toEqual({ theme: 'dark' });
@@ -528,9 +446,7 @@ describe('FileSystemProvider', () => {
       const circular: any = { a: 1 };
       circular.self = circular;
 
-      await expect(
-        provider.set('tenant1', 'circular', circular, testContext),
-      ).rejects.toThrow();
+      await expect(provider.set('tenant1', 'circular', circular, testContext)).rejects.toThrow();
     });
 
     it('should handle very long keys up to filesystem limits', async () => {
@@ -546,7 +462,7 @@ describe('FileSystemProvider', () => {
   describe('Legacy Data Format Support', () => {
     it('should handle legacy data without envelope', async () => {
       // Simulate legacy data by directly writing JSON without envelope
-      const fs = await import('fs/promises');
+      const fs = await import('node:fs/promises');
       const tenantPath = path.join(TEST_STORAGE_PATH, 'tenant1');
       mkdirSync(tenantPath, { recursive: true });
       await fs.writeFile(

@@ -2,9 +2,10 @@
  * @fileoverview Unit tests for the KvProvider.
  * @module tests/storage/providers/cloudflare/kvProvider.test
  */
-import { McpError } from '../../../../src/types-global/errors.js';
-import { KvProvider } from '../../../../src/storage/providers/cloudflare/kvProvider.js';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { KvProvider } from '../../../../src/storage/providers/cloudflare/kvProvider.js';
+import { McpError } from '../../../../src/types-global/errors.js';
 import type { RequestContext } from '../../../../src/utils/index.js';
 import { requestContextService } from '../../../../src/utils/index.js';
 
@@ -40,11 +41,7 @@ describe('KvProvider', () => {
     it('should return parsed JSON object if found', async () => {
       const storedObject = { data: 'test-data' };
       mockKv.get.mockResolvedValue(storedObject);
-      const result = await kvProvider.get<{ data: string }>(
-        'tenant-1',
-        'key-1',
-        context,
-      );
+      const result = await kvProvider.get<{ data: string }>('tenant-1', 'key-1', context);
       expect(result).toEqual(storedObject);
     });
 
@@ -52,9 +49,7 @@ describe('KvProvider', () => {
       const parsingError = new Error('Invalid JSON');
       mockKv.get.mockRejectedValue(parsingError);
 
-      await expect(
-        kvProvider.get('tenant-1', 'key-1', context),
-      ).rejects.toThrow(McpError);
+      await expect(kvProvider.get('tenant-1', 'key-1', context)).rejects.toThrow(McpError);
     });
   });
 
@@ -62,21 +57,17 @@ describe('KvProvider', () => {
     it('should call put with correct key and value', async () => {
       const value = { data: 'test-data' };
       await kvProvider.set('tenant-1', 'key-1', value, context);
-      expect(mockKv.put).toHaveBeenCalledWith(
-        'tenant-1:key-1',
-        JSON.stringify(value),
-        { expirationTtl: undefined },
-      );
+      expect(mockKv.put).toHaveBeenCalledWith('tenant-1:key-1', JSON.stringify(value), {
+        expirationTtl: undefined,
+      });
     });
 
     it('should include expirationTtl if ttl is provided', async () => {
       const value = { data: 'test' };
       await kvProvider.set('tenant-1', 'key-1', value, context, { ttl: 3600 });
-      expect(mockKv.put).toHaveBeenCalledWith(
-        'tenant-1:key-1',
-        JSON.stringify(value),
-        { expirationTtl: 3600 },
-      );
+      expect(mockKv.put).toHaveBeenCalledWith('tenant-1:key-1', JSON.stringify(value), {
+        expirationTtl: 3600,
+      });
     });
   });
 
@@ -94,11 +85,7 @@ describe('KvProvider', () => {
   describe('list', () => {
     it('should return a list of keys with tenant prefix stripped', async () => {
       mockKv.list.mockResolvedValue({
-        keys: [
-          { name: 'tenant-1:key-1' },
-          { name: 'tenant-1:key-2' },
-          { name: 'unrelated-key' },
-        ],
+        keys: [{ name: 'tenant-1:key-1' }, { name: 'tenant-1:key-2' }, { name: 'unrelated-key' }],
         list_complete: true,
       });
       const result = await kvProvider.list('tenant-1', 'key', context);
@@ -144,11 +131,7 @@ describe('KvProvider', () => {
         .mockResolvedValueOnce(null as never)
         .mockResolvedValueOnce('value-3' as never);
 
-      const result = await kvProvider.getMany<string>(
-        'tenant-1',
-        ['a', 'b', 'c'],
-        context,
-      );
+      const result = await kvProvider.getMany<string>('tenant-1', ['a', 'b', 'c'], context);
 
       expect(result).toBeInstanceOf(Map);
       expect(Array.from(result.entries())).toEqual([
@@ -168,16 +151,12 @@ describe('KvProvider', () => {
       await kvProvider.setMany('tenant-1', entries, context, { ttl: 120 });
 
       expect(mockKv.put).toHaveBeenCalledTimes(2);
-      expect(mockKv.put).toHaveBeenCalledWith(
-        'tenant-1:k1',
-        JSON.stringify({ foo: 'bar' }),
-        { expirationTtl: 120 },
-      );
-      expect(mockKv.put).toHaveBeenCalledWith(
-        'tenant-1:k2',
-        JSON.stringify({ baz: 2 }),
-        { expirationTtl: 120 },
-      );
+      expect(mockKv.put).toHaveBeenCalledWith('tenant-1:k1', JSON.stringify({ foo: 'bar' }), {
+        expirationTtl: 120,
+      });
+      expect(mockKv.put).toHaveBeenCalledWith('tenant-1:k2', JSON.stringify({ baz: 2 }), {
+        expirationTtl: 120,
+      });
     });
 
     it('deleteMany should return count of deleted keys', async () => {
@@ -187,11 +166,7 @@ describe('KvProvider', () => {
         .mockResolvedValueOnce(false)
         .mockResolvedValueOnce(true);
 
-      const deleted = await kvProvider.deleteMany(
-        'tenant-1',
-        ['a', 'b', 'c'],
-        context,
-      );
+      const deleted = await kvProvider.deleteMany('tenant-1', ['a', 'b', 'c'], context);
 
       expect(deleted).toBe(2);
       deleteSpy.mockRestore();

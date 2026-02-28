@@ -5,8 +5,7 @@
  * @module src/utils/internal/error-handler/types
  */
 
-import type { JsonRpcErrorCode } from '@/types-global/errors.js';
-import type { McpError } from '@/types-global/errors.js';
+import type { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 
 /**
  * Severity levels for errors, extending beyond basic logging levels.
@@ -32,12 +31,12 @@ export type ErrorSeverity = (typeof ErrorSeverity)[keyof typeof ErrorSeverity];
  * Provides context about operations executed before the error occurred.
  */
 export interface ErrorBreadcrumb {
-  /** ISO 8601 timestamp when the operation occurred */
-  timestamp: string;
-  /** Name of the operation that was performed */
-  operation: string;
   /** Optional additional context for this breadcrumb */
   context?: Record<string, unknown>;
+  /** Name of the operation that was performed */
+  operation: string;
+  /** ISO 8601 timestamp when the operation occurred */
+  timestamp: string;
 }
 
 /**
@@ -47,6 +46,8 @@ export interface ErrorBreadcrumb {
 export interface ErrorMetadata {
   /** Breadcrumb trail showing error propagation path */
   breadcrumbs?: ErrorBreadcrumb[];
+  /** Error fingerprint for deduplication in monitoring systems */
+  fingerprint?: string;
   /** Performance metrics related to the error */
   metrics?: {
     /** Operation duration in milliseconds */
@@ -54,6 +55,8 @@ export interface ErrorMetadata {
     /** Number of retry attempts made */
     retryCount?: number;
   };
+  /** Related error IDs for correlation across distributed systems */
+  relatedErrors?: string[];
   /** User-facing error details (safe for display, sanitized) */
   userFacing?: {
     /** Short title for the error */
@@ -63,10 +66,6 @@ export interface ErrorMetadata {
     /** Suggested actions the user can take */
     actions?: string[];
   };
-  /** Error fingerprint for deduplication in monitoring systems */
-  fingerprint?: string;
-  /** Related error IDs for correlation across distributed systems */
-  relatedErrors?: string[];
 }
 
 /**
@@ -93,10 +92,10 @@ export interface ErrorContext {
  * Extends base ErrorContext with severity, structured metadata, and tags.
  */
 export interface EnhancedErrorContext extends ErrorContext {
-  /** Severity level of the error */
-  severity?: ErrorSeverity;
   /** Structured metadata including breadcrumbs and metrics */
   metadata?: ErrorMetadata;
+  /** Severity level of the error */
+  severity?: ErrorSeverity;
   /** Arbitrary key-value tags for categorization and filtering */
   tags?: Record<string, string>;
 }
@@ -113,23 +112,11 @@ export interface ErrorHandlerOptions {
   context?: ErrorContext;
 
   /**
-   * A descriptive name of the operation being performed when the error occurred.
-   * This helps in identifying the source or nature of the error in logs.
-   * Example: "UserLogin", "ProcessPayment", "FetchUserProfile".
-   */
-  operation: string;
-
-  /**
-   * The input data or parameters that were being processed when the error occurred.
-   * This input will be sanitized before logging to prevent sensitive data exposure.
-   */
-  input?: unknown;
-
-  /**
-   * If true, the (potentially transformed) error will be rethrown after handling.
+   * If true, indicates that the error is critical and might require immediate attention
+   * or could lead to system instability. This is primarily for logging and alerting.
    * Defaults to `false`.
    */
-  rethrow?: boolean;
+  critical?: boolean;
 
   /**
    * A specific `JsonRpcErrorCode` to assign to the error, overriding any
@@ -152,11 +139,23 @@ export interface ErrorHandlerOptions {
   includeStack?: boolean;
 
   /**
-   * If true, indicates that the error is critical and might require immediate attention
-   * or could lead to system instability. This is primarily for logging and alerting.
+   * The input data or parameters that were being processed when the error occurred.
+   * This input will be sanitized before logging to prevent sensitive data exposure.
+   */
+  input?: unknown;
+
+  /**
+   * A descriptive name of the operation being performed when the error occurred.
+   * This helps in identifying the source or nature of the error in logs.
+   * Example: "UserLogin", "ProcessPayment", "FetchUserProfile".
+   */
+  operation: string;
+
+  /**
+   * If true, the (potentially transformed) error will be rethrown after handling.
    * Defaults to `false`.
    */
-  critical?: boolean;
+  rethrow?: boolean;
 }
 
 /**
@@ -164,12 +163,6 @@ export interface ErrorHandlerOptions {
  * Used internally by `COMMON_ERROR_PATTERNS` and as a base for `ErrorMapping`.
  */
 export interface BaseErrorMapping {
-  /**
-   * A string or regular expression to match against the error message.
-   * If a string is provided, it's typically used for substring matching (case-insensitive).
-   */
-  pattern: string | RegExp;
-
   /**
    * The `JsonRpcErrorCode` to assign if the pattern matches.
    */
@@ -181,6 +174,11 @@ export interface BaseErrorMapping {
    * which focuses on `errorCode`. It's more relevant for custom mapping logic.)
    */
   messageTemplate?: string;
+  /**
+   * A string or regular expression to match against the error message.
+   * If a string is provided, it's typically used for substring matching (case-insensitive).
+   */
+  pattern: string | RegExp;
 }
 
 /**
@@ -189,9 +187,12 @@ export interface BaseErrorMapping {
  * Used by `ErrorHandler.mapError`.
  * @template T The type of `Error` this mapping will produce, defaults to `Error`.
  */
-export interface ErrorMapping<
-  T extends Error = Error,
-> extends BaseErrorMapping {
+export interface ErrorMapping<T extends Error = Error> extends BaseErrorMapping {
+  /**
+   * Additional static context to be merged or passed to the `factory` function
+   * when this mapping rule is applied.
+   */
+  additionalContext?: Record<string, unknown>;
   /**
    * A factory function that creates and returns an instance of the mapped error type `T`.
    * @param error - The original error that occurred.
@@ -199,12 +200,6 @@ export interface ErrorMapping<
    * @returns The newly created error instance.
    */
   factory: (error: unknown, context?: Record<string, unknown>) => T;
-
-  /**
-   * Additional static context to be merged or passed to the `factory` function
-   * when this mapping rule is applied.
-   */
-  additionalContext?: Record<string, unknown>;
 }
 
 /**
@@ -233,14 +228,6 @@ export type Result<T, E extends Error = McpError> =
  */
 export interface ErrorRecoveryStrategy {
   /**
-   * Determines if the operation should be retried based on the error and attempt number.
-   * @param error - The error that occurred
-   * @param attemptNumber - Current attempt number (1-indexed)
-   * @returns true if the operation should be retried
-   */
-  shouldRetry: (error: Error, attemptNumber: number) => boolean;
-
-  /**
    * Calculates the delay before the next retry attempt.
    * Typically implements exponential backoff with optional jitter.
    * @param attemptNumber - Current attempt number (1-indexed)
@@ -260,4 +247,11 @@ export interface ErrorRecoveryStrategy {
    * @param attemptNumber - Current attempt number (1-indexed)
    */
   onRetry?: (error: Error, attemptNumber: number) => void;
+  /**
+   * Determines if the operation should be retried based on the error and attempt number.
+   * @param error - The error that occurred
+   * @param attemptNumber - Current attempt number (1-indexed)
+   * @returns true if the operation should be retried
+   */
+  shouldRetry: (error: Error, attemptNumber: number) => boolean;
 }

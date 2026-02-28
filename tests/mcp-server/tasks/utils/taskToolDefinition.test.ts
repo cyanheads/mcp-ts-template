@@ -22,10 +22,7 @@ describe('isTaskToolDefinition', () => {
 
   describe('should return true for valid task tool definitions', () => {
     it('with minimal taskHandlers', () => {
-      const taskTool: TaskToolDefinition<
-        typeof SampleInputSchema,
-        typeof SampleOutputSchema
-      > = {
+      const taskTool: TaskToolDefinition<typeof SampleInputSchema, typeof SampleOutputSchema> = {
         name: 'test_task_tool',
         description: 'A test task tool',
         inputSchema: SampleInputSchema,
@@ -97,10 +94,7 @@ describe('isTaskToolDefinition', () => {
 
   describe('should return false for non-task tool definitions', () => {
     it('for regular tool definition without taskHandlers', () => {
-      const regularTool: ToolDefinition<
-        typeof SampleInputSchema,
-        typeof SampleOutputSchema
-      > = {
+      const regularTool: ToolDefinition<typeof SampleInputSchema, typeof SampleOutputSchema> = {
         name: 'test_regular_tool',
         description: 'A regular tool',
         inputSchema: SampleInputSchema,
@@ -193,10 +187,7 @@ describe('TaskToolDefinition type structure', () => {
 
   it('should enforce required properties', () => {
     // This is a compile-time check - the test just validates the structure
-    const validTaskTool: TaskToolDefinition<
-      typeof SampleInputSchema,
-      typeof SampleOutputSchema
-    > = {
+    const validTaskTool: TaskToolDefinition<typeof SampleInputSchema, typeof SampleOutputSchema> = {
       name: 'test_task',
       description: 'Test description',
       inputSchema: SampleInputSchema,
@@ -207,9 +198,7 @@ describe('TaskToolDefinition type structure', () => {
           const task = await extra.taskStore.createTask({ ttl: 60000 });
           return { task };
         },
-        getTask: async (_args, extra) => {
-          return extra.taskStore.getTask(extra.taskId);
-        },
+        getTask: async (_args, extra) => extra.taskStore.getTask(extra.taskId),
         getTaskResult: async (_args, extra) => {
           // Cast to CallToolResult - SDK guarantees result exists when called
           return extra.taskStore.getTaskResult(extra.taskId) as Promise<{

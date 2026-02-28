@@ -5,12 +5,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { TreeFormatter, type TreeNode, treeFormatter } from '@/utils/formatting/treeFormatter.js';
 import { logger, requestContextService } from '@/utils/index.js';
-import {
-  type TreeNode,
-  treeFormatter,
-  TreeFormatter,
-} from '@/utils/formatting/treeFormatter.js';
 
 describe('TreeFormatter', () => {
   const simpleTree: TreeNode = {
@@ -320,11 +316,7 @@ describe('TreeFormatter', () => {
     it('should handle nodes with special characters in names', () => {
       const tree: TreeNode = {
         name: 'root/path',
-        children: [
-          { name: 'file name.txt' },
-          { name: 'special@#$%' },
-          { name: 'unicode: 你好' },
-        ],
+        children: [{ name: 'file name.txt' }, { name: 'special@#$%' }, { name: 'unicode: 你好' }],
       };
 
       const result = treeFormatter.format(tree);

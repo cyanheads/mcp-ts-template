@@ -4,22 +4,18 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
 import {
-  JsonRpcErrorCode,
-  McpError,
-} from '../../../src/types-global/errors.js';
-import {
-  IdGenerator,
   generateRequestContextId,
   generateUUID,
+  IdGenerator,
 } from '../../../src/utils/security/idGenerator.js';
 
 describe('IdGenerator and UUID', () => {
   describe('generateUUID', () => {
     it('should generate a valid v4 UUID', () => {
       const uuid = generateUUID();
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       expect(uuid).toMatch(uuidRegex);
     });
   });

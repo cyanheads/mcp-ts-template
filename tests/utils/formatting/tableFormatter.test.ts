@@ -5,11 +5,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { TableFormatter, tableFormatter } from '@/utils/formatting/tableFormatter.js';
 import { logger, requestContextService } from '@/utils/index.js';
-import {
-  tableFormatter,
-  TableFormatter,
-} from '@/utils/formatting/tableFormatter.js';
 
 describe('TableFormatter', () => {
   const sampleData = [
@@ -56,9 +53,7 @@ describe('TableFormatter', () => {
     });
 
     it('should handle various data types', () => {
-      const mixedData = [
-        { str: 'text', num: 42, bool: true, nul: null, arr: [1, 2] },
-      ];
+      const mixedData = [{ str: 'text', num: 42, bool: true, nul: null, arr: [1, 2] }];
       const result = tableFormatter.format(mixedData);
 
       expect(result).toContain('text');
@@ -180,9 +175,7 @@ describe('TableFormatter', () => {
 
   describe('Truncation and maxWidth', () => {
     it('should truncate long content when truncate is true', () => {
-      const longData = [
-        { short: 'OK', long: 'This is a very long string that exceeds limits' },
-      ];
+      const longData = [{ short: 'OK', long: 'This is a very long string that exceeds limits' }];
 
       const result = tableFormatter.format(longData, {
         maxWidth: 15,

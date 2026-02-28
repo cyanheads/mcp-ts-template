@@ -7,11 +7,7 @@
 import { XMLParser as FastXmlParser } from 'fast-xml-parser';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { logger, type RequestContext, requestContextService } from '@/utils/index.js';
 
 /**
  * Regular expression to find a <think> block at the start of a string.
@@ -104,8 +100,7 @@ export class XmlParser {
         {
           ...context,
           originalContentSample:
-            stringToParse.substring(0, 200) +
-            (stringToParse.length > 200 ? '...' : ''),
+            stringToParse.substring(0, 200) + (stringToParse.length > 200 ? '...' : ''),
           rawError: error instanceof Error ? error.stack : String(error),
         },
       );

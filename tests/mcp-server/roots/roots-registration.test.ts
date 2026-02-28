@@ -3,11 +3,11 @@
  * @module tests/mcp-server/roots/roots-registration.test
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
-import { logger } from '@/utils/index.js';
+import type { logger } from '@/utils/index.js';
 
 describe('Roots Registration', () => {
   let rootsRegistry: RootsRegistry;

@@ -17,21 +17,16 @@ export interface PromptDefinition<
   TArgumentsSchema extends ZodObject<ZodRawShape> | undefined = undefined,
 > {
   /**
-   * The programmatic, unique name for the prompt (e.g., 'code_review').
+   * Optional Zod schema for validating the prompt's arguments.
+   * If undefined, the prompt accepts no arguments.
    */
-  name: string;
+  argumentsSchema?: TArgumentsSchema;
 
   /**
    * A clear, concise description of what the prompt does.
    * This helps users understand when to use this prompt.
    */
   description: string;
-
-  /**
-   * Optional Zod schema for validating the prompt's arguments.
-   * If undefined, the prompt accepts no arguments.
-   */
-  argumentsSchema?: TArgumentsSchema;
 
   /**
    * The function that generates the prompt messages.
@@ -43,4 +38,8 @@ export interface PromptDefinition<
       ? z.infer<TArgumentsSchema>
       : Record<string, never>,
   ) => PromptMessage[] | Promise<PromptMessage[]>;
+  /**
+   * The programmatic, unique name for the prompt (e.g., 'code_review').
+   */
+  name: string;
 }

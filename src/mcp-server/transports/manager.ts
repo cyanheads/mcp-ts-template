@@ -5,14 +5,11 @@
 import type { ServerType } from '@hono/node-server';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppConfig as AppConfigType } from '../../config/index.js';
-import { requestContextService } from '../../utils/index.js';
 import type { logger as LoggerType } from '../../utils/index.js';
+import { requestContextService } from '../../utils/index.js';
 import { startHttpTransport, stopHttpTransport } from './http/httpTransport.js';
 import type { TransportServer } from './ITransport.js';
-import {
-  startStdioTransport,
-  stopStdioTransport,
-} from './stdio/stdioTransport.js';
+import { startStdioTransport, stopStdioTransport } from './stdio/stdioTransport.js';
 
 export class TransportManager {
   private serverInstance: TransportServer | null = null;
@@ -29,18 +26,12 @@ export class TransportManager {
       transport: this.config.mcpTransportType,
     });
 
-    this.logger.info(
-      `Starting transport: ${this.config.mcpTransportType}`,
-      context,
-    );
+    this.logger.info(`Starting transport: ${this.config.mcpTransportType}`, context);
 
     if (this.config.mcpTransportType === 'http') {
       // HTTP: pass factory so each request gets a fresh McpServer+transport pair
       // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
-      this.serverInstance = await startHttpTransport(
-        this.createMcpServer,
-        context,
-      );
+      this.serverInstance = await startHttpTransport(this.createMcpServer, context);
     } else if (this.config.mcpTransportType === 'stdio') {
       // Stdio: single client, single connection — one server instance is correct
       const mcpServer = await this.createMcpServer();
@@ -62,10 +53,7 @@ export class TransportManager {
     });
 
     if (!this.serverInstance) {
-      this.logger.warning(
-        'Stop called but no active server instance found.',
-        context,
-      );
+      this.logger.warning('Stop called but no active server instance found.', context);
       return;
     }
 

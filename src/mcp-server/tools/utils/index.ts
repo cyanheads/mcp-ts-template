@@ -4,9 +4,9 @@
  */
 
 // Core tool infrastructure
-export {
-  type SdkContext,
-  type ToolAnnotations,
-  type ToolDefinition,
+export type {
+  SdkContext,
+  ToolAnnotations,
+  ToolDefinition,
 } from './toolDefinition.js';
 export { createMcpToolHandler } from './toolHandlerFactory.js';

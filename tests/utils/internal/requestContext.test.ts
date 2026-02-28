@@ -2,21 +2,13 @@
  * @fileoverview Unit tests for the requestContextService utilities.
  * @module tests/utils/internal/requestContext.test
  */
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type MockInstance,
-} from 'vitest';
-import { trace, type Span } from '@opentelemetry/api';
 
+import { type Span, trace } from '@opentelemetry/api';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+import { authContext } from '../../../src/mcp-server/transports/auth/lib/authContext.js';
 import * as utilsIndex from '../../../src/utils/index.js';
 import { logger } from '../../../src/utils/internal/logger.js';
 import { requestContextService } from '../../../src/utils/internal/requestContext.js';
-import { authContext } from '../../../src/mcp-server/transports/auth/lib/authContext.js';
 
 describe('requestContextService', () => {
   let debugSpy: MockInstance;
@@ -30,19 +22,13 @@ describe('requestContextService', () => {
       .spyOn(trace, 'getActiveSpan')
       .mockReturnValue(undefined as unknown as Span);
     originalConfig = {
-      ...(
-        requestContextService as unknown as { config: Record<string, unknown> }
-      ).config,
+      ...(requestContextService as unknown as { config: Record<string, unknown> }).config,
     };
-    idSpy = vi
-      .spyOn(utilsIndex, 'generateRequestContextId')
-      .mockReturnValue('CTX-TEST-ID');
+    idSpy = vi.spyOn(utilsIndex, 'generateRequestContextId').mockReturnValue('CTX-TEST-ID');
   });
 
   afterEach(() => {
-    (
-      requestContextService as unknown as { config: Record<string, unknown> }
-    ).config = {
+    (requestContextService as unknown as { config: Record<string, unknown> }).config = {
       ...originalConfig,
     };
     debugSpy.mockRestore();
@@ -151,11 +137,11 @@ describe('requestContextService', () => {
 
       expect(context.tenantId).toBe('tenant-1');
       expect(context.auth).toBeDefined();
-      expect(context.auth!.sub).toBe('user-42');
-      expect(context.auth!.scopes).toEqual(['read', 'write']);
-      expect(context.auth!.clientId).toBe('client-abc');
-      expect(context.auth!.token).toBe('jwt-token-xyz');
-      expect(context.auth!.tenantId).toBe('tenant-1');
+      expect(context.auth?.sub).toBe('user-42');
+      expect(context.auth?.scopes).toEqual(['read', 'write']);
+      expect(context.auth?.clientId).toBe('client-abc');
+      expect(context.auth?.token).toBe('jwt-token-xyz');
+      expect(context.auth?.tenantId).toBe('tenant-1');
     });
 
     it('uses clientId as sub fallback when subject is undefined', () => {
@@ -166,7 +152,7 @@ describe('requestContextService', () => {
       };
 
       const context = requestContextService.withAuthInfo(authInfo);
-      expect(context.auth!.sub).toBe('service-account');
+      expect(context.auth?.sub).toBe('service-account');
     });
 
     it('omits tenantId from auth when not provided', () => {
@@ -178,7 +164,7 @@ describe('requestContextService', () => {
       };
 
       const context = requestContextService.withAuthInfo(authInfo);
-      expect(context.auth!.tenantId).toBeUndefined();
+      expect(context.auth?.tenantId).toBeUndefined();
     });
 
     it('inherits properties from a parent context', () => {

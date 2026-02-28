@@ -33,9 +33,7 @@ describe('arrayBufferToBase64', () => {
 
   it('falls back to btoa when Buffer is unavailable', () => {
     runtimeCaps.hasBuffer = false;
-    const btoaSpy = vi.fn((value: string) =>
-      Buffer.from(value, 'binary').toString('base64'),
-    );
+    const btoaSpy = vi.fn((value: string) => Buffer.from(value, 'binary').toString('base64'));
     globalThis.btoa = btoaSpy as typeof globalThis.btoa;
 
     const bytes = new Uint8Array([0, 1, 2, 3]);

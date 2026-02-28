@@ -5,27 +5,22 @@
  * it defaults to `in-memory` to ensure compatibility.
  * @module src/storage/core/storageFactory
  */
-import type {
-  R2Bucket,
-  KVNamespace,
-  D1Database,
-} from '@cloudflare/workers-types';
+import type { D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { AppConfig } from '@/config/index.js';
-import type { Database } from '@/storage/providers/supabase/supabase.types.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
+import { D1Provider } from '@/storage/providers/cloudflare/d1Provider.js';
+import { KvProvider } from '@/storage/providers/cloudflare/kvProvider.js';
+import { R2Provider } from '@/storage/providers/cloudflare/r2Provider.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
+import type { Database } from '@/storage/providers/supabase/supabase.types.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
-import { R2Provider } from '@/storage/providers/cloudflare/r2Provider.js';
-import { KvProvider } from '@/storage/providers/cloudflare/kvProvider.js';
-import { D1Provider } from '@/storage/providers/cloudflare/d1Provider.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger, requestContextService } from '@/utils/index.js';
 
-const isServerless =
-  typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
+const isServerless = typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
 
 /**
  * Optional dependencies for storage provider creation.
@@ -33,14 +28,14 @@ const isServerless =
  * and Worker environments where DI container may not be available.
  */
 export interface StorageFactoryDeps {
-  /** Pre-configured Supabase client */
-  readonly supabaseClient?: SupabaseClient<Database>;
-  /** Cloudflare R2 bucket binding */
-  readonly r2Bucket?: R2Bucket;
-  /** Cloudflare KV namespace binding */
-  readonly kvNamespace?: KVNamespace;
   /** Cloudflare D1 database binding */
   readonly d1Database?: D1Database;
+  /** Cloudflare KV namespace binding */
+  readonly kvNamespace?: KVNamespace;
+  /** Cloudflare R2 bucket binding */
+  readonly r2Bucket?: R2Bucket;
+  /** Pre-configured Supabase client */
+  readonly supabaseClient?: SupabaseClient<Database>;
 }
 
 /**
@@ -111,9 +106,7 @@ export function createStorageProvider(
 
   if (
     isServerless &&
-    !['in-memory', 'cloudflare-r2', 'cloudflare-kv', 'cloudflare-d1'].includes(
-      providerType,
-    )
+    !['in-memory', 'cloudflare-r2', 'cloudflare-kv', 'cloudflare-d1'].includes(providerType)
   ) {
     logger.warning(
       `Forcing 'in-memory' storage provider in serverless environment (configured: ${providerType}).`,
@@ -170,10 +163,7 @@ export function createStorageProvider(
         if (deps.kvNamespace) {
           return new KvProvider(deps.kvNamespace);
         }
-        const kvBinding = getGlobalBinding<KVNamespace>(
-          'KV_NAMESPACE',
-          context,
-        );
+        const kvBinding = getGlobalBinding<KVNamespace>('KV_NAMESPACE', context);
         return new KvProvider(kvBinding);
       }
       throw new McpError(

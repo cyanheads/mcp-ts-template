@@ -7,11 +7,7 @@
 import Papa from 'papaparse';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { logger, type RequestContext, requestContextService } from '@/utils/index.js';
 
 /**
  * Regular expression to find a <think> block at the start of a string.
@@ -97,8 +93,7 @@ export class CsvParser {
           ...context,
           errors: result.errors,
           originalContentSample:
-            stringToParse.substring(0, 200) +
-            (stringToParse.length > 200 ? '...' : ''),
+            stringToParse.substring(0, 200) + (stringToParse.length > 200 ? '...' : ''),
         },
       );
     }

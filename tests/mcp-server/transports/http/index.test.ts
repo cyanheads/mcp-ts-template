@@ -3,13 +3,10 @@
  * @module tests/mcp-server/transports/http/index.test
  */
 
-import { describe, test, expect } from 'vitest';
-import * as httpTransportIndex from '@/mcp-server/transports/http/index.js';
+import { describe, expect, test } from 'vitest';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
-import {
-  createHttpApp,
-  startHttpTransport,
-} from '@/mcp-server/transports/http/httpTransport.js';
+import { createHttpApp, startHttpTransport } from '@/mcp-server/transports/http/httpTransport.js';
+import * as httpTransportIndex from '@/mcp-server/transports/http/index.js';
 import { SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
 
 describe('HTTP Transport Barrel Export', () => {

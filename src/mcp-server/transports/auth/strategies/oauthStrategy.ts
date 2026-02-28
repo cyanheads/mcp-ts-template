@@ -4,16 +4,12 @@
  * JWTs against a remote JSON Web Key Set (JWKS), as is common in OAuth 2.1 flows.
  * @module src/mcp-server/transports/auth/strategies/OauthStrategy
  */
-import { type JWTVerifyResult, createRemoteJWKSet, jwtVerify } from 'jose';
-import { type config as ConfigType } from '@/config/index.js';
+import { createRemoteJWKSet, type JWTVerifyResult, jwtVerify } from 'jose';
+import type { config as ConfigType } from '@/config/index.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  ErrorHandler,
-  type logger as LoggerType,
-  requestContextService,
-} from '@/utils/index.js';
+import { ErrorHandler, type logger as LoggerType, requestContextService } from '@/utils/index.js';
 
 export class OauthStrategy implements AuthStrategy {
   private readonly jwks: ReturnType<typeof createRemoteJWKSet>;
@@ -47,19 +43,13 @@ export class OauthStrategy implements AuthStrategy {
     try {
       const jwksUrl = new URL(
         this.config.oauthJwksUri ||
-          `${this.config.oauthIssuerUrl.replace(
-            /\/$/,
-            '',
-          )}/.well-known/jwks.json`,
+          `${this.config.oauthIssuerUrl.replace(/\/$/, '')}/.well-known/jwks.json`,
       );
       this.jwks = createRemoteJWKSet(jwksUrl, {
         cooldownDuration: this.config.oauthJwksCooldownMs,
         timeoutDuration: this.config.oauthJwksTimeoutMs,
       });
-      this.logger.info(
-        `JWKS client initialized for URL: ${jwksUrl.href}`,
-        context,
-      );
+      this.logger.info(`JWKS client initialized for URL: ${jwksUrl.href}`, context);
     } catch (error: unknown) {
       this.logger.fatal('Failed to initialize JWKS client.', {
         ...context,
@@ -85,8 +75,8 @@ export class OauthStrategy implements AuthStrategy {
 
     try {
       const { payload }: JWTVerifyResult = await jwtVerify(token, this.jwks, {
-        issuer: this.config.oauthIssuerUrl!,
-        audience: this.config.oauthAudience!,
+        issuer: this.config.oauthIssuerUrl as string,
+        audience: this.config.oauthAudience as string,
       });
       this.logger.debug('OAuth token signature verified successfully.', {
         ...context,
@@ -100,8 +90,7 @@ export class OauthStrategy implements AuthStrategy {
         const expectedResource = this.config.mcpServerResourceIdentifier;
 
         const isResourceValid =
-          (Array.isArray(resourceClaim) &&
-            resourceClaim.includes(expectedResource)) ||
+          (Array.isArray(resourceClaim) && resourceClaim.includes(expectedResource)) ||
           resourceClaim === expectedResource;
 
         if (!isResourceValid) {
@@ -123,35 +112,24 @@ export class OauthStrategy implements AuthStrategy {
           );
         }
 
-        this.logger.debug(
-          'RFC 8707 resource indicator validated successfully.',
-          {
-            ...context,
-            resource: expectedResource,
-          },
-        );
+        this.logger.debug('RFC 8707 resource indicator validated successfully.', {
+          ...context,
+          resource: expectedResource,
+        });
       }
 
-      const scopes =
-        typeof payload.scope === 'string' ? payload.scope.split(' ') : [];
+      const scopes = typeof payload.scope === 'string' ? payload.scope.split(' ') : [];
       if (scopes.length === 0) {
-        this.logger.warning(
-          "Invalid token: missing or empty 'scope' claim.",
-          context,
-        );
+        this.logger.warning("Invalid token: missing or empty 'scope' claim.", context);
         throw new McpError(
           JsonRpcErrorCode.Unauthorized,
           'Token must contain valid, non-empty scopes.',
         );
       }
 
-      const clientId =
-        typeof payload.client_id === 'string' ? payload.client_id : undefined;
+      const clientId = typeof payload.client_id === 'string' ? payload.client_id : undefined;
       if (!clientId) {
-        this.logger.warning(
-          "Invalid token: missing 'client_id' claim.",
-          context,
-        );
+        this.logger.warning("Invalid token: missing 'client_id' claim.", context);
         throw new McpError(
           JsonRpcErrorCode.Unauthorized,
           "Token must contain a 'client_id' claim.",
@@ -159,8 +137,7 @@ export class OauthStrategy implements AuthStrategy {
       }
 
       const subject = typeof payload.sub === 'string' ? payload.sub : undefined;
-      const tenantId =
-        typeof payload.tid === 'string' ? payload.tid : undefined;
+      const tenantId = typeof payload.tid === 'string' ? payload.tid : undefined;
       const authInfo: AuthInfo = {
         token,
         clientId,
@@ -197,8 +174,7 @@ export class OauthStrategy implements AuthStrategy {
         context,
         rethrow: true,
         errorCode: JsonRpcErrorCode.Unauthorized,
-        errorMapper: () =>
-          new McpError(JsonRpcErrorCode.Unauthorized, message, context),
+        errorMapper: () => new McpError(JsonRpcErrorCode.Unauthorized, message, context),
       });
     }
   }

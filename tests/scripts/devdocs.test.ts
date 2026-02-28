@@ -23,7 +23,7 @@ const matchesPattern = (filePath: string, patterns: string[]): boolean => {
 
   for (const pattern of patterns) {
     // Security: Properly escape regex chars while preserving glob wildcards
-    let regexPattern = pattern
+    const regexPattern = pattern
       // Step 1: Temporarily mark glob patterns with placeholders
       .replace(/\*\*/g, '\x00DOUBLESTAR\x00')
       .replace(/\*/g, '\x00STAR\x00')
@@ -67,12 +67,8 @@ describe('devdocs.ts - matchesPattern', () => {
     });
 
     it('should handle directory patterns', () => {
-      expect(matchesPattern('__tests__/unit/test.ts', ['__tests__/**'])).toBe(
-        true,
-      );
-      expect(matchesPattern('src/__tests__/test.ts', ['**/__tests__/**'])).toBe(
-        true,
-      );
+      expect(matchesPattern('__tests__/unit/test.ts', ['__tests__/**'])).toBe(true);
+      expect(matchesPattern('src/__tests__/test.ts', ['**/__tests__/**'])).toBe(true);
     });
 
     it('should return false for empty patterns array', () => {
@@ -167,7 +163,7 @@ describe('devdocs.ts - matchesPattern', () => {
     });
 
     it('should handle very long file paths efficiently', () => {
-      const longPath = 'a/'.repeat(100) + 'test.ts';
+      const longPath = `${'a/'.repeat(100)}test.ts`;
       const pattern = '**/*.ts';
 
       const start = Date.now();
@@ -219,9 +215,7 @@ describe('devdocs.ts - matchesPattern', () => {
       // Note: *.test.ts only matches files at root (no / allowed in *)
       expect(matchesPattern('utils.test.ts', testExclusions)).toBe(true);
       expect(matchesPattern('helper.spec.ts', testExclusions)).toBe(true);
-      expect(matchesPattern('src/__tests__/unit/test.ts', testExclusions)).toBe(
-        true,
-      );
+      expect(matchesPattern('src/__tests__/unit/test.ts', testExclusions)).toBe(true);
       expect(matchesPattern('src/utils.ts', testExclusions)).toBe(false);
       // For nested files, we'd use **/*.test.ts pattern
       expect(matchesPattern('src/utils.test.ts', ['**/*.test.ts'])).toBe(true);
@@ -242,9 +236,7 @@ describe('devdocs.ts - matchesPattern', () => {
     it('should match dependency patterns', () => {
       const depPatterns = ['node_modules/**', '.git/**', '.vscode/**'];
 
-      expect(matchesPattern('node_modules/pkg/index.js', depPatterns)).toBe(
-        true,
-      );
+      expect(matchesPattern('node_modules/pkg/index.js', depPatterns)).toBe(true);
       expect(matchesPattern('.git/config', depPatterns)).toBe(true);
       expect(matchesPattern('.vscode/settings.json', depPatterns)).toBe(true);
       expect(matchesPattern('src/index.ts', depPatterns)).toBe(false);

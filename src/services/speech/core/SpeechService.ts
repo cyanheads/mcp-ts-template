@@ -4,20 +4,18 @@
  * @module src/services/speech/core/SpeechService
  */
 
-import { McpError, JsonRpcErrorCode } from '@/types-global/errors.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/index.js';
 
 import { ElevenLabsProvider } from '../providers/elevenlabs.provider.js';
 import { WhisperProvider } from '../providers/whisper.provider.js';
-import type { ISpeechProvider } from './ISpeechProvider.js';
 import type { SpeechProviderConfig } from '../types.js';
+import type { ISpeechProvider } from './ISpeechProvider.js';
 
 /**
  * Factory function to create speech provider instances.
  */
-export function createSpeechProvider(
-  config: SpeechProviderConfig,
-): ISpeechProvider {
+export function createSpeechProvider(config: SpeechProviderConfig): ISpeechProvider {
   logger.debug(`Creating speech provider: ${config.provider}`);
 
   switch (config.provider) {
@@ -28,10 +26,7 @@ export function createSpeechProvider(
       return new WhisperProvider(config);
 
     case 'mock':
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
-        'Mock provider not yet implemented',
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidParams, 'Mock provider not yet implemented');
 
     default: {
       const _exhaustive: never = config.provider;
@@ -51,25 +46,18 @@ export class SpeechService {
   private ttsProvider?: ISpeechProvider;
   private sttProvider?: ISpeechProvider;
 
-  constructor(
-    ttsConfig?: SpeechProviderConfig,
-    sttConfig?: SpeechProviderConfig,
-  ) {
+  constructor(ttsConfig?: SpeechProviderConfig, sttConfig?: SpeechProviderConfig) {
     if (ttsConfig) {
       this.ttsProvider = createSpeechProvider(ttsConfig);
       if (!this.ttsProvider.supportsTTS) {
-        logger.warning(
-          `TTS provider ${ttsConfig.provider} does not support text-to-speech`,
-        );
+        logger.warning(`TTS provider ${ttsConfig.provider} does not support text-to-speech`);
       }
     }
 
     if (sttConfig) {
       this.sttProvider = createSpeechProvider(sttConfig);
       if (!this.sttProvider.supportsSTT) {
-        logger.warning(
-          `STT provider ${sttConfig.provider} does not support speech-to-text`,
-        );
+        logger.warning(`STT provider ${sttConfig.provider} does not support speech-to-text`);
       }
     }
 
@@ -83,10 +71,7 @@ export class SpeechService {
    */
   getTTSProvider(): ISpeechProvider {
     if (!this.ttsProvider) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        'No TTS provider configured',
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidRequest, 'No TTS provider configured');
     }
     return this.ttsProvider;
   }
@@ -96,10 +81,7 @@ export class SpeechService {
    */
   getSTTProvider(): ISpeechProvider {
     if (!this.sttProvider) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        'No STT provider configured',
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidRequest, 'No STT provider configured');
     }
     return this.sttProvider;
   }
@@ -125,12 +107,8 @@ export class SpeechService {
     tts: boolean;
     stt: boolean;
   }> {
-    const ttsHealth = this.ttsProvider
-      ? await this.ttsProvider.healthCheck()
-      : false;
-    const sttHealth = this.sttProvider
-      ? await this.sttProvider.healthCheck()
-      : false;
+    const ttsHealth = this.ttsProvider ? await this.ttsProvider.healthCheck() : false;
+    const sttHealth = this.sttProvider ? await this.sttProvider.healthCheck() : false;
 
     return {
       tts: ttsHealth,

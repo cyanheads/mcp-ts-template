@@ -5,14 +5,14 @@
  * populates the async-local storage context with the resulting auth info.
  * @module src/mcp-server/transports/auth/authMiddleware
  */
-import { trace } from '@opentelemetry/api';
-import type { HttpBindings } from '@hono/node-server';
-import type { Context, MiddlewareHandler, Next } from 'hono';
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
+import type { HttpBindings } from '@hono/node-server';
+import { trace } from '@opentelemetry/api';
+import type { Context, MiddlewareHandler, Next } from 'hono';
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
 
 /**
  * Creates a Hono middleware function that enforces authentication using a given strategy.
@@ -23,10 +23,7 @@ import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authS
 export function createAuthMiddleware(
   strategy: AuthStrategy,
 ): MiddlewareHandler<{ Bindings: HttpBindings }> {
-  return async function authMiddleware(
-    c: Context<{ Bindings: HttpBindings }>,
-    next: Next,
-  ) {
+  return async function authMiddleware(c: Context<{ Bindings: HttpBindings }>, next: Next) {
     const context = requestContextService.createRequestContext({
       operation: 'authMiddleware',
       additionalContext: {
@@ -48,20 +45,11 @@ export function createAuthMiddleware(
 
     const token = authHeader.substring(7);
     if (!token) {
-      logger.warning(
-        'Bearer token is missing from Authorization header.',
-        context,
-      );
-      throw new McpError(
-        JsonRpcErrorCode.Unauthorized,
-        'Authentication token is missing.',
-      );
+      logger.warning('Bearer token is missing from Authorization header.', context);
+      throw new McpError(JsonRpcErrorCode.Unauthorized, 'Authentication token is missing.');
     }
 
-    logger.debug(
-      'Extracted Bearer token, proceeding to verification.',
-      context,
-    );
+    logger.debug('Extracted Bearer token, proceeding to verification.', context);
 
     try {
       const authInfo = await strategy.verify(token);
@@ -73,10 +61,7 @@ export function createAuthMiddleware(
         subject: authInfo.subject,
         scopes: authInfo.scopes,
       };
-      logger.info(
-        'Authentication successful. Auth context populated.',
-        authLogContext,
-      );
+      logger.info('Authentication successful. Auth context populated.', authLogContext);
 
       // Add authentication context to OpenTelemetry span for distributed tracing
       const activeSpan = trace.getActiveSpan();

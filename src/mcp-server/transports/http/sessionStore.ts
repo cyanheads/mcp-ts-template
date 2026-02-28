@@ -14,12 +14,12 @@ import { logger, requestContextService } from '@/utils/index.js';
  * Used to prevent session hijacking across tenants/clients.
  */
 export interface SessionIdentity {
-  /** Tenant ID from JWT 'tid' claim */
-  tenantId?: string;
   /** Client ID from JWT 'cid'/'client_id' claim */
   clientId?: string;
   /** Subject from JWT 'sub' claim */
   subject?: string;
+  /** Tenant ID from JWT 'tid' claim */
+  tenantId?: string;
 }
 
 /**
@@ -27,14 +27,14 @@ export interface SessionIdentity {
  * Sessions are bound to the authenticated identity to prevent hijacking.
  */
 interface Session {
-  id: string;
+  clientId?: string;
   createdAt: Date;
+  id: string;
   lastAccessedAt: Date;
+  subject?: string;
 
   // Identity binding for security
   tenantId?: string;
-  clientId?: string;
-  subject?: string;
 }
 
 /**
@@ -49,10 +49,7 @@ export class SessionStore {
   constructor(staleTimeoutMs: number) {
     this.staleTimeout = staleTimeoutMs;
     // Clean up stale sessions every minute. unref() prevents blocking graceful shutdown.
-    this.cleanupInterval = setInterval(
-      () => this.cleanupStaleSessions(),
-      60_000,
-    );
+    this.cleanupInterval = setInterval(() => this.cleanupStaleSessions(), 60_000);
     this.cleanupInterval.unref?.();
   }
 
@@ -126,10 +123,7 @@ export class SessionStore {
           sessionId,
           tenantId: identity.tenantId,
         });
-        logger.debug(
-          'Session identity bound on authenticated request',
-          context,
-        );
+        logger.debug('Session identity bound on authenticated request', context);
       }
     }
 
@@ -157,8 +151,7 @@ export class SessionStore {
     }
 
     // Check staleness
-    const isStale =
-      Date.now() - session.lastAccessedAt.getTime() > this.staleTimeout;
+    const isStale = Date.now() - session.lastAccessedAt.getTime() > this.staleTimeout;
     if (isStale) {
       this.terminate(sessionId);
       return false;
@@ -175,10 +168,7 @@ export class SessionStore {
         operation: 'SessionStore.isValidForIdentity',
         sessionId,
       });
-      logger.warning(
-        'Session requires authentication but request has no identity',
-        context,
-      );
+      logger.warning('Session requires authentication but request has no identity', context);
       return false;
     }
 

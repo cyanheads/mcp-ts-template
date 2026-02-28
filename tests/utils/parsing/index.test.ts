@@ -96,8 +96,7 @@ describe('Parsing Utilities Barrel Export', () => {
     });
 
     it('should export parseDateStringDetailed function', async () => {
-      const { parseDateStringDetailed } =
-        await import('@/utils/parsing/index.js');
+      const { parseDateStringDetailed } = await import('@/utils/parsing/index.js');
 
       expect(parseDateStringDetailed).toBeDefined();
       expect(typeof parseDateStringDetailed).toBe('function');
@@ -189,8 +188,7 @@ describe('Parsing Utilities Barrel Export', () => {
     });
 
     it('should allow instantiating parser classes', async () => {
-      const { CsvParser, JsonParser } =
-        await import('@/utils/parsing/index.js');
+      const { CsvParser, JsonParser } = await import('@/utils/parsing/index.js');
 
       const csv = new CsvParser();
       const json = new JsonParser();

@@ -6,16 +6,16 @@
  * @module src/mcp-server/tasks
  */
 
-// Core types and implementations
-export * from './core/taskTypes.js';
-export { TaskManager } from './core/taskManager.js';
 export {
   StorageBackedTaskStore,
   type StorageBackedTaskStoreOptions,
 } from './core/storageBackedTaskStore.js';
+export { TaskManager } from './core/taskManager.js';
+// Core types and implementations
+export * from './core/taskTypes.js';
 
 // Task tool definition utilities
 export {
-  type TaskToolDefinition,
   isTaskToolDefinition,
+  type TaskToolDefinition,
 } from './utils/taskToolDefinition.js';

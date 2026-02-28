@@ -6,61 +6,56 @@
  * @module src/worker
  */
 import type {
-  R2Bucket,
-  KVNamespace,
-  D1Database,
   Ai,
-  ScheduledController,
   IncomingRequestCfProperties as CfProperties,
+  D1Database,
+  KVNamespace,
+  R2Bucket,
+  ScheduledController,
 } from '@cloudflare/workers-types';
-
+import type { Hono } from 'hono';
 import { composeContainer } from '@/container/index.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
-import {
-  initializePerformance_Hrt,
-  requestContextService,
-} from '@/utils/index.js';
+import { initializePerformance_Hrt, requestContextService } from '@/utils/index.js';
 import { logger } from '@/utils/internal/logger.js';
-import { Hono } from 'hono';
 
 /**
  * Define Cloudflare Worker Bindings with proper type safety.
  * These bindings are configured in wrangler.toml and injected at runtime.
  */
 export interface CloudflareBindings {
-  // KV Namespace for fast key-value storage
-  KV_NAMESPACE?: KVNamespace;
-
-  // R2 Bucket for object storage
-  R2_BUCKET?: R2Bucket;
+  // Cloudflare AI for inference
+  AI?: Ai;
 
   // D1 Database for relational data
   DB?: D1Database;
 
-  // Cloudflare AI for inference
-  AI?: Ai;
-
   // Environment variables (secrets)
   ENVIRONMENT?: string;
+  // KV Namespace for fast key-value storage
+  KV_NAMESPACE?: KVNamespace;
   LOG_LEVEL?: string;
+  MCP_ALLOWED_ORIGINS?: string;
   MCP_AUTH_SECRET_KEY?: string;
+  OAUTH_AUDIENCE?: string;
+  OAUTH_ISSUER_URL?: string;
+  OAUTH_JWKS_URI?: string;
   OPENROUTER_API_KEY?: string;
-  SUPABASE_URL?: string;
+  OTEL_ENABLED?: string;
+  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT?: string;
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT?: string;
+
+  // R2 Bucket for object storage
+  R2_BUCKET?: R2Bucket;
+  SPEECH_STT_API_KEY?: string;
+  SPEECH_STT_ENABLED?: string;
+  SPEECH_TTS_API_KEY?: string;
+  SPEECH_TTS_ENABLED?: string;
+  STORAGE_PROVIDER_TYPE?: string;
   SUPABASE_ANON_KEY?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
-  STORAGE_PROVIDER_TYPE?: string;
-  OAUTH_ISSUER_URL?: string;
-  OAUTH_AUDIENCE?: string;
-  OAUTH_JWKS_URI?: string;
-  MCP_ALLOWED_ORIGINS?: string;
-  SPEECH_TTS_ENABLED?: string;
-  SPEECH_TTS_API_KEY?: string;
-  SPEECH_STT_ENABLED?: string;
-  SPEECH_STT_API_KEY?: string;
-  OTEL_ENABLED?: string;
-  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT?: string;
-  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT?: string;
+  SUPABASE_URL?: string;
 
   // Allow additional string-based bindings
   [key: string]: unknown;
@@ -105,14 +100,8 @@ function injectEnvVars(env: CloudflareBindings): void {
     ['SPEECH_STT_ENABLED', 'SPEECH_STT_ENABLED'],
     ['SPEECH_STT_API_KEY', 'SPEECH_STT_API_KEY'],
     ['OTEL_ENABLED', 'OTEL_ENABLED'],
-    [
-      'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT',
-      'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT',
-    ],
-    [
-      'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT',
-      'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT',
-    ],
+    ['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT', 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'],
+    ['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT', 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'],
   ];
 
   for (const [bindingKey, processKey] of envMappings) {
@@ -189,9 +178,7 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
         'alert',
         'emerg',
       ];
-      const validatedLogLevel = validLogLevels.includes(
-        logLevel as ValidLogLevel,
-      )
+      const validatedLogLevel = validLogLevels.includes(logLevel as ValidLogLevel)
         ? (logLevel as ValidLogLevel)
         : 'info';
       await logger.initialize(validatedLogLevel, 'http');
@@ -211,10 +198,7 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
       // Create the Hono application with Cloudflare Worker bindings.
       // Pass server factory so each request gets a fresh McpServer+transport pair
       // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
-      const app = createHttpApp<CloudflareBindings>(
-        createMcpServerInstance,
-        workerContext,
-      );
+      const app = createHttpApp<CloudflareBindings>(createMcpServerInstance, workerContext);
 
       const initDuration = Date.now() - initStartTime;
       logger.info('Cloudflare Worker initialized successfully.', {
@@ -258,11 +242,7 @@ export default {
    * Handles incoming HTTP requests.
    * Extracts Worker-specific metadata and passes it to the request context.
    */
-  async fetch(
-    request: Request,
-    env: CloudflareBindings,
-    ctx: ExecutionContext,
-  ): Promise<Response> {
+  async fetch(request: Request, env: CloudflareBindings, ctx: ExecutionContext): Promise<Response> {
     try {
       // Refresh bindings on every request — Cloudflare may rotate
       // binding references between requests within the same isolate.
@@ -321,10 +301,7 @@ export default {
       return new Response(
         JSON.stringify({
           error: 'Internal Server Error',
-          message:
-            error instanceof Error
-              ? error.message
-              : 'An unknown error occurred',
+          message: error instanceof Error ? error.message : 'An unknown error occurred',
         }),
         {
           status: 500,

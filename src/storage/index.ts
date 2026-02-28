@@ -7,13 +7,13 @@
 
 export type {
   IStorageProvider,
-  StorageOptions,
   ListOptions,
   ListResult,
+  StorageOptions,
 } from './core/IStorageProvider.js';
+export { StorageService } from './core/StorageService.js';
 export {
   createStorageProvider,
   type StorageFactoryDeps,
 } from './core/storageFactory.js';
-export { StorageService } from './core/StorageService.js';
 export * from './core/storageValidation.js';

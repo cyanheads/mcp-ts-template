@@ -20,8 +20,8 @@
  */
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import type { RequestContext } from '@/utils/index.js';
-import { stringToBase64, base64ToString } from '@/utils/internal/encoding.js';
-import type { StorageOptions, ListOptions } from './IStorageProvider.js';
+import { base64ToString, stringToBase64 } from '@/utils/internal/encoding.js';
+import type { ListOptions, StorageOptions } from './IStorageProvider.js';
 
 /**
  * Maximum length for tenant IDs and keys to prevent abuse.
@@ -49,8 +49,7 @@ const MAX_LIST_LIMIT = 10000 as const;
  * Multiple characters: must start and end with alphanumeric, middle can include ._-
  * @readonly
  */
-const VALID_TENANT_ID_PATTERN =
-  /^[a-zA-Z0-9]$|^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$/;
+const VALID_TENANT_ID_PATTERN = /^[a-zA-Z0-9]$|^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$/;
 
 /**
  * Pattern for valid keys and prefixes (alphanumeric, hyphens, underscores, dots, slashes).
@@ -72,26 +71,21 @@ const VALID_KEY_PATTERN = /^[a-zA-Z0-9_.\-/]+$/;
  * @param context The request context for error reporting.
  * @throws {McpError} JsonRpcErrorCode.InvalidParams - If tenant ID is not a string, empty, too long, contains invalid characters, or has path traversal sequences.
  */
-export function validateTenantId(
-  tenantId: string,
-  context: RequestContext,
-): void {
+export function validateTenantId(tenantId: string, context: RequestContext): void {
   if (typeof tenantId !== 'string') {
-    throw new McpError(
-      JsonRpcErrorCode.InvalidParams,
-      'Tenant ID must be a string.',
-      { ...context, tenantId },
-    );
+    throw new McpError(JsonRpcErrorCode.InvalidParams, 'Tenant ID must be a string.', {
+      ...context,
+      tenantId,
+    });
   }
 
   const trimmedTenantId = tenantId.trim();
 
   if (trimmedTenantId.length === 0) {
-    throw new McpError(
-      JsonRpcErrorCode.InvalidParams,
-      'Tenant ID cannot be an empty string.',
-      { ...context, tenantId },
-    );
+    throw new McpError(JsonRpcErrorCode.InvalidParams, 'Tenant ID cannot be an empty string.', {
+      ...context,
+      tenantId,
+    });
   }
 
   if (trimmedTenantId.length > MAX_TENANT_ID_LENGTH) {
@@ -135,18 +129,17 @@ export function validateTenantId(
  */
 export function validateKey(key: string, context: RequestContext): void {
   if (!key || typeof key !== 'string') {
-    throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      'Key must be a non-empty string.',
-      { ...context, key },
-    );
+    throw new McpError(JsonRpcErrorCode.ValidationError, 'Key must be a non-empty string.', {
+      ...context,
+      key,
+    });
   }
 
   if (key.length > MAX_KEY_LENGTH) {
     throw new McpError(
       JsonRpcErrorCode.ValidationError,
       `Key exceeds maximum length of ${MAX_KEY_LENGTH} characters.`,
-      { ...context, key: key.substring(0, 50) + '...' },
+      { ...context, key: `${key.substring(0, 50)}...` },
     );
   }
 
@@ -182,11 +175,11 @@ export function validateKey(key: string, context: RequestContext): void {
  */
 export function validatePrefix(prefix: string, context: RequestContext): void {
   if (typeof prefix !== 'string') {
-    throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      'Prefix must be a string.',
-      { ...context, operation: 'validatePrefix', prefix },
-    );
+    throw new McpError(JsonRpcErrorCode.ValidationError, 'Prefix must be a string.', {
+      ...context,
+      operation: 'validatePrefix',
+      prefix,
+    });
   }
 
   // Empty prefix is valid (matches all keys)
@@ -201,7 +194,7 @@ export function validatePrefix(prefix: string, context: RequestContext): void {
       {
         ...context,
         operation: 'validatePrefix',
-        prefix: prefix.substring(0, 50) + '...',
+        prefix: `${prefix.substring(0, 50)}...`,
       },
     );
   }
@@ -214,7 +207,7 @@ export function validatePrefix(prefix: string, context: RequestContext): void {
       {
         ...context,
         operation: 'validatePrefix',
-        prefix: prefix.length > 50 ? prefix.substring(0, 50) + '...' : prefix,
+        prefix: prefix.length > 50 ? `${prefix.substring(0, 50)}...` : prefix,
       },
     );
   }
@@ -244,11 +237,10 @@ export function validateStorageOptions(
 
   if (options.ttl !== undefined) {
     if (typeof options.ttl !== 'number') {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'TTL must be a number (seconds).',
-        { ...context, ttl: options.ttl },
-      );
+      throw new McpError(JsonRpcErrorCode.ValidationError, 'TTL must be a number (seconds).', {
+        ...context,
+        ttl: options.ttl,
+      });
     }
 
     if (options.ttl < 0) {
@@ -260,11 +252,10 @@ export function validateStorageOptions(
     }
 
     if (!Number.isFinite(options.ttl)) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'TTL must be a finite number.',
-        { ...context, ttl: options.ttl },
-      );
+      throw new McpError(JsonRpcErrorCode.ValidationError, 'TTL must be a finite number.', {
+        ...context,
+        ttl: options.ttl,
+      });
     }
   }
 }
@@ -291,27 +282,27 @@ export function validateListOptions(
 
   if (options.limit !== undefined) {
     if (typeof options.limit !== 'number') {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'List limit must be a number.',
-        { ...context, operation: 'validateListOptions', limit: options.limit },
-      );
+      throw new McpError(JsonRpcErrorCode.ValidationError, 'List limit must be a number.', {
+        ...context,
+        operation: 'validateListOptions',
+        limit: options.limit,
+      });
     }
 
     if (!Number.isInteger(options.limit)) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'List limit must be an integer.',
-        { ...context, operation: 'validateListOptions', limit: options.limit },
-      );
+      throw new McpError(JsonRpcErrorCode.ValidationError, 'List limit must be an integer.', {
+        ...context,
+        operation: 'validateListOptions',
+        limit: options.limit,
+      });
     }
 
     if (options.limit < 1) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'List limit must be at least 1.',
-        { ...context, operation: 'validateListOptions', limit: options.limit },
-      );
+      throw new McpError(JsonRpcErrorCode.ValidationError, 'List limit must be at least 1.', {
+        ...context,
+        operation: 'validateListOptions',
+        limit: options.limit,
+      });
     }
 
     if (options.limit > MAX_LIST_LIMIT) {
@@ -323,29 +314,27 @@ export function validateListOptions(
     }
 
     if (!Number.isFinite(options.limit)) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'List limit must be a finite number.',
-        { ...context, operation: 'validateListOptions', limit: options.limit },
-      );
+      throw new McpError(JsonRpcErrorCode.ValidationError, 'List limit must be a finite number.', {
+        ...context,
+        operation: 'validateListOptions',
+        limit: options.limit,
+      });
     }
   }
 
   if (options.cursor !== undefined) {
     if (typeof options.cursor !== 'string') {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Cursor must be a string.',
-        { ...context, operation: 'validateListOptions' },
-      );
+      throw new McpError(JsonRpcErrorCode.ValidationError, 'Cursor must be a string.', {
+        ...context,
+        operation: 'validateListOptions',
+      });
     }
 
     if (options.cursor.trim() === '') {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Cursor must not be an empty string.',
-        { ...context, operation: 'validateListOptions' },
-      );
+      throw new McpError(JsonRpcErrorCode.ValidationError, 'Cursor must not be an empty string.', {
+        ...context,
+        operation: 'validateListOptions',
+      });
     }
 
     // Basic base64 validation (more thorough check happens in decodeCursor)
@@ -392,21 +381,16 @@ export function encodeCursor(lastKey: string, tenantId: string): string {
  * @returns The last key from the cursor.
  * @throws {McpError} If the cursor is invalid or tampered with.
  */
-export function decodeCursor(
-  cursor: string,
-  tenantId: string,
-  context: RequestContext,
-): string {
+export function decodeCursor(cursor: string, tenantId: string, context: RequestContext): string {
   try {
     const decoded = base64ToString(cursor);
     const data = JSON.parse(decoded) as CursorData;
 
     if (!data || typeof data !== 'object' || !('k' in data) || !('t' in data)) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
-        'Invalid cursor format.',
-        { ...context, operation: 'decodeCursor' },
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidParams, 'Invalid cursor format.', {
+        ...context,
+        operation: 'decodeCursor',
+      });
     }
 
     if (data.t !== tenantId) {

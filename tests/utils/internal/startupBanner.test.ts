@@ -6,10 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { logStartupBanner } from '../../../src/utils/internal/startupBanner.js';
 
-const originalIsTTYDescriptor = Object.getOwnPropertyDescriptor(
-  process.stdout,
-  'isTTY',
-);
+const originalIsTTYDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
 
 const restoreIsTTY = () => {
   if (originalIsTTYDescriptor) {

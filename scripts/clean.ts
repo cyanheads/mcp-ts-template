@@ -12,13 +12,13 @@
  * // Custom directories:
  * // bun run scripts/clean.ts temp coverage
  */
-import { rm } from 'fs/promises';
-import { resolve, sep } from 'path';
+import { rm } from 'node:fs/promises';
+import { resolve, sep } from 'node:path';
 
 interface CleanResult {
   dir: string;
-  status: 'cleaned' | 'skipped' | 'error';
   reason?: string;
+  status: 'cleaned' | 'skipped' | 'error';
 }
 
 /**
@@ -60,8 +60,7 @@ const clean = async (): Promise<void> => {
           if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
             return { dir, status: 'skipped', reason: 'does not exist' };
           }
-          const message =
-            error instanceof Error ? error.message : String(error);
+          const message = error instanceof Error ? error.message : String(error);
           return { dir, status: 'error', reason: message };
         }
       }),
@@ -83,10 +82,7 @@ const clean = async (): Promise<void> => {
       process.exit(1);
     }
   } catch (error: unknown) {
-    console.error(
-      'Clean script failed:',
-      error instanceof Error ? error.message : error,
-    );
+    console.error('Clean script failed:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 };

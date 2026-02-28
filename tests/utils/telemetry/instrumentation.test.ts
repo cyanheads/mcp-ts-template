@@ -3,18 +3,10 @@
  * @module tests/utils/telemetry/instrumentation.test
  */
 
-import {
-  describe,
-  test,
-  expect,
-  beforeEach,
-  afterEach,
-  vi,
-  type MockInstance,
-} from 'vitest';
-import { diag, DiagLogLevel } from '@opentelemetry/api';
-import * as instrumentation from '@/utils/telemetry/instrumentation.js';
+import { DiagLogLevel, diag } from '@opentelemetry/api';
+import { afterEach, beforeEach, describe, expect, type MockInstance, test, vi } from 'vitest';
 import * as runtimeModule from '@/utils/internal/runtime.js';
+import * as instrumentation from '@/utils/telemetry/instrumentation.js';
 
 // Mock config at module level
 vi.mock('@/config/index.js', () => ({
@@ -56,32 +48,22 @@ describe('OpenTelemetry Instrumentation', () => {
     test.skip('should skip initialization when telemetry is disabled', async () => {
       // Mock config to have telemetry disabled
       const configMock = await import('@/config/index.js');
-      vi.spyOn(
-        configMock.config.openTelemetry,
-        'enabled',
-        'get',
-      ).mockReturnValue(false);
+      vi.spyOn(configMock.config.openTelemetry, 'enabled', 'get').mockReturnValue(false);
 
       await instrumentation.initializeOpenTelemetry();
 
-      expect(diagInfoSpy).toHaveBeenCalledWith(
-        'OpenTelemetry disabled via configuration.',
-      );
+      expect(diagInfoSpy).toHaveBeenCalledWith('OpenTelemetry disabled via configuration.');
     });
 
     test.skip('should use lightweight mode when NodeSDK unavailable - SKIPPED: Requires vi.doMock() for dynamic module mocking which Bun does not support. Would need integration test in real runtime environment to verify NodeSDK fallback behavior.', async () => {
       // This test requires dynamically mocking the NodeSDK import to simulate it being unavailable.
       // Bun's Vitest implementation doesn't support vi.doMock() for per-test module resolution.
       // The lightweight mode fallback is documented and tested manually in non-Node environments.
-      vi.spyOn(runtimeModule.runtimeCaps, 'isNode', 'get').mockReturnValue(
-        false,
-      );
+      vi.spyOn(runtimeModule.runtimeCaps, 'isNode', 'get').mockReturnValue(false);
 
       await instrumentation.initializeOpenTelemetry();
 
-      expect(diagInfoSpy).toHaveBeenCalledWith(
-        expect.stringContaining('NodeSDK unavailable'),
-      );
+      expect(diagInfoSpy).toHaveBeenCalledWith(expect.stringContaining('NodeSDK unavailable'));
     });
 
     test.skip('should be idempotent - multiple calls return same promise - SKIPPED: Cannot reliably test due to readonly sdk export and module-level state. The initPromise is internal to the module and cannot be reset between tests without causing side effects. Idempotency is verified through manual testing and protected by the initialization guard in production code.', async () => {
@@ -89,9 +71,7 @@ describe('OpenTelemetry Instrumentation', () => {
       // The initialization state is module-scoped and cannot be safely reset between test runs.
       // Attempting to test this causes test pollution and unreliable results.
       // The idempotency behavior is protected by the initPromise guard in the implementation.
-      vi.spyOn(runtimeModule.runtimeCaps, 'isNode', 'get').mockReturnValue(
-        false,
-      );
+      vi.spyOn(runtimeModule.runtimeCaps, 'isNode', 'get').mockReturnValue(false);
 
       const promise1 = instrumentation.initializeOpenTelemetry();
       const promise2 = instrumentation.initializeOpenTelemetry();
@@ -104,9 +84,7 @@ describe('OpenTelemetry Instrumentation', () => {
 
     test.skip('should return immediately if already initialized', async () => {
       // Mock runtime to skip actual initialization
-      vi.spyOn(runtimeModule.runtimeCaps, 'isNode', 'get').mockReturnValue(
-        false,
-      );
+      vi.spyOn(runtimeModule.runtimeCaps, 'isNode', 'get').mockReturnValue(false);
 
       await instrumentation.initializeOpenTelemetry();
 
@@ -152,9 +130,7 @@ describe('OpenTelemetry Instrumentation', () => {
     test('should handle missing process.versions', () => {
       // Note: Cannot modify readonly process.versions in vitest
       // This test verifies the code handles the case gracefully through mocking
-      vi.spyOn(runtimeModule.runtimeCaps, 'isNode', 'get').mockReturnValueOnce(
-        false,
-      );
+      vi.spyOn(runtimeModule.runtimeCaps, 'isNode', 'get').mockReturnValueOnce(false);
 
       // When runtime is not Node, versions.node would be undefined
       const isNode = runtimeModule.runtimeCaps.isNode;
@@ -166,9 +142,7 @@ describe('OpenTelemetry Instrumentation', () => {
     test('should handle import errors gracefully', async () => {
       // Note: process.versions is readonly in vitest environment
       // We can only mock runtime detection, not modify process.versions directly
-      vi.spyOn(runtimeModule.runtimeCaps, 'isNode', 'get').mockReturnValue(
-        true,
-      );
+      vi.spyOn(runtimeModule.runtimeCaps, 'isNode', 'get').mockReturnValue(true);
 
       // This would test error handling during import, but we can't easily
       // simulate import failures in unit tests without complex mocking

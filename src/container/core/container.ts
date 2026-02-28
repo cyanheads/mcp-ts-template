@@ -10,10 +10,10 @@
  * enabling fully type-safe resolution without casts.
  */
 export interface Token<T> {
-  readonly id: symbol;
-  readonly description: string;
   /** Phantom brand — never used at runtime. */
   readonly _type?: T;
+  readonly description: string;
+  readonly id: symbol;
 }
 
 /** Create a typed DI token. */
@@ -25,8 +25,8 @@ type Factory<T> = (container: Container) => T;
 
 interface Registration<T> {
   factory: Factory<T>;
-  singleton: boolean;
   instance?: T;
+  singleton: boolean;
 }
 
 export class Container {
@@ -44,11 +44,7 @@ export class Container {
   }
 
   /** Register a factory. Optionally singleton (default: transient). */
-  registerFactory<T>(
-    token: Token<T>,
-    factory: Factory<T>,
-    opts?: { singleton?: boolean },
-  ): this {
+  registerFactory<T>(token: Token<T>, factory: Factory<T>, opts?: { singleton?: boolean }): this {
     this.registry.set(token.id, {
       factory: factory as Factory<unknown>,
       singleton: opts?.singleton ?? false,
@@ -108,14 +104,9 @@ export class Container {
   /** Create a child container that inherits registrations from this container. */
   fork(): Container {
     const child = new Container();
-    child.registry = new Map(
-      [...this.registry.entries()].map(([k, v]) => [k, { ...v }]),
-    );
+    child.registry = new Map([...this.registry.entries()].map(([k, v]) => [k, { ...v }]));
     child.multiRegistry = new Map(
-      [...this.multiRegistry.entries()].map(([k, v]) => [
-        k,
-        v.map((r) => ({ ...r })),
-      ]),
+      [...this.multiRegistry.entries()].map(([k, v]) => [k, v.map((r) => ({ ...r }))]),
     );
     return child;
   }

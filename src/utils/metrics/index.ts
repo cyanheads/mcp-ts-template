@@ -5,5 +5,5 @@
  * @module src/utils/metrics
  */
 
-export * from './tokenCounter.js';
 export * from './registry.js';
+export * from './tokenCounter.js';

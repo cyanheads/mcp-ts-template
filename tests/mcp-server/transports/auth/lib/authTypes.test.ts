@@ -81,13 +81,7 @@ describe('Auth Types', () => {
     });
 
     it('should support multiple scopes', () => {
-      const scopes = [
-        'tool:read',
-        'tool:write',
-        'tool:delete',
-        'resource:read',
-        'resource:list',
-      ];
+      const scopes = ['tool:read', 'tool:write', 'tool:delete', 'resource:read', 'resource:list'];
       const authInfo: AuthInfo = {
         clientId: 'test-client-id',
         scopes,

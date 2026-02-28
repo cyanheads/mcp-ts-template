@@ -2,8 +2,8 @@
  * @fileoverview Integration tests for the Logger utility.
  * These tests validate file creation, log level handling, and rate limiting with Pino.
  */
-import { existsSync, readFileSync, rmSync } from 'fs';
-import path from 'path';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { config } from '../../../src/config/index.js';
@@ -77,17 +77,13 @@ describe('Logger Integration (Pino)', () => {
       // Give pino a moment to write to the file stream
       setTimeout(() => {
         const combinedLog = readJsonLog(COMBINED_LOG_PATH);
-        const infoLogEntry = combinedLog.find(
-          (log) => log.testId === 'pino-info-test',
-        );
+        const infoLogEntry = combinedLog.find((log) => log.testId === 'pino-info-test');
         expect(infoLogEntry).toBeDefined();
         expect(infoLogEntry.msg).toBe('This is a pino info message');
         expect(infoLogEntry.level).toBe(30); // Pino's level for info
 
         const errorLog = readJsonLog(ERROR_LOG_PATH);
-        const errorLogEntry = errorLog.find(
-          (log) => log.testId === 'pino-info-test',
-        );
+        const errorLogEntry = errorLog.find((log) => log.testId === 'pino-info-test');
         expect(errorLogEntry).toBeUndefined();
         resolve();
       }, 100);
@@ -104,18 +100,14 @@ describe('Logger Integration (Pino)', () => {
 
       setTimeout(() => {
         const combinedLog = readJsonLog(COMBINED_LOG_PATH);
-        const combinedErrorEntry = combinedLog.find(
-          (log) => log.testId === 'pino-error-test',
-        );
+        const combinedErrorEntry = combinedLog.find((log) => log.testId === 'pino-error-test');
         expect(combinedErrorEntry).toBeDefined();
         expect(combinedErrorEntry.msg).toBe('This is a pino error message');
         expect(combinedErrorEntry.level).toBe(50); // Pino's level for error
         expect(combinedErrorEntry.err.message).toBe('test error');
 
         const errorLog = readJsonLog(ERROR_LOG_PATH);
-        const errorLogEntry = errorLog.find(
-          (log) => log.testId === 'pino-error-test',
-        );
+        const errorLogEntry = errorLog.find((log) => log.testId === 'pino-error-test');
         expect(errorLogEntry).toBeDefined();
         expect(errorLogEntry.msg).toBe('This is a pino error message');
         resolve();
@@ -154,9 +146,7 @@ describe('Logger Integration (Pino)', () => {
 
       setTimeout(() => {
         const combinedLog = readJsonLog(COMBINED_LOG_PATH);
-        const emergEntry = combinedLog.find(
-          (log) => log.testId === 'pino-emerg-test',
-        );
+        const emergEntry = combinedLog.find((log) => log.testId === 'pino-emerg-test');
         expect(emergEntry).toBeDefined();
         expect(emergEntry.msg).toBe('Emergency situation detected');
         // Pino fatal level is 60
@@ -176,9 +166,7 @@ describe('Logger Integration (Pino)', () => {
 
       setTimeout(() => {
         const combinedLog = readJsonLog(COMBINED_LOG_PATH);
-        const critEntry = combinedLog.find(
-          (log) => log.testId === 'pino-crit-test',
-        );
+        const critEntry = combinedLog.find((log) => log.testId === 'pino-crit-test');
         expect(critEntry).toBeDefined();
         expect(critEntry.msg).toBe('Critical error occurred');
         // Mapped to error level (50) in Pino
@@ -198,9 +186,7 @@ describe('Logger Integration (Pino)', () => {
 
       setTimeout(() => {
         const combinedLog = readJsonLog(COMBINED_LOG_PATH);
-        const alertEntry = combinedLog.find(
-          (log) => log.testId === 'pino-alert-test',
-        );
+        const alertEntry = combinedLog.find((log) => log.testId === 'pino-alert-test');
         expect(alertEntry).toBeDefined();
         expect(alertEntry.msg).toBe('Alert condition triggered');
         // Mapped to error/fatal level in Pino
@@ -220,9 +206,7 @@ describe('Logger Integration (Pino)', () => {
 
       setTimeout(() => {
         const combinedLog = readJsonLog(COMBINED_LOG_PATH);
-        const noticeEntry = combinedLog.find(
-          (log) => log.testId === 'pino-notice-test',
-        );
+        const noticeEntry = combinedLog.find((log) => log.testId === 'pino-notice-test');
         expect(noticeEntry).toBeDefined();
         expect(noticeEntry.msg).toBe('Notice level message');
         // Mapped to info level (30) in Pino
@@ -242,9 +226,7 @@ describe('Logger Integration (Pino)', () => {
 
       setTimeout(() => {
         const combinedLog = readJsonLog(COMBINED_LOG_PATH);
-        const fatalEntry = combinedLog.find(
-          (log) => log.testId === 'pino-fatal-test',
-        );
+        const fatalEntry = combinedLog.find((log) => log.testId === 'pino-fatal-test');
         expect(fatalEntry).toBeDefined();
         expect(fatalEntry.msg).toBe('Fatal condition encountered');
         expect(fatalEntry.level).toBeGreaterThanOrEqual(50);
@@ -267,9 +249,7 @@ describe('Logger Integration (Pino)', () => {
     await vi.waitFor(
       () => {
         const interactions = readJsonLog(INTERACTIONS_LOG_PATH);
-        const entry = interactions.find(
-          (log) => log.interactionName === 'test-interaction',
-        );
+        const entry = interactions.find((log) => log.interactionName === 'test-interaction');
         expect(entry).toBeDefined();
         expect(entry?.payloadSize).toBe(42);
       },
@@ -377,9 +357,7 @@ describe('Logger Transport Mode Handling', () => {
     expect(ansiPattern.test(logContent)).toBe(false);
 
     // Verify the log entry is valid JSON (MCP clients must be able to parse)
-    const logLines = logContent
-      .split('\n')
-      .filter((line) => line.trim() !== '');
+    const logLines = logContent.split('\n').filter((line) => line.trim() !== '');
 
     expect(logLines.length).toBeGreaterThan(0);
 

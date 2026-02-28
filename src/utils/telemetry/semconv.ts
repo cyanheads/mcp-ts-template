@@ -101,20 +101,16 @@ export const ATTR_MCP_TOOL_ERROR_CODE = 'mcp.tool.error_code';
 /**
  * MCP tool memory usage tracking (RSS - Resident Set Size).
  */
-export const ATTR_MCP_TOOL_MEMORY_RSS_BEFORE =
-  'mcp.tool.memory_rss_bytes.before';
+export const ATTR_MCP_TOOL_MEMORY_RSS_BEFORE = 'mcp.tool.memory_rss_bytes.before';
 export const ATTR_MCP_TOOL_MEMORY_RSS_AFTER = 'mcp.tool.memory_rss_bytes.after';
 export const ATTR_MCP_TOOL_MEMORY_RSS_DELTA = 'mcp.tool.memory_rss_bytes.delta';
 
 /**
  * MCP tool memory usage tracking (Heap Used).
  */
-export const ATTR_MCP_TOOL_MEMORY_HEAP_USED_BEFORE =
-  'mcp.tool.memory_heap_used_bytes.before';
-export const ATTR_MCP_TOOL_MEMORY_HEAP_USED_AFTER =
-  'mcp.tool.memory_heap_used_bytes.after';
-export const ATTR_MCP_TOOL_MEMORY_HEAP_USED_DELTA =
-  'mcp.tool.memory_heap_used_bytes.delta';
+export const ATTR_MCP_TOOL_MEMORY_HEAP_USED_BEFORE = 'mcp.tool.memory_heap_used_bytes.before';
+export const ATTR_MCP_TOOL_MEMORY_HEAP_USED_AFTER = 'mcp.tool.memory_heap_used_bytes.after';
+export const ATTR_MCP_TOOL_MEMORY_HEAP_USED_DELTA = 'mcp.tool.memory_heap_used_bytes.delta';
 
 // ============================================================================
 // Custom MCP Resource Attributes

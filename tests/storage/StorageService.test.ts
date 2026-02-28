@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { StorageService } from '@/storage/core/StorageService.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { requestContextService } from '@/utils/index.js';
 import type { RequestContext } from '@/utils/index.js';
+import { requestContextService } from '@/utils/index.js';
 
 describe('StorageService - Tenant ID Validation', () => {
   let storageService: StorageService;
@@ -25,37 +25,27 @@ describe('StorageService - Tenant ID Validation', () => {
   describe('Valid Tenant IDs', () => {
     it('should accept simple alphanumeric tenant ID', async () => {
       const context = { ...baseContext, tenantId: 'tenant123' };
-      await expect(
-        storageService.set('test-key', 'test-value', context),
-      ).resolves.toBeUndefined();
+      await expect(storageService.set('test-key', 'test-value', context)).resolves.toBeUndefined();
     });
 
     it('should accept tenant ID with hyphens', async () => {
       const context = { ...baseContext, tenantId: 'tenant-123' };
-      await expect(
-        storageService.set('test-key', 'test-value', context),
-      ).resolves.toBeUndefined();
+      await expect(storageService.set('test-key', 'test-value', context)).resolves.toBeUndefined();
     });
 
     it('should accept tenant ID with underscores', async () => {
       const context = { ...baseContext, tenantId: 'tenant_123' };
-      await expect(
-        storageService.set('test-key', 'test-value', context),
-      ).resolves.toBeUndefined();
+      await expect(storageService.set('test-key', 'test-value', context)).resolves.toBeUndefined();
     });
 
     it('should accept tenant ID with dots', async () => {
       const context = { ...baseContext, tenantId: 'tenant.123' };
-      await expect(
-        storageService.set('test-key', 'test-value', context),
-      ).resolves.toBeUndefined();
+      await expect(storageService.set('test-key', 'test-value', context)).resolves.toBeUndefined();
     });
 
     it('should accept tenant ID with mixed valid characters', async () => {
       const context = { ...baseContext, tenantId: 'tenant-123_abc.xyz' };
-      await expect(
-        storageService.set('test-key', 'test-value', context),
-      ).resolves.toBeUndefined();
+      await expect(storageService.set('test-key', 'test-value', context)).resolves.toBeUndefined();
     });
 
     it('should accept maximum length tenant ID (128 characters)', async () => {
@@ -63,30 +53,22 @@ describe('StorageService - Tenant ID Validation', () => {
         ...baseContext,
         tenantId: 'a'.repeat(128),
       };
-      await expect(
-        storageService.set('test-key', 'test-value', context),
-      ).resolves.toBeUndefined();
+      await expect(storageService.set('test-key', 'test-value', context)).resolves.toBeUndefined();
     });
 
     it('should accept single character tenant ID', async () => {
       const context = { ...baseContext, tenantId: 'a' };
-      await expect(
-        storageService.set('test-key', 'test-value', context),
-      ).resolves.toBeUndefined();
+      await expect(storageService.set('test-key', 'test-value', context)).resolves.toBeUndefined();
     });
 
     it('should accept two character tenant ID', async () => {
       const context = { ...baseContext, tenantId: 'ab' };
-      await expect(
-        storageService.set('test-key', 'test-value', context),
-      ).resolves.toBeUndefined();
+      await expect(storageService.set('test-key', 'test-value', context)).resolves.toBeUndefined();
     });
 
     it('should trim and accept tenant ID with whitespace', async () => {
       const context = { ...baseContext, tenantId: '  tenant123  ' };
-      await expect(
-        storageService.set('test-key', 'test-value', context),
-      ).resolves.toBeUndefined();
+      await expect(storageService.set('test-key', 'test-value', context)).resolves.toBeUndefined();
 
       // Verify the trimmed value was used
       const result = await storageService.get<string>('test-key', {
@@ -355,14 +337,8 @@ describe('StorageService - Tenant ID Validation', () => {
       await storageService.set('shared-key', 'tenant2-value', tenant2Context);
 
       // Verify isolation
-      const tenant1Value = await storageService.get<string>(
-        'shared-key',
-        tenant1Context,
-      );
-      const tenant2Value = await storageService.get<string>(
-        'shared-key',
-        tenant2Context,
-      );
+      const tenant1Value = await storageService.get<string>('shared-key', tenant1Context);
+      const tenant2Value = await storageService.get<string>('shared-key', tenant2Context);
 
       expect(tenant1Value).toBe('tenant1-value');
       expect(tenant2Value).toBe('tenant2-value');

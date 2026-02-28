@@ -32,8 +32,7 @@ vi.mock('@/config/index.js', () => ({
 let metricsRegistry: typeof import('../../../src/utils/metrics/registry.js').metricsRegistry;
 
 beforeAll(async () => {
-  ({ metricsRegistry } =
-    await import('../../../src/utils/metrics/registry.js'));
+  ({ metricsRegistry } = await import('../../../src/utils/metrics/registry.js'));
 });
 
 describe('metricsRegistry', () => {
@@ -124,9 +123,7 @@ describe('metricsRegistry', () => {
 
     // Exercise the branch where no metric options are passed.
     metricsRegistry.add('requests_total_no_opts', 1);
-    expect(meterMock.createCounter).toHaveBeenCalledWith(
-      'requests_total_no_opts',
-    );
+    expect(meterMock.createCounter).toHaveBeenCalledWith('requests_total_no_opts');
     expect(counterWithoutOptions.add).toHaveBeenCalledWith(1, undefined);
 
     metricsRegistry.record(
@@ -147,20 +144,12 @@ describe('metricsRegistry', () => {
     histogramWithOptions.record.mockClear();
     meterMock.createHistogram.mockClear();
 
-    metricsRegistry.record(
-      'latency_ms',
-      200,
-      undefined,
-      'Request latency in milliseconds',
-      'ms',
-    );
+    metricsRegistry.record('latency_ms', 200, undefined, 'Request latency in milliseconds', 'ms');
     expect(meterMock.createHistogram).not.toHaveBeenCalled();
     expect(histogramWithOptions.record).toHaveBeenCalledWith(200, undefined);
 
     metricsRegistry.record('latency_ms_no_opts', 50);
-    expect(meterMock.createHistogram).toHaveBeenCalledWith(
-      'latency_ms_no_opts',
-    );
+    expect(meterMock.createHistogram).toHaveBeenCalledWith('latency_ms_no_opts');
     expect(histogramWithoutOptions.record).toHaveBeenCalledWith(50, undefined);
   });
 });

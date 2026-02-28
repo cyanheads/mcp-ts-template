@@ -4,11 +4,7 @@
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  fetchWithTimeout,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { fetchWithTimeout, logger, requestContextService } from '@/utils/index.js';
 
 import type { ISpeechProvider } from '../core/ISpeechProvider.js';
 import type {
@@ -25,10 +21,10 @@ import type {
  * OpenAI Whisper API response for transcription.
  */
 interface WhisperTranscriptionResponse {
-  text: string;
-  task?: string;
-  language?: string;
   duration?: number;
+  language?: string;
+  task?: string;
+  text: string;
   words?: Array<{
     word: string;
     start: number;
@@ -52,10 +48,7 @@ export class WhisperProvider implements ISpeechProvider {
 
   constructor(config: SpeechProviderConfig) {
     if (!config.apiKey) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
-        'OpenAI API key is required',
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidParams, 'OpenAI API key is required');
     }
 
     this.apiKey = config.apiKey;
@@ -81,9 +74,7 @@ export class WhisperProvider implements ISpeechProvider {
   /**
    * Convert speech audio to text using OpenAI Whisper API.
    */
-  async speechToText(
-    options: SpeechToTextOptions,
-  ): Promise<SpeechToTextResult> {
+  async speechToText(options: SpeechToTextOptions): Promise<SpeechToTextResult> {
     const context = requestContextService.createRequestContext({
       operation: 'whisper-stt',
       ...(options.context || {}),
@@ -94,11 +85,7 @@ export class WhisperProvider implements ISpeechProvider {
 
     // Validate audio input
     if (!options.audio) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
-        'Audio data is required',
-        context,
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidParams, 'Audio data is required', context);
     }
 
     // Convert audio to Buffer if it's a base64 string
@@ -107,11 +94,7 @@ export class WhisperProvider implements ISpeechProvider {
       try {
         audioBuffer = Buffer.from(options.audio, 'base64');
       } catch (_error) {
-        throw new McpError(
-          JsonRpcErrorCode.InvalidParams,
-          'Invalid base64 audio data',
-          context,
-        );
+        throw new McpError(JsonRpcErrorCode.InvalidParams, 'Invalid base64 audio data', context);
       }
     } else {
       audioBuffer = options.audio;
@@ -153,10 +136,7 @@ export class WhisperProvider implements ISpeechProvider {
     }
 
     // Request verbose JSON format to get timestamps and metadata
-    formData.append(
-      'response_format',
-      options.timestamps ? 'verbose_json' : 'json',
-    );
+    formData.append('response_format', options.timestamps ? 'verbose_json' : 'json');
 
     if (options.timestamps) {
       formData.append('timestamp_granularities[]', 'word');
@@ -182,10 +162,7 @@ export class WhisperProvider implements ISpeechProvider {
         end: w.end,
       }));
 
-      logger.info(
-        `Speech-to-text transcription successful (${data.text.length} chars)`,
-        context,
-      );
+      logger.info(`Speech-to-text transcription successful (${data.text.length} chars)`, context);
 
       return {
         text: data.text,
@@ -236,17 +213,12 @@ export class WhisperProvider implements ISpeechProvider {
       const context = requestContextService.createRequestContext({
         operation: 'whisper-healthCheck',
       });
-      const response = await fetchWithTimeout(
-        `${this.baseUrl}/models`,
-        5000,
-        context,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${this.apiKey}`,
-          },
+      const response = await fetchWithTimeout(`${this.baseUrl}/models`, 5000, context, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
         },
-      );
+      });
 
       return response.ok;
     } catch (error: unknown) {

@@ -216,9 +216,7 @@ invalid: [unterminated array
 
 Content`;
 
-      expect(() => frontmatterParser.parse(markdown, context)).toThrow(
-        McpError,
-      );
+      expect(() => frontmatterParser.parse(markdown, context)).toThrow(McpError);
 
       try {
         frontmatterParser.parse(markdown, context);
@@ -239,9 +237,7 @@ bad: yaml: content
 
 Content`;
 
-      expect(() => frontmatterParser.parse(markdown, context)).toThrow(
-        McpError,
-      );
+      expect(() => frontmatterParser.parse(markdown, context)).toThrow(McpError);
 
       expect(errorSpy).toHaveBeenCalledWith(
         'Failed to parse YAML content.',
@@ -357,9 +353,9 @@ Content`;
   describe('type safety', () => {
     it('supports generic type parameter for frontmatter', () => {
       interface NoteFrontmatter {
-        title: string;
-        tags: string[];
         published: boolean;
+        tags: string[];
+        title: string;
       }
 
       const markdown = `---

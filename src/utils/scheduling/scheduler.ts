@@ -5,11 +5,10 @@
  * @module src/utils/scheduling/scheduler
  */
 import type { ScheduledTask } from 'node-cron';
-
-import { runtimeCaps } from '@/utils/internal/runtime.js';
-import { type RequestContext, logger } from '@/utils/internal/index.js';
-import { requestContextService } from '@/utils/internal/requestContext.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger, type RequestContext } from '@/utils/internal/index.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
+import { runtimeCaps } from '@/utils/internal/runtime.js';
 
 /**
  * Lazily loads the node-cron module. Cached after first successful import.
@@ -27,23 +26,23 @@ async function loadCron(): Promise<typeof import('node-cron')> {
   if (!cronModulePromise) {
     cronModulePromise = import('node-cron');
   }
-  return cronModulePromise;
+  return await cronModulePromise;
 }
 
 /**
  * Represents a scheduled job managed by the SchedulerService.
  */
 export interface Job {
-  /** A unique identifier for the job. */
-  id: string;
-  /** The cron pattern defining the job's schedule. */
-  schedule: string;
   /** A description of what the job does. */
   description: string;
-  /** The underlying 'node-cron' task instance. */
-  task: ScheduledTask;
+  /** A unique identifier for the job. */
+  id: string;
   /** Indicates whether the job is currently running. */
   isRunning: boolean;
+  /** The cron pattern defining the job's schedule. */
+  schedule: string;
+  /** The underlying 'node-cron' task instance. */
+  task: ScheduledTask;
 }
 
 /**
@@ -98,14 +97,11 @@ export class SchedulerService {
 
     const task = cron.createTask(schedule, async () => {
       const job = this.jobs.get(id);
-      if (job && job.isRunning) {
-        logger.warning(
-          `Job '${id}' is already running. Skipping this execution.`,
-          {
-            requestId: `job-skip-${id}`,
-            timestamp: new Date().toISOString(),
-          },
-        );
+      if (job?.isRunning) {
+        logger.warning(`Job '${id}' is already running. Skipping this execution.`, {
+          requestId: `job-skip-${id}`,
+          timestamp: new Date().toISOString(),
+        });
         return;
       }
 

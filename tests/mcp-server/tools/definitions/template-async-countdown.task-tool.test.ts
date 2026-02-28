@@ -2,21 +2,21 @@
  * @fileoverview Tests for the template-async-countdown task tool.
  * @module tests/mcp-server/tools/definitions/template-async-countdown.task-tool.test
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { asyncCountdownTaskTool } from '@/mcp-server/tools/definitions/template-async-countdown.task-tool.js';
-import { isTaskToolDefinition } from '@/mcp-server/tasks/utils/taskToolDefinition.js';
-import {
-  InMemoryTaskStore,
-  type CreateTaskOptions,
-  type Task,
-} from '@/mcp-server/tasks/core/taskTypes.js';
+import type { RequestTaskStore } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import type { Request, RequestId } from '@modelcontextprotocol/sdk/types.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   CreateTaskRequestHandlerExtra,
   TaskRequestHandlerExtra,
 } from '@/mcp-server/tasks/core/taskTypes.js';
-import type { Request, RequestId } from '@modelcontextprotocol/sdk/types.js';
-import type { RequestTaskStore } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import {
+  type CreateTaskOptions,
+  InMemoryTaskStore,
+  type Task,
+} from '@/mcp-server/tasks/core/taskTypes.js';
+import { isTaskToolDefinition } from '@/mcp-server/tasks/utils/taskToolDefinition.js';
+import { asyncCountdownTaskTool } from '@/mcp-server/tools/definitions/template-async-countdown.task-tool.js';
 
 /**
  * Creates a RequestTaskStore adapter for testing.
@@ -28,11 +28,7 @@ function createTestTaskStore(
   testRequest: Request,
   overrides?: Partial<{
     createTask: (options: CreateTaskOptions) => Promise<Task>;
-    updateTaskStatus: (
-      taskId: string,
-      status: Task['status'],
-      message?: string,
-    ) => Promise<void>;
+    updateTaskStatus: (taskId: string, status: Task['status'], message?: string) => Promise<void>;
   }>,
 ): RequestTaskStore {
   const getTaskWrapper = async (taskId: string): Promise<Task> => {
@@ -46,16 +42,13 @@ function createTestTaskStore(
   return {
     createTask:
       overrides?.createTask ??
-      ((options: CreateTaskOptions) =>
-        taskStore.createTask(options, testRequestId, testRequest)),
+      ((options: CreateTaskOptions) => taskStore.createTask(options, testRequestId, testRequest)),
     getTask: getTaskWrapper,
-    storeTaskResult: (taskId, status, result) =>
-      taskStore.storeTaskResult(taskId, status, result),
+    storeTaskResult: (taskId, status, result) => taskStore.storeTaskResult(taskId, status, result),
     getTaskResult: (taskId) => taskStore.getTaskResult(taskId),
     updateTaskStatus:
       overrides?.updateTaskStatus ??
-      ((taskId, status, message) =>
-        taskStore.updateTaskStatus(taskId, status, message)),
+      ((taskId, status, message) => taskStore.updateTaskStatus(taskId, status, message)),
     listTasks: (cursor) => taskStore.listTasks(cursor),
   };
 }
@@ -154,9 +147,8 @@ describe('asyncCountdownTaskTool', () => {
         progress: 100,
         wasCancelled: false,
       };
-      const result =
-        asyncCountdownTaskTool.outputSchema!.safeParse(validOutput);
-      expect(result.success).toBe(true);
+      const result = asyncCountdownTaskTool.outputSchema?.safeParse(validOutput);
+      expect(result!.success).toBe(true);
     });
 
     it('should validate cancelled output', () => {
@@ -169,9 +161,8 @@ describe('asyncCountdownTaskTool', () => {
         progress: 50,
         wasCancelled: true,
       };
-      const result =
-        asyncCountdownTaskTool.outputSchema!.safeParse(cancelledOutput);
-      expect(result.success).toBe(true);
+      const result = asyncCountdownTaskTool.outputSchema?.safeParse(cancelledOutput);
+      expect(result!.success).toBe(true);
     });
 
     it('should validate failed output', () => {
@@ -184,9 +175,8 @@ describe('asyncCountdownTaskTool', () => {
         progress: 50,
         wasCancelled: false,
       };
-      const result =
-        asyncCountdownTaskTool.outputSchema!.safeParse(failedOutput);
-      expect(result.success).toBe(true);
+      const result = asyncCountdownTaskTool.outputSchema?.safeParse(failedOutput);
+      expect(result!.success).toBe(true);
     });
   });
 
@@ -206,33 +196,21 @@ describe('asyncCountdownTaskTool', () => {
       it('should create a task with correct TTL', async () => {
         const args = { seconds: 5 };
         const extra: CreateTaskRequestHandlerExtra = {
-          taskStore: createTestTaskStore(
-            taskStore,
-            testRequestId,
-            testRequest,
-            {
-              createTask: async (options) => {
-                // TTL should be (seconds + 60) * 1000
-                expect(options.ttl).toBe((5 + 60) * 1000);
-                expect(options.pollInterval).toBe(1000);
-                return taskStore.createTask(
-                  options,
-                  testRequestId,
-                  testRequest,
-                );
-              },
+          taskStore: createTestTaskStore(taskStore, testRequestId, testRequest, {
+            createTask: async (options) => {
+              // TTL should be (seconds + 60) * 1000
+              expect(options.ttl).toBe((5 + 60) * 1000);
+              expect(options.pollInterval).toBe(1000);
+              return taskStore.createTask(options, testRequestId, testRequest);
             },
-          ),
+          }),
           signal: new AbortController().signal,
           requestId: 'test-req',
           sendNotification: vi.fn(),
           sendRequest: vi.fn(),
         };
 
-        const result = await asyncCountdownTaskTool.taskHandlers.createTask(
-          args,
-          extra,
-        );
+        const result = await asyncCountdownTaskTool.taskHandlers.createTask(args, extra);
 
         expect(result.task).toBeDefined();
         expect(result.task.taskId).toBeDefined();
@@ -243,19 +221,14 @@ describe('asyncCountdownTaskTool', () => {
         let statusUpdated = false;
         const args = { seconds: 10 };
         const extra: CreateTaskRequestHandlerExtra = {
-          taskStore: createTestTaskStore(
-            taskStore,
-            testRequestId,
-            testRequest,
-            {
-              updateTaskStatus: async (taskId, status, message) => {
-                statusUpdated = true;
-                expect(message).toContain('0%');
-                expect(message).toContain('10s remaining');
-                return taskStore.updateTaskStatus(taskId, status, message);
-              },
+          taskStore: createTestTaskStore(taskStore, testRequestId, testRequest, {
+            updateTaskStatus: async (taskId, status, message) => {
+              statusUpdated = true;
+              expect(message).toContain('0%');
+              expect(message).toContain('10s remaining');
+              return taskStore.updateTaskStatus(taskId, status, message);
             },
-          ),
+          }),
           signal: new AbortController().signal,
           requestId: 'test-req',
           sendNotification: vi.fn(),
@@ -285,10 +258,7 @@ describe('asyncCountdownTaskTool', () => {
           sendRequest: vi.fn(),
         };
 
-        const result = await asyncCountdownTaskTool.taskHandlers.getTask(
-          {},
-          extra,
-        );
+        const result = await asyncCountdownTaskTool.taskHandlers.getTask({}, extra);
 
         expect(result).toBeDefined();
         expect(result?.taskId).toBe(task.taskId);
@@ -310,11 +280,7 @@ describe('asyncCountdownTaskTool', () => {
           structuredContent: { success: true },
         };
 
-        await taskStore.storeTaskResult(
-          task.taskId,
-          'completed',
-          expectedResult,
-        );
+        await taskStore.storeTaskResult(task.taskId, 'completed', expectedResult);
 
         const extra: TaskRequestHandlerExtra = {
           taskStore: createTestTaskStore(taskStore, testRequestId, testRequest),
@@ -325,10 +291,7 @@ describe('asyncCountdownTaskTool', () => {
           sendRequest: vi.fn(),
         };
 
-        const result = await asyncCountdownTaskTool.taskHandlers.getTaskResult(
-          {},
-          extra,
-        );
+        const result = await asyncCountdownTaskTool.taskHandlers.getTaskResult({}, extra);
 
         expect(result).toBeDefined();
         expect(result.content).toEqual(expectedResult.content);
@@ -360,10 +323,7 @@ describe('asyncCountdownTaskTool', () => {
         sendRequest: vi.fn(),
       };
 
-      const { task } = await asyncCountdownTaskTool.taskHandlers.createTask(
-        args,
-        extra,
-      );
+      const { task } = await asyncCountdownTaskTool.taskHandlers.createTask(args, extra);
 
       // Wait for countdown to complete (1 second + buffer)
       await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -399,10 +359,7 @@ describe('asyncCountdownTaskTool', () => {
         sendRequest: vi.fn(),
       };
 
-      const { task } = await asyncCountdownTaskTool.taskHandlers.createTask(
-        args,
-        extra,
-      );
+      const { task } = await asyncCountdownTaskTool.taskHandlers.createTask(args, extra);
 
       // Verify task is created and in working state
       const createdTask = await taskStore.getTask(task.taskId);
@@ -410,11 +367,7 @@ describe('asyncCountdownTaskTool', () => {
       expect(createdTask?.taskId).toBe(task.taskId);
 
       // Cancel externally (this simulates what SDK does when client calls tasks/cancel)
-      await taskStore.updateTaskStatus(
-        task.taskId,
-        'cancelled',
-        'User cancelled',
-      );
+      await taskStore.updateTaskStatus(task.taskId, 'cancelled', 'User cancelled');
 
       const cancelledTask = await taskStore.getTask(task.taskId);
       expect(cancelledTask?.status).toBe('cancelled');
@@ -432,10 +385,7 @@ describe('asyncCountdownTaskTool', () => {
         sendRequest: vi.fn(),
       };
 
-      const { task } = await asyncCountdownTaskTool.taskHandlers.createTask(
-        args,
-        extra,
-      );
+      const { task } = await asyncCountdownTaskTool.taskHandlers.createTask(args, extra);
 
       // Wait for failure to occur (after ~1 second at 50%)
       await new Promise((resolve) => setTimeout(resolve, 2000));

@@ -2,7 +2,7 @@
  * @fileoverview Tests for prompt registration system.
  * @module tests/mcp-server/prompts/prompt-registration.test.ts
  */
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import { logger } from '@/utils/index.js';
 
@@ -30,9 +30,7 @@ describe('PromptRegistry', () => {
 
       // The actual allPromptDefinitions array will determine how many times this is called
       // We just verify the mock was called
-      expect(
-        mockServer.registerPrompt.mock.calls.length,
-      ).toBeGreaterThanOrEqual(0);
+      expect(mockServer.registerPrompt.mock.calls.length).toBeGreaterThanOrEqual(0);
     });
 
     it('should register prompts with correct structure', () => {
@@ -99,16 +97,12 @@ describe('PromptRegistry', () => {
   describe('Registration Order', () => {
     it('should maintain consistent registration order', () => {
       registry.registerAll(mockServer);
-      const firstRun = mockServer.registerPrompt.mock.calls.map(
-        (call: any[]) => call[0],
-      );
+      const firstRun = mockServer.registerPrompt.mock.calls.map((call: any[]) => call[0]);
 
       // Clear and re-register
       mockServer.registerPrompt.mockClear();
       registry.registerAll(mockServer);
-      const secondRun = mockServer.registerPrompt.mock.calls.map(
-        (call: any[]) => call[0],
-      );
+      const secondRun = mockServer.registerPrompt.mock.calls.map((call: any[]) => call[0]);
 
       // Should be the same order
       expect(firstRun).toEqual(secondRun);

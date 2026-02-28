@@ -10,7 +10,7 @@
  * - Some type inference changes in complex schemas
  * - New z.toJSONSchema() API for JSON Schema generation
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 describe('Zod 4 Compatibility', () => {
@@ -72,9 +72,7 @@ describe('Zod 4 Compatibility', () => {
 
       const jsonSchema = z.toJSONSchema(schema, { target: 'draft-7' });
 
-      expect(jsonSchema.$schema).toBe(
-        'http://json-schema.org/draft-07/schema#',
-      );
+      expect(jsonSchema.$schema).toBe('http://json-schema.org/draft-07/schema#');
       expect(jsonSchema.type).toBe('object');
       expect(jsonSchema.properties).toHaveProperty('name');
       expect(jsonSchema.properties).toHaveProperty('age');
@@ -101,11 +99,7 @@ describe('Zod 4 Compatibility', () => {
         target: 'draft-7',
       }) as Record<string, any>;
 
-      expect(jsonSchema.properties.status.enum).toEqual([
-        'active',
-        'inactive',
-        'pending',
-      ]);
+      expect(jsonSchema.properties.status.enum).toEqual(['active', 'inactive', 'pending']);
     });
 
     it('should handle array types', () => {
@@ -171,13 +165,10 @@ describe('Zod 4 Compatibility', () => {
         z.object({ type: z.literal('image'), url: z.string().url() }),
       ]);
 
-      expect(schema.safeParse({ type: 'text', content: 'hello' }).success).toBe(
+      expect(schema.safeParse({ type: 'text', content: 'hello' }).success).toBe(true);
+      expect(schema.safeParse({ type: 'image', url: 'https://example.com/img.png' }).success).toBe(
         true,
       );
-      expect(
-        schema.safeParse({ type: 'image', url: 'https://example.com/img.png' })
-          .success,
-      ).toBe(true);
       expect(schema.safeParse({ type: 'unknown' }).success).toBe(false);
     });
 
@@ -251,10 +242,9 @@ describe('Zod 4 Compatibility', () => {
       const publicSchema = fullSchema.omit({ password: true });
       const idOnlySchema = fullSchema.pick({ id: true });
 
-      expect(
-        publicSchema.safeParse({ id: '1', name: 'Test', email: 'a@b.com' })
-          .success,
-      ).toBe(true);
+      expect(publicSchema.safeParse({ id: '1', name: 'Test', email: 'a@b.com' }).success).toBe(
+        true,
+      );
       expect(idOnlySchema.safeParse({ id: '1' }).success).toBe(true);
     });
 

@@ -4,17 +4,10 @@
  * optional <think>...</think> blocks often found at the beginning of LLM outputs.
  * @module src/utils/parsing/jsonParser
  */
-import {
-  Allow as PartialJsonAllow,
-  parse as parsePartialJson,
-} from 'partial-json';
+import { Allow as PartialJsonAllow, parse as parsePartialJson } from 'partial-json';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { logger, type RequestContext, requestContextService } from '@/utils/index.js';
 
 /**
  * Enum mirroring `partial-json`'s `Allow` constants. These specify
@@ -125,8 +118,7 @@ export class JsonParser {
         {
           ...context,
           originalContentSample:
-            stringToParse.substring(0, 200) +
-            (stringToParse.length > 200 ? '...' : ''),
+            stringToParse.substring(0, 200) + (stringToParse.length > 200 ? '...' : ''),
           rawError: error instanceof Error ? error.stack : String(error),
         },
       );

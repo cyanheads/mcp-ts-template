@@ -13,22 +13,19 @@
  *
  * @module tests/mcp-server/tools/fuzz/tool-input-fuzz
  */
-import fc from 'fast-check';
-import { zxTest } from '@traversable/zod-test';
-import { describe, it, expect, vi } from 'vitest';
 
-import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
+import { zxTest } from '@traversable/zod-test';
+import fc from 'fast-check';
+import { describe, expect, it, vi } from 'vitest';
+import type { ZodObject, ZodRawShape } from 'zod';
 import { isTaskToolDefinition } from '@/mcp-server/tasks/index.js';
+import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
+import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
 import { McpError } from '@/types-global/errors.js';
 import { requestContextService } from '@/utils/index.js';
-import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
-import type { ZodObject, ZodRawShape } from 'zod';
 
 /** Widened type alias for uniform property access across tool definitions. */
-type AnyToolDef = ToolDefinition<
-  ZodObject<ZodRawShape>,
-  ZodObject<ZodRawShape>
->;
+type AnyToolDef = ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>;
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -62,16 +59,12 @@ const mockSdkContext = {
  * Wraps zxTest.fuzz with a cast to bridge exactOptionalPropertyTypes
  * incompatibilities across Zod's internal generic type boundaries.
  */
-const fuzz = (
-  schema: ZodObject<ZodRawShape>,
-): fc.Arbitrary<Record<string, unknown>> =>
+const fuzz = (schema: ZodObject<ZodRawShape>): fc.Arbitrary<Record<string, unknown>> =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   zxTest.fuzz(schema as any);
 
 /** Separate regular tools from task tools for different test strategies. */
-const regularTools = allToolDefinitions.filter(
-  (t) => !isTaskToolDefinition(t),
-) as AnyToolDef[];
+const regularTools = allToolDefinitions.filter((t) => !isTaskToolDefinition(t)) as AnyToolDef[];
 
 const taskTools = allToolDefinitions.filter(isTaskToolDefinition);
 
@@ -79,39 +72,33 @@ const taskTools = allToolDefinitions.filter(isTaskToolDefinition);
 
 describe('Tool Input Fuzz Tests', () => {
   describe('Layer 1: Schema Parsing', () => {
-    describe.each(regularTools.map((t) => [t.name, t] as const))(
-      '%s',
-      (_name, tool) => {
-        it('inputSchema.safeParse succeeds for all generated inputs', () => {
-          const arb = fuzz(tool.inputSchema);
+    describe.each(regularTools.map((t) => [t.name, t] as const))('%s', (_name, tool) => {
+      it('inputSchema.safeParse succeeds for all generated inputs', () => {
+        const arb = fuzz(tool.inputSchema);
 
-          fc.assert(
-            fc.property(arb, (input) => {
-              const parsed = tool.inputSchema.safeParse(input);
-              expect(parsed.success).toBe(true);
-            }),
-            { numRuns: NUM_RUNS },
-          );
-        });
-      },
-    );
+        fc.assert(
+          fc.property(arb, (input) => {
+            const parsed = tool.inputSchema.safeParse(input);
+            expect(parsed.success).toBe(true);
+          }),
+          { numRuns: NUM_RUNS },
+        );
+      });
+    });
 
-    describe.each(taskTools.map((t) => [t.name, t] as const))(
-      '%s (task tool)',
-      (_name, tool) => {
-        it('inputSchema.safeParse succeeds for all generated inputs', () => {
-          const arb = fuzz(tool.inputSchema);
+    describe.each(taskTools.map((t) => [t.name, t] as const))('%s (task tool)', (_name, tool) => {
+      it('inputSchema.safeParse succeeds for all generated inputs', () => {
+        const arb = fuzz(tool.inputSchema);
 
-          fc.assert(
-            fc.property(arb, (input) => {
-              const parsed = tool.inputSchema.safeParse(input);
-              expect(parsed.success).toBe(true);
-            }),
-            { numRuns: NUM_RUNS },
-          );
-        });
-      },
-    );
+        fc.assert(
+          fc.property(arb, (input) => {
+            const parsed = tool.inputSchema.safeParse(input);
+            expect(parsed.success).toBe(true);
+          }),
+          { numRuns: NUM_RUNS },
+        );
+      });
+    });
   });
 
   // ─── Layer 2: Logic Invariants ───────────────────────────────────────────────
@@ -119,85 +106,77 @@ describe('Tool Input Fuzz Tests', () => {
   describe('Layer 2: Logic Invariants', () => {
     const fuzzableTools = regularTools.filter((t) => !LOGIC_SKIP.has(t.name));
 
-    describe.each(fuzzableTools.map((t) => [t.name, t] as const))(
-      '%s',
-      (_name, tool) => {
-        it('logic never throws non-McpError exceptions', async () => {
-          const arb = fuzz(tool.inputSchema);
+    describe.each(fuzzableTools.map((t) => [t.name, t] as const))('%s', (_name, tool) => {
+      it('logic never throws non-McpError exceptions', async () => {
+        const arb = fuzz(tool.inputSchema);
 
-          await fc.assert(
-            fc.asyncProperty(arb, async (input) => {
-              const ctx = requestContextService.createRequestContext({
-                operation: `fuzz:${tool.name}`,
-              });
+        await fc.assert(
+          fc.asyncProperty(arb, async (input) => {
+            const ctx = requestContextService.createRequestContext({
+              operation: `fuzz:${tool.name}`,
+            });
 
-              try {
-                await tool.logic(input, ctx, mockSdkContext);
-              } catch (err) {
-                expect(err).toBeInstanceOf(McpError);
+            try {
+              await tool.logic(input, ctx, mockSdkContext);
+            } catch (err) {
+              expect(err).toBeInstanceOf(McpError);
+            }
+          }),
+          { numRuns: NUM_RUNS },
+        );
+      });
+
+      it('successful logic output validates against outputSchema', async () => {
+        const arb = fuzz(tool.inputSchema);
+
+        await fc.assert(
+          fc.asyncProperty(arb, async (input) => {
+            const ctx = requestContextService.createRequestContext({
+              operation: `fuzz:${tool.name}`,
+            });
+
+            try {
+              const result = await tool.logic(input, ctx, mockSdkContext);
+              const parsed = tool.outputSchema.safeParse(result);
+              if (!parsed.success) {
+                // Surface the validation error for debugging
+                expect.fail(
+                  `outputSchema validation failed: ${JSON.stringify(parsed.error.issues, null, 2)}`,
+                );
               }
-            }),
-            { numRuns: NUM_RUNS },
-          );
-        });
-
-        it('successful logic output validates against outputSchema', async () => {
-          const arb = fuzz(tool.inputSchema);
-
-          await fc.assert(
-            fc.asyncProperty(arb, async (input) => {
-              const ctx = requestContextService.createRequestContext({
-                operation: `fuzz:${tool.name}`,
-              });
-
-              try {
-                const result = await tool.logic(input, ctx, mockSdkContext);
-                const parsed = tool.outputSchema.safeParse(result);
-                if (!parsed.success) {
-                  // Surface the validation error for debugging
-                  expect.fail(
-                    `outputSchema validation failed: ${JSON.stringify(parsed.error.issues, null, 2)}`,
-                  );
-                }
-              } catch (err) {
-                // McpError is acceptable — tested in the invariant above
-                if (!(err instanceof McpError)) {
-                  throw err;
-                }
+            } catch (err) {
+              // McpError is acceptable — tested in the invariant above
+              if (!(err instanceof McpError)) {
+                throw err;
               }
-            }),
-            { numRuns: NUM_RUNS },
-          );
-        });
-      },
-    );
+            }
+          }),
+          { numRuns: NUM_RUNS },
+        );
+      });
+    });
   });
 
   // ─── Layer 3: Response Formatter Safety ────────────────────────────────────
 
   describe('Layer 3: Response Formatter Safety', () => {
-    const toolsWithFormatters = regularTools.filter(
-      (t) => t.responseFormatter != null,
-    );
+    const toolsWithFormatters = regularTools.filter((t) => t.responseFormatter != null);
 
-    describe.each(toolsWithFormatters.map((t) => [t.name, t] as const))(
-      '%s',
-      (_name, tool) => {
-        it('responseFormatter never crashes on valid output shapes', () => {
-          const arb = fuzz(tool.outputSchema);
+    describe.each(toolsWithFormatters.map((t) => [t.name, t] as const))('%s', (_name, tool) => {
+      it('responseFormatter never crashes on valid output shapes', () => {
+        const arb = fuzz(tool.outputSchema);
 
-          fc.assert(
-            fc.property(arb, (output) => {
-              const blocks = tool.responseFormatter!(output);
-              expect(Array.isArray(blocks)).toBe(true);
-              for (const block of blocks) {
-                expect(block).toHaveProperty('type');
-              }
-            }),
-            { numRuns: NUM_RUNS },
-          );
-        });
-      },
-    );
+        fc.assert(
+          fc.property(arb, (output) => {
+            const blocks = tool.responseFormatter?.(output);
+            expect(Array.isArray(blocks)).toBe(true);
+            for (const block of blocks!) {
+              expect(block).toHaveProperty('type');
+            }
+          }),
+          { numRuns: NUM_RUNS },
+        );
+      });
+    });
   });
 });

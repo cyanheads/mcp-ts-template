@@ -6,15 +6,11 @@
  * @module src/mcp-server/transports/auth/strategies/JwtStrategy
  */
 import { jwtVerify } from 'jose';
-import { config as ConfigType } from '@/config/index.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  ErrorHandler,
-  logger as LoggerType,
-  requestContextService,
-} from '@/utils/index.js';
+import type { config as ConfigType } from '@/config/index.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { ErrorHandler, type logger as LoggerType, requestContextService } from '@/utils/index.js';
 
 export class JwtStrategy implements AuthStrategy {
   private readonly secretKey: Uint8Array | null;
@@ -66,10 +62,7 @@ export class JwtStrategy implements AuthStrategy {
     // Handle development mode bypass
     if (!this.secretKey) {
       if (this.env !== 'production') {
-        this.logger.warning(
-          'Bypassing JWT verification: No secret key (DEV ONLY).',
-          context,
-        );
+        this.logger.warning('Bypassing JWT verification: No secret key (DEV ONLY).', context);
         return {
           token: 'dev-mode-placeholder-token',
           clientId: this.devMcpClientId,
@@ -100,10 +93,7 @@ export class JwtStrategy implements AuthStrategy {
             : undefined;
 
       if (!clientId) {
-        this.logger.warning(
-          "Invalid token: missing 'cid' or 'client_id' claim.",
-          context,
-        );
+        this.logger.warning("Invalid token: missing 'cid' or 'client_id' claim.", context);
         throw new McpError(
           JsonRpcErrorCode.Unauthorized,
           "Invalid token: missing 'cid' or 'client_id' claim.",
@@ -111,28 +101,21 @@ export class JwtStrategy implements AuthStrategy {
       }
 
       let scopes: string[] = [];
-      if (
-        Array.isArray(decoded.scp) &&
-        decoded.scp.every((s) => typeof s === 'string')
-      ) {
+      if (Array.isArray(decoded.scp) && decoded.scp.every((s) => typeof s === 'string')) {
         scopes = decoded.scp;
       } else if (typeof decoded.scope === 'string' && decoded.scope.trim()) {
         scopes = decoded.scope.split(' ').filter(Boolean);
       }
 
       if (scopes.length === 0) {
-        this.logger.warning(
-          "Invalid token: missing or empty 'scp' or 'scope' claim.",
-          context,
-        );
+        this.logger.warning("Invalid token: missing or empty 'scp' or 'scope' claim.", context);
         throw new McpError(
           JsonRpcErrorCode.Unauthorized,
           'Token must contain valid, non-empty scopes.',
         );
       }
 
-      const tenantId =
-        typeof decoded.tid === 'string' ? decoded.tid : undefined;
+      const tenantId = typeof decoded.tid === 'string' ? decoded.tid : undefined;
 
       const authInfo: AuthInfo = {
         token,
@@ -169,8 +152,7 @@ export class JwtStrategy implements AuthStrategy {
         context,
         rethrow: true,
         errorCode: JsonRpcErrorCode.Unauthorized,
-        errorMapper: () =>
-          new McpError(JsonRpcErrorCode.Unauthorized, message, context),
+        errorMapper: () => new McpError(JsonRpcErrorCode.Unauthorized, message, context),
       });
     }
   }

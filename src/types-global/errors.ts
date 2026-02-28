@@ -120,9 +120,7 @@ export const ErrorSchema = z
     data: z
       .record(z.string(), z.unknown())
       .optional()
-      .describe(
-        'Optional structured data providing more context about the error',
-      ),
+      .describe('Optional structured data providing more context about the error'),
   })
   .describe(
     'Schema for validating structured error objects, ensuring consistency in error reporting.',

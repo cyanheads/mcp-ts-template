@@ -21,10 +21,10 @@ import { logger } from '@/utils/index.js';
  * Implementations can extend this with additional fields as needed.
  */
 export interface PaginationState {
-  /** Current page offset or starting position */
-  offset: number;
   /** Maximum number of items per page */
   limit: number;
+  /** Current page offset or starting position */
+  offset: number;
   /** Optional additional state (implementation-specific) */
   [key: string]: unknown;
 }
@@ -56,11 +56,9 @@ export function encodeCursor(state: PaginationState): string {
     const base64 = Buffer.from(jsonString, 'utf-8').toString('base64url');
     return base64;
   } catch (error: unknown) {
-    throw new McpError(
-      JsonRpcErrorCode.InternalError,
-      'Failed to encode pagination cursor',
-      { error: error instanceof Error ? error.message : String(error) },
-    );
+    throw new McpError(JsonRpcErrorCode.InternalError, 'Failed to encode pagination cursor', {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
@@ -73,10 +71,7 @@ export function encodeCursor(state: PaginationState): string {
  * @returns Decoded pagination state
  * @throws {McpError} If cursor is invalid (code -32602)
  */
-export function decodeCursor(
-  cursor: string,
-  context: RequestContext,
-): PaginationState {
+export function decodeCursor(cursor: string, context: RequestContext): PaginationState {
   try {
     const jsonString = Buffer.from(cursor, 'base64url').toString('utf-8');
     const state = JSON.parse(jsonString) as PaginationState;

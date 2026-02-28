@@ -4,9 +4,9 @@
  * @module src/mcp-server/resources/definitions
  */
 
-import { echoResourceDefinition } from './echo.resource.js';
 // App resources (MCP Apps extension)
 import { dataExplorerUiResource } from './data-explorer-ui.app-resource.js';
+import { echoResourceDefinition } from './echo.resource.js';
 
 /**
  * An array containing all resource definitions for easy iteration.

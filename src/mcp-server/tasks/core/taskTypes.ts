@@ -8,58 +8,44 @@
  */
 
 // Core task types from SDK
-export type {
-  Task,
-  TaskCreationParams,
-  RelatedTaskMetadata,
-  CreateTaskResult,
-  TaskStatusNotificationParams,
-  TaskStatusNotification,
-  GetTaskRequest,
-  GetTaskResult,
-  GetTaskPayloadRequest,
-  ListTasksRequest,
-  ListTasksResult,
-  CancelTaskRequest,
-  CancelTaskResult,
-} from '@modelcontextprotocol/sdk/experimental/tasks';
-
 // Task store and queue interfaces
-export type {
-  TaskStore,
-  TaskMessageQueue,
-  QueuedMessage,
-  CreateTaskOptions,
-} from '@modelcontextprotocol/sdk/experimental/tasks';
-
 // Handler types for task-based tools
-export type {
-  ToolTaskHandler,
-  CreateTaskRequestHandlerExtra,
-  TaskRequestHandlerExtra,
-  TaskToolExecution,
-} from '@modelcontextprotocol/sdk/experimental/tasks';
-
-// In-memory implementations (reference implementations)
-export {
-  InMemoryTaskStore,
-  InMemoryTaskMessageQueue,
-} from '@modelcontextprotocol/sdk/experimental/tasks';
-
-// Utility functions
-export { isTerminal } from '@modelcontextprotocol/sdk/experimental/tasks';
-
 // Response message types for streaming task results
 export type {
-  ResponseMessage,
-  TaskStatusMessage,
-  TaskCreatedMessage,
-  ResultMessage,
+  CancelTaskRequest,
+  CancelTaskResult,
+  CreateTaskOptions,
+  CreateTaskRequestHandlerExtra,
+  CreateTaskResult,
   ErrorMessage,
+  GetTaskPayloadRequest,
+  GetTaskRequest,
+  GetTaskResult,
+  ListTasksRequest,
+  ListTasksResult,
+  QueuedMessage,
+  RelatedTaskMetadata,
+  ResponseMessage,
+  ResultMessage,
+  Task,
+  TaskCreatedMessage,
+  TaskCreationParams,
+  TaskMessageQueue,
+  TaskRequestHandlerExtra,
+  TaskStatusMessage,
+  TaskStatusNotification,
+  TaskStatusNotificationParams,
+  TaskStore,
+  TaskToolExecution,
+  ToolTaskHandler,
 } from '@modelcontextprotocol/sdk/experimental/tasks';
-
+// In-memory implementations (reference implementations)
+// Utility functions
 // Helper functions for processing task responses
 export {
+  InMemoryTaskMessageQueue,
+  InMemoryTaskStore,
+  isTerminal,
   takeResult,
   toArrayAsync,
 } from '@modelcontextprotocol/sdk/experimental/tasks';

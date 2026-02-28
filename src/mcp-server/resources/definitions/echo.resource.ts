@@ -5,10 +5,9 @@
  * @module src/mcp-server/resources/definitions/echo.resource
  */
 import { z } from 'zod';
-
-import { type RequestContext, logger } from '@/utils/index.js';
+import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { withResourceAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import { type ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
+import { logger, type RequestContext } from '@/utils/index.js';
 
 const ParamsSchema = z
   .object({
@@ -28,24 +27,16 @@ const OutputSchema = z
       .string()
       .datetime()
       .describe('ISO 8601 timestamp when the response was generated.'),
-    requestUri: z
-      .string()
-      .url()
-      .describe('The request URI used to fetch this resource.'),
+    requestUri: z.string().url().describe('The request URI used to fetch this resource.'),
   })
   .describe('Echo resource response payload.');
 
 type EchoParams = z.infer<typeof ParamsSchema>;
 type EchoOutput = z.infer<typeof OutputSchema>;
 
-function echoLogic(
-  uri: URL,
-  params: EchoParams,
-  context: RequestContext,
-): EchoOutput {
+function echoLogic(uri: URL, params: EchoParams, context: RequestContext): EchoOutput {
   const messageFromPath = uri.hostname || uri.pathname.replace(/^\/+/, '');
-  const messageToEcho =
-    params.message || messageFromPath || 'Default echo message';
+  const messageToEcho = params.message || messageFromPath || 'Default echo message';
 
   logger.debug('Processing echo resource logic.', {
     ...context,
@@ -69,33 +60,31 @@ function echoLogic(
   return responsePayload;
 }
 
-export const echoResourceDefinition: ResourceDefinition<
-  typeof ParamsSchema,
-  typeof OutputSchema
-> = {
-  name: 'echo-resource',
-  title: 'Echo Message Resource',
-  description: 'A simple echo resource that returns a message.',
-  uriTemplate: 'echo://{message}',
-  paramsSchema: ParamsSchema,
-  outputSchema: OutputSchema,
-  mimeType: 'application/json',
-  examples: [{ name: 'Basic echo', uri: 'echo://hello' }],
-  annotations: { audience: ['user', 'assistant'] },
-  list: (_extra) => {
-    // For pagination support, extract cursor and use pagination utilities:
-    // const cursor = extractCursor(_extra._meta);
-    // const { items, nextCursor } = paginateArray(allResources, cursor, 50, 1000, context);
-    // return { resources: items, ...(nextCursor && { nextCursor }) };
-    return {
-      resources: [
-        {
-          uri: 'echo://hello',
-          name: 'Default Echo Message',
-          description: 'A simple echo resource example.',
-        },
-      ],
-    };
-  },
-  logic: withResourceAuth(['resource:echo:read'], echoLogic),
-};
+export const echoResourceDefinition: ResourceDefinition<typeof ParamsSchema, typeof OutputSchema> =
+  {
+    name: 'echo-resource',
+    title: 'Echo Message Resource',
+    description: 'A simple echo resource that returns a message.',
+    uriTemplate: 'echo://{message}',
+    paramsSchema: ParamsSchema,
+    outputSchema: OutputSchema,
+    mimeType: 'application/json',
+    examples: [{ name: 'Basic echo', uri: 'echo://hello' }],
+    annotations: { audience: ['user', 'assistant'] },
+    list: (_extra) => {
+      // For pagination support, extract cursor and use pagination utilities:
+      // const cursor = extractCursor(_extra._meta);
+      // const { items, nextCursor } = paginateArray(allResources, cursor, 50, 1000, context);
+      // return { resources: items, ...(nextCursor && { nextCursor }) };
+      return {
+        resources: [
+          {
+            uri: 'echo://hello',
+            name: 'Default Echo Message',
+            description: 'A simple echo resource example.',
+          },
+        ],
+      };
+    },
+    logic: withResourceAuth(['resource:echo:read'], echoLogic),
+  };

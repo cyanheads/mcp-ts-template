@@ -64,11 +64,7 @@ describe('Network Utilities Barrel Export', () => {
         const context = requestContextService.createRequestContext({
           operation: 'test',
         });
-        const response = await fetchWithTimeout(
-          'https://example.com',
-          5000,
-          context,
-        );
+        const response = await fetchWithTimeout('https://example.com', 5000, context);
 
         expect(response).toBeDefined();
         expect(response.ok).toBe(true);

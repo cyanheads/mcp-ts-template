@@ -5,13 +5,13 @@
  */
 
 export interface RuntimeCapabilities {
+  hasBuffer: boolean;
+  hasPerformanceNow: boolean;
+  hasProcess: boolean;
+  hasTextEncoder: boolean;
+  isBrowserLike: boolean;
   isNode: boolean;
   isWorkerLike: boolean;
-  isBrowserLike: boolean;
-  hasProcess: boolean;
-  hasBuffer: boolean;
-  hasTextEncoder: boolean;
-  hasPerformanceNow: boolean;
 }
 
 // Best-effort static detection without throwing in restricted envs

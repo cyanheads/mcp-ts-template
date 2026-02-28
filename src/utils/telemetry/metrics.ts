@@ -5,10 +5,10 @@
  * @module src/utils/telemetry/metrics
  */
 import {
-  metrics,
   type Counter,
   type Histogram,
   type Meter,
+  metrics,
   type ObservableGauge,
 } from '@opentelemetry/api';
 
@@ -58,11 +58,7 @@ export function getMeter(name?: string): Meter {
  * });
  * ```
  */
-export function createCounter(
-  name: string,
-  description: string,
-  unit = '1',
-): Counter {
+export function createCounter(name: string, description: string, unit = '1'): Counter {
   const meter = getMeter();
   return meter.createCounter(name, { description, unit });
 }
@@ -88,11 +84,7 @@ export function createCounter(
  * activeConnections.add(-1); // Connection closed
  * ```
  */
-export function createUpDownCounter(
-  name: string,
-  description: string,
-  unit = '1',
-) {
+export function createUpDownCounter(name: string, description: string, unit = '1') {
   const meter = getMeter();
   return meter.createUpDownCounter(name, { description, unit });
 }
@@ -122,11 +114,7 @@ export function createUpDownCounter(
  * });
  * ```
  */
-export function createHistogram(
-  name: string,
-  description: string,
-  unit?: string,
-): Histogram {
+export function createHistogram(name: string, description: string, unit?: string): Histogram {
   const meter = getMeter();
   const options = unit ? { description, unit } : { description };
   return meter.createHistogram(name, options);

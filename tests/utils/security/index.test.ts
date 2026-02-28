@@ -22,8 +22,7 @@ describe('Security Utilities Barrel Export', () => {
     });
 
     it('should export generateRequestContextId function', async () => {
-      const { generateRequestContextId } =
-        await import('@/utils/security/index.js');
+      const { generateRequestContextId } = await import('@/utils/security/index.js');
 
       expect(generateRequestContextId).toBeDefined();
       expect(typeof generateRequestContextId).toBe('function');
@@ -49,8 +48,7 @@ describe('Security Utilities Barrel Export', () => {
     });
 
     it('should allow generateRequestContextId to be called', async () => {
-      const { generateRequestContextId } =
-        await import('@/utils/security/index.js');
+      const { generateRequestContextId } = await import('@/utils/security/index.js');
 
       const id = generateRequestContextId();
       expect(typeof id).toBe('string');

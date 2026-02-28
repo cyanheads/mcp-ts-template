@@ -33,14 +33,14 @@ export interface StorageOptions {
  */
 export interface ListOptions {
   /**
-   * Maximum number of keys to return. Defaults to provider-specific limit.
-   */
-  limit?: number;
-  /**
    * Pagination cursor from a previous list operation.
    * Format is provider-specific (opaque string).
    */
   cursor?: string;
+  /**
+   * Maximum number of keys to return. Defaults to provider-specific limit.
+   */
+  limit?: number;
 }
 
 /**
@@ -67,33 +67,14 @@ export interface ListResult {
  */
 export interface IStorageProvider {
   /**
-   * Retrieves a value from the storage.
+   * Clears all keys for a given tenant.
+   * WARNING: This is a destructive operation that cannot be undone.
+   * Useful for testing or tenant cleanup operations.
    * @param tenantId The unique identifier for the tenant.
-   * @param key The unique key for the item.
    * @param context The request context for logging and tracing.
-   * @returns A promise that resolves to the stored value, or null if not found.
+   * @returns A promise that resolves to the number of keys deleted.
    */
-  get<T>(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<T | null>;
-
-  /**
-   * Stores a value in the storage.
-   * @param key The unique key for the item.
-   * @param value The value to store. Can be any serializable object.
-   * @param context The request context for logging and tracing.
-   * @param options Optional settings like TTL.
-   * @returns A promise that resolves when the operation is complete.
-   */
-  set(
-    tenantId: string,
-    key: string,
-    value: unknown,
-    context: RequestContext,
-    options?: StorageOptions,
-  ): Promise<void>;
+  clear(tenantId: string, context: RequestContext): Promise<number>;
 
   /**
    * Deletes a value from the storage.
@@ -101,11 +82,49 @@ export interface IStorageProvider {
    * @param context The request context for logging and tracing.
    * @returns A promise that resolves to true if the item was deleted, false if not found.
    */
-  delete(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<boolean>;
+  delete(tenantId: string, key: string, context: RequestContext): Promise<boolean>;
+
+  /**
+   * Deletes multiple keys in a single operation.
+   * More efficient than multiple individual delete() calls.
+   *
+   * Performance characteristics by provider:
+   * - Cloudflare KV/R2: Parallel deletes (fast)
+   * - Supabase: Single SQL DELETE with IN clause (fast, database-optimized)
+   * - In-Memory: Parallel Map deletes (fastest, no I/O)
+   * - FileSystem: Parallel file deletes (I/O bound, benefits from concurrency)
+   *
+   * @param tenantId The unique identifier for the tenant.
+   * @param keys Array of keys to delete. Empty array returns 0.
+   * @param context The request context for logging and tracing.
+   * @returns A promise that resolves to the number of keys successfully deleted.
+   */
+  deleteMany(tenantId: string, keys: string[], context: RequestContext): Promise<number>;
+  /**
+   * Retrieves a value from the storage.
+   * @param tenantId The unique identifier for the tenant.
+   * @param key The unique key for the item.
+   * @param context The request context for logging and tracing.
+   * @returns A promise that resolves to the stored value, or null if not found.
+   */
+  get<T>(tenantId: string, key: string, context: RequestContext): Promise<T | null>;
+
+  /**
+   * Retrieves multiple values from storage in a single operation.
+   * More efficient than multiple individual get() calls.
+   *
+   * Performance characteristics by provider:
+   * - Cloudflare KV/R2: Parallel fetches (fast for large batches)
+   * - Supabase: Single SQL query with IN clause (fast, database-optimized)
+   * - In-Memory: Parallel Map lookups (fastest, no I/O)
+   * - FileSystem: Parallel file reads (I/O bound, benefits from concurrency)
+   *
+   * @param tenantId The unique identifier for the tenant.
+   * @param keys Array of keys to retrieve. Empty array returns empty Map.
+   * @param context The request context for logging and tracing.
+   * @returns A promise that resolves to a Map of key-value pairs. Missing keys are not included.
+   */
+  getMany<T>(tenantId: string, keys: string[], context: RequestContext): Promise<Map<string, T>>;
 
   /**
    * Lists all keys that match a given prefix.
@@ -125,25 +144,20 @@ export interface IStorageProvider {
   ): Promise<ListResult>;
 
   /**
-   * Retrieves multiple values from storage in a single operation.
-   * More efficient than multiple individual get() calls.
-   *
-   * Performance characteristics by provider:
-   * - Cloudflare KV/R2: Parallel fetches (fast for large batches)
-   * - Supabase: Single SQL query with IN clause (fast, database-optimized)
-   * - In-Memory: Parallel Map lookups (fastest, no I/O)
-   * - FileSystem: Parallel file reads (I/O bound, benefits from concurrency)
-   *
-   * @param tenantId The unique identifier for the tenant.
-   * @param keys Array of keys to retrieve. Empty array returns empty Map.
+   * Stores a value in the storage.
+   * @param key The unique key for the item.
+   * @param value The value to store. Can be any serializable object.
    * @param context The request context for logging and tracing.
-   * @returns A promise that resolves to a Map of key-value pairs. Missing keys are not included.
+   * @param options Optional settings like TTL.
+   * @returns A promise that resolves when the operation is complete.
    */
-  getMany<T>(
+  set(
     tenantId: string,
-    keys: string[],
+    key: string,
+    value: unknown,
     context: RequestContext,
-  ): Promise<Map<string, T>>;
+    options?: StorageOptions,
+  ): Promise<void>;
 
   /**
    * Stores multiple values in a single operation.
@@ -167,35 +181,4 @@ export interface IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void>;
-
-  /**
-   * Deletes multiple keys in a single operation.
-   * More efficient than multiple individual delete() calls.
-   *
-   * Performance characteristics by provider:
-   * - Cloudflare KV/R2: Parallel deletes (fast)
-   * - Supabase: Single SQL DELETE with IN clause (fast, database-optimized)
-   * - In-Memory: Parallel Map deletes (fastest, no I/O)
-   * - FileSystem: Parallel file deletes (I/O bound, benefits from concurrency)
-   *
-   * @param tenantId The unique identifier for the tenant.
-   * @param keys Array of keys to delete. Empty array returns 0.
-   * @param context The request context for logging and tracing.
-   * @returns A promise that resolves to the number of keys successfully deleted.
-   */
-  deleteMany(
-    tenantId: string,
-    keys: string[],
-    context: RequestContext,
-  ): Promise<number>;
-
-  /**
-   * Clears all keys for a given tenant.
-   * WARNING: This is a destructive operation that cannot be undone.
-   * Useful for testing or tenant cleanup operations.
-   * @param tenantId The unique identifier for the tenant.
-   * @param context The request context for logging and tracing.
-   * @returns A promise that resolves to the number of keys deleted.
-   */
-  clear(tenantId: string, context: RequestContext): Promise<number>;
 }

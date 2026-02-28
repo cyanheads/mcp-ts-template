@@ -21,18 +21,14 @@ export function withToolAuth<TInput, TOutput>(
     context: RequestContext,
     sdkContext: SdkContext,
   ) => TOutput | Promise<TOutput>,
-): (
-  input: TInput,
-  context: RequestContext,
-  sdkContext: SdkContext,
-) => Promise<TOutput> {
+): (input: TInput, context: RequestContext, sdkContext: SdkContext) => Promise<TOutput> {
   return async (
     input: TInput,
     context: RequestContext,
     sdkContext: SdkContext,
   ): Promise<TOutput> => {
     withRequiredScopes(requiredScopes, context);
-    return logicFn(input, context, sdkContext);
+    return await logicFn(input, context, sdkContext);
   };
 }
 
@@ -46,18 +42,10 @@ export function withToolAuth<TInput, TOutput>(
  */
 export function withResourceAuth<TUri, TParams, TOutput>(
   requiredScopes: string[],
-  logicFn: (
-    uri: TUri,
-    params: TParams,
-    context: RequestContext,
-  ) => TOutput | Promise<TOutput>,
+  logicFn: (uri: TUri, params: TParams, context: RequestContext) => TOutput | Promise<TOutput>,
 ): (uri: TUri, params: TParams, context: RequestContext) => Promise<TOutput> {
-  return async (
-    uri: TUri,
-    params: TParams,
-    context: RequestContext,
-  ): Promise<TOutput> => {
+  return async (uri: TUri, params: TParams, context: RequestContext): Promise<TOutput> => {
     withRequiredScopes(requiredScopes, context);
-    return logicFn(uri, params, context);
+    return await logicFn(uri, params, context);
   };
 }

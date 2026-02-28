@@ -11,9 +11,9 @@ import type { R2Bucket } from '@cloudflare/workers-types';
 
 import type {
   IStorageProvider,
-  StorageOptions,
   ListOptions,
   ListResult,
+  StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler, logger, type RequestContext } from '@/utils/index.js';
@@ -45,8 +45,7 @@ export class R2Provider implements IStorageProvider {
 
   private buildEnvelope(value: unknown, options?: StorageOptions): R2Envelope {
     // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
-    const expiresAt =
-      options?.ttl !== undefined ? Date.now() + options.ttl * 1000 : undefined;
+    const expiresAt = options?.ttl !== undefined ? Date.now() + options.ttl * 1000 : undefined;
     return {
       __mcp: {
         v: R2_ENVELOPE_VERSION,
@@ -78,22 +77,15 @@ export class R2Provider implements IStorageProvider {
     } catch (error: unknown) {
       throw new McpError(
         JsonRpcErrorCode.SerializationError,
-        `[R2Provider] Failed to parse JSON for key: ${this.getR2Key(
-          tenantId,
-          key,
-        )}`,
+        `[R2Provider] Failed to parse JSON for key: ${this.getR2Key(tenantId, key)}`,
         { ...context, error },
       );
     }
   }
 
-  async get<T>(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<T | null> {
+  async get<T>(tenantId: string, key: string, context: RequestContext): Promise<T | null> {
     const r2Key = this.getR2Key(tenantId, key);
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[R2Provider] Getting key: ${r2Key}`, context);
         const object = await this.bucket.get(r2Key);
@@ -105,10 +97,7 @@ export class R2Provider implements IStorageProvider {
         if (value === null) {
           // best-effort cleanup if expired
           await this.bucket.delete(r2Key).catch(() => {});
-          logger.debug(
-            `[R2Provider] Key expired and removed: ${r2Key}`,
-            context,
-          );
+          logger.debug(`[R2Provider] Key expired and removed: ${r2Key}`, context);
         }
         return value;
       },
@@ -128,7 +117,7 @@ export class R2Provider implements IStorageProvider {
     options?: StorageOptions,
   ): Promise<void> {
     const r2Key = this.getR2Key(tenantId, key);
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[R2Provider] Setting key: ${r2Key}`, {
           ...context,
@@ -147,28 +136,18 @@ export class R2Provider implements IStorageProvider {
     );
   }
 
-  async delete(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<boolean> {
+  async delete(tenantId: string, key: string, context: RequestContext): Promise<boolean> {
     const r2Key = this.getR2Key(tenantId, key);
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[R2Provider] Deleting key: ${r2Key}`, context);
         const head = await this.bucket.head(r2Key);
         if (head === null) {
-          logger.debug(
-            `[R2Provider] Key to delete not found: ${r2Key}`,
-            context,
-          );
+          logger.debug(`[R2Provider] Key to delete not found: ${r2Key}`, context);
           return false;
         }
         await this.bucket.delete(r2Key);
-        logger.debug(
-          `[R2Provider] Successfully deleted key: ${r2Key}`,
-          context,
-        );
+        logger.debug(`[R2Provider] Successfully deleted key: ${r2Key}`, context);
         return true;
       },
       {
@@ -186,7 +165,7 @@ export class R2Provider implements IStorageProvider {
     options?: ListOptions,
   ): Promise<ListResult> {
     const r2Prefix = this.getR2Key(tenantId, prefix);
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[R2Provider] Listing keys with prefix: ${r2Prefix}`, {
           ...context,
@@ -205,15 +184,12 @@ export class R2Provider implements IStorageProvider {
 
         const tenantPrefix = `${tenantId}:`;
         const keys = listed.objects.map((obj) =>
-          obj.key.startsWith(tenantPrefix)
-            ? obj.key.substring(tenantPrefix.length)
-            : obj.key,
+          obj.key.startsWith(tenantPrefix) ? obj.key.substring(tenantPrefix.length) : obj.key,
         );
 
         const hasMore = keys.length > limit;
         const resultKeys = hasMore ? keys.slice(0, limit) : keys;
-        const nextCursor =
-          'cursor' in listed && listed.truncated ? listed.cursor : undefined;
+        const nextCursor = 'cursor' in listed && listed.truncated ? listed.cursor : undefined;
 
         logger.debug(
           `[R2Provider] Found ${resultKeys.length} keys with prefix: ${r2Prefix}`,
@@ -238,7 +214,7 @@ export class R2Provider implements IStorageProvider {
     keys: string[],
     context: RequestContext,
   ): Promise<Map<string, T>> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         if (keys.length === 0) {
           return new Map<string, T>();
@@ -272,7 +248,7 @@ export class R2Provider implements IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         if (entries.size === 0) {
           return;
@@ -291,21 +267,14 @@ export class R2Provider implements IStorageProvider {
     );
   }
 
-  async deleteMany(
-    tenantId: string,
-    keys: string[],
-    context: RequestContext,
-  ): Promise<number> {
-    return ErrorHandler.tryCatch(
+  async deleteMany(tenantId: string, keys: string[], context: RequestContext): Promise<number> {
+    return await ErrorHandler.tryCatch(
       async () => {
         if (keys.length === 0) {
           return 0;
         }
 
-        logger.debug(
-          `[R2Provider] Batch deleting ${keys.length} keys`,
-          context,
-        );
+        logger.debug(`[R2Provider] Batch deleting ${keys.length} keys`, context);
         const r2Keys = keys.map((key) => this.getR2Key(tenantId, key));
         await this.bucket.delete(r2Keys);
         return keys.length;
@@ -319,7 +288,7 @@ export class R2Provider implements IStorageProvider {
   }
 
   async clear(tenantId: string, context: RequestContext): Promise<number> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         const r2Prefix = `${tenantId}:`;
         let deletedCount = 0;
@@ -346,10 +315,7 @@ export class R2Provider implements IStorageProvider {
           cursor = 'cursor' in listed ? listed.cursor : undefined;
         }
 
-        logger.info(
-          `[R2Provider] Cleared ${deletedCount} keys for tenant: ${tenantId}`,
-          context,
-        );
+        logger.info(`[R2Provider] Cleared ${deletedCount} keys for tenant: ${tenantId}`, context);
         return deletedCount;
       },
       {

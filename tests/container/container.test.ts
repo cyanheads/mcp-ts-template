@@ -2,7 +2,7 @@
  * @fileoverview Tests for the DI container class and token factory.
  * @module tests/container/container.test
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { Container, token } from '../../src/container/core/container.js';
 
@@ -114,9 +114,7 @@ describe('Container', () => {
   describe('resolve (error paths)', () => {
     it('throws when resolving an unregistered token', () => {
       const t = token<string>('missing');
-      expect(() => c.resolve(t)).toThrow(
-        'No registration found for token: missing',
-      );
+      expect(() => c.resolve(t)).toThrow('No registration found for token: missing');
     });
   });
 

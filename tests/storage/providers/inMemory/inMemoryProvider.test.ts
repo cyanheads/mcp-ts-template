@@ -2,7 +2,7 @@
  * @fileoverview Unit and compliance tests for the InMemoryProvider implementation.
  * @module tests/storage/providers/inMemory/inMemoryProvider.test
  */
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { requestContextService } from '@/utils/index.js';
@@ -56,11 +56,7 @@ describe('InMemoryProvider (unit)', () => {
     const result = await provider.list(tenantId, 'prefix:', context);
     expect(result.keys).toEqual(['prefix:active']);
 
-    const expiredValue = await provider.get(
-      tenantId,
-      'prefix:expired',
-      context,
-    );
+    const expiredValue = await provider.get(tenantId, 'prefix:expired', context);
     expect(expiredValue).toBeNull();
   });
 

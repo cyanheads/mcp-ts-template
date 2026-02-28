@@ -2,7 +2,7 @@
  * @fileoverview Tests for resource registration system.
  * @module tests/mcp-server/resources/resource-registration.test.ts
  */
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
 
 describe('ResourceRegistry', () => {
@@ -77,10 +77,7 @@ describe('ResourceRegistry', () => {
         uriTemplate: 'two://{id}',
       };
 
-      const registryWithResources = new ResourceRegistry([
-        resource1 as any,
-        resource2 as any,
-      ]);
+      const registryWithResources = new ResourceRegistry([resource1 as any, resource2 as any]);
 
       // Registry should preserve order
       expect(registryWithResources).toBeDefined();
@@ -146,9 +143,7 @@ describe('ResourceRegistry', () => {
         examples: ['doc://123', 'doc://456'],
       };
 
-      const registryWithExamples = new ResourceRegistry([
-        resourceWithExamples as any,
-      ]);
+      const registryWithExamples = new ResourceRegistry([resourceWithExamples as any]);
       expect(registryWithExamples).toBeDefined();
     });
   });

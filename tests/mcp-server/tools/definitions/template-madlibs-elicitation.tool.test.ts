@@ -2,14 +2,11 @@
  * @fileoverview Tests for the template-madlibs-elicitation tool.
  * @module tests/mcp-server/tools/definitions/template-madlibs-elicitation.tool.test
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { madlibsElicitationTool } from '../../../../src/mcp-server/tools/definitions/template-madlibs-elicitation.tool.js';
+import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
 import { requestContextService } from '../../../../src/utils/index.js';
-import {
-  McpError,
-  JsonRpcErrorCode,
-} from '../../../../src/types-global/errors.js';
 
 describe('madlibsElicitationTool', () => {
   const mockSdkContext = {
@@ -27,11 +24,7 @@ describe('madlibsElicitationTool', () => {
       adjective: 'happy',
     };
     const parsedInput = madlibsElicitationTool.inputSchema.parse(rawInput);
-    const result = await madlibsElicitationTool.logic(
-      parsedInput,
-      appContext,
-      mockSdkContext,
-    );
+    const result = await madlibsElicitationTool.logic(parsedInput, appContext, mockSdkContext);
 
     expect(result.story).toBe('The happy cat jumped over the lazy dog.');
     expect(result.noun).toBe('cat');
@@ -103,17 +96,10 @@ describe('madlibsElicitationTool', () => {
     const rawInput = {};
     const parsedInput = madlibsElicitationTool.inputSchema.parse(rawInput);
     // Use the original mockSdkContext which does *not* have elicitInput
-    const promise = madlibsElicitationTool.logic(
-      parsedInput,
-      appContext,
-      mockSdkContext,
-    );
+    const promise = madlibsElicitationTool.logic(parsedInput, appContext, mockSdkContext);
 
     await expect(promise).rejects.toThrow(McpError);
-    await expect(promise).rejects.toHaveProperty(
-      'code',
-      JsonRpcErrorCode.InvalidRequest,
-    );
+    await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.InvalidRequest);
   });
 
   it('should throw an error if elicited input is invalid', async () => {
@@ -125,17 +111,10 @@ describe('madlibsElicitationTool', () => {
     const appContext = requestContextService.createRequestContext();
     const rawInput = {};
     const parsedInput = madlibsElicitationTool.inputSchema.parse(rawInput);
-    const promise = madlibsElicitationTool.logic(
-      parsedInput,
-      appContext,
-      sdkContextWithElicit,
-    );
+    const promise = madlibsElicitationTool.logic(parsedInput, appContext, sdkContextWithElicit);
 
     await expect(promise).rejects.toThrow(McpError);
-    await expect(promise).rejects.toHaveProperty(
-      'code',
-      JsonRpcErrorCode.InvalidParams,
-    );
+    await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.InvalidParams);
   });
 
   it('should format response correctly', () => {
@@ -149,19 +128,17 @@ describe('madlibsElicitationTool', () => {
       story: 'The magnificent dragon soared over the lazy dog.',
     };
 
-    const formatted = formatter!(result);
+    const formatted = formatter?.(result);
 
     expect(formatted).toHaveLength(2);
-    const storyBlock = formatted[0];
-    const detailsBlock = formatted[1];
+    const storyBlock = formatted![0];
+    const detailsBlock = formatted![1];
 
     expect(storyBlock).toBeDefined();
     if (!storyBlock || storyBlock.type !== 'text') {
       throw new Error('Expected text content block for story');
     }
-    expect(storyBlock.text).toBe(
-      'The magnificent dragon soared over the lazy dog.',
-    );
+    expect(storyBlock.text).toBe('The magnificent dragon soared over the lazy dog.');
 
     expect(detailsBlock).toBeDefined();
     if (!detailsBlock || detailsBlock.type !== 'text') {

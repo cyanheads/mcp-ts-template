@@ -3,18 +3,17 @@
  * @module tests/mcp-server/tasks/core/taskManager.test
  */
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { config as configType } from '@/config/index.js';
 import { container } from '@/container/core/container.js';
-
-import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
-import { StorageBackedTaskStore } from '@/mcp-server/tasks/core/storageBackedTaskStore.js';
-import { StorageService } from '@/storage/core/StorageService.js';
-import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import {
   AppConfig,
   StorageProvider,
   StorageService as StorageServiceToken,
 } from '@/container/core/tokens.js';
-import type { config as configType } from '@/config/index.js';
+import type { StorageBackedTaskStore } from '@/mcp-server/tasks/core/storageBackedTaskStore.js';
+import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
+import { StorageService } from '@/storage/core/StorageService.js';
+import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 
 /** Helper to set up storage dependencies in the new container. */
 function registerStorageDeps() {
@@ -130,9 +129,7 @@ describe('TaskManager', () => {
       const store = taskManager.getTaskStore();
       expect(store).toBeDefined();
       // StorageBackedTaskStore has deleteTask method that InMemoryTaskStore doesn't
-      expect(typeof (store as StorageBackedTaskStore).deleteTask).toBe(
-        'function',
-      );
+      expect(typeof (store as StorageBackedTaskStore).deleteTask).toBe('function');
     });
   });
 

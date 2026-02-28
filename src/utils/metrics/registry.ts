@@ -49,21 +49,14 @@ const noOpHistogram: Histogram = {
  * @returns The configured Meter instance
  */
 function getMeter(): Meter {
-  return metrics.getMeter(
-    config.openTelemetry.serviceName,
-    config.openTelemetry.serviceVersion,
-  );
+  return metrics.getMeter(config.openTelemetry.serviceName, config.openTelemetry.serviceVersion);
 }
 
 function isEnabled(): boolean {
   return Boolean(config.openTelemetry.enabled);
 }
 
-function getCounter(
-  name: string,
-  description?: string,
-  unit?: string,
-): Counter {
+function getCounter(name: string, description?: string, unit?: string): Counter {
   if (!isEnabled()) {
     return noOpCounter;
   }
@@ -80,11 +73,7 @@ function getCounter(
   return counter;
 }
 
-function getHistogram(
-  name: string,
-  description?: string,
-  unit?: string,
-): Histogram {
+function getHistogram(name: string, description?: string, unit?: string): Histogram {
   if (!isEnabled()) {
     return noOpHistogram;
   }

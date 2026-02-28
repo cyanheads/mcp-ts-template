@@ -8,11 +8,7 @@
 import * as Diff from 'diff';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { logger, type RequestContext, requestContextService } from '@/utils/index.js';
 
 /**
  * Diff output format options.
@@ -38,14 +34,14 @@ export interface DiffFormatterOptions {
   format?: DiffFormat;
 
   /**
-   * Whether to include line numbers in the output (default: true).
-   */
-  showLineNumbers?: boolean;
-
-  /**
    * Whether to include file headers in patch format (default: true).
    */
   includeHeaders?: boolean;
+
+  /**
+   * File path for new version (used in headers).
+   */
+  newPath?: string;
 
   /**
    * File path for old version (used in headers).
@@ -53,9 +49,9 @@ export interface DiffFormatterOptions {
   oldPath?: string;
 
   /**
-   * File path for new version (used in headers).
+   * Whether to include line numbers in the output (default: true).
    */
-  newPath?: string;
+  showLineNumbers?: boolean;
 }
 
 /**
@@ -67,9 +63,7 @@ export class DiffFormatter {
    * Default formatting options.
    * @private
    */
-  private readonly defaultOptions: Required<
-    Omit<DiffFormatterOptions, 'oldPath' | 'newPath'>
-  > = {
+  private readonly defaultOptions: Required<Omit<DiffFormatterOptions, 'oldPath' | 'newPath'>> = {
     context: 3,
     format: 'unified',
     showLineNumbers: true,
@@ -231,11 +225,7 @@ export class DiffFormatter {
    * const diff = diffFormatter.diffWords(old, new);
    * ```
    */
-  diffWords(
-    oldText: string,
-    newText: string,
-    context?: RequestContext,
-  ): string {
+  diffWords(oldText: string, newText: string, context?: RequestContext): string {
     const logContext =
       context ||
       requestContextService.createRequestContext({
@@ -402,9 +392,7 @@ export class DiffFormatter {
     try {
       const changes = Diff.diffLines(oldText, newText);
 
-      const additions = changes
-        .filter((c) => c.added)
-        .reduce((sum, c) => sum + (c.count || 0), 0);
+      const additions = changes.filter((c) => c.added).reduce((sum, c) => sum + (c.count || 0), 0);
 
       const deletions = changes
         .filter((c) => c.removed)

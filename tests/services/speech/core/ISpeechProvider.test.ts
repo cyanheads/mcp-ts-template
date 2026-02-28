@@ -4,15 +4,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  supportsTTS,
-  supportsSTT,
-} from '@/services/speech/core/ISpeechProvider.js';
 import type { ISpeechProvider } from '@/services/speech/core/ISpeechProvider.js';
+import { supportsSTT, supportsTTS } from '@/services/speech/core/ISpeechProvider.js';
 
-function createMockProvider(
-  overrides: Partial<ISpeechProvider>,
-): ISpeechProvider {
+function createMockProvider(overrides: Partial<ISpeechProvider>): ISpeechProvider {
   return {
     name: 'mock',
     supportsTTS: false,

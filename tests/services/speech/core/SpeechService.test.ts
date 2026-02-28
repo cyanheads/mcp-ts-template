@@ -4,10 +4,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import {
-  SpeechService,
-  createSpeechProvider,
-} from '@/services/speech/core/SpeechService.js';
+import { createSpeechProvider, SpeechService } from '@/services/speech/core/SpeechService.js';
 import type { SpeechProviderConfig } from '@/services/speech/types.js';
 import { McpError } from '@/types-global/errors.js';
 
@@ -127,9 +124,7 @@ describe('SpeechService', () => {
       const service = new SpeechService();
 
       expect(() => service.getTTSProvider()).toThrow(McpError);
-      expect(() => service.getTTSProvider()).toThrow(
-        'No TTS provider configured',
-      );
+      expect(() => service.getTTSProvider()).toThrow('No TTS provider configured');
     });
   });
 
@@ -148,9 +143,7 @@ describe('SpeechService', () => {
       const service = new SpeechService();
 
       expect(() => service.getSTTProvider()).toThrow(McpError);
-      expect(() => service.getSTTProvider()).toThrow(
-        'No STT provider configured',
-      );
+      expect(() => service.getSTTProvider()).toThrow('No STT provider configured');
     });
   });
 

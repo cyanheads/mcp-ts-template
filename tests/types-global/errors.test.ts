@@ -5,10 +5,10 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  type ErrorResponse,
+  ErrorSchema,
   JsonRpcErrorCode,
   McpError,
-  ErrorSchema,
-  type ErrorResponse,
 } from '@/types-global/errors.js';
 
 describe('Global Error Types', () => {
@@ -45,10 +45,7 @@ describe('Global Error Types', () => {
 
   describe('McpError', () => {
     it('should create an error with code and message', () => {
-      const error = new McpError(
-        JsonRpcErrorCode.InvalidParams,
-        'Invalid parameter provided',
-      );
+      const error = new McpError(JsonRpcErrorCode.InvalidParams, 'Invalid parameter provided');
 
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(McpError);
@@ -60,11 +57,7 @@ describe('Global Error Types', () => {
 
     it('should create an error with code, message, and data', () => {
       const data = { field: 'username', reason: 'too short' };
-      const error = new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Validation failed',
-        data,
-      );
+      const error = new McpError(JsonRpcErrorCode.ValidationError, 'Validation failed', data);
 
       expect(error.code).toBe(JsonRpcErrorCode.ValidationError);
       expect(error.message).toBe('Validation failed');
@@ -81,12 +74,9 @@ describe('Global Error Types', () => {
 
     it('should support cause option', () => {
       const cause = new Error('Original error');
-      const error = new McpError(
-        JsonRpcErrorCode.InternalError,
-        'Wrapped error',
-        undefined,
-        { cause },
-      );
+      const error = new McpError(JsonRpcErrorCode.InternalError, 'Wrapped error', undefined, {
+        cause,
+      });
 
       expect(error.cause).toBe(cause);
     });
@@ -113,11 +103,7 @@ describe('Global Error Types', () => {
     });
 
     it('should handle empty data object', () => {
-      const error = new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        'Invalid',
-        {},
-      );
+      const error = new McpError(JsonRpcErrorCode.InvalidRequest, 'Invalid', {});
 
       expect(error.data).toEqual({});
     });

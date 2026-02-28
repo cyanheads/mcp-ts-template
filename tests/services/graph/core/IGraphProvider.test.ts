@@ -4,17 +4,17 @@
  * @module tests/services/graph/core/IGraphProvider.test
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type {
-  IGraphProvider,
-  TraversalDirection,
-  Vertex,
   Edge,
-  RelateOptions,
-  TraversalOptions,
-  PathOptions,
-  TraversalResult,
   GraphPath,
+  IGraphProvider,
+  PathOptions,
+  RelateOptions,
+  TraversalDirection,
+  TraversalOptions,
+  TraversalResult,
+  Vertex,
 } from '@/services/graph/core/IGraphProvider.js';
 
 describe('IGraphProvider Interface', () => {
@@ -127,9 +127,7 @@ describe('IGraphProvider Interface', () => {
   describe('Interface Contract', () => {
     it('should require name property', () => {
       // Type check: IGraphProvider must have a readonly name property
-      type HasName = IGraphProvider extends { readonly name: string }
-        ? true
-        : false;
+      type HasName = IGraphProvider extends { readonly name: string } ? true : false;
       const hasName: HasName = true;
       expect(hasName).toBe(true);
     });

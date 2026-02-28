@@ -32,7 +32,7 @@ dotenv.config({ quiet: true });
 // --- Helper Functions ---
 const emptyStringAsUndefined = (val: unknown) => {
   if (typeof val === 'string' && val.trim() === '') {
-    return undefined;
+    return;
   }
   return val;
 };
@@ -67,16 +67,7 @@ const ConfigSchema = z.object({
         }
         return str;
       },
-      z.enum([
-        'debug',
-        'info',
-        'notice',
-        'warning',
-        'error',
-        'crit',
-        'alert',
-        'emerg',
-      ]),
+      z.enum(['debug', 'info', 'notice', 'warning', 'error', 'crit', 'alert', 'emerg']),
     )
     .default('debug'),
   logsPath: z.string().optional(), // Made optional as it's Node-specific
@@ -311,10 +302,9 @@ const parseConfig = () => {
             revocationUrl: env.OAUTH_PROXY_REVOCATION_URL,
             issuerUrl: env.OAUTH_PROXY_ISSUER_URL,
             serviceDocumentationUrl: env.OAUTH_PROXY_SERVICE_DOCUMENTATION_URL,
-            defaultClientRedirectUris:
-              env.OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS?.split(',')
-                .map((uri) => uri.trim())
-                .filter(Boolean),
+            defaultClientRedirectUris: env.OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS?.split(',')
+              .map((uri) => uri.trim())
+              .filter(Boolean),
           }
         : undefined,
     supabase:
@@ -421,13 +411,9 @@ const parseConfig = () => {
       );
     }
     // Throw a specific, typed error instead of exiting.
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
-      'Invalid application configuration.',
-      {
-        validationErrors: parsedConfig.error.flatten().fieldErrors,
-      },
-    );
+    throw new McpError(JsonRpcErrorCode.ConfigurationError, 'Invalid application configuration.', {
+      validationErrors: parsedConfig.error.flatten().fieldErrors,
+    });
   }
 
   return parsedConfig.data;

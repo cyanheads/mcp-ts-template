@@ -20,16 +20,16 @@ import { logger } from '@/utils/internal/logger.js';
  * attached to a RequestContext after token verification.
  */
 export interface AuthContext {
-  /** The subject (user) identifier. */
-  sub: string;
-  /** An array of granted permissions (scopes). */
-  scopes: string[];
   /** The client identifier from the token (cid or client_id claim). */
   clientId: string;
-  /** The original JWT/OAuth token string. */
-  token: string;
+  /** An array of granted permissions (scopes). */
+  scopes: string[];
+  /** The subject (user) identifier. */
+  sub: string;
   /** Optional tenant identifier for multi-tenancy support. */
   tenantId?: string;
+  /** The original JWT/OAuth token string. */
+  token: string;
   /** Other properties from the token payload. */
   [key: string]: unknown;
 }
@@ -40,15 +40,14 @@ export interface AuthContext {
  */
 export interface RequestContext {
   /**
+   * Optional authentication context, present if the request was authenticated.
+   */
+  auth?: AuthContext;
+  /**
    * Unique ID for the context instance.
    * Used for log correlation and request tracing.
    */
   requestId: string;
-
-  /**
-   * ISO 8601 timestamp indicating when the context was created.
-   */
-  timestamp: string;
 
   /**
    * The unique identifier for the tenant making the request.
@@ -57,9 +56,9 @@ export interface RequestContext {
   tenantId?: string;
 
   /**
-   * Optional authentication context, present if the request was authenticated.
+   * ISO 8601 timestamp indicating when the context was created.
    */
-  auth?: AuthContext;
+  timestamp: string;
 
   /**
    * Allows arbitrary key-value pairs for specific context needs.
@@ -96,12 +95,6 @@ export interface OperationContext {
  */
 export interface CreateRequestContextParams {
   /**
-   * An optional parent context to inherit properties from, such as `requestId`.
-   * This is key for propagating context in distributed systems.
-   */
-  parentContext?: Record<string, unknown> | RequestContext;
-
-  /**
    * An optional record of key-value pairs to be merged into the new context.
    * These will override any properties inherited from the parent context.
    */
@@ -112,6 +105,11 @@ export interface CreateRequestContextParams {
    * Useful for debugging and tracing.
    */
   operation?: string;
+  /**
+   * An optional parent context to inherit properties from, such as `requestId`.
+   * This is key for propagating context in distributed systems.
+   */
+  parentContext?: Record<string, unknown> | RequestContext;
 }
 
 /**
@@ -175,9 +173,7 @@ const requestContextServiceInstance = {
       params as CreateRequestContextParams;
 
     const inheritedContext =
-      parentContext && typeof parentContext === 'object'
-        ? { ...parentContext }
-        : {};
+      parentContext && typeof parentContext === 'object' ? { ...parentContext } : {};
 
     let inheritedTenantId: string | undefined;
     if (
@@ -193,8 +189,7 @@ const requestContextServiceInstance = {
     const tenantIdFromAuth = authStore?.authInfo?.tenantId;
 
     const requestId =
-      typeof inheritedContext.requestId === 'string' &&
-      inheritedContext.requestId
+      typeof inheritedContext.requestId === 'string' && inheritedContext.requestId
         ? inheritedContext.requestId
         : generateRequestContextId();
     const timestamp = new Date().toISOString();
@@ -212,10 +207,7 @@ const requestContextServiceInstance = {
         : undefined;
 
     const resolvedTenantId =
-      additionalTenantId ??
-      restTenantId ??
-      inheritedTenantId ??
-      tenantIdFromAuth;
+      additionalTenantId ?? restTenantId ?? inheritedTenantId ?? tenantIdFromAuth;
 
     const context: RequestContext = {
       ...inheritedContext,
@@ -223,9 +215,7 @@ const requestContextServiceInstance = {
       requestId,
       timestamp,
       ...(resolvedTenantId ? { tenantId: resolvedTenantId } : {}),
-      ...(additionalContext && typeof additionalContext === 'object'
-        ? additionalContext
-        : {}),
+      ...(additionalContext && typeof additionalContext === 'object' ? additionalContext : {}),
       ...(operation && typeof operation === 'string' ? { operation } : {}),
     };
 

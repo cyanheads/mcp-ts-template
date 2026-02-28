@@ -90,8 +90,7 @@ export function getErrorMessage(error: unknown): string {
       } catch {
         // fall through
       }
-      const ctor = (error as { constructor?: { name?: string } }).constructor
-        ?.name;
+      const ctor = (error as { constructor?: { name?: string } }).constructor?.name;
       return `Non-Error object encountered (constructor: ${ctor || 'Object'})`;
     }
     if (typeof error === 'symbol') {
@@ -108,16 +107,16 @@ export function getErrorMessage(error: unknown): string {
  * Represents a node in the error cause chain for structured error analysis.
  */
 export interface ErrorCauseNode {
-  /** Error name/type */
-  name: string;
-  /** Error message */
-  message: string;
-  /** Stack trace if available */
-  stack?: string;
-  /** Depth in the cause chain (0 = original error) */
-  depth: number;
   /** Additional data from McpError instances */
   data?: Record<string, unknown>;
+  /** Depth in the cause chain (0 = original error) */
+  depth: number;
+  /** Error message */
+  message: string;
+  /** Error name/type */
+  name: string;
+  /** Stack trace if available */
+  stack?: string;
 }
 
 /**
@@ -134,10 +133,7 @@ export interface ErrorCauseNode {
  * console.log(`Error chain depth: ${chain.length}`);
  * ```
  */
-export function extractErrorCauseChain(
-  error: unknown,
-  maxDepth = 20,
-): ErrorCauseNode[] {
+export function extractErrorCauseChain(error: unknown, maxDepth = 20): ErrorCauseNode[] {
   const chain: ErrorCauseNode[] = [];
   const seen = new WeakSet<object>();
   let current = error;

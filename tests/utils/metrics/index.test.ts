@@ -103,11 +103,7 @@ describe('Metrics Utilities Barrel Export', () => {
       const metricsModule = await import('@/utils/metrics/index.js');
 
       // Verify all expected exports are present
-      const expectedExports = [
-        'countTokens',
-        'countChatTokens',
-        'metricsRegistry',
-      ];
+      const expectedExports = ['countTokens', 'countChatTokens', 'metricsRegistry'];
 
       expectedExports.forEach((exportName) => {
         expect(metricsModule).toHaveProperty(exportName);
@@ -121,11 +117,7 @@ describe('Metrics Utilities Barrel Export', () => {
       const exports = Object.keys(metricsModule);
 
       // All exports should be known
-      const knownExports = [
-        'countTokens',
-        'countChatTokens',
-        'metricsRegistry',
-      ];
+      const knownExports = ['countTokens', 'countChatTokens', 'metricsRegistry'];
 
       exports.forEach((exportName) => {
         expect(knownExports).toContain(exportName);

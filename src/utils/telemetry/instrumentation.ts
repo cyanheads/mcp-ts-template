@@ -4,9 +4,10 @@
  * Supports both Node.js (full NodeSDK) and serverless runtimes (lightweight telemetry).
  * @module src/utils/telemetry/instrumentation
  */
-import { config } from '@/config/index.js';
+
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import type { NodeSDK } from '@opentelemetry/sdk-node';
+import { config } from '@/config/index.js';
 
 import { runtimeCaps } from '@/utils/internal/runtime.js';
 
@@ -55,14 +56,9 @@ function detectCloudResource(): Record<string, string> {
   }
 
   // GCP Cloud Functions/Cloud Run
-  if (
-    typeof process !== 'undefined' &&
-    (process.env?.FUNCTION_TARGET || process.env?.K_SERVICE)
-  ) {
+  if (typeof process !== 'undefined' && (process.env?.FUNCTION_TARGET || process.env?.K_SERVICE)) {
     attrs['cloud.provider'] = 'gcp';
-    attrs['cloud.platform'] = process.env.FUNCTION_TARGET
-      ? 'gcp_cloud_functions'
-      : 'gcp_cloud_run';
+    attrs['cloud.platform'] = process.env.FUNCTION_TARGET ? 'gcp_cloud_functions' : 'gcp_cloud_run';
     if (process.env.GCP_REGION) {
       attrs['cloud.region'] = process.env.GCP_REGION;
     }
@@ -89,7 +85,7 @@ function detectCloudResource(): Record<string, string> {
 export async function initializeOpenTelemetry(): Promise<void> {
   // Return existing promise if initialization in progress
   if (initializationPromise) {
-    return initializationPromise;
+    return await initializationPromise;
   }
 
   // Already initialized
@@ -105,9 +101,7 @@ export async function initializeOpenTelemetry(): Promise<void> {
     }
 
     if (!canUseNodeSDK()) {
-      diag.info(
-        'NodeSDK unavailable in this runtime. Using lightweight telemetry mode.',
-      );
+      diag.info('NodeSDK unavailable in this runtime. Using lightweight telemetry mode.');
       isOtelInitialized = true;
       return;
     }
@@ -140,8 +134,7 @@ export async function initializeOpenTelemetry(): Promise<void> {
 
       const otelLogLevelString =
         config.openTelemetry.logLevel.toUpperCase() as keyof typeof DiagLogLevel;
-      const otelLogLevel =
-        DiagLogLevel[otelLogLevelString] ?? DiagLogLevel.INFO;
+      const otelLogLevel = DiagLogLevel[otelLogLevelString] ?? DiagLogLevel.INFO;
       diag.setLogger(new DiagConsoleLogger(), otelLogLevel);
 
       const tracesEndpoint = config.openTelemetry.tracesEndpoint;
@@ -161,15 +154,11 @@ export async function initializeOpenTelemetry(): Promise<void> {
 
       const spanProcessors: InstanceType<typeof BatchSpanProcessor>[] = [];
       if (tracesEndpoint) {
-        diag.info(
-          `Using OTLP exporter for traces, endpoint: ${tracesEndpoint}`,
-        );
+        diag.info(`Using OTLP exporter for traces, endpoint: ${tracesEndpoint}`);
         const traceExporter = new OTLPTraceExporter({ url: tracesEndpoint });
         spanProcessors.push(new BatchSpanProcessor(traceExporter));
       } else {
-        diag.info(
-          'No OTLP traces endpoint configured. Traces will not be exported.',
-        );
+        diag.info('No OTLP traces endpoint configured. Traces will not be exported.');
       }
 
       const metricReader = metricsEndpoint
@@ -183,9 +172,7 @@ export async function initializeOpenTelemetry(): Promise<void> {
         resource,
         spanProcessors,
         ...(metricReader && { metricReader }),
-        sampler: new TraceIdRatioBasedSampler(
-          config.openTelemetry.samplingRatio,
-        ),
+        sampler: new TraceIdRatioBasedSampler(config.openTelemetry.samplingRatio),
         instrumentations: [
           getNodeAutoInstrumentations({
             '@opentelemetry/instrumentation-http': {
@@ -196,8 +183,8 @@ export async function initializeOpenTelemetry(): Promise<void> {
           }),
           new PinoInstrumentation({
             logHook: (_span, record) => {
-              record['trace_id'] = _span.spanContext().traceId;
-              record['span_id'] = _span.spanContext().spanId;
+              record.trace_id = _span.spanContext().traceId;
+              record.span_id = _span.spanContext().spanId;
             },
           }),
         ],
@@ -243,10 +230,7 @@ export async function shutdownOpenTelemetry(timeoutMs = 5000): Promise<void> {
   try {
     const shutdownPromise = sdk.shutdown();
     const { promise: timeoutPromise, reject } = Promise.withResolvers<never>();
-    setTimeout(
-      () => reject(new Error('OpenTelemetry SDK shutdown timeout')),
-      timeoutMs,
-    );
+    setTimeout(() => reject(new Error('OpenTelemetry SDK shutdown timeout')), timeoutMs);
 
     await Promise.race([shutdownPromise, timeoutPromise]);
     diag.info('OpenTelemetry SDK terminated successfully.');

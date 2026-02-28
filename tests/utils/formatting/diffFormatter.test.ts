@@ -5,11 +5,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { DiffFormatter, diffFormatter } from '@/utils/formatting/diffFormatter.js';
 import { logger, requestContextService } from '@/utils/index.js';
-import {
-  diffFormatter,
-  DiffFormatter,
-} from '@/utils/formatting/diffFormatter.js';
 
 describe('DiffFormatter', () => {
   const oldText = `function hello() {
@@ -319,10 +316,7 @@ describe('DiffFormatter', () => {
 
       diffFormatter.diffWords('old words', 'new words');
 
-      expect(debugSpy).toHaveBeenCalledWith(
-        'Word diff generated successfully',
-        expect.any(Object),
-      );
+      expect(debugSpy).toHaveBeenCalledWith('Word diff generated successfully', expect.any(Object));
 
       debugSpy.mockRestore();
     });
@@ -339,7 +333,7 @@ describe('DiffFormatter', () => {
 
     it('should handle very long lines', () => {
       const longLine = 'A'.repeat(10000);
-      const modifiedLine = 'A'.repeat(9999) + 'B';
+      const modifiedLine = `${'A'.repeat(9999)}B`;
 
       const result = diffFormatter.diff(longLine, modifiedLine);
       expect(result).toBeTruthy();

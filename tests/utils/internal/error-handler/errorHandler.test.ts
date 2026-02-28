@@ -4,9 +4,9 @@
  * @module tests/utils/internal/error-handler/errorHandler.test
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type {
   EnhancedErrorContext,
   ErrorRecoveryStrategy,
@@ -34,9 +34,7 @@ describe('ErrorHandler', () => {
   describe('determineErrorCode', () => {
     it('should return McpError code directly', () => {
       const err = new McpError(JsonRpcErrorCode.Forbidden, 'denied');
-      expect(ErrorHandler.determineErrorCode(err)).toBe(
-        JsonRpcErrorCode.Forbidden,
-      );
+      expect(ErrorHandler.determineErrorCode(err)).toBe(JsonRpcErrorCode.Forbidden);
     });
 
     it('should map TypeError to ValidationError', () => {
@@ -64,27 +62,27 @@ describe('ErrorHandler', () => {
     });
 
     it('should classify auth-related message as Unauthorized', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('unauthorized access')),
-      ).toBe(JsonRpcErrorCode.Unauthorized);
+      expect(ErrorHandler.determineErrorCode(new Error('unauthorized access'))).toBe(
+        JsonRpcErrorCode.Unauthorized,
+      );
     });
 
     it('should classify permission-related message as Forbidden', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('permission denied')),
-      ).toBe(JsonRpcErrorCode.Forbidden);
+      expect(ErrorHandler.determineErrorCode(new Error('permission denied'))).toBe(
+        JsonRpcErrorCode.Forbidden,
+      );
     });
 
     it('should classify not-found message as NotFound', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('resource not found')),
-      ).toBe(JsonRpcErrorCode.NotFound);
+      expect(ErrorHandler.determineErrorCode(new Error('resource not found'))).toBe(
+        JsonRpcErrorCode.NotFound,
+      );
     });
 
     it('should classify validation message as ValidationError', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('invalid input format')),
-      ).toBe(JsonRpcErrorCode.ValidationError);
+      expect(ErrorHandler.determineErrorCode(new Error('invalid input format'))).toBe(
+        JsonRpcErrorCode.ValidationError,
+      );
     });
 
     it('should classify conflict message as Conflict', () => {
@@ -94,41 +92,39 @@ describe('ErrorHandler', () => {
     });
 
     it('should classify rate limit message as RateLimited', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('rate limit exceeded')),
-      ).toBe(JsonRpcErrorCode.RateLimited);
+      expect(ErrorHandler.determineErrorCode(new Error('rate limit exceeded'))).toBe(
+        JsonRpcErrorCode.RateLimited,
+      );
     });
 
     it('should classify timeout message as Timeout', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('request timed out')),
-      ).toBe(JsonRpcErrorCode.Timeout);
-    });
-
-    it('should classify service unavailable message', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('service unavailable')),
-      ).toBe(JsonRpcErrorCode.ServiceUnavailable);
-    });
-
-    it('should classify AbortError special case as Timeout', () => {
-      const err = { name: 'AbortError', message: 'signal aborted' };
-      expect(ErrorHandler.determineErrorCode(err)).toBe(
+      expect(ErrorHandler.determineErrorCode(new Error('request timed out'))).toBe(
         JsonRpcErrorCode.Timeout,
       );
     });
 
+    it('should classify service unavailable message', () => {
+      expect(ErrorHandler.determineErrorCode(new Error('service unavailable'))).toBe(
+        JsonRpcErrorCode.ServiceUnavailable,
+      );
+    });
+
+    it('should classify AbortError special case as Timeout', () => {
+      const err = { name: 'AbortError', message: 'signal aborted' };
+      expect(ErrorHandler.determineErrorCode(err)).toBe(JsonRpcErrorCode.Timeout);
+    });
+
     // Provider-specific patterns
     it('should classify AWS ThrottlingException as RateLimited', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('ThrottlingException')),
-      ).toBe(JsonRpcErrorCode.RateLimited);
+      expect(ErrorHandler.determineErrorCode(new Error('ThrottlingException'))).toBe(
+        JsonRpcErrorCode.RateLimited,
+      );
     });
 
     it('should classify HTTP status code 401 as Unauthorized', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('status code 401')),
-      ).toBe(JsonRpcErrorCode.Unauthorized);
+      expect(ErrorHandler.determineErrorCode(new Error('status code 401'))).toBe(
+        JsonRpcErrorCode.Unauthorized,
+      );
     });
 
     it('should classify ECONNREFUSED as ServiceUnavailable', () => {
@@ -138,9 +134,9 @@ describe('ErrorHandler', () => {
     });
 
     it('should default unknown errors to InternalError', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('something weird')),
-      ).toBe(JsonRpcErrorCode.InternalError);
+      expect(ErrorHandler.determineErrorCode(new Error('something weird'))).toBe(
+        JsonRpcErrorCode.InternalError,
+      );
     });
 
     it('should handle non-Error values', () => {
@@ -221,9 +217,7 @@ describe('ErrorHandler', () => {
         timestamp: new Date().toISOString(),
         operation: 'op',
         metadata: {
-          breadcrumbs: [
-            { timestamp: new Date().toISOString(), operation: 'step1' },
-          ],
+          breadcrumbs: [{ timestamp: new Date().toISOString(), operation: 'step1' }],
         },
       };
       const result = ErrorHandler.handleError(new Error('fail'), {
@@ -304,10 +298,9 @@ describe('ErrorHandler', () => {
 
   describe('tryAsResult', () => {
     it('should return ok result on success', async () => {
-      const result = await ErrorHandler.tryAsResult(
-        () => Promise.resolve('data'),
-        { operation: 'test' },
-      );
+      const result = await ErrorHandler.tryAsResult(() => Promise.resolve('data'), {
+        operation: 'test',
+      });
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.value).toBe('data');
@@ -406,10 +399,7 @@ describe('ErrorHandler', () => {
     it('should call factory fallback on error', () => {
       const err = new McpError(JsonRpcErrorCode.NotFound, 'gone');
       const input: Result<string, McpError> = { ok: false, error: err };
-      const result = ErrorHandler.recoverResult(
-        input,
-        (e) => `recovered: ${e.message}`,
-      );
+      const result = ErrorHandler.recoverResult(input, (e) => `recovered: ${e.message}`);
       expect(result).toBe('recovered: gone');
     });
   });
@@ -421,7 +411,7 @@ describe('ErrorHandler', () => {
       const ctx: EnhancedErrorContext = { requestId: 'r1' };
       const result = ErrorHandler.addBreadcrumb(ctx, 'step1');
       expect(result.metadata?.breadcrumbs).toHaveLength(1);
-      expect(result.metadata!.breadcrumbs![0]!.operation).toBe('step1');
+      expect(result.metadata?.breadcrumbs?.[0]?.operation).toBe('step1');
     });
 
     it('should accumulate multiple breadcrumbs', () => {
@@ -435,7 +425,7 @@ describe('ErrorHandler', () => {
     it('should include additionalData when provided', () => {
       const ctx: EnhancedErrorContext = { requestId: 'r1' };
       const result = ErrorHandler.addBreadcrumb(ctx, 'op', { userId: '123' });
-      expect(result.metadata!.breadcrumbs![0]!.context).toEqual({
+      expect(result.metadata?.breadcrumbs?.[0]?.context).toEqual({
         userId: '123',
       });
     });
@@ -443,13 +433,13 @@ describe('ErrorHandler', () => {
     it('should not include context key when additionalData is undefined', () => {
       const ctx: EnhancedErrorContext = { requestId: 'r1' };
       const result = ErrorHandler.addBreadcrumb(ctx, 'op');
-      expect(result.metadata!.breadcrumbs![0]).not.toHaveProperty('context');
+      expect(result.metadata?.breadcrumbs?.[0]).not.toHaveProperty('context');
     });
 
     it('should include timestamp on each breadcrumb', () => {
       const ctx: EnhancedErrorContext = {};
       const result = ErrorHandler.addBreadcrumb(ctx, 'op');
-      expect(result.metadata!.breadcrumbs![0]!.timestamp).toBeDefined();
+      expect(result.metadata?.breadcrumbs?.[0]?.timestamp).toBeDefined();
     });
   });
 
@@ -463,11 +453,7 @@ describe('ErrorHandler', () => {
         shouldRetry: () => true,
         getRetryDelay: () => 0,
       };
-      const result = await ErrorHandler.tryCatchWithRetry(
-        fn,
-        { operation: 'test' },
-        strategy,
-      );
+      const result = await ErrorHandler.tryCatchWithRetry(fn, { operation: 'test' }, strategy);
       expect(result).toBe('ok');
       expect(fn).toHaveBeenCalledTimes(1);
     });
@@ -484,11 +470,7 @@ describe('ErrorHandler', () => {
         shouldRetry: () => true,
         getRetryDelay: () => 0,
       };
-      const result = await ErrorHandler.tryCatchWithRetry(
-        fn,
-        { operation: 'test' },
-        strategy,
-      );
+      const result = await ErrorHandler.tryCatchWithRetry(fn, { operation: 'test' }, strategy);
       expect(result).toBe('recovered');
       expect(fn).toHaveBeenCalledTimes(3);
     });
@@ -558,11 +540,7 @@ describe('ErrorHandler', () => {
     });
 
     it('should create strategy with custom params', () => {
-      const strategy = ErrorHandler.createExponentialBackoffStrategy(
-        5,
-        500,
-        10000,
-      );
+      const strategy = ErrorHandler.createExponentialBackoffStrategy(5, 500, 10000);
       expect(strategy.maxAttempts).toBe(5);
     });
 
@@ -602,11 +580,7 @@ describe('ErrorHandler', () => {
     });
 
     it('should calculate delay with exponential backoff capped at maxDelay', () => {
-      const strategy = ErrorHandler.createExponentialBackoffStrategy(
-        5,
-        1000,
-        5000,
-      );
+      const strategy = ErrorHandler.createExponentialBackoffStrategy(5, 1000, 5000);
       const delay1 = strategy.getRetryDelay(1);
       const delay3 = strategy.getRetryDelay(3);
       const delay10 = strategy.getRetryDelay(10);
@@ -636,10 +610,7 @@ describe('ErrorHandler', () => {
           factory: () => custom,
         },
       ];
-      const result = ErrorHandler.mapError(
-        new Error('connection timeout'),
-        mappings,
-      );
+      const result = ErrorHandler.mapError(new Error('connection timeout'), mappings);
       expect(result).toBe(custom);
     });
 
@@ -652,11 +623,7 @@ describe('ErrorHandler', () => {
           factory: () => new Error('not this'),
         },
       ];
-      const result = ErrorHandler.mapError(
-        new Error('something else'),
-        mappings,
-        () => fallback,
-      );
+      const result = ErrorHandler.mapError(new Error('something else'), mappings, () => fallback);
       expect(result).toBe(fallback);
     });
 

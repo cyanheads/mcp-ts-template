@@ -6,9 +6,9 @@
 import { describe, expect, it } from 'vitest';
 import type {
   IStorageProvider,
-  StorageOptions,
   ListOptions,
   ListResult,
+  StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
 import type { RequestContext } from '@/utils/index.js';
 
@@ -234,27 +234,17 @@ describe('IStorageProvider Interface', () => {
       };
       const tenantId = 'test-tenant';
 
-      await expect(
-        mockProvider.get(tenantId, 'key', context),
-      ).resolves.toBeNull();
-      await expect(
-        mockProvider.set(tenantId, 'key', 'value', context),
-      ).resolves.toBeUndefined();
-      await expect(mockProvider.delete(tenantId, 'key', context)).resolves.toBe(
-        true,
-      );
-      await expect(
-        mockProvider.list(tenantId, 'prefix', context),
-      ).resolves.toEqual({ keys: ['test-key'] });
-      await expect(
-        mockProvider.getMany(tenantId, ['key1'], context),
-      ).resolves.toBeInstanceOf(Map);
+      await expect(mockProvider.get(tenantId, 'key', context)).resolves.toBeNull();
+      await expect(mockProvider.set(tenantId, 'key', 'value', context)).resolves.toBeUndefined();
+      await expect(mockProvider.delete(tenantId, 'key', context)).resolves.toBe(true);
+      await expect(mockProvider.list(tenantId, 'prefix', context)).resolves.toEqual({
+        keys: ['test-key'],
+      });
+      await expect(mockProvider.getMany(tenantId, ['key1'], context)).resolves.toBeInstanceOf(Map);
       await expect(
         mockProvider.setMany(tenantId, new Map([['key', 'value']]), context),
       ).resolves.toBeUndefined();
-      await expect(
-        mockProvider.deleteMany(tenantId, ['key1'], context),
-      ).resolves.toBe(1);
+      await expect(mockProvider.deleteMany(tenantId, ['key1'], context)).resolves.toBe(1);
     });
 
     it('should support generic types for get method', async () => {
@@ -275,11 +265,7 @@ describe('IStorageProvider Interface', () => {
       };
       const tenantId = 'test-tenant';
 
-      const result = await mockProvider.get<{ data: string }>(
-        tenantId,
-        'key',
-        context,
-      );
+      const result = await mockProvider.get<{ data: string }>(tenantId, 'key', context);
       expect(result).toBeDefined();
       expect(result?.data).toBe('test');
     });

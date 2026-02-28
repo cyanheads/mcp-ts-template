@@ -2,16 +2,9 @@
  * @fileoverview Unit tests for the health snapshot utility.
  * @module tests/utils/internal/health.test
  */
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type MockInstance,
-} from 'vitest';
-import { diag, DiagLogLevel } from '@opentelemetry/api';
+
+import { DiagLogLevel, diag } from '@opentelemetry/api';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
 import { config } from '../../../src/config/index.js';
 import { getHealthSnapshot } from '../../../src/utils/internal/health.js';

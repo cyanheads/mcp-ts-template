@@ -5,21 +5,22 @@
  * provider via dependency injection.
  * @module src/storage/core/StorageService
  */
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, type RequestContext } from '@/utils/index.js';
+
 import type {
   IStorageProvider,
-  StorageOptions,
   ListOptions,
   ListResult,
+  StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
 import {
-  validateTenantId,
   validateKey,
+  validateListOptions,
   validatePrefix,
   validateStorageOptions,
-  validateListOptions,
+  validateTenantId,
 } from '@/storage/core/storageValidation.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger, type RequestContext } from '@/utils/index.js';
 
 /**
  * Validates and returns the tenant ID from the request context.
@@ -113,11 +114,7 @@ export class StorageService {
     return this.provider.delete(tenantId, key, context);
   }
 
-  list(
-    prefix: string,
-    context: RequestContext,
-    options?: ListOptions,
-  ): Promise<ListResult> {
+  list(prefix: string, context: RequestContext, options?: ListOptions): Promise<ListResult> {
     const tenantId = requireTenantId(context);
     validatePrefix(prefix, context);
     validateListOptions(options, context);

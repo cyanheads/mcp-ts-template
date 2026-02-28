@@ -20,10 +20,7 @@
  * logStartupBanner('🚀 MCP Server running in STDIO mode', 'stdio');
  * ```
  */
-export function logStartupBanner(
-  message: string,
-  transportType?: 'stdio' | 'http',
-): void {
+export function logStartupBanner(message: string, transportType?: 'stdio' | 'http'): void {
   if (process.stdout.isTTY) {
     // In STDIO mode, use stderr to avoid polluting stdout (which is reserved for MCP JSON-RPC)
     if (transportType === 'stdio') {

@@ -17,7 +17,7 @@ import type {
 } from '@/mcp-server/tools/utils/index.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { type RequestContext, logger } from '@/utils/index.js';
+import { logger, type RequestContext } from '@/utils/index.js';
 
 const TOOL_NAME = 'template_code_review_sampling';
 const TOOL_TITLE = 'Code Review with Sampling';
@@ -41,9 +41,7 @@ const InputSchema = z
     language: z
       .string()
       .optional()
-      .describe(
-        'Programming language of the code (e.g., "typescript", "python").',
-      ),
+      .describe('Programming language of the code (e.g., "typescript", "python").'),
     focus: z
       .enum(['security', 'performance', 'style', 'general'])
       .default('general')
@@ -67,10 +65,7 @@ const OutputSchema = z
     tokenUsage: z
       .object({
         requested: z.number().describe('Requested max tokens.'),
-        actual: z
-          .number()
-          .optional()
-          .describe('Actual tokens used (if available).'),
+        actual: z.number().optional().describe('Actual tokens used (if available).'),
       })
       .optional()
       .describe('Token usage information.'),
@@ -128,14 +123,11 @@ async function codeReviewToolLogic(
 
   // Build the prompt for the LLM
   const focusInstructions = {
-    security:
-      'Focus on security vulnerabilities, input validation, and potential exploits.',
+    security: 'Focus on security vulnerabilities, input validation, and potential exploits.',
     performance:
       'Focus on performance bottlenecks, algorithmic complexity, and optimization opportunities.',
-    style:
-      'Focus on code style, readability, naming conventions, and best practices.',
-    general:
-      'Provide a comprehensive review covering security, performance, and code quality.',
+    style: 'Focus on code style, readability, naming conventions, and best practices.',
+    general: 'Provide a comprehensive review covering security, performance, and code quality.',
   };
 
   const prompt = `You are an expert code reviewer. Please review the following ${input.language || 'code'} snippet.
@@ -208,10 +200,7 @@ function responseFormatter(result: CodeReviewToolResponse): ContentBlock[] {
 }
 
 // --- Tool Definition ---
-export const codeReviewSamplingTool: ToolDefinition<
-  typeof InputSchema,
-  typeof OutputSchema
-> = {
+export const codeReviewSamplingTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
   name: TOOL_NAME,
   title: TOOL_TITLE,
   description: TOOL_DESCRIPTION,

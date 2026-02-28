@@ -4,7 +4,7 @@
  * A schema change will fail this test — update the snapshot deliberately.
  * @module tests/mcp-server/tools/schemas/schema-snapshots
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';

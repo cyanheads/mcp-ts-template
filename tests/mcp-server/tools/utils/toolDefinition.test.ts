@@ -6,10 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import type {
-  ToolAnnotations,
-  ToolDefinition,
-} from '@/mcp-server/tools/utils/toolDefinition.js';
+import type { ToolAnnotations, ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
 
 describe('ToolDefinition', () => {
   it('should allow creating a well-typed tool definition', () => {
@@ -20,14 +17,13 @@ describe('ToolDefinition', () => {
       result: z.string().describe('The result'),
     });
 
-    const definition: ToolDefinition<typeof inputSchema, typeof outputSchema> =
-      {
-        name: 'test_tool',
-        description: 'A test tool',
-        inputSchema,
-        outputSchema,
-        logic: async (input) => ({ result: input.message }),
-      };
+    const definition: ToolDefinition<typeof inputSchema, typeof outputSchema> = {
+      name: 'test_tool',
+      description: 'A test tool',
+      inputSchema,
+      outputSchema,
+      logic: async (input) => ({ result: input.message }),
+    };
 
     expect(definition.name).toBe('test_tool');
     expect(definition.description).toBe('A test tool');
@@ -52,7 +48,7 @@ describe('ToolDefinition', () => {
       customProperty: 'custom-value',
     };
 
-    expect(annotations['customProperty']).toBe('custom-value');
+    expect(annotations.customProperty).toBe('custom-value');
   });
 
   it('should allow optional title and _meta on tool definition', () => {
@@ -61,16 +57,15 @@ describe('ToolDefinition', () => {
       ok: z.boolean().describe('Success'),
     });
 
-    const definition: ToolDefinition<typeof inputSchema, typeof outputSchema> =
-      {
-        name: 'meta_tool',
-        title: 'Meta Tool',
-        description: 'Tool with meta',
-        inputSchema,
-        outputSchema,
-        logic: async () => ({ ok: true }),
-        _meta: { 'io.modelcontextprotocol/ui': { resourceUri: 'test://ui' } },
-      };
+    const definition: ToolDefinition<typeof inputSchema, typeof outputSchema> = {
+      name: 'meta_tool',
+      title: 'Meta Tool',
+      description: 'Tool with meta',
+      inputSchema,
+      outputSchema,
+      logic: async () => ({ ok: true }),
+      _meta: { 'io.modelcontextprotocol/ui': { resourceUri: 'test://ui' } },
+    };
 
     expect(definition.title).toBe('Meta Tool');
     expect(definition._meta).toBeDefined();
@@ -82,21 +77,18 @@ describe('ToolDefinition', () => {
       text: z.string().describe('Output text'),
     });
 
-    const definition: ToolDefinition<typeof inputSchema, typeof outputSchema> =
-      {
-        name: 'formatted_tool',
-        description: 'Tool with formatter',
-        inputSchema,
-        outputSchema,
-        logic: async () => ({ text: 'hello' }),
-        responseFormatter: (result) => [
-          { type: 'text' as const, text: result.text },
-        ],
-      };
+    const definition: ToolDefinition<typeof inputSchema, typeof outputSchema> = {
+      name: 'formatted_tool',
+      description: 'Tool with formatter',
+      inputSchema,
+      outputSchema,
+      logic: async () => ({ text: 'hello' }),
+      responseFormatter: (result) => [{ type: 'text' as const, text: result.text }],
+    };
 
     expect(definition.responseFormatter).toBeDefined();
-    const blocks = definition.responseFormatter!({ text: 'hello' });
+    const blocks = definition.responseFormatter?.({ text: 'hello' });
     expect(blocks).toHaveLength(1);
-    expect(blocks[0]).toEqual({ type: 'text', text: 'hello' });
+    expect(blocks![0]).toEqual({ type: 'text', text: 'hello' });
   });
 });

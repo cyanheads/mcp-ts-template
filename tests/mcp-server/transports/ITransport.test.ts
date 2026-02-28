@@ -3,14 +3,11 @@
  * @module tests/mcp-server/transports/ITransport.test
  */
 
-import { describe, expect, it } from 'vitest';
 import type { ServerType } from '@hono/node-server';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { describe, expect, it } from 'vitest';
 
-import type {
-  ITransport,
-  TransportServer,
-} from '@/mcp-server/transports/ITransport.js';
+import type { ITransport, TransportServer } from '@/mcp-server/transports/ITransport.js';
 
 describe('ITransport Interface', () => {
   describe('Interface Contract', () => {

@@ -4,7 +4,7 @@
  * @module tests/services/graph/index.test
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import * as GraphModule from '@/services/graph/index.js';
 
 describe('Graph Service Barrel Exports', () => {

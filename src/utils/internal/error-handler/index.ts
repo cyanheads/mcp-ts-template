@@ -7,18 +7,17 @@
 
 export { ErrorHandler } from './errorHandler.js';
 export {
+  type ErrorCauseNode,
   extractErrorCauseChain,
   serializeErrorCauseChain,
-  type ErrorCauseNode,
 } from './helpers.js';
 export {
-  getCompiledPattern,
   COMPILED_ERROR_PATTERNS,
   COMPILED_PROVIDER_PATTERNS,
+  getCompiledPattern,
   PROVIDER_ERROR_PATTERNS,
 } from './mappings.js';
 export {
-  ErrorSeverity,
   type BaseErrorMapping,
   type EnhancedErrorContext,
   type ErrorBreadcrumb,
@@ -27,5 +26,6 @@ export {
   type ErrorMapping,
   type ErrorMetadata,
   type ErrorRecoveryStrategy,
+  ErrorSeverity,
   type Result,
 } from './types.js';

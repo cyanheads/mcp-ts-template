@@ -2,13 +2,13 @@
  * @fileoverview Unit tests for JWT authentication strategy.
  * @module tests/mcp-server/transports/auth/strategies/jwtStrategy
  */
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { SignJWT } from 'jose';
 
-import { JwtStrategy } from '@/mcp-server/transports/auth/strategies/jwtStrategy.js';
+import { SignJWT } from 'jose';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { config } from '@/config/index.js';
-import { logger } from '@/utils/index.js';
+import { JwtStrategy } from '@/mcp-server/transports/auth/strategies/jwtStrategy.js';
 import { McpError } from '@/types-global/errors.js';
+import { logger } from '@/utils/index.js';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
@@ -177,9 +177,7 @@ describe('JwtStrategy', () => {
         .sign(testSecretBytes);
 
       await expect(strategy.verify(token)).rejects.toThrow(McpError);
-      await expect(strategy.verify(token)).rejects.toThrow(
-        /missing 'cid' or 'client_id'/,
-      );
+      await expect(strategy.verify(token)).rejects.toThrow(/missing 'cid' or 'client_id'/);
     });
 
     it('should throw error for missing scopes claim', async () => {
@@ -264,11 +262,7 @@ describe('JwtStrategy', () => {
 
       const authInfo = await strategy.verify(token);
 
-      expect(authInfo.scopes).toEqual([
-        'tool:read',
-        'resource:write',
-        'tool:execute',
-      ]);
+      expect(authInfo.scopes).toEqual(['tool:read', 'resource:write', 'tool:execute']);
     });
 
     it('should throw error for empty scope array', async () => {

@@ -6,21 +6,18 @@
  */
 import type {
   IStorageProvider,
-  StorageOptions,
   ListOptions,
   ListResult,
+  StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
-import {
-  encodeCursor,
-  decodeCursor,
-} from '@/storage/core/storageValidation.js';
-import { type RequestContext, logger } from '@/utils/index.js';
+import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
+import { logger, type RequestContext } from '@/utils/index.js';
 
 const DEFAULT_LIST_LIMIT = 1000;
 
 interface InMemoryStoreEntry {
-  value: unknown;
   expiresAt?: number;
+  value: unknown;
 }
 
 export class InMemoryProvider implements IStorageProvider {
@@ -35,15 +32,8 @@ export class InMemoryProvider implements IStorageProvider {
     return tenantStore;
   }
 
-  get<T>(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<T | null> {
-    logger.debug(
-      `[InMemoryProvider] Getting key: ${key} for tenant: ${tenantId}`,
-      context,
-    );
+  get<T>(tenantId: string, key: string, context: RequestContext): Promise<T | null> {
+    logger.debug(`[InMemoryProvider] Getting key: ${key} for tenant: ${tenantId}`, context);
     const tenantStore = this.getTenantStore(tenantId);
     const entry = tenantStore.get(key);
 
@@ -70,14 +60,10 @@ export class InMemoryProvider implements IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
-    logger.debug(
-      `[InMemoryProvider] Setting key: ${key} for tenant: ${tenantId}`,
-      context,
-    );
+    logger.debug(`[InMemoryProvider] Setting key: ${key} for tenant: ${tenantId}`, context);
     const tenantStore = this.getTenantStore(tenantId);
     // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
-    const expiresAt =
-      options?.ttl !== undefined ? Date.now() + options.ttl * 1000 : undefined;
+    const expiresAt = options?.ttl !== undefined ? Date.now() + options.ttl * 1000 : undefined;
     tenantStore.set(key, {
       value,
       ...(expiresAt !== undefined && { expiresAt }),
@@ -85,15 +71,8 @@ export class InMemoryProvider implements IStorageProvider {
     return Promise.resolve();
   }
 
-  delete(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<boolean> {
-    logger.debug(
-      `[InMemoryProvider] Deleting key: ${key} for tenant: ${tenantId}`,
-      context,
-    );
+  delete(tenantId: string, key: string, context: RequestContext): Promise<boolean> {
+    logger.debug(`[InMemoryProvider] Deleting key: ${key} for tenant: ${tenantId}`, context);
     const tenantStore = this.getTenantStore(tenantId);
     return Promise.resolve(tenantStore.delete(key));
   }
@@ -104,10 +83,10 @@ export class InMemoryProvider implements IStorageProvider {
     context: RequestContext,
     options?: ListOptions,
   ): Promise<ListResult> {
-    logger.debug(
-      `[InMemoryProvider] Listing keys with prefix: ${prefix} for tenant: ${tenantId}`,
-      { ...context, options },
-    );
+    logger.debug(`[InMemoryProvider] Listing keys with prefix: ${prefix} for tenant: ${tenantId}`, {
+      ...context,
+      options,
+    });
     const tenantStore = this.getTenantStore(tenantId);
     const now = Date.now();
     const allKeys: string[] = [];
@@ -142,7 +121,7 @@ export class InMemoryProvider implements IStorageProvider {
     const paginatedKeys = allKeys.slice(startIndex, startIndex + limit);
     const nextCursor =
       startIndex + limit < allKeys.length && paginatedKeys.length > 0
-        ? encodeCursor(paginatedKeys[paginatedKeys.length - 1]!, tenantId)
+        ? encodeCursor(paginatedKeys[paginatedKeys.length - 1] as string, tenantId)
         : undefined;
 
     return Promise.resolve({
@@ -160,10 +139,7 @@ export class InMemoryProvider implements IStorageProvider {
       return new Map<string, T>();
     }
 
-    logger.debug(
-      `[InMemoryProvider] Getting ${keys.length} keys for tenant: ${tenantId}`,
-      context,
-    );
+    logger.debug(`[InMemoryProvider] Getting ${keys.length} keys for tenant: ${tenantId}`, context);
 
     // Parallel fetch for better performance
     const promises = keys.map((key) => this.get<T>(tenantId, key, context));
@@ -211,11 +187,7 @@ export class InMemoryProvider implements IStorageProvider {
     );
   }
 
-  async deleteMany(
-    tenantId: string,
-    keys: string[],
-    context: RequestContext,
-  ): Promise<number> {
+  async deleteMany(tenantId: string, keys: string[], context: RequestContext): Promise<number> {
     if (keys.length === 0) {
       return 0;
     }
@@ -238,17 +210,11 @@ export class InMemoryProvider implements IStorageProvider {
   }
 
   clear(tenantId: string, context: RequestContext): Promise<number> {
-    logger.debug(
-      `[InMemoryProvider] Clearing all keys for tenant: ${tenantId}`,
-      context,
-    );
+    logger.debug(`[InMemoryProvider] Clearing all keys for tenant: ${tenantId}`, context);
     const tenantStore = this.getTenantStore(tenantId);
     const count = tenantStore.size;
     tenantStore.clear();
-    logger.info(
-      `[InMemoryProvider] Cleared ${count} keys for tenant: ${tenantId}`,
-      context,
-    );
+    logger.info(`[InMemoryProvider] Cleared ${count} keys for tenant: ${tenantId}`, context);
     return Promise.resolve(count);
   }
 }

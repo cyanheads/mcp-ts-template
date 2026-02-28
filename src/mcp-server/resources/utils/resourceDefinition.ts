@@ -22,10 +22,10 @@ import type { RequestContext } from '@/utils/index.js';
 export interface ResourceAnnotations {
   /** Describes who the intended customer of this object or data is. */
   audience?: ('user' | 'assistant')[];
-  /** Describes how important this data is (0 = least, 1 = most). */
-  priority?: number;
   /** The timestamp of the last modification, as an ISO 8601 string. */
   lastModified?: string;
+  /** Describes how important this data is (0 = least, 1 = most). */
+  priority?: number;
 }
 
 /**
@@ -35,24 +35,12 @@ export interface ResourceDefinition<
   TParamsSchema extends ZodObject<ZodRawShape>,
   TOutputSchema extends ZodObject<ZodRawShape> | undefined = undefined,
 > {
-  /** The programmatic, unique name for the resource (e.g., 'echo-resource'). */
-  name: string;
-  /** Optional, human-readable title for display in UIs. */
-  title?: string;
-  /** A concise description of what the resource returns. */
-  description: string;
-  /** The URI template used to register the resource (e.g., 'echo://{message}'). */
-  uriTemplate: string;
-  /** Zod schema validating the route/template params received by the handler. */
-  paramsSchema: TParamsSchema;
-  /** Optional Zod schema describing the successful output payload. */
-  outputSchema?: TOutputSchema;
-  /** Default mime type for the response content. */
-  mimeType?: string;
-  /** Optional examples to improve discoverability. */
-  examples?: { name: string; uri: string }[];
   /** Optional display/behavior hints. */
   annotations?: ResourceAnnotations;
+  /** A concise description of what the resource returns. */
+  description: string;
+  /** Optional examples to improve discoverability. */
+  examples?: { name: string; uri: string }[];
   /**
    * Optional provider for list results. If provided, it's used for resource discovery.
    * The `extra` parameter provides access to request metadata including pagination cursor
@@ -91,11 +79,15 @@ export interface ResourceDefinition<
    * The pure, stateless core logic for the resource read operation.
    * MUST NOT contain try/catch. Throw McpError on failure.
    */
-  logic: (
-    uri: URL,
-    params: z.infer<TParamsSchema>,
-    context: RequestContext,
-  ) => unknown;
+  logic: (uri: URL, params: z.infer<TParamsSchema>, context: RequestContext) => unknown;
+  /** Default mime type for the response content. */
+  mimeType?: string;
+  /** The programmatic, unique name for the resource (e.g., 'echo-resource'). */
+  name: string;
+  /** Optional Zod schema describing the successful output payload. */
+  outputSchema?: TOutputSchema;
+  /** Zod schema validating the route/template params received by the handler. */
+  paramsSchema: TParamsSchema;
   /**
    * Optional formatter mapping the logic result into MCP ReadResourceResult.contents entries.
    * If omitted, a default JSON formatter is applied using `mimeType`.
@@ -104,4 +96,8 @@ export interface ResourceDefinition<
     result: unknown,
     meta: { uri: URL; mimeType: string },
   ) => ReadResourceResult['contents'];
+  /** Optional, human-readable title for display in UIs. */
+  title?: string;
+  /** The URI template used to register the resource (e.g., 'echo://{message}'). */
+  uriTemplate: string;
 }

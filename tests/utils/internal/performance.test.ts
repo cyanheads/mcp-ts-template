@@ -2,6 +2,8 @@
  * @fileoverview Unit tests for the performance measurement helper.
  * @module tests/utils/internal/performance.test
  */
+
+import { SpanStatusCode, trace } from '@opentelemetry/api';
 import {
   afterAll,
   afterEach,
@@ -9,17 +11,13 @@ import {
   describe,
   expect,
   it,
-  vi,
   type MockInstance,
+  vi,
 } from 'vitest';
-import { SpanStatusCode, trace } from '@opentelemetry/api';
 
-import {
-  JsonRpcErrorCode,
-  McpError,
-} from '../../../src/types-global/errors.js';
-import { measureToolExecution } from '../../../src/utils/internal/performance.js';
+import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
 import { logger } from '../../../src/utils/internal/logger.js';
+import { measureToolExecution } from '../../../src/utils/internal/performance.js';
 
 describe('measureToolExecution', () => {
   const span = {
@@ -121,9 +119,7 @@ describe('measureToolExecution', () => {
     if (!call) throw new Error('infoSpy was not called');
     const [, logMeta] = call;
     expect((logMeta as any).metrics.isSuccess).toBe(false);
-    expect((logMeta as any).metrics.errorCode).toBe(
-      String(JsonRpcErrorCode.InternalError),
-    );
+    expect((logMeta as any).metrics.errorCode).toBe(String(JsonRpcErrorCode.InternalError));
   });
 
   it('handles generic errors and uses JSON length fallback when Buffer is unavailable', async () => {
@@ -168,10 +164,7 @@ describe('measureToolExecution', () => {
       else delete mutableGlobal.TextEncoder;
     }
 
-    expect(span.setAttribute).toHaveBeenCalledWith(
-      'mcp.tool.error_code',
-      'UNHANDLED_ERROR',
-    );
+    expect(span.setAttribute).toHaveBeenCalledWith('mcp.tool.error_code', 'UNHANDLED_ERROR');
     const call = infoSpy.mock.calls[0];
     if (!call) throw new Error('infoSpy was not called');
     const [, logMeta] = call;
@@ -203,8 +196,7 @@ describe('measureToolExecution', () => {
       }
     }
 
-    mutableGlobal.TextEncoder =
-      FakeTextEncoder as unknown as typeof TextEncoder;
+    mutableGlobal.TextEncoder = FakeTextEncoder as unknown as typeof TextEncoder;
 
     memoryUsageSpy
       .mockReturnValueOnce({ rss: 700, heapUsed: 350 } as NodeJS.MemoryUsage)

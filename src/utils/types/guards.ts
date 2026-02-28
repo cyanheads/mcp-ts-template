@@ -125,14 +125,8 @@ export function isNumber(value: unknown): value is number {
  * }
  * ```
  */
-export function isAggregateError(
-  error: unknown,
-): error is Error & { errors: unknown[] } {
-  return (
-    error instanceof Error &&
-    hasProperty(error, 'errors') &&
-    Array.isArray(error.errors)
-  );
+export function isAggregateError(error: unknown): error is Error & { errors: unknown[] } {
+  return error instanceof Error && hasProperty(error, 'errors') && Array.isArray(error.errors);
 }
 
 /**
@@ -148,9 +142,7 @@ export function isAggregateError(
  * }
  * ```
  */
-export function isErrorWithCode(
-  error: unknown,
-): error is Error & { code: unknown } {
+export function isErrorWithCode(error: unknown): error is Error & { code: unknown } {
   return error instanceof Error && hasProperty(error, 'code');
 }
 
@@ -167,9 +159,7 @@ export function isErrorWithCode(
  * }
  * ```
  */
-export function isErrorWithStatus(
-  error: unknown,
-): error is Error & { status: unknown } {
+export function isErrorWithStatus(error: unknown): error is Error & { status: unknown } {
   return error instanceof Error && hasProperty(error, 'status');
 }
 
@@ -186,10 +176,7 @@ export function isErrorWithStatus(
  * // message is typed as unknown
  * ```
  */
-export function getProperty<K extends PropertyKey>(
-  obj: unknown,
-  key: K,
-): unknown {
+export function getProperty<K extends PropertyKey>(obj: unknown, key: K): unknown {
   return hasProperty(obj, key) ? obj[key] : undefined;
 }
 
@@ -209,10 +196,7 @@ export function getProperty<K extends PropertyKey>(
  * }
  * ```
  */
-export function getStringProperty<K extends PropertyKey>(
-  obj: unknown,
-  key: K,
-): string | undefined {
+export function getStringProperty<K extends PropertyKey>(obj: unknown, key: K): string | undefined {
   const value = getProperty(obj, key);
   return isString(value) ? value : undefined;
 }
@@ -224,10 +208,7 @@ export function getStringProperty<K extends PropertyKey>(
  * @param key - Property key
  * @returns Number value or undefined if property doesn't exist or is not a number
  */
-export function getNumberProperty<K extends PropertyKey>(
-  obj: unknown,
-  key: K,
-): number | undefined {
+export function getNumberProperty<K extends PropertyKey>(obj: unknown, key: K): number | undefined {
   const value = getProperty(obj, key);
   return isNumber(value) ? value : undefined;
 }

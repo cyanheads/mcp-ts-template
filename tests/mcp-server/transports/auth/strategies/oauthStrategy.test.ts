@@ -4,10 +4,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { OauthStrategy } from '@/mcp-server/transports/auth/strategies/oauthStrategy.js';
 import { config } from '@/config/index.js';
-import { logger } from '@/utils/index.js';
+import { OauthStrategy } from '@/mcp-server/transports/auth/strategies/oauthStrategy.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger } from '@/utils/index.js';
 
 // Mock the jose module with factory function for Bun compatibility
 // Vitest auto-mocks with vi.mock('jose') but Bun requires explicit factory
@@ -341,11 +341,7 @@ describe('OAuth Strategy', () => {
 
       const authInfo = await strategy.verify('token');
 
-      expect(authInfo.scopes).toEqual([
-        'tool:read',
-        'tool:write',
-        'resource:list',
-      ]);
+      expect(authInfo.scopes).toEqual(['tool:read', 'tool:write', 'resource:list']);
     });
 
     it('should handle optional subject and tenantId', async () => {
@@ -426,9 +422,7 @@ describe('OAuth Strategy', () => {
       } as any);
 
       await expect(strategy.verify('token')).rejects.toThrow(McpError);
-      await expect(strategy.verify('token')).rejects.toThrow(
-        /Resource indicator mismatch/,
-      );
+      await expect(strategy.verify('token')).rejects.toThrow(/Resource indicator mismatch/);
 
       try {
         await strategy.verify('token');
@@ -469,9 +463,7 @@ describe('OAuth Strategy', () => {
       } as any);
 
       await expect(strategy.verify('token')).rejects.toThrow(McpError);
-      await expect(strategy.verify('token')).rejects.toThrow(
-        /must contain a 'client_id' claim/,
-      );
+      await expect(strategy.verify('token')).rejects.toThrow(/must contain a 'client_id' claim/);
     });
 
     it('should throw Unauthorized for missing scope claim', async () => {
@@ -513,9 +505,7 @@ describe('OAuth Strategy', () => {
       mockJwtVerify.mockRejectedValue(expiredError);
 
       await expect(strategy.verify('token')).rejects.toThrow(McpError);
-      await expect(strategy.verify('token')).rejects.toThrow(
-        /Token has expired/,
-      );
+      await expect(strategy.verify('token')).rejects.toThrow(/Token has expired/);
     });
 
     it('should throw Unauthorized for invalid signature', async () => {
@@ -527,10 +517,7 @@ describe('OAuth Strategy', () => {
     });
 
     it('should re-throw existing McpError instances', async () => {
-      const customMcpError = new McpError(
-        JsonRpcErrorCode.Forbidden,
-        'Custom error',
-      );
+      const customMcpError = new McpError(JsonRpcErrorCode.Forbidden, 'Custom error');
       mockJwtVerify.mockRejectedValue(customMcpError);
 
       await expect(strategy.verify('token')).rejects.toThrow(customMcpError);

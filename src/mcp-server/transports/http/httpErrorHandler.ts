@@ -11,12 +11,7 @@ import type { StatusCode } from 'hono/utils/http-status';
 import { config } from '@/config/index.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  ErrorHandler,
-  logger,
-  requestContextService,
-  getProperty,
-} from '@/utils/index.js';
+import { ErrorHandler, getProperty, logger, requestContextService } from '@/utils/index.js';
 
 /**
  * A centralized error handling middleware for Hono.
@@ -30,9 +25,7 @@ import {
  * @param c - The Hono context object for the request.
  * @returns A Response object containing the formatted JSON-RPC error.
  */
-export const httpErrorHandler = async <
-  TBindings extends object = HonoNodeBindings,
->(
+export const httpErrorHandler = async <TBindings extends object = HonoNodeBindings>(
   err: Error,
   c: Context<{ Bindings: TBindings }>,
 ): Promise<Response> => {
@@ -114,21 +107,14 @@ export const httpErrorHandler = async <
         jsonRpcId: requestId,
       });
     } catch {
-      logger.warning(
-        'Could not parse request body to extract JSON-RPC ID.',
-        context,
-      );
+      logger.warning('Could not parse request body to extract JSON-RPC ID.', context);
       // Ignore parsing errors, requestId will remain null
     }
   } else {
-    logger.debug(
-      'Request body already consumed, cannot extract JSON-RPC ID.',
-      context,
-    );
+    logger.debug('Request body already consumed, cannot extract JSON-RPC ID.', context);
   }
 
-  const errorCode =
-    handledError instanceof McpError ? handledError.code : -32603;
+  const errorCode = handledError instanceof McpError ? handledError.code : -32603;
 
   c.status(status);
   const errorResponse = {

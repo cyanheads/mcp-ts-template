@@ -14,11 +14,7 @@ import type {
 } from '@/mcp-server/tools/utils/index.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  fetchWithTimeout,
-  logger,
-} from '@/utils/index.js';
+import { fetchWithTimeout, logger, type RequestContext } from '@/utils/index.js';
 import { arrayBufferToBase64 } from '@/utils/internal/encoding.js';
 
 /**
@@ -89,9 +85,7 @@ const InputSchema = z
 const OutputSchema = z
   .object({
     data: z.string().describe('Base64 encoded image data.'),
-    mimeType: z
-      .string()
-      .describe("The MIME type of the image (e.g., 'image/jpeg')."),
+    mimeType: z.string().describe("The MIME type of the image (e.g., 'image/jpeg')."),
   })
   .describe('Image tool response payload.');
 
@@ -111,11 +105,7 @@ async function imageTestToolLogic(
     toolInput: input,
   });
 
-  const response = await fetchWithTimeout(
-    CAT_API_URL,
-    API_TIMEOUT_MS,
-    appContext,
-  );
+  const response = await fetchWithTimeout(CAT_API_URL, API_TIMEOUT_MS, appContext);
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => undefined);
@@ -171,10 +161,7 @@ function responseFormatter(result: ImageTestToolResponse): ContentBlock[] {
 /**
  * The complete tool definition for the image test tool.
  */
-export const imageTestTool: ToolDefinition<
-  typeof InputSchema,
-  typeof OutputSchema
-> = {
+export const imageTestTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
   name: TOOL_NAME,
   title: TOOL_TITLE,
   description: TOOL_DESCRIPTION,

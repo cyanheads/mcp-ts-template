@@ -20,7 +20,7 @@ import type {
   ToolDefinition,
 } from '@/mcp-server/tools/utils/index.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import { type RequestContext, logger } from '@/utils/index.js';
+import { logger, type RequestContext } from '@/utils/index.js';
 
 const TOOL_NAME = 'template_data_explorer';
 const TOOL_TITLE = 'Template Data Explorer';
@@ -62,10 +62,7 @@ const SaleRowSchema = z.object({
 const OutputSchema = z
   .object({
     rows: z.array(SaleRowSchema).describe('Generated sales data rows.'),
-    generatedAt: z
-      .string()
-      .datetime()
-      .describe('ISO 8601 timestamp when data was generated.'),
+    generatedAt: z.string().datetime().describe('ISO 8601 timestamp when data was generated.'),
     summary: z
       .object({
         totalRows: z.number().int().describe('Total number of rows.'),
@@ -81,20 +78,8 @@ type DataExplorerOutput = z.infer<typeof OutputSchema>;
 
 // ─── Data Generation ──────────────────────────────────────────────────────────
 
-const REGIONS = [
-  'North America',
-  'Europe',
-  'Asia Pacific',
-  'Latin America',
-  'Middle East',
-];
-const PRODUCTS = [
-  'Widget Pro',
-  'Gadget X',
-  'Module Z',
-  'Sensor Alpha',
-  'Platform Core',
-];
+const REGIONS = ['North America', 'Europe', 'Asia Pacific', 'Latin America', 'Middle East'];
+const PRODUCTS = ['Widget Pro', 'Gadget X', 'Module Z', 'Sensor Alpha', 'Platform Core'];
 
 function generateSalesData(rowCount: number): DataExplorerOutput {
   const rows = Array.from({ length: rowCount }, (_, i) => {
@@ -104,8 +89,8 @@ function generateSalesData(rowCount: number): DataExplorerOutput {
     const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
     return {
       id: i + 1,
-      region: REGIONS[Math.floor(Math.random() * REGIONS.length)]!,
-      product: PRODUCTS[Math.floor(Math.random() * PRODUCTS.length)]!,
+      region: REGIONS[Math.floor(Math.random() * REGIONS.length)] as string,
+      product: PRODUCTS[Math.floor(Math.random() * PRODUCTS.length)] as string,
       units,
       revenue: units * pricePerUnit,
       date: `${new Date().getFullYear()}-${month}-${day}`,
@@ -140,10 +125,8 @@ function dataExplorerLogic(
 // ─── Response Formatter (text fallback for non-app hosts) ─────────────────────
 
 function responseFormatter(result: DataExplorerOutput): ContentBlock[] {
-  const header =
-    'ID  | Region           | Product        | Units | Revenue    | Date';
-  const sep =
-    '----|------------------|----------------|-------|------------|----------';
+  const header = 'ID  | Region           | Product        | Units | Revenue    | Date';
+  const sep = '----|------------------|----------------|-------|------------|----------';
   const rows = result.rows.map(
     (r) =>
       `${String(r.id).padStart(3)} | ${r.region.padEnd(16)} | ${r.product.padEnd(14)} | ${String(r.units).padStart(5)} | $${r.revenue.toLocaleString('en-US').padStart(9)} | ${r.date}`,
@@ -160,10 +143,7 @@ function responseFormatter(result: DataExplorerOutput): ContentBlock[] {
 
 // ─── Definition ───────────────────────────────────────────────────────────────
 
-export const dataExplorerAppTool: ToolDefinition<
-  typeof InputSchema,
-  typeof OutputSchema
-> = {
+export const dataExplorerAppTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
   name: TOOL_NAME,
   title: TOOL_TITLE,
   description: TOOL_DESCRIPTION,

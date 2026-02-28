@@ -3,7 +3,7 @@
  * @module tests/services/speech/providers/elevenlabs.provider.test
  */
 
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ElevenLabsProvider } from '@/services/speech/providers/elevenlabs.provider.js';
 import { McpError } from '@/types-global/errors.js';
 
@@ -37,9 +37,7 @@ describe('ElevenLabsProvider', () => {
 
   describe('constructor', () => {
     it('should throw when API key is missing', () => {
-      expect(() => new ElevenLabsProvider({ provider: 'elevenlabs' })).toThrow(
-        McpError,
-      );
+      expect(() => new ElevenLabsProvider({ provider: 'elevenlabs' })).toThrow(McpError);
       expect(() => new ElevenLabsProvider({ provider: 'elevenlabs' })).toThrow(
         'ElevenLabs API key is required',
       );
@@ -75,12 +73,8 @@ describe('ElevenLabsProvider', () => {
     });
 
     it('should throw when text is empty', async () => {
-      await expect(provider.textToSpeech({ text: '' })).rejects.toThrow(
-        McpError,
-      );
-      await expect(provider.textToSpeech({ text: '   ' })).rejects.toThrow(
-        'Text cannot be empty',
-      );
+      await expect(provider.textToSpeech({ text: '' })).rejects.toThrow(McpError);
+      await expect(provider.textToSpeech({ text: '   ' })).rejects.toThrow('Text cannot be empty');
     });
 
     it('should throw when text exceeds 5000 characters', async () => {
@@ -113,13 +107,12 @@ describe('ElevenLabsProvider', () => {
       const url = callArgs?.[0] as string;
       expect(url).toContain('custom-voice');
 
-      const body = JSON.parse(
-        (callArgs?.[3] as RequestInit)?.body as string,
-      ) as Record<string, unknown>;
+      const body = JSON.parse((callArgs?.[3] as RequestInit)?.body as string) as Record<
+        string,
+        unknown
+      >;
       expect(body.model_id).toBe('custom-model');
-      expect((body.voice_settings as Record<string, unknown>).stability).toBe(
-        0.8,
-      );
+      expect((body.voice_settings as Record<string, unknown>).stability).toBe(0.8);
     });
 
     it('should throw on API error response', async () => {
@@ -131,25 +124,21 @@ describe('ElevenLabsProvider', () => {
         ),
       );
 
-      await expect(provider.textToSpeech({ text: 'Hello' })).rejects.toThrow(
-        'Fetch failed',
-      );
+      await expect(provider.textToSpeech({ text: 'Hello' })).rejects.toThrow('Fetch failed');
     });
 
     it('should wrap network errors in McpError', async () => {
       mockFetch.mockRejectedValue(new Error('Network timeout'));
 
-      await expect(provider.textToSpeech({ text: 'Hello' })).rejects.toThrow(
-        McpError,
-      );
+      await expect(provider.textToSpeech({ text: 'Hello' })).rejects.toThrow(McpError);
     });
   });
 
   describe('speechToText', () => {
     it('should throw not supported error', () => {
-      expect(() =>
-        provider.speechToText({ audio: Buffer.from('test') }),
-      ).toThrow('Speech-to-text is not supported by ElevenLabs provider');
+      expect(() => provider.speechToText({ audio: Buffer.from('test') })).toThrow(
+        'Speech-to-text is not supported by ElevenLabs provider',
+      );
     });
   });
 
@@ -198,10 +187,7 @@ describe('ElevenLabsProvider', () => {
     it('should throw on API error', async () => {
       // fetchWithTimeout throws McpError on non-ok responses
       mockFetch.mockRejectedValue(
-        new McpError(
-          -32003,
-          'Fetch failed for https://api.elevenlabs.test/v1/voices. Status: 500',
-        ),
+        new McpError(-32003, 'Fetch failed for https://api.elevenlabs.test/v1/voices. Status: 500'),
       );
 
       await expect(provider.getVoices()).rejects.toThrow(McpError);

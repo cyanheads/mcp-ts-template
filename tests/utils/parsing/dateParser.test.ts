@@ -14,10 +14,7 @@ vi.mock('chrono-node', () => ({
 
 // Import after mock is set up
 import * as chrono from 'chrono-node';
-import {
-  parseDateString,
-  parseDateStringDetailed,
-} from '../../../src/utils/parsing/dateParser.js';
+import { parseDateString, parseDateStringDetailed } from '../../../src/utils/parsing/dateParser.js';
 
 const context = {
   requestId: 'date-parser-test',
@@ -48,11 +45,9 @@ describe('parseDateString', () => {
     const result = await parseDateString('December 25, 2030 10:00', context);
 
     expect(result).toEqual(expectedDate);
-    expect(chronoMock.parseDate).toHaveBeenCalledWith(
-      'December 25, 2030 10:00',
-      undefined,
-      { forwardDate: true },
-    );
+    expect(chronoMock.parseDate).toHaveBeenCalledWith('December 25, 2030 10:00', undefined, {
+      forwardDate: true,
+    });
   });
 
   it('returns null when the text cannot be parsed', async () => {
@@ -73,10 +68,7 @@ describe('parseDateStringDetailed', () => {
     ];
     chronoMock.parse.mockReturnValue(parsedResults as never);
 
-    const results = await parseDateStringDetailed(
-      'The meeting is on 2024-11-05 at noon',
-      context,
-    );
+    const results = await parseDateStringDetailed('The meeting is on 2024-11-05 at noon', context);
 
     expect(results).toBe(parsedResults);
     expect(chronoMock.parse).toHaveBeenCalledWith(
@@ -91,9 +83,7 @@ describe('parseDateStringDetailed', () => {
       throw new Error('chrono blew up');
     });
 
-    await expect(
-      parseDateStringDetailed('tomorrow at 9', context),
-    ).rejects.toMatchObject({
+    await expect(parseDateStringDetailed('tomorrow at 9', context)).rejects.toMatchObject({
       code: JsonRpcErrorCode.ParseError,
       message: expect.stringContaining('parseDateStringDetailed'),
     });

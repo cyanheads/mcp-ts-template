@@ -3,7 +3,7 @@
  * Validates that all registered tools have required metadata and unique names.
  * @module tests/mcp-server/tools/definitions/index
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
 

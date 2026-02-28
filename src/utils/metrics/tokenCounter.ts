@@ -5,15 +5,12 @@
  * @module src/utils/metrics/tokenCounter
  */
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
-import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
+import { ErrorHandler, logger, type RequestContext } from '@/utils/index.js';
 
 /** Minimal chat message shape to stay provider-agnostic. */
 export type ChatMessage = {
   role: string;
-  content:
-    | string
-    | Array<{ type: string; text?: string; [k: string]: unknown }>
-    | null;
+  content: string | Array<{ type: string; text?: string; [k: string]: unknown }> | null;
   name?: string;
   tool_calls?: Array<{
     id?: string;
@@ -26,9 +23,9 @@ export type ChatMessage = {
 /** Heuristic model schema. Extend as needed per model. */
 export interface ModelHeuristics {
   charsPerToken: number; // average chars per token; ~4 for English
+  replyPrimer: number; // priming tokens for assistant reply
   tokensPerMessage: number; // message overhead
   tokensPerName: number; // extra if name present
-  replyPrimer: number; // priming tokens for assistant reply
 }
 
 const DEFAULT_MODEL = 'gpt-4o';
@@ -77,7 +74,7 @@ export async function countTokens(
   context?: RequestContext,
   model?: string,
 ): Promise<number> {
-  return ErrorHandler.tryCatch(
+  return await ErrorHandler.tryCatch(
     () => {
       const h: ModelHeuristics = getModelHeuristics(model);
       return approxTokenCount(text ?? '', h.charsPerToken);
@@ -102,7 +99,7 @@ export async function countChatTokens(
   context?: RequestContext,
   model?: string,
 ): Promise<number> {
-  return ErrorHandler.tryCatch(
+  return await ErrorHandler.tryCatch(
     () => {
       const h: ModelHeuristics = getModelHeuristics(model);
       let tokens = 0;
@@ -140,16 +137,10 @@ export async function countChatTokens(
           for (const toolCall of message.tool_calls) {
             if (toolCall?.type === 'function') {
               if (toolCall.function?.name) {
-                tokens += approxTokenCount(
-                  toolCall.function.name,
-                  h.charsPerToken,
-                );
+                tokens += approxTokenCount(toolCall.function.name, h.charsPerToken);
               }
               if (toolCall.function?.arguments) {
-                tokens += approxTokenCount(
-                  toolCall.function.arguments,
-                  h.charsPerToken,
-                );
+                tokens += approxTokenCount(toolCall.function.arguments, h.charsPerToken);
               }
             }
           }

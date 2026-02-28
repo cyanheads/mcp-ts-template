@@ -5,8 +5,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
-import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
+import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 
 describe('withRequiredScopes', () => {
@@ -22,15 +22,10 @@ describe('withRequiredScopes', () => {
   });
 
   it('passes when the auth context satisfies all required scopes', () => {
-    authContext.run(
-      { authInfo: createAuthInfo(['scope:read', 'scope:write']) },
-      () => {
-        expect(() => withRequiredScopes(['scope:read'])).not.toThrow();
-        expect(() =>
-          withRequiredScopes(['scope:read', 'scope:write']),
-        ).not.toThrow();
-      },
-    );
+    authContext.run({ authInfo: createAuthInfo(['scope:read', 'scope:write']) }, () => {
+      expect(() => withRequiredScopes(['scope:read'])).not.toThrow();
+      expect(() => withRequiredScopes(['scope:read', 'scope:write'])).not.toThrow();
+    });
   });
 
   it('throws a forbidden error when a required scope is missing', () => {

@@ -2,21 +2,13 @@
  * @fileoverview Unit tests for the RateLimiter utility.
  * @module tests/utils/security/rateLimiter.test
  */
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type MockInstance,
-} from 'vitest';
-import { trace } from '@opentelemetry/api';
-import type { z } from 'zod';
 
+import { trace } from '@opentelemetry/api';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+import type { z } from 'zod';
+import type { ConfigSchema } from '../../../src/config/index.js';
 import { JsonRpcErrorCode } from '../../../src/types-global/errors.js';
 import { logger } from '../../../src/utils/internal/logger.js';
-import type { ConfigSchema } from '../../../src/config/index.js';
 import type { RateLimiter as RateLimiterType } from '../../../src/utils/security/rateLimiter.js';
 
 describe('RateLimiter', () => {
@@ -35,14 +27,10 @@ describe('RateLimiter', () => {
 
   const createLimiter = () => {
     rateLimiter = new RateLimiter(config, logger as never);
-    const timer = (
-      rateLimiter as unknown as { cleanupTimer: NodeJS.Timeout | null }
-    ).cleanupTimer;
+    const timer = (rateLimiter as unknown as { cleanupTimer: NodeJS.Timeout | null }).cleanupTimer;
     if (timer) {
       clearInterval(timer);
-      (
-        rateLimiter as unknown as { cleanupTimer: NodeJS.Timeout | null }
-      ).cleanupTimer = null;
+      (rateLimiter as unknown as { cleanupTimer: NodeJS.Timeout | null }).cleanupTimer = null;
     }
     rateLimiter.configure({ cleanupInterval: 0 });
   };
@@ -53,22 +41,17 @@ describe('RateLimiter', () => {
     process.env.NODE_ENV = 'production';
 
     const configModule = await import('../../../src/config/index.js');
-    const rateLimiterModule =
-      await import('../../../src/utils/security/rateLimiter.js');
+    const rateLimiterModule = await import('../../../src/utils/security/rateLimiter.js');
     config = configModule.config;
     RateLimiter = rateLimiterModule.RateLimiter;
 
     debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
-    getActiveSpanSpy = vi
-      .spyOn(trace, 'getActiveSpan')
-      .mockReturnValue(spanMock as never);
+    getActiveSpanSpy = vi.spyOn(trace, 'getActiveSpan').mockReturnValue(spanMock as never);
     createLimiter();
   });
 
   afterEach(() => {
-    const timer = (
-      rateLimiter as unknown as { cleanupTimer: NodeJS.Timeout | null }
-    ).cleanupTimer;
+    const timer = (rateLimiter as unknown as { cleanupTimer: NodeJS.Timeout | null }).cleanupTimer;
     if (timer) {
       clearInterval(timer);
     }
@@ -109,8 +92,7 @@ describe('RateLimiter', () => {
     process.env.NODE_ENV = 'development';
     // Re-import modules to get the updated config
     const configModule = await import('../../../src/config/index.js');
-    const rateLimiterModule =
-      await import('../../../src/utils/security/rateLimiter.js');
+    const rateLimiterModule = await import('../../../src/utils/security/rateLimiter.js');
     config = configModule.parseConfig(); // Use parseConfig to get a fresh config
     RateLimiter = rateLimiterModule.RateLimiter;
 
@@ -132,10 +114,7 @@ describe('RateLimiter', () => {
       devRateLimiter.check('dev:key', context);
     }).not.toThrow();
 
-    expect(spanMock.setAttribute).toHaveBeenCalledWith(
-      'mcp.rate_limit.skipped',
-      'development',
-    );
+    expect(spanMock.setAttribute).toHaveBeenCalledWith('mcp.rate_limit.skipped', 'development');
   });
 
   it('resets internal state and logs the action', () => {
@@ -163,9 +142,7 @@ describe('RateLimiter', () => {
       }
     ).limits.set(entryKey, { count: 1, resetTime: now - 1000 });
 
-    (
-      rateLimiter as unknown as { cleanupExpiredEntries: () => void }
-    ).cleanupExpiredEntries();
+    (rateLimiter as unknown as { cleanupExpiredEntries: () => void }).cleanupExpiredEntries();
 
     expect(rateLimiter.getStatus(entryKey)).toBeNull();
     expect(debugSpy).toHaveBeenCalledWith(
@@ -190,9 +167,7 @@ describe('RateLimiter', () => {
 
   it('should start cleanup timer when cleanup interval is set', () => {
     rateLimiter.configure({ cleanupInterval: 1000 });
-    const timer = (
-      rateLimiter as unknown as { cleanupTimer: NodeJS.Timeout | null }
-    ).cleanupTimer;
+    const timer = (rateLimiter as unknown as { cleanupTimer: NodeJS.Timeout | null }).cleanupTimer;
     expect(timer).not.toBeNull();
 
     // Clean up timer
@@ -208,9 +183,7 @@ describe('RateLimiter', () => {
       ref: vi.fn(),
     } as unknown as NodeJS.Timeout;
 
-    const setIntervalSpy = vi
-      .spyOn(globalThis, 'setInterval')
-      .mockReturnValue(fakeTimer);
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval').mockReturnValue(fakeTimer);
 
     rateLimiter.configure({ cleanupInterval: 250 });
 
@@ -226,9 +199,7 @@ describe('RateLimiter', () => {
       unref: vi.fn(),
       ref: vi.fn(),
     } as unknown as NodeJS.Timeout;
-    const setIntervalSpy = vi
-      .spyOn(globalThis, 'setInterval')
-      .mockReturnValue(fakeTimer);
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval').mockReturnValue(fakeTimer);
 
     rateLimiter.configure({ cleanupInterval: 500 });
     setIntervalSpy.mockRestore();
@@ -305,9 +276,7 @@ describe('RateLimiter', () => {
       thrown = err;
     }
     expect(thrown).toBeDefined();
-    expect((thrown as { message: string }).message).toMatch(
-      /^Slow down! Retry in \d+s\.$/,
-    );
+    expect((thrown as { message: string }).message).toMatch(/^Slow down! Retry in \d+s\.$/);
   });
 
   it('resets the window when the reset time has elapsed', () => {

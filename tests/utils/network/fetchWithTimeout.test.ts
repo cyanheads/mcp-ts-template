@@ -2,22 +2,11 @@
  * @fileoverview Unit tests for the fetchWithTimeout utility.
  * @module tests/utils/network/fetchWithTimeout.test
  */
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type MockInstance,
-} from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
-import {
-  JsonRpcErrorCode,
-  McpError,
-} from '../../../src/types-global/errors.js';
-import { fetchWithTimeout } from '../../../src/utils/network/fetchWithTimeout.js';
+import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
 import { logger } from '../../../src/utils/internal/logger.js';
+import { fetchWithTimeout } from '../../../src/utils/network/fetchWithTimeout.js';
 
 describe('fetchWithTimeout', () => {
   const context = {
@@ -39,9 +28,7 @@ describe('fetchWithTimeout', () => {
 
   it('resolves with the response when fetch succeeds', async () => {
     const response = new Response('ok', { status: 200 });
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(response as Response);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response as Response);
 
     const result = await fetchWithTimeout('https://example.com', 1000, context);
 
@@ -63,9 +50,7 @@ describe('fetchWithTimeout', () => {
     });
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(response as Response);
 
-    await expect(
-      fetchWithTimeout('https://example.com', 1000, context),
-    ).rejects.toMatchObject({
+    await expect(fetchWithTimeout('https://example.com', 1000, context)).rejects.toMatchObject({
       code: JsonRpcErrorCode.ServiceUnavailable,
       message: expect.stringContaining('Status: 503'),
     });
@@ -80,19 +65,18 @@ describe('fetchWithTimeout', () => {
   });
 
   it('throws a timeout McpError when the request exceeds the allotted time', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
-      return new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener('abort', () => {
-          const abortError = new Error('Aborted');
-          abortError.name = 'AbortError';
-          reject(abortError);
-        });
-      });
-    });
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            const abortError = new Error('Aborted');
+            abortError.name = 'AbortError';
+            reject(abortError);
+          });
+        }),
+    );
 
-    await expect(
-      fetchWithTimeout('https://slow.example.com', 5, context),
-    ).rejects.toMatchObject({
+    await expect(fetchWithTimeout('https://slow.example.com', 5, context)).rejects.toMatchObject({
       code: JsonRpcErrorCode.Timeout,
       data: expect.objectContaining({ errorSource: 'FetchTimeout' }),
     });
@@ -104,9 +88,7 @@ describe('fetchWithTimeout', () => {
   });
 
   it('wraps unknown fetch errors into an McpError', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(
-      new Error('connection reset'),
-    );
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('connection reset'));
 
     await expect(
       fetchWithTimeout('https://error.example.com', 1000, context),
@@ -128,15 +110,12 @@ describe('fetchWithTimeout', () => {
   });
 
   it('rethrows an existing McpError without wrapping it again', async () => {
-    const existingError = new McpError(
-      JsonRpcErrorCode.ServiceUnavailable,
-      'upstream unavailable',
-    );
+    const existingError = new McpError(JsonRpcErrorCode.ServiceUnavailable, 'upstream unavailable');
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(existingError);
 
-    await expect(
-      fetchWithTimeout('https://error.example.com', 1000, context),
-    ).rejects.toBe(existingError);
+    await expect(fetchWithTimeout('https://error.example.com', 1000, context)).rejects.toBe(
+      existingError,
+    );
 
     expect(errorSpy).toHaveBeenCalledWith(
       'Network error during fetch GET https://error.example.com: upstream unavailable',

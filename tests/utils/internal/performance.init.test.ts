@@ -17,8 +17,7 @@ afterEach(() => {
     globalThis.performance = originalPerformance;
   } else {
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete (globalThis as { performance?: typeof globalThis.performance })
-      .performance;
+    delete (globalThis as { performance?: typeof globalThis.performance }).performance;
   }
   Date.now = originalDateNow;
   vi.restoreAllMocks();
@@ -47,8 +46,7 @@ describe('initializePerformance_Hrt', () => {
     );
 
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete (globalThis as { performance?: typeof globalThis.performance })
-      .performance;
+    delete (globalThis as { performance?: typeof globalThis.performance }).performance;
 
     await performanceModule.initializePerformance_Hrt();
 
@@ -70,8 +68,7 @@ describe('initializePerformance_Hrt', () => {
     });
 
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete (globalThis as { performance?: typeof globalThis.performance })
-      .performance;
+    delete (globalThis as { performance?: typeof globalThis.performance }).performance;
 
     await performanceModule.initializePerformance_Hrt();
 

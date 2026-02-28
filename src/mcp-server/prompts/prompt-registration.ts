@@ -7,12 +7,8 @@
  * @module src/mcp-server/prompts/prompt-registration
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-
+import { type logger as defaultLogger, requestContextService } from '@/utils/index.js';
 import { allPromptDefinitions } from './definitions/index.js';
-import {
-  type logger as defaultLogger,
-  requestContextService,
-} from '@/utils/index.js';
 
 export class PromptRegistry {
   constructor(private logger: typeof defaultLogger) {}
@@ -25,10 +21,7 @@ export class PromptRegistry {
       operation: 'PromptRegistry.registerAll',
     });
 
-    this.logger.debug(
-      `Registering ${allPromptDefinitions.length} prompts...`,
-      context,
-    );
+    this.logger.debug(`Registering ${allPromptDefinitions.length} prompts...`, context);
 
     // Register each prompt using the SDK's registerPrompt API
     for (const promptDef of allPromptDefinitions) {
@@ -56,9 +49,6 @@ export class PromptRegistry {
       this.logger.info(`Registered prompt: ${promptDef.name}`, context);
     }
 
-    this.logger.info(
-      `Successfully registered ${allPromptDefinitions.length} prompts`,
-      context,
-    );
+    this.logger.info(`Successfully registered ${allPromptDefinitions.length} prompts`, context);
   }
 }

@@ -38,11 +38,7 @@ const PRIVATE_IP_PATTERNS = [
   /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // RFC 6598 (CGNAT)
 ];
 
-const PRIVATE_HOSTNAMES = new Set([
-  'localhost',
-  'metadata.google.internal',
-  'metadata.internal',
-]);
+const PRIVATE_HOSTNAMES = new Set(['localhost', 'metadata.google.internal', 'metadata.internal']);
 
 /**
  * Validates that a URL does not target private/reserved IP space.
@@ -53,10 +49,7 @@ function assertNotPrivateUrl(urlString: string): void {
   try {
     parsed = new URL(urlString);
   } catch {
-    throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      `Invalid URL: ${urlString}`,
-    );
+    throw new McpError(JsonRpcErrorCode.ValidationError, `Invalid URL: ${urlString}`);
   }
 
   const hostname = parsed.hostname.replace(/^\[|\]$/g, ''); // Strip IPv6 brackets
@@ -113,10 +106,7 @@ export async function fetchWithTimeout(
 
   const operationDescription = `fetch ${options?.method || 'GET'} ${urlString}`;
 
-  logger.debug(
-    `Attempting ${operationDescription} with ${timeoutMs}ms timeout.`,
-    context,
-  );
+  logger.debug(`Attempting ${operationDescription} with ${timeoutMs}ms timeout.`, context);
 
   // Strip custom options before passing to native fetch
   const { rejectPrivateIPs: _, ...fetchInit } = options ?? {};
@@ -133,19 +123,14 @@ export async function fetchWithTimeout(
     });
 
     if (!response.ok) {
-      const errorBody = await response
-        .text()
-        .catch(() => 'Could not read response body');
-      logger.error(
-        `Fetch failed for ${urlString} with status ${response.status}.`,
-        {
-          ...context,
-          statusCode: response.status,
-          statusText: response.statusText,
-          responseBody: errorBody,
-          errorSource: 'FetchHttpError',
-        },
-      );
+      const errorBody = await response.text().catch(() => 'Could not read response body');
+      logger.error(`Fetch failed for ${urlString} with status ${response.status}.`, {
+        ...context,
+        statusCode: response.status,
+        statusText: response.statusText,
+        responseBody: errorBody,
+        errorSource: 'FetchHttpError',
+      });
       throw new McpError(
         JsonRpcErrorCode.ServiceUnavailable,
         `Fetch failed for ${urlString}. Status: ${response.status}`,
@@ -158,36 +143,26 @@ export async function fetchWithTimeout(
       );
     }
 
-    logger.debug(
-      `Successfully fetched ${urlString}. Status: ${response.status}`,
-      context,
-    );
+    logger.debug(`Successfully fetched ${urlString}. Status: ${response.status}`, context);
     return response;
   } catch (error: unknown) {
-    if (
-      error instanceof Error &&
-      (error.name === 'TimeoutError' || error.name === 'AbortError')
-    ) {
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
       logger.error(`${operationDescription} timed out after ${timeoutMs}ms.`, {
         ...context,
         errorSource: 'FetchTimeout',
       });
-      throw new McpError(
-        JsonRpcErrorCode.Timeout,
-        `${operationDescription} timed out.`,
-        { ...context, errorSource: 'FetchTimeout' },
-      );
+      throw new McpError(JsonRpcErrorCode.Timeout, `${operationDescription} timed out.`, {
+        ...context,
+        errorSource: 'FetchTimeout',
+      });
     }
 
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(
-      `Network error during ${operationDescription}: ${errorMessage}`,
-      {
-        ...context,
-        originalErrorName: error instanceof Error ? error.name : 'UnknownError',
-        errorSource: 'FetchNetworkError',
-      },
-    );
+    logger.error(`Network error during ${operationDescription}: ${errorMessage}`, {
+      ...context,
+      originalErrorName: error instanceof Error ? error.name : 'UnknownError',
+      errorSource: 'FetchNetworkError',
+    });
 
     if (error instanceof McpError) {
       throw error;

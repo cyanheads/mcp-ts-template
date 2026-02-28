@@ -2,18 +2,18 @@
  * @fileoverview Tests for core service registration.
  * @module tests/container/registrations/core.test.ts
  */
-import { describe, expect, it, beforeAll } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { container } from '@/container/core/container.js';
-import { registerCoreServices } from '@/container/registrations/core.js';
 import {
   AppConfig,
-  Logger,
-  StorageProvider,
-  StorageService,
   LlmProvider,
+  Logger,
   RateLimiterService,
   SpeechService,
+  StorageProvider,
+  StorageService,
 } from '@/container/core/tokens.js';
+import { registerCoreServices } from '@/container/registrations/core.js';
 
 describe('Core Service Registration', () => {
   beforeAll(() => {
@@ -33,9 +33,7 @@ describe('Core Service Registration', () => {
     });
 
     it('should register Logger as a value', () => {
-      const logger = container.resolve(
-        Logger,
-      ) as typeof import('@/utils/index.js').logger;
+      const logger = container.resolve(Logger) as typeof import('@/utils/index.js').logger;
 
       expect(logger).toBeDefined();
       expect(typeof logger.info).toBe('function');

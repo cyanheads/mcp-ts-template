@@ -4,11 +4,7 @@
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  fetchWithTimeout,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { fetchWithTimeout, logger, requestContextService } from '@/utils/index.js';
 
 import type { ISpeechProvider } from '../core/ISpeechProvider.js';
 import type {
@@ -24,12 +20,12 @@ import type {
  * ElevenLabs API response for voice list.
  */
 interface ElevenLabsVoice {
-  voice_id: string;
-  name: string;
-  description?: string;
   category?: string;
+  description?: string;
   labels?: Record<string, string>;
+  name: string;
   preview_url?: string;
+  voice_id: string;
 }
 
 interface ElevenLabsVoicesResponse {
@@ -53,10 +49,7 @@ export class ElevenLabsProvider implements ISpeechProvider {
 
   constructor(config: SpeechProviderConfig) {
     if (!config.apiKey) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
-        'ElevenLabs API key is required',
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidParams, 'ElevenLabs API key is required');
     }
 
     this.apiKey = config.apiKey;
@@ -73,9 +66,7 @@ export class ElevenLabsProvider implements ISpeechProvider {
   /**
    * Convert text to speech using ElevenLabs API.
    */
-  async textToSpeech(
-    options: TextToSpeechOptions,
-  ): Promise<TextToSpeechResult> {
+  async textToSpeech(options: TextToSpeechOptions): Promise<TextToSpeechResult> {
     const context = requestContextService.createRequestContext({
       operation: 'elevenlabs-tts',
       ...(options.context || {}),
@@ -86,11 +77,7 @@ export class ElevenLabsProvider implements ISpeechProvider {
     logger.debug('Converting text to speech with ElevenLabs', context);
 
     if (!options.text || options.text.trim().length === 0) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
-        'Text cannot be empty',
-        context,
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidParams, 'Text cannot be empty', context);
     }
 
     if (options.text.length > 5000) {

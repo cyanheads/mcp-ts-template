@@ -2,15 +2,7 @@
  * @fileoverview Unit tests for configuration parsing.
  * @module tests/config/index.test
  */
-import {
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '../../src/types-global/errors.js';
 
@@ -37,8 +29,7 @@ describe('config parsing', () => {
   it('normalizes aliases, trims arrays, and applies defaults', async () => {
     process.env.MCP_LOG_LEVEL = 'Warning';
     process.env.NODE_ENV = 'prod';
-    process.env.MCP_ALLOWED_ORIGINS =
-      'https://a.example.com, https://b.example.com ';
+    process.env.MCP_ALLOWED_ORIGINS = 'https://a.example.com, https://b.example.com ';
     process.env.DEV_MCP_SCOPES = 'scope:read, scope:write';
     process.env.STORAGE_PROVIDER_TYPE = 'fs';
     process.env.MCP_SESSION_MODE = ''; // exercise empty-string sanitization
@@ -55,10 +46,7 @@ describe('config parsing', () => {
     expect(parsed.logLevel).toBe('warning');
     expect(parsed.environment).toBe('production');
     expect(parsed.mcpSessionMode).toBe('auto');
-    expect(parsed.mcpAllowedOrigins).toEqual([
-      'https://a.example.com',
-      'https://b.example.com',
-    ]);
+    expect(parsed.mcpAllowedOrigins).toEqual(['https://a.example.com', 'https://b.example.com']);
     expect(parsed.devMcpScopes).toEqual(['scope:read', 'scope:write']);
     expect(parsed.storage.providerType).toBe('filesystem');
     expect(parsed.logsPath).toMatch(/logs$/);
