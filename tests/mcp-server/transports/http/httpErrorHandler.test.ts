@@ -12,7 +12,6 @@ import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 // Mock config
 vi.mock('@/config/index.js', () => ({
   config: {
-    oauthIssuerUrl: '',
     mcpServerName: 'test-server',
   },
 }));
@@ -206,13 +205,7 @@ describe('HTTP Error Handler', () => {
   });
 
   describe('WWW-Authenticate header for 401', () => {
-    test('should add WWW-Authenticate header when OAuth configured', async () => {
-      // Mock config with OAuth
-      const configModule = await import('@/config/index.js');
-      vi.spyOn(configModule.config, 'oauthIssuerUrl', 'get').mockReturnValue(
-        'https://auth.example.com',
-      );
-
+    test('should always add WWW-Authenticate header on 401', async () => {
       const error = new McpError(JsonRpcErrorCode.Unauthorized, 'Unauthorized');
 
       await httpErrorHandler(error, mockContext as Context<{ Bindings: HonoNodeBindings }>);
@@ -224,25 +217,7 @@ describe('HTTP Error Handler', () => {
       expect(wwwAuthHeader).toContain('.well-known/oauth-protected-resource');
     });
 
-    test('should not add WWW-Authenticate header when OAuth not configured', async () => {
-      // Mock config without OAuth
-      const configModule = await import('@/config/index.js');
-      vi.spyOn(configModule.config, 'oauthIssuerUrl', 'get').mockReturnValue('');
-
-      const error = new McpError(JsonRpcErrorCode.Unauthorized, 'Unauthorized');
-
-      await httpErrorHandler(error, mockContext as Context<{ Bindings: HonoNodeBindings }>);
-
-      const wwwAuthHeader = headers.get('www-authenticate');
-      expect(wwwAuthHeader).toBeUndefined();
-    });
-
     test('should not add WWW-Authenticate header for non-401 errors', async () => {
-      const configModule = await import('@/config/index.js');
-      vi.spyOn(configModule.config, 'oauthIssuerUrl', 'get').mockReturnValue(
-        'https://auth.example.com',
-      );
-
       const error = new McpError(JsonRpcErrorCode.Forbidden, 'Forbidden');
 
       await httpErrorHandler(error, mockContext as Context<{ Bindings: HonoNodeBindings }>);

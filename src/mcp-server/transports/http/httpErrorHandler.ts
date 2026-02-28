@@ -54,21 +54,17 @@ export const httpErrorHandler = async <TBindings extends object = HonoNodeBindin
       break;
     case JsonRpcErrorCode.Unauthorized:
       status = 401;
-      // MCP Spec 2025-06-18: Add WWW-Authenticate header per RFC 9728 Section 5.1
-      // https://datatracker.ietf.org/doc/html/rfc9728#section-5.1
-      if (config.oauthIssuerUrl) {
+      // RFC 9728 §7: 401 responses MUST include WWW-Authenticate with resource_metadata URL.
+      // /.well-known/oauth-protected-resource is always mounted regardless of auth mode.
+      // https://datatracker.ietf.org/doc/html/rfc9728#section-7
+      {
         const origin = new URL(c.req.url).origin;
         const resourceMetadataUrl = `${origin}/.well-known/oauth-protected-resource`;
-
-        // Build WWW-Authenticate header per RFC 9728
-        const wwwAuthValue = [
-          `Bearer realm="${config.mcpServerName}"`,
-          `resource_metadata="${resourceMetadataUrl}"`,
-        ].join(', ');
-
-        c.header('WWW-Authenticate', wwwAuthValue);
-
-        logger.debug('Added WWW-Authenticate header for 401 response', {
+        c.header(
+          'WWW-Authenticate',
+          `Bearer realm="${config.mcpServerName}", resource_metadata="${resourceMetadataUrl}"`,
+        );
+        logger.debug('Added WWW-Authenticate header for 401 response.', {
           ...context,
           resourceMetadataUrl,
         });

@@ -23,6 +23,7 @@ import { createAuthMiddleware } from '@/mcp-server/transports/auth/authMiddlewar
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
+import { protectedResourceMetadataHandler } from '@/mcp-server/transports/http/protectedResourceMetadata.js';
 import { generateSecureSessionId } from '@/mcp-server/transports/http/sessionIdUtils.js';
 import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
 import { logger } from '@/utils/internal/logger.js';
@@ -136,43 +137,9 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
   // Health and GET /mcp status remain unprotected for convenience
   app.get('/healthz', (c) => c.json({ status: 'ok' }));
 
-  // RFC 9728 Protected Resource Metadata endpoint (MCP 2025-06-18)
-  // Must be accessible without authentication for discovery
+  // RFC 9728 Protected Resource Metadata — always mounted, unauthenticated
   // https://datatracker.ietf.org/doc/html/rfc9728
-  app.get('/.well-known/oauth-protected-resource', (c) => {
-    if (!config.oauthIssuerUrl) {
-      logger.debug(
-        'OAuth Protected Resource Metadata requested but OAuth not configured',
-        transportContext,
-      );
-      return c.json({ error: 'OAuth not configured on this server' }, { status: 404 });
-    }
-
-    const origin = new URL(c.req.url).origin;
-    const resourceIdentifier =
-      config.mcpServerResourceIdentifier ?? config.oauthAudience ?? `${origin}/mcp`;
-
-    // Per RFC 9728, this endpoint provides metadata about the protected resource
-    const metadata = {
-      resource: resourceIdentifier,
-      authorization_servers: [config.oauthIssuerUrl],
-      bearer_methods_supported: ['header'],
-      resource_signing_alg_values_supported: ['RS256', 'ES256', 'PS256'],
-      resource_documentation: `${origin}/docs`,
-      ...(config.oauthJwksUri && { jwks_uri: config.oauthJwksUri }),
-    };
-
-    // RFC 9728 recommends caching this metadata
-    c.header('Cache-Control', 'public, max-age=3600');
-    c.header('Content-Type', 'application/json');
-
-    logger.debug('Serving OAuth Protected Resource Metadata', {
-      ...transportContext,
-      resourceIdentifier,
-    });
-
-    return c.json(metadata);
-  });
+  app.get('/.well-known/oauth-protected-resource', protectedResourceMetadataHandler);
 
   // MCP Spec 2025-06-18: GET with Accept: text/event-stream opens an SSE stream
   // for server-initiated messages. Plain GET (browser, health check) returns info.

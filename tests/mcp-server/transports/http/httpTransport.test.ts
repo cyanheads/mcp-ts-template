@@ -152,7 +152,7 @@ describe('HTTP Transport', () => {
       expect(text).not.toContain('"status":"ok"');
     });
 
-    test('should register OAuth metadata endpoint when OAuth not configured', async () => {
+    test('should serve OAuth metadata endpoint with minimal metadata when OAuth not configured', async () => {
       const app = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
 
       const request = new Request('http://localhost:3000/.well-known/oauth-protected-resource', {
@@ -162,13 +162,10 @@ describe('HTTP Transport', () => {
       const response = await app.fetch(request);
       const data: any = await response.json();
 
-      expect(response.status).toBe(404);
-      expect(data.error).toContain('OAuth not configured');
-    });
-
-    test.skip('should register OAuth metadata endpoint when OAuth configured - SKIPPED: Config mocking complexity. OAuth metadata endpoint is verified through integration tests.', async () => {
-      // Skipped: vi.mock() at module level conflicts with runtime config mocking via spyOn
-      // OAuth metadata endpoint logic is straightforward and covered by integration testing
+      expect(response.status).toBe(200);
+      expect(data.bearer_methods_supported).toEqual(['header']);
+      // No authorization_servers when OAuth is not configured
+      expect(data.authorization_servers).toBeUndefined();
     });
 
     test('should handle DELETE request in stateless mode', async () => {

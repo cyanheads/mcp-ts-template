@@ -52,6 +52,8 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
   - Removed dead `HonoVariables` type from `httpTypes.ts` (never used in production code).
   - Simplified `httpTransport.ts`: removed redundant `authContext.run(store, handleRpc)` re-entry (ALS already propagates from middleware); compacted `SessionIdentity` construction with `Object.fromEntries` filter. Per-request MCP server instances now closed in a `finally` block (was error-path-only), fixing a resource leak on successful stateless HTTP requests. Session termination (`DELETE /mcp`) now validates session ownership before allowing termination, preventing cross-session termination attacks.
   - Deduplicated `requestContextService.createRequestContext()` calls in `sessionStore.isValidForIdentity` with a lazy `warn()` closure.
+  - Extracted RFC 9728 Protected Resource Metadata handler from `httpTransport.ts` into `protectedResourceMetadata.ts`. The `/.well-known/oauth-protected-resource` endpoint is now always mounted and always returns 200 — oauth mode includes `authorization_servers` and signing algorithms; jwt/none modes return a minimal resource identifier only. Unconditional mounting ensures the `resource_metadata` URL referenced in WWW-Authenticate is always resolvable.
+  - Updated `httpErrorHandler.ts`: WWW-Authenticate header is now unconditionally included on 401 responses regardless of auth mode, since the metadata endpoint is always available. Simplified header construction to a single `c.header()` call (removed intermediate array join).
 - **Transport manager** (`src/mcp-server/transports/manager.ts`):
   - Fixed relative imports to `@/` path aliases.
   - Replaced `as ServerType` / `as McpServer` casts in `stop()` with a typed `shutdown` closure stored during `start()`.
@@ -95,7 +97,9 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - **`logger.test.ts`**: Added `alert()` and `emerg()` tests with both Error+context and context-only signatures.
 - **`performance.init.test.ts`**: Fixed `Date.now` fallback and `node:perf_hooks` path tests — replaced `vi.spyOn` on ESM export (which doesn't affect internal module calls) with direct loader injection via the new `perfLoader` parameter.
 - **`claimParser.test.ts`** (new): Added 5 tests for `handleJoseVerifyError` covering McpError passthrough, JWTExpired mapping, fallback messages, non-Error values, and always-throws guarantee.
-- **`httpTransport.test.ts`**: Added SSE GET passthrough test verifying `Accept: text/event-stream` bypasses the info endpoint.
+- **`httpTransport.test.ts`**: Added SSE GET passthrough test verifying `Accept: text/event-stream` bypasses the info endpoint. Updated OAuth metadata endpoint test — now expects 200 with minimal `bearer_methods_supported` response (was 404) when OAuth is not configured.
+- **`httpErrorHandler.test.ts`**: Updated WWW-Authenticate tests — removed "should not add header when OAuth not configured" case (header is now always set on 401); simplified remaining tests to remove OAuth config spying.
+- **`httpTransport.integration.test.ts`**: Updated OAuth metadata integration test to use `mcpAuthMode` spy; replaced `jwks_uri` assertion with `bearer_methods_supported` check.
 - **`httpTypes.test.ts`**: Removed `HonoVariables` tests (type was deleted).
 - **`diffFormatter.test.ts`**, **`markdownBuilder.test.ts`**, **`tableFormatter.test.ts`**, **`treeFormatter.test.ts`**: Added edge-case and branch-coverage tests for formatting utilities.
 - **`scheduler.test.ts`**: Updated log assertion matchers to use `operation`/`jobId` context fields (matching `requestContextService` output) instead of raw `requestId` strings. Added assertions for `start` and `stop` log calls.

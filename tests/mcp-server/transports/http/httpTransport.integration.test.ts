@@ -148,11 +148,9 @@ describe('HTTP Transport Integration - OAuth Metadata', () => {
 
     // Mock OAuth config
     const config = await import('@/config/index.js');
+    vi.spyOn(config.config, 'mcpAuthMode', 'get').mockReturnValue('oauth' as any);
     vi.spyOn(config.config, 'oauthIssuerUrl', 'get').mockReturnValue('https://auth.example.com');
     vi.spyOn(config.config, 'oauthAudience', 'get').mockReturnValue('https://api.example.com');
-    vi.spyOn(config.config, 'oauthJwksUri', 'get').mockReturnValue(
-      'https://auth.example.com/.well-known/jwks.json',
-    );
 
     const { createHttpApp } = await import('@/mcp-server/transports/http/httpTransport.js');
 
@@ -168,7 +166,7 @@ describe('HTTP Transport Integration - OAuth Metadata', () => {
     expect(response.status).toBe(200);
     expect(data.resource).toBeDefined();
     expect(data.authorization_servers).toContain('https://auth.example.com');
-    expect(data.jwks_uri).toBe('https://auth.example.com/.well-known/jwks.json');
+    expect(data.bearer_methods_supported).toEqual(['header']);
     expect(response.headers.get('cache-control')).toContain('max-age=3600');
   });
 });
