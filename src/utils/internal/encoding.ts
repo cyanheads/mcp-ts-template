@@ -18,13 +18,8 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
     return Buffer.from(buffer).toString('base64');
   } else {
     // Browser/Worker environment
-    let binary = '';
     const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i] as number);
-    }
-    return btoa(binary);
+    return btoa(String.fromCharCode(...bytes));
   }
 }
 

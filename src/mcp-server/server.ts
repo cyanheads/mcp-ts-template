@@ -40,12 +40,6 @@ export async function createMcpServerInstance(): Promise<McpServer> {
   });
   logger.info('Initializing MCP server instance', context);
 
-  requestContextService.configure({
-    appName: config.mcpServerName,
-    appVersion: config.mcpServerVersion,
-    environment: config.environment,
-  });
-
   const server = new McpServer(
     {
       name: config.mcpServerName,

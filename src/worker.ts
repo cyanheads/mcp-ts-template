@@ -18,7 +18,7 @@ import { composeContainer } from '@/container/index.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
 import { logger } from '@/utils/internal/logger.js';
-import { initializePerformance_Hrt } from '@/utils/internal/performance.js';
+import { initHighResTimer } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
@@ -154,7 +154,7 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
 
       // Initialize core services lazily.
       composeContainer();
-      await initializePerformance_Hrt();
+      await initHighResTimer();
 
       // Initialize logger with level from env or default to 'info'
       // Workers always use HTTP transport (no STDIO support)

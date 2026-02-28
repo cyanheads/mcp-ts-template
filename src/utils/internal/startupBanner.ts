@@ -21,12 +21,13 @@
  * ```
  */
 export function logStartupBanner(message: string, transportType?: 'stdio' | 'http'): void {
-  if (process.stdout.isTTY) {
-    // In STDIO mode, use stderr to avoid polluting stdout (which is reserved for MCP JSON-RPC)
-    if (transportType === 'stdio') {
-      console.error(message);
-    } else {
-      console.log(message);
-    }
+  // Guard against environments where process.stdout may not exist (e.g. Cloudflare Workers)
+  if (typeof process === 'undefined' || !process.stdout?.isTTY) return;
+
+  // In STDIO mode, use stderr to avoid polluting stdout (which is reserved for MCP JSON-RPC)
+  if (transportType === 'stdio') {
+    console.error(message);
+  } else {
+    console.log(message);
   }
 }

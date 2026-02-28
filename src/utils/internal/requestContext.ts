@@ -9,7 +9,6 @@ import { trace } from '@opentelemetry/api';
 
 import { authContext as alsAuthContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
-import { logger } from '@/utils/internal/logger.js';
 import { generateRequestContextId } from '@/utils/security/idGenerator.js';
 
 /**
@@ -69,28 +68,6 @@ export interface RequestContext {
 }
 
 /**
- * Configuration for the {@link requestContextService}.
- * Allows for future extensibility of service-wide settings.
- */
-export interface ContextConfig {
-  /** Custom configuration properties. Allows for arbitrary key-value pairs. */
-  [key: string]: unknown;
-}
-
-/**
- * Represents a broader context for a specific operation or task.
- * It can optionally include a base {@link RequestContext} and other custom properties
- * relevant to the operation.
- */
-export interface OperationContext {
-  /** Optional base request context data, adhering to the `RequestContext` structure. */
-  requestContext?: RequestContext;
-
-  /** Allows for additional, custom properties specific to the operation. */
-  [key: string]: unknown;
-}
-
-/**
  * Parameters for creating a new request context.
  */
 export interface CreateRequestContextParams {
@@ -109,7 +86,10 @@ export interface CreateRequestContextParams {
    * An optional parent context to inherit properties from, such as `requestId`.
    * This is key for propagating context in distributed systems.
    */
-  parentContext?: Record<string, unknown> | RequestContext;
+  parentContext?: Record<string, unknown> | RequestContext | undefined;
+
+  /** Allows arbitrary key-value pairs for ad-hoc context properties. */
+  [key: string]: unknown;
 }
 
 /**
@@ -118,72 +98,18 @@ export interface CreateRequestContextParams {
  */
 const requestContextServiceInstance = {
   /**
-   * Internal configuration store for the service.
-   */
-  config: {} as ContextConfig,
-
-  /**
-   * Configures the request context service with new settings.
-   * Merges the provided partial configuration with existing settings.
-   *
-   * @param config - A partial `ContextConfig` object containing settings to update or add.
-   * @returns A shallow copy of the newly updated configuration.
-   */
-  configure(config: Partial<ContextConfig>): ContextConfig {
-    this.config = {
-      ...this.config,
-      ...config,
-    };
-    const logContext = this.createRequestContext({
-      operation: 'RequestContextService.configure',
-      additionalContext: { newConfigState: { ...this.config } },
-    });
-    logger.debug('RequestContextService configuration updated', logContext);
-    return { ...this.config };
-  },
-
-  /**
-   * Retrieves a shallow copy of the current service configuration.
-   * This prevents direct mutation of the internal configuration state.
-   *
-   * @returns A shallow copy of the current `ContextConfig`.
-   */
-  getConfig(): ContextConfig {
-    return { ...this.config };
-  },
-
-  /**
    * Creates a new {@link RequestContext} instance, supporting context propagation.
-   * This function robustly handles two calling patterns:
-   * 1. Passing a `CreateRequestContextParams` object: `createRequestContext({ parentContext: ..., additionalContext: ... })`
-   * 2. Passing a plain object to be used as the context: `createRequestContext({ userId: '123', operation: '...' })`
    *
    * OpenTelemetry trace and span IDs are automatically injected if an active span exists.
    *
    * @param params - Parameters for creating the context.
    * @returns A new `RequestContext` object.
    */
-  createRequestContext(
-    params: CreateRequestContextParams | Record<string, unknown> = {},
-  ): RequestContext {
-    // Destructure known CreateRequestContextParams keys and capture the rest.
-    // The 'rest' object will contain all properties that are NOT the special keys,
-    // effectively capturing the direct context object when passed.
-    const { parentContext, additionalContext, operation, ...rest } =
-      params as CreateRequestContextParams;
+  createRequestContext(params: CreateRequestContextParams = {}): RequestContext {
+    const { parentContext, additionalContext, operation, ...rest } = params;
 
     const inheritedContext =
       parentContext && typeof parentContext === 'object' ? { ...parentContext } : {};
-
-    let inheritedTenantId: string | undefined;
-    if (
-      inheritedContext &&
-      typeof inheritedContext === 'object' &&
-      'tenantId' in inheritedContext &&
-      typeof (inheritedContext as { tenantId?: unknown }).tenantId === 'string'
-    ) {
-      inheritedTenantId = (inheritedContext as { tenantId: string }).tenantId;
-    }
 
     const authStore = alsAuthContext.getStore();
     const tenantIdFromAuth = authStore?.authInfo?.tenantId;
@@ -194,20 +120,14 @@ const requestContextServiceInstance = {
         : generateRequestContextId();
     const timestamp = new Date().toISOString();
 
-    const restTenantId =
-      typeof (rest as { tenantId?: unknown }).tenantId === 'string'
-        ? (rest as { tenantId: string }).tenantId
-        : undefined;
-
-    const additionalTenantId =
-      additionalContext &&
-      typeof additionalContext === 'object' &&
-      typeof (additionalContext as { tenantId?: unknown }).tenantId === 'string'
-        ? (additionalContext as { tenantId: string }).tenantId
-        : undefined;
+    const extractTenantId = (obj: Record<string, unknown> | undefined): string | undefined =>
+      obj != null && typeof obj.tenantId === 'string' ? obj.tenantId : undefined;
 
     const resolvedTenantId =
-      additionalTenantId ?? restTenantId ?? inheritedTenantId ?? tenantIdFromAuth;
+      extractTenantId(additionalContext) ??
+      extractTenantId(rest as Record<string, unknown>) ??
+      extractTenantId(inheritedContext) ??
+      tenantIdFromAuth;
 
     const context: RequestContext = {
       ...inheritedContext,

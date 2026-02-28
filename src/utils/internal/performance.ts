@@ -51,7 +51,7 @@ export async function loadPerfHooks(): Promise<{
   }>);
 }
 
-export async function initializePerformance_Hrt(): Promise<void> {
+export async function initHighResTimer(): Promise<void> {
   // Use a type assertion to safely access `performance` on `globalThis`,
   // which is present in browser-like environments (e.g., Cloudflare Workers)
   // but not in Node.js's default global type.
@@ -61,7 +61,7 @@ export async function initializePerformance_Hrt(): Promise<void> {
 
   if (typeof globalWithPerf.performance?.now === 'function') {
     const perf = globalWithPerf.performance;
-    performanceNow = () => perf?.now() ?? Date.now();
+    performanceNow = () => perf.now();
   } else {
     try {
       const { performance: nodePerformance } = await loadPerfHooks();
@@ -83,8 +83,7 @@ const toBytes = (payload: unknown): number => {
     const json = JSON.stringify(payload);
     // Prefer Buffer when available (Node), otherwise TextEncoder (Web/Workers)
     if (typeof Buffer !== 'undefined' && typeof Buffer.byteLength === 'function') {
-      const bytes = Buffer.byteLength(json, 'utf8');
-      return bytes;
+      return Buffer.byteLength(json, 'utf8');
     }
     if (typeof TextEncoder !== 'undefined') {
       return new TextEncoder().encode(json).length;
@@ -94,6 +93,19 @@ const toBytes = (payload: unknown): number => {
     return 0;
   }
 };
+
+const zeroMemory: NodeJS.MemoryUsage = {
+  rss: 0,
+  heapUsed: 0,
+  heapTotal: 0,
+  external: 0,
+  arrayBuffers: 0,
+};
+
+const getMemoryUsage = (): NodeJS.MemoryUsage =>
+  typeof process !== 'undefined' && typeof process.memoryUsage === 'function'
+    ? process.memoryUsage()
+    : zeroMemory;
 
 export async function measureToolExecution<T>(
   toolLogicFn: () => Promise<T>,
@@ -109,16 +121,7 @@ export async function measureToolExecution<T>(
 
   return await tracer.startActiveSpan(`tool_execution:${toolName}` as const, async (span) => {
     // Pre-capture lightweight metrics
-    const memBefore =
-      typeof process !== 'undefined' && typeof process.memoryUsage === 'function'
-        ? process.memoryUsage()
-        : ({
-            rss: 0,
-            heapUsed: 0,
-            heapTotal: 0,
-            external: 0,
-            arrayBuffers: 0,
-          } satisfies NodeJS.MemoryUsage);
+    const memBefore = getMemoryUsage();
     const t0 = nowMs();
 
     span.setAttributes({
@@ -154,16 +157,7 @@ export async function measureToolExecution<T>(
     } finally {
       const t1 = nowMs();
       const durationMs = Number((t1 - t0).toFixed(2));
-      const memAfter =
-        typeof process !== 'undefined' && typeof process.memoryUsage === 'function'
-          ? process.memoryUsage()
-          : ({
-              rss: 0,
-              heapUsed: 0,
-              heapTotal: 0,
-              external: 0,
-              arrayBuffers: 0,
-            } satisfies NodeJS.MemoryUsage);
+      const memAfter = getMemoryUsage();
 
       const rssDelta = memAfter.rss - memBefore.rss;
       const heapUsedDelta = memAfter.heapUsed - memBefore.heapUsed;

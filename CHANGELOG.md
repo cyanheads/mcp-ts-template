@@ -15,6 +15,12 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 
 ### Changed
 
+- **`requestContext.ts`**: Extracted `extractTenantId` helper to replace three verbose tenant ID extraction blocks with `as` casts. Removed dead code: `ContextConfig` interface, `OperationContext` interface, `configure()`, and `getConfig()` methods (stored config was never consumed). Added index signature to `CreateRequestContextParams` for ad-hoc properties.
+- **`logger.ts`**: Extracted `logWithError` private helper to deduplicate dispatch logic across `error`, `crit`, `alert`, and `emerg` methods. Changed `||` to `??` for `mcpToPinoLevel` lookups (4 sites).
+- **`performance.ts`**: Renamed `initializePerformance_Hrt` to `initHighResTimer`. Extracted `getMemoryUsage` helper to deduplicate inline memory usage fallback. Removed unnecessary optional chain on confirmed non-null `perf` reference. Simplified `toBytes` by removing intermediate variable.
+- **`encoding.ts`**: Replaced loop string concatenation with `String.fromCharCode(...bytes)` spread, removed unnecessary `as number` cast on `Uint8Array` element access.
+- **`startupBanner.ts`**: Added `typeof process` guard to prevent crash in Cloudflare Workers where `process.stdout` may not exist.
+- **`server.ts`**: Removed unused `requestContextService.configure()` call.
 - **`devcheck.ts`**: Merged separate ESLint and Prettier check steps into a single Biome check. Removed `FORMAT_EXTS` and the `getTargets()` helper (Biome handles file targeting via its own `includes` config). Husky hook mode still filters staged files for Biome.
 - **`package.json` scripts**: `lint` now runs `biome check`, `format` now runs `biome check --write --unsafe`. Added `test:all` convenience script.
 - **Codebase reformatted**: All 260 source, test, and script files reformatted by Biome. Key formatting differences from Prettier: sorted imports, sorted interface/type members, template literal preference over string concatenation, tighter line wrapping at 100 columns.

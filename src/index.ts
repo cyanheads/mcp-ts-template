@@ -34,7 +34,7 @@ import {
 } from '@/container/index.js';
 import type { TransportManager } from '@/mcp-server/transports/manager.js';
 import { logger, type McpLogLevel } from '@/utils/internal/logger.js';
-import { initializePerformance_Hrt } from '@/utils/internal/performance.js';
+import { initHighResTimer } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 import {
   initializeOpenTelemetry,
@@ -110,7 +110,7 @@ const start = async (): Promise<void> => {
   }
 
   // Initialize the high-resolution timer
-  await initializePerformance_Hrt();
+  await initHighResTimer();
 
   // Config module already validates and normalizes log level to McpLogLevel values.
   // Pass transport type to logger to ensure STDIO mode uses plain JSON (no ANSI colors)

@@ -69,7 +69,7 @@ export class Logger {
     level: McpLogLevel,
     transportType?: 'stdio' | 'http',
   ): Promise<PinoLogger> {
-    const pinoLevel = mcpToPinoLevel[level] || 'info';
+    const pinoLevel = mcpToPinoLevel[level] ?? 'info';
 
     const pinoOptions: pino.LoggerOptions = {
       level: pinoLevel,
@@ -223,7 +223,7 @@ export class Logger {
       return;
     }
     this.currentMcpLevel = newLevel;
-    this.pinoLogger.level = mcpToPinoLevel[newLevel] || 'info';
+    this.pinoLogger.level = mcpToPinoLevel[newLevel] ?? 'info';
     this.info(
       `Log level changed to ${newLevel}.`,
       requestContextService.createRequestContext({
@@ -312,8 +312,8 @@ export class Logger {
   private log(level: McpLogLevel, msg: string, context?: RequestContext, error?: Error): void {
     if (!this.pinoLogger || !this.initialized) return;
 
-    const pinoLevel = mcpToPinoLevel[level] || 'info';
-    const currentPinoLevel = mcpToPinoLevel[this.currentMcpLevel] || 'info';
+    const pinoLevel = mcpToPinoLevel[level] ?? 'info';
+    const currentPinoLevel = mcpToPinoLevel[this.currentMcpLevel] ?? 'info';
 
     const levelSeverity = pinoToMcpLevelSeverity[pinoLevel];
     const currentLevelSeverity = pinoToMcpLevelSeverity[currentPinoLevel];
@@ -334,6 +334,17 @@ export class Logger {
     this.pinoLogger[pinoLevel](logObject, msg);
   }
 
+  private logWithError(
+    level: McpLogLevel,
+    msg: string,
+    errorOrContext: Error | RequestContext,
+    context?: RequestContext,
+  ): void {
+    const errorObj = errorOrContext instanceof Error ? errorOrContext : undefined;
+    const actualContext = errorOrContext instanceof Error ? context : errorOrContext;
+    this.log(level, msg, actualContext, errorObj);
+  }
+
   public debug(msg: string, context?: RequestContext): void {
     this.log('debug', msg, context);
   }
@@ -352,35 +363,24 @@ export class Logger {
     errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    const errorObj = errorOrContext instanceof Error ? errorOrContext : undefined;
-    const actualContext = errorOrContext instanceof Error ? context : errorOrContext;
-    this.log('error', msg, actualContext, errorObj);
+    this.logWithError('error', msg, errorOrContext, context);
   }
-
   public crit(msg: string, errorOrContext: Error | RequestContext, context?: RequestContext): void {
-    const errorObj = errorOrContext instanceof Error ? errorOrContext : undefined;
-    const actualContext = errorOrContext instanceof Error ? context : errorOrContext;
-    this.log('crit', msg, actualContext, errorObj);
+    this.logWithError('crit', msg, errorOrContext, context);
   }
-
   public alert(
     msg: string,
     errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    const errorObj = errorOrContext instanceof Error ? errorOrContext : undefined;
-    const actualContext = errorOrContext instanceof Error ? context : errorOrContext;
-    this.log('alert', msg, actualContext, errorObj);
+    this.logWithError('alert', msg, errorOrContext, context);
   }
-
   public emerg(
     msg: string,
     errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    const errorObj = errorOrContext instanceof Error ? errorOrContext : undefined;
-    const actualContext = errorOrContext instanceof Error ? context : errorOrContext;
-    this.log('emerg', msg, actualContext, errorObj);
+    this.logWithError('emerg', msg, errorOrContext, context);
   }
 
   public fatal(
