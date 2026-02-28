@@ -109,7 +109,8 @@ describe('schedulerService', () => {
     expect(warningSpy).toHaveBeenCalledWith(
       "Job 'job-overlap' is already running. Skipping this execution.",
       expect.objectContaining({
-        requestId: expect.stringMatching(/^job-skip-/),
+        operation: 'scheduler:job:job-overlap',
+        jobId: 'job-overlap',
       }),
     );
   });
@@ -149,14 +150,22 @@ describe('schedulerService', () => {
 
     schedulerService.start('job-control');
     expect(task.start).toHaveBeenCalled();
+    expect(infoSpy).toHaveBeenCalledWith(
+      "Job 'job-control' started.",
+      expect.objectContaining({ operation: 'scheduler:start', jobId: 'job-control' }),
+    );
 
     schedulerService.stop('job-control');
     expect(task.stop).toHaveBeenCalled();
+    expect(infoSpy).toHaveBeenCalledWith(
+      "Job 'job-control' stopped.",
+      expect.objectContaining({ operation: 'scheduler:stop', jobId: 'job-control' }),
+    );
 
     schedulerService.remove('job-control');
     expect(infoSpy).toHaveBeenCalledWith(
       "Job 'job-control' removed.",
-      expect.objectContaining({ requestId: 'job-remove-job-control' }),
+      expect.objectContaining({ operation: 'scheduler:remove', jobId: 'job-control' }),
     );
     expect(
       (schedulerService as unknown as { jobs: Map<string, unknown> }).jobs.has('job-control'),
