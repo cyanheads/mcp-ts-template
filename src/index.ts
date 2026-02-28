@@ -134,6 +134,17 @@ const start = async (): Promise<void> => {
 
   logger.info(`Starting ${config.mcpServerName} (v${config.mcpServerVersion})...`, startupContext);
 
+  // Register error handlers before transport starts to catch errors during binding
+  process.on('uncaughtException', (error: Error) => {
+    logger.fatal('FATAL: Uncaught exception detected.', error, startupContext);
+    void shutdown('uncaughtException');
+  });
+  process.on('unhandledRejection', (reason: unknown) => {
+    const err = reason instanceof Error ? reason : new Error(String(reason));
+    logger.fatal('FATAL: Unhandled promise rejection detected.', err, startupContext);
+    void shutdown('unhandledRejection');
+  });
+
   try {
     await transportManager.start();
 
@@ -141,15 +152,6 @@ const start = async (): Promise<void> => {
 
     process.on('SIGTERM', () => void shutdown('SIGTERM'));
     process.on('SIGINT', () => void shutdown('SIGINT'));
-    process.on('uncaughtException', (error: Error) => {
-      logger.fatal('FATAL: Uncaught exception detected.', error, startupContext);
-      void shutdown('uncaughtException');
-    });
-    process.on('unhandledRejection', (reason: unknown) => {
-      const err = reason instanceof Error ? reason : new Error(String(reason));
-      logger.fatal('FATAL: Unhandled promise rejection detected.', err, startupContext);
-      void shutdown('unhandledRejection');
-    });
   } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.fatal('CRITICAL ERROR DURING STARTUP.', err, startupContext);

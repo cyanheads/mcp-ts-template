@@ -85,7 +85,19 @@ async function elicitAndValidate(
     },
   });
 
-  const validation = z.object({ value: z.string().min(1) }).safeParse(elicitedUnknown);
+  // Check the elicitation action before parsing the value
+  const result = elicitedUnknown as { action?: string; content?: Record<string, unknown> } | null;
+  if (!result || result.action === 'decline' || result.action === 'cancel') {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidRequest,
+      `User ${result?.action ?? 'cancelled'} the ${partOfSpeech} elicitation.`,
+    );
+  }
+
+  // Elicitation returns { action: 'accept', content: { value: '...' } }
+  const validation = z
+    .object({ content: z.object({ value: z.string().min(1) }) })
+    .safeParse(result);
   if (!validation.success) {
     throw new McpError(
       JsonRpcErrorCode.InvalidParams,
@@ -93,7 +105,7 @@ async function elicitAndValidate(
       { provided: elicitedUnknown },
     );
   }
-  return validation.data.value;
+  return validation.data.content.value;
 }
 
 // --- Pure business logic ---

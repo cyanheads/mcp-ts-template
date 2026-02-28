@@ -129,13 +129,20 @@ const requestContextServiceInstance = {
       extractTenantId(inheritedContext) ??
       tenantIdFromAuth;
 
+    // Strip system fields from additionalContext to prevent overwriting requestId/timestamp
+    const {
+      requestId: _r,
+      timestamp: _t,
+      ...safeAdditional
+    } = additionalContext && typeof additionalContext === 'object' ? additionalContext : {};
+
     const context: RequestContext = {
       ...inheritedContext,
       ...rest, // Spread any other properties from the params object
+      ...safeAdditional,
       requestId,
       timestamp,
       ...(resolvedTenantId ? { tenantId: resolvedTenantId } : {}),
-      ...(additionalContext && typeof additionalContext === 'object' ? additionalContext : {}),
       ...(operation && typeof operation === 'string' ? { operation } : {}),
     };
 

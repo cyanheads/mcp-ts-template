@@ -19,6 +19,11 @@ import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 const DEFAULT_LIST_LIMIT = 1000;
 
+/** Escapes SQL LIKE wildcard characters (`%` and `_`) in a prefix string. */
+function escapeLikePattern(prefix: string): string {
+  return prefix.replace(/[%_\\]/g, '\\$&');
+}
+
 /**
  * Cloudflare D1 storage provider implementation.
  *
@@ -255,25 +260,25 @@ export class D1Provider implements IStorageProvider {
             .prepare(
               `SELECT key FROM ${this.tableName}
                WHERE tenant_id = ?
-                 AND key LIKE ?
+                 AND key LIKE ? ESCAPE '\\'
                  AND key > ?
                  AND (expires_at IS NULL OR expires_at > ?)
                ORDER BY key
                LIMIT ?`,
             )
-            .bind(tenantId, `${prefix}%`, lastKey, now, limit + 1);
+            .bind(tenantId, `${escapeLikePattern(prefix)}%`, lastKey, now, limit + 1);
         } else {
           // Initial page: no cursor
           stmt = this.db
             .prepare(
               `SELECT key FROM ${this.tableName}
                WHERE tenant_id = ?
-                 AND key LIKE ?
+                 AND key LIKE ? ESCAPE '\\'
                  AND (expires_at IS NULL OR expires_at > ?)
                ORDER BY key
                LIMIT ?`,
             )
-            .bind(tenantId, `${prefix}%`, now, limit + 1);
+            .bind(tenantId, `${escapeLikePattern(prefix)}%`, now, limit + 1);
         }
 
         const result = await stmt.all<{ key: string }>();

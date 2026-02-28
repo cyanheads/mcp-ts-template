@@ -15,6 +15,7 @@ import type {
   ListResult,
   StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
+import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
@@ -180,7 +181,8 @@ export class R2Provider implements IStorageProvider {
           limit: limit + 1, // Fetch one extra to determine if there are more
         };
         if (options?.cursor) {
-          listOptions.cursor = options.cursor;
+          // Decode tenant-bound cursor to get the native R2 cursor
+          listOptions.cursor = decodeCursor(options.cursor, tenantId, context);
         }
         const listed = await this.bucket.list(listOptions);
 
@@ -191,7 +193,9 @@ export class R2Provider implements IStorageProvider {
 
         const hasMore = keys.length > limit;
         const resultKeys = hasMore ? keys.slice(0, limit) : keys;
-        const nextCursor = 'cursor' in listed && listed.truncated ? listed.cursor : undefined;
+        // Wrap native R2 cursor in tenant-bound envelope
+        const nativeCursor = 'cursor' in listed && listed.truncated ? listed.cursor : undefined;
+        const nextCursor = nativeCursor ? encodeCursor(nativeCursor, tenantId) : undefined;
 
         logger.debug(
           `[R2Provider] Found ${resultKeys.length} keys with prefix: ${r2Prefix}`,

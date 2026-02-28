@@ -21,6 +21,12 @@ export interface FetchWithTimeoutOptions extends Omit<RequestInit, 'signal'> {
    * Default: false (no restriction).
    */
   rejectPrivateIPs?: boolean;
+  /**
+   * Optional external AbortSignal (e.g., from sdkContext.signal) to combine
+   * with the internal timeout signal. If the external signal aborts, the
+   * fetch is cancelled immediately.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -109,12 +115,24 @@ export async function fetchWithTimeout(
   logger.debug(`Attempting ${operationDescription} with ${timeoutMs}ms timeout.`, context);
 
   // Strip custom options before passing to native fetch
-  const { rejectPrivateIPs: _, ...fetchInit } = options ?? {};
+  const { rejectPrivateIPs: _, signal: externalSignal, ...fetchInit } = options ?? {};
 
   // Use AbortController instead of AbortSignal.timeout() for cross-runtime compatibility
   // (AbortSignal.timeout() can fail in Bun's stdio transport due to realm mismatch)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  // If an external signal is provided (e.g., client disconnect), forward its abort
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort(externalSignal.reason);
+    } else {
+      externalSignal.addEventListener('abort', () => controller.abort(externalSignal.reason), {
+        once: true,
+        signal: controller.signal,
+      });
+    }
+  }
 
   try {
     const response = await fetch(url, {
@@ -135,7 +153,8 @@ export async function fetchWithTimeout(
         JsonRpcErrorCode.ServiceUnavailable,
         `Fetch failed for ${urlString}. Status: ${response.status}`,
         {
-          ...context,
+          requestId: context.requestId,
+          operation: context.operation as string | undefined,
           statusCode: response.status,
           statusText: response.statusText,
           responseBody: errorBody,
@@ -152,7 +171,8 @@ export async function fetchWithTimeout(
         errorSource: 'FetchTimeout',
       });
       throw new McpError(JsonRpcErrorCode.Timeout, `${operationDescription} timed out.`, {
-        ...context,
+        requestId: context.requestId,
+        operation: context.operation as string | undefined,
         errorSource: 'FetchTimeout',
       });
     }
@@ -172,7 +192,8 @@ export async function fetchWithTimeout(
       JsonRpcErrorCode.ServiceUnavailable,
       `Network error during ${operationDescription}: ${errorMessage}`,
       {
-        ...context,
+        requestId: context.requestId,
+        operation: context.operation as string | undefined,
         originalErrorName: error instanceof Error ? error.name : 'UnknownError',
         errorSource: 'FetchNetworkErrorWrapper',
       },

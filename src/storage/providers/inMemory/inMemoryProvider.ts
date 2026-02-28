@@ -116,6 +116,10 @@ export class InMemoryProvider implements IStorageProvider {
       const cursorIndex = allKeys.indexOf(lastKey);
       if (cursorIndex !== -1) {
         startIndex = cursorIndex + 1;
+      } else {
+        // Key was deleted between pages; resume from the next key after it
+        const insertionPoint = allKeys.findIndex((k) => k > lastKey);
+        startIndex = insertionPoint === -1 ? allKeys.length : insertionPoint;
       }
     }
 

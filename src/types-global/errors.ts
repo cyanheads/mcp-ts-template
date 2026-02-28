@@ -47,7 +47,7 @@ export class McpError extends Error {
   /**
    * The standardized error code from {@link JsonRpcErrorCode}.
    */
-  public code: JsonRpcErrorCode;
+  public readonly code: JsonRpcErrorCode;
 
   /**
    * Optional additional data about the error, conforming to the JSON-RPC 2.0 specification.

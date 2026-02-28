@@ -252,6 +252,10 @@ export class FileSystemProvider implements IStorageProvider {
           const cursorIndex = validKeys.indexOf(lastKey);
           if (cursorIndex !== -1) {
             startIndex = cursorIndex + 1;
+          } else {
+            // Key was deleted between pages; resume from the next key after it
+            const insertionPoint = validKeys.findIndex((k) => k > lastKey);
+            startIndex = insertionPoint === -1 ? validKeys.length : insertionPoint;
           }
         }
 

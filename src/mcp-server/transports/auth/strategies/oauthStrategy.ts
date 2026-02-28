@@ -88,7 +88,13 @@ export class OauthStrategy implements AuthStrategy {
       });
       this.logger.debug('OAuth token signature verified successfully.', {
         ...context,
-        claims: payload,
+        claims: {
+          iss: payload.iss,
+          aud: payload.aud,
+          exp: payload.exp,
+          iat: payload.iat,
+          jti: payload.jti,
+        },
       });
 
       // RFC 8707 Resource Indicators validation (MCP 2025-06-18 requirement)

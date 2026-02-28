@@ -5,6 +5,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import type { AppConfig as AppConfigType } from '@/config/index.js';
+import { container, TaskManagerToken } from '@/container/index.js';
 import {
   startHttpTransport,
   stopHttpTransport,
@@ -67,6 +68,12 @@ export class TransportManager {
     }
 
     await this.shutdown(context);
+
+    // Clean up task manager timers to allow clean process exit
+    if (container.has(TaskManagerToken)) {
+      container.resolve(TaskManagerToken).cleanup();
+    }
+
     this.serverInstance = null;
     this.shutdown = null;
   }

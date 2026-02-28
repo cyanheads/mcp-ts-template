@@ -10,6 +10,7 @@ import type {
   ListResult,
   StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
+import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
@@ -75,9 +76,9 @@ export class KvProvider implements IStorageProvider {
         const valueToStore = JSON.stringify(value);
 
         const putOptions: import('@cloudflare/workers-types').KVNamespacePutOptions = {};
-        // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
         if (options?.ttl !== undefined) {
-          putOptions.expirationTtl = options.ttl;
+          // Cloudflare KV requires expirationTtl >= 60 seconds
+          putOptions.expirationTtl = Math.max(options.ttl, 60);
         }
 
         await this.kv.put(kvKey, valueToStore, putOptions);
@@ -129,7 +130,8 @@ export class KvProvider implements IStorageProvider {
           limit,
         };
         if (options?.cursor) {
-          listOptions.cursor = options.cursor;
+          // Decode tenant-bound cursor to get the native KV cursor
+          listOptions.cursor = decodeCursor(options.cursor, tenantId, context);
         }
         const listed = await this.kv.list(listOptions);
 
@@ -140,7 +142,10 @@ export class KvProvider implements IStorageProvider {
             : keyInfo.name,
         );
 
-        const nextCursor = 'cursor' in listed && !listed.list_complete ? listed.cursor : undefined;
+        // Wrap native KV cursor in tenant-bound envelope
+        const nativeCursor =
+          'cursor' in listed && !listed.list_complete ? listed.cursor : undefined;
+        const nextCursor = nativeCursor ? encodeCursor(nativeCursor, tenantId) : undefined;
 
         logger.debug(`[KvProvider] Found ${keys.length} keys with prefix: ${kvPrefix}`, context);
 

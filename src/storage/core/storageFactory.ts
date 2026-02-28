@@ -21,7 +21,10 @@ import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
-const isServerless = typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
+/** Evaluated at call time (not module load) so worker.ts can set IS_SERVERLESS before first use. */
+function isServerless(): boolean {
+  return typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
+}
 
 /**
  * Optional dependencies for storage provider creation.
@@ -106,7 +109,7 @@ export function createStorageProvider(
   const providerType = config.storage.providerType;
 
   if (
-    isServerless &&
+    isServerless() &&
     !['in-memory', 'cloudflare-r2', 'cloudflare-kv', 'cloudflare-d1'].includes(providerType)
   ) {
     logger.warning(
@@ -147,7 +150,7 @@ export function createStorageProvider(
       }
       return new SupabaseProvider(deps.supabaseClient);
     case 'cloudflare-r2':
-      if (isServerless) {
+      if (isServerless()) {
         if (deps.r2Bucket) {
           return new R2Provider(deps.r2Bucket);
         }
@@ -160,7 +163,7 @@ export function createStorageProvider(
         context,
       );
     case 'cloudflare-kv':
-      if (isServerless) {
+      if (isServerless()) {
         if (deps.kvNamespace) {
           return new KvProvider(deps.kvNamespace);
         }
@@ -173,7 +176,7 @@ export function createStorageProvider(
         context,
       );
     case 'cloudflare-d1':
-      if (isServerless) {
+      if (isServerless()) {
         if (deps.d1Database) {
           return new D1Provider(deps.d1Database);
         }

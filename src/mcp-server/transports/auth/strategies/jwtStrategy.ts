@@ -20,7 +20,6 @@ import { requestContextService } from '@/utils/internal/requestContext.js';
 
 export class JwtStrategy implements AuthStrategy {
   private readonly secretKey: Uint8Array | null;
-  private readonly env: string;
   private readonly devMcpClientId: string;
   private readonly devMcpScopes: string[];
 
@@ -32,24 +31,24 @@ export class JwtStrategy implements AuthStrategy {
       operation: 'JwtStrategy.constructor',
     });
     this.logger.debug('Initializing JwtStrategy...', context);
-    this.env = this.config.environment;
     this.devMcpClientId = this.config.devMcpClientId || 'dev-client-id';
     this.devMcpScopes = this.config.devMcpScopes || ['dev-scope'];
     const secretKey = this.config.mcpAuthSecretKey;
 
-    if (this.env === 'production' && !secretKey) {
+    if (!secretKey && !this.config.devMcpAuthBypass) {
       this.logger.fatal(
-        'CRITICAL: MCP_AUTH_SECRET_KEY is not set in production for JWT auth.',
+        'CRITICAL: MCP_AUTH_SECRET_KEY is not set for JWT auth. Set the key or enable DEV_MCP_AUTH_BYPASS=true for development.',
         context,
       );
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
-        'MCP_AUTH_SECRET_KEY must be set for JWT auth in production.',
+        'MCP_AUTH_SECRET_KEY must be set for JWT auth (or set DEV_MCP_AUTH_BYPASS=true).',
         context,
       );
     } else if (!secretKey) {
+      // devMcpAuthBypass is explicitly true — opt-in dev bypass
       this.logger.warning(
-        'MCP_AUTH_SECRET_KEY is not set. JWT auth will be bypassed (DEV ONLY).',
+        'MCP_AUTH_SECRET_KEY is not set. JWT auth bypassed via DEV_MCP_AUTH_BYPASS=true.',
         context,
       );
       this.secretKey = null;
@@ -79,7 +78,13 @@ export class JwtStrategy implements AuthStrategy {
       const { payload: decoded } = await jwtVerify(token, this.secretKey);
       this.logger.debug('JWT signature verified successfully.', {
         ...context,
-        claims: decoded,
+        claims: {
+          iss: decoded.iss,
+          aud: decoded.aud,
+          exp: decoded.exp,
+          iat: decoded.iat,
+          jti: decoded.jti,
+        },
       });
 
       const authInfo = buildAuthInfoFromClaims(token, decoded);

@@ -20,6 +20,11 @@ import type { RequestContext } from '@/utils/internal/requestContext.js';
 const TABLE_NAME = 'kv_store';
 const DEFAULT_LIST_LIMIT = 1000;
 
+/** Escapes SQL LIKE wildcard characters (`%` and `_`) in a prefix string. */
+function escapeLikePattern(prefix: string): string {
+  return prefix.replace(/[%_\\]/g, '\\$&');
+}
+
 export class SupabaseProvider implements IStorageProvider {
   constructor(private readonly client: SupabaseClient<Database>) {}
 
@@ -133,7 +138,7 @@ export class SupabaseProvider implements IStorageProvider {
           .from(TABLE_NAME)
           .select('key')
           .eq('tenant_id', tenantId)
-          .like('key', `${prefix}%`)
+          .like('key', `${escapeLikePattern(prefix)}%`)
           .or(`expires_at.is.null,expires_at.gt.${now}`)
           .order('key', { ascending: true })
           .limit(limit + 1); // Fetch one extra to determine if there are more results

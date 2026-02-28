@@ -313,22 +313,33 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
       // See GHSA-345p-7cg4-v4c7.
       const server = await serverFactory();
       await server.connect(transport);
-      const response = await transport.handleRequest(c);
+      try {
+        const response = await transport.handleRequest(c);
 
-      // MCP Spec 2025-06-18: For stateful sessions, return Mcp-Session-Id header
-      // in InitializeResponse (and all subsequent responses)
-      if (response && config.mcpSessionMode === 'stateful') {
-        response.headers.set('Mcp-Session-Id', sessionId);
-        logger.debug('Added Mcp-Session-Id header to response', {
-          ...transportContext,
-          sessionId,
+        // MCP Spec 2025-06-18: For stateful sessions, return Mcp-Session-Id header
+        // in InitializeResponse (and all subsequent responses)
+        if (response && config.mcpSessionMode === 'stateful') {
+          response.headers.set('Mcp-Session-Id', sessionId);
+          logger.debug('Added Mcp-Session-Id header to response', {
+            ...transportContext,
+            sessionId,
+          });
+        }
+
+        if (response) {
+          return response;
+        }
+        return c.body(null, 204);
+      } finally {
+        // Always close the per-request server to prevent resource leaks
+        await server.close().catch((closeErr: unknown) => {
+          logger.debug('Failed to close per-request server', {
+            ...transportContext,
+            sessionId,
+            error: closeErr instanceof Error ? closeErr.message : String(closeErr),
+          });
         });
       }
-
-      if (response) {
-        return response;
-      }
-      return c.body(null, 204);
     };
 
     // Auth context is already populated by the middleware's authContext.run().
@@ -336,14 +347,6 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     try {
       return await handleRpc();
     } catch (err) {
-      // Only close transport on error - success path needs to keep it open
-      await transport.close?.().catch((closeErr) => {
-        logger.warning('Failed to close transport after error', {
-          ...transportContext,
-          sessionId,
-          error: closeErr instanceof Error ? closeErr.message : String(closeErr),
-        });
-      });
       throw err instanceof Error ? err : new Error(String(err));
     }
   });

@@ -58,7 +58,7 @@ export function createMcpToolHandler<
   TOutput extends Record<string, unknown>,
 >({
   toolName,
-  inputSchema: _inputSchema, // Captured for type inference, not used at runtime
+  inputSchema,
   logic,
   responseFormatter = defaultResponseFormatter,
 }: ToolHandlerFactoryOptions<TInputSchema, TOutput>): (
@@ -89,11 +89,17 @@ export function createMcpToolHandler<
     });
 
     try {
+      // Defense-in-depth: validate input even though the SDK should have already parsed it.
+      // AnySchema is the SDK's Zod 3/4 compat type — cast to access .parse() at runtime.
+      const validatedInput = (inputSchema as unknown as z.ZodType).parse(
+        input,
+      ) as z.infer<TInputSchema>;
+
       const result = await measureToolExecution(
         // Pass both the app's internal context and the full SDK context to the logic.
-        () => logic(input, appContext, sdkContext),
+        () => logic(validatedInput, appContext, sdkContext),
         { ...appContext, toolName },
-        input,
+        validatedInput,
       );
 
       return {

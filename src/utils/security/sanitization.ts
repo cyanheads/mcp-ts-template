@@ -14,16 +14,15 @@ import { requestContextService } from '@/utils/internal/requestContext.js';
 import { runtimeCaps } from '@/utils/internal/runtime.js';
 import { isRecord } from '@/utils/types/guards.js';
 
-// Dynamically import 'path' only in Node.js environments
+// Dynamically import 'path' only in Node.js environments.
+// Top-level await ensures the module is loaded before any sanitizePath call.
 let pathModule: typeof import('node:path') | undefined;
 if (runtimeCaps.isNode) {
-  import('node:path')
-    .then((mod) => {
-      pathModule = mod.default;
-    })
-    .catch(() => {
-      // May fail in some bundlers; sanitizePath guards against undefined pathModule.
-    });
+  try {
+    pathModule = (await import('node:path')).default;
+  } catch {
+    // May fail in some bundlers; sanitizePath guards against undefined pathModule.
+  }
 }
 
 /**

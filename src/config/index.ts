@@ -38,217 +38,255 @@ const emptyStringAsUndefined = (val: unknown) => {
 };
 
 // --- Schema Definition ---
-const ConfigSchema = z.object({
-  // Package information sourced from environment variables
-  pkg: z.object({
-    name: z.string(),
-    version: z.string(),
-    description: z.string().optional(),
-  }),
-  mcpServerName: z.string(), // Will be derived from pkg.name
-  mcpServerVersion: z.string(), // Will be derived from pkg.version
-  mcpServerDescription: z.string().optional(), // Will be derived from pkg.description
-  logLevel: z
-    .preprocess(
-      (val) => {
-        const str = emptyStringAsUndefined(val);
-        if (typeof str === 'string') {
-          const lower = str.toLowerCase();
-          // Normalize common aliases to RFC5424/MCP log level names
-          const aliasMap: Record<string, string> = {
-            warn: 'warning',
-            err: 'error',
-            information: 'info',
-            fatal: 'emerg',
-            trace: 'debug',
-            silent: 'emerg',
-          };
-          return aliasMap[lower] ?? lower;
-        }
-        return str;
-      },
-      z.enum(['debug', 'info', 'notice', 'warning', 'error', 'crit', 'alert', 'emerg']),
-    )
-    .default('debug'),
-  logsPath: z.string().optional(), // Made optional as it's Node-specific
-  environment: z
-    .preprocess(
-      (val) => {
-        const str = emptyStringAsUndefined(val);
-        if (typeof str === 'string') {
-          const lower = str.toLowerCase();
-          const aliasMap: Record<string, string> = {
-            dev: 'development',
-            prod: 'production',
-            test: 'testing',
-          };
-          return aliasMap[lower] ?? lower;
-        }
-        return str;
-      },
-      z.enum(['development', 'production', 'testing']),
-    )
-    .default('development'),
-  mcpTransportType: z.preprocess(
-    emptyStringAsUndefined,
-    z.enum(['stdio', 'http']).default('stdio'),
-  ),
-  mcpSessionMode: z.preprocess(
-    emptyStringAsUndefined,
-    z.enum(['stateless', 'stateful', 'auto']).default('auto'),
-  ),
-  mcpResponseVerbosity: z.preprocess(
-    emptyStringAsUndefined,
-    z.enum(['minimal', 'standard', 'full']).default('standard'),
-  ),
-  mcpHttpPort: z.coerce.number().default(3010),
-  mcpHttpHost: z.string().default('127.0.0.1'),
-  mcpHttpEndpointPath: z.string().default('/mcp'),
-  mcpHttpMaxPortRetries: z.coerce.number().default(15),
-  mcpHttpPortRetryDelayMs: z.coerce.number().default(50),
-  mcpStatefulSessionStaleTimeoutMs: z.coerce.number().default(1_800_000),
-  mcpAllowedOrigins: z.array(z.string()).optional(),
-  mcpAuthSecretKey: z.string().optional(),
-  mcpAuthMode: z.preprocess(
-    emptyStringAsUndefined,
-    z.enum(['jwt', 'oauth', 'none']).default('none'),
-  ),
-  oauthIssuerUrl: z.string().url().optional(),
-  oauthJwksUri: z.string().url().optional(),
-  oauthAudience: z.string().optional(),
-  oauthJwksCooldownMs: z.coerce.number().default(300_000), // 5 minutes
-  oauthJwksTimeoutMs: z.coerce.number().default(5_000), // 5 seconds
-  mcpServerResourceIdentifier: z.string().url().optional(), // RFC 8707 resource indicator
-  devMcpClientId: z.string().optional(),
-  devMcpScopes: z.array(z.string()).optional(),
-  openrouterAppUrl: z.string().default('http://localhost:3000'),
-  openrouterAppName: z.string(),
-  openrouterApiKey: z.string().optional(),
-  llmDefaultModel: z.string().default('google/gemini-2.5-flash-preview-05-20'),
-  llmDefaultTemperature: z.coerce.number().optional(),
-  llmDefaultTopP: z.coerce.number().optional(),
-  llmDefaultMaxTokens: z.coerce.number().optional(),
-  llmDefaultTopK: z.coerce.number().optional(),
-  llmDefaultMinP: z.coerce.number().optional(),
-  oauthProxy: z
-    .object({
-      authorizationUrl: z.string().url().optional(),
-      tokenUrl: z.string().url().optional(),
-      revocationUrl: z.string().url().optional(),
-      issuerUrl: z.string().url().optional(),
-      serviceDocumentationUrl: z.string().url().optional(),
-      defaultClientRedirectUris: z.array(z.string()).optional(),
-    })
-    .optional(),
-  supabase: z
-    .object({
-      url: z.string().url(),
-      anonKey: z.string(),
-      serviceRoleKey: z.string().optional(),
-    })
-    .optional(),
-  storage: z.object({
-    providerType: z
-      .preprocess(
-        (val) => {
-          const str = emptyStringAsUndefined(val);
-          if (typeof str === 'string') {
-            const lower = str.toLowerCase();
-            const aliasMap: Record<string, string> = {
-              mem: 'in-memory',
-              fs: 'filesystem',
-            };
-            return aliasMap[lower] ?? lower;
-          }
-          return str;
-        },
-        z.enum([
-          'in-memory',
-          'filesystem',
-          'supabase',
-          'cloudflare-r2',
-          'cloudflare-kv',
-          'cloudflare-d1',
-        ]),
-      )
-      .default('in-memory'),
-    filesystemPath: z.string().default('./.storage'), // This remains, but will only be used if providerType is 'filesystem'
-  }),
-  // Experimental: Task store configuration
-  tasks: z.object({
-    storeType: z
-      .preprocess(
-        (val) => {
-          const str = emptyStringAsUndefined(val);
-          if (typeof str === 'string') {
-            const lower = str.toLowerCase();
-            const aliasMap: Record<string, string> = {
-              mem: 'in-memory',
-              memory: 'in-memory',
-              persistent: 'storage',
-            };
-            return aliasMap[lower] ?? lower;
-          }
-          return str;
-        },
-        z.enum(['in-memory', 'storage']),
-      )
-      .default('in-memory'),
-    tenantId: z.string().default('system-tasks'),
-    defaultTtlMs: z.coerce.number().nullable().optional(),
-  }),
-  openTelemetry: z.object({
-    enabled: z.coerce.boolean().default(false),
-    serviceName: z.string(),
-    serviceVersion: z.string(),
-    tracesEndpoint: z.string().url().optional(),
-    metricsEndpoint: z.string().url().optional(),
-    samplingRatio: z.coerce.number().default(1.0),
+const ConfigSchema = z
+  .object({
+    // Package information sourced from environment variables
+    pkg: z.object({
+      name: z.string(),
+      version: z.string(),
+      description: z.string().optional(),
+    }),
+    mcpServerName: z.string(), // Will be derived from pkg.name
+    mcpServerVersion: z.string(), // Will be derived from pkg.version
+    mcpServerDescription: z.string().optional(), // Will be derived from pkg.description
     logLevel: z
       .preprocess(
         (val) => {
           const str = emptyStringAsUndefined(val);
           if (typeof str === 'string') {
             const lower = str.toLowerCase();
+            // Normalize common aliases to RFC5424/MCP log level names
             const aliasMap: Record<string, string> = {
-              err: 'ERROR',
-              warning: 'WARN',
-              information: 'INFO',
+              warn: 'warning',
+              err: 'error',
+              information: 'info',
+              fatal: 'emerg',
+              trace: 'debug',
+              silent: 'emerg',
             };
-            return aliasMap[lower] ?? str.toUpperCase();
+            return aliasMap[lower] ?? lower;
           }
           return str;
         },
-        z.enum(['NONE', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'VERBOSE', 'ALL']),
+        z.enum(['debug', 'info', 'notice', 'warning', 'error', 'crit', 'alert', 'emerg']),
       )
-      .default('INFO'),
-  }),
-  speech: z
-    .object({
-      tts: z
-        .object({
-          enabled: z.coerce.boolean().default(false),
-          provider: z.enum(['elevenlabs']).default('elevenlabs'),
-          apiKey: z.string().optional(),
-          baseUrl: z.string().url().optional(),
-          defaultVoiceId: z.string().optional(),
-          defaultModelId: z.string().optional(),
-          timeout: z.coerce.number().optional(),
-        })
-        .optional(),
-      stt: z
-        .object({
-          enabled: z.coerce.boolean().default(false),
-          provider: z.enum(['openai-whisper']).default('openai-whisper'),
-          apiKey: z.string().optional(),
-          baseUrl: z.string().url().optional(),
-          defaultModelId: z.string().optional(),
-          timeout: z.coerce.number().optional(),
-        })
-        .optional(),
-    })
-    .optional(),
-});
+      .default('debug'),
+    logsPath: z.string().optional(), // Made optional as it's Node-specific
+    environment: z
+      .preprocess(
+        (val) => {
+          const str = emptyStringAsUndefined(val);
+          if (typeof str === 'string') {
+            const lower = str.toLowerCase();
+            const aliasMap: Record<string, string> = {
+              dev: 'development',
+              prod: 'production',
+              test: 'testing',
+            };
+            return aliasMap[lower] ?? lower;
+          }
+          return str;
+        },
+        z.enum(['development', 'production', 'testing']),
+      )
+      .default('development'),
+    mcpTransportType: z.preprocess(
+      emptyStringAsUndefined,
+      z.enum(['stdio', 'http']).default('stdio'),
+    ),
+    mcpSessionMode: z.preprocess(
+      emptyStringAsUndefined,
+      z.enum(['stateless', 'stateful', 'auto']).default('auto'),
+    ),
+    mcpResponseVerbosity: z.preprocess(
+      emptyStringAsUndefined,
+      z.enum(['minimal', 'standard', 'full']).default('standard'),
+    ),
+    mcpHttpPort: z.coerce.number().min(1).max(65535).default(3010),
+    mcpHttpHost: z.string().default('127.0.0.1'),
+    mcpHttpEndpointPath: z.string().default('/mcp'),
+    mcpHttpMaxPortRetries: z.coerce.number().default(15),
+    mcpHttpPortRetryDelayMs: z.coerce.number().default(50),
+    mcpStatefulSessionStaleTimeoutMs: z.coerce.number().default(1_800_000),
+    mcpAllowedOrigins: z.array(z.string()).optional(),
+    mcpAuthSecretKey: z.string().optional(),
+    mcpAuthMode: z.preprocess(
+      emptyStringAsUndefined,
+      z.enum(['jwt', 'oauth', 'none']).default('none'),
+    ),
+    oauthIssuerUrl: z.string().url().optional(),
+    oauthJwksUri: z.string().url().optional(),
+    oauthAudience: z.string().optional(),
+    oauthJwksCooldownMs: z.coerce.number().default(300_000), // 5 minutes
+    oauthJwksTimeoutMs: z.coerce.number().default(5_000), // 5 seconds
+    mcpServerResourceIdentifier: z.string().url().optional(), // RFC 8707 resource indicator
+    devMcpAuthBypass: z.coerce.boolean().default(false),
+    devMcpClientId: z.string().optional(),
+    devMcpScopes: z.array(z.string()).optional(),
+    openrouterAppUrl: z.string().default('http://localhost:3000'),
+    openrouterAppName: z.string(),
+    openrouterApiKey: z.string().optional(),
+    llmDefaultModel: z.string().default('google/gemini-2.5-flash-preview-05-20'),
+    llmDefaultTemperature: z.coerce.number().optional(),
+    llmDefaultTopP: z.coerce.number().optional(),
+    llmDefaultMaxTokens: z.coerce.number().optional(),
+    llmDefaultTopK: z.coerce.number().optional(),
+    llmDefaultMinP: z.coerce.number().optional(),
+    oauthProxy: z
+      .object({
+        authorizationUrl: z.string().url().optional(),
+        tokenUrl: z.string().url().optional(),
+        revocationUrl: z.string().url().optional(),
+        issuerUrl: z.string().url().optional(),
+        serviceDocumentationUrl: z.string().url().optional(),
+        defaultClientRedirectUris: z.array(z.string()).optional(),
+      })
+      .optional(),
+    supabase: z
+      .object({
+        url: z.string().url(),
+        anonKey: z.string(),
+        serviceRoleKey: z.string().optional(),
+      })
+      .optional(),
+    storage: z.object({
+      providerType: z
+        .preprocess(
+          (val) => {
+            const str = emptyStringAsUndefined(val);
+            if (typeof str === 'string') {
+              const lower = str.toLowerCase();
+              const aliasMap: Record<string, string> = {
+                mem: 'in-memory',
+                fs: 'filesystem',
+              };
+              return aliasMap[lower] ?? lower;
+            }
+            return str;
+          },
+          z.enum([
+            'in-memory',
+            'filesystem',
+            'supabase',
+            'cloudflare-r2',
+            'cloudflare-kv',
+            'cloudflare-d1',
+          ]),
+        )
+        .default('in-memory'),
+      filesystemPath: z.string().default('./.storage'), // This remains, but will only be used if providerType is 'filesystem'
+    }),
+    // Experimental: Task store configuration
+    tasks: z.object({
+      storeType: z
+        .preprocess(
+          (val) => {
+            const str = emptyStringAsUndefined(val);
+            if (typeof str === 'string') {
+              const lower = str.toLowerCase();
+              const aliasMap: Record<string, string> = {
+                mem: 'in-memory',
+                memory: 'in-memory',
+                persistent: 'storage',
+              };
+              return aliasMap[lower] ?? lower;
+            }
+            return str;
+          },
+          z.enum(['in-memory', 'storage']),
+        )
+        .default('in-memory'),
+      tenantId: z.string().default('system-tasks'),
+      defaultTtlMs: z.coerce.number().nullable().optional(),
+    }),
+    openTelemetry: z.object({
+      enabled: z.coerce.boolean().default(false),
+      serviceName: z.string(),
+      serviceVersion: z.string(),
+      tracesEndpoint: z.string().url().optional(),
+      metricsEndpoint: z.string().url().optional(),
+      samplingRatio: z.coerce.number().min(0).max(1).default(1.0),
+      logLevel: z
+        .preprocess(
+          (val) => {
+            const str = emptyStringAsUndefined(val);
+            if (typeof str === 'string') {
+              const lower = str.toLowerCase();
+              const aliasMap: Record<string, string> = {
+                err: 'ERROR',
+                warning: 'WARN',
+                information: 'INFO',
+              };
+              return aliasMap[lower] ?? str.toUpperCase();
+            }
+            return str;
+          },
+          z.enum(['NONE', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'VERBOSE', 'ALL']),
+        )
+        .default('INFO'),
+    }),
+    speech: z
+      .object({
+        tts: z
+          .object({
+            enabled: z.coerce.boolean().default(false),
+            provider: z.enum(['elevenlabs']).default('elevenlabs'),
+            apiKey: z.string().optional(),
+            baseUrl: z.string().url().optional(),
+            defaultVoiceId: z.string().optional(),
+            defaultModelId: z.string().optional(),
+            timeout: z.coerce.number().optional(),
+          })
+          .optional(),
+        stt: z
+          .object({
+            enabled: z.coerce.boolean().default(false),
+            provider: z.enum(['openai-whisper']).default('openai-whisper'),
+            apiKey: z.string().optional(),
+            baseUrl: z.string().url().optional(),
+            defaultModelId: z.string().optional(),
+            timeout: z.coerce.number().optional(),
+          })
+          .optional(),
+      })
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    // JWT mode: require secret key of sufficient length (unless dev bypass is on)
+    if (data.mcpAuthMode === 'jwt' && !data.devMcpAuthBypass) {
+      if (!data.mcpAuthSecretKey) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['mcpAuthSecretKey'],
+          message:
+            'MCP_AUTH_SECRET_KEY is required when MCP_AUTH_MODE=jwt (set DEV_MCP_AUTH_BYPASS=true to skip in development).',
+        });
+      } else if (data.mcpAuthSecretKey.length < 32) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['mcpAuthSecretKey'],
+          message: 'MCP_AUTH_SECRET_KEY must be at least 32 characters for JWT mode.',
+        });
+      }
+    }
+    // OAuth mode: require issuer URL and audience
+    if (data.mcpAuthMode === 'oauth') {
+      if (!data.oauthIssuerUrl) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['oauthIssuerUrl'],
+          message: 'OAUTH_ISSUER_URL is required when MCP_AUTH_MODE=oauth.',
+        });
+      }
+      if (!data.oauthAudience) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['oauthAudience'],
+          message: 'OAUTH_AUDIENCE is required when MCP_AUTH_MODE=oauth.',
+        });
+      }
+    }
+  });
 
 // --- Parsing Logic ---
 const parseConfig = () => {
@@ -283,6 +321,7 @@ const parseConfig = () => {
     oauthJwksCooldownMs: env.OAUTH_JWKS_COOLDOWN_MS,
     oauthJwksTimeoutMs: env.OAUTH_JWKS_TIMEOUT_MS,
     mcpServerResourceIdentifier: env.MCP_SERVER_RESOURCE_IDENTIFIER,
+    devMcpAuthBypass: env.DEV_MCP_AUTH_BYPASS,
     devMcpClientId: env.DEV_MCP_CLIENT_ID,
     devMcpScopes: env.DEV_MCP_SCOPES?.split(',').map((s) => s.trim()),
     openrouterAppUrl: env.OPENROUTER_APP_URL,

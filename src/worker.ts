@@ -289,11 +289,11 @@ export default {
         errorContext,
       );
 
-      // Return a user-friendly error response
+      // Return a generic error response — do not leak internal details
       return new Response(
         JSON.stringify({
           error: 'Internal Server Error',
-          message: error instanceof Error ? error.message : 'An unknown error occurred',
+          message: 'An internal error occurred.',
         }),
         {
           status: 500,

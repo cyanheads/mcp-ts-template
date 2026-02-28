@@ -177,8 +177,8 @@ export class SessionStore {
       return false;
     }
 
-    // Verify tenant ID match
-    if (session.tenantId && identity.tenantId && session.tenantId !== identity.tenantId) {
+    // Verify tenant ID match — reject if session is bound but request lacks or mismatches
+    if (session.tenantId && session.tenantId !== identity.tenantId) {
       warn('Session tenant mismatch - possible hijacking attempt', {
         sessionTenant: session.tenantId,
         requestTenant: identity.tenantId,
@@ -186,8 +186,8 @@ export class SessionStore {
       return false;
     }
 
-    // Verify client ID match
-    if (session.clientId && identity.clientId && session.clientId !== identity.clientId) {
+    // Verify client ID match — reject if session is bound but request lacks or mismatches
+    if (session.clientId && session.clientId !== identity.clientId) {
       warn('Session client mismatch - possible hijacking attempt', {
         sessionClient: session.clientId,
         requestClient: identity.clientId,
