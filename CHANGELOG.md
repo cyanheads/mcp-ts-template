@@ -33,6 +33,11 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
   - `tableFormatter`: Implemented `bold` header style (was silently ignored). Added markdown alignment separators (`:---`, `---:`, `:---:`). Fixed truncation edge case for narrow columns. Removed redundant type cast.
   - `treeFormatter`: Extracted `ResolvedTreeOptions` type alias (was repeated 4×). Fixed ASCII style to distinguish last child (`\--`) from non-last (`+--`). Fixed `getChildPrefix` to handle non-space indent characters.
   - All formatters: Fixed JSDoc examples from barrel imports to direct imports. Fixed error narrowing in catch blocks.
+- **Error handler** (`src/utils/internal/error-handler/`):
+  - Removed ~890 lines of unused speculative infrastructure: `Result` type and Railway helpers (`tryAsResult`, `mapResult`, `flatMapResult`, `recoverResult`), retry logic (`tryCatchWithRetry`, `createExponentialBackoffStrategy`, `ErrorRecoveryStrategy`), breadcrumb tracking (`addBreadcrumb`, `ErrorBreadcrumb`, `ErrorMetadata`, `EnhancedErrorContext`), `ErrorSeverity` const/type, `createSafeRegex` wrapper, and `serializeErrorCauseChain`.
+  - Made `COMMON_ERROR_PATTERNS` and `PROVIDER_ERROR_PATTERNS` non-exported (private to module); only pre-compiled versions are public.
+  - Fixed `tryCatch` double-throw: now calls `handleError` with `rethrow: false` and throws the returned error explicitly.
+  - Guarded cause chain extraction behind `error.cause` check to avoid unnecessary allocation on the common path.
 
 ### Removed
 
