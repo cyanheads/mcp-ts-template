@@ -121,10 +121,15 @@ export async function fetchWithTimeout(
   // Strip custom options before passing to native fetch
   const { rejectPrivateIPs: _, ...fetchInit } = options ?? {};
 
+  // Use AbortController instead of AbortSignal.timeout() for cross-runtime compatibility
+  // (AbortSignal.timeout() can fail in Bun's stdio transport due to realm mismatch)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const response = await fetch(url, {
       ...fetchInit,
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -197,5 +202,7 @@ export async function fetchWithTimeout(
         errorSource: 'FetchNetworkErrorWrapper',
       },
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

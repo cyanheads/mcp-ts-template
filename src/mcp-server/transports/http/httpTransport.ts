@@ -12,6 +12,7 @@ import { type ServerType, serve } from '@hono/node-server';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
 import { Hono } from 'hono';
+import { httpInstrumentationMiddleware } from '@hono/otel';
 import { cors } from 'hono/cors';
 import http from 'node:http';
 
@@ -76,6 +77,22 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     config.mcpSessionMode === 'stateful'
       ? new SessionStore(config.mcpStatefulSessionStaleTimeoutMs)
       : null;
+
+  // OpenTelemetry request tracing — outermost middleware on the MCP endpoint
+  // so the span captures the full lifecycle (CORS, auth, handler).
+  // On Bun, Node.js HTTP auto-instrumentation is a no-op; this fills that gap.
+  if (config.openTelemetry.enabled) {
+    app.use(
+      config.mcpHttpEndpointPath,
+      httpInstrumentationMiddleware({
+        captureRequestHeaders: ['mcp-session-id'],
+      }),
+    );
+    logger.debug(
+      'OTel request tracing middleware enabled for MCP endpoint.',
+      transportContext,
+    );
+  }
 
   // CORS (with permissive fallback)
   const allowedOrigin =
