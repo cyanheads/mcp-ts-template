@@ -1,0 +1,103 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.4/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["src/**", "scripts/**", "tests/**", "*.json", "*.js"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always",
+      "bracketSpacing": true
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedFunctionParameters": "error",
+        "noUnusedImports": "error"
+      },
+      "style": {
+        "useConst": "error",
+        "useThrowOnlyError": "error",
+        "useConsistentArrowReturn": "info"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noVar": "error",
+        "useAwait": "warn",
+        "noImportCycles": "error",
+        "noUnusedExpressions": "error",
+        "noDeprecatedImports": "error",
+        "noDuplicateDependencies": "error"
+      },
+      "complexity": {
+        "noUselessUndefined": "error"
+      }
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on",
+        "useSortedInterfaceMembers": "on"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["tests/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noControlCharactersInRegex": "off",
+            "useAwait": "off"
+          },
+          "correctness": {
+            "noUnusedFunctionParameters": "off"
+          },
+          "style": {
+            "useThrowOnlyError": "off",
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["scripts/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["package.json"],
+      "json": {
+        "formatter": {
+          "expand": "auto"
+        }
+      }
+    }
+  ]
+}
