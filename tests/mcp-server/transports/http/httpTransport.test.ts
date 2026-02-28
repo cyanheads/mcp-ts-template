@@ -24,6 +24,7 @@ vi.mock('@/config/index.js', () => ({
     mcpServerResourceIdentifier: '',
     oauthAudience: '',
     oauthJwksUri: '',
+    openTelemetry: { enabled: false },
   },
 }));
 
