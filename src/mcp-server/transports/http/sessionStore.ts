@@ -152,8 +152,7 @@ export class SessionStore {
     }
 
     // Check staleness
-    const isStale = Date.now() - session.lastAccessedAt.getTime() > this.staleTimeout;
-    if (isStale) {
+    if (Date.now() - session.lastAccessedAt.getTime() > this.staleTimeout) {
       this.terminate(sessionId);
       return false;
     }
@@ -163,46 +162,37 @@ export class SessionStore {
       return true;
     }
 
-    // If request has no identity but session does, reject (security: session was authenticated)
-    if (!identity) {
+    // Lazy-create context only when a warning is likely
+    const warn = (message: string, extra?: Record<string, unknown>) => {
       const context = requestContextService.createRequestContext({
         operation: 'SessionStore.isValidForIdentity',
         sessionId,
       });
-      logger.warning('Session requires authentication but request has no identity', context);
+      logger.warning(message, extra ? { ...context, ...extra } : context);
+    };
+
+    // If request has no identity but session does, reject (security: session was authenticated)
+    if (!identity) {
+      warn('Session requires authentication but request has no identity');
       return false;
     }
 
     // Verify tenant ID match
-    if (session.tenantId && identity.tenantId) {
-      if (session.tenantId !== identity.tenantId) {
-        const context = requestContextService.createRequestContext({
-          operation: 'SessionStore.isValidForIdentity',
-          sessionId,
-        });
-        logger.warning('Session tenant mismatch - possible hijacking attempt', {
-          ...context,
-          sessionTenant: session.tenantId,
-          requestTenant: identity.tenantId,
-        });
-        return false;
-      }
+    if (session.tenantId && identity.tenantId && session.tenantId !== identity.tenantId) {
+      warn('Session tenant mismatch - possible hijacking attempt', {
+        sessionTenant: session.tenantId,
+        requestTenant: identity.tenantId,
+      });
+      return false;
     }
 
     // Verify client ID match
-    if (session.clientId && identity.clientId) {
-      if (session.clientId !== identity.clientId) {
-        const context = requestContextService.createRequestContext({
-          operation: 'SessionStore.isValidForIdentity',
-          sessionId,
-        });
-        logger.warning('Session client mismatch - possible hijacking attempt', {
-          ...context,
-          sessionClient: session.clientId,
-          requestClient: identity.clientId,
-        });
-        return false;
-      }
+    if (session.clientId && identity.clientId && session.clientId !== identity.clientId) {
+      warn('Session client mismatch - possible hijacking attempt', {
+        sessionClient: session.clientId,
+        requestClient: identity.clientId,
+      });
+      return false;
     }
 
     return true;

@@ -46,55 +46,54 @@ export const httpErrorHandler = async <TBindings extends object = HonoNodeBindin
     context,
   });
 
+  const errorCode = handledError instanceof McpError ? handledError.code : -32603;
   let status: StatusCode = 500;
-  if (handledError instanceof McpError) {
-    switch (handledError.code) {
-      case JsonRpcErrorCode.NotFound:
-        status = 404;
-        break;
-      case JsonRpcErrorCode.Unauthorized:
-        status = 401;
-        // MCP Spec 2025-06-18: Add WWW-Authenticate header per RFC 9728 Section 5.1
-        // https://datatracker.ietf.org/doc/html/rfc9728#section-5.1
-        if (config.oauthIssuerUrl) {
-          const origin = new URL(c.req.url).origin;
-          const resourceMetadataUrl = `${origin}/.well-known/oauth-protected-resource`;
+  switch (errorCode) {
+    case JsonRpcErrorCode.NotFound:
+      status = 404;
+      break;
+    case JsonRpcErrorCode.Unauthorized:
+      status = 401;
+      // MCP Spec 2025-06-18: Add WWW-Authenticate header per RFC 9728 Section 5.1
+      // https://datatracker.ietf.org/doc/html/rfc9728#section-5.1
+      if (config.oauthIssuerUrl) {
+        const origin = new URL(c.req.url).origin;
+        const resourceMetadataUrl = `${origin}/.well-known/oauth-protected-resource`;
 
-          // Build WWW-Authenticate header per RFC 9728
-          const wwwAuthValue = [
-            `Bearer realm="${config.mcpServerName}"`,
-            `resource_metadata="${resourceMetadataUrl}"`,
-          ].join(', ');
+        // Build WWW-Authenticate header per RFC 9728
+        const wwwAuthValue = [
+          `Bearer realm="${config.mcpServerName}"`,
+          `resource_metadata="${resourceMetadataUrl}"`,
+        ].join(', ');
 
-          c.header('WWW-Authenticate', wwwAuthValue);
+        c.header('WWW-Authenticate', wwwAuthValue);
 
-          logger.debug('Added WWW-Authenticate header for 401 response', {
-            ...context,
-            resourceMetadataUrl,
-          });
-        }
-        break;
-      case JsonRpcErrorCode.Forbidden:
-        status = 403;
-        break;
-      case JsonRpcErrorCode.ValidationError:
-      case JsonRpcErrorCode.InvalidRequest:
-        status = 400;
-        break;
-      case JsonRpcErrorCode.Conflict:
-        status = 409;
-        break;
-      case JsonRpcErrorCode.RateLimited:
-        status = 429;
-        break;
-      default:
-        status = 500;
-    }
+        logger.debug('Added WWW-Authenticate header for 401 response', {
+          ...context,
+          resourceMetadataUrl,
+        });
+      }
+      break;
+    case JsonRpcErrorCode.Forbidden:
+      status = 403;
+      break;
+    case JsonRpcErrorCode.ValidationError:
+    case JsonRpcErrorCode.InvalidRequest:
+      status = 400;
+      break;
+    case JsonRpcErrorCode.Conflict:
+      status = 409;
+      break;
+    case JsonRpcErrorCode.RateLimited:
+      status = 429;
+      break;
+    default:
+      status = 500;
   }
   logger.debug(`Mapping error to HTTP status ${status}.`, {
     ...context,
     status,
-    errorCode: (handledError as McpError).code,
+    errorCode,
   });
 
   // Attempt to get the request ID from the body, but don't fail if it's not there or unreadable.
@@ -116,8 +115,6 @@ export const httpErrorHandler = async <TBindings extends object = HonoNodeBindin
   } else {
     logger.debug('Request body already consumed, cannot extract JSON-RPC ID.', context);
   }
-
-  const errorCode = handledError instanceof McpError ? handledError.code : -32603;
 
   c.status(status);
   const errorResponse = {

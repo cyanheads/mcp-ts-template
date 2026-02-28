@@ -131,6 +131,27 @@ describe('HTTP Transport', () => {
       });
     });
 
+    test('should pass SSE GET requests through to transport handler', async () => {
+      const app = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+
+      const request = new Request('http://localhost:3000/mcp', {
+        method: 'GET',
+        headers: {
+          Accept: 'text/event-stream',
+          Origin: 'http://localhost:3000',
+          'Mcp-Protocol-Version': '2025-03-26',
+        },
+      });
+
+      const response = await app.fetch(request);
+
+      // Should NOT return the info JSON — it falls through to the transport handler.
+      // Without a fully wired McpServer the response won't be a valid SSE stream,
+      // but we verify it did not return the status endpoint response.
+      const text = await response.text();
+      expect(text).not.toContain('"status":"ok"');
+    });
+
     test('should register OAuth metadata endpoint when OAuth not configured', async () => {
       const app = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
 

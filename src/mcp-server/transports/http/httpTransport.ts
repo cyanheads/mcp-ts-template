@@ -174,8 +174,13 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     return c.json(metadata);
   });
 
-  app.get(config.mcpHttpEndpointPath, (c) =>
-    c.json({
+  // MCP Spec 2025-06-18: GET with Accept: text/event-stream opens an SSE stream
+  // for server-initiated messages. Plain GET (browser, health check) returns info.
+  app.get(config.mcpHttpEndpointPath, (c, next) => {
+    if (c.req.header('accept')?.includes('text/event-stream')) {
+      return next(); // Fall through to transport handler for SSE
+    }
+    return c.json({
       status: 'ok',
       server: {
         name: config.mcpServerName,
@@ -185,8 +190,8 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
         transport: config.mcpTransportType,
         sessionMode: config.mcpSessionMode,
       },
-    }),
-  );
+    });
+  });
 
   // Create auth strategy and middleware if auth is enabled
   // IMPORTANT: Auth middleware must be registered BEFORE route handlers
@@ -267,15 +272,16 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
 
     // Extract identity from auth context (if auth is enabled)
     // This MUST happen before session validation for security
-    const authStore = authContext.getStore();
-    let sessionIdentity: SessionIdentity | undefined;
-    if (authStore?.authInfo) {
-      // Build identity object conditionally to satisfy exactOptionalPropertyTypes
-      sessionIdentity = {};
-      if (authStore.authInfo.tenantId) sessionIdentity.tenantId = authStore.authInfo.tenantId;
-      if (authStore.authInfo.clientId) sessionIdentity.clientId = authStore.authInfo.clientId;
-      if (authStore.authInfo.subject) sessionIdentity.subject = authStore.authInfo.subject;
-    }
+    const authInfo = authContext.getStore()?.authInfo;
+    const sessionIdentity: SessionIdentity | undefined = authInfo
+      ? Object.fromEntries(
+          Object.entries({
+            tenantId: authInfo.tenantId,
+            clientId: authInfo.clientId,
+            subject: authInfo.subject,
+          }).filter(([, v]) => v != null),
+        )
+      : undefined;
 
     // MCP Spec 2025-06-18: Return 404 for invalid/terminated sessions
     // https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management
@@ -325,14 +331,9 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
       return c.body(null, 204);
     };
 
-    // The auth logic is now handled by the middleware. We just need to
-    // run the core RPC logic within the async-local-storage context that
-    // the middleware has already populated.
+    // Auth context is already populated by the middleware's authContext.run().
+    // ALS propagates through all async continuations in this handler.
     try {
-      const store = authContext.getStore();
-      if (store) {
-        return await authContext.run(store, handleRpc);
-      }
       return await handleRpc();
     } catch (err) {
       // Only close transport on error - success path needs to keep it open
