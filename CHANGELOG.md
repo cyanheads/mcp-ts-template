@@ -53,6 +53,17 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
   - Fixed relative imports to `@/` path aliases.
   - Replaced `as ServerType` / `as McpServer` casts in `stop()` with a typed `shutdown` closure stored during `start()`.
 - **`performance.ts`**: Added optional `perfLoader` parameter to `initHighResTimer` for testability. Default remains `loadPerfHooks`, so all callers are unaffected. Fixes ESM self-call mocking limitation in vitest.
+- **Unsafe `as Error` casts**: Replaced `error as Error` and `reason as Error` casts with proper `instanceof Error ? error : new Error(String(error))` narrowing across `index.ts` (3 sites), all five parsers (`frontmatterParser`, `jsonParser`, `pdfParser`, `xmlParser`, `yamlParser`), and `scheduler.ts`.
+- **Nullish coalescing**: Changed `||` to `??` for default value assignments in `openrouter.provider.ts` (3 sites), `elevenlabs.provider.ts` (6 sites), and `whisper.provider.ts` (4 sites) to correctly handle empty-string and zero values.
+- **`toolHandlerFactory.ts`**: Replaced unsafe `as McpError` cast with `instanceof McpError` check and proper fallback construction. Changed `McpError` from type-only to value import.
+- **`fileSystemProvider.ts`**: Replaced verbose ENOENT detection (`instanceof Error && 'code' in error && (error as { code: string }).code`) with `isErrorWithCode()` type guard from `@/utils/types/guards.js` (2 sites).
+- **`prompt-registration.ts`**: Wrapped `server.registerPrompt()` calls in `ErrorHandler.tryCatch` with `InitializationFailed` error code for structured error reporting during startup.
+- **`worker.ts`**: Replaced local `ValidLogLevel` type with canonical `McpLogLevel` import from logger module.
+- **Cross-runtime compatibility**:
+  - `idGenerator.ts`: Replaced `node:crypto` imports (`randomBytes`, `randomUUID`) with Web Crypto API (`crypto.getRandomValues`, `crypto.randomUUID`) for Cloudflare Workers compatibility. Fixed typo in validation error message ("RANDOMLPART" → "RANDOMPART").
+  - `pagination.ts`: Replaced Node-only `Buffer.from(..., 'base64url')` encoding/decoding with cross-platform `stringToBase64`/`base64ToString` from `@/utils/internal/encoding.js`.
+  - `sanitization.ts`: Replaced ad-hoc `isServerless` check with `runtimeCaps.isNode`; used `runtimeCaps.hasBuffer` and `runtimeCaps.hasTextEncoder` for feature detection.
+- **`metrics/registry.ts`**: Removed unused `bind`/`unbind` methods from no-op counter and histogram stubs.
 
 ### Tests
 
@@ -64,6 +75,7 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - **`httpTransport.test.ts`**: Added SSE GET passthrough test verifying `Accept: text/event-stream` bypasses the info endpoint.
 - **`httpTypes.test.ts`**: Removed `HonoVariables` tests (type was deleted).
 - **`diffFormatter.test.ts`**, **`markdownBuilder.test.ts`**, **`tableFormatter.test.ts`**, **`treeFormatter.test.ts`**: Added edge-case and branch-coverage tests for formatting utilities.
+- **Schema snapshots**: Updated resource and tool schema snapshots with newly added definitions (`data-explorer-ui`, `template_async_countdown`, `template_cat_fact`, `template_code_review_sampling`, `template_data_explorer`, `template_echo_message`, `template_image_test`, `template_madlibs_elicitation`).
 
 ### Removed
 

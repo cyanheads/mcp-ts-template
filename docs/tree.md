@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-28 07:26:03
+Generated on: 2026-02-28 08:53:35
 
 ```
 mcp-ts-template/
@@ -102,6 +102,7 @@ mcp-ts-template/
 │   │   │   │   │   ├── authContext.ts
 │   │   │   │   │   ├── authTypes.ts
 │   │   │   │   │   ├── authUtils.ts
+│   │   │   │   │   ├── claimParser.ts
 │   │   │   │   │   └── withAuth.ts
 │   │   │   │   ├── strategies/
 │   │   │   │   │   ├── authStrategy.ts
@@ -293,6 +294,7 @@ mcp-ts-template/
 │   │   │   │   │   ├── authContext.test.ts
 │   │   │   │   │   ├── authTypes.test.ts
 │   │   │   │   │   ├── authUtils.test.ts
+│   │   │   │   │   ├── claimParser.test.ts
 │   │   │   │   │   └── withAuth.test.ts
 │   │   │   │   ├── strategies/
 │   │   │   │   │   ├── authStrategy.test.ts
