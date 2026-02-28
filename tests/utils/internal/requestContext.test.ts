@@ -7,54 +7,22 @@ import { type Span, trace } from '@opentelemetry/api';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 import * as idGeneratorModule from '@/utils/security/idGenerator.js';
 import { authContext } from '../../../src/mcp-server/transports/auth/lib/authContext.js';
-import { logger } from '../../../src/utils/internal/logger.js';
 import { requestContextService } from '../../../src/utils/internal/requestContext.js';
 
 describe('requestContextService', () => {
-  let debugSpy: MockInstance;
   let idSpy: MockInstance;
   let getActiveSpanSpy: MockInstance;
-  let originalConfig: Record<string, unknown>;
 
   beforeEach(() => {
-    debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
     getActiveSpanSpy = vi
       .spyOn(trace, 'getActiveSpan')
       .mockReturnValue(undefined as unknown as Span);
-    originalConfig = {
-      ...(requestContextService as unknown as { config: Record<string, unknown> }).config,
-    };
     idSpy = vi.spyOn(idGeneratorModule, 'generateRequestContextId').mockReturnValue('CTX-TEST-ID');
   });
 
   afterEach(() => {
-    (requestContextService as unknown as { config: Record<string, unknown> }).config = {
-      ...originalConfig,
-    };
-    debugSpy.mockRestore();
     idSpy.mockRestore();
     getActiveSpanSpy.mockRestore();
-  });
-
-  it('merges configuration updates and logs the change', () => {
-    const result = requestContextService.configure({ featureFlag: true });
-
-    expect(result.featureFlag).toBe(true);
-    expect(debugSpy).toHaveBeenCalledWith(
-      'RequestContextService configuration updated',
-      expect.objectContaining({ operation: 'RequestContextService.configure' }),
-    );
-  });
-
-  it('returns a defensive copy when reading the current configuration', () => {
-    requestContextService.configure({ featureFlag: true });
-
-    const snapshot = requestContextService.getConfig();
-    expect(snapshot.featureFlag).toBe(true);
-
-    // Mutating the snapshot should not affect the internal state.
-    (snapshot as { featureFlag?: boolean }).featureFlag = false;
-    expect(requestContextService.getConfig().featureFlag).toBe(true);
   });
 
   it('creates a context with generated IDs, added fields, and trace metadata', () => {

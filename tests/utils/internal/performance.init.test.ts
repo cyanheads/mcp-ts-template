@@ -1,5 +1,5 @@
 /**
- * @fileoverview Focused tests for initializePerformance_Hrt variants.
+ * @fileoverview Focused tests for initHighResTimer variants.
  * @module tests/utils/internal/performance.init.test
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -23,14 +23,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('initializePerformance_Hrt', () => {
+describe('initHighResTimer', () => {
   it('uses browser performance.now when available', async () => {
     const nowSpy = vi.fn(() => 123.45);
     globalThis.performance = {
       now: nowSpy,
     } as unknown as typeof globalThis.performance;
 
-    await performanceModule.initializePerformance_Hrt();
+    await performanceModule.initHighResTimer();
 
     expect(performanceModule.nowMs()).toBe(123.45);
     expect(nowSpy).toHaveBeenCalledTimes(1);
@@ -48,7 +48,7 @@ describe('initializePerformance_Hrt', () => {
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete (globalThis as { performance?: typeof globalThis.performance }).performance;
 
-    await performanceModule.initializePerformance_Hrt();
+    await performanceModule.initHighResTimer();
 
     // Just verify it returns a number and the fallback was called
     const result = performanceModule.nowMs();
@@ -70,7 +70,7 @@ describe('initializePerformance_Hrt', () => {
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete (globalThis as { performance?: typeof globalThis.performance }).performance;
 
-    await performanceModule.initializePerformance_Hrt();
+    await performanceModule.initHighResTimer();
 
     // Just verify it returns a number and perf_hooks was loaded
     const result = performanceModule.nowMs();

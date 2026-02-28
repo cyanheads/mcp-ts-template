@@ -44,7 +44,6 @@ vi.mock('@/utils/internal/requestContext.js', async (importOriginal) => {
         timestamp: new Date().toISOString(),
         operation: 'createMcpServerInstance',
       })),
-      configure: vi.fn(),
     },
   };
 });
@@ -66,7 +65,6 @@ import {
 } from '@/container/core/tokens.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
 import { logger } from '@/utils/internal/logger.js';
-import { requestContextService } from '@/utils/internal/requestContext.js';
 
 describe('createMcpServerInstance', () => {
   let mockToolRegistry: { registerAll: ReturnType<typeof vi.fn> };
@@ -96,15 +94,6 @@ describe('createMcpServerInstance', () => {
   it('should return an McpServer instance', async () => {
     const server = await createMcpServerInstance();
     expect(server).toBeInstanceOf(McpServer);
-  });
-
-  it('should configure requestContextService with app identity', async () => {
-    await createMcpServerInstance();
-    expect(requestContextService.configure).toHaveBeenCalledWith({
-      appName: 'test-server',
-      appVersion: '1.0.0',
-      environment: 'test',
-    });
   });
 
   it('should resolve and call ToolRegistry.registerAll', async () => {

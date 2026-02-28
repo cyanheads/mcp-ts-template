@@ -40,7 +40,7 @@ describe('Application Entry Point', () => {
       const expectedOrder = [
         'composeContainer',
         'initializeOpenTelemetry',
-        'initializePerformance_Hrt',
+        'initHighResTimer',
         'logger.initialize',
         'Storage service',
         'transportManager.start',
