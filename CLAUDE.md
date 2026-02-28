@@ -618,6 +618,16 @@ Entry point: `src/worker.ts`. Exports standard Workers `{ fetch, scheduled }` ob
 
 ---
 
+## Git Safety
+
+**NEVER use `git stash`.** Not in the orchestrator, not in subagents, not for "quick checks", not for any reason. `git stash` silently moves uncommitted work out of the working tree and risks data loss. If you need to see the state of committed code, use `git show`, `git diff`, or read-only git commands. If you need to test something against the committed state, use a worktree.
+
+**NEVER use destructive git commands** (`git reset --hard`, `git checkout -- .`, `git restore .`, `git clean -f`) unless the user explicitly requests them. These destroy uncommitted work.
+
+**Read-only git is always safe.** `git status`, `git diff`, `git log`, `git show`, `git blame` — use freely.
+
+---
+
 ## Git Commits
 
 Use plain strings for commit messages. Never use heredoc syntax (`cat <<'EOF'`) or command substitution (`$(...)`) in commit messages.

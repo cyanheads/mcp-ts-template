@@ -38,13 +38,32 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
   - Made `COMMON_ERROR_PATTERNS` and `PROVIDER_ERROR_PATTERNS` non-exported (private to module); only pre-compiled versions are public.
   - Fixed `tryCatch` double-throw: now calls `handleError` with `rethrow: false` and throws the returned error explicitly.
   - Guarded cause chain extraction behind `error.cause` check to avoid unnecessary allocation on the common path.
+- **Auth middleware & strategies** (`src/mcp-server/transports/auth/`):
+  - Extracted shared `buildAuthInfoFromClaims` and `handleJoseVerifyError` into new `lib/claimParser.ts`, eliminating duplicated claim-parsing and jose-error-handling logic across JWT and OAuth strategies.
+  - Simplified `authMiddleware.ts`: removed unnecessary `try/catch` wrapper — strategy errors propagate directly to the HTTP error handler.
+  - Updated `authTypes.ts` JSDoc for `SdkAuthInfo`.
+  - Simplified JWT and OAuth strategy catch blocks to log + delegate to `handleJoseVerifyError`.
+- **HTTP transport** (`src/mcp-server/transports/http/`):
+  - Fixed MCP Spec 2025-06-18 compliance: `GET /mcp` with `Accept: text/event-stream` now falls through to the transport handler for SSE streams instead of unconditionally returning server info JSON.
+  - Fixed unsafe `(handledError as McpError).code` cast in `httpErrorHandler.ts` — `errorCode` is now computed once before the status-mapping switch and reused in both the switch and the log.
+  - Removed dead `HonoVariables` type from `httpTypes.ts` (never used in production code).
+  - Simplified `httpTransport.ts`: removed redundant `authContext.run(store, handleRpc)` re-entry (ALS already propagates from middleware); compacted `SessionIdentity` construction with `Object.fromEntries` filter.
+  - Deduplicated `requestContextService.createRequestContext()` calls in `sessionStore.isValidForIdentity` with a lazy `warn()` closure.
+- **Transport manager** (`src/mcp-server/transports/manager.ts`):
+  - Fixed relative imports to `@/` path aliases.
+  - Replaced `as ServerType` / `as McpServer` casts in `stop()` with a typed `shutdown` closure stored during `start()`.
+- **`performance.ts`**: Added optional `perfLoader` parameter to `initHighResTimer` for testability. Default remains `loadPerfHooks`, so all callers are unaffected. Fixes ESM self-call mocking limitation in vitest.
 
 ### Tests
 
 - **`encoding.test.ts`**: Added tests for `stringToBase64` (Buffer path, TextEncoder fallback, empty string, multi-byte UTF-8) and `base64ToString` (Buffer path, atob+TextDecoder fallback, empty string, round-trip). Added empty `ArrayBuffer` edge case for `arrayBufferToBase64`.
 - **`requestContext.test.ts`**: Added ad-hoc property passthrough test. Added tenant ID resolution priority suite covering all four fallback levels (`additionalContext` → rest params → parent context → auth store).
 - **`logger.test.ts`**: Added `alert()` and `emerg()` tests with both Error+context and context-only signatures.
-- **`performance.init.test.ts`**: Unskipped `Date.now` fallback and `node:perf_hooks` path tests (skip was unnecessary — both pass).
+- **`performance.init.test.ts`**: Fixed `Date.now` fallback and `node:perf_hooks` path tests — replaced `vi.spyOn` on ESM export (which doesn't affect internal module calls) with direct loader injection via the new `perfLoader` parameter.
+- **`claimParser.test.ts`** (new): Added 5 tests for `handleJoseVerifyError` covering McpError passthrough, JWTExpired mapping, fallback messages, non-Error values, and always-throws guarantee.
+- **`httpTransport.test.ts`**: Added SSE GET passthrough test verifying `Accept: text/event-stream` bypasses the info endpoint.
+- **`httpTypes.test.ts`**: Removed `HonoVariables` tests (type was deleted).
+- **`diffFormatter.test.ts`**, **`markdownBuilder.test.ts`**, **`tableFormatter.test.ts`**, **`treeFormatter.test.ts`**: Added edge-case and branch-coverage tests for formatting utilities.
 
 ### Removed
 
