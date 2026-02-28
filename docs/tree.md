@@ -1,14 +1,10 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-18 14:11:47
+Generated on: 2026-02-28 03:37:22
 
 ```
 mcp-ts-template/
 ├── .github/
-│   ├── codeql/
-│   │   └── codeql-config.yml
-│   ├── workflows/
-│   │   └── ci.yml
 │   └── FUNDING.yml
 ├── .husky/
 │   └── pre-commit

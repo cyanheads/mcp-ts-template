@@ -1,8 +1,8 @@
 # Agent Protocol
 
-**Version:** 2.9.8
+**Version:** 2.9.9
 **Project:** mcp-ts-template
-**Updated:** 2026-02-22
+**Updated:** 2026-02-27
 
 > **Symlink note:** `AGENTS.md` is a symlink to `CLAUDE.md`. Only edit the root `CLAUDE.md`.
 

@@ -7,7 +7,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-2.9.8-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.26.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-86.30%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
+[![Version](https://img.shields.io/badge/Version-2.9.9-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.27.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.2.21-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-86.30%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
 
 </div>
 
@@ -20,7 +20,7 @@
 - **Robust Error Handling**: A unified `McpError` system ensures consistent, structured error responses across the server.
 - **Pluggable Authentication**: Secure your server with zero-fuss support for `none`, `jwt`, or `oauth` modes.
 - **Abstracted Storage**: Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `Cloudflare D1/KV/R2`) without changing business logic. Features secure opaque cursor pagination, parallel batch operations, and comprehensive validation.
-- **Full-Stack Observability**: Get deep insights with structured logging (Pino) and optional, auto-instrumented OpenTelemetry for traces and metrics.
+- **Full-Stack Observability**: Get deep insights with structured logging (Pino) and optional OpenTelemetry for HTTP request tracing, tool-call metrics, and log correlation.
 - **Dependency Injection**: Custom typed DI container with `Token<T>` phantom branding — zero external dependencies, fully type-safe resolution.
 - **Service Integrations**: Pluggable services for external APIs, including LLM providers (OpenRouter) and text-to-speech (ElevenLabs).
 - **Rich Built-in Utility Suite**: Helpers for parsing (PDF, YAML, CSV, frontmatter), formatting (diffs, tables, trees, markdown), scheduling, security, and more.
@@ -183,7 +183,7 @@ All configuration is centralized and validated at startup in `src/config/index.t
 ### Observability
 
 - **Structured Logging**: Pino is integrated out-of-the-box. All logs are JSON and include the `RequestContext`.
-- **OpenTelemetry**: Disabled by default. Enable with `OTEL_ENABLED=true` and configure OTLP endpoints. Traces, metrics (duration, payload sizes), and errors are automatically captured for every tool call.
+- **OpenTelemetry**: Disabled by default. Enable with `OTEL_ENABLED=true` and configure OTLP endpoints. HTTP request-level spans are generated via `@hono/otel` (works on Bun, where Node.js auto-instrumentation is a no-op). Tool-call metrics (duration, payload sizes, errors) are captured automatically. Pino logs auto-correlate to traces via `trace_id`/`span_id`.
 
 ## ▶️ Running the Server
 

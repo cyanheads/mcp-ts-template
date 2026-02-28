@@ -7,6 +7,37 @@ For changelog details from version 2.0.1 to 2.3.0, please refer to the [changelo
 
 ---
 
+## [2.9.9] - 2026-02-27
+
+### Added
+
+- **OpenTelemetry HTTP request tracing**: Added `@hono/otel` middleware on the MCP HTTP endpoint. On Bun, where Node.js HTTP auto-instrumentation is a no-op, this provides full request-level spans covering CORS, auth, and handler lifecycle. Pino logs auto-correlate to traces via `trace_id`/`span_id`.
+
+### Fixed
+
+- **`fetchWithTimeout` Bun compatibility**: Replaced `AbortSignal.timeout()` with an explicit `AbortController` + `setTimeout` pattern. `AbortSignal.timeout()` could fail in Bun's stdio transport due to a realm mismatch.
+
+### Dependencies
+
+- Added `@hono/otel` (^1.1.0).
+- Bumped `@modelcontextprotocol/sdk` (1.26.0 → 1.27.1).
+- Bumped `@modelcontextprotocol/ext-apps` (1.1.0 → 1.1.2).
+- Bumped `@hono/mcp` (0.2.3 → 0.2.4).
+- Bumped `@cloudflare/workers-types` (4.20260302 → 4.20260228.1).
+- Bumped `@opentelemetry/auto-instrumentations-node` (0.70.0 → 0.70.1).
+- Bumped `@opentelemetry/semantic-conventions` (1.39.0 → 1.40.0).
+- Bumped `@supabase/supabase-js` (2.97.0 → 2.98.0).
+- Bumped `fast-xml-parser` (5.3.7 → 5.4.1).
+- Bumped `openai` (6.22.0 → 6.25.0).
+- Bumped `eslint` (10.0.1 → 10.0.2).
+- Bumped `typescript-eslint` (8.56.0 → 8.56.1).
+- Bumped `@types/node` (25.3.0 → 25.3.2).
+- Bumped `bun-types` (1.3.9 → 1.3.10).
+- Bumped `clipboardy` (5.3.0 → 5.3.1).
+- Bumped `repomix` (1.11.1 → 1.12.0).
+
+---
+
 ## [2.9.8] - 2026-02-22
 
 ### Fixed
