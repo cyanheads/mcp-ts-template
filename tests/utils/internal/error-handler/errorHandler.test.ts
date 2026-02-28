@@ -1,17 +1,12 @@
 /**
- * @fileoverview Test suite for ErrorHandler class — Railway Oriented Programming patterns,
- * error classification, retry logic, breadcrumbs, and Result type helpers.
+ * @fileoverview Test suite for ErrorHandler class — error classification, formatting,
+ * tryCatch, mapError, and handleError behavior.
  * @module tests/utils/internal/error-handler/errorHandler.test
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
-import type {
-  EnhancedErrorContext,
-  ErrorRecoveryStrategy,
-  Result,
-} from '@/utils/internal/error-handler/types.js';
 
 // Suppress logger output in tests
 vi.mock('@/utils/internal/logger.js', () => ({
@@ -211,21 +206,17 @@ describe('ErrorHandler', () => {
       expect(result.message).toContain('string error');
     });
 
-    it('should include breadcrumbs from enhanced context', () => {
-      const context: EnhancedErrorContext = {
-        requestId: 'req-1',
-        timestamp: new Date().toISOString(),
+    it('should extract cause chain when error has a cause', () => {
+      const root = new Error('root cause');
+      const outer = new Error('outer', { cause: root });
+      const result = ErrorHandler.handleError(outer, {
         operation: 'op',
-        metadata: {
-          breadcrumbs: [{ timestamp: new Date().toISOString(), operation: 'step1' }],
-        },
-      };
-      const result = ErrorHandler.handleError(new Error('fail'), {
-        operation: 'op',
-        context,
       }) as McpError;
       expect(result.data).toBeDefined();
-      expect(result.data?.breadcrumbs).toBeDefined();
+      expect(result.data?.rootCause).toEqual({
+        name: 'Error',
+        message: 'root cause',
+      });
     });
   });
 
@@ -291,310 +282,6 @@ describe('ErrorHandler', () => {
         operation: 'test',
       });
       expect(result).toBe('sync');
-    });
-  });
-
-  // ─── tryAsResult ─────────────────────────────────────────────────────────────
-
-  describe('tryAsResult', () => {
-    it('should return ok result on success', async () => {
-      const result = await ErrorHandler.tryAsResult(() => Promise.resolve('data'), {
-        operation: 'test',
-      });
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.value).toBe('data');
-      }
-    });
-
-    it('should return error result on failure', async () => {
-      const result = await ErrorHandler.tryAsResult(
-        () => {
-          throw new Error('fail');
-        },
-        { operation: 'test' },
-      );
-      expect(result.ok).toBe(false);
-      if (!result.ok) {
-        expect(result.error).toBeInstanceOf(McpError);
-      }
-    });
-
-    it('should handle sync functions returning value', async () => {
-      const result = await ErrorHandler.tryAsResult(() => 123, {
-        operation: 'test',
-      });
-      expect(result.ok).toBe(true);
-      if (result.ok) expect(result.value).toBe(123);
-    });
-  });
-
-  // ─── mapResult ───────────────────────────────────────────────────────────────
-
-  describe('mapResult', () => {
-    it('should map success value', () => {
-      const input: Result<number, McpError> = { ok: true, value: 5 };
-      const mapped = ErrorHandler.mapResult(input, (n) => n * 2);
-      expect(mapped.ok).toBe(true);
-      if (mapped.ok) expect(mapped.value).toBe(10);
-    });
-
-    it('should pass through error result unchanged', () => {
-      const err = new McpError(JsonRpcErrorCode.NotFound, 'nope');
-      const input: Result<number, McpError> = { ok: false, error: err };
-      const mapped = ErrorHandler.mapResult(input, (n) => n * 2);
-      expect(mapped.ok).toBe(false);
-      if (!mapped.ok) expect(mapped.error).toBe(err);
-    });
-
-    it('should catch mapping function exception and return error result', () => {
-      const input: Result<number, McpError> = { ok: true, value: 5 };
-      const mapped = ErrorHandler.mapResult(input, () => {
-        throw new Error('mapper broke');
-      });
-      expect(mapped.ok).toBe(false);
-      if (!mapped.ok) {
-        expect(mapped.error.message).toContain('mapper broke');
-      }
-    });
-  });
-
-  // ─── flatMapResult ───────────────────────────────────────────────────────────
-
-  describe('flatMapResult', () => {
-    it('should chain success results', () => {
-      const input: Result<number, McpError> = { ok: true, value: 3 };
-      const chained = ErrorHandler.flatMapResult(input, (n) => ({
-        ok: true,
-        value: `val-${n}`,
-      }));
-      expect(chained.ok).toBe(true);
-      if (chained.ok) expect(chained.value).toBe('val-3');
-    });
-
-    it('should short-circuit on error', () => {
-      const err = new McpError(JsonRpcErrorCode.InternalError, 'fail');
-      const input: Result<number, McpError> = { ok: false, error: err };
-      const fn = vi.fn();
-      const chained = ErrorHandler.flatMapResult(input, fn);
-      expect(chained.ok).toBe(false);
-      expect(fn).not.toHaveBeenCalled();
-    });
-  });
-
-  // ─── recoverResult ───────────────────────────────────────────────────────────
-
-  describe('recoverResult', () => {
-    it('should return success value when ok', () => {
-      const input: Result<string, McpError> = { ok: true, value: 'good' };
-      expect(ErrorHandler.recoverResult(input, 'fallback')).toBe('good');
-    });
-
-    it('should return static fallback on error', () => {
-      const err = new McpError(JsonRpcErrorCode.NotFound, 'gone');
-      const input: Result<string, McpError> = { ok: false, error: err };
-      expect(ErrorHandler.recoverResult(input, 'default')).toBe('default');
-    });
-
-    it('should call factory fallback on error', () => {
-      const err = new McpError(JsonRpcErrorCode.NotFound, 'gone');
-      const input: Result<string, McpError> = { ok: false, error: err };
-      const result = ErrorHandler.recoverResult(input, (e) => `recovered: ${e.message}`);
-      expect(result).toBe('recovered: gone');
-    });
-  });
-
-  // ─── addBreadcrumb ───────────────────────────────────────────────────────────
-
-  describe('addBreadcrumb', () => {
-    it('should add a breadcrumb to empty context', () => {
-      const ctx: EnhancedErrorContext = { requestId: 'r1' };
-      const result = ErrorHandler.addBreadcrumb(ctx, 'step1');
-      expect(result.metadata?.breadcrumbs).toHaveLength(1);
-      expect(result.metadata?.breadcrumbs?.[0]?.operation).toBe('step1');
-    });
-
-    it('should accumulate multiple breadcrumbs', () => {
-      let ctx: EnhancedErrorContext = { requestId: 'r1' };
-      ctx = ErrorHandler.addBreadcrumb(ctx, 'step1');
-      ctx = ErrorHandler.addBreadcrumb(ctx, 'step2');
-      ctx = ErrorHandler.addBreadcrumb(ctx, 'step3');
-      expect(ctx.metadata?.breadcrumbs).toHaveLength(3);
-    });
-
-    it('should include additionalData when provided', () => {
-      const ctx: EnhancedErrorContext = { requestId: 'r1' };
-      const result = ErrorHandler.addBreadcrumb(ctx, 'op', { userId: '123' });
-      expect(result.metadata?.breadcrumbs?.[0]?.context).toEqual({
-        userId: '123',
-      });
-    });
-
-    it('should not include context key when additionalData is undefined', () => {
-      const ctx: EnhancedErrorContext = { requestId: 'r1' };
-      const result = ErrorHandler.addBreadcrumb(ctx, 'op');
-      expect(result.metadata?.breadcrumbs?.[0]).not.toHaveProperty('context');
-    });
-
-    it('should include timestamp on each breadcrumb', () => {
-      const ctx: EnhancedErrorContext = {};
-      const result = ErrorHandler.addBreadcrumb(ctx, 'op');
-      expect(result.metadata?.breadcrumbs?.[0]?.timestamp).toBeDefined();
-    });
-  });
-
-  // ─── tryCatchWithRetry ───────────────────────────────────────────────────────
-
-  describe('tryCatchWithRetry', () => {
-    it('should return value on first successful attempt', async () => {
-      const fn = vi.fn().mockResolvedValue('ok');
-      const strategy: ErrorRecoveryStrategy = {
-        maxAttempts: 3,
-        shouldRetry: () => true,
-        getRetryDelay: () => 0,
-      };
-      const result = await ErrorHandler.tryCatchWithRetry(fn, { operation: 'test' }, strategy);
-      expect(result).toBe('ok');
-      expect(fn).toHaveBeenCalledTimes(1);
-    });
-
-    it('should retry and succeed on subsequent attempt', async () => {
-      let callCount = 0;
-      const fn = vi.fn(async () => {
-        callCount++;
-        if (callCount < 3) throw new Error('transient');
-        return 'recovered';
-      });
-      const strategy: ErrorRecoveryStrategy = {
-        maxAttempts: 5,
-        shouldRetry: () => true,
-        getRetryDelay: () => 0,
-      };
-      const result = await ErrorHandler.tryCatchWithRetry(fn, { operation: 'test' }, strategy);
-      expect(result).toBe('recovered');
-      expect(fn).toHaveBeenCalledTimes(3);
-    });
-
-    it('should throw after max attempts exhausted', async () => {
-      const fn = vi.fn(async () => {
-        throw new Error('always fails');
-      });
-      const strategy: ErrorRecoveryStrategy = {
-        maxAttempts: 2,
-        shouldRetry: () => true,
-        getRetryDelay: () => 0,
-      };
-      await expect(
-        ErrorHandler.tryCatchWithRetry(fn, { operation: 'test' }, strategy),
-      ).rejects.toThrow();
-      expect(fn).toHaveBeenCalledTimes(2);
-    });
-
-    it('should not retry non-retryable errors', async () => {
-      const fn = vi.fn(async () => {
-        throw new McpError(JsonRpcErrorCode.ValidationError, 'bad input');
-      });
-      const strategy: ErrorRecoveryStrategy = {
-        maxAttempts: 5,
-        shouldRetry: (error) => {
-          if (error instanceof McpError) {
-            return error.code !== JsonRpcErrorCode.ValidationError;
-          }
-          return true;
-        },
-        getRetryDelay: () => 0,
-      };
-      await expect(
-        ErrorHandler.tryCatchWithRetry(fn, { operation: 'test' }, strategy),
-      ).rejects.toThrow();
-      expect(fn).toHaveBeenCalledTimes(1);
-    });
-
-    it('should invoke onRetry callback before each retry', async () => {
-      let callCount = 0;
-      const fn = vi.fn(async () => {
-        callCount++;
-        if (callCount < 3) throw new Error('transient');
-        return 'ok';
-      });
-      const onRetry = vi.fn();
-      const strategy: ErrorRecoveryStrategy = {
-        maxAttempts: 5,
-        shouldRetry: () => true,
-        getRetryDelay: () => 0,
-        onRetry,
-      };
-      await ErrorHandler.tryCatchWithRetry(fn, { operation: 'test' }, strategy);
-      expect(onRetry).toHaveBeenCalledTimes(2);
-      expect(onRetry).toHaveBeenCalledWith(expect.any(Error), 1);
-      expect(onRetry).toHaveBeenCalledWith(expect.any(Error), 2);
-    });
-  });
-
-  // ─── createExponentialBackoffStrategy ────────────────────────────────────────
-
-  describe('createExponentialBackoffStrategy', () => {
-    it('should create strategy with default params', () => {
-      const strategy = ErrorHandler.createExponentialBackoffStrategy();
-      expect(strategy.maxAttempts).toBe(3);
-    });
-
-    it('should create strategy with custom params', () => {
-      const strategy = ErrorHandler.createExponentialBackoffStrategy(5, 500, 10000);
-      expect(strategy.maxAttempts).toBe(5);
-    });
-
-    it('should not retry ValidationError', () => {
-      const strategy = ErrorHandler.createExponentialBackoffStrategy();
-      const err = new McpError(JsonRpcErrorCode.ValidationError, 'bad');
-      expect(strategy.shouldRetry(err, 1)).toBe(false);
-    });
-
-    it('should not retry Unauthorized', () => {
-      const strategy = ErrorHandler.createExponentialBackoffStrategy();
-      const err = new McpError(JsonRpcErrorCode.Unauthorized, 'denied');
-      expect(strategy.shouldRetry(err, 1)).toBe(false);
-    });
-
-    it('should not retry Forbidden', () => {
-      const strategy = ErrorHandler.createExponentialBackoffStrategy();
-      const err = new McpError(JsonRpcErrorCode.Forbidden, 'nope');
-      expect(strategy.shouldRetry(err, 1)).toBe(false);
-    });
-
-    it('should not retry NotFound', () => {
-      const strategy = ErrorHandler.createExponentialBackoffStrategy();
-      const err = new McpError(JsonRpcErrorCode.NotFound, 'gone');
-      expect(strategy.shouldRetry(err, 1)).toBe(false);
-    });
-
-    it('should retry InternalError', () => {
-      const strategy = ErrorHandler.createExponentialBackoffStrategy();
-      const err = new McpError(JsonRpcErrorCode.InternalError, 'oops');
-      expect(strategy.shouldRetry(err, 1)).toBe(true);
-    });
-
-    it('should retry generic Error', () => {
-      const strategy = ErrorHandler.createExponentialBackoffStrategy();
-      expect(strategy.shouldRetry(new Error('network'), 1)).toBe(true);
-    });
-
-    it('should calculate delay with exponential backoff capped at maxDelay', () => {
-      const strategy = ErrorHandler.createExponentialBackoffStrategy(5, 1000, 5000);
-      const delay1 = strategy.getRetryDelay(1);
-      const delay3 = strategy.getRetryDelay(3);
-      const delay10 = strategy.getRetryDelay(10);
-
-      // Attempt 1: base * 2^0 = 1000 + jitter (0-300)
-      expect(delay1).toBeGreaterThanOrEqual(1000);
-      expect(delay1).toBeLessThanOrEqual(1300);
-
-      // Attempt 3: base * 2^2 = 4000 + jitter (0-1200)
-      expect(delay3).toBeGreaterThanOrEqual(4000);
-      expect(delay3).toBeLessThanOrEqual(5200);
-
-      // Attempt 10: should be capped at maxDelay (5000)
-      expect(delay10).toBeLessThanOrEqual(5000);
     });
   });
 

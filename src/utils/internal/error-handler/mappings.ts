@@ -70,10 +70,11 @@ export const ERROR_TYPE_MAPPINGS: Readonly<Record<string, JsonRpcErrorCode>> = {
 };
 
 /**
- * Array of `BaseErrorMapping` rules to classify errors by message/name patterns.
+ * Common error patterns for classifying errors by message/name.
  * Order matters: more specific patterns should precede generic ones.
+ * @private — only consumed via COMPILED_ERROR_PATTERNS
  */
-export const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
+const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
   {
     pattern: /auth|unauthorized|unauthenticated|not.*logged.*in|invalid.*token|expired.*token/i,
     errorCode: JsonRpcErrorCode.Unauthorized,
@@ -119,7 +120,6 @@ export const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = 
 /**
  * Pre-compiled error patterns for performance optimization.
  * These patterns are compiled once at module initialization for faster matching.
- * Use these in performance-critical paths instead of COMMON_ERROR_PATTERNS.
  */
 export const COMPILED_ERROR_PATTERNS: ReadonlyArray<Readonly<CompiledErrorMapping>> =
   COMMON_ERROR_PATTERNS.map((mapping) => ({
@@ -130,8 +130,9 @@ export const COMPILED_ERROR_PATTERNS: ReadonlyArray<Readonly<CompiledErrorMappin
 /**
  * Provider-specific error patterns for external service integration.
  * Covers common error formats from AWS, HTTP status codes, databases, and LLM providers.
+ * @private — only consumed via COMPILED_PROVIDER_PATTERNS
  */
-export const PROVIDER_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
+const PROVIDER_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
   // AWS Service Errors
   {
     pattern: /ThrottlingException|TooManyRequestsException/i,

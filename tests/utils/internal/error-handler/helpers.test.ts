@@ -1,17 +1,15 @@
 /**
  * @fileoverview Test suite for error handler helper utilities — getErrorName, getErrorMessage,
- * createSafeRegex, extractErrorCauseChain, serializeErrorCauseChain.
+ * extractErrorCauseChain.
  * @module tests/utils/internal/error-handler/helpers.test
  */
 
 import { describe, expect, it } from 'vitest';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
-  createSafeRegex,
   extractErrorCauseChain,
   getErrorMessage,
   getErrorName,
-  serializeErrorCauseChain,
 } from '@/utils/internal/error-handler/helpers.js';
 
 describe('Error Handler Helpers', () => {
@@ -145,34 +143,6 @@ describe('Error Handler Helpers', () => {
     });
   });
 
-  // ─── createSafeRegex ────────────────────────────────────────────────────────
-
-  describe('createSafeRegex', () => {
-    it('should compile string to case-insensitive RegExp', () => {
-      const regex = createSafeRegex('hello');
-      expect(regex).toBeInstanceOf(RegExp);
-      expect(regex.flags).toContain('i');
-      expect(regex.test('HELLO')).toBe(true);
-    });
-
-    it('should strip global flag from RegExp input', () => {
-      const regex = createSafeRegex(/test/gi);
-      expect(regex.flags).not.toContain('g');
-      expect(regex.flags).toContain('i');
-    });
-
-    it('should add case-insensitive flag if missing', () => {
-      const regex = createSafeRegex(/test/);
-      expect(regex.flags).toContain('i');
-    });
-
-    it('should return cached instance for same input', () => {
-      const a = createSafeRegex('cached-test-helpers');
-      const b = createSafeRegex('cached-test-helpers');
-      expect(a).toBe(b);
-    });
-  });
-
   // ─── extractErrorCauseChain ──────────────────────────────────────────────────
 
   describe('extractErrorCauseChain', () => {
@@ -242,30 +212,6 @@ describe('Error Handler Helpers', () => {
     it('should return empty chain for falsy input', () => {
       expect(extractErrorCauseChain(null)).toHaveLength(0);
       expect(extractErrorCauseChain(undefined)).toHaveLength(0);
-    });
-  });
-
-  // ─── serializeErrorCauseChain ────────────────────────────────────────────────
-
-  describe('serializeErrorCauseChain', () => {
-    it('should return rootCause, chain, and totalDepth', () => {
-      const err = new Error('top', { cause: new Error('root') });
-      const result = serializeErrorCauseChain(err);
-      expect(result.chain).toHaveLength(2);
-      expect(result.totalDepth).toBe(2);
-      expect(result.rootCause.message).toBe('root');
-    });
-
-    it('should handle single error', () => {
-      const result = serializeErrorCauseChain(new Error('only'));
-      expect(result.totalDepth).toBe(1);
-      expect(result.rootCause.message).toBe('only');
-    });
-
-    it('should handle empty chain gracefully', () => {
-      const result = serializeErrorCauseChain(null);
-      expect(result.totalDepth).toBe(0);
-      expect(result.rootCause.name).toBe('Unknown');
     });
   });
 });
