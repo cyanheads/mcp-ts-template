@@ -4,7 +4,7 @@
  * can be used interchangeably throughout the application.
  * @module src/storage/core/IStorageProvider
  */
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 /**
  * Options for storage operations.

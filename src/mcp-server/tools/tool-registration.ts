@@ -6,11 +6,16 @@
  */
 import type { McpServer, ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ZodObject, ZodRawShape } from 'zod';
-import { isTaskToolDefinition, type TaskToolDefinition } from '@/mcp-server/tasks/index.js';
-import type { ToolDefinition } from '@/mcp-server/tools/utils/index.js';
-import { createMcpToolHandler } from '@/mcp-server/tools/utils/index.js';
+import {
+  isTaskToolDefinition,
+  type TaskToolDefinition,
+} from '@/mcp-server/tasks/utils/taskToolDefinition.js';
+import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
+import { createMcpToolHandler } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
-import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 export class ToolRegistry {
   constructor(

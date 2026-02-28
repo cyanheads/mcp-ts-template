@@ -7,7 +7,8 @@
 import { z } from 'zod';
 import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { withResourceAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import { logger, type RequestContext } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 const ParamsSchema = z
   .object({

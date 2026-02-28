@@ -19,8 +19,8 @@
  * @module src/storage/core/storageValidation
  */
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import type { RequestContext } from '@/utils/index.js';
 import { base64ToString, stringToBase64 } from '@/utils/internal/encoding.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 import type { ListOptions, StorageOptions } from './IStorageProvider.js';
 
 /**

@@ -17,7 +17,7 @@ import type { RequestTaskStore } from '@modelcontextprotocol/sdk/shared/protocol
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
-import type { TaskToolDefinition } from '@/mcp-server/tasks/index.js';
+import type { TaskToolDefinition } from '@/mcp-server/tasks/utils/taskToolDefinition.js';
 
 // ============================================================================
 // Tool Metadata

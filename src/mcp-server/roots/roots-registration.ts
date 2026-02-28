@@ -8,7 +8,8 @@
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import { type logger as defaultLogger, requestContextService } from '@/utils/index.js';
+import type { logger as defaultLogger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 export class RootsRegistry {
   constructor(private logger: typeof defaultLogger) {}

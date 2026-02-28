@@ -9,7 +9,8 @@ import type { ZodObject, ZodRawShape } from 'zod';
 
 import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { registerResource } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 export class ResourceRegistry {
   constructor(

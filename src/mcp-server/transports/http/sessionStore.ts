@@ -7,7 +7,8 @@
 
 import { validateSessionIdFormat } from '@/mcp-server/transports/http/sessionIdUtils.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Identity information for binding sessions to authenticated users.

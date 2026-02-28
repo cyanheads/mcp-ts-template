@@ -20,7 +20,8 @@ import {
   validateTenantId,
 } from '@/storage/core/storageValidation.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, type RequestContext } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 /**
  * Validates and returns the tenant ID from the request context.

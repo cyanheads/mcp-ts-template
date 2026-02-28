@@ -7,7 +7,8 @@
 import { Allow as PartialJsonAllow, parse as parsePartialJson } from 'partial-json';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, type RequestContext, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Enum mirroring `partial-json`'s `Allow` constants. These specify

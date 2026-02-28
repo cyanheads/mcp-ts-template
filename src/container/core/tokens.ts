@@ -18,7 +18,7 @@ import type { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js
 import type { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import type { TransportManager } from '@/mcp-server/transports/manager.js';
 import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
-import type { SpeechService as SpeechServiceClass } from '@/services/speech/index.js';
+import type { SpeechService as SpeechServiceClass } from '@/services/speech/core/SpeechService.js';
 import type { IStorageProvider } from '@/storage/core/IStorageProvider.js';
 import type { StorageService as StorageServiceClass } from '@/storage/core/StorageService.js';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';

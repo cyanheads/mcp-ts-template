@@ -18,7 +18,8 @@ import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 const isServerless = typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
 

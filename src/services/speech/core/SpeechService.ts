@@ -5,7 +5,7 @@
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
 
 import { ElevenLabsProvider } from '../providers/elevenlabs.provider.js';
 import { WhisperProvider } from '../providers/whisper.provider.js';

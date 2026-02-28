@@ -9,7 +9,8 @@ import sanitizeHtml from 'sanitize-html';
 import validator from 'validator';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { isRecord } from '@/utils/types/guards.js';
 
 const isServerless = typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
@@ -87,9 +88,6 @@ export interface HtmlSanitizeConfig {
 export class Sanitization {
   /** @private */
   private static instance: Sanitization;
-
-  private normalizedSensitiveSet: Set<string> | null = null;
-  private wordSensitiveSet: Set<string> | null = null;
 
   private sensitiveFields: string[] = [
     'password',
@@ -181,7 +179,12 @@ export class Sanitization {
   };
 
   /** @private */
-  private constructor() {}
+  private constructor() {
+    this.rebuildSensitiveSets();
+  }
+
+  private normalizedSensitiveSet!: Set<string>;
+  private wordSensitiveSet!: Set<string>;
 
   /**
    * Retrieves the singleton instance of the `Sanitization` class.
@@ -202,9 +205,7 @@ export class Sanitization {
     this.sensitiveFields = [
       ...new Set([...this.sensitiveFields, ...fields.map((f) => f.toLowerCase())]),
     ];
-    // Invalidate cached sets so they're rebuilt on next redaction
-    this.normalizedSensitiveSet = null;
-    this.wordSensitiveSet = null;
+    this.rebuildSensitiveSets();
     const logContext = requestContextService.createRequestContext({
       operation: 'Sanitization.setSensitiveFields',
       additionalContext: {
@@ -652,21 +653,10 @@ export class Sanitization {
     // Type guard ensures obj is a Record<string, unknown>
     if (!isRecord(obj)) return;
 
-    const normalize = (str: string): string => str.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    // Lazily build and cache the sensitive field sets
-    this.normalizedSensitiveSet ??= new Set(
-      this.sensitiveFields.map((f) => normalize(f)).filter(Boolean),
-    );
-    this.wordSensitiveSet ??= new Set(
-      this.sensitiveFields.map((f) => f.toLowerCase()).filter(Boolean),
-    );
-    const { normalizedSensitiveSet, wordSensitiveSet } = this;
-
     for (const key in obj) {
       if (Object.hasOwn(obj, key)) {
         const value = obj[key];
-        const normalizedKey = normalize(key);
+        const normalizedKey = Sanitization.normalizeName(key);
         // Split into words for token-based matching (camelCase, snake_case, kebab-case)
         const keyWords = key
           .replace(/([A-Z])/g, ' $1')
@@ -674,8 +664,8 @@ export class Sanitization {
           .split(/[\s_-]+/)
           .filter(Boolean);
 
-        const isExactSensitive = normalizedSensitiveSet.has(normalizedKey);
-        const isWordSensitive = keyWords.some((w) => wordSensitiveSet.has(w));
+        const isExactSensitive = this.normalizedSensitiveSet.has(normalizedKey);
+        const isWordSensitive = keyWords.some((w) => this.wordSensitiveSet.has(w));
         const isSensitive = isExactSensitive || isWordSensitive;
 
         if (isSensitive) {
@@ -685,6 +675,19 @@ export class Sanitization {
         }
       }
     }
+  }
+
+  private static normalizeName(str: string): string {
+    return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  private rebuildSensitiveSets(): void {
+    this.normalizedSensitiveSet = new Set(
+      this.sensitiveFields.map((f) => Sanitization.normalizeName(f)).filter(Boolean),
+    );
+    this.wordSensitiveSet = new Set(
+      this.sensitiveFields.map((f) => f.toLowerCase()).filter(Boolean),
+    );
   }
 }
 

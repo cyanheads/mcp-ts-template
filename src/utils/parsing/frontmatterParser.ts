@@ -5,7 +5,8 @@
  * @module src/utils/parsing/frontmatterParser
  */
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, type RequestContext, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { yamlParser } from './yamlParser.js';
 
 /**

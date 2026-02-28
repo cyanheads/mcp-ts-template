@@ -6,7 +6,8 @@
 
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, type RequestContext, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Checks if the current authentication context contains all the specified scopes.

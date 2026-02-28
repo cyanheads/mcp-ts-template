@@ -9,8 +9,8 @@ import { trace } from '@opentelemetry/api';
 
 import { authContext as alsAuthContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
-import { generateRequestContextId } from '@/utils/index.js';
 import { logger } from '@/utils/internal/logger.js';
+import { generateRequestContextId } from '@/utils/security/idGenerator.js';
 
 /**
  * Defines the structure of the authentication-related context, typically

@@ -12,7 +12,9 @@ import type { Context, MiddlewareHandler, Next } from 'hono';
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Creates a Hono middleware function that enforces authentication using a given strategy.

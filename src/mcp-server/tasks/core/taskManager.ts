@@ -12,7 +12,9 @@
  */
 import type { config as configType } from '@/config/index.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
-import { idGenerator, logger, type RequestContext } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { idGenerator } from '@/utils/security/idGenerator.js';
 import { StorageBackedTaskStore } from './storageBackedTaskStore.js';
 import {
   InMemoryTaskMessageQueue,

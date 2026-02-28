@@ -33,8 +33,9 @@ import {
   TransportManagerToken,
 } from '@/container/index.js';
 import type { TransportManager } from '@/mcp-server/transports/manager.js';
-import { initializePerformance_Hrt, requestContextService } from '@/utils/index.js';
 import { logger, type McpLogLevel } from '@/utils/internal/logger.js';
+import { initializePerformance_Hrt } from '@/utils/internal/performance.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import {
   initializeOpenTelemetry,
   shutdownOpenTelemetry,

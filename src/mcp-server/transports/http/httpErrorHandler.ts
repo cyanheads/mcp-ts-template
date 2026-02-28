@@ -11,7 +11,10 @@ import type { StatusCode } from 'hono/utils/http-status';
 import { config } from '@/config/index.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { ErrorHandler, getProperty, logger, requestContextService } from '@/utils/index.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
+import { getProperty } from '@/utils/types/guards.js';
 
 /**
  * A centralized error handling middleware for Hono.

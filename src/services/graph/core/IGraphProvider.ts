@@ -4,7 +4,7 @@
  * @module src/services/graph/core/IGraphProvider
  */
 
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 import type { GraphStats } from '../types.js';
 
 /**

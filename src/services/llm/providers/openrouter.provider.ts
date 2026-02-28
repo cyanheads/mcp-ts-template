@@ -10,7 +10,7 @@ import type { Stream } from 'openai/streaming';
 import type { config as ConfigType } from '@/config/index.js';
 import type { ILlmProvider, OpenRouterChatParams } from '@/services/llm/core/ILlmProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { ErrorHandler } from '@/utils/internal/error-handler/index.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { logger as LoggerType } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import type { RateLimiter } from '@/utils/security/rateLimiter.js';

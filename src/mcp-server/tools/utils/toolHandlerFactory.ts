@@ -14,12 +14,10 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
 import type { McpError } from '@/types-global/errors.js';
-import {
-  ErrorHandler,
-  measureToolExecution,
-  type RequestContext,
-  requestContextService,
-} from '@/utils/index.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { measureToolExecution } from '@/utils/internal/performance.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import type { SdkContext } from './toolDefinition.js';
 
 // Default formatter for successful responses

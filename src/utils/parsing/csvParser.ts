@@ -7,7 +7,8 @@
 import Papa from 'papaparse';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, type RequestContext, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Regular expression to find a <think> block at the start of a string.

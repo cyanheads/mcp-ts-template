@@ -4,7 +4,9 @@
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { fetchWithTimeout, logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
+import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
 
 import type { ISpeechProvider } from '../core/ISpeechProvider.js';
 import type {

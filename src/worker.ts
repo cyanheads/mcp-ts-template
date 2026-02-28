@@ -17,8 +17,9 @@ import type { Hono } from 'hono';
 import { composeContainer } from '@/container/index.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
-import { initializePerformance_Hrt, requestContextService } from '@/utils/index.js';
 import { logger } from '@/utils/internal/logger.js';
+import { initializePerformance_Hrt } from '@/utils/internal/performance.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Define Cloudflare Worker Bindings with proper type safety.

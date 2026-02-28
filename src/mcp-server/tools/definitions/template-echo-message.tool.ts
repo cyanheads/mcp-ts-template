@@ -11,10 +11,13 @@ import type {
   SdkContext,
   ToolAnnotations,
   ToolDefinition,
-} from '@/mcp-server/tools/utils/index.js';
+} from '@/mcp-server/tools/utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { getStringProperty, logger, markdown, type RequestContext } from '@/utils/index.js';
+import { markdown } from '@/utils/formatting/markdownBuilder.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { getStringProperty } from '@/utils/types/guards.js';
 
 /**
  * Programmatic tool name (must be unique).

@@ -7,9 +7,10 @@
 import { SpanStatusCode, trace } from '@opentelemetry/api';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { generateUUID, sanitizeInputForLogging } from '@/utils/index.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { generateUUID } from '@/utils/security/idGenerator.js';
+import { sanitizeInputForLogging } from '@/utils/security/sanitization.js';
 import {
   createSafeRegex,
   extractErrorCauseChain,

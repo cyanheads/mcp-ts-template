@@ -6,11 +6,8 @@
 import { trace } from '@opentelemetry/api';
 import type { config as ConfigType } from '@/config/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type logger as LoggerType,
-  type RequestContext,
-  requestContextService,
-} from '@/utils/index.js';
+import type { logger as LoggerType } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Defines configuration options for the {@link RateLimiter}.

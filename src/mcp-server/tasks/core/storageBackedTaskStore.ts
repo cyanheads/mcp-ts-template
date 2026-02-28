@@ -12,7 +12,8 @@ import type { Request, RequestId, Result } from '@modelcontextprotocol/sdk/types
 
 import type { StorageService } from '@/storage/core/StorageService.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { idGenerator, type RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { idGenerator } from '@/utils/security/idGenerator.js';
 import type { CreateTaskOptions, Task, TaskStore } from './taskTypes.js';
 import { isTerminal } from './taskTypes.js';
 

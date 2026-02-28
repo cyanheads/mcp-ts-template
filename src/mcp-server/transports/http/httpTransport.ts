@@ -18,16 +18,16 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 import { config } from '@/config/index.js';
-import {
-  authContext,
-  createAuthMiddleware,
-  createAuthStrategy,
-} from '@/mcp-server/transports/auth/index.js';
+import { createAuthStrategy } from '@/mcp-server/transports/auth/authFactory.js';
+import { createAuthMiddleware } from '@/mcp-server/transports/auth/authMiddleware.js';
+import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 import { generateSecureSessionId } from '@/mcp-server/transports/http/sessionIdUtils.js';
 import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
-import { logger, logStartupBanner, type RequestContext } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { logStartupBanner } from '@/utils/internal/startupBanner.js';
 
 /**
  * Extends the base StreamableHTTPTransport to include a session ID.

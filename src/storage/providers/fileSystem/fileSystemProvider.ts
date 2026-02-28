@@ -21,7 +21,9 @@ import type {
 } from '@/storage/core/IStorageProvider.js';
 import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { ErrorHandler, type RequestContext, sanitization } from '@/utils/index.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { sanitization } from '@/utils/security/sanitization.js';
 
 const DEFAULT_LIST_LIMIT = 1000;
 

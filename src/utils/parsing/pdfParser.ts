@@ -17,7 +17,8 @@ import {
 import { getDocumentProxy, extractText as unpdfExtractText } from 'unpdf';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, type RequestContext, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Options for adding a new page to a PDF document.

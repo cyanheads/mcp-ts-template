@@ -5,8 +5,8 @@
 import type { ServerType } from '@hono/node-server';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppConfig as AppConfigType } from '../../config/index.js';
-import type { logger as LoggerType } from '../../utils/index.js';
-import { requestContextService } from '../../utils/index.js';
+import type { logger as LoggerType } from '../../utils/internal/logger.js';
+import { requestContextService } from '../../utils/internal/requestContext.js';
 import { startHttpTransport, stopHttpTransport } from './http/httpTransport.js';
 import type { TransportServer } from './ITransport.js';
 import { startStdioTransport, stopStdioTransport } from './stdio/stdioTransport.js';

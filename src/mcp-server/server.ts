@@ -23,7 +23,8 @@ import {
   RootsRegistryToken,
   ToolRegistryToken,
 } from '@/container/core/tokens.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Creates and configures a new instance of the `McpServer`.

@@ -4,7 +4,8 @@
  * @module src/services/graph/core/GraphService
  */
 
-import { logger, type RequestContext } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 import type { GraphStats } from '../types.js';
 import type {
   Edge,
