@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-28 03:37:22
+Generated on: 2026-02-28 06:00:00
 
 ```
 mcp-ts-template/
@@ -456,15 +456,13 @@ mcp-ts-template/
 ├── .env.example
 ├── .gitattributes
 ├── .gitignore
-├── .prettierignore
-├── .prettierrc.json
 ├── AGENTS.md
+├── biome.json
 ├── bun.lock
 ├── bunfig.toml
 ├── CHANGELOG.md
 ├── CLAUDE.md
 ├── Dockerfile
-├── eslint.config.js
 ├── LICENSE
 ├── package.json
 ├── README.md

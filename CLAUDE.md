@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Version:** 2.9.9
+**Version:** 3.0.0
 **Project:** mcp-ts-template
 **Updated:** 2026-02-27
 
