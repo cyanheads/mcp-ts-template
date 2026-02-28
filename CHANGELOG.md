@@ -39,6 +39,13 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
   - Fixed `tryCatch` double-throw: now calls `handleError` with `rethrow: false` and throws the returned error explicitly.
   - Guarded cause chain extraction behind `error.cause` check to avoid unnecessary allocation on the common path.
 
+### Tests
+
+- **`encoding.test.ts`**: Added tests for `stringToBase64` (Buffer path, TextEncoder fallback, empty string, multi-byte UTF-8) and `base64ToString` (Buffer path, atob+TextDecoder fallback, empty string, round-trip). Added empty `ArrayBuffer` edge case for `arrayBufferToBase64`.
+- **`requestContext.test.ts`**: Added ad-hoc property passthrough test. Added tenant ID resolution priority suite covering all four fallback levels (`additionalContext` → rest params → parent context → auth store).
+- **`logger.test.ts`**: Added `alert()` and `emerg()` tests with both Error+context and context-only signatures.
+- **`performance.init.test.ts`**: Unskipped `Date.now` fallback and `node:perf_hooks` path tests (skip was unnecessary — both pass).
+
 ### Removed
 
 - `eslint` (10.0.2), `prettier` (3.8.1), `typescript-eslint` (8.56.1), `globals` (17.3.0), `@eslint/js` (10.0.1) dev dependencies.

@@ -36,9 +36,7 @@ describe('initHighResTimer', () => {
     expect(nowSpy).toHaveBeenCalledTimes(1);
   });
 
-  // Note: This test is skipped because performanceNow is a module-level variable
-  // that gets initialized once. Mocking after module load doesn't affect it.
-  it.skip('falls back to Date.now when perf_hooks import fails', async () => {
+  it('falls back to Date.now when perf_hooks import fails', async () => {
     const warningSpy = vi.spyOn(logger, 'warning').mockImplementation(() => {});
     const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(678.9);
     vi.spyOn(performanceModule, 'loadPerfHooks').mockRejectedValue(
@@ -59,9 +57,7 @@ describe('initHighResTimer', () => {
     expect(dateNowSpy).toHaveBeenCalled();
   });
 
-  // Note: This test is skipped because performanceNow is a module-level variable
-  // that gets initialized once. Mocking after module load doesn't affect it.
-  it.skip('uses perf_hooks when available in a Node environment', async () => {
+  it('uses perf_hooks when available in a Node environment', async () => {
     const nowSpy = vi.fn(() => 456.78);
     vi.spyOn(performanceModule, 'loadPerfHooks').mockResolvedValue({
       performance: { now: nowSpy } as unknown as PerfHooksPerformance,

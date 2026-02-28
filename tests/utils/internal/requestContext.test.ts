@@ -91,6 +91,80 @@ describe('requestContextService', () => {
     expect(typeof context.timestamp).toBe('string');
   });
 
+  it('passes ad-hoc properties through the index signature', () => {
+    const context = requestContextService.createRequestContext({
+      operation: 'test',
+      toolName: 'my-tool',
+      sessionId: 'sess-123',
+      isServerless: true,
+    });
+
+    expect(context.toolName).toBe('my-tool');
+    expect(context.sessionId).toBe('sess-123');
+    expect(context.isServerless).toBe(true);
+  });
+
+  describe('tenant ID resolution priority', () => {
+    it('prefers additionalContext over rest params', () => {
+      const context = requestContextService.createRequestContext({
+        tenantId: 'rest-tenant',
+        additionalContext: { tenantId: 'additional-tenant' },
+      });
+
+      expect(context.tenantId).toBe('additional-tenant');
+    });
+
+    it('prefers rest params over parent context', () => {
+      const parent = requestContextService.createRequestContext({
+        tenantId: 'parent-tenant',
+      });
+
+      const child = requestContextService.createRequestContext({
+        parentContext: parent,
+        tenantId: 'rest-tenant',
+      });
+
+      expect(child.tenantId).toBe('rest-tenant');
+    });
+
+    it('uses parent context tenant when no closer source provides one', () => {
+      const parent = requestContextService.createRequestContext({
+        tenantId: 'parent-tenant',
+      });
+
+      const child = requestContextService.createRequestContext({
+        parentContext: parent,
+      });
+
+      expect(child.tenantId).toBe('parent-tenant');
+    });
+
+    it('falls back to auth store as lowest priority', async () => {
+      const parent = requestContextService.createRequestContext();
+
+      await new Promise<void>((resolve) => {
+        authContext.run(
+          {
+            authInfo: {
+              subject: 'u',
+              scopes: [],
+              tenantId: 'auth-tenant',
+              token: 't',
+              clientId: 'c',
+            },
+          },
+          () => {
+            const child = requestContextService.createRequestContext({
+              parentContext: parent,
+            });
+            expect(child.tenantId).toBe('auth-tenant');
+            resolve();
+          },
+        );
+      });
+    });
+  });
+
   describe('withAuthInfo', () => {
     it('populates auth context from AuthInfo', () => {
       const authInfo = {

@@ -230,6 +230,36 @@ describe('Logger', () => {
       expect(() => logger.crit('Critical failure', err, ctx as any)).not.toThrow();
     });
 
+    it('alert() should accept Error + context', async () => {
+      await logger.initialize('info');
+      const err = new Error('alert-level');
+      const ctx = { requestId: 'r-alert', timestamp: new Date().toISOString() };
+
+      expect(() => logger.alert('Alert condition', err, ctx as any)).not.toThrow();
+    });
+
+    it('alert() should accept context as second arg', async () => {
+      await logger.initialize('info');
+      const ctx = { requestId: 'r-alert-ctx', timestamp: new Date().toISOString() };
+
+      expect(() => logger.alert('Alert condition', ctx as any)).not.toThrow();
+    });
+
+    it('emerg() should accept Error + context', async () => {
+      await logger.initialize('info');
+      const err = new Error('emergency');
+      const ctx = { requestId: 'r-emerg', timestamp: new Date().toISOString() };
+
+      expect(() => logger.emerg('Emergency', err, ctx as any)).not.toThrow();
+    });
+
+    it('emerg() should accept context as second arg', async () => {
+      await logger.initialize('info');
+      const ctx = { requestId: 'r-emerg-ctx', timestamp: new Date().toISOString() };
+
+      expect(() => logger.emerg('Emergency', ctx as any)).not.toThrow();
+    });
+
     it('fatal() should delegate to emerg()', async () => {
       await logger.initialize('info');
       const spy = vi.spyOn(logger, 'emerg');
