@@ -17,7 +17,7 @@ import type { Hono } from 'hono';
 import { composeContainer } from '@/container/index.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
-import { logger } from '@/utils/internal/logger.js';
+import { logger, type McpLogLevel } from '@/utils/internal/logger.js';
 import { initHighResTimer } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -159,17 +159,8 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
       // Initialize logger with level from env or default to 'info'
       // Workers always use HTTP transport (no STDIO support)
       const logLevel = env.LOG_LEVEL?.toLowerCase() ?? 'info';
-      // Validate log level is one of the supported values
-      type ValidLogLevel =
-        | 'debug'
-        | 'info'
-        | 'notice'
-        | 'warning'
-        | 'error'
-        | 'crit'
-        | 'alert'
-        | 'emerg';
-      const validLogLevels: ValidLogLevel[] = [
+      // Validate log level against the canonical McpLogLevel type from the logger module
+      const validLogLevels: McpLogLevel[] = [
         'debug',
         'info',
         'notice',
@@ -179,8 +170,8 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
         'alert',
         'emerg',
       ];
-      const validatedLogLevel = validLogLevels.includes(logLevel as ValidLogLevel)
-        ? (logLevel as ValidLogLevel)
+      const validatedLogLevel = validLogLevels.includes(logLevel as McpLogLevel)
+        ? (logLevel as McpLogLevel)
         : 'info';
       await logger.initialize(validatedLogLevel, 'http');
 

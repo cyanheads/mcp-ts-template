@@ -9,11 +9,17 @@
  * during application startup.
  * @module src/utils/security/idGenerator
  */
-import { randomUUID as cryptoRandomUUID, randomBytes } from 'node:crypto';
-
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 
-// Removed: import { logger, requestContextService } from "../index.js";
+/**
+ * Cross-runtime random bytes using the Web Crypto API.
+ * Available in Node.js 19+, Cloudflare Workers, and browsers.
+ */
+function getRandomBytes(count: number): Uint8Array {
+  const bytes = new Uint8Array(count);
+  crypto.getRandomValues(bytes);
+  return bytes;
+}
 
 /**
  * Defines the structure for configuring entity prefixes.
@@ -114,7 +120,7 @@ export class IdGenerator {
     const maxValidByteValue = Math.floor(256 / charset.length) * charset.length;
 
     while (result.length < length) {
-      const byteBuffer = randomBytes(1); // Get one random byte
+      const byteBuffer = getRandomBytes(1);
       const byte = byteBuffer[0];
 
       // If the byte is within the valid range (i.e., it won't introduce bias),
@@ -231,7 +237,7 @@ export class IdGenerator {
     if (parts.length < 2 || !parts[0]) {
       throw new McpError(
         JsonRpcErrorCode.ValidationError,
-        `Invalid ID format: ${id}. Expected format like: PREFIX${separator}RANDOMLPART`,
+        `Invalid ID format: ${id}. Expected format like: PREFIX${separator}RANDOMPART`,
       );
     }
 
@@ -280,7 +286,7 @@ export const idGenerator = new IdGenerator();
  * Uses the Node.js `crypto` module.
  * @returns A new UUID string.
  */
-export const generateUUID = (): string => cryptoRandomUUID();
+export const generateUUID = (): string => crypto.randomUUID();
 
 /**
  * Generates a unique 10-character alphanumeric ID with a hyphen in the middle (e.g., `ABCDE-FGHIJ`).
@@ -300,7 +306,7 @@ export const generateRequestContextId = (): string => {
     const maxValidByteValue = Math.floor(256 / charset.length) * charset.length;
 
     while (result.length < length) {
-      const byteBuffer = randomBytes(1);
+      const byteBuffer = getRandomBytes(1);
       const byte = byteBuffer[0];
 
       if (byte !== undefined && byte < maxValidByteValue) {

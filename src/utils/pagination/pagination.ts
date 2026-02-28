@@ -13,6 +13,7 @@
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { base64ToString, stringToBase64 } from '@/utils/internal/encoding.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 
@@ -53,7 +54,11 @@ export interface PaginatedResult<T> {
 export function encodeCursor(state: PaginationState): string {
   try {
     const jsonString = JSON.stringify(state);
-    const base64 = Buffer.from(jsonString, 'utf-8').toString('base64url');
+    // Use cross-platform encoding, then convert standard base64 to base64url
+    const base64 = stringToBase64(jsonString)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
     return base64;
   } catch (error: unknown) {
     throw new McpError(JsonRpcErrorCode.InternalError, 'Failed to encode pagination cursor', {
@@ -73,7 +78,9 @@ export function encodeCursor(state: PaginationState): string {
  */
 export function decodeCursor(cursor: string, context: RequestContext): PaginationState {
   try {
-    const jsonString = Buffer.from(cursor, 'base64url').toString('utf-8');
+    // Convert base64url back to standard base64, then decode cross-platform
+    const standardBase64 = cursor.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonString = base64ToString(standardBase64);
     const state = JSON.parse(jsonString) as PaginationState;
 
     // Validate required fields

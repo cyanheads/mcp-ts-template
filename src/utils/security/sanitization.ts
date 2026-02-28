@@ -11,19 +11,18 @@ import validator from 'validator';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
+import { runtimeCaps } from '@/utils/internal/runtime.js';
 import { isRecord } from '@/utils/types/guards.js';
 
-const isServerless = typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
-
-// Dynamically import 'path' only in non-serverless environments
+// Dynamically import 'path' only in Node.js environments
 let pathModule: typeof import('node:path') | undefined;
-if (!isServerless) {
+if (runtimeCaps.isNode) {
   import('node:path')
     .then((mod) => {
       pathModule = mod.default;
     })
     .catch(() => {
-      // This might happen in some bundlers, but we have the guard.
+      // May fail in some bundlers; sanitizePath guards against undefined pathModule.
     });
 }
 
@@ -387,7 +386,7 @@ export class Sanitization {
    * @throws {McpError} If the path is invalid, unsafe, or method is called in a non-Node.js environment.
    */
   public sanitizePath(input: string, options: PathSanitizeOptions = {}): SanitizedPathInfo {
-    if (isServerless || !pathModule) {
+    if (!runtimeCaps.isNode || !pathModule) {
       throw new McpError(
         JsonRpcErrorCode.InternalError,
         'File-based path sanitization is not supported in this environment.',
@@ -500,10 +499,10 @@ export class Sanitization {
 
       // Cross-environment byte length computation
       const computeBytes = (s: string): number => {
-        if (typeof Buffer !== 'undefined' && typeof Buffer.byteLength === 'function') {
+        if (runtimeCaps.hasBuffer && typeof Buffer.byteLength === 'function') {
           return Buffer.byteLength(s, 'utf8');
         }
-        if (typeof TextEncoder !== 'undefined') {
+        if (runtimeCaps.hasTextEncoder) {
           return new TextEncoder().encode(s).length;
         }
         return s.length;
