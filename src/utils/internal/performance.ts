@@ -51,7 +51,9 @@ export async function loadPerfHooks(): Promise<{
   }>);
 }
 
-export async function initHighResTimer(): Promise<void> {
+export async function initHighResTimer(
+  perfLoader: typeof loadPerfHooks = loadPerfHooks,
+): Promise<void> {
   // Use a type assertion to safely access `performance` on `globalThis`,
   // which is present in browser-like environments (e.g., Cloudflare Workers)
   // but not in Node.js's default global type.
@@ -64,7 +66,7 @@ export async function initHighResTimer(): Promise<void> {
     performanceNow = () => perf.now();
   } else {
     try {
-      const { performance: nodePerformance } = await loadPerfHooks();
+      const { performance: nodePerformance } = await perfLoader();
       performanceNow = () => nodePerformance.now();
     } catch (_e) {
       performanceNow = () => Date.now();

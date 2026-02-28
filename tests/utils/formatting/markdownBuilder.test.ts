@@ -57,6 +57,11 @@ describe('MarkdownBuilder', () => {
       expect(result).toBe('#### Minor heading');
     });
 
+    test('should create h4 with emoji', () => {
+      const result = markdown().h4('Detail', '🔍').build();
+      expect(result).toBe('#### 🔍 Detail');
+    });
+
     test('should chain multiple headings', () => {
       const result = markdown().h1('Title').h2('Section').h3('Subsection').build();
       expect(result).toBe('# Title\n\n## Section\n\n### Subsection');
@@ -87,6 +92,21 @@ describe('MarkdownBuilder', () => {
     test('should create plain key-value pair', () => {
       const result = markdown().keyValuePlain('Status', 'active').build();
       expect(result).toBe('Status: active');
+    });
+
+    test('should handle numeric values in plain key-value', () => {
+      const result = markdown().keyValuePlain('Count', 42).build();
+      expect(result).toBe('Count: 42');
+    });
+
+    test('should handle boolean values in plain key-value', () => {
+      const result = markdown().keyValuePlain('Enabled', false).build();
+      expect(result).toBe('Enabled: false');
+    });
+
+    test('should handle null values in plain key-value', () => {
+      const result = markdown().keyValuePlain('Value', null).build();
+      expect(result).toBe('Value: null');
     });
 
     test('should chain multiple key-value pairs', () => {
@@ -233,7 +253,7 @@ describe('MarkdownBuilder', () => {
       expect(result).toContain('- file1.ts');
     });
 
-    test('should create section with custom level', () => {
+    test('should create section with level 3', () => {
       const md = markdown();
       const result = md
         .section('Details', 3, () => {
@@ -242,6 +262,17 @@ describe('MarkdownBuilder', () => {
         .build();
       expect(result).toContain('### Details');
       expect(result).toContain('Some details');
+    });
+
+    test('should create section with level 4', () => {
+      const md = markdown();
+      const result = md
+        .section('Sub-detail', 4, () => {
+          md.paragraph('Deep content');
+        })
+        .build();
+      expect(result).toContain('#### Sub-detail');
+      expect(result).toContain('Deep content');
     });
   });
 

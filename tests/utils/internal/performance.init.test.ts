@@ -39,16 +39,17 @@ describe('initHighResTimer', () => {
   it('falls back to Date.now when perf_hooks import fails', async () => {
     const warningSpy = vi.spyOn(logger, 'warning').mockImplementation(() => {});
     const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(678.9);
-    vi.spyOn(performanceModule, 'loadPerfHooks').mockRejectedValue(
-      new Error('perf_hooks unavailable'),
-    );
 
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete (globalThis as { performance?: typeof globalThis.performance }).performance;
 
-    await performanceModule.initHighResTimer();
+    // Pass a failing loader directly — vi.spyOn on ESM exports doesn't
+    // affect internal module calls.
+    const failingLoader = async () => {
+      throw new Error('perf_hooks unavailable');
+    };
+    await performanceModule.initHighResTimer(failingLoader);
 
-    // Just verify it returns a number and the fallback was called
     const result = performanceModule.nowMs();
     expect(typeof result).toBe('number');
     expect(warningSpy).toHaveBeenCalledWith(
@@ -59,16 +60,16 @@ describe('initHighResTimer', () => {
 
   it('uses perf_hooks when available in a Node environment', async () => {
     const nowSpy = vi.fn(() => 456.78);
-    vi.spyOn(performanceModule, 'loadPerfHooks').mockResolvedValue({
-      performance: { now: nowSpy } as unknown as PerfHooksPerformance,
-    });
 
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete (globalThis as { performance?: typeof globalThis.performance }).performance;
 
-    await performanceModule.initHighResTimer();
+    // Pass a mock loader that returns a fake perf_hooks performance object.
+    const mockLoader = async () => ({
+      performance: { now: nowSpy } as unknown as PerfHooksPerformance,
+    });
+    await performanceModule.initHighResTimer(mockLoader);
 
-    // Just verify it returns a number and perf_hooks was loaded
     const result = performanceModule.nowMs();
     expect(typeof result).toBe('number');
     expect(nowSpy).toHaveBeenCalled();

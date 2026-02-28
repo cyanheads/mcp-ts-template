@@ -63,6 +63,32 @@ describe('TableFormatter', () => {
       expect(result).toContain('null');
       expect(result).toContain('[1,2]');
     });
+
+    it('should handle undefined values', () => {
+      const data = [{ a: 'hello', b: undefined }];
+      const result = tableFormatter.format(data);
+
+      expect(result).toContain('hello');
+      expect(result).toContain('undefined');
+    });
+
+    it('should handle nested objects', () => {
+      const data = [{ name: 'test', config: { key: 'value' } }];
+      const result = tableFormatter.format(data);
+
+      expect(result).toContain('test');
+      expect(result).toContain('{"key":"value"}');
+    });
+
+    it('should handle circular objects gracefully', () => {
+      const circular: Record<string, unknown> = { name: 'test' };
+      circular.self = circular;
+      const data = [circular];
+      const result = tableFormatter.format(data);
+
+      expect(result).toContain('test');
+      expect(result).toContain('[Object]');
+    });
   });
 
   describe('formatRaw() with headers and rows', () => {
@@ -177,6 +203,17 @@ describe('TableFormatter', () => {
       expect(result).toContain('Alice');
       expect(result).toContain('30');
       expect(result).toContain('95');
+    });
+
+    it('should support alignment by column index string', () => {
+      const result = tableFormatter.formatRaw(headers, rows, {
+        style: 'markdown',
+        alignment: { '1': 'right', '2': 'right' },
+      });
+
+      // Index-based alignment should produce same separator indicators as name-based
+      const separatorLine = result.split('\n')[1];
+      expect(separatorLine).toMatch(/-+:/);
     });
   });
 

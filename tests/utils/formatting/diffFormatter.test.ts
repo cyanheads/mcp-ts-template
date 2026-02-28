@@ -102,6 +102,27 @@ describe('DiffFormatter', () => {
       expect(result).not.toContain('---'); // No file headers
       expect(result).not.toContain('+++'); // No file headers
     });
+
+    it('should support patch format with includeHeaders: false', () => {
+      const result = diffFormatter.diff(oldText, newText, {
+        format: 'patch',
+        includeHeaders: false,
+      });
+
+      // Should strip file headers but keep hunk markers
+      expect(result).toContain('@@');
+      expect(result).not.toContain('---');
+      expect(result).not.toContain('+++');
+    });
+
+    it('should handle identical text with unified format (stripHeaders no @@ found)', () => {
+      const result = diffFormatter.diff('same text', 'same text', {
+        format: 'unified',
+      });
+
+      // stripHeaders returns raw patch when no @@ marker is found
+      expect(result).not.toContain('@@');
+    });
   });
 
   describe('diffLines() method', () => {
@@ -253,10 +274,31 @@ describe('DiffFormatter', () => {
       }
     });
 
+    it('should throw McpError for non-array second argument in diffLines()', () => {
+      expect(() => {
+        // @ts-expect-error Testing invalid input
+        diffFormatter.diffLines(['valid'], 'not array');
+      }).toThrow(McpError);
+    });
+
     it('should throw McpError for non-string inputs in diffWords()', () => {
       expect(() => {
         // @ts-expect-error Testing invalid input
         diffFormatter.diffWords(undefined, 'text');
+      }).toThrow(McpError);
+    });
+
+    it('should throw McpError for non-string second argument in diffWords()', () => {
+      expect(() => {
+        // @ts-expect-error Testing invalid input
+        diffFormatter.diffWords('valid', 42);
+      }).toThrow(McpError);
+    });
+
+    it('should throw McpError for non-string second argument in diff()', () => {
+      expect(() => {
+        // @ts-expect-error Testing invalid input
+        diffFormatter.diff('valid', 123);
       }).toThrow(McpError);
     });
   });
