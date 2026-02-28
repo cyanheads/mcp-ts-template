@@ -156,6 +156,7 @@ All configuration is centralized and validated at startup in `src/config/index.t
 | `MCP_LOG_LEVEL`           | Logging level (`fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`).                              | `debug`      |
 | `MCP_AUTH_MODE`           | Authentication mode: `none`, `jwt`, or `oauth`.                                                            | `none`       |
 | `MCP_AUTH_SECRET_KEY`     | **Required for `jwt` auth mode.** A 32+ character secret.                                                  | `(none)`     |
+| `DEV_MCP_AUTH_BYPASS`     | Set to `true` to bypass JWT auth in development (requires no secret key).                                  | `false`      |
 | `OAUTH_ISSUER_URL`        | **Required for `oauth` auth mode.** URL of the OIDC provider.                                              | `(none)`     |
 | `STORAGE_PROVIDER_TYPE`   | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-d1`, `cloudflare-kv`, `cloudflare-r2`. | `in-memory`  |
 | `STORAGE_FILESYSTEM_PATH` | Path to the storage directory (for `filesystem` provider).                                                 | `./.storage` |

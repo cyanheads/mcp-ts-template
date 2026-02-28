@@ -6,12 +6,14 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 
 ---
 
-## [3.0.0] - 2026-02-27
+## [3.0.0] - 2026-02-28
 
 ### Breaking Changes
 
 - **Replaced ESLint + Prettier with Biome**: Unified linting and formatting under [Biome 2.4.4](https://biomejs.dev/). Removed `eslint`, `prettier`, `typescript-eslint`, and `globals` dev dependencies. Removed `.prettierignore`, `.prettierrc.json`, and `eslint.config.js` config files. Added `biome.json` with equivalent rules, import sorting, and interface member sorting.
 - **Removed barrel `index.ts` files**: Deleted 22 barrel re-export files across `src/` (utils, services, storage, transports, tasks, tools). All imports now reference the defining file directly (e.g. `@/utils/internal/logger.js` instead of `@/utils/index.js`). Barrel files remain only at aggregation points (`tools/definitions/index.ts`, `resources/definitions/index.ts`, `prompts/definitions/index.ts`, `container/index.ts`, `config/index.ts`).
+- **JWT auth bypass requires explicit opt-in**: Dev-mode JWT auth bypass no longer activates implicitly in non-production environments. Requires `DEV_MCP_AUTH_BYPASS=true` environment variable. Existing deployments without `MCP_AUTH_SECRET_KEY` must set this flag to retain bypass behavior.
+- **Elicitation response shape**: `elicitAndValidate` in `template-madlibs-elicitation.tool.ts` updated to expect `{ action: 'accept' | 'decline' | 'cancel', content: { value: string } }` instead of flat `{ value: string }`, matching the actual MCP SDK elicitation API. Decline/cancel actions now throw `McpError(InvalidRequest)`.
 
 ### Changed
 
@@ -66,6 +68,25 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - **`scheduler.ts`**: Replaced plain `Error` throws with `McpError` using appropriate codes (`Conflict` for duplicate job IDs, `InvalidParams` for bad cron expressions, `NotFound` for missing jobs). Replaced bare inline log context objects with `requestContextService.createRequestContext()` for OTel trace correlation. Extracted `resolveJob()` private helper to deduplicate job-lookup-or-throw pattern across `start`, `stop`, and `remove`.
 - **`metrics/registry.ts`**: Removed unused `bind`/`unbind` methods from no-op counter and histogram stubs.
 - **README.md**: Updated Bun version badge and prerequisites from v1.2.21 to v1.3.2 to match `packageManager` field.
+- **`config/index.ts`**: Added `devMcpAuthBypass` config field (`DEV_MCP_AUTH_BYPASS` env var) for explicit JWT auth bypass. Added `.superRefine()` cross-field validation: JWT mode requires `mcpAuthSecretKey` (≥32 chars) unless bypass is set; OAuth mode requires `oauthIssuerUrl` and `oauthAudience`. Added range validators: `mcpHttpPort` (1–65535), `openTelemetry.samplingRatio` (0–1).
+- **`index.ts`**: Moved `uncaughtException` and `unhandledRejection` process error handlers to register before `transportManager.start()`, ensuring fatal errors during transport binding are caught and trigger graceful shutdown.
+- **`worker.ts`**: 500 error responses no longer leak internal error messages — returns generic `"An internal error occurred."`.
+- **`types-global/errors.ts`**: `McpError.code` is now `readonly`, preventing accidental mutation after construction.
+- **JWT/OAuth claim logging** (`jwtStrategy.ts`, `oauthStrategy.ts`): Post-verification debug logs now include only safe JWT claim fields (`iss`, `aud`, `exp`, `iat`, `jti`) instead of the full decoded payload, preventing accidental PII in logs.
+- **`jwtStrategy.ts`**: Removed implicit environment-based dev bypass. JWT bypass now requires explicit `devMcpAuthBypass` config flag. Removed unused `env` instance field.
+- **`httpTransport.ts`**: Per-request MCP server instances now closed in a `finally` block (was error-path-only), fixing a resource leak on successful stateless HTTP requests.
+- **`sessionStore.ts`**: Tightened session identity validation — sessions bound to a tenant/client now reject requests with missing (not just mismatched) identity fields, closing a session-hijacking vector via identity omission.
+- **`transports/manager.ts`**: `TransportManager.stop()` now calls `TaskManager.cleanup()` to clear task manager timers, enabling clean process exit without hanging event loop references.
+- **`toolHandlerFactory.ts`**: Added defense-in-depth input validation — tool handler now re-parses input against the tool's Zod schema before calling logic, catching any SDK parsing gaps. `inputSchema` parameter (previously unused at runtime) is now active.
+- **`storageFactory.ts`**: Converted `isServerless` from module-level constant to function evaluated at call time, fixing a race condition where the guard was always `false` in Workers because `IS_SERVERLESS` was set after module import.
+- **Storage cursor robustness**: `InMemoryProvider` and `FileSystemProvider` now handle deleted cursor keys by finding the next key lexicographically, instead of silently restarting pagination from the beginning.
+- **Storage SQL injection prevention**: `D1Provider` and `SupabaseProvider` now escape SQL `LIKE` wildcards (`%`, `_`) in prefix queries via `escapeLikePattern()` helper.
+- **Cloudflare KV/R2 cursor security**: `KvProvider` and `R2Provider` now wrap native cursors in tenant-bound envelopes using `encodeCursor`/`decodeCursor`, preventing cursor reuse across tenants.
+- **Cloudflare KV TTL enforcement**: `KvProvider` now enforces a minimum TTL of 60 seconds (Cloudflare KV's platform minimum) instead of passing through sub-60-second values that would fail silently.
+- **`encoding.ts`**: `arrayBufferToBase64` now chunked in 32 KB blocks to avoid stack overflow on large buffers in browser/Worker environments. `base64ToString` optimized to avoid intermediate array allocation from `split('')`.
+- **`requestContext.ts`**: `createRequestContext()` now strips `requestId` and `timestamp` from `additionalContext` to prevent callers from accidentally overwriting generated correlation IDs.
+- **`fetchWithTimeout.ts`**: Added optional `signal` parameter to combine an external `AbortSignal` (e.g., `sdkContext.signal`) with the internal timeout. Error data in thrown `McpError` objects now includes only `requestId`/`operation` instead of spreading the full context object.
+- **`sanitization.ts`**: Replaced fire-and-forget `import('node:path').then()` chain with top-level `await import()`, eliminating a race condition where `sanitizePath` could run before `pathModule` was assigned.
 
 ### Tests
 
@@ -79,6 +100,9 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - **`diffFormatter.test.ts`**, **`markdownBuilder.test.ts`**, **`tableFormatter.test.ts`**, **`treeFormatter.test.ts`**: Added edge-case and branch-coverage tests for formatting utilities.
 - **`scheduler.test.ts`**: Updated log assertion matchers to use `operation`/`jobId` context fields (matching `requestContextService` output) instead of raw `requestId` strings. Added assertions for `start` and `stop` log calls.
 - **Schema snapshots**: Updated resource and tool schema snapshots with newly added definitions (`data-explorer-ui`, `template_async_countdown`, `template_cat_fact`, `template_code_review_sampling`, `template_data_explorer`, `template_echo_message`, `template_image_test`, `template_madlibs_elicitation`). Removed stale duplicate snapshot entries from pre-`>` Vitest describe separator format.
+- **`template-madlibs-elicitation.tool.test.ts`**: Updated all mock return values for the new `{ action, content }` elicitation response shape. Added `"should throw on user decline"` test case.
+- **`jwtStrategy.test.ts`**: Updated bypass tests to use `devMcpAuthBypass` config flag instead of environment-based conditions.
+- **`kvProvider.test.ts`**, **`r2Provider.test.ts`**: Updated pagination tests to use tenant-bound encoded cursors via `encodeCursor`/`decodeCursor`.
 
 ### Removed
 
@@ -86,5 +110,9 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - `.prettierignore`, `.prettierrc.json`, `eslint.config.js` config files.
 - 22 barrel `index.ts` files and their 15 corresponding barrel test files.
 - `coverage/` directory from version control (generated build artifact).
+
+### Dependencies
+
+- Updated all runtime and dev dependency specifiers to `latest` in `bun.lock`, resolving to current package versions.
 
 ---

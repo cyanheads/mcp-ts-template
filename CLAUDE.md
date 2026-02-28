@@ -699,29 +699,28 @@ All config validated via Zod in `src/config/index.ts`. Config module derives `mc
 
 ## Subagent Rules
 
-Rules for the orchestrator (main conversation) when spawning subagents via the Agent tool.
+**Default: do the work yourself.** The orchestrator should directly perform nearly all tasks — reading files, analyzing diffs, searching the codebase, editing code, running commands. You need information in your own context to make good decisions; a summarized version from an agent loses nuance and forces you to trust conclusions you can't verify.
 
-**Do the work yourself first.** The orchestrator should perform tasks directly in most cases. Agents are not a default mode of operation. Spawn agents when there is genuinely parallelizable work across many files or independent research tasks that benefit from concurrency. For single-file edits, sequential multi-step work, or anything the orchestrator can do in a few tool calls, just do it.
+**Agents are rare.** Only spawn agents when ALL of these are true:
 
-**Model selection.** Always use `model: "opus"` (preferred) or `model: "sonnet"` (acceptable). Never use `haiku`.
+1. The work spans 3+ files with clearly independent, non-overlapping scopes
+2. You can write a precise, self-contained prompt for each agent (specific file paths, exact instructions, clear deliverable)
+3. Parallelism provides genuine value — the work would take significantly longer sequentially
 
-**Always run agents in background.** Use `run_in_background: true` for all Agent invocations. The orchestrator maintains control flow, checks results, and coordinates next steps.
+If any condition isn't met, do it yourself. When in doubt, do it yourself.
 
-**Parallel launches.** When spawning multiple independent agents, batch all Agent tool calls into a single response message so they run concurrently. Do not spawn them one at a time across separate messages.
+**When agents are used:**
 
-**No git commands.** Subagents must not execute any git commands via Bash or any other tool. Git operations are executed by the user. An agent MAY use git for informational purposes (e.g. `git status`), but must not modify the working tree or commit history, perform stashes, resets, or any other operations that alter the state.
-
-**This is the single most important subagent rule.** Agents with Bash access will default to git habits unless explicitly prohibited. They will stash changes, reset files, undo their own work, or try to "clean up" on exit. This causes data loss and breaks the orchestrator's assumptions about working tree state. The prohibition must be stated clearly and repeatedly in every agent prompt.
-
-**Scope containment.** Each agent receives an explicit scope (file paths, directories, or specific questions). Agents work within that scope. They do not reorganize directories, create top-level files, or make changes outside their assignment.
-
-**Summarize agent results.** Remember that agent output is not visible to the user. The orchestrator must summarize findings or outcomes in a user-facing message after an agent completes. Do not silently consume agent output without reporting back.
-
-**File conflict avoidance.** When running multiple agents in parallel, assign non-overlapping file scopes. Two agents editing the same file will race and one will overwrite the other.
+- **Model selection.** Always use `model: "opus"` (preferred) or `model: "sonnet"` (acceptable). Never use `haiku`.
+- **Always run in background.** Use `run_in_background: true`. The orchestrator maintains control flow and coordinates.
+- **Parallel launches.** Batch all Agent tool calls into a single response message so they run concurrently.
+- **Scope containment.** Each agent gets an explicit, non-overlapping file scope. Two agents editing the same file will race.
+- **Summarize results.** Agent output is not visible to the user. The orchestrator must report findings in a user-facing message.
+- **No git commands.** Subagents must not execute any git commands that modify state. Read-only (`status`, `diff`, `log`) is acceptable. Agents will default to git habits (stash, reset, clean up on exit) unless explicitly prohibited — this causes data loss.
 
 **Required preamble for every agent prompt:**
 
-> CRITICAL: Do NOT run any git commands whatsoever. Git is handled by the orchestrator, not by you. Do not attempt to undo, clean up, or revert using git. You do not have permission to run git commands.
+> CRITICAL: Do NOT run any git commands that modify state. No commits, stashes, resets, checkouts, or clean. Git is handled by the orchestrator. Read-only commands (status, diff, log, show) are acceptable.
 
 ---
 
