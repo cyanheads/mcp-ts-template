@@ -6,6 +6,20 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 
 ---
 
+## [3.0.1] - 2026-03-04
+
+### Fixed
+
+- **`devMcpAuthBypass` config coercion**: `z.coerce.boolean()` treated any non-empty string (including `"false"`, `"0"`, `"no"`) as `true`. Replaced with explicit string comparison so only `"true"` and `"1"` enable the bypass.
+- **`fetchWithTimeout` abort disambiguation**: Timeout aborts and external signal aborts (e.g., client disconnect) were indistinguishable — both threw `McpError(Timeout)`. Added a sentinel value to the internal `AbortController` so timeouts throw `Timeout` while external aborts throw `InternalError` with `errorSource: 'FetchAborted'`.
+
+### Changed
+
+- **Dockerfile**: Removed platform-specific `@oven` and `@rollup` binaries from the production image — pulled as `optionalDependencies` by `@modelcontextprotocol/ext-apps` but only needed for its build toolchain, not runtime.
+- **`docs/tree.md`**: Refreshed directory tree to reflect 3.0.0 file additions and removals.
+
+---
+
 ## [3.0.0] - 2026-02-28
 
 ### Breaking Changes

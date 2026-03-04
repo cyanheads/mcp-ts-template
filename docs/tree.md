@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-02-28 08:53:35
+Generated on: 2026-03-04 19:27:52
 
 ```
 mcp-ts-template/
@@ -114,6 +114,7 @@ mcp-ts-template/
 │   │   │   │   ├── httpErrorHandler.ts
 │   │   │   │   ├── httpTransport.ts
 │   │   │   │   ├── httpTypes.ts
+│   │   │   │   ├── protectedResourceMetadata.ts
 │   │   │   │   ├── sessionIdUtils.ts
 │   │   │   │   └── sessionStore.ts
 │   │   │   ├── stdio/
@@ -185,7 +186,6 @@ mcp-ts-template/
 │   │   │   ├── runtime.ts
 │   │   │   └── startupBanner.ts
 │   │   ├── metrics/
-│   │   │   ├── registry.ts
 │   │   │   └── tokenCounter.ts
 │   │   ├── network/
 │   │   │   └── fetchWithTimeout.ts
@@ -387,7 +387,6 @@ mcp-ts-template/
 │   │   │   ├── runtime.test.ts
 │   │   │   └── startupBanner.test.ts
 │   │   ├── metrics/
-│   │   │   ├── registry.test.ts
 │   │   │   └── tokenCounter.test.ts
 │   │   ├── network/
 │   │   │   └── fetchWithTimeout.test.ts
