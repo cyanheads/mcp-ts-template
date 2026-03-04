@@ -120,7 +120,13 @@ const ConfigSchema = z
     oauthJwksCooldownMs: z.coerce.number().default(300_000), // 5 minutes
     oauthJwksTimeoutMs: z.coerce.number().default(5_000), // 5 seconds
     mcpServerResourceIdentifier: z.string().url().optional(), // RFC 8707 resource indicator
-    devMcpAuthBypass: z.coerce.boolean().default(false),
+    devMcpAuthBypass: z
+      .preprocess((val) => {
+        if (val === undefined || val === null || val === '') return false;
+        const str = String(val).toLowerCase().trim();
+        return str === 'true' || str === '1';
+      }, z.boolean())
+      .default(false),
     devMcpClientId: z.string().optional(),
     devMcpScopes: z.array(z.string()).optional(),
     openrouterAppUrl: z.string().default('http://localhost:3000'),

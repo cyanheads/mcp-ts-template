@@ -85,6 +85,18 @@ describe('config parsing', () => {
     expect(parsed.devMcpAuthBypass).toBe(true);
   });
 
+  it('treats DEV_MCP_AUTH_BYPASS=false as disabled (not truthy-coerced)', () => {
+    process.env.NODE_ENV = 'development';
+    process.env.MCP_AUTH_MODE = 'jwt';
+    process.env.MCP_AUTH_SECRET_KEY = 'a-secret-key-that-is-at-least-32-chars';
+
+    for (const value of ['false', '0', 'no', 'FALSE']) {
+      process.env.DEV_MCP_AUTH_BYPASS = value;
+      const parsed = parseConfig();
+      expect(parsed.devMcpAuthBypass).toBe(false);
+    }
+  });
+
   it('throws a configuration error when validation fails', async () => {
     // Mock console.error BEFORE setting isTTY to suppress output during tests
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
