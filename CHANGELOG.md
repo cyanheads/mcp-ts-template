@@ -6,6 +6,14 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 
 ---
 
+## [3.0.4] - 2026-03-04
+
+### Fixed
+
+- **Data Explorer app resource**: Switched CDN from `esm.sh` to `unpkg.com` for `@modelcontextprotocol/ext-apps` import. Fixed `sendMessage` content format from single object to array. Added CSP `_meta.ui.csp.resource_domains` to whitelist the CDN for MCP Apps-capable hosts.
+
+---
+
 ## [3.0.3] - 2026-03-04
 
 ### Fixed
