@@ -11,6 +11,7 @@
  * @module src/mcp-server/tools/definitions/template-data-explorer.app-tool
  * @see {@link ../../../docs/mcp-apps.md} for full MCP Apps overview
  */
+import { RESOURCE_URI_META_KEY } from '@modelcontextprotocol/ext-apps/server';
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
@@ -155,5 +156,6 @@ export const dataExplorerAppTool: ToolDefinition<typeof InputSchema, typeof Outp
   responseFormatter,
   _meta: {
     ui: { resourceUri: UI_RESOURCE_URI },
+    [RESOURCE_URI_META_KEY]: UI_RESOURCE_URI,
   },
 };

@@ -26,7 +26,7 @@ import type { TaskToolDefinition } from '@/mcp-server/tasks/utils/taskToolDefini
 const TOOL_NAME = 'template_async_countdown';
 const TOOL_TITLE = 'Async Countdown (Task Demo)';
 const TOOL_DESCRIPTION =
-  'Demonstrates the MCP Tasks API with a countdown timer. The tool returns immediately with a task handle. Poll the task status to track progress, then retrieve the final result when complete.';
+  'Demonstrates the MCP Tasks API with a countdown timer. When the client supports tasks, returns immediately with a task handle for polling. Otherwise, runs synchronously and returns the result directly.';
 
 // ============================================================================
 // Schemas
@@ -239,7 +239,7 @@ export const asyncCountdownTaskTool: TaskToolDefinition<typeof InputSchema, type
     openWorldHint: false,
   },
   execution: {
-    taskSupport: 'required',
+    taskSupport: 'optional',
   },
   taskHandlers: {
     /**

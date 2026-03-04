@@ -72,8 +72,8 @@ describe('asyncCountdownTaskTool', () => {
       expect(asyncCountdownTaskTool.description).toContain('countdown');
     });
 
-    it('should have execution with taskSupport required', () => {
-      expect(asyncCountdownTaskTool.execution.taskSupport).toBe('required');
+    it('should have execution with taskSupport optional', () => {
+      expect(asyncCountdownTaskTool.execution.taskSupport).toBe('optional');
     });
 
     it('should have annotations', () => {
