@@ -4,7 +4,7 @@
  * and state management without requiring file I/O.
  * @module tests/utils/internal/logger
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Logger, type McpLogLevel } from '@/utils/internal/logger.js';
 
@@ -44,12 +44,7 @@ vi.mock('@/config/index.js', () => ({
 // Mock sanitization
 vi.mock('@/utils/security/sanitization.js', () => ({
   sanitization: {
-    getSensitivePinoFields: vi.fn(() => [
-      'password',
-      'secret',
-      'token',
-      'authorization',
-    ]),
+    getSensitivePinoFields: vi.fn(() => ['password', 'secret', 'token', 'authorization']),
   },
 }));
 
@@ -104,10 +99,7 @@ describe('Logger', () => {
 
       await logger.initialize('debug');
 
-      expect(spy).toHaveBeenCalledWith(
-        'Logger already initialized.',
-        expect.any(Object),
-      );
+      expect(spy).toHaveBeenCalledWith('Logger already initialized.', expect.any(Object));
       spy.mockRestore();
     });
   });
@@ -235,9 +227,37 @@ describe('Logger', () => {
       const err = new Error('critical');
       const ctx = { requestId: 'r2', timestamp: new Date().toISOString() };
 
-      expect(() =>
-        logger.crit('Critical failure', err, ctx as any),
-      ).not.toThrow();
+      expect(() => logger.crit('Critical failure', err, ctx as any)).not.toThrow();
+    });
+
+    it('alert() should accept Error + context', async () => {
+      await logger.initialize('info');
+      const err = new Error('alert-level');
+      const ctx = { requestId: 'r-alert', timestamp: new Date().toISOString() };
+
+      expect(() => logger.alert('Alert condition', err, ctx as any)).not.toThrow();
+    });
+
+    it('alert() should accept context as second arg', async () => {
+      await logger.initialize('info');
+      const ctx = { requestId: 'r-alert-ctx', timestamp: new Date().toISOString() };
+
+      expect(() => logger.alert('Alert condition', ctx as any)).not.toThrow();
+    });
+
+    it('emerg() should accept Error + context', async () => {
+      await logger.initialize('info');
+      const err = new Error('emergency');
+      const ctx = { requestId: 'r-emerg', timestamp: new Date().toISOString() };
+
+      expect(() => logger.emerg('Emergency', err, ctx as any)).not.toThrow();
+    });
+
+    it('emerg() should accept context as second arg', async () => {
+      await logger.initialize('info');
+      const ctx = { requestId: 'r-emerg-ctx', timestamp: new Date().toISOString() };
+
+      expect(() => logger.emerg('Emergency', ctx as any)).not.toThrow();
     });
 
     it('fatal() should delegate to emerg()', async () => {
@@ -299,9 +319,7 @@ describe('Logger', () => {
         timestamp: new Date().toISOString(),
       } as any);
 
-      expect(mockLogger.error.mock.calls.length).toBeGreaterThan(
-        initialErrorCalls,
-      );
+      expect(mockLogger.error.mock.calls.length).toBeGreaterThan(initialErrorCalls);
     });
   });
 });

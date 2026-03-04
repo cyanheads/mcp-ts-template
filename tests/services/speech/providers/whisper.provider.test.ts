@@ -3,12 +3,12 @@
  * @module tests/services/speech/providers/whisper.provider.test
  */
 
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WhisperProvider } from '@/services/speech/providers/whisper.provider.js';
 import { McpError } from '@/types-global/errors.js';
 
 // Mock fetchWithTimeout
-vi.mock('@/utils/index.js', async (importOriginal) => {
+vi.mock('@/utils/network/fetchWithTimeout.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
@@ -16,7 +16,7 @@ vi.mock('@/utils/index.js', async (importOriginal) => {
   };
 });
 
-import { fetchWithTimeout } from '@/utils/index.js';
+import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
 
 const mockFetch = vi.mocked(fetchWithTimeout);
 
@@ -36,9 +36,7 @@ describe('WhisperProvider', () => {
 
   describe('constructor', () => {
     it('should throw when API key is missing', () => {
-      expect(() => new WhisperProvider({ provider: 'openai-whisper' })).toThrow(
-        McpError,
-      );
+      expect(() => new WhisperProvider({ provider: 'openai-whisper' })).toThrow(McpError);
       expect(() => new WhisperProvider({ provider: 'openai-whisper' })).toThrow(
         'OpenAI API key is required',
       );
@@ -123,9 +121,9 @@ describe('WhisperProvider', () => {
     it('should throw when audio exceeds 25MB', async () => {
       const largeBuffer = Buffer.alloc(26 * 1024 * 1024);
 
-      await expect(
-        provider.speechToText({ audio: largeBuffer }),
-      ).rejects.toThrow('Audio file exceeds maximum size of 25MB');
+      await expect(provider.speechToText({ audio: largeBuffer })).rejects.toThrow(
+        'Audio file exceeds maximum size of 25MB',
+      );
     });
 
     it('should include word timestamps when requested', async () => {
@@ -184,17 +182,17 @@ describe('WhisperProvider', () => {
         ),
       );
 
-      await expect(
-        provider.speechToText({ audio: Buffer.from('audio') }),
-      ).rejects.toThrow('Fetch failed');
+      await expect(provider.speechToText({ audio: Buffer.from('audio') })).rejects.toThrow(
+        'Fetch failed',
+      );
     });
 
     it('should wrap network errors in McpError', async () => {
       mockFetch.mockRejectedValue(new Error('Network failure'));
 
-      await expect(
-        provider.speechToText({ audio: Buffer.from('audio') }),
-      ).rejects.toThrow(McpError);
+      await expect(provider.speechToText({ audio: Buffer.from('audio') })).rejects.toThrow(
+        McpError,
+      );
     });
   });
 

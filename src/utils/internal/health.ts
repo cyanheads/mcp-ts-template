@@ -10,6 +10,9 @@ import { runtimeCaps } from '@/utils/internal/runtime.js';
 
 export interface HealthSnapshot {
   app: { name: string; version: string; environment: string };
+  logging: {
+    initialized: boolean;
+  };
   runtime: {
     isNode: boolean;
     isWorkerLike: boolean;
@@ -18,9 +21,6 @@ export interface HealthSnapshot {
   telemetry: {
     enabled: boolean;
     diagLevel: string | undefined;
-  };
-  logging: {
-    initialized: boolean;
   };
 }
 

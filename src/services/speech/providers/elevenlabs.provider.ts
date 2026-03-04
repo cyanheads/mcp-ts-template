@@ -4,11 +4,9 @@
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  fetchWithTimeout,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
+import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
 
 import type { ISpeechProvider } from '../core/ISpeechProvider.js';
 import type {
@@ -24,12 +22,12 @@ import type {
  * ElevenLabs API response for voice list.
  */
 interface ElevenLabsVoice {
-  voice_id: string;
-  name: string;
-  description?: string;
   category?: string;
+  description?: string;
   labels?: Record<string, string>;
+  name: string;
   preview_url?: string;
+  voice_id: string;
 }
 
 interface ElevenLabsVoicesResponse {
@@ -53,17 +51,14 @@ export class ElevenLabsProvider implements ISpeechProvider {
 
   constructor(config: SpeechProviderConfig) {
     if (!config.apiKey) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
-        'ElevenLabs API key is required',
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidParams, 'ElevenLabs API key is required');
     }
 
     this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || 'https://api.elevenlabs.io/v1';
-    this.defaultVoiceId = config.defaultVoiceId || 'EXAVITQu4vr4xnSDxMaL'; // Default: Bella
-    this.defaultModelId = config.defaultModelId || 'eleven_monolingual_v1';
-    this.timeout = config.timeout || 30000;
+    this.baseUrl = config.baseUrl ?? 'https://api.elevenlabs.io/v1';
+    this.defaultVoiceId = config.defaultVoiceId ?? 'EXAVITQu4vr4xnSDxMaL'; // Default: Bella
+    this.defaultModelId = config.defaultModelId ?? 'eleven_monolingual_v1';
+    this.timeout = config.timeout ?? 30000;
 
     logger.info(
       `ElevenLabs TTS provider initialized: ${this.baseUrl}, voice=${this.defaultVoiceId}`,
@@ -73,24 +68,18 @@ export class ElevenLabsProvider implements ISpeechProvider {
   /**
    * Convert text to speech using ElevenLabs API.
    */
-  async textToSpeech(
-    options: TextToSpeechOptions,
-  ): Promise<TextToSpeechResult> {
+  async textToSpeech(options: TextToSpeechOptions): Promise<TextToSpeechResult> {
     const context = requestContextService.createRequestContext({
       operation: 'elevenlabs-tts',
-      ...(options.context || {}),
+      ...(options.context ?? {}),
     });
-    const voiceId = options.voice?.voiceId || this.defaultVoiceId;
-    const modelId = options.modelId || this.defaultModelId;
+    const voiceId = options.voice?.voiceId ?? this.defaultVoiceId;
+    const modelId = options.modelId ?? this.defaultModelId;
 
     logger.debug('Converting text to speech with ElevenLabs', context);
 
     if (!options.text || options.text.trim().length === 0) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
-        'Text cannot be empty',
-        context,
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidParams, 'Text cannot be empty', context);
     }
 
     if (options.text.length > 5000) {

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * @fileoverview Update Coverage Script
  * @module scripts/update-coverage
@@ -20,36 +21,36 @@
  *   2 — No changes detected (coverage already up to date)
  */
 
-import { $ } from 'bun';
 import { rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { $ } from 'bun';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 interface CoverageFileEntry {
-  /** Statement map — keys are IDs, values are hit counts */
-  s?: Record<string, number>;
-  /** Function map — keys are IDs, values are hit counts */
-  f?: Record<string, number>;
   /** Branch map — keys are IDs, values are arrays of hit counts per branch arm */
   b?: Record<string, number[]>;
+  /** Function map — keys are IDs, values are hit counts */
+  f?: Record<string, number>;
   /** Line map — keys are line numbers, values are hit counts */
   l?: Record<string, number>;
+  /** Statement map — keys are IDs, values are hit counts */
+  s?: Record<string, number>;
 }
 
 interface CoverageMetric {
   covered: number;
-  total: number;
   pct: string;
+  total: number;
 }
 
 interface CoverageStats {
-  statements: CoverageMetric;
-  functions: CoverageMetric;
   branches: CoverageMetric;
+  functions: CoverageMetric;
   lines: CoverageMetric;
+  statements: CoverageMetric;
 }
 
 // ---------------------------------------------------------------------------
@@ -95,9 +96,7 @@ function parseArgs(argv: string[]): { shouldCommit: boolean } | null {
       shouldCommit = true;
     } else if (arg.startsWith('--')) {
       if (!KNOWN_FLAGS.has(arg)) {
-        console.warn(
-          `Unknown flag '${arg}' — ignoring. Run with --help for usage.`,
-        );
+        console.warn(`Unknown flag '${arg}' — ignoring. Run with --help for usage.`);
       }
     }
   }
@@ -120,8 +119,7 @@ async function isGitRepo(): Promise<boolean> {
 
 async function hasChanges(): Promise<boolean> {
   try {
-    const result =
-      await $`git status --porcelain ${COVERAGE_JSON_REL} README.md`.text();
+    const result = await $`git status --porcelain ${COVERAGE_JSON_REL} README.md`.text();
     return result.trim().length > 0;
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -162,9 +160,7 @@ function computeMetric(covered: number, total: number): CoverageMetric {
   return { covered, total, pct };
 }
 
-function parseCoverageData(
-  data: Record<string, CoverageFileEntry>,
-): CoverageStats {
+function parseCoverageData(data: Record<string, CoverageFileEntry>): CoverageStats {
   let totalStatements = 0;
   let coveredStatements = 0;
   let totalFunctions = 0;
@@ -275,11 +271,7 @@ async function updateReadmeBadge(stats: CoverageStats): Promise<boolean> {
 // Display
 // ---------------------------------------------------------------------------
 
-function formatMetricLine(
-  label: string,
-  metric: CoverageMetric,
-  delta?: CoverageMetric,
-): string {
+function formatMetricLine(label: string, metric: CoverageMetric, delta?: CoverageMetric): string {
   const pctStr = metric.pct.padStart(7);
   const counts = `(${metric.covered}/${metric.total})`;
   let line = `  ${label} ${pctStr}%  ${counts}`;
@@ -297,20 +289,11 @@ function formatMetricLine(
   return line;
 }
 
-function printStats(
-  stats: CoverageStats,
-  previous?: CoverageStats | null,
-): void {
+function printStats(stats: CoverageStats, previous?: CoverageStats | null): void {
   console.log('Coverage:');
-  console.log(
-    formatMetricLine('Statements:', stats.statements, previous?.statements),
-  );
-  console.log(
-    formatMetricLine('Functions: ', stats.functions, previous?.functions),
-  );
-  console.log(
-    formatMetricLine('Branches:  ', stats.branches, previous?.branches),
-  );
+  console.log(formatMetricLine('Statements:', stats.statements, previous?.statements));
+  console.log(formatMetricLine('Functions: ', stats.functions, previous?.functions));
+  console.log(formatMetricLine('Branches:  ', stats.branches, previous?.branches));
   console.log(formatMetricLine('Lines:     ', stats.lines, previous?.lines));
   console.log();
 }
@@ -356,7 +339,7 @@ async function main() {
 
   console.log('Update Coverage Script\n');
   console.log(`Mode: ${dryRun ? 'DRY RUN (no commit)' : 'COMMIT'}\n`);
-  console.log('\u2500'.repeat(50) + '\n');
+  console.log(`${'\u2500'.repeat(50)}\n`);
 
   if (!(await isGitRepo())) {
     console.error('Not a git repository');
@@ -396,10 +379,9 @@ async function main() {
   console.log('Changes detected in coverage-final.json\n');
 
   try {
-    const statusOutput =
-      await $`git status --short ${COVERAGE_JSON_REL} README.md`.text();
+    const statusOutput = await $`git status --short ${COVERAGE_JSON_REL} README.md`.text();
     if (statusOutput.trim()) {
-      console.log('Changes:\n' + statusOutput);
+      console.log(`Changes:\n${statusOutput}`);
     }
   } catch {
     // Non-critical — skip the summary display

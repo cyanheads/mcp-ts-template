@@ -17,12 +17,14 @@ exports[`Tool Schema Snapshots > Tool: template_async_countdown > inputSchema JS
       "type": "integer",
     },
     "simulateFailure": {
+      "default": false,
       "description": "If true, simulates a failure at 50% progress (for testing)",
       "type": "boolean",
     },
   },
   "required": [
     "seconds",
+    "simulateFailure",
   ],
   "type": "object",
 }

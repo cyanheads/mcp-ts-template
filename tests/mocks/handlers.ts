@@ -5,19 +5,21 @@ const HTTPBIN_BASE = 'https://httpbin.org';
 
 export const handlers = [
   // Mock for successful cat image fetch
-  http.get('https://cataas.com/cat', () => {
-    return new HttpResponse(mockCatImage, {
-      status: 200,
-      headers: {
-        'Content-Type': 'image/jpeg',
-        'Content-Length': mockCatImage.length.toString(),
-      },
-    });
-  }),
+  http.get(
+    'https://cataas.com/cat',
+    () =>
+      new HttpResponse(mockCatImage, {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'Content-Length': mockCatImage.length.toString(),
+        },
+      }),
+  ),
 
   // Mock for successful chat completion
-  http.post('https://openrouter.ai/api/v1/chat/completions', async () => {
-    return HttpResponse.json({
+  http.post('https://openrouter.ai/api/v1/chat/completions', async () =>
+    HttpResponse.json({
       id: 'chatcmpl-123',
       object: 'chat.completion',
       created: 1677652288,
@@ -37,17 +39,15 @@ export const handlers = [
         completion_tokens: 12,
         total_tokens: 21,
       },
-    });
-  }),
+    }),
+  ),
 
   // Mock for fetchWithTimeout test
-  http.get('https://api.example.com/data', () => {
-    return HttpResponse.json({ data: 'test' });
-  }),
+  http.get('https://api.example.com/data', () => HttpResponse.json({ data: 'test' })),
 
   // Mocks for httpbin.org endpoints
-  http.get(`${HTTPBIN_BASE}/json`, () => {
-    return HttpResponse.json({
+  http.get(`${HTTPBIN_BASE}/json`, () =>
+    HttpResponse.json({
       slideshow: {
         author: 'Yours Truly',
         date: 'date of publication',
@@ -57,8 +57,8 @@ export const handlers = [
         ],
         title: 'Sample Slide Show',
       },
-    });
-  }),
+    }),
+  ),
 
   http.get(`${HTTPBIN_BASE}/delay/:duration`, async ({ params }) => {
     const duration = Number(params.duration) * 1000;
@@ -80,55 +80,43 @@ export const handlers = [
   }),
 
   // Mock for network error
-  http.get('https://invalid-domain-that-does-not-exist.com/', () => {
-    return HttpResponse.error();
-  }),
+  http.get('https://invalid-domain-that-does-not-exist.com/', () => HttpResponse.error()),
 ];
 
 export const errorHandlers = {
   unauthorized: http.post(
     'https://openrouter.ai/api/v1/chat/completions',
-    () => {
-      return new HttpResponse(
-        JSON.stringify({ error: { message: 'Incorrect API key provided' } }),
-        {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      );
-    },
+    () =>
+      new HttpResponse(JSON.stringify({ error: { message: 'Incorrect API key provided' } }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
   ),
   rateLimited: http.post(
     'https://openrouter.ai/api/v1/chat/completions',
-    () => {
-      return new HttpResponse(
-        JSON.stringify({ error: { message: 'Rate limit exceeded' } }),
-        {
-          status: 429,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      );
-    },
+    () =>
+      new HttpResponse(JSON.stringify({ error: { message: 'Rate limit exceeded' } }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json' },
+      }),
   ),
   internalError: http.post(
     'https://openrouter.ai/api/v1/chat/completions',
-    () => {
-      return new HttpResponse(
-        JSON.stringify({ error: { message: 'Internal server error' } }),
-        {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      );
-    },
+    () =>
+      new HttpResponse(JSON.stringify({ error: { message: 'Internal server error' } }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }),
   ),
 };
 
 export const catImageErrorHandlers = {
-  internalError: http.get('https://cataas.com/cat', () => {
-    return new HttpResponse(null, {
-      status: 500,
-      statusText: 'Internal Server Error',
-    });
-  }),
+  internalError: http.get(
+    'https://cataas.com/cat',
+    () =>
+      new HttpResponse(null, {
+        status: 500,
+        statusText: 'Internal Server Error',
+      }),
+  ),
 };

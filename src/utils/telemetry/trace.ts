@@ -7,25 +7,25 @@
 import {
   context as otContext,
   propagation,
-  trace,
-  SpanStatusCode,
   type Span,
+  SpanStatusCode,
+  trace,
 } from '@opentelemetry/api';
 
 import { config } from '@/config/index.js';
-import { requestContextService } from '@/utils/internal/requestContext.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Represents parsed W3C traceparent header data.
  */
 export interface TraceparentInfo {
-  /** W3C trace ID (32 hex characters) */
-  traceId: string;
-  /** W3C span ID (16 hex characters) */
-  spanId: string;
   /** Whether the trace is sampled */
   sampled: boolean;
+  /** W3C span ID (16 hex characters) */
+  spanId: string;
+  /** W3C trace ID (32 hex characters) */
+  traceId: string;
 }
 
 /**
@@ -45,12 +45,9 @@ export interface TraceparentInfo {
  */
 export function buildTraceparent(ctx?: RequestContext): string | undefined {
   const traceId =
-    (ctx?.traceId as string | undefined) ??
-    trace.getActiveSpan()?.spanContext().traceId;
-  const spanId =
-    (ctx?.spanId as string | undefined) ??
-    trace.getActiveSpan()?.spanContext().spanId;
-  if (!traceId || !spanId) return undefined;
+    (ctx?.traceId as string | undefined) ?? trace.getActiveSpan()?.spanContext().traceId;
+  const spanId = (ctx?.spanId as string | undefined) ?? trace.getActiveSpan()?.spanContext().spanId;
+  if (!traceId || !spanId) return;
   // We do not currently read flags reliably from context; assume sampled
   return `00-${traceId}-${spanId}-01`;
 }
@@ -77,18 +74,13 @@ export function buildTraceparent(ctx?: RequestContext): string | undefined {
 export function extractTraceparent(
   headers: Headers | Record<string, string | undefined>,
 ): TraceparentInfo | undefined {
-  const headerValue =
-    headers instanceof Headers
-      ? headers.get('traceparent')
-      : headers['traceparent'];
+  const headerValue = headers instanceof Headers ? headers.get('traceparent') : headers.traceparent;
 
-  if (!headerValue) return undefined;
+  if (!headerValue) return;
 
   // W3C traceparent format: 00-{traceId}-{spanId}-{flags}
-  const match = /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/.exec(
-    headerValue,
-  );
-  if (!match || !match[1] || !match[2] || !match[3]) return undefined;
+  const match = /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/.exec(headerValue);
+  if (!match || !match[1] || !match[2] || !match[3]) return;
 
   return {
     traceId: match[1],
@@ -144,9 +136,7 @@ export function createContextWithParentTrace(
  * // headers now contains traceparent, tracestate, etc.
  * ```
  */
-export function injectCurrentContextInto<T extends Record<string, unknown>>(
-  carrier: T,
-): T {
+export function injectCurrentContextInto<T extends Record<string, unknown>>(carrier: T): T {
   propagation.inject(otContext.active(), carrier);
   return carrier;
 }
@@ -181,7 +171,7 @@ export async function withSpan<T>(
     config.openTelemetry.serviceVersion,
   );
 
-  return tracer.startActiveSpan(operationName, async (span) => {
+  return await tracer.startActiveSpan(operationName, async (span) => {
     if (attributes) {
       span.setAttributes(attributes);
     }
@@ -191,9 +181,7 @@ export async function withSpan<T>(
       span.setStatus({ code: SpanStatusCode.OK });
       return result;
     } catch (error: unknown) {
-      span.recordException(
-        error instanceof Error ? error : new Error(String(error)),
-      );
+      span.recordException(error instanceof Error ? error : new Error(String(error)));
       span.setStatus({
         code: SpanStatusCode.ERROR,
         message: error instanceof Error ? error.message : String(error),
@@ -224,10 +212,7 @@ export async function withSpan<T>(
  * }, 1000);
  * ```
  */
-export function runInContext<T>(
-  ctx: RequestContext | undefined,
-  fn: () => T,
-): T {
+export function runInContext<T>(ctx: RequestContext | undefined, fn: () => T): T {
   // If no trace context, run directly
   if (!ctx?.traceId || !ctx?.spanId) {
     return fn();

@@ -36,8 +36,11 @@ WORKDIR /usr/src/app
 # production dependencies are installed.
 ENV NODE_ENV=production
 
-# Add the required OCI label for MCP registry validation.
-# This an immutable property of the image and should not be an ARG.
+# OCI image metadata (https://github.com/opencontainers/image-spec/blob/main/annotations.md)
+LABEL org.opencontainers.image.title="mcp-ts-template"
+LABEL org.opencontainers.image.description="TypeScript template for MCP servers with declarative tools/resources, pluggable auth, multi-backend storage, OpenTelemetry observability, and Cloudflare Workers support."
+LABEL org.opencontainers.image.source="https://github.com/cyanheads/mcp-ts-template"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL io.modelcontextprotocol.server.name="io.github.cyanheads/mcp-ts-template"
 
 # Copy dependency manifests

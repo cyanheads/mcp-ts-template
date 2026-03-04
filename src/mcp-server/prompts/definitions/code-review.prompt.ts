@@ -11,22 +11,15 @@ const PROMPT_DESCRIPTION =
   'Generates a structured code review prompt for analyzing code quality, security, and performance.';
 
 const ArgumentsSchema = z.object({
-  language: z
-    .string()
-    .optional()
-    .describe('Programming language of the code to review.'),
+  language: z.string().optional().describe('Programming language of the code to review.'),
   focus: z
     .enum(['security', 'performance', 'style', 'general'])
     .optional()
-    .describe(
-      "The primary focus area for the code review. Defaults to 'general'.",
-    ),
+    .describe("The primary focus area for the code review. Defaults to 'general'."),
   includeExamples: z
     .enum(['true', 'false'])
     .optional()
-    .describe(
-      "Whether to include example improvements in the review. Defaults to 'false'.",
-    ),
+    .describe("Whether to include example improvements in the review. Defaults to 'false'."),
 });
 
 export const codeReviewPrompt: PromptDefinition<typeof ArgumentsSchema> = {
@@ -60,7 +53,7 @@ export const codeReviewPrompt: PromptDefinition<typeof ArgumentsSchema> = {
           text: `You are an expert code reviewer${args.language ? ` specializing in ${args.language}` : ''}. Please conduct a thorough code review with a focus on ${focus}.
 
 Review the code for:
-${focusGuidance[focus] || focusGuidance['general']}
+${focusGuidance[focus] || focusGuidance.general}
 
 Structure your review as follows:
 1. **Summary**: 2-3 sentence overview of the code's quality

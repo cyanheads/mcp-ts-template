@@ -49,8 +49,6 @@ yarn-error.log*
 *.d.ts
 !*.d.ts.template
 *.tgz
-.eslintcache
-.prettiercache
 .rollup.cache
 
 # =============================================================================

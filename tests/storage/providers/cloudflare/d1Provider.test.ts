@@ -3,10 +3,10 @@
  * @module tests/storage/providers/cloudflare/d1Provider.test
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { D1Provider } from '../../../../src/storage/providers/cloudflare/d1Provider.js';
 import { McpError } from '../../../../src/types-global/errors.js';
-import type { RequestContext } from '../../../../src/utils/index.js';
-import { requestContextService } from '../../../../src/utils/index.js';
 
 // Mock D1Database
 const createMockD1Database = () => ({
@@ -51,31 +51,19 @@ describe('D1Provider', () => {
     it('should reject invalid table names (SQL injection prevention)', () => {
       // Starts with number
       expect(() => new D1Provider(mockDb as any, '1table')).toThrow(McpError);
-      expect(() => new D1Provider(mockDb as any, '1table')).toThrow(
-        /valid SQL identifier/,
-      );
+      expect(() => new D1Provider(mockDb as any, '1table')).toThrow(/valid SQL identifier/);
 
       // Contains special characters
-      expect(() => new D1Provider(mockDb as any, 'table; DROP TABLE')).toThrow(
-        McpError,
-      );
-      expect(() => new D1Provider(mockDb as any, "table' OR 1=1")).toThrow(
-        McpError,
-      );
-      expect(() => new D1Provider(mockDb as any, 'table-name')).toThrow(
-        McpError,
-      );
-      expect(() => new D1Provider(mockDb as any, 'table.name')).toThrow(
-        McpError,
-      );
+      expect(() => new D1Provider(mockDb as any, 'table; DROP TABLE')).toThrow(McpError);
+      expect(() => new D1Provider(mockDb as any, "table' OR 1=1")).toThrow(McpError);
+      expect(() => new D1Provider(mockDb as any, 'table-name')).toThrow(McpError);
+      expect(() => new D1Provider(mockDb as any, 'table.name')).toThrow(McpError);
 
       // Empty string
       expect(() => new D1Provider(mockDb as any, '')).toThrow(McpError);
 
       // Too long (65 chars)
-      expect(() => new D1Provider(mockDb as any, 'a'.repeat(65))).toThrow(
-        McpError,
-      );
+      expect(() => new D1Provider(mockDb as any, 'a'.repeat(65))).toThrow(McpError);
     });
   });
 
@@ -95,11 +83,7 @@ describe('D1Provider', () => {
         expires_at: null,
       });
 
-      const result = await d1Provider.get<{ data: string }>(
-        'tenant-1',
-        'key-1',
-        context,
-      );
+      const result = await d1Provider.get<{ data: string }>('tenant-1', 'key-1', context);
       expect(result).toEqual({ data: 'test' });
     });
 
@@ -122,9 +106,7 @@ describe('D1Provider', () => {
         expires_at: null,
       });
 
-      await expect(
-        d1Provider.get('tenant-1', 'key-1', context),
-      ).rejects.toThrow(McpError);
+      await expect(d1Provider.get('tenant-1', 'key-1', context)).rejects.toThrow(McpError);
     });
   });
 
@@ -211,11 +193,7 @@ describe('D1Provider', () => {
         { meta: { changes: 0 } },
       ]);
 
-      const count = await d1Provider.deleteMany(
-        'tenant-1',
-        ['k1', 'k2', 'k3'],
-        context,
-      );
+      const count = await d1Provider.deleteMany('tenant-1', ['k1', 'k2', 'k3'], context);
 
       expect(count).toBe(2);
       expect(mockDb.batch).toHaveBeenCalledTimes(1);

@@ -4,20 +4,18 @@
  * McpServer instance. Supports both regular tools and task-based tools (experimental).
  * @module src/mcp-server/tools/tool-registration
  */
+import type { McpServer, ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ZodObject, ZodRawShape } from 'zod';
 import {
-  McpServer,
-  type ToolCallback,
-} from '@modelcontextprotocol/sdk/server/mcp.js';
-import { ZodObject, type ZodRawShape } from 'zod';
-
-import { JsonRpcErrorCode } from '@/types-global/errors.js';
-import { ErrorHandler, logger, requestContextService } from '@/utils/index.js';
-import type { ToolDefinition } from '@/mcp-server/tools/utils/index.js';
-import { createMcpToolHandler } from '@/mcp-server/tools/utils/index.js';
-import {
-  type TaskToolDefinition,
   isTaskToolDefinition,
-} from '@/mcp-server/tasks/index.js';
+  type TaskToolDefinition,
+} from '@/mcp-server/tasks/utils/taskToolDefinition.js';
+import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
+import { createMcpToolHandler } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 export class ToolRegistry {
   constructor(
@@ -37,23 +35,11 @@ export class ToolRegistry {
       operation: 'ToolRegistry.registerAll',
     });
 
-    const regularTools: ToolDefinition<
-      ZodObject<ZodRawShape>,
-      ZodObject<ZodRawShape>
-    >[] = [];
-    const taskTools: TaskToolDefinition<
-      ZodObject<ZodRawShape>,
-      ZodObject<ZodRawShape>
-    >[] = [];
-
-    // Separate regular tools from task tools
-    for (const toolDef of this.toolDefs) {
-      if (isTaskToolDefinition(toolDef)) {
-        taskTools.push(toolDef);
-      } else {
-        regularTools.push(toolDef);
-      }
-    }
+    const regularTools = this.toolDefs.filter(
+      (d): d is ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>> =>
+        !isTaskToolDefinition(d),
+    );
+    const taskTools = this.toolDefs.filter(isTaskToolDefinition);
 
     logger.info(
       `Registering ${regularTools.length} regular tool(s) and ${taskTools.length} task tool(s)...`,
@@ -72,18 +58,13 @@ export class ToolRegistry {
   }
 
   private deriveTitleFromName(name: string): string {
-    return name
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, (char) => char.toUpperCase());
+    return name.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
   private async registerTool<
     TInputSchema extends ZodObject<ZodRawShape>,
     TOutputSchema extends ZodObject<ZodRawShape>,
-  >(
-    server: McpServer,
-    tool: ToolDefinition<TInputSchema, TOutputSchema>,
-  ): Promise<void> {
+  >(server: McpServer, tool: ToolDefinition<TInputSchema, TOutputSchema>): Promise<void> {
     const registrationContext = requestContextService.createRequestContext({
       operation: 'ToolRegistry.registerTool',
       toolName: tool.name,
@@ -102,10 +83,7 @@ export class ToolRegistry {
           }),
         });
 
-        const title =
-          tool.title ??
-          tool.annotations?.title ??
-          this.deriveTitleFromName(tool.name);
+        const title = tool.title ?? tool.annotations?.title ?? this.deriveTitleFromName(tool.name);
 
         // Type assertion required: SDK's conditional types don't resolve with generic constraints
         server.registerTool(
@@ -121,10 +99,7 @@ export class ToolRegistry {
           handler as ToolCallback<TInputSchema>,
         );
 
-        logger.notice(
-          `Tool '${tool.name}' registered successfully.`,
-          registrationContext,
-        );
+        logger.notice(`Tool '${tool.name}' registered successfully.`, registrationContext);
       },
       {
         operation: `RegisteringTool_${tool.name}`,
@@ -144,26 +119,17 @@ export class ToolRegistry {
   private async registerTaskTool<
     TInputSchema extends ZodObject<ZodRawShape>,
     TOutputSchema extends ZodObject<ZodRawShape>,
-  >(
-    server: McpServer,
-    tool: TaskToolDefinition<TInputSchema, TOutputSchema>,
-  ): Promise<void> {
+  >(server: McpServer, tool: TaskToolDefinition<TInputSchema, TOutputSchema>): Promise<void> {
     const registrationContext = requestContextService.createRequestContext({
       operation: 'ToolRegistry.registerTaskTool',
       toolName: tool.name,
     });
 
-    logger.debug(
-      `Registering task tool: '${tool.name}' (experimental)`,
-      registrationContext,
-    );
+    logger.debug(`Registering task tool: '${tool.name}' (experimental)`, registrationContext);
 
     await ErrorHandler.tryCatch(
       () => {
-        const title =
-          tool.title ??
-          tool.annotations?.title ??
-          this.deriveTitleFromName(tool.name);
+        const title = tool.title ?? tool.annotations?.title ?? this.deriveTitleFromName(tool.name);
 
         // Use the experimental Tasks API to register task-based tools
         server.experimental.tasks.registerToolTask(

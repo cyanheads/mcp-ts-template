@@ -4,10 +4,7 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import {
-  SessionStore,
-  type SessionIdentity,
-} from '@/mcp-server/transports/http/sessionStore.js';
+import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
 
 /**
  * Helper to create valid 64-character hex session IDs for testing.
@@ -58,9 +55,7 @@ describe('SessionStore - Security & Tenant Isolation', () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       const session2 = store.getOrCreate(SESSION_1);
-      expect(session2.lastAccessedAt.getTime()).toBeGreaterThan(
-        firstAccess.getTime(),
-      );
+      expect(session2.lastAccessedAt.getTime()).toBeGreaterThan(firstAccess.getTime());
     });
 
     it('should validate existing session', () => {
@@ -233,6 +228,50 @@ describe('SessionStore - Security & Tenant Isolation', () => {
     });
   });
 
+  describe('Subject Isolation', () => {
+    it('should REJECT session reuse across different subjects', () => {
+      const user1: SessionIdentity = {
+        tenantId: 'tenant-a',
+        clientId: 'client-1',
+        subject: 'user-1@example.com',
+      };
+      store.getOrCreate(SESSION_1, user1);
+
+      const user2: SessionIdentity = {
+        tenantId: 'tenant-a',
+        clientId: 'client-1',
+        subject: 'user-2@example.com',
+      };
+      expect(store.isValidForIdentity(SESSION_1, user2)).toBe(false);
+    });
+
+    it('should accept same subject for bound session', () => {
+      const identity: SessionIdentity = {
+        tenantId: 'tenant-a',
+        clientId: 'client-1',
+        subject: 'user-1@example.com',
+      };
+      store.getOrCreate(SESSION_1, identity);
+      expect(store.isValidForIdentity(SESSION_1, identity)).toBe(true);
+    });
+
+    it('should validate when only subject is set', () => {
+      const identity: SessionIdentity = { subject: 'user-1@example.com' };
+      store.getOrCreate(SESSION_1, identity);
+
+      expect(store.isValidForIdentity(SESSION_1, { subject: 'user-1@example.com' })).toBe(true);
+      expect(store.isValidForIdentity(SESSION_1, { subject: 'user-2@example.com' })).toBe(false);
+    });
+
+    it('should REJECT unauthenticated request for subject-bound session', () => {
+      const identity: SessionIdentity = { subject: 'user-1@example.com' };
+      store.getOrCreate(SESSION_1, identity);
+
+      expect(store.isValidForIdentity(SESSION_1)).toBe(false);
+      expect(store.isValidForIdentity(SESSION_1, undefined)).toBe(false);
+    });
+  });
+
   describe('Staleness & Cleanup', () => {
     it('should invalidate stale sessions', async () => {
       // Use a very short timeout for faster test execution
@@ -316,14 +355,10 @@ describe('SessionStore - Security & Tenant Isolation', () => {
       store.getOrCreate(SESSION_1, identity);
 
       // Should validate with same tenant
-      expect(
-        store.isValidForIdentity(SESSION_1, { tenantId: 'tenant-a' }),
-      ).toBe(true);
+      expect(store.isValidForIdentity(SESSION_1, { tenantId: 'tenant-a' })).toBe(true);
 
       // Should reject different tenant
-      expect(
-        store.isValidForIdentity(SESSION_1, { tenantId: 'tenant-b' }),
-      ).toBe(false);
+      expect(store.isValidForIdentity(SESSION_1, { tenantId: 'tenant-b' })).toBe(false);
     });
 
     it('should validate when only clientId is set', () => {
@@ -334,14 +369,10 @@ describe('SessionStore - Security & Tenant Isolation', () => {
       store.getOrCreate(SESSION_1, identity);
 
       // Should validate with same client
-      expect(
-        store.isValidForIdentity(SESSION_1, { clientId: 'client-1' }),
-      ).toBe(true);
+      expect(store.isValidForIdentity(SESSION_1, { clientId: 'client-1' })).toBe(true);
 
       // Should reject different client
-      expect(
-        store.isValidForIdentity(SESSION_1, { clientId: 'client-2' }),
-      ).toBe(false);
+      expect(store.isValidForIdentity(SESSION_1, { clientId: 'client-2' })).toBe(false);
     });
   });
 });

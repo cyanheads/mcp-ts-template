@@ -12,9 +12,9 @@ import { composeContainer } from '@/container/index.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
 
 export interface ConformanceHarness {
+  cleanup: () => Promise<void>;
   client: Client;
   server: McpServer;
-  cleanup: () => Promise<void>;
 }
 
 /**
@@ -34,8 +34,7 @@ export async function createConformanceHarness(
   const server = await createMcpServerInstance();
 
   // Paired in-process transports — no network
-  const [clientTransport, serverTransport] =
-    InMemoryTransport.createLinkedPair();
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 
   // Client with optional capabilities (elicitation, sampling, roots)
   const client = new Client(

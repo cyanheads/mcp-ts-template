@@ -4,12 +4,9 @@
  * through the full protocol stack.
  * @module tests/conformance/prompts
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import {
-  createConformanceHarness,
-  type ConformanceHarness,
-} from './helpers/server-harness.js';
+import { type ConformanceHarness, createConformanceHarness } from './helpers/server-harness.js';
 
 describe('Prompt protocol conformance', () => {
   let harness: ConformanceHarness;
@@ -52,10 +49,10 @@ describe('Prompt protocol conformance', () => {
       const codeReview = prompts.find((p) => p.name === 'code_review')!;
       expect(codeReview.arguments).toBeDefined();
       expect(Array.isArray(codeReview.arguments)).toBe(true);
-      expect(codeReview.arguments!.length).toBeGreaterThan(0);
+      expect(codeReview.arguments?.length).toBeGreaterThan(0);
 
       // Check expected argument names
-      const argNames = codeReview.arguments!.map((a) => a.name);
+      const argNames = codeReview.arguments?.map((a) => a.name);
       expect(argNames).toContain('language');
       expect(argNames).toContain('focus');
     });
@@ -78,8 +75,8 @@ describe('Prompt protocol conformance', () => {
 
       expect(result.messages).toBeDefined();
       expect(result.messages.length).toBeGreaterThan(0);
-      expect(result.messages[0]!.role).toBe('user');
-      expect(result.messages[0]!.content).toBeDefined();
+      expect(result.messages[0]?.role).toBe('user');
+      expect(result.messages[0]?.content).toBeDefined();
     });
 
     it('generates messages with focus argument', async () => {
@@ -89,7 +86,7 @@ describe('Prompt protocol conformance', () => {
       });
 
       expect(result.messages.length).toBeGreaterThan(0);
-      const content = result.messages[0]!.content;
+      const content = result.messages[0]?.content;
       if (typeof content === 'object' && 'text' in content) {
         expect(content.text).toContain('security');
       }
@@ -102,7 +99,7 @@ describe('Prompt protocol conformance', () => {
       });
 
       expect(result.messages.length).toBeGreaterThan(0);
-      const content = result.messages[0]!.content;
+      const content = result.messages[0]?.content;
       if (typeof content === 'object' && 'text' in content) {
         expect(content.text).toContain('TypeScript');
       }

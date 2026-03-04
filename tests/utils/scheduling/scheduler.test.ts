@@ -2,41 +2,32 @@
  * @fileoverview Unit tests for the scheduler service built on node-cron.
  * @module tests/utils/scheduling/scheduler.test
  */
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type MockInstance,
-} from 'vitest';
+
 import { trace } from '@opentelemetry/api';
 import * as cron from 'node-cron';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
 import { logger } from '../../../src/utils/internal/logger.js';
 
 const validateMock = vi.fn(() => true);
 const createTaskMock = vi.fn(
-  (schedule: string, handler: () => Promise<void> | void) => {
-    return {
+  (schedule: string, handler: () => Promise<void> | void) =>
+    ({
       start: vi.fn(),
       stop: vi.fn(),
       trigger: () => handler(),
       schedule,
-    } as unknown as {
+    }) as unknown as {
       start: () => void;
       stop: () => void;
       trigger: () => Promise<void> | void;
-    };
-  },
+    },
 );
 
 let validateSpy: MockInstance;
 let createTaskSpy: MockInstance;
 
-type SchedulerModule =
-  typeof import('../../../src/utils/scheduling/scheduler.js');
+type SchedulerModule = typeof import('../../../src/utils/scheduling/scheduler.js');
 let schedulerService: SchedulerModule['schedulerService'];
 
 describe('schedulerService', () => {
@@ -55,19 +46,12 @@ describe('schedulerService', () => {
       spanContext: () => ({ traceId: 'trace', spanId: 'span' }),
     } as never);
 
-    validateSpy = vi
-      .spyOn(cron, 'validate')
-      .mockImplementation(validateMock as never);
-    createTaskSpy = vi
-      .spyOn(cron, 'createTask')
-      .mockImplementation(createTaskMock as never);
+    validateSpy = vi.spyOn(cron, 'validate').mockImplementation(validateMock as never);
+    createTaskSpy = vi.spyOn(cron, 'createTask').mockImplementation(createTaskMock as never);
 
-    const module: SchedulerModule =
-      await import('../../../src/utils/scheduling/scheduler.js');
+    const module: SchedulerModule = await import('../../../src/utils/scheduling/scheduler.js');
     schedulerService = module.schedulerService;
-    (
-      schedulerService as unknown as { jobs: Map<string, unknown> }
-    ).jobs.clear();
+    (schedulerService as unknown as { jobs: Map<string, unknown> }).jobs.clear();
   });
 
   afterEach(() => {
@@ -78,9 +62,7 @@ describe('schedulerService', () => {
     validateSpy?.mockRestore();
     createTaskSpy?.mockRestore();
     if (schedulerService) {
-      (
-        schedulerService as unknown as { jobs: Map<string, unknown> }
-      ).jobs.clear();
+      (schedulerService as unknown as { jobs: Map<string, unknown> }).jobs.clear();
     }
   });
 
@@ -88,35 +70,20 @@ describe('schedulerService', () => {
     validateMock.mockReturnValueOnce(false);
 
     await expect(
-      schedulerService.schedule(
-        'invalid',
-        'bad pattern',
-        () => undefined,
-        'Bad job',
-      ),
+      schedulerService.schedule('invalid', 'bad pattern', () => undefined, 'Bad job'),
     ).rejects.toThrowError('Invalid cron schedule: bad pattern');
   });
 
   it('schedules a job, runs it successfully, and logs lifecycle events', async () => {
     const handler = vi.fn();
-    const job = await schedulerService.schedule(
-      'job-1',
-      '* * * * *',
-      handler,
-      'Test job',
-    );
+    const job = await schedulerService.schedule('job-1', '* * * * *', handler, 'Test job');
 
     expect(validateMock).toHaveBeenCalledWith('* * * * *');
     expect(createTaskMock).toHaveBeenCalledTimes(1);
     expect(job.isRunning).toBe(false);
-    expect(infoSpy).toHaveBeenCalledWith(
-      "Job 'job-1' scheduled: Test job",
-      expect.any(Object),
-    );
+    expect(infoSpy).toHaveBeenCalledWith("Job 'job-1' scheduled: Test job", expect.any(Object));
 
-    await (
-      job.task as unknown as { trigger: () => Promise<void> | void }
-    ).trigger();
+    await (job.task as unknown as { trigger: () => Promise<void> | void }).trigger();
 
     expect(handler).toHaveBeenCalledWith(
       expect.objectContaining({ jobId: 'job-1', schedule: '* * * * *' }),
@@ -137,14 +104,13 @@ describe('schedulerService', () => {
     );
 
     job.isRunning = true;
-    await (
-      job.task as unknown as { trigger: () => Promise<void> | void }
-    ).trigger();
+    await (job.task as unknown as { trigger: () => Promise<void> | void }).trigger();
 
     expect(warningSpy).toHaveBeenCalledWith(
       "Job 'job-overlap' is already running. Skipping this execution.",
       expect.objectContaining({
-        requestId: expect.stringMatching(/^job-skip-/),
+        operation: 'scheduler:job:job-overlap',
+        jobId: 'job-overlap',
       }),
     );
   });
@@ -160,9 +126,7 @@ describe('schedulerService', () => {
       'Should fail',
     );
 
-    await (
-      job.task as unknown as { trigger: () => Promise<void> | void }
-    ).trigger();
+    await (job.task as unknown as { trigger: () => Promise<void> | void }).trigger();
 
     expect(errorSpy).toHaveBeenCalledWith(
       "Job 'job-fail' failed.",
@@ -186,37 +150,33 @@ describe('schedulerService', () => {
 
     schedulerService.start('job-control');
     expect(task.start).toHaveBeenCalled();
+    expect(infoSpy).toHaveBeenCalledWith(
+      "Job 'job-control' started.",
+      expect.objectContaining({ operation: 'scheduler:start', jobId: 'job-control' }),
+    );
 
     schedulerService.stop('job-control');
     expect(task.stop).toHaveBeenCalled();
+    expect(infoSpy).toHaveBeenCalledWith(
+      "Job 'job-control' stopped.",
+      expect.objectContaining({ operation: 'scheduler:stop', jobId: 'job-control' }),
+    );
 
     schedulerService.remove('job-control');
     expect(infoSpy).toHaveBeenCalledWith(
       "Job 'job-control' removed.",
-      expect.objectContaining({ requestId: 'job-remove-job-control' }),
+      expect.objectContaining({ operation: 'scheduler:remove', jobId: 'job-control' }),
     );
     expect(
-      (schedulerService as unknown as { jobs: Map<string, unknown> }).jobs.has(
-        'job-control',
-      ),
+      (schedulerService as unknown as { jobs: Map<string, unknown> }).jobs.has('job-control'),
     ).toBe(false);
   });
 
   it('rejects duplicate job identifiers', async () => {
-    await schedulerService.schedule(
-      'job-duplicate',
-      '* * * * *',
-      () => undefined,
-      'First',
-    );
+    await schedulerService.schedule('job-duplicate', '* * * * *', () => undefined, 'First');
 
     await expect(
-      schedulerService.schedule(
-        'job-duplicate',
-        '* * * * *',
-        () => undefined,
-        'Second',
-      ),
+      schedulerService.schedule('job-duplicate', '* * * * *', () => undefined, 'Second'),
     ).rejects.toThrowError("Job with ID 'job-duplicate' already exists.");
   });
 });
@@ -239,13 +199,12 @@ describe('schedulerService (non-Node runtime)', () => {
     // Reset the module cache so loadCron picks up the mocked runtimeCaps
     vi.resetModules();
 
-    const { SchedulerService } =
-      await import('../../../src/utils/scheduling/scheduler.js');
+    const { SchedulerService } = await import('../../../src/utils/scheduling/scheduler.js');
     const service = SchedulerService.getInstance();
 
-    await expect(
-      service.schedule('test', '* * * * *', () => undefined, 'Test'),
-    ).rejects.toThrow(/requires a Node\.js runtime/);
+    await expect(service.schedule('test', '* * * * *', () => undefined, 'Test')).rejects.toThrow(
+      /requires a Node\.js runtime/,
+    );
 
     // Clean up
     vi.doUnmock('@/utils/internal/runtime.js');

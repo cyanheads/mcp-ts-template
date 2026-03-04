@@ -19,15 +19,12 @@ import {
   SupabaseAdminClient,
 } from '@/container/core/tokens.js';
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
-import { SpeechService as SpeechServiceClass } from '@/services/speech/index.js';
+import { SpeechService as SpeechServiceClass } from '@/services/speech/core/SpeechService.js';
 import { StorageService as StorageServiceClass } from '@/storage/core/StorageService.js';
-import {
-  createStorageProvider,
-  type StorageFactoryDeps,
-} from '@/storage/core/storageFactory.js';
+import { createStorageProvider, type StorageFactoryDeps } from '@/storage/core/storageFactory.js';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
 import { RateLimiter } from '@/utils/security/rateLimiter.js';
 
 /**
@@ -46,13 +43,9 @@ export const registerCoreServices = () => {
         'Supabase URL or service role key is missing for admin client.',
       );
     }
-    return createClient<Database>(
-      cfg.supabase.url,
-      cfg.supabase.serviceRoleKey,
-      {
-        auth: { persistSession: false, autoRefreshToken: false },
-      },
-    );
+    return createClient<Database>(cfg.supabase.url, cfg.supabase.serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
   });
 
   // Storage provider — resolve DB clients here so storageFactory stays DI-agnostic

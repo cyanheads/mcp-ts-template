@@ -1,18 +1,16 @@
 /**
  * @fileoverview Test suite for error handler helper utilities — getErrorName, getErrorMessage,
- * createSafeRegex, extractErrorCauseChain, serializeErrorCauseChain.
+ * extractErrorCauseChain.
  * @module tests/utils/internal/error-handler/helpers.test
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
-  getErrorName,
-  getErrorMessage,
-  createSafeRegex,
   extractErrorCauseChain,
-  serializeErrorCauseChain,
+  getErrorMessage,
+  getErrorName,
 } from '@/utils/internal/error-handler/helpers.js';
-import { McpError, JsonRpcErrorCode } from '@/types-global/errors.js';
 
 describe('Error Handler Helpers', () => {
   // ─── getErrorName ────────────────────────────────────────────────────────────
@@ -96,9 +94,7 @@ describe('Error Handler Helpers', () => {
     });
 
     it('should return special message for undefined', () => {
-      expect(getErrorMessage(undefined)).toBe(
-        'Undefined value encountered as error',
-      );
+      expect(getErrorMessage(undefined)).toBe('Undefined value encountered as error');
     });
 
     it('should return string value directly', () => {
@@ -147,42 +143,14 @@ describe('Error Handler Helpers', () => {
     });
   });
 
-  // ─── createSafeRegex ────────────────────────────────────────────────────────
-
-  describe('createSafeRegex', () => {
-    it('should compile string to case-insensitive RegExp', () => {
-      const regex = createSafeRegex('hello');
-      expect(regex).toBeInstanceOf(RegExp);
-      expect(regex.flags).toContain('i');
-      expect(regex.test('HELLO')).toBe(true);
-    });
-
-    it('should strip global flag from RegExp input', () => {
-      const regex = createSafeRegex(/test/gi);
-      expect(regex.flags).not.toContain('g');
-      expect(regex.flags).toContain('i');
-    });
-
-    it('should add case-insensitive flag if missing', () => {
-      const regex = createSafeRegex(/test/);
-      expect(regex.flags).toContain('i');
-    });
-
-    it('should return cached instance for same input', () => {
-      const a = createSafeRegex('cached-test-helpers');
-      const b = createSafeRegex('cached-test-helpers');
-      expect(a).toBe(b);
-    });
-  });
-
   // ─── extractErrorCauseChain ──────────────────────────────────────────────────
 
   describe('extractErrorCauseChain', () => {
     it('should extract single error with no cause', () => {
       const chain = extractErrorCauseChain(new Error('root'));
       expect(chain).toHaveLength(1);
-      expect(chain[0]!.message).toBe('root');
-      expect(chain[0]!.depth).toBe(0);
+      expect(chain[0]?.message).toBe('root');
+      expect(chain[0]?.depth).toBe(0);
     });
 
     it('should extract chained errors', () => {
@@ -191,9 +159,9 @@ describe('Error Handler Helpers', () => {
       const top = new Error('top', { cause: middle });
       const chain = extractErrorCauseChain(top);
       expect(chain).toHaveLength(3);
-      expect(chain[0]!.message).toBe('top');
-      expect(chain[1]!.message).toBe('middle');
-      expect(chain[2]!.message).toBe('root cause');
+      expect(chain[0]?.message).toBe('top');
+      expect(chain[1]?.message).toBe('middle');
+      expect(chain[2]?.message).toBe('root cause');
     });
 
     it('should detect circular references', () => {
@@ -221,7 +189,7 @@ describe('Error Handler Helpers', () => {
         resource: 'user',
       });
       const chain = extractErrorCauseChain(err);
-      expect(chain[0]!.data).toEqual({ resource: 'user' });
+      expect(chain[0]?.data).toEqual({ resource: 'user' });
     });
 
     it('should handle string cause', () => {
@@ -229,8 +197,8 @@ describe('Error Handler Helpers', () => {
       Object.defineProperty(err, 'cause', { value: 'string cause' });
       const chain = extractErrorCauseChain(err);
       expect(chain).toHaveLength(2);
-      expect(chain[1]!.name).toBe('StringError');
-      expect(chain[1]!.message).toBe('string cause');
+      expect(chain[1]?.name).toBe('StringError');
+      expect(chain[1]?.message).toBe('string cause');
     });
 
     it('should handle non-Error non-string cause', () => {
@@ -238,36 +206,12 @@ describe('Error Handler Helpers', () => {
       Object.defineProperty(err, 'cause', { value: { code: 500 } });
       const chain = extractErrorCauseChain(err);
       expect(chain).toHaveLength(2);
-      expect(chain[1]!.depth).toBe(1);
+      expect(chain[1]?.depth).toBe(1);
     });
 
     it('should return empty chain for falsy input', () => {
       expect(extractErrorCauseChain(null)).toHaveLength(0);
       expect(extractErrorCauseChain(undefined)).toHaveLength(0);
-    });
-  });
-
-  // ─── serializeErrorCauseChain ────────────────────────────────────────────────
-
-  describe('serializeErrorCauseChain', () => {
-    it('should return rootCause, chain, and totalDepth', () => {
-      const err = new Error('top', { cause: new Error('root') });
-      const result = serializeErrorCauseChain(err);
-      expect(result.chain).toHaveLength(2);
-      expect(result.totalDepth).toBe(2);
-      expect(result.rootCause.message).toBe('root');
-    });
-
-    it('should handle single error', () => {
-      const result = serializeErrorCauseChain(new Error('only'));
-      expect(result.totalDepth).toBe(1);
-      expect(result.rootCause.message).toBe('only');
-    });
-
-    it('should handle empty chain gracefully', () => {
-      const result = serializeErrorCauseChain(null);
-      expect(result.totalDepth).toBe(0);
-      expect(result.rootCause.name).toBe('Unknown');
     });
   });
 });

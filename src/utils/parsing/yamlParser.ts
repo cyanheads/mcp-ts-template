@@ -7,11 +7,8 @@
 import * as yaml from 'js-yaml';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Regular expression to find a <think> block at the start of a string.
@@ -76,7 +73,7 @@ export class YamlParser {
       // Specifying it explicitly guards against default changes in future versions.
       return yaml.load(stringToParse, { schema: yaml.DEFAULT_SCHEMA }) as T;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       const errorLogContext =
         context ||
         requestContextService.createRequestContext({
@@ -94,8 +91,7 @@ export class YamlParser {
         {
           ...context,
           originalContentSample:
-            stringToParse.substring(0, 200) +
-            (stringToParse.length > 200 ? '...' : ''),
+            stringToParse.substring(0, 200) + (stringToParse.length > 200 ? '...' : ''),
           rawError: error instanceof Error ? error.stack : String(error),
         },
       );

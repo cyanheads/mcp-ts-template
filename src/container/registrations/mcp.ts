@@ -20,15 +20,15 @@ import {
   TransportManagerToken,
 } from '@/container/core/tokens.js';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
-import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
 import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
+import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
 import { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
-import { TaskManager } from '@/mcp-server/tasks/index.js';
-import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
+import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
+import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
-import { logger } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
 
 /**
  * Registers MCP-related services and factories with the container.
@@ -55,15 +55,9 @@ export const registerMcpServices = () => {
     (c) => new ResourceRegistry(c.resolveAll(ResourceDefinitions)),
   );
 
-  container.registerSingleton(
-    PromptRegistryToken,
-    (c) => new PromptRegistry(c.resolve(Logger)),
-  );
+  container.registerSingleton(PromptRegistryToken, (c) => new PromptRegistry(c.resolve(Logger)));
 
-  container.registerSingleton(
-    RootsRegistryToken,
-    (c) => new RootsRegistry(c.resolve(Logger)),
-  );
+  container.registerSingleton(RootsRegistryToken, (c) => new RootsRegistry(c.resolve(Logger)));
 
   // TaskManager
   container.registerSingleton(

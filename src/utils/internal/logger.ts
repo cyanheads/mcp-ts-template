@@ -9,10 +9,7 @@ import type { LevelWithSilent, Logger as PinoLogger } from 'pino';
 import pino from 'pino';
 
 import { config } from '@/config/index.js';
-import {
-  requestContextService,
-  type RequestContext,
-} from '@/utils/internal/requestContext.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { sanitization } from '@/utils/security/sanitization.js';
 
 export type McpLogLevel =
@@ -44,8 +41,7 @@ const pinoToMcpLevelSeverity: Record<string, number> = {
   debug: 7,
 };
 
-const isServerless =
-  typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
+const isServerless = typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
 
 export class Logger {
   private static readonly instance: Logger = new Logger();
@@ -57,10 +53,7 @@ export class Logger {
 
   private rateLimitThreshold = 10;
   private rateLimitWindow = 60000;
-  private messageCounts = new Map<
-    string,
-    { count: number; firstSeen: number }
-  >();
+  private messageCounts = new Map<string, { count: number; firstSeen: number }>();
   private suppressedMessages = new Map<string, number>();
   private cleanupTimer?: NodeJS.Timeout;
 
@@ -76,7 +69,7 @@ export class Logger {
     level: McpLogLevel,
     transportType?: 'stdio' | 'http',
   ): Promise<PinoLogger> {
-    const pinoLevel = mcpToPinoLevel[level] || 'info';
+    const pinoLevel = mcpToPinoLevel[level] ?? 'info';
 
     const pinoOptions: pino.LoggerOptions = {
       level: pinoLevel,
@@ -96,8 +89,8 @@ export class Logger {
     }
 
     // Node.js specific transports
-    const { default: fs } = await import('fs');
-    const { default: path } = await import('path');
+    const { default: fs } = await import('node:fs');
+    const { default: path } = await import('node:path');
 
     const transports: pino.TransportTargetOptions[] = [];
     const isDevelopment = config.environment === 'development';
@@ -107,10 +100,8 @@ export class Logger {
     // The MCP specification requires clean JSON-RPC on stdout with no ANSI codes.
     // Only use pretty/colored output for HTTP mode or when explicitly debugging.
     // Respect NO_COLOR environment variable (https://no-color.org/)
-    const noColorEnv =
-      process.env.NO_COLOR === '1' || process.env.FORCE_COLOR === '0';
-    const useColoredOutput =
-      isDevelopment && transportType !== 'stdio' && !noColorEnv;
+    const noColorEnv = process.env.NO_COLOR === '1' || process.env.FORCE_COLOR === '0';
+    const useColoredOutput = isDevelopment && transportType !== 'stdio' && !noColorEnv;
 
     if (useColoredOutput && !isServerless) {
       // Try to resolve 'pino-pretty' robustly even when bundled (e.g., Bun/ESM),
@@ -174,9 +165,9 @@ export class Logger {
   }
 
   private async createInteractionLogger(): Promise<PinoLogger | undefined> {
-    if (isServerless || !config.logsPath) return undefined;
+    if (isServerless || !config.logsPath) return;
 
-    const { default: path } = await import('path');
+    const { default: path } = await import('node:path');
     return pino({
       redact: {
         paths: sanitization.getSensitivePinoFields(),
@@ -212,10 +203,7 @@ export class Logger {
 
     // Start the cleanup timer only after initialization and only in Node.js
     if (!isServerless && !this.cleanupTimer) {
-      this.cleanupTimer = setInterval(
-        () => this.flushSuppressedMessages(),
-        this.rateLimitWindow,
-      );
+      this.cleanupTimer = setInterval(() => this.flushSuppressedMessages(), this.rateLimitWindow);
       this.cleanupTimer.unref?.();
     }
 
@@ -235,7 +223,7 @@ export class Logger {
       return;
     }
     this.currentMcpLevel = newLevel;
-    this.pinoLogger.level = mcpToPinoLevel[newLevel] || 'info';
+    this.pinoLogger.level = mcpToPinoLevel[newLevel] ?? 'info';
     this.info(
       `Log level changed to ${newLevel}.`,
       requestContextService.createRequestContext({
@@ -245,7 +233,7 @@ export class Logger {
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
-    return this.close();
+    return await this.close();
   }
 
   public async close(): Promise<void> {
@@ -300,10 +288,7 @@ export class Logger {
     }
     entry.count++;
     if (entry.count > this.rateLimitThreshold) {
-      this.suppressedMessages.set(
-        message,
-        (this.suppressedMessages.get(message) || 0) + 1,
-      );
+      this.suppressedMessages.set(message, (this.suppressedMessages.get(message) || 0) + 1);
       return true;
     }
     return false;
@@ -324,16 +309,11 @@ export class Logger {
     this.messageCounts.clear();
   }
 
-  private log(
-    level: McpLogLevel,
-    msg: string,
-    context?: RequestContext,
-    error?: Error,
-  ): void {
+  private log(level: McpLogLevel, msg: string, context?: RequestContext, error?: Error): void {
     if (!this.pinoLogger || !this.initialized) return;
 
-    const pinoLevel = mcpToPinoLevel[level] || 'info';
-    const currentPinoLevel = mcpToPinoLevel[this.currentMcpLevel] || 'info';
+    const pinoLevel = mcpToPinoLevel[level] ?? 'info';
+    const currentPinoLevel = mcpToPinoLevel[this.currentMcpLevel] ?? 'info';
 
     const levelSeverity = pinoToMcpLevelSeverity[pinoLevel];
     const currentLevelSeverity = pinoToMcpLevelSeverity[currentPinoLevel];
@@ -354,6 +334,17 @@ export class Logger {
     this.pinoLogger[pinoLevel](logObject, msg);
   }
 
+  private logWithError(
+    level: McpLogLevel,
+    msg: string,
+    errorOrContext: Error | RequestContext,
+    context?: RequestContext,
+  ): void {
+    const errorObj = errorOrContext instanceof Error ? errorOrContext : undefined;
+    const actualContext = errorOrContext instanceof Error ? context : errorOrContext;
+    this.log(level, msg, actualContext, errorObj);
+  }
+
   public debug(msg: string, context?: RequestContext): void {
     this.log('debug', msg, context);
   }
@@ -372,47 +363,24 @@ export class Logger {
     errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    const errorObj =
-      errorOrContext instanceof Error ? errorOrContext : undefined;
-    const actualContext =
-      errorOrContext instanceof Error ? context : errorOrContext;
-    this.log('error', msg, actualContext, errorObj);
+    this.logWithError('error', msg, errorOrContext, context);
   }
-
-  public crit(
-    msg: string,
-    errorOrContext: Error | RequestContext,
-    context?: RequestContext,
-  ): void {
-    const errorObj =
-      errorOrContext instanceof Error ? errorOrContext : undefined;
-    const actualContext =
-      errorOrContext instanceof Error ? context : errorOrContext;
-    this.log('crit', msg, actualContext, errorObj);
+  public crit(msg: string, errorOrContext: Error | RequestContext, context?: RequestContext): void {
+    this.logWithError('crit', msg, errorOrContext, context);
   }
-
   public alert(
     msg: string,
     errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    const errorObj =
-      errorOrContext instanceof Error ? errorOrContext : undefined;
-    const actualContext =
-      errorOrContext instanceof Error ? context : errorOrContext;
-    this.log('alert', msg, actualContext, errorObj);
+    this.logWithError('alert', msg, errorOrContext, context);
   }
-
   public emerg(
     msg: string,
     errorOrContext: Error | RequestContext,
     context?: RequestContext,
   ): void {
-    const errorObj =
-      errorOrContext instanceof Error ? errorOrContext : undefined;
-    const actualContext =
-      errorOrContext instanceof Error ? context : errorOrContext;
-    this.log('emerg', msg, actualContext, errorObj);
+    this.logWithError('emerg', msg, errorOrContext, context);
   }
 
   public fatal(
@@ -423,16 +391,10 @@ export class Logger {
     this.emerg(msg, errorOrContext, context);
   }
 
-  public logInteraction(
-    interactionName: string,
-    data: Record<string, unknown>,
-  ): void {
+  public logInteraction(interactionName: string, data: Record<string, unknown>): void {
     if (!this.interactionLogger) {
       if (!isServerless)
-        this.warning(
-          'Interaction logger not available.',
-          (data.context || {}) as RequestContext,
-        );
+        this.warning('Interaction logger not available.', (data.context || {}) as RequestContext);
       return;
     }
     this.interactionLogger.info({ interactionName, ...data });

@@ -4,10 +4,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { OauthStrategy } from '@/mcp-server/transports/auth/strategies/oauthStrategy.js';
 import { config } from '@/config/index.js';
-import { logger } from '@/utils/index.js';
+import { OauthStrategy } from '@/mcp-server/transports/auth/strategies/oauthStrategy.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger } from '@/utils/internal/logger.js';
 
 // Mock the jose module with factory function for Bun compatibility
 // Vitest auto-mocks with vi.mock('jose') but Bun requires explicit factory
@@ -329,6 +329,20 @@ describe('OAuth Strategy', () => {
       expect(authInfo.clientId).toBe('oauth-client-id');
     });
 
+    it('should extract clientId from cid claim', async () => {
+      mockJwtVerify.mockResolvedValue({
+        payload: {
+          cid: 'okta-client',
+          scope: 'read write',
+        },
+        protectedHeader: { alg: 'RS256' },
+        key: {} as any,
+      } as any);
+
+      const authInfo = await strategy.verify('token');
+      expect(authInfo.clientId).toBe('okta-client');
+    });
+
     it('should extract scopes from space-separated string', async () => {
       mockJwtVerify.mockResolvedValue({
         payload: {
@@ -341,11 +355,21 @@ describe('OAuth Strategy', () => {
 
       const authInfo = await strategy.verify('token');
 
-      expect(authInfo.scopes).toEqual([
-        'tool:read',
-        'tool:write',
-        'resource:list',
-      ]);
+      expect(authInfo.scopes).toEqual(['tool:read', 'tool:write', 'resource:list']);
+    });
+
+    it('should extract scopes from scp array claim', async () => {
+      mockJwtVerify.mockResolvedValue({
+        payload: {
+          client_id: 'test-client',
+          scp: ['tool:read', 'tool:write'],
+        },
+        protectedHeader: { alg: 'RS256' },
+        key: {} as any,
+      } as any);
+
+      const authInfo = await strategy.verify('token');
+      expect(authInfo.scopes).toEqual(['tool:read', 'tool:write']);
     });
 
     it('should handle optional subject and tenantId', async () => {
@@ -362,6 +386,22 @@ describe('OAuth Strategy', () => {
 
       expect(authInfo.subject).toBeUndefined();
       expect(authInfo.tenantId).toBeUndefined();
+    });
+
+    it('should populate expiresAt from exp claim', async () => {
+      const futureExp = Math.floor(Date.now() / 1000) + 3600;
+      mockJwtVerify.mockResolvedValue({
+        payload: {
+          client_id: 'test-client',
+          scope: 'read',
+          exp: futureExp,
+        },
+        protectedHeader: { alg: 'RS256' },
+        key: {} as any,
+      } as any);
+
+      const authInfo = await strategy.verify('token');
+      expect(authInfo.expiresAt).toBe(futureExp);
     });
 
     it('should validate resource indicator when configured', async () => {
@@ -426,9 +466,7 @@ describe('OAuth Strategy', () => {
       } as any);
 
       await expect(strategy.verify('token')).rejects.toThrow(McpError);
-      await expect(strategy.verify('token')).rejects.toThrow(
-        /Resource indicator mismatch/,
-      );
+      await expect(strategy.verify('token')).rejects.toThrow(/Resource indicator mismatch/);
 
       try {
         await strategy.verify('token');
@@ -469,9 +507,7 @@ describe('OAuth Strategy', () => {
       } as any);
 
       await expect(strategy.verify('token')).rejects.toThrow(McpError);
-      await expect(strategy.verify('token')).rejects.toThrow(
-        /must contain a 'client_id' claim/,
-      );
+      await expect(strategy.verify('token')).rejects.toThrow(/missing 'cid' or 'client_id'/);
     });
 
     it('should throw Unauthorized for missing scope claim', async () => {
@@ -489,9 +525,7 @@ describe('OAuth Strategy', () => {
       );
     });
 
-    it('should accept empty scope string (results in single empty string scope)', async () => {
-      // Note: ''.split(' ') returns [''] not [], so length check passes
-      // This is existing behavior - empty string creates array with one empty string
+    it('should reject empty scope string', async () => {
       mockJwtVerify.mockResolvedValue({
         payload: {
           client_id: 'test-client',
@@ -501,10 +535,8 @@ describe('OAuth Strategy', () => {
         key: {} as any,
       } as any);
 
-      const authInfo = await strategy.verify('token');
-
-      // Current implementation allows this - scope '' becomes ['']
-      expect(authInfo.scopes).toEqual(['']);
+      await expect(strategy.verify('token')).rejects.toThrow(McpError);
+      await expect(strategy.verify('token')).rejects.toThrow(/non-empty scopes/);
     });
 
     it('should throw Unauthorized for expired token', async () => {
@@ -513,9 +545,7 @@ describe('OAuth Strategy', () => {
       mockJwtVerify.mockRejectedValue(expiredError);
 
       await expect(strategy.verify('token')).rejects.toThrow(McpError);
-      await expect(strategy.verify('token')).rejects.toThrow(
-        /Token has expired/,
-      );
+      await expect(strategy.verify('token')).rejects.toThrow(/Token has expired/);
     });
 
     it('should throw Unauthorized for invalid signature', async () => {
@@ -527,10 +557,7 @@ describe('OAuth Strategy', () => {
     });
 
     it('should re-throw existing McpError instances', async () => {
-      const customMcpError = new McpError(
-        JsonRpcErrorCode.Forbidden,
-        'Custom error',
-      );
+      const customMcpError = new McpError(JsonRpcErrorCode.Forbidden, 'Custom error');
       mockJwtVerify.mockRejectedValue(customMcpError);
 
       await expect(strategy.verify('token')).rejects.toThrow(customMcpError);

@@ -2,12 +2,12 @@
  * @fileoverview Unit tests for TransportManager lifecycle and transport orchestration.
  * @module tests/mcp-server/transports/manager
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import { TransportManager } from '@/mcp-server/transports/manager.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { config } from '@/config/index.js';
-import { logger } from '@/utils/index.js';
+import { TransportManager } from '@/mcp-server/transports/manager.js';
+import { logger } from '@/utils/internal/logger.js';
 
 // Mock the transport modules
 vi.mock('@/mcp-server/transports/http/httpTransport.js', () => ({
@@ -51,15 +51,11 @@ describe('TransportManager', () => {
 
       await manager.start();
 
-      const { startHttpTransport } =
-        await import('@/mcp-server/transports/http/httpTransport.js');
+      const { startHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
       expect(startHttpTransport).toHaveBeenCalledTimes(1);
       // HTTP transport receives the factory function, not a server instance
       // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
-      expect(startHttpTransport).toHaveBeenCalledWith(
-        mockCreateMcpServer,
-        expect.any(Object),
-      );
+      expect(startHttpTransport).toHaveBeenCalledWith(mockCreateMcpServer, expect.any(Object));
 
       // Restore original value
       Object.defineProperty(config, 'mcpTransportType', {
@@ -79,13 +75,11 @@ describe('TransportManager', () => {
 
       await manager.start();
 
-      const { startStdioTransport } =
-        await import('@/mcp-server/transports/stdio/stdioTransport.js');
-      expect(startStdioTransport).toHaveBeenCalledTimes(1);
-      expect(startStdioTransport).toHaveBeenCalledWith(
-        mockMcpServer,
-        expect.any(Object),
+      const { startStdioTransport } = await import(
+        '@/mcp-server/transports/stdio/stdioTransport.js'
       );
+      expect(startStdioTransport).toHaveBeenCalledTimes(1);
+      expect(startStdioTransport).toHaveBeenCalledWith(mockMcpServer, expect.any(Object));
 
       // Restore original value
       Object.defineProperty(config, 'mcpTransportType', {
@@ -186,8 +180,7 @@ describe('TransportManager', () => {
 
       await manager.stop('SIGTERM');
 
-      const { stopHttpTransport } =
-        await import('@/mcp-server/transports/http/httpTransport.js');
+      const { stopHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
       expect(stopHttpTransport).toHaveBeenCalledTimes(1);
 
       // Restore original value
@@ -212,8 +205,9 @@ describe('TransportManager', () => {
 
       await manager.stop('SIGTERM');
 
-      const { stopStdioTransport } =
-        await import('@/mcp-server/transports/stdio/stdioTransport.js');
+      const { stopStdioTransport } = await import(
+        '@/mcp-server/transports/stdio/stdioTransport.js'
+      );
       expect(stopStdioTransport).toHaveBeenCalledTimes(1);
 
       // Restore original value
@@ -225,11 +219,7 @@ describe('TransportManager', () => {
     });
 
     it('should handle stop when no server instance is active', async () => {
-      const freshManager = new TransportManager(
-        config,
-        logger,
-        mockCreateMcpServer,
-      );
+      const freshManager = new TransportManager(config, logger, mockCreateMcpServer);
 
       // Should not throw
       await expect(freshManager.stop('SIGTERM')).resolves.toBeUndefined();
@@ -246,11 +236,7 @@ describe('TransportManager', () => {
 
   describe('getServer', () => {
     it('should return null before start is called', () => {
-      const freshManager = new TransportManager(
-        config,
-        logger,
-        mockCreateMcpServer,
-      );
+      const freshManager = new TransportManager(config, logger, mockCreateMcpServer);
 
       expect(freshManager.getServer()).toBeNull();
     });

@@ -11,15 +11,13 @@ import type {
   SdkContext,
   ToolAnnotations,
   ToolDefinition,
-} from '@/mcp-server/tools/utils/index.js';
+} from '@/mcp-server/tools/utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  fetchWithTimeout,
-  logger,
-} from '@/utils/index.js';
 import { arrayBufferToBase64 } from '@/utils/internal/encoding.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
 
 /**
  * Programmatic tool name (must be unique).
@@ -56,7 +54,7 @@ const TOOL_DESCRIPTION =
  * - readOnlyHint?: boolean — True if tool does not modify environment.
  * - destructiveHint?: boolean — If not read-only, set true if updates can be destructive. Default true.
  * - idempotentHint?: boolean — If not read-only, true if repeat calls with same args have no additional effect.
- * - openWorldHint?: boolean — True if tool may interact with an open, external world (e.e., web search). Default true.
+ * - openWorldHint?: boolean — True if tool may interact with an open, external world (e.g., web search). Default true.
  *
  * Note: These are hints only. Clients should not rely on them for safety guarantees.
  */
@@ -69,9 +67,6 @@ const TOOL_ANNOTATIONS: ToolAnnotations = {
 // External API details
 const CAT_API_URL = 'https://cataas.com/cat';
 const API_TIMEOUT_MS = 5000;
-
-// API response validation
-// No external API used for this tool that requires schema validation based on an external response.
 
 //
 // Schemas (input and output)
@@ -89,9 +84,7 @@ const InputSchema = z
 const OutputSchema = z
   .object({
     data: z.string().describe('Base64 encoded image data.'),
-    mimeType: z
-      .string()
-      .describe("The MIME type of the image (e.g., 'image/jpeg')."),
+    mimeType: z.string().describe("The MIME type of the image (e.g., 'image/jpeg')."),
   })
   .describe('Image tool response payload.');
 
@@ -111,11 +104,7 @@ async function imageTestToolLogic(
     toolInput: input,
   });
 
-  const response = await fetchWithTimeout(
-    CAT_API_URL,
-    API_TIMEOUT_MS,
-    appContext,
-  );
+  const response = await fetchWithTimeout(CAT_API_URL, API_TIMEOUT_MS, appContext);
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => undefined);
@@ -171,10 +160,7 @@ function responseFormatter(result: ImageTestToolResponse): ContentBlock[] {
 /**
  * The complete tool definition for the image test tool.
  */
-export const imageTestTool: ToolDefinition<
-  typeof InputSchema,
-  typeof OutputSchema
-> = {
+export const imageTestTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
   name: TOOL_NAME,
   title: TOOL_TITLE,
   description: TOOL_DESCRIPTION,

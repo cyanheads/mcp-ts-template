@@ -7,33 +7,29 @@
  * @see {@link https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http | MCP Streamable HTTP Transport}
  * @module src/mcp-server/transports/http/httpTransport
  */
+
+import http from 'node:http';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { type ServerType, serve } from '@hono/node-server';
+import { httpInstrumentationMiddleware } from '@hono/otel';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
 import { Hono } from 'hono';
-import { httpInstrumentationMiddleware } from '@hono/otel';
 import { cors } from 'hono/cors';
-import http from 'node:http';
 
 import { config } from '@/config/index.js';
-import {
-  authContext,
-  createAuthMiddleware,
-  createAuthStrategy,
-} from '@/mcp-server/transports/auth/index.js';
+import { createAuthStrategy } from '@/mcp-server/transports/auth/authFactory.js';
+import { createAuthMiddleware } from '@/mcp-server/transports/auth/authMiddleware.js';
+import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
+import { protectedResourceMetadataHandler } from '@/mcp-server/transports/http/protectedResourceMetadata.js';
 import { generateSecureSessionId } from '@/mcp-server/transports/http/sessionIdUtils.js';
-import {
-  SessionStore,
-  type SessionIdentity,
-} from '@/mcp-server/transports/http/sessionStore.js';
-import {
-  type RequestContext,
-  logger,
-  logStartupBanner,
-} from '@/utils/index.js';
+import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { logStartupBanner } from '@/utils/internal/startupBanner.js';
+import { createObservableGauge } from '@/utils/telemetry/metrics.js';
 
 /**
  * Extends the base StreamableHTTPTransport to include a session ID.
@@ -78,6 +74,16 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
       ? new SessionStore(config.mcpStatefulSessionStaleTimeoutMs)
       : null;
 
+  // Wire session count to OTel observable gauge for durable metrics
+  if (sessionStore && config.openTelemetry.enabled) {
+    createObservableGauge(
+      'mcp.sessions.active',
+      'Number of active MCP sessions',
+      () => sessionStore.getSessionCount(),
+      '{sessions}',
+    );
+  }
+
   // OpenTelemetry request tracing — outermost middleware on the MCP endpoint
   // so the span captures the full lifecycle (CORS, auth, handler).
   // On Bun, Node.js HTTP auto-instrumentation is a no-op; this fills that gap.
@@ -88,16 +94,12 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
         captureRequestHeaders: ['mcp-session-id'],
       }),
     );
-    logger.debug(
-      'OTel request tracing middleware enabled for MCP endpoint.',
-      transportContext,
-    );
+    logger.debug('OTel request tracing middleware enabled for MCP endpoint.', transportContext);
   }
 
   // CORS (with permissive fallback)
   const allowedOrigin =
-    Array.isArray(config.mcpAllowedOrigins) &&
-    config.mcpAllowedOrigins.length > 0
+    Array.isArray(config.mcpAllowedOrigins) && config.mcpAllowedOrigins.length > 0
       ? config.mcpAllowedOrigins
       : '*';
 
@@ -113,12 +115,7 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     cors({
       origin: allowedOrigin,
       allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-      allowHeaders: [
-        'Content-Type',
-        'Authorization',
-        'Mcp-Session-Id',
-        'MCP-Protocol-Version',
-      ],
+      allowHeaders: ['Content-Type', 'Authorization', 'Mcp-Session-Id', 'MCP-Protocol-Version'],
       exposeHeaders: ['Mcp-Session-Id'],
       credentials: true,
     }),
@@ -133,8 +130,7 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     const origin = c.req.header('origin');
     if (origin) {
       const isAllowed =
-        allowedOrigin === '*' ||
-        (Array.isArray(allowedOrigin) && allowedOrigin.includes(origin));
+        allowedOrigin === '*' || (Array.isArray(allowedOrigin) && allowedOrigin.includes(origin));
 
       if (!isAllowed) {
         logger.warning('Rejected request with invalid Origin header', {
@@ -142,10 +138,7 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
           origin,
           allowedOrigins: allowedOrigin,
         });
-        return c.json(
-          { error: 'Invalid origin. DNS rebinding protection.' },
-          403,
-        );
+        return c.json({ error: 'Invalid origin. DNS rebinding protection.' }, 403);
       }
     }
     // Origin is valid or not present, continue
@@ -155,50 +148,16 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
   // Health and GET /mcp status remain unprotected for convenience
   app.get('/healthz', (c) => c.json({ status: 'ok' }));
 
-  // RFC 9728 Protected Resource Metadata endpoint (MCP 2025-06-18)
-  // Must be accessible without authentication for discovery
+  // RFC 9728 Protected Resource Metadata — always mounted, unauthenticated
   // https://datatracker.ietf.org/doc/html/rfc9728
-  app.get('/.well-known/oauth-protected-resource', (c) => {
-    if (!config.oauthIssuerUrl) {
-      logger.debug(
-        'OAuth Protected Resource Metadata requested but OAuth not configured',
-        transportContext,
-      );
-      return c.json(
-        { error: 'OAuth not configured on this server' },
-        { status: 404 },
-      );
+  app.get('/.well-known/oauth-protected-resource', protectedResourceMetadataHandler);
+
+  // MCP Spec 2025-06-18: GET with Accept: text/event-stream opens an SSE stream
+  // for server-initiated messages. Plain GET (browser, health check) returns info.
+  app.get(config.mcpHttpEndpointPath, (c, next) => {
+    if (c.req.header('accept')?.includes('text/event-stream')) {
+      return next(); // Fall through to transport handler for SSE
     }
-
-    const origin = new URL(c.req.url).origin;
-    const resourceIdentifier =
-      config.mcpServerResourceIdentifier ??
-      config.oauthAudience ??
-      `${origin}/mcp`;
-
-    // Per RFC 9728, this endpoint provides metadata about the protected resource
-    const metadata = {
-      resource: resourceIdentifier,
-      authorization_servers: [config.oauthIssuerUrl],
-      bearer_methods_supported: ['header'],
-      resource_signing_alg_values_supported: ['RS256', 'ES256', 'PS256'],
-      resource_documentation: `${origin}/docs`,
-      ...(config.oauthJwksUri && { jwks_uri: config.oauthJwksUri }),
-    };
-
-    // RFC 9728 recommends caching this metadata
-    c.header('Cache-Control', 'public, max-age=3600');
-    c.header('Content-Type', 'application/json');
-
-    logger.debug('Serving OAuth Protected Resource Metadata', {
-      ...transportContext,
-      resourceIdentifier,
-    });
-
-    return c.json(metadata);
-  });
-
-  app.get(config.mcpHttpEndpointPath, (c) => {
     return c.json({
       status: 'ok',
       server: {
@@ -219,15 +178,9 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
   if (authStrategy) {
     const authMiddleware = createAuthMiddleware(authStrategy);
     app.use(config.mcpHttpEndpointPath, authMiddleware);
-    logger.info(
-      'Authentication middleware enabled for MCP endpoint.',
-      transportContext,
-    );
+    logger.info('Authentication middleware enabled for MCP endpoint.', transportContext);
   } else {
-    logger.info(
-      'Authentication is disabled; MCP endpoint is unprotected.',
-      transportContext,
-    );
+    logger.info('Authentication is disabled; MCP endpoint is unprotected.', transportContext);
   }
 
   // MCP Spec 2025-06-18: DELETE endpoint for session termination
@@ -248,10 +201,29 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
 
     // For stateless mode or if session management is disabled, return 405
     if (config.mcpSessionMode === 'stateless' || !sessionStore) {
-      return c.json(
-        { error: 'Session termination not supported in stateless mode' },
-        405,
-      );
+      return c.json({ error: 'Session termination not supported in stateless mode' }, 405);
+    }
+
+    // SECURITY: Validate session ownership before termination
+    const authInfo = authContext.getStore()?.authInfo;
+    const sessionIdentity: SessionIdentity | undefined = authInfo
+      ? Object.fromEntries(
+          Object.entries({
+            tenantId: authInfo.tenantId,
+            clientId: authInfo.clientId,
+            subject: authInfo.subject,
+          }).filter(([, v]) => v != null),
+        )
+      : undefined;
+
+    if (!sessionStore.isValidForIdentity(sessionId, sessionIdentity)) {
+      logger.warning('Session termination rejected - ownership validation failed', {
+        ...transportContext,
+        sessionId,
+        requestTenant: sessionIdentity?.tenantId,
+        requestClient: sessionIdentity?.clientId,
+      });
+      return c.json({ error: 'Session not found or access denied' }, 404);
     }
 
     // Terminate the session in the store
@@ -267,8 +239,7 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
 
   // JSON-RPC over HTTP (Streamable)
   app.all(config.mcpHttpEndpointPath, async (c) => {
-    const protocolVersion =
-      c.req.header('mcp-protocol-version') ?? '2025-03-26';
+    const protocolVersion = c.req.header('mcp-protocol-version') ?? '2025-03-26';
     logger.debug('Handling MCP request.', {
       ...transportContext,
       path: c.req.path,
@@ -301,18 +272,16 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
 
     // Extract identity from auth context (if auth is enabled)
     // This MUST happen before session validation for security
-    const authStore = authContext.getStore();
-    let sessionIdentity: SessionIdentity | undefined;
-    if (authStore?.authInfo) {
-      // Build identity object conditionally to satisfy exactOptionalPropertyTypes
-      sessionIdentity = {};
-      if (authStore.authInfo.tenantId)
-        sessionIdentity.tenantId = authStore.authInfo.tenantId;
-      if (authStore.authInfo.clientId)
-        sessionIdentity.clientId = authStore.authInfo.clientId;
-      if (authStore.authInfo.subject)
-        sessionIdentity.subject = authStore.authInfo.subject;
-    }
+    const authInfo = authContext.getStore()?.authInfo;
+    const sessionIdentity: SessionIdentity | undefined = authInfo
+      ? Object.fromEntries(
+          Object.entries({
+            tenantId: authInfo.tenantId,
+            clientId: authInfo.clientId,
+            subject: authInfo.subject,
+          }).filter(([, v]) => v != null),
+        )
+      : undefined;
 
     // MCP Spec 2025-06-18: Return 404 for invalid/terminated sessions
     // https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management
@@ -322,15 +291,12 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
       providedSessionId &&
       !sessionStore.isValidForIdentity(providedSessionId, sessionIdentity)
     ) {
-      logger.warning(
-        'Session validation failed - invalid or hijacked session',
-        {
-          ...transportContext,
-          sessionId: providedSessionId,
-          requestTenant: sessionIdentity?.tenantId,
-          requestClient: sessionIdentity?.clientId,
-        },
-      );
+      logger.warning('Session validation failed - invalid or hijacked session', {
+        ...transportContext,
+        sessionId: providedSessionId,
+        requestTenant: sessionIdentity?.tenantId,
+        requestClient: sessionIdentity?.clientId,
+      });
       return c.json({ error: 'Session not found or expired' }, 404);
     }
 
@@ -347,43 +313,40 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
       // See GHSA-345p-7cg4-v4c7.
       const server = await serverFactory();
       await server.connect(transport);
-      const response = await transport.handleRequest(c);
+      try {
+        const response = await transport.handleRequest(c);
 
-      // MCP Spec 2025-06-18: For stateful sessions, return Mcp-Session-Id header
-      // in InitializeResponse (and all subsequent responses)
-      if (response && config.mcpSessionMode === 'stateful') {
-        response.headers.set('Mcp-Session-Id', sessionId);
-        logger.debug('Added Mcp-Session-Id header to response', {
-          ...transportContext,
-          sessionId,
+        // MCP Spec 2025-06-18: For stateful sessions, return Mcp-Session-Id header
+        // in InitializeResponse (and all subsequent responses)
+        if (response && config.mcpSessionMode === 'stateful') {
+          response.headers.set('Mcp-Session-Id', sessionId);
+          logger.debug('Added Mcp-Session-Id header to response', {
+            ...transportContext,
+            sessionId,
+          });
+        }
+
+        if (response) {
+          return response;
+        }
+        return c.body(null, 204);
+      } finally {
+        // Always close the per-request server to prevent resource leaks
+        await server.close().catch((closeErr: unknown) => {
+          logger.debug('Failed to close per-request server', {
+            ...transportContext,
+            sessionId,
+            error: closeErr instanceof Error ? closeErr.message : String(closeErr),
+          });
         });
       }
-
-      if (response) {
-        return response;
-      }
-      return c.body(null, 204);
     };
 
-    // The auth logic is now handled by the middleware. We just need to
-    // run the core RPC logic within the async-local-storage context that
-    // the middleware has already populated.
+    // Auth context is already populated by the middleware's authContext.run().
+    // ALS propagates through all async continuations in this handler.
     try {
-      const store = authContext.getStore();
-      if (store) {
-        return await authContext.run(store, handleRpc);
-      }
       return await handleRpc();
     } catch (err) {
-      // Only close transport on error - success path needs to keep it open
-      await transport.close?.().catch((closeErr) => {
-        logger.warning('Failed to close transport after error', {
-          ...transportContext,
-          sessionId,
-          error:
-            closeErr instanceof Error ? closeErr.message : String(closeErr),
-        });
-      });
       throw err instanceof Error ? err : new Error(String(err));
     }
   });
@@ -392,19 +355,13 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
   return app;
 }
 
-async function isPortInUse(
-  port: number,
-  host: string,
-  parentContext: RequestContext,
-): Promise<boolean> {
+function isPortInUse(port: number, host: string, parentContext: RequestContext): Promise<boolean> {
   const context = { ...parentContext, operation: 'isPortInUse', port, host };
   logger.debug(`Checking if port ${port} is in use...`, context);
   return new Promise((resolve) => {
     const tempServer = http.createServer();
     tempServer
-      .once('error', (err: NodeJS.ErrnoException) =>
-        resolve(err.code === 'EADDRINUSE'),
-      )
+      .once('error', (err: NodeJS.ErrnoException) => resolve(err.code === 'EADDRINUSE'))
       .once('listening', () => tempServer.close(() => resolve(false)))
       .listen(port, host);
   });
@@ -430,9 +387,7 @@ function startHttpServerWithRetry<TBindings extends object = HonoNodeBindings>(
 
   const tryBind = (port: number, attempt: number) => {
     if (attempt > maxRetries + 1) {
-      const error = new Error(
-        `Failed to bind to any port after ${maxRetries} retries.`,
-      );
+      const error = new Error(`Failed to bind to any port after ${maxRetries} retries.`);
       logger.fatal(error.message, { ...startContext, port, attempt });
       return reject(error);
     }
@@ -445,44 +400,32 @@ function startHttpServerWithRetry<TBindings extends object = HonoNodeBindings>(
             port,
             attempt,
           });
-          setTimeout(
-            () => tryBind(port + 1, attempt + 1),
-            config.mcpHttpPortRetryDelayMs,
-          );
+          setTimeout(() => tryBind(port + 1, attempt + 1), config.mcpHttpPortRetryDelayMs);
           return;
         }
 
         try {
-          const serverInstance = serve(
-            { fetch: app.fetch, port, hostname: host },
-            (info) => {
-              const serverAddress = `http://${info.address}:${info.port}${config.mcpHttpEndpointPath}`;
-              logger.info(`HTTP transport listening at ${serverAddress}`, {
-                ...startContext,
-                port,
-                address: serverAddress,
-              });
-              logStartupBanner(
-                `\n🚀 MCP Server running at: ${serverAddress}`,
-                'http',
-              );
-            },
-          );
+          const serverInstance = serve({ fetch: app.fetch, port, hostname: host }, (info) => {
+            const serverAddress = `http://${info.address}:${info.port}${config.mcpHttpEndpointPath}`;
+            logger.info(`HTTP transport listening at ${serverAddress}`, {
+              ...startContext,
+              port,
+              address: serverAddress,
+            });
+            logStartupBanner(`\n🚀 MCP Server running at: ${serverAddress}`, 'http');
+          });
           resolve(serverInstance);
         } catch (err: unknown) {
-          logger.warning(
-            `Binding attempt failed for port ${port}, retrying...`,
-            { ...startContext, port, attempt, error: String(err) },
-          );
-          setTimeout(
-            () => tryBind(port + 1, attempt + 1),
-            config.mcpHttpPortRetryDelayMs,
-          );
+          logger.warning(`Binding attempt failed for port ${port}, retrying...`, {
+            ...startContext,
+            port,
+            attempt,
+            error: String(err),
+          });
+          setTimeout(() => tryBind(port + 1, attempt + 1), config.mcpHttpPortRetryDelayMs);
         }
       })
-      .catch((err) =>
-        reject(err instanceof Error ? err : new Error(String(err))),
-      );
+      .catch((err) => reject(err instanceof Error ? err : new Error(String(err))));
   };
 
   tryBind(initialPort, 1);
@@ -513,7 +456,7 @@ export async function startHttpTransport(
   return server;
 }
 
-export async function stopHttpTransport(
+export function stopHttpTransport(
   server: ServerType,
   parentContext: RequestContext,
 ): Promise<void> {

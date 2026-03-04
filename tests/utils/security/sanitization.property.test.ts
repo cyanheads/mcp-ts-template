@@ -4,11 +4,11 @@
  * that must hold for ALL inputs, catching edge cases hand-written tests miss.
  * @module tests/utils/security/sanitization.property
  */
-import { describe, it, expect } from 'vitest';
-import fc from 'fast-check';
 
-import { sanitization } from '@/utils/security/sanitization.js';
+import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import { McpError } from '@/types-global/errors.js';
+import { sanitization } from '@/utils/security/sanitization.js';
 
 describe('Sanitization Property-Based Tests', () => {
   describe('sanitizeHtml', () => {
@@ -108,14 +108,11 @@ describe('Sanitization Property-Based Tests', () => {
 
     it('should preserve valid https URLs', () => {
       fc.assert(
-        fc.property(
-          fc.webUrl({ withFragments: true, withQueryParameters: true }),
-          (url) => {
-            const result = sanitization.sanitizeUrl(url);
-            expect(result.length).toBeGreaterThan(0);
-            expect(typeof result).toBe('string');
-          },
-        ),
+        fc.property(fc.webUrl({ withFragments: true, withQueryParameters: true }), (url) => {
+          const result = sanitization.sanitizeUrl(url);
+          expect(result.length).toBeGreaterThan(0);
+          expect(typeof result).toBe('string');
+        }),
         { numRuns: 100 },
       );
     });
@@ -192,27 +189,21 @@ describe('Sanitization Property-Based Tests', () => {
 
     it('should accept any finite number without min/max', () => {
       fc.assert(
-        fc.property(
-          fc.double({ noNaN: true, noDefaultInfinity: true }),
-          (value) => {
-            const result = sanitization.sanitizeNumber(value);
-            expect(typeof result).toBe('number');
-            expect(result).toBe(value);
-          },
-        ),
+        fc.property(fc.double({ noNaN: true, noDefaultInfinity: true }), (value) => {
+          const result = sanitization.sanitizeNumber(value);
+          expect(typeof result).toBe('number');
+          expect(result).toBe(value);
+        }),
         { numRuns: 200 },
       );
     });
 
     it('should parse valid numeric strings', () => {
       fc.assert(
-        fc.property(
-          fc.integer({ min: -1_000_000, max: 1_000_000 }),
-          (value) => {
-            const result = sanitization.sanitizeNumber(String(value));
-            expect(result).toBe(value);
-          },
-        ),
+        fc.property(fc.integer({ min: -1_000_000, max: 1_000_000 }), (value) => {
+          const result = sanitization.sanitizeNumber(String(value));
+          expect(result).toBe(value);
+        }),
         { numRuns: 100 },
       );
     });
@@ -223,20 +214,13 @@ describe('Sanitization Property-Based Tests', () => {
       const sensitiveKeys = ['password', 'token', 'secret', 'authorization'];
 
       fc.assert(
-        fc.property(
-          fc.constantFrom(...sensitiveKeys),
-          fc.string(),
-          (key, value) => {
-            const obj = { [key]: value, safe: 'visible' };
-            const result = sanitization.sanitizeForLogging(obj) as Record<
-              string,
-              unknown
-            >;
+        fc.property(fc.constantFrom(...sensitiveKeys), fc.string(), (key, value) => {
+          const obj = { [key]: value, safe: 'visible' };
+          const result = sanitization.sanitizeForLogging(obj) as Record<string, unknown>;
 
-            expect(result[key]).toBe('[REDACTED]');
-            expect(result.safe).toBe('visible');
-          },
-        ),
+          expect(result[key]).toBe('[REDACTED]');
+          expect(result.safe).toBe('visible');
+        }),
         { numRuns: 50 },
       );
     });
@@ -261,13 +245,10 @@ describe('Sanitization Property-Based Tests', () => {
 
     it('should return primitive values unchanged', () => {
       fc.assert(
-        fc.property(
-          fc.oneof(fc.string(), fc.integer(), fc.boolean()),
-          (value) => {
-            const result = sanitization.sanitizeForLogging(value);
-            expect(result).toBe(value);
-          },
-        ),
+        fc.property(fc.oneof(fc.string(), fc.integer(), fc.boolean()), (value) => {
+          const result = sanitization.sanitizeForLogging(value);
+          expect(result).toBe(value);
+        }),
         { numRuns: 100 },
       );
     });

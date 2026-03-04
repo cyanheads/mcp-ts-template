@@ -2,17 +2,13 @@
  * @fileoverview Tests for the template-echo-message tool.
  * @module tests/mcp-server/tools/definitions/template-echo-message.tool.test
  */
-import { describe, it, expect, vi } from 'vitest';
-
+import { describe, expect, it, vi } from 'vitest';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import {
   echoTool,
   TEST_ERROR_TRIGGER_MESSAGE,
 } from '../../../../src/mcp-server/tools/definitions/template-echo-message.tool.js';
-import { requestContextService } from '../../../../src/utils/index.js';
-import {
-  McpError,
-  JsonRpcErrorCode,
-} from '../../../../src/types-global/errors.js';
+import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
 
 describe('echoTool', () => {
   const mockSdkContext = {
@@ -60,10 +56,7 @@ describe('echoTool', () => {
     const promise = echoTool.logic(parsedInput, context, mockSdkContext);
 
     await expect(promise).rejects.toThrow(McpError);
-    await expect(promise).rejects.toHaveProperty(
-      'code',
-      JsonRpcErrorCode.ValidationError,
-    );
+    await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.ValidationError);
   });
 
   it('should include traceId metadata when provided in the request context', async () => {
@@ -95,7 +88,7 @@ describe('echoTool', () => {
     const formatter = echoTool.responseFormatter;
     expect(formatter).toBeDefined();
 
-    const result = formatter!({
+    const result = formatter?.({
       originalMessage: longMessage,
       formattedMessage: longMessage,
       repeatedMessage: `${longMessage} ${longMessage}`,
@@ -105,7 +98,7 @@ describe('echoTool', () => {
     });
 
     expect(result).toHaveLength(1);
-    const block = result[0];
+    const block = result![0];
     expect(block).toBeDefined();
     if (!block || block.type !== 'text') {
       throw new Error('Expected text content block');
@@ -120,7 +113,7 @@ describe('echoTool', () => {
     const formatter = echoTool.responseFormatter;
     expect(formatter).toBeDefined();
 
-    const result = formatter!({
+    const result = formatter?.({
       originalMessage: 'short',
       formattedMessage: 'short',
       repeatedMessage: 'short',
@@ -129,7 +122,7 @@ describe('echoTool', () => {
     });
 
     expect(result).toHaveLength(1);
-    const block = result[0];
+    const block = result![0];
     expect(block).toBeDefined();
     if (!block || block.type !== 'text') {
       throw new Error('Expected text content block');

@@ -136,9 +136,7 @@ scripts/ export-ignore
 *.test.js export-ignore
 .gitignore export-ignore
 .gitattributes export-ignore
-.eslintrc.json export-ignore
-.eslintignore export-ignore
-.prettierrc.json export-ignore
+biome.json export-ignore
 tsconfig.json export-ignore
 tsconfig.test.json export-ignore
 vitest.config.ts export-ignore

@@ -5,11 +5,15 @@
  * the single wrapper span here per project guidelines.
  * @module src/utils/internal/performance
  */
-import { SpanStatusCode, trace } from '@opentelemetry/api';
+
 import type { performance as PerfHooksPerformance } from 'node:perf_hooks';
+import { SpanStatusCode, trace } from '@opentelemetry/api';
 
 import { config } from '@/config/index.js';
 import { McpError } from '@/types-global/errors.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 import {
   ATTR_CODE_FUNCTION,
   ATTR_CODE_NAMESPACE,
@@ -22,11 +26,22 @@ import {
   ATTR_MCP_TOOL_MEMORY_RSS_AFTER,
   ATTR_MCP_TOOL_MEMORY_RSS_BEFORE,
   ATTR_MCP_TOOL_MEMORY_RSS_DELTA,
+  ATTR_MCP_TOOL_NAME,
   ATTR_MCP_TOOL_OUTPUT_BYTES,
   ATTR_MCP_TOOL_SUCCESS,
 } from '@/utils/telemetry/semconv.js';
-import { logger } from '@/utils/internal/logger.js';
-import type { RequestContext } from '@/utils/internal/requestContext.js';
+
+// OTel metric instruments for tool execution (lazy-initialized on first use)
+let toolCallCounter: ReturnType<typeof createCounter> | undefined;
+let toolCallDuration: ReturnType<typeof createHistogram> | undefined;
+let toolCallErrors: ReturnType<typeof createCounter> | undefined;
+
+function getToolMetrics() {
+  toolCallCounter ??= createCounter('mcp.tool.calls', 'Total MCP tool invocations', '{calls}');
+  toolCallDuration ??= createHistogram('mcp.tool.duration', 'MCP tool execution duration', 'ms');
+  toolCallErrors ??= createCounter('mcp.tool.errors', 'Total MCP tool errors', '{errors}');
+  return { toolCallCounter, toolCallDuration, toolCallErrors };
+}
 
 // Environment-aware high-resolution timer
 let performanceNow: () => number = () => Date.now(); // Fallback
@@ -45,12 +60,14 @@ let performanceNow: () => number = () => Date.now(); // Fallback
 export async function loadPerfHooks(): Promise<{
   performance: typeof PerfHooksPerformance;
 }> {
-  return import('perf_hooks') as Promise<{
+  return await (import('node:perf_hooks') as Promise<{
     performance: typeof PerfHooksPerformance;
-  }>;
+  }>);
 }
 
-export async function initializePerformance_Hrt(): Promise<void> {
+export async function initHighResTimer(
+  perfLoader: typeof loadPerfHooks = loadPerfHooks,
+): Promise<void> {
   // Use a type assertion to safely access `performance` on `globalThis`,
   // which is present in browser-like environments (e.g., Cloudflare Workers)
   // but not in Node.js's default global type.
@@ -60,10 +77,10 @@ export async function initializePerformance_Hrt(): Promise<void> {
 
   if (typeof globalWithPerf.performance?.now === 'function') {
     const perf = globalWithPerf.performance;
-    performanceNow = () => perf?.now() ?? Date.now();
+    performanceNow = () => perf.now();
   } else {
     try {
-      const { performance: nodePerformance } = await loadPerfHooks();
+      const { performance: nodePerformance } = await perfLoader();
       performanceNow = () => nodePerformance.now();
     } catch (_e) {
       performanceNow = () => Date.now();
@@ -81,12 +98,8 @@ const toBytes = (payload: unknown): number => {
   try {
     const json = JSON.stringify(payload);
     // Prefer Buffer when available (Node), otherwise TextEncoder (Web/Workers)
-    if (
-      typeof Buffer !== 'undefined' &&
-      typeof Buffer.byteLength === 'function'
-    ) {
-      const bytes = Buffer.byteLength(json, 'utf8');
-      return bytes;
+    if (typeof Buffer !== 'undefined' && typeof Buffer.byteLength === 'function') {
+      return Buffer.byteLength(json, 'utf8');
     }
     if (typeof TextEncoder !== 'undefined') {
       return new TextEncoder().encode(json).length;
@@ -96,6 +109,19 @@ const toBytes = (payload: unknown): number => {
     return 0;
   }
 };
+
+const zeroMemory: NodeJS.MemoryUsage = {
+  rss: 0,
+  heapUsed: 0,
+  heapTotal: 0,
+  external: 0,
+  arrayBuffers: 0,
+};
+
+const getMemoryUsage = (): NodeJS.MemoryUsage =>
+  typeof process !== 'undefined' && typeof process.memoryUsage === 'function'
+    ? process.memoryUsage()
+    : zeroMemory;
 
 export async function measureToolExecution<T>(
   toolLogicFn: () => Promise<T>,
@@ -109,105 +135,89 @@ export async function measureToolExecution<T>(
 
   const { toolName } = context;
 
-  return tracer.startActiveSpan(
-    `tool_execution:${toolName}` as const,
-    async (span) => {
-      // Pre-capture lightweight metrics
-      const memBefore =
-        typeof process !== 'undefined' &&
-        typeof process.memoryUsage === 'function'
-          ? process.memoryUsage()
-          : ({
-              rss: 0,
-              heapUsed: 0,
-              heapTotal: 0,
-              external: 0,
-              arrayBuffers: 0,
-            } satisfies NodeJS.MemoryUsage);
-      const t0 = nowMs();
+  return await tracer.startActiveSpan(`tool_execution:${toolName}` as const, async (span) => {
+    // Pre-capture lightweight metrics
+    const memBefore = getMemoryUsage();
+    const t0 = nowMs();
+
+    span.setAttributes({
+      [ATTR_CODE_FUNCTION]: toolName,
+      [ATTR_CODE_NAMESPACE]: 'mcp-tools',
+      [ATTR_MCP_TOOL_INPUT_BYTES]: toBytes(inputPayload),
+      [ATTR_MCP_TOOL_MEMORY_RSS_BEFORE]: memBefore.rss,
+      [ATTR_MCP_TOOL_MEMORY_HEAP_USED_BEFORE]: memBefore.heapUsed,
+    });
+
+    let ok = false;
+    let errorCode: string | undefined;
+    let output: T | undefined;
+
+    try {
+      const result = await toolLogicFn();
+      ok = true;
+      output = result;
+      span.setStatus({ code: SpanStatusCode.OK });
+      span.setAttribute(ATTR_MCP_TOOL_OUTPUT_BYTES, toBytes(output));
+      return result;
+    } catch (err) {
+      if (err instanceof McpError) errorCode = String(err.code);
+      else if (err instanceof Error) errorCode = 'UNHANDLED_ERROR';
+      else errorCode = 'UNKNOWN_ERROR';
+
+      if (err instanceof Error) span.recordException(err);
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    } finally {
+      const t1 = nowMs();
+      const durationMs = Number((t1 - t0).toFixed(2));
+      const memAfter = getMemoryUsage();
+
+      const rssDelta = memAfter.rss - memBefore.rss;
+      const heapUsedDelta = memAfter.heapUsed - memBefore.heapUsed;
 
       span.setAttributes({
-        [ATTR_CODE_FUNCTION]: toolName,
-        [ATTR_CODE_NAMESPACE]: 'mcp-tools',
-        [ATTR_MCP_TOOL_INPUT_BYTES]: toBytes(inputPayload),
-        [ATTR_MCP_TOOL_MEMORY_RSS_BEFORE]: memBefore.rss,
-        [ATTR_MCP_TOOL_MEMORY_HEAP_USED_BEFORE]: memBefore.heapUsed,
+        [ATTR_MCP_TOOL_DURATION_MS]: durationMs,
+        [ATTR_MCP_TOOL_SUCCESS]: ok,
+        [ATTR_MCP_TOOL_MEMORY_RSS_AFTER]: memAfter.rss,
+        [ATTR_MCP_TOOL_MEMORY_HEAP_USED_AFTER]: memAfter.heapUsed,
+        [ATTR_MCP_TOOL_MEMORY_RSS_DELTA]: rssDelta,
+        [ATTR_MCP_TOOL_MEMORY_HEAP_USED_DELTA]: heapUsedDelta,
       });
+      if (errorCode) span.setAttribute(ATTR_MCP_TOOL_ERROR_CODE, errorCode);
+      span.end();
 
-      let ok = false;
-      let errorCode: string | undefined;
-      let output: T | undefined;
+      // Record to OTel metric instruments (durable across restarts)
+      const m = getToolMetrics();
+      const metricAttrs = { [ATTR_MCP_TOOL_NAME]: toolName, [ATTR_MCP_TOOL_SUCCESS]: ok };
+      m.toolCallCounter.add(1, metricAttrs);
+      m.toolCallDuration.record(durationMs, metricAttrs);
+      if (!ok) m.toolCallErrors.add(1, { [ATTR_MCP_TOOL_NAME]: toolName });
 
-      try {
-        const result = await toolLogicFn();
-        ok = true;
-        output = result;
-        span.setStatus({ code: SpanStatusCode.OK });
-        span.setAttribute(ATTR_MCP_TOOL_OUTPUT_BYTES, toBytes(output));
-        return result;
-      } catch (err) {
-        if (err instanceof McpError) errorCode = String(err.code);
-        else if (err instanceof Error) errorCode = 'UNHANDLED_ERROR';
-        else errorCode = 'UNKNOWN_ERROR';
-
-        if (err instanceof Error) span.recordException(err);
-        span.setStatus({
-          code: SpanStatusCode.ERROR,
-          message: err instanceof Error ? err.message : String(err),
-        });
-        throw err;
-      } finally {
-        const t1 = nowMs();
-        const durationMs = Number((t1 - t0).toFixed(2));
-        const memAfter =
-          typeof process !== 'undefined' &&
-          typeof process.memoryUsage === 'function'
-            ? process.memoryUsage()
-            : ({
-                rss: 0,
-                heapUsed: 0,
-                heapTotal: 0,
-                external: 0,
-                arrayBuffers: 0,
-              } satisfies NodeJS.MemoryUsage);
-
-        const rssDelta = memAfter.rss - memBefore.rss;
-        const heapUsedDelta = memAfter.heapUsed - memBefore.heapUsed;
-
-        span.setAttributes({
-          [ATTR_MCP_TOOL_DURATION_MS]: durationMs,
-          [ATTR_MCP_TOOL_SUCCESS]: ok,
-          [ATTR_MCP_TOOL_MEMORY_RSS_AFTER]: memAfter.rss,
-          [ATTR_MCP_TOOL_MEMORY_HEAP_USED_AFTER]: memAfter.heapUsed,
-          [ATTR_MCP_TOOL_MEMORY_RSS_DELTA]: rssDelta,
-          [ATTR_MCP_TOOL_MEMORY_HEAP_USED_DELTA]: heapUsedDelta,
-        });
-        if (errorCode) span.setAttribute(ATTR_MCP_TOOL_ERROR_CODE, errorCode);
-        span.end();
-
-        logger.info('Tool execution finished.', {
-          ...context,
-          metrics: {
-            durationMs,
-            isSuccess: ok,
-            errorCode,
-            inputBytes: toBytes(inputPayload),
-            outputBytes: toBytes(output),
-            memory: {
-              rss: {
-                before: memBefore.rss,
-                after: memAfter.rss,
-                delta: rssDelta,
-              },
-              heapUsed: {
-                before: memBefore.heapUsed,
-                after: memAfter.heapUsed,
-                delta: heapUsedDelta,
-              },
+      logger.info('Tool execution finished.', {
+        ...context,
+        metrics: {
+          durationMs,
+          isSuccess: ok,
+          errorCode,
+          inputBytes: toBytes(inputPayload),
+          outputBytes: toBytes(output),
+          memory: {
+            rss: {
+              before: memBefore.rss,
+              after: memAfter.rss,
+              delta: rssDelta,
+            },
+            heapUsed: {
+              before: memBefore.heapUsed,
+              after: memAfter.heapUsed,
+              delta: heapUsedDelta,
             },
           },
-        });
-      }
-    },
-  );
+        },
+      });
+    }
+  });
 }

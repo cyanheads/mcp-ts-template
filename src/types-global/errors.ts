@@ -47,7 +47,7 @@ export class McpError extends Error {
   /**
    * The standardized error code from {@link JsonRpcErrorCode}.
    */
-  public code: JsonRpcErrorCode;
+  public readonly code: JsonRpcErrorCode;
 
   /**
    * Optional additional data about the error, conforming to the JSON-RPC 2.0 specification.
@@ -120,9 +120,7 @@ export const ErrorSchema = z
     data: z
       .record(z.string(), z.unknown())
       .optional()
-      .describe(
-        'Optional structured data providing more context about the error',
-      ),
+      .describe('Optional structured data providing more context about the error'),
   })
   .describe(
     'Schema for validating structured error objects, ensuring consistency in error reporting.',

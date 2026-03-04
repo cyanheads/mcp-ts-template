@@ -4,24 +4,16 @@
  */
 
 import {
-  describe,
-  test,
-  expect,
-  beforeEach,
-  afterEach,
-  vi,
-  type MockInstance,
-} from 'vitest';
-import {
   context as otContext,
   propagation,
-  trace,
-  SpanStatusCode,
   type Span,
   type SpanContext,
+  SpanStatusCode,
+  trace,
 } from '@opentelemetry/api';
-import * as traceUtils from '@/utils/telemetry/trace.js';
+import { afterEach, beforeEach, describe, expect, type MockInstance, test, vi } from 'vitest';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
+import * as traceUtils from '@/utils/telemetry/trace.js';
 
 describe('OpenTelemetry Tracing', () => {
   describe('buildTraceparent', () => {
@@ -223,9 +215,7 @@ describe('OpenTelemetry Tracing', () => {
       };
 
       expect(traceUtils.extractTraceparent(sampledHeaders)?.sampled).toBe(true);
-      expect(traceUtils.extractTraceparent(unsampledHeaders)?.sampled).toBe(
-        false,
-      );
+      expect(traceUtils.extractTraceparent(unsampledHeaders)?.sampled).toBe(false);
     });
   });
 
@@ -237,10 +227,7 @@ describe('OpenTelemetry Tracing', () => {
         traceparent: `00-${traceId}-${spanId}-01`,
       };
 
-      const result = traceUtils.createContextWithParentTrace(
-        headers,
-        'test-operation',
-      );
+      const result = traceUtils.createContextWithParentTrace(headers, 'test-operation');
 
       expect(result.operation).toBe('test-operation');
       expect(result.traceId).toBe(traceId);
@@ -253,10 +240,7 @@ describe('OpenTelemetry Tracing', () => {
       const headers = new Headers();
       headers.set('traceparent', `00-${traceId}-${spanId}-01`);
 
-      const result = traceUtils.createContextWithParentTrace(
-        headers,
-        'web-request',
-      );
+      const result = traceUtils.createContextWithParentTrace(headers, 'web-request');
 
       expect(result.operation).toBe('web-request');
       expect(result.traceId).toBe(traceId);
@@ -321,9 +305,7 @@ describe('OpenTelemetry Tracing', () => {
       };
 
       mockTracer = {
-        startActiveSpan: vi.fn((_name, fn) => {
-          return fn(mockSpan);
-        }),
+        startActiveSpan: vi.fn((_name, fn) => fn(mockSpan)),
       };
 
       vi.spyOn(trace, 'getTracer').mockReturnValue(mockTracer);
@@ -368,9 +350,7 @@ describe('OpenTelemetry Tracing', () => {
         throw error;
       };
 
-      await expect(traceUtils.withSpan('failing-op', testFn)).rejects.toThrow(
-        'Test error',
-      );
+      await expect(traceUtils.withSpan('failing-op', testFn)).rejects.toThrow('Test error');
 
       expect(mockSpan.recordException).toHaveBeenCalledWith(error);
       expect(mockSpan.setStatus).toHaveBeenCalledWith({
@@ -387,9 +367,7 @@ describe('OpenTelemetry Tracing', () => {
 
       await expect(traceUtils.withSpan('failing-op', testFn)).rejects.toThrow();
 
-      expect(mockSpan.recordException).toHaveBeenCalledWith(
-        new Error('string error'),
-      );
+      expect(mockSpan.recordException).toHaveBeenCalledWith(new Error('string error'));
       expect(mockSpan.setStatus).toHaveBeenCalledWith({
         code: SpanStatusCode.ERROR,
         message: 'string error',
@@ -537,10 +515,7 @@ describe('OpenTelemetry Tracing', () => {
         traceparent: `00-${parentTraceId}-${parentSpanId}-01`,
       };
 
-      const childContext = traceUtils.createContextWithParentTrace(
-        headers,
-        'child-operation',
-      );
+      const childContext = traceUtils.createContextWithParentTrace(headers, 'child-operation');
 
       expect(childContext.traceId).toBe(parentTraceId);
       expect(childContext.parentSpanId).toBe(parentSpanId);

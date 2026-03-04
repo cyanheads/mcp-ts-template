@@ -11,11 +11,13 @@ import type {
   SdkContext,
   ToolAnnotations,
   ToolDefinition,
-} from '@/mcp-server/tools/utils/index.js';
-import { markdown, getStringProperty } from '@/utils/index.js';
+} from '@/mcp-server/tools/utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { type RequestContext, logger } from '@/utils/index.js';
+import { markdown } from '@/utils/formatting/markdownBuilder.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { getStringProperty } from '@/utils/types/guards.js';
 
 /**
  * Programmatic tool name (must be unique).
@@ -42,8 +44,7 @@ const TOOL_TITLE = 'Template Echo Message';
  * - Note determinism/idempotency and external-world interactions when relevant.
  * - Avoid implementation details; focus on the observable behavior and contract.
  */
-const TOOL_DESCRIPTION =
-  'Echoes a message back with optional formatting and repetition.';
+const TOOL_DESCRIPTION = 'Echoes a message back with optional formatting and repetition.';
 /** --------------------------------------------------------- */
 
 /**
@@ -89,9 +90,7 @@ const InputSchema = z
     mode: z
       .enum(ECHO_MODES)
       .default(DEFAULT_MODE)
-      .describe(
-        "How to format the message ('standard' | 'uppercase' | 'lowercase').",
-      ),
+      .describe("How to format the message ('standard' | 'uppercase' | 'lowercase')."),
     repeat: z
       .number()
       .int()
@@ -108,28 +107,18 @@ const InputSchema = z
 
 const OutputSchema = z
   .object({
-    originalMessage: z
-      .string()
-      .describe('The original message provided in the input.'),
-    formattedMessage: z
-      .string()
-      .describe('The message after applying the specified formatting.'),
+    originalMessage: z.string().describe('The original message provided in the input.'),
+    formattedMessage: z.string().describe('The message after applying the specified formatting.'),
     repeatedMessage: z
       .string()
       .describe('The final message repeated the requested number of times.'),
     mode: z.enum(ECHO_MODES).describe('The formatting mode that was applied.'),
-    repeatCount: z
-      .number()
-      .int()
-      .min(1)
-      .describe('The number of times the message was repeated.'),
+    repeatCount: z.number().int().min(1).describe('The number of times the message was repeated.'),
     timestamp: z
       .string()
       .datetime()
       .optional()
-      .describe(
-        'Optional ISO 8601 timestamp of when the response was generated.',
-      ),
+      .describe('Optional ISO 8601 timestamp of when the response was generated.'),
   })
   .describe('Echo tool response payload.');
 
@@ -150,18 +139,11 @@ function echoToolLogic(
   });
 
   if (input.message === TEST_ERROR_TRIGGER_MESSAGE) {
-    const errorData: Record<string, unknown> = {
-      requestId: appContext.requestId,
-    };
     const traceId = getStringProperty(appContext, 'traceId');
-    if (traceId) {
-      errorData.traceId = traceId;
-    }
-    throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      'Deliberate failure triggered.',
-      errorData,
-    );
+    throw new McpError(JsonRpcErrorCode.ValidationError, 'Deliberate failure triggered.', {
+      requestId: appContext.requestId,
+      ...(traceId && { traceId }),
+    });
   }
 
   const formattedMessage =
@@ -173,7 +155,7 @@ function echoToolLogic(
 
   const repeatedMessage = Array(input.repeat).fill(formattedMessage).join(' ');
 
-  const response: EchoToolResponse = {
+  return {
     originalMessage: input.message,
     formattedMessage,
     repeatedMessage,
@@ -181,37 +163,10 @@ function echoToolLogic(
     repeatCount: input.repeat,
     ...(input.includeTimestamp && { timestamp: new Date().toISOString() }),
   };
-
-  return response;
 }
 
 /**
  * Formats a concise human-readable summary while structuredContent carries the full payload.
- *
- * @example Before (manual string concatenation):
- * ```typescript
- * const lines = [
- *   `Echo (mode=${result.mode}, repeat=${result.repeatCount})`,
- *   preview,
- *   result.timestamp ? `timestamp=${result.timestamp}` : undefined,
- * ].filter(Boolean) as string[];
- * return [{ type: 'text', text: lines.join('\n') }];
- * ```
- *
- * @example After (using MarkdownBuilder):
- * ```typescript
- * // For tight line formatting without blank lines, use text() with manual newlines
- * const md = markdown()
- *   .text(`Echo (mode=${result.mode}, repeat=${result.repeatCount})\n`)
- *   .text(`${preview}`);
- *
- * // Apply conditional content after builder is initialized
- * md.when(!!result.timestamp, () => {
- *   md.text(`\ntimestamp=${result.timestamp}`);
- * });
- *
- * return [{ type: 'text', text: md.build() }];
- * ```
  */
 function responseFormatter(result: EchoToolResponse): ContentBlock[] {
   const preview =
@@ -241,14 +196,13 @@ function responseFormatter(result: EchoToolResponse): ContentBlock[] {
 /**
  * The complete tool definition for the echo tool.
  */
-export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> =
-  {
-    name: TOOL_NAME,
-    title: TOOL_TITLE,
-    description: TOOL_DESCRIPTION,
-    inputSchema: InputSchema,
-    outputSchema: OutputSchema,
-    annotations: TOOL_ANNOTATIONS,
-    logic: withToolAuth(['tool:echo:read'], echoToolLogic),
-    responseFormatter,
-  };
+export const echoTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
+  name: TOOL_NAME,
+  title: TOOL_TITLE,
+  description: TOOL_DESCRIPTION,
+  inputSchema: InputSchema,
+  outputSchema: OutputSchema,
+  annotations: TOOL_ANNOTATIONS,
+  logic: withToolAuth(['tool:echo:read'], echoToolLogic),
+  responseFormatter,
+};

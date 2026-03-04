@@ -12,7 +12,7 @@
  * Solution: Use `.min(n)` / `.max(n)` instead of `.positive()` / `.negative()`
  * which output `minimum`/`maximum` keywords compatible with all drafts.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
@@ -38,10 +38,7 @@ type JsonSchema = {
  * Recursively find all properties in a JSON Schema that have Draft 7-only
  * numeric exclusiveMinimum or exclusiveMaximum values.
  */
-function findDraft7Incompatibilities(
-  schema: JsonSchemaProperty,
-  path: string = '',
-): string[] {
+function findDraft7Incompatibilities(schema: JsonSchemaProperty, path: string = ''): string[] {
   const issues: string[] = [];
 
   // Check current level
@@ -59,20 +56,13 @@ function findDraft7Incompatibilities(
   // Recurse into object properties
   if (schema.properties) {
     for (const [key, prop] of Object.entries(schema.properties)) {
-      issues.push(
-        ...findDraft7Incompatibilities(prop, path ? `${path}.${key}` : key),
-      );
+      issues.push(...findDraft7Incompatibilities(prop, path ? `${path}.${key}` : key));
     }
   }
 
   // Recurse into array items
   if (schema.items && typeof schema.items === 'object') {
-    issues.push(
-      ...findDraft7Incompatibilities(
-        schema.items as JsonSchemaProperty,
-        `${path}[]`,
-      ),
-    );
+    issues.push(...findDraft7Incompatibilities(schema.items as JsonSchemaProperty, `${path}[]`));
   }
 
   return issues;
@@ -93,27 +83,19 @@ describe('JSON Schema Draft 4 Compatibility', () => {
       for (const tool of allToolDefinitions) {
         const inputSchema = toJsonSchema(tool.inputSchema);
 
-        const inputIssues = findDraft7Incompatibilities(
-          inputSchema as JsonSchemaProperty,
-        );
+        const inputIssues = findDraft7Incompatibilities(inputSchema as JsonSchemaProperty);
 
         if (inputIssues.length > 0) {
-          allIssues.push(
-            `Tool "${tool.name}" inputSchema:\n  - ${inputIssues.join('\n  - ')}`,
-          );
+          allIssues.push(`Tool "${tool.name}" inputSchema:\n  - ${inputIssues.join('\n  - ')}`);
         }
 
         // outputSchema is optional (e.g., for task tools)
         if (tool.outputSchema) {
           const outputSchema = toJsonSchema(tool.outputSchema);
-          const outputIssues = findDraft7Incompatibilities(
-            outputSchema as JsonSchemaProperty,
-          );
+          const outputIssues = findDraft7Incompatibilities(outputSchema as JsonSchemaProperty);
 
           if (outputIssues.length > 0) {
-            allIssues.push(
-              `Tool "${tool.name}" outputSchema:\n  - ${outputIssues.join('\n  - ')}`,
-            );
+            allIssues.push(`Tool "${tool.name}" outputSchema:\n  - ${outputIssues.join('\n  - ')}`);
           }
         }
       }
@@ -236,23 +218,18 @@ describe('Individual Tool Schema Validation', () => {
     describe(`Tool: ${tool.name}`, () => {
       it('inputSchema should be Draft 4 compatible', () => {
         const jsonSchema = toJsonSchema(tool.inputSchema);
-        const issues = findDraft7Incompatibilities(
-          jsonSchema as JsonSchemaProperty,
-        );
+        const issues = findDraft7Incompatibilities(jsonSchema as JsonSchemaProperty);
 
-        expect(
-          issues,
-          `inputSchema contains Draft 7-only features:\n${issues.join('\n')}`,
-        ).toEqual([]);
+        expect(issues, `inputSchema contains Draft 7-only features:\n${issues.join('\n')}`).toEqual(
+          [],
+        );
       });
 
       // outputSchema is optional (e.g., for task tools)
       if (tool.outputSchema) {
         it('outputSchema should be Draft 4 compatible', () => {
           const jsonSchema = toJsonSchema(tool.outputSchema!);
-          const issues = findDraft7Incompatibilities(
-            jsonSchema as JsonSchemaProperty,
-          );
+          const issues = findDraft7Incompatibilities(jsonSchema as JsonSchemaProperty);
 
           expect(
             issues,

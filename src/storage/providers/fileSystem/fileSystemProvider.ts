@@ -10,25 +10,21 @@
  * @module src/storage/providers/fileSystem/fileSystemProvider
  */
 import { existsSync, mkdirSync } from 'node:fs';
-import { readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type {
   IStorageProvider,
-  StorageOptions,
   ListOptions,
   ListResult,
+  StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
+import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  encodeCursor,
-  decodeCursor,
-} from '@/storage/core/storageValidation.js';
-import {
-  ErrorHandler,
-  sanitization,
-  type RequestContext,
-} from '@/utils/index.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { sanitization } from '@/utils/security/sanitization.js';
+import { isErrorWithCode } from '@/utils/types/guards.js';
 
 const DEFAULT_LIST_LIMIT = 1000;
 
@@ -88,13 +84,9 @@ export class FileSystemProvider implements IStorageProvider {
     return filePath;
   }
 
-  private buildEnvelope(
-    value: unknown,
-    options?: StorageOptions,
-  ): FileEnvelope {
+  private buildEnvelope(value: unknown, options?: StorageOptions): FileEnvelope {
     // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
-    const expiresAt =
-      options?.ttl !== undefined ? Date.now() + options.ttl * 1000 : undefined;
+    const expiresAt = options?.ttl !== undefined ? Date.now() + options.ttl * 1000 : undefined;
     return {
       __mcp: {
         v: FILE_ENVELOPE_VERSION,
@@ -139,29 +131,15 @@ export class FileSystemProvider implements IStorageProvider {
     }
   }
 
-  async get<T>(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<T | null> {
+  async get<T>(tenantId: string, key: string, context: RequestContext): Promise<T | null> {
     const filePath = this.getFilePath(tenantId, key);
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         try {
           const data = await readFile(filePath, 'utf-8');
-          return this.parseAndValidate<T>(
-            data,
-            tenantId,
-            key,
-            filePath,
-            context,
-          );
+          return this.parseAndValidate<T>(data, tenantId, key, filePath, context);
         } catch (error: unknown) {
-          if (
-            error instanceof Error &&
-            'code' in error &&
-            (error as { code: string }).code === 'ENOENT'
-          ) {
+          if (isErrorWithCode(error) && error.code === 'ENOENT') {
             return null; // File not found
           }
           throw error; // Re-throw other errors
@@ -183,7 +161,7 @@ export class FileSystemProvider implements IStorageProvider {
     options?: StorageOptions,
   ): Promise<void> {
     const filePath = this.getFilePath(tenantId, key);
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         const envelope = this.buildEnvelope(value, options);
         const content = JSON.stringify(envelope, null, 2);
@@ -198,23 +176,15 @@ export class FileSystemProvider implements IStorageProvider {
     );
   }
 
-  async delete(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<boolean> {
+  async delete(tenantId: string, key: string, context: RequestContext): Promise<boolean> {
     const filePath = this.getFilePath(tenantId, key);
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         try {
           await rm(filePath);
           return true;
         } catch (error: unknown) {
-          if (
-            error instanceof Error &&
-            'code' in error &&
-            (error as { code: string }).code === 'ENOENT'
-          ) {
+          if (isErrorWithCode(error) && error.code === 'ENOENT') {
             return false; // File didn't exist
           }
           throw error;
@@ -228,10 +198,7 @@ export class FileSystemProvider implements IStorageProvider {
     );
   }
 
-  private async listFilesRecursively(
-    dir: string,
-    baseDir: string,
-  ): Promise<string[]> {
+  private async listFilesRecursively(dir: string, baseDir: string): Promise<string[]> {
     const entries = await readdir(dir, { withFileTypes: true });
     const results: string[] = [];
     for (const entry of entries) {
@@ -253,7 +220,7 @@ export class FileSystemProvider implements IStorageProvider {
     context: RequestContext,
     options?: ListOptions,
   ): Promise<ListResult> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         const tenantPath = this.getTenantPath(tenantId);
         const allKeys = await this.listFilesRecursively(tenantPath, tenantPath);
@@ -265,20 +232,11 @@ export class FileSystemProvider implements IStorageProvider {
           const filePath = this.getFilePath(tenantId, k);
           try {
             const raw = await readFile(filePath, 'utf-8');
-            const value = await this.parseAndValidate<unknown>(
-              raw,
-              tenantId,
-              k,
-              filePath,
-              context,
-            );
+            const value = await this.parseAndValidate<unknown>(raw, tenantId, k, filePath, context);
             if (value !== null) {
               validKeys.push(k);
             }
-          } catch (_e) {
-            // If parsing fails, exclude key and continue; error already typed/logged by tryCatch wrapper.
-            continue;
-          }
+          } catch (_e) {}
         }
 
         // Sort for consistent pagination
@@ -294,13 +252,17 @@ export class FileSystemProvider implements IStorageProvider {
           const cursorIndex = validKeys.indexOf(lastKey);
           if (cursorIndex !== -1) {
             startIndex = cursorIndex + 1;
+          } else {
+            // Key was deleted between pages; resume from the next key after it
+            const insertionPoint = validKeys.findIndex((k) => k > lastKey);
+            startIndex = insertionPoint === -1 ? validKeys.length : insertionPoint;
           }
         }
 
         const paginatedKeys = validKeys.slice(startIndex, startIndex + limit);
         const nextCursor =
           startIndex + limit < validKeys.length && paginatedKeys.length > 0
-            ? encodeCursor(paginatedKeys[paginatedKeys.length - 1]!, tenantId)
+            ? encodeCursor(paginatedKeys[paginatedKeys.length - 1] as string, tenantId)
             : undefined;
 
         return {
@@ -321,7 +283,7 @@ export class FileSystemProvider implements IStorageProvider {
     keys: string[],
     context: RequestContext,
   ): Promise<Map<string, T>> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         if (keys.length === 0) {
           return new Map<string, T>();
@@ -354,7 +316,7 @@ export class FileSystemProvider implements IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         if (entries.size === 0) {
           return;
@@ -374,12 +336,8 @@ export class FileSystemProvider implements IStorageProvider {
     );
   }
 
-  async deleteMany(
-    tenantId: string,
-    keys: string[],
-    context: RequestContext,
-  ): Promise<number> {
-    return ErrorHandler.tryCatch(
+  async deleteMany(tenantId: string, keys: string[], context: RequestContext): Promise<number> {
+    return await ErrorHandler.tryCatch(
       async () => {
         if (keys.length === 0) {
           return 0;
@@ -399,7 +357,7 @@ export class FileSystemProvider implements IStorageProvider {
   }
 
   async clear(tenantId: string, context: RequestContext): Promise<number> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         const tenantPath = this.getTenantPath(tenantId);
         const allKeys = await this.listFilesRecursively(tenantPath, tenantPath);

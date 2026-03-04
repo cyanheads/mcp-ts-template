@@ -5,7 +5,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { frontmatterParser } from '@/utils/parsing/frontmatterParser.js';
 
 describe('frontmatterParser.parse', () => {
@@ -216,9 +217,7 @@ invalid: [unterminated array
 
 Content`;
 
-      expect(() => frontmatterParser.parse(markdown, context)).toThrow(
-        McpError,
-      );
+      expect(() => frontmatterParser.parse(markdown, context)).toThrow(McpError);
 
       try {
         frontmatterParser.parse(markdown, context);
@@ -239,9 +238,7 @@ bad: yaml: content
 
 Content`;
 
-      expect(() => frontmatterParser.parse(markdown, context)).toThrow(
-        McpError,
-      );
+      expect(() => frontmatterParser.parse(markdown, context)).toThrow(McpError);
 
       expect(errorSpy).toHaveBeenCalledWith(
         'Failed to parse YAML content.',
@@ -357,9 +354,9 @@ Content`;
   describe('type safety', () => {
     it('supports generic type parameter for frontmatter', () => {
       interface NoteFrontmatter {
-        title: string;
-        tags: string[];
         published: boolean;
+        tags: string[];
+        title: string;
       }
 
       const markdown = `---

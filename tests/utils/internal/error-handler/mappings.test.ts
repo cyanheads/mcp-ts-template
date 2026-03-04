@@ -4,14 +4,14 @@
  * @module tests/utils/internal/error-handler/mappings.test
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import {
-  getCompiledPattern,
-  ERROR_TYPE_MAPPINGS,
   COMPILED_ERROR_PATTERNS,
   COMPILED_PROVIDER_PATTERNS,
+  ERROR_TYPE_MAPPINGS,
+  getCompiledPattern,
 } from '@/utils/internal/error-handler/mappings.js';
-import { JsonRpcErrorCode } from '@/types-global/errors.js';
 
 describe('Error Handler Mappings', () => {
   // ─── getCompiledPattern ──────────────────────────────────────────────────────
@@ -52,45 +52,31 @@ describe('Error Handler Mappings', () => {
 
   describe('ERROR_TYPE_MAPPINGS', () => {
     it('should map SyntaxError to ValidationError', () => {
-      expect(ERROR_TYPE_MAPPINGS['SyntaxError']).toBe(
-        JsonRpcErrorCode.ValidationError,
-      );
+      expect(ERROR_TYPE_MAPPINGS.SyntaxError).toBe(JsonRpcErrorCode.ValidationError);
     });
 
     it('should map TypeError to ValidationError', () => {
-      expect(ERROR_TYPE_MAPPINGS['TypeError']).toBe(
-        JsonRpcErrorCode.ValidationError,
-      );
+      expect(ERROR_TYPE_MAPPINGS.TypeError).toBe(JsonRpcErrorCode.ValidationError);
     });
 
     it('should map RangeError to ValidationError', () => {
-      expect(ERROR_TYPE_MAPPINGS['RangeError']).toBe(
-        JsonRpcErrorCode.ValidationError,
-      );
+      expect(ERROR_TYPE_MAPPINGS.RangeError).toBe(JsonRpcErrorCode.ValidationError);
     });
 
     it('should map URIError to ValidationError', () => {
-      expect(ERROR_TYPE_MAPPINGS['URIError']).toBe(
-        JsonRpcErrorCode.ValidationError,
-      );
+      expect(ERROR_TYPE_MAPPINGS.URIError).toBe(JsonRpcErrorCode.ValidationError);
     });
 
     it('should map EvalError to InternalError', () => {
-      expect(ERROR_TYPE_MAPPINGS['EvalError']).toBe(
-        JsonRpcErrorCode.InternalError,
-      );
+      expect(ERROR_TYPE_MAPPINGS.EvalError).toBe(JsonRpcErrorCode.InternalError);
     });
 
     it('should map ReferenceError to InternalError', () => {
-      expect(ERROR_TYPE_MAPPINGS['ReferenceError']).toBe(
-        JsonRpcErrorCode.InternalError,
-      );
+      expect(ERROR_TYPE_MAPPINGS.ReferenceError).toBe(JsonRpcErrorCode.InternalError);
     });
 
     it('should map AggregateError to InternalError', () => {
-      expect(ERROR_TYPE_MAPPINGS['AggregateError']).toBe(
-        JsonRpcErrorCode.InternalError,
-      );
+      expect(ERROR_TYPE_MAPPINGS.AggregateError).toBe(JsonRpcErrorCode.InternalError);
     });
 
     it('should have exactly 7 entries', () => {
@@ -108,16 +94,12 @@ describe('Error Handler Mappings', () => {
     });
 
     it('should match "unauthorized" as Unauthorized', () => {
-      const match = COMPILED_ERROR_PATTERNS.find((p) =>
-        p.compiledPattern.test('unauthorized'),
-      );
+      const match = COMPILED_ERROR_PATTERNS.find((p) => p.compiledPattern.test('unauthorized'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.Unauthorized);
     });
 
     it('should match "expired token" as Unauthorized', () => {
-      const match = COMPILED_ERROR_PATTERNS.find((p) =>
-        p.compiledPattern.test('expired token'),
-      );
+      const match = COMPILED_ERROR_PATTERNS.find((p) => p.compiledPattern.test('expired token'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.Unauthorized);
     });
 
@@ -129,16 +111,12 @@ describe('Error Handler Mappings', () => {
     });
 
     it('should match "access denied" as Forbidden', () => {
-      const match = COMPILED_ERROR_PATTERNS.find((p) =>
-        p.compiledPattern.test('access denied'),
-      );
+      const match = COMPILED_ERROR_PATTERNS.find((p) => p.compiledPattern.test('access denied'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.Forbidden);
     });
 
     it('should match "not found" as NotFound', () => {
-      const match = COMPILED_ERROR_PATTERNS.find((p) =>
-        p.compiledPattern.test('not found'),
-      );
+      const match = COMPILED_ERROR_PATTERNS.find((p) => p.compiledPattern.test('not found'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.NotFound);
     });
 
@@ -150,30 +128,22 @@ describe('Error Handler Mappings', () => {
     });
 
     it('should match "already exists" as Conflict', () => {
-      const match = COMPILED_ERROR_PATTERNS.find((p) =>
-        p.compiledPattern.test('already exists'),
-      );
+      const match = COMPILED_ERROR_PATTERNS.find((p) => p.compiledPattern.test('already exists'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.Conflict);
     });
 
     it('should match "rate limit" as RateLimited', () => {
-      const match = COMPILED_ERROR_PATTERNS.find((p) =>
-        p.compiledPattern.test('rate limit'),
-      );
+      const match = COMPILED_ERROR_PATTERNS.find((p) => p.compiledPattern.test('rate limit'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.RateLimited);
     });
 
     it('should match "timed out" as Timeout', () => {
-      const match = COMPILED_ERROR_PATTERNS.find((p) =>
-        p.compiledPattern.test('timed out'),
-      );
+      const match = COMPILED_ERROR_PATTERNS.find((p) => p.compiledPattern.test('timed out'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.Timeout);
     });
 
     it('should match "cancelled" as Timeout', () => {
-      const match = COMPILED_ERROR_PATTERNS.find((p) =>
-        p.compiledPattern.test('cancelled'),
-      );
+      const match = COMPILED_ERROR_PATTERNS.find((p) => p.compiledPattern.test('cancelled'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.Timeout);
     });
 
@@ -185,9 +155,7 @@ describe('Error Handler Mappings', () => {
     });
 
     it('should match "zoderror" as ValidationError', () => {
-      const match = COMPILED_ERROR_PATTERNS.find((p) =>
-        p.compiledPattern.test('zoderror'),
-      );
+      const match = COMPILED_ERROR_PATTERNS.find((p) => p.compiledPattern.test('zoderror'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.ValidationError);
     });
   });
@@ -210,9 +178,7 @@ describe('Error Handler Mappings', () => {
     });
 
     it('should match AWS AccessDenied as Forbidden', () => {
-      const match = COMPILED_PROVIDER_PATTERNS.find((p) =>
-        p.compiledPattern.test('AccessDenied'),
-      );
+      const match = COMPILED_PROVIDER_PATTERNS.find((p) => p.compiledPattern.test('AccessDenied'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.Forbidden);
     });
 
@@ -261,16 +227,12 @@ describe('Error Handler Mappings', () => {
 
     // Database patterns
     it('should match ECONNREFUSED as ServiceUnavailable', () => {
-      const match = COMPILED_PROVIDER_PATTERNS.find((p) =>
-        p.compiledPattern.test('ECONNREFUSED'),
-      );
+      const match = COMPILED_PROVIDER_PATTERNS.find((p) => p.compiledPattern.test('ECONNREFUSED'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.ServiceUnavailable);
     });
 
     it('should match ETIMEDOUT as Timeout', () => {
-      const match = COMPILED_PROVIDER_PATTERNS.find((p) =>
-        p.compiledPattern.test('ETIMEDOUT'),
-      );
+      const match = COMPILED_PROVIDER_PATTERNS.find((p) => p.compiledPattern.test('ETIMEDOUT'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.Timeout);
     });
 
@@ -290,9 +252,7 @@ describe('Error Handler Mappings', () => {
 
     // Supabase patterns
     it('should match "JWT expired" as Unauthorized', () => {
-      const match = COMPILED_PROVIDER_PATTERNS.find((p) =>
-        p.compiledPattern.test('JWT expired'),
-      );
+      const match = COMPILED_PROVIDER_PATTERNS.find((p) => p.compiledPattern.test('JWT expired'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.Unauthorized);
     });
 
@@ -327,16 +287,12 @@ describe('Error Handler Mappings', () => {
 
     // Network patterns
     it('should match ENOTFOUND as ServiceUnavailable', () => {
-      const match = COMPILED_PROVIDER_PATTERNS.find((p) =>
-        p.compiledPattern.test('ENOTFOUND'),
-      );
+      const match = COMPILED_PROVIDER_PATTERNS.find((p) => p.compiledPattern.test('ENOTFOUND'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.ServiceUnavailable);
     });
 
     it('should match ECONNRESET as ServiceUnavailable', () => {
-      const match = COMPILED_PROVIDER_PATTERNS.find((p) =>
-        p.compiledPattern.test('ECONNRESET'),
-      );
+      const match = COMPILED_PROVIDER_PATTERNS.find((p) => p.compiledPattern.test('ECONNRESET'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.ServiceUnavailable);
     });
   });

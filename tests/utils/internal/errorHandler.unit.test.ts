@@ -3,21 +3,9 @@
  * @module tests/utils/internal/errorHandler.unit.test
  */
 import { trace } from '@opentelemetry/api';
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-  type MockInstance,
-} from 'vitest';
-
-import {
-  JsonRpcErrorCode,
-  McpError,
-} from '../../../src/types-global/errors.js';
-import { ErrorHandler } from '../../../src/utils/internal/error-handler/index.js';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
 import { logger } from '../../../src/utils/internal/logger.js';
 
 describe('ErrorHandler (unit)', () => {
@@ -42,26 +30,17 @@ describe('ErrorHandler (unit)', () => {
     it('maps AbortError name to Timeout', () => {
       const err = new Error('operation aborted');
       (err as any).name = 'AbortError';
-      expect(ErrorHandler.determineErrorCode(err)).toBe(
-        JsonRpcErrorCode.Timeout,
-      );
+      expect(ErrorHandler.determineErrorCode(err)).toBe(JsonRpcErrorCode.Timeout);
     });
 
     it('supports AggregateError inner message aggregation and custom constructors', () => {
       class CustomProblem {}
-      const aggregate = new AggregateError(
-        [new Error('inner one'), 'inner two'],
-        'outer failure',
-      );
+      const aggregate = new AggregateError([new Error('inner one'), 'inner two'], 'outer failure');
       // Ensure coverage of getErrorName for custom constructor instance
       const customInstance = new CustomProblem();
 
-      expect(ErrorHandler.determineErrorCode(aggregate)).toBe(
-        JsonRpcErrorCode.InternalError,
-      );
-      expect(ErrorHandler.determineErrorCode(customInstance)).toBe(
-        JsonRpcErrorCode.InternalError,
-      );
+      expect(ErrorHandler.determineErrorCode(aggregate)).toBe(JsonRpcErrorCode.InternalError);
+      expect(ErrorHandler.determineErrorCode(customInstance)).toBe(JsonRpcErrorCode.InternalError);
     });
 
     it('falls back to AbortError special-case when regex patterns are bypassed', () => {
@@ -69,22 +48,18 @@ describe('ErrorHandler (unit)', () => {
       (abortError as any).name = 'AbortError';
 
       const originalTest = RegExp.prototype.test;
-      const testSpy = vi
-        .spyOn(RegExp.prototype, 'test')
-        .mockImplementation(function (this: RegExp, str: string) {
-          if (
-            this.source.includes('abort') ||
-            this.source.includes('cancell')
-          ) {
-            return false;
-          }
-          return originalTest.call(this, str);
-        });
+      const testSpy = vi.spyOn(RegExp.prototype, 'test').mockImplementation(function (
+        this: RegExp,
+        str: string,
+      ) {
+        if (this.source.includes('abort') || this.source.includes('cancell')) {
+          return false;
+        }
+        return originalTest.call(this, str);
+      });
 
       try {
-        expect(ErrorHandler.determineErrorCode(abortError)).toBe(
-          JsonRpcErrorCode.Timeout,
-        );
+        expect(ErrorHandler.determineErrorCode(abortError)).toBe(JsonRpcErrorCode.Timeout);
       } finally {
         testSpy.mockRestore();
       }
@@ -126,16 +101,13 @@ describe('ErrorHandler (unit)', () => {
     });
 
     it('applies a mapping rule when pattern matches', () => {
-      const result = ErrorHandler.mapError(
-        new Error('specific failure occurred'),
-        [
-          {
-            pattern: /specific/i,
-            errorCode: JsonRpcErrorCode.ValidationError, // not used by map factory directly here
-            factory: () => new RangeError('Mapped by rule'),
-          },
-        ],
-      );
+      const result = ErrorHandler.mapError(new Error('specific failure occurred'), [
+        {
+          pattern: /specific/i,
+          errorCode: JsonRpcErrorCode.ValidationError, // not used by map factory directly here
+          factory: () => new RangeError('Mapped by rule'),
+        },
+      ]);
       expect(result).toBeInstanceOf(RangeError);
       expect((result as RangeError).message).toBe('Mapped by rule');
     });
@@ -154,9 +126,7 @@ describe('ErrorHandler (unit)', () => {
       );
 
       expect(result).toBeInstanceOf(Error);
-      expect((result as Error).message).toBe(
-        'Regex matched without explicit i flag',
-      );
+      expect((result as Error).message).toBe('Regex matched without explicit i flag');
     });
 
     it('supports string patterns for mapping rules', () => {
@@ -203,9 +173,7 @@ describe('ErrorHandler (unit)', () => {
 
       // Returned error
       expect(final).toBeInstanceOf(McpError);
-      expect((final as McpError).code).toBe(
-        JsonRpcErrorCode.ServiceUnavailable,
-      );
+      expect((final as McpError).code).toBe(JsonRpcErrorCode.ServiceUnavailable);
 
       // Logged context
       expect(errorSpy).toHaveBeenCalledTimes(1);
@@ -284,7 +252,7 @@ describe('ErrorHandler (unit)', () => {
       });
       const loggedInput = (ctx as Record<string, unknown>).input;
       expect(typeof loggedInput).toBe('function');
-      expect((loggedInput as Function).name).toBe('sampleFn');
+      expect((loggedInput as (...args: unknown[]) => unknown).name).toBe('sampleFn');
     });
   });
 
@@ -352,9 +320,7 @@ describe('ErrorHandler (unit)', () => {
       });
 
       expect(() => ErrorHandler.formatError(proxyError)).not.toThrow();
-      expect(ErrorHandler.determineErrorCode(proxyError)).toBe(
-        JsonRpcErrorCode.InternalError,
-      );
+      expect(ErrorHandler.determineErrorCode(proxyError)).toBe(JsonRpcErrorCode.InternalError);
     });
 
     // Additional edge cases are exercised via other tests to ensure helper fallbacks work.

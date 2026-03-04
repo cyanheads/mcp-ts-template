@@ -17,14 +17,12 @@
  */
 import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
-
-import { type RequestContext, logger } from '@/utils/index.js';
-import { withResourceAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
+import { withResourceAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
-const ParamsSchema = z
-  .object({})
-  .describe('No parameters. Returns the static HTML app.');
+const ParamsSchema = z.object({}).describe('No parameters. Returns the static HTML app.');
 
 // ─── HTML Application ─────────────────────────────────────────────────────────
 
@@ -318,16 +316,12 @@ export const dataExplorerUiResource: ResourceDefinition<typeof ParamsSchema> = {
       {
         uri: 'ui://template-data-explorer/app.html',
         name: 'Data Explorer App',
-        description:
-          'Interactive data table for the template_data_explorer tool.',
+        description: 'Interactive data table for the template_data_explorer tool.',
         mimeType: RESOURCE_MIME_TYPE,
       },
     ],
   }),
-  logic: withResourceAuth(
-    ['resource:data-explorer-ui:read'],
-    dataExplorerUiLogic,
-  ),
+  logic: withResourceAuth(['resource:data-explorer-ui:read'], dataExplorerUiLogic),
   responseFormatter: (result, meta) => [
     { uri: meta.uri.href, mimeType: meta.mimeType, text: result as string },
   ],

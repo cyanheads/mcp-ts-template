@@ -3,7 +3,7 @@
  * Validates that all registered resources have required metadata and unique names.
  * @module tests/mcp-server/resources/definitions/index
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
 

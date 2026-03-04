@@ -6,19 +6,20 @@
  * @module src/mcp-server/transports/auth/strategies/JwtStrategy
  */
 import { jwtVerify } from 'jose';
-import { config as ConfigType } from '@/config/index.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  ErrorHandler,
-  logger as LoggerType,
-  requestContextService,
-} from '@/utils/index.js';
+
+import type { config as ConfigType } from '@/config/index.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
+import {
+  buildAuthInfoFromClaims,
+  handleJoseVerifyError,
+} from '@/mcp-server/transports/auth/lib/claimParser.js';
 import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import type { logger as LoggerType } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 export class JwtStrategy implements AuthStrategy {
   private readonly secretKey: Uint8Array | null;
-  private readonly env: string;
   private readonly devMcpClientId: string;
   private readonly devMcpScopes: string[];
 
@@ -30,24 +31,24 @@ export class JwtStrategy implements AuthStrategy {
       operation: 'JwtStrategy.constructor',
     });
     this.logger.debug('Initializing JwtStrategy...', context);
-    this.env = this.config.environment;
     this.devMcpClientId = this.config.devMcpClientId || 'dev-client-id';
     this.devMcpScopes = this.config.devMcpScopes || ['dev-scope'];
     const secretKey = this.config.mcpAuthSecretKey;
 
-    if (this.env === 'production' && !secretKey) {
+    if (!secretKey && !this.config.devMcpAuthBypass) {
       this.logger.fatal(
-        'CRITICAL: MCP_AUTH_SECRET_KEY is not set in production for JWT auth.',
+        'CRITICAL: MCP_AUTH_SECRET_KEY is not set for JWT auth. Set the key or enable DEV_MCP_AUTH_BYPASS=true for development.',
         context,
       );
       throw new McpError(
         JsonRpcErrorCode.ConfigurationError,
-        'MCP_AUTH_SECRET_KEY must be set for JWT auth in production.',
+        'MCP_AUTH_SECRET_KEY must be set for JWT auth (or set DEV_MCP_AUTH_BYPASS=true).',
         context,
       );
     } else if (!secretKey) {
+      // devMcpAuthBypass is explicitly true — opt-in dev bypass
       this.logger.warning(
-        'MCP_AUTH_SECRET_KEY is not set. JWT auth will be bypassed (DEV ONLY).',
+        `MCP_AUTH_SECRET_KEY is not set. JWT auth bypassed via DEV_MCP_AUTH_BYPASS=true (environment: ${this.config.environment}).`,
         context,
       );
       this.secretKey = null;
@@ -63,115 +64,44 @@ export class JwtStrategy implements AuthStrategy {
     });
     this.logger.debug('Attempting to verify JWT.', context);
 
-    // Handle development mode bypass
+    // Handle development mode bypass (constructor prevents null key in production)
     if (!this.secretKey) {
-      if (this.env !== 'production') {
-        this.logger.warning(
-          'Bypassing JWT verification: No secret key (DEV ONLY).',
-          context,
-        );
-        return {
-          token: 'dev-mode-placeholder-token',
-          clientId: this.devMcpClientId,
-          scopes: this.devMcpScopes,
-        };
-      }
-      // This path is defensive. The constructor should prevent this state in production.
-      this.logger.crit('Auth secret key is missing in production.', context);
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
-        'Auth secret key is missing in production. This indicates a server configuration error.',
-        context,
-      );
+      this.logger.warning('Bypassing JWT verification: No secret key (DEV ONLY).', context);
+      return {
+        token: 'dev-mode-placeholder-token',
+        clientId: this.devMcpClientId,
+        scopes: this.devMcpScopes,
+      };
     }
 
     try {
       const { payload: decoded } = await jwtVerify(token, this.secretKey);
       this.logger.debug('JWT signature verified successfully.', {
         ...context,
-        claims: decoded,
+        claims: {
+          iss: decoded.iss,
+          aud: decoded.aud,
+          exp: decoded.exp,
+          iat: decoded.iat,
+          jti: decoded.jti,
+        },
       });
 
-      const clientId =
-        typeof decoded.cid === 'string'
-          ? decoded.cid
-          : typeof decoded.client_id === 'string'
-            ? decoded.client_id
-            : undefined;
+      const authInfo = buildAuthInfoFromClaims(token, decoded);
 
-      if (!clientId) {
-        this.logger.warning(
-          "Invalid token: missing 'cid' or 'client_id' claim.",
-          context,
-        );
-        throw new McpError(
-          JsonRpcErrorCode.Unauthorized,
-          "Invalid token: missing 'cid' or 'client_id' claim.",
-        );
-      }
-
-      let scopes: string[] = [];
-      if (
-        Array.isArray(decoded.scp) &&
-        decoded.scp.every((s) => typeof s === 'string')
-      ) {
-        scopes = decoded.scp;
-      } else if (typeof decoded.scope === 'string' && decoded.scope.trim()) {
-        scopes = decoded.scope.split(' ').filter(Boolean);
-      }
-
-      if (scopes.length === 0) {
-        this.logger.warning(
-          "Invalid token: missing or empty 'scp' or 'scope' claim.",
-          context,
-        );
-        throw new McpError(
-          JsonRpcErrorCode.Unauthorized,
-          'Token must contain valid, non-empty scopes.',
-        );
-      }
-
-      const tenantId =
-        typeof decoded.tid === 'string' ? decoded.tid : undefined;
-
-      const authInfo: AuthInfo = {
-        token,
-        clientId,
-        scopes,
-        ...(decoded.sub && { subject: decoded.sub }),
-        ...(tenantId && { tenantId }),
-      };
       this.logger.info('JWT verification successful.', {
         ...context,
-        clientId,
-        scopes,
-        ...(tenantId ? { tenantId } : {}),
+        clientId: authInfo.clientId,
+        scopes: authInfo.scopes,
+        ...(authInfo.tenantId ? { tenantId: authInfo.tenantId } : {}),
       });
       return authInfo;
     } catch (error: unknown) {
-      // If the error is already a structured McpError, re-throw it directly.
-      if (error instanceof McpError) {
-        throw error;
-      }
-
-      const message =
-        error instanceof Error && error.name === 'JWTExpired'
-          ? 'Token has expired.'
-          : 'Token verification failed.';
-
-      this.logger.warning(`JWT verification failed: ${message}`, {
+      this.logger.warning('JWT verification failed.', {
         ...context,
         errorName: error instanceof Error ? error.name : 'Unknown',
       });
-
-      throw ErrorHandler.handleError(error, {
-        operation: 'JwtStrategy.verify',
-        context,
-        rethrow: true,
-        errorCode: JsonRpcErrorCode.Unauthorized,
-        errorMapper: () =>
-          new McpError(JsonRpcErrorCode.Unauthorized, message, context),
-      });
+      handleJoseVerifyError(error, 'Token verification failed.');
     }
   }
 }

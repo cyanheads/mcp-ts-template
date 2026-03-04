@@ -6,16 +6,9 @@
  * Tools that require external APIs or LLM sampling are skipped.
  * @module tests/conformance/tools
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-
-import {
-  createConformanceHarness,
-  type ConformanceHarness,
-} from './helpers/server-harness.js';
-import {
-  assertValidContentBlocks,
-  assertValidToolEntry,
-} from './helpers/assertions.js';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { assertValidContentBlocks, assertValidToolEntry } from './helpers/assertions.js';
+import { type ConformanceHarness, createConformanceHarness } from './helpers/server-harness.js';
 
 /** Tools that hit external APIs or need LLM — skip in conformance suite. */
 const EXTERNAL_TOOLS = new Set([
@@ -63,15 +56,15 @@ describe('Tool protocol conformance', () => {
       const { tools } = await harness.client.listTools();
       const echoTool = tools.find((t) => t.name === 'template_echo_message');
       expect(echoTool).toBeDefined();
-      expect(echoTool!.outputSchema).toBeDefined();
-      expect(echoTool!.outputSchema!.type).toBe('object');
+      expect(echoTool?.outputSchema).toBeDefined();
+      expect(echoTool?.outputSchema?.type).toBe('object');
     });
 
     it('tools include annotations when declared', async () => {
       const { tools } = await harness.client.listTools();
       const echoTool = tools.find((t) => t.name === 'template_echo_message');
-      expect(echoTool!.annotations).toBeDefined();
-      expect(echoTool!.annotations!.readOnlyHint).toBe(true);
+      expect(echoTool?.annotations).toBeDefined();
+      expect(echoTool?.annotations?.readOnlyHint).toBe(true);
     });
   });
 
@@ -90,11 +83,11 @@ describe('Tool protocol conformance', () => {
       if ('content' in result) {
         assertValidContentBlocks(result.content as { type: string }[]);
 
-        const textBlock = (
-          result.content as { type: string; text?: string }[]
-        ).find((b) => b.type === 'text');
+        const textBlock = (result.content as { type: string; text?: string }[]).find(
+          (b) => b.type === 'text',
+        );
         expect(textBlock).toBeDefined();
-        expect(textBlock!.text).toContain('conformance-test');
+        expect(textBlock?.text).toContain('conformance-test');
       }
     });
 
@@ -105,10 +98,10 @@ describe('Tool protocol conformance', () => {
       });
 
       if ('content' in result) {
-        const textBlock = (
-          result.content as { type: string; text?: string }[]
-        ).find((b) => b.type === 'text');
-        expect(textBlock!.text).toContain('HELLO');
+        const textBlock = (result.content as { type: string; text?: string }[]).find(
+          (b) => b.type === 'text',
+        );
+        expect(textBlock?.text).toContain('HELLO');
       }
     });
 
@@ -119,10 +112,10 @@ describe('Tool protocol conformance', () => {
       });
 
       if ('content' in result) {
-        const textBlock = (
-          result.content as { type: string; text?: string }[]
-        ).find((b) => b.type === 'text');
-        expect(textBlock!.text).toContain('hello');
+        const textBlock = (result.content as { type: string; text?: string }[]).find(
+          (b) => b.type === 'text',
+        );
+        expect(textBlock?.text).toContain('hello');
       }
     });
 
@@ -133,10 +126,10 @@ describe('Tool protocol conformance', () => {
       });
 
       if ('content' in result) {
-        const textBlock = (
-          result.content as { type: string; text?: string }[]
-        ).find((b) => b.type === 'text');
-        expect(textBlock!.text).toContain('abc abc abc');
+        const textBlock = (result.content as { type: string; text?: string }[]).find(
+          (b) => b.type === 'text',
+        );
+        expect(textBlock?.text).toContain('abc abc abc');
       }
     });
 
@@ -222,10 +215,10 @@ describe('Tool protocol conformance', () => {
       expect('isError' in result).toBe(true);
       expect(result.isError).toBe(true);
       if ('content' in result) {
-        const textBlock = (
-          result.content as { type: string; text?: string }[]
-        ).find((b) => b.type === 'text');
-        expect(textBlock!.text).toContain('not found');
+        const textBlock = (result.content as { type: string; text?: string }[]).find(
+          (b) => b.type === 'text',
+        );
+        expect(textBlock?.text).toContain('not found');
       }
     });
   });

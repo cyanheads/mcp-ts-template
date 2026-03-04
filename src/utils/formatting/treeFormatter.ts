@@ -5,11 +5,8 @@
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Tree output style options.
@@ -21,11 +18,6 @@ export type TreeStyle = 'ascii' | 'unicode' | 'compact';
  */
 export interface TreeNode {
   /**
-   * Display name for this node.
-   */
-  name: string;
-
-  /**
    * Optional child nodes.
    */
   children?: TreeNode[];
@@ -35,6 +27,10 @@ export interface TreeNode {
    * Example: file size, count, type, etc.
    */
   metadata?: Record<string, unknown>;
+  /**
+   * Display name for this node.
+   */
+  name: string;
 }
 
 /**
@@ -42,24 +38,16 @@ export interface TreeNode {
  */
 export interface TreeFormatterOptions {
   /**
-   * Tree rendering style.
-   * - ascii: ASCII characters (+, -, |)
-   * - unicode: Unicode box-drawing characters (├, └, │, ─)
-   * - compact: Simple indentation with minimal decoration
+   * Icon to use for leaf nodes (files).
+   * Default: '📄'
    */
-  style?: TreeStyle;
+  fileIcon?: string;
 
   /**
-   * Maximum depth to render. Nodes beyond this depth are omitted.
-   * Default: undefined (no limit)
+   * Icon to use for nodes with children (folders).
+   * Default: '📁'
    */
-  maxDepth?: number;
-
-  /**
-   * Whether to display metadata alongside nodes.
-   * Default: false
-   */
-  showMetadata?: boolean;
+  folderIcon?: string;
 
   /**
    * Whether to include icons/emojis for nodes.
@@ -74,17 +62,32 @@ export interface TreeFormatterOptions {
   indent?: string;
 
   /**
-   * Icon to use for nodes with children (folders).
-   * Default: '📁'
+   * Maximum depth to render. Nodes beyond this depth are omitted.
+   * Default: undefined (no limit)
    */
-  folderIcon?: string;
+  maxDepth?: number;
 
   /**
-   * Icon to use for leaf nodes (files).
-   * Default: '📄'
+   * Whether to display metadata alongside nodes.
+   * Default: false
    */
-  fileIcon?: string;
+  showMetadata?: boolean;
+  /**
+   * Tree rendering style.
+   * - ascii: ASCII characters (+, -, |)
+   * - unicode: Unicode box-drawing characters (├, └, │, ─)
+   * - compact: Simple indentation with minimal decoration
+   */
+  style?: TreeStyle;
 }
+
+/**
+ * Resolved tree formatter options with all defaults applied.
+ * maxDepth remains optional since `undefined` means no limit.
+ */
+type ResolvedTreeOptions = Required<Omit<TreeFormatterOptions, 'maxDepth'>> & {
+  maxDepth: number | undefined;
+};
 
 /**
  * Utility class for formatting hierarchical data as tree structures.
@@ -95,11 +98,7 @@ export class TreeFormatter {
    * Default formatting options.
    * @private
    */
-  private readonly defaultOptions: Required<
-    Omit<TreeFormatterOptions, 'maxDepth'>
-  > & {
-    maxDepth: number | undefined;
-  } = {
+  private readonly defaultOptions: ResolvedTreeOptions = {
     style: 'unicode',
     maxDepth: undefined,
     showMetadata: false,
@@ -143,11 +142,7 @@ export class TreeFormatter {
    * const formatted = treeFormatter.format(tree, { style: 'unicode', icons: true });
    * ```
    */
-  format(
-    root: TreeNode,
-    options?: TreeFormatterOptions,
-    context?: RequestContext,
-  ): string {
+  format(root: TreeNode, options?: TreeFormatterOptions, context?: RequestContext): string {
     const logContext =
       context ||
       requestContextService.createRequestContext({
@@ -194,17 +189,17 @@ export class TreeFormatter {
         throw error;
       }
 
-      const err = error as Error;
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       logger.error('Failed to format tree', {
         ...logContext,
-        error: err.message,
+        error: message,
       });
 
-      throw new McpError(
-        JsonRpcErrorCode.InternalError,
-        `Failed to format tree: ${err.message}`,
-        { ...logContext, originalError: err.stack },
-      );
+      throw new McpError(JsonRpcErrorCode.InternalError, `Failed to format tree: ${message}`, {
+        ...logContext,
+        originalError: stack,
+      });
     }
   }
 
@@ -253,9 +248,7 @@ export class TreeFormatter {
         count: roots.length,
       });
 
-      const results = roots.map((root) =>
-        this.format(root, options, logContext),
-      );
+      const results = roots.map((root) => this.format(root, options, logContext));
 
       return results.join('\n\n');
     } catch (error: unknown) {
@@ -263,11 +256,12 @@ export class TreeFormatter {
         throw error;
       }
 
-      const err = error as Error;
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       throw new McpError(
         JsonRpcErrorCode.InternalError,
-        `Failed to format multiple trees: ${err.message}`,
-        { ...logContext, originalError: err.stack },
+        `Failed to format multiple trees: ${message}`,
+        { ...logContext, originalError: stack },
       );
     }
   }
@@ -303,9 +297,7 @@ export class TreeFormatter {
     this.seenNodes.add(node);
 
     // Build node line
-    const connector = isRoot
-      ? ''
-      : this.getConnector('node', isLast, options.style);
+    const connector = isRoot ? '' : this.getConnector('node', isLast, options.style);
 
     const icon = this.getIcon(node, options);
     const name = node.name;
@@ -323,15 +315,7 @@ export class TreeFormatter {
 
       children.forEach((child, index) => {
         const isLastChild = index === children.length - 1;
-        this.renderNode(
-          child,
-          childPrefix,
-          false,
-          isLastChild,
-          lines,
-          options,
-          depth + 1,
-        );
+        this.renderNode(child, childPrefix, false, isLastChild, lines, options, depth + 1);
       });
     }
 
@@ -342,11 +326,7 @@ export class TreeFormatter {
    * Get the appropriate connector character based on style.
    * @private
    */
-  private getConnector(
-    type: 'node' | 'circular',
-    isLast: boolean,
-    style: TreeStyle,
-  ): string {
+  private getConnector(type: 'node' | 'circular', isLast: boolean, style: TreeStyle): string {
     if (type === 'circular') {
       return style === 'compact' ? '  ' : isLast ? '└─ ' : '├─ ';
     }
@@ -355,7 +335,7 @@ export class TreeFormatter {
       case 'unicode':
         return isLast ? '└── ' : '├── ';
       case 'ascii':
-        return isLast ? '+-- ' : '+-- ';
+        return isLast ? '\\-- ' : '+-- ';
       case 'compact':
         return '';
       default:
@@ -367,16 +347,15 @@ export class TreeFormatter {
    * Get the prefix for child nodes based on parent's position.
    * @private
    */
-  private getChildPrefix(
-    isLast: boolean,
-    style: TreeStyle,
-    indent: string,
-  ): string {
+  private getChildPrefix(isLast: boolean, style: TreeStyle, indent: string): string {
+    // When not the last child, replace the first character of indent with a vertical
+    // connector so the tree lines stay visually connected. Pad to match indent width.
+    const padding = indent.length > 1 ? ' '.repeat(indent.length - 1) : '';
     switch (style) {
       case 'unicode':
-        return isLast ? indent : '│' + indent.substring(1);
+        return isLast ? indent : `│${padding}`;
       case 'ascii':
-        return isLast ? indent : '|' + indent.substring(1);
+        return isLast ? indent : `|${padding}`;
       case 'compact':
         return indent;
       default:
@@ -432,7 +411,7 @@ export class TreeFormatter {
  *
  * @example
  * ```typescript
- * import { treeFormatter } from '@/utils/index.js';
+ * import { treeFormatter } from '@/utils/formatting/treeFormatter.js';
  *
  * // Simple directory tree
  * const tree = {

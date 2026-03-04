@@ -65,10 +65,12 @@ export class MarkdownBuilder {
   /**
    * Add a level 4 heading.
    * @param text - The heading text
+   * @param emoji - Optional emoji to prepend
    * @returns this builder for chaining
    */
-  h4(text: string): this {
-    this.sections.push(`#### ${text}\n\n`);
+  h4(text: string, emoji?: string): this {
+    const prefix = emoji ? `${emoji} ` : '';
+    this.sections.push(`#### ${prefix}${text}\n\n`);
     return this;
   }
 
@@ -106,9 +108,7 @@ export class MarkdownBuilder {
     if (items.length === 0) return this;
 
     const marker = ordered ? (i: number) => `${i + 1}.` : () => '-';
-    this.sections.push(
-      items.map((item, i) => `${marker(i)} ${item}`).join('\n') + '\n\n',
-    );
+    this.sections.push(`${items.map((item, i) => `${marker(i)} ${item}`).join('\n')}\n\n`);
     return this;
   }
 
@@ -212,17 +212,24 @@ export class MarkdownBuilder {
    *
    * @param title - The section heading
    * @param levelOrContent - Heading level (2-4) or callback function
-   * @param content - Callback function (if level is provided)
+   * @param content - Callback function (required if level is provided)
    * @returns this builder for chaining
    */
-  section(
-    title: string,
-    levelOrContent: 2 | 3 | 4 | (() => void),
-    content?: () => void,
-  ): this {
-    const level = typeof levelOrContent === 'function' ? 2 : levelOrContent;
-    const callback =
-      typeof levelOrContent === 'function' ? levelOrContent : content!;
+  section(title: string, content: () => void): this;
+  section(title: string, level: 2 | 3 | 4, content: () => void): this;
+  section(title: string, levelOrContent: 2 | 3 | 4 | (() => void), content?: () => void): this {
+    let level: 2 | 3 | 4;
+    let callback: () => void;
+
+    if (typeof levelOrContent === 'function') {
+      level = 2;
+      callback = levelOrContent;
+    } else {
+      level = levelOrContent;
+      // Safe: the overload signatures guarantee content is provided when level is a number
+      callback = content ?? (() => {});
+    }
+
     switch (level) {
       case 2:
         this.h2(title);
@@ -275,10 +282,7 @@ export class MarkdownBuilder {
    * //          > This operation cannot be undone!
    * ```
    */
-  alert(
-    type: 'note' | 'tip' | 'important' | 'warning' | 'caution',
-    content: string,
-  ): this {
+  alert(type: 'note' | 'tip' | 'important' | 'warning' | 'caution', content: string): this {
     const typeUpper = type.toUpperCase();
     const lines = content.split('\n');
     this.sections.push(`> [!${typeUpper}]\n`);
@@ -309,9 +313,7 @@ export class MarkdownBuilder {
     if (items.length === 0) return this;
 
     this.sections.push(
-      items
-        .map((item) => `- [${item.checked ? 'x' : ' '}] ${item.text}`)
-        .join('\n') + '\n\n',
+      `${items.map((item) => `- [${item.checked ? 'x' : ' '}] ${item.text}`).join('\n')}\n\n`,
     );
     return this;
   }
@@ -370,11 +372,7 @@ export class MarkdownBuilder {
    * // Renders as a diff code block with +/- prefixes
    * ```
    */
-  diff(changes: {
-    additions?: string[];
-    deletions?: string[];
-    context?: string[];
-  }): this {
+  diff(changes: { additions?: string[]; deletions?: string[]; context?: string[] }): this {
     const lines: string[] = [];
 
     // Context lines (no prefix)

@@ -4,21 +4,19 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
+import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 
 describe('Auth Strategy', () => {
   describe('AuthStrategy interface', () => {
     it('should define a verify method signature', () => {
       // This is a compile-time test - we verify the interface structure exists
       const mockStrategy: AuthStrategy = {
-        verify: async (_token: string): Promise<AuthInfo> => {
-          return {
-            clientId: 'test-client',
-            scopes: ['test:scope'],
-            token: 'test-token',
-          };
-        },
+        verify: async (_token: string): Promise<AuthInfo> => ({
+          clientId: 'test-client',
+          scopes: ['test:scope'],
+          token: 'test-token',
+        }),
       };
 
       expect(mockStrategy.verify).toBeDefined();
@@ -43,13 +41,11 @@ describe('Auth Strategy', () => {
 
     it('should require verify method to return Promise<AuthInfo>', async () => {
       const mockStrategy: AuthStrategy = {
-        verify: async (token: string): Promise<AuthInfo> => {
-          return {
-            clientId: 'mock-client',
-            scopes: ['mock:scope'],
-            token,
-          };
-        },
+        verify: async (token: string): Promise<AuthInfo> => ({
+          clientId: 'mock-client',
+          scopes: ['mock:scope'],
+          token,
+        }),
       };
 
       const result = await mockStrategy.verify('jwt-token');
@@ -66,22 +62,18 @@ describe('Auth Strategy', () => {
         },
       };
 
-      await expect(mockStrategy.verify('invalid')).rejects.toThrow(
-        'Invalid token',
-      );
+      await expect(mockStrategy.verify('invalid')).rejects.toThrow('Invalid token');
     });
 
     it('should support implementations with additional optional fields', async () => {
       const mockStrategy: AuthStrategy = {
-        verify: async (token: string): Promise<AuthInfo> => {
-          return {
-            clientId: 'client-123',
-            scopes: ['read', 'write'],
-            token,
-            subject: 'user-456',
-            tenantId: 'tenant-789',
-          };
-        },
+        verify: async (token: string): Promise<AuthInfo> => ({
+          clientId: 'client-123',
+          scopes: ['read', 'write'],
+          token,
+          subject: 'user-456',
+          tenantId: 'tenant-789',
+        }),
       };
 
       const result = await mockStrategy.verify('complete-token');
@@ -91,13 +83,11 @@ describe('Auth Strategy', () => {
 
     it('should support implementations with empty scopes', async () => {
       const mockStrategy: AuthStrategy = {
-        verify: async (token: string): Promise<AuthInfo> => {
-          return {
-            clientId: 'client-no-scopes',
-            scopes: [],
-            token,
-          };
-        },
+        verify: async (token: string): Promise<AuthInfo> => ({
+          clientId: 'client-no-scopes',
+          scopes: [],
+          token,
+        }),
       };
 
       const result = await mockStrategy.verify('no-scopes-token');
@@ -107,18 +97,11 @@ describe('Auth Strategy', () => {
 
     it('should support implementations with multiple scopes', async () => {
       const mockStrategy: AuthStrategy = {
-        verify: async (token: string): Promise<AuthInfo> => {
-          return {
-            clientId: 'multi-scope-client',
-            scopes: [
-              'tool:read',
-              'tool:write',
-              'resource:list',
-              'resource:read',
-            ],
-            token,
-          };
-        },
+        verify: async (token: string): Promise<AuthInfo> => ({
+          clientId: 'multi-scope-client',
+          scopes: ['tool:read', 'tool:write', 'resource:list', 'resource:read'],
+          token,
+        }),
       };
 
       const result = await mockStrategy.verify('multi-scope-token');
@@ -169,9 +152,7 @@ describe('Auth Strategy', () => {
       const validResult = await mockStrategy.verify('valid-token');
       expect(validResult.clientId).toBe('validated-client');
 
-      await expect(mockStrategy.verify('invalid-token')).rejects.toThrow(
-        'Token validation failed',
-      );
+      await expect(mockStrategy.verify('invalid-token')).rejects.toThrow('Token validation failed');
     });
 
     it('should allow strategy implementations to be swappable', async () => {
@@ -227,14 +208,14 @@ describe('Auth Strategy', () => {
         },
       };
 
-      const jwtResult = await strategies['jwt']!.verify('jwt-token');
-      expect(jwtResult.clientId).toBe('jwt-client');
+      const jwtResult = await strategies.jwt?.verify('jwt-token');
+      expect(jwtResult!.clientId).toBe('jwt-client');
 
-      const oauthResult = await strategies['oauth']!.verify('oauth-token');
-      expect(oauthResult.scopes).toContain('oauth:write');
+      const oauthResult = await strategies.oauth?.verify('oauth-token');
+      expect(oauthResult!.scopes).toContain('oauth:write');
 
-      const apikeyResult = await strategies['apikey']!.verify('api-key');
-      expect(apikeyResult.clientId).toBe('apikey-client');
+      const apikeyResult = await strategies.apikey?.verify('api-key');
+      expect(apikeyResult!.clientId).toBe('apikey-client');
     });
 
     it('should enforce return type includes all required AuthInfo fields', async () => {
@@ -278,9 +259,7 @@ describe('Auth Strategy', () => {
       const result = await mockStrategy.verify('header.payload.signature');
       expect(result.clientId).toContain('client-from-payload');
 
-      await expect(mockStrategy.verify('invalid')).rejects.toThrow(
-        'Invalid token format',
-      );
+      await expect(mockStrategy.verify('invalid')).rejects.toThrow('Invalid token format');
     });
 
     it('should support strategies with different error handling', async () => {
@@ -298,18 +277,14 @@ describe('Auth Strategy', () => {
       };
 
       const lenientStrategy: AuthStrategy = {
-        verify: async (token: string): Promise<AuthInfo> => {
-          return {
-            clientId: 'lenient-client',
-            scopes: token.length > 0 ? ['lenient:scope'] : [],
-            token: token || 'default-token',
-          };
-        },
+        verify: async (token: string): Promise<AuthInfo> => ({
+          clientId: 'lenient-client',
+          scopes: token.length > 0 ? ['lenient:scope'] : [],
+          token: token || 'default-token',
+        }),
       };
 
-      await expect(strictStrategy.verify('short')).rejects.toThrow(
-        'Token too short',
-      );
+      await expect(strictStrategy.verify('short')).rejects.toThrow('Token too short');
 
       const lenientResult = await lenientStrategy.verify('short');
       expect(lenientResult.clientId).toBe('lenient-client');

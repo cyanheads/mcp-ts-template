@@ -2,13 +2,13 @@
  * @fileoverview Unit tests for JWT authentication strategy.
  * @module tests/mcp-server/transports/auth/strategies/jwtStrategy
  */
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { SignJWT } from 'jose';
 
-import { JwtStrategy } from '@/mcp-server/transports/auth/strategies/jwtStrategy.js';
+import { SignJWT } from 'jose';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { config } from '@/config/index.js';
-import { logger } from '@/utils/index.js';
+import { JwtStrategy } from '@/mcp-server/transports/auth/strategies/jwtStrategy.js';
 import { McpError } from '@/types-global/errors.js';
+import { logger } from '@/utils/internal/logger.js';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
@@ -79,7 +79,7 @@ describe('JwtStrategy', () => {
       expect(() => new JwtStrategy(config, logger)).toThrow(McpError);
     });
 
-    it('should allow missing secret key in development', () => {
+    it('should allow missing secret key when devMcpAuthBypass is true', () => {
       Object.defineProperty(config, 'environment', {
         value: 'development',
         writable: true,
@@ -87,6 +87,11 @@ describe('JwtStrategy', () => {
       });
       Object.defineProperty(config, 'mcpAuthSecretKey', {
         value: undefined,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(config, 'devMcpAuthBypass', {
+        value: true,
         writable: true,
         configurable: true,
       });
@@ -177,9 +182,7 @@ describe('JwtStrategy', () => {
         .sign(testSecretBytes);
 
       await expect(strategy.verify(token)).rejects.toThrow(McpError);
-      await expect(strategy.verify(token)).rejects.toThrow(
-        /missing 'cid' or 'client_id'/,
-      );
+      await expect(strategy.verify(token)).rejects.toThrow(/missing 'cid' or 'client_id'/);
     });
 
     it('should throw error for missing scopes claim', async () => {
@@ -222,7 +225,7 @@ describe('JwtStrategy', () => {
       await expect(strategy.verify(token)).rejects.toThrow(McpError);
     });
 
-    it('should bypass verification in development mode without secret', async () => {
+    it('should bypass verification when devMcpAuthBypass is true', async () => {
       Object.defineProperty(config, 'environment', {
         value: 'development',
         writable: true,
@@ -230,6 +233,11 @@ describe('JwtStrategy', () => {
       });
       Object.defineProperty(config, 'mcpAuthSecretKey', {
         value: undefined,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(config, 'devMcpAuthBypass', {
+        value: true,
         writable: true,
         configurable: true,
       });
@@ -264,11 +272,7 @@ describe('JwtStrategy', () => {
 
       const authInfo = await strategy.verify(token);
 
-      expect(authInfo.scopes).toEqual([
-        'tool:read',
-        'resource:write',
-        'tool:execute',
-      ]);
+      expect(authInfo.scopes).toEqual(['tool:read', 'resource:write', 'tool:execute']);
     });
 
     it('should throw error for empty scope array', async () => {
@@ -295,6 +299,24 @@ describe('JwtStrategy', () => {
 
       await expect(strategy.verify(token)).rejects.toThrow(McpError);
       await expect(strategy.verify(token)).rejects.toThrow(/non-empty scopes/);
+    });
+
+    it('should populate expiresAt from the JWT exp claim', async () => {
+      const beforeSign = Math.floor(Date.now() / 1000);
+      const token = await new SignJWT({
+        cid: 'test-client',
+        scp: ['tool:read'],
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setExpirationTime('1h')
+        .sign(testSecretBytes);
+
+      const authInfo = await strategy.verify(token);
+
+      expect(typeof authInfo.expiresAt).toBe('number');
+      // exp should be ~1 hour from now (3600s), well above current time
+      expect(authInfo.expiresAt).toBeGreaterThan(beforeSign);
+      expect(authInfo.expiresAt).toBeLessThanOrEqual(beforeSign + 3601);
     });
   });
 });

@@ -8,45 +8,32 @@
  * @experimental These APIs are experimental and may change without notice.
  * @module src/mcp-server/tasks/core/storageBackedTaskStore
  */
-import type {
-  Request,
-  RequestId,
-  Result,
-} from '@modelcontextprotocol/sdk/types.js';
+import type { Request, RequestId, Result } from '@modelcontextprotocol/sdk/types.js';
 
 import type { StorageService } from '@/storage/core/StorageService.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { idGenerator, type RequestContext } from '@/utils/index.js';
-import type { Task, TaskStore, CreateTaskOptions } from './taskTypes.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { idGenerator } from '@/utils/security/idGenerator.js';
+import type { CreateTaskOptions, Task, TaskStore } from './taskTypes.js';
 import { isTerminal } from './taskTypes.js';
 
 /**
  * Internal structure for storing task data in the storage backend.
+ * Includes optional session ownership for access control.
  */
 interface StoredTask {
-  task: Task;
   request: Request;
   requestId: RequestId;
   result?: Result;
+  /** Session that created this task. Used for ownership enforcement. */
+  sessionId?: string;
+  task: Task;
 }
 
 /**
  * Configuration options for StorageBackedTaskStore.
  */
 export interface StorageBackedTaskStoreOptions {
-  /**
-   * The tenant ID to use for storage operations.
-   * Tasks are stored under this tenant for isolation.
-   * @default 'system-tasks'
-   */
-  tenantId?: string;
-
-  /**
-   * Prefix for storage keys.
-   * @default 'tasks'
-   */
-  keyPrefix?: string;
-
   /**
    * Default TTL in milliseconds if not specified in task creation.
    * Set to null for unlimited lifetime.
@@ -55,10 +42,22 @@ export interface StorageBackedTaskStoreOptions {
   defaultTtl?: number | null;
 
   /**
+   * Prefix for storage keys.
+   * @default 'tasks'
+   */
+  keyPrefix?: string;
+
+  /**
    * Page size for listTasks pagination.
    * @default 10
    */
   pageSize?: number;
+  /**
+   * The tenant ID to use for storage operations.
+   * Tasks are stored under this tenant for isolation.
+   * @default 'system-tasks'
+   */
+  tenantId?: string;
 }
 
 /**
@@ -115,6 +114,22 @@ export class StorageBackedTaskStore implements TaskStore {
   }
 
   /**
+   * Validates that the caller's sessionId matches the stored task's sessionId.
+   * Tasks created without a sessionId (legacy/pre-ownership) are accessible by any session.
+   * @throws {McpError} Forbidden if sessionId mismatch
+   */
+  private assertOwnership(
+    stored: StoredTask,
+    callerSessionId: string | undefined,
+    taskId: string,
+  ): void {
+    if (!stored.sessionId) return;
+    if (stored.sessionId !== callerSessionId) {
+      throw new McpError(JsonRpcErrorCode.Forbidden, `Access denied to task ${taskId}`);
+    }
+  }
+
+  /**
    * Generates a unique task ID.
    * Uses the template's idGenerator for consistent ID format.
    */
@@ -127,7 +142,7 @@ export class StorageBackedTaskStore implements TaskStore {
     taskParams: CreateTaskOptions,
     requestId: RequestId,
     request: Request,
-    _sessionId?: string,
+    sessionId?: string,
   ): Promise<Task> {
     const context = this.createContext('createTask');
     const taskId = this.generateTaskId();
@@ -150,6 +165,11 @@ export class StorageBackedTaskStore implements TaskStore {
       requestId,
     };
 
+    // Bind session ownership if provided
+    if (sessionId) {
+      storedTask.sessionId = sessionId;
+    }
+
     // Store with TTL if specified (convert ms to seconds for StorageService)
     await this.storage.set(
       this.getTaskKey(taskId),
@@ -161,32 +181,28 @@ export class StorageBackedTaskStore implements TaskStore {
     return task;
   }
 
-  async getTask(taskId: string, _sessionId?: string): Promise<Task | null> {
+  async getTask(taskId: string, sessionId?: string): Promise<Task | null> {
     const context = this.createContext('getTask');
-    const stored = await this.storage.get<StoredTask>(
-      this.getTaskKey(taskId),
-      context,
-    );
-
-    return stored ? { ...stored.task } : null;
+    const stored = await this.storage.get<StoredTask>(this.getTaskKey(taskId), context);
+    if (!stored) return null;
+    this.assertOwnership(stored, sessionId, taskId);
+    return { ...stored.task };
   }
 
   async storeTaskResult(
     taskId: string,
     status: 'completed' | 'failed',
     result: Result,
-    _sessionId?: string,
+    sessionId?: string,
   ): Promise<void> {
     const context = this.createContext('storeTaskResult');
     const key = this.getTaskKey(taskId);
 
     const stored = await this.storage.get<StoredTask>(key, context);
     if (!stored) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        `Task with ID ${taskId} not found`,
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task with ID ${taskId} not found`);
     }
+    this.assertOwnership(stored, sessionId, taskId);
 
     // Don't allow storing results for tasks already in terminal state
     if (isTerminal(stored.task.status)) {
@@ -209,25 +225,17 @@ export class StorageBackedTaskStore implements TaskStore {
     );
   }
 
-  async getTaskResult(taskId: string, _sessionId?: string): Promise<Result> {
+  async getTaskResult(taskId: string, sessionId?: string): Promise<Result> {
     const context = this.createContext('getTaskResult');
-    const stored = await this.storage.get<StoredTask>(
-      this.getTaskKey(taskId),
-      context,
-    );
+    const stored = await this.storage.get<StoredTask>(this.getTaskKey(taskId), context);
 
     if (!stored) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        `Task with ID ${taskId} not found`,
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task with ID ${taskId} not found`);
     }
+    this.assertOwnership(stored, sessionId, taskId);
 
     if (!stored.result) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        `Task ${taskId} has no result stored`,
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task ${taskId} has no result stored`);
     }
 
     return stored.result;
@@ -237,18 +245,16 @@ export class StorageBackedTaskStore implements TaskStore {
     taskId: string,
     status: Task['status'],
     statusMessage?: string,
-    _sessionId?: string,
+    sessionId?: string,
   ): Promise<void> {
     const context = this.createContext('updateTaskStatus');
     const key = this.getTaskKey(taskId);
 
     const stored = await this.storage.get<StoredTask>(key, context);
     if (!stored) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        `Task with ID ${taskId} not found`,
-      );
+      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task with ID ${taskId} not found`);
     }
+    this.assertOwnership(stored, sessionId, taskId);
 
     // Don't allow transitions from terminal states
     if (isTerminal(stored.task.status)) {
@@ -270,13 +276,13 @@ export class StorageBackedTaskStore implements TaskStore {
       key,
       stored,
       context,
-      shouldResetTtl ? { ttl: Math.ceil(stored.task.ttl! / 1000) } : undefined,
+      shouldResetTtl ? { ttl: Math.ceil((stored.task.ttl as number) / 1000) } : undefined,
     );
   }
 
   async listTasks(
     cursor?: string,
-    _sessionId?: string,
+    sessionId?: string,
   ): Promise<{ tasks: Task[]; nextCursor?: string }> {
     const context = this.createContext('listTasks');
 
@@ -287,10 +293,15 @@ export class StorageBackedTaskStore implements TaskStore {
       cursor ? { cursor, limit: this.pageSize } : { limit: this.pageSize },
     );
 
-    // Fetch all tasks in parallel
+    // Fetch all tasks in parallel, filtering by session ownership
     const taskPromises = listResult.keys.map(async (key) => {
       const stored = await this.storage.get<StoredTask>(key, context);
-      return stored ? { ...stored.task } : null;
+      if (!stored) return null;
+      // Filter: show tasks owned by this session or unbound tasks
+      if (sessionId && stored.sessionId && stored.sessionId !== sessionId) {
+        return null;
+      }
+      return { ...stored.task };
     });
 
     const tasksOrNull = await Promise.all(taskPromises);
@@ -332,9 +343,7 @@ export class StorageBackedTaskStore implements TaskStore {
         cursor ? { cursor, limit: 100 } : { limit: 100 },
       );
 
-      await Promise.all(
-        result.keys.map((key) => this.storage.delete(key, context)),
-      );
+      await Promise.all(result.keys.map((key) => this.storage.delete(key, context)));
 
       cursor = result.nextCursor;
     } while (cursor);

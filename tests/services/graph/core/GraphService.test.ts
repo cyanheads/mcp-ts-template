@@ -4,16 +4,15 @@
  * @module tests/services/graph/core/GraphService.test
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GraphService } from '@/services/graph/core/GraphService.js';
 import type {
-  IGraphProvider,
   Edge,
   GraphPath,
+  IGraphProvider,
   TraversalResult,
 } from '@/services/graph/core/IGraphProvider.js';
-import { requestContextService } from '@/utils/index.js';
-import type { RequestContext } from '@/utils/index.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 // Mock provider for testing
 class MockGraphProvider implements IGraphProvider {
@@ -67,12 +66,7 @@ describe('GraphService', () => {
 
       mockProvider.relate.mockResolvedValue(mockEdge);
 
-      const result = await graphService.relate(
-        'user:alice',
-        'follows',
-        'user:bob',
-        context,
-      );
+      const result = await graphService.relate('user:alice', 'follows', 'user:bob', context);
 
       expect(mockProvider.relate).toHaveBeenCalledWith(
         'user:alice',
@@ -100,13 +94,7 @@ describe('GraphService', () => {
 
       mockProvider.relate.mockResolvedValue(mockEdge);
 
-      await graphService.relate(
-        'user:alice',
-        'follows',
-        'user:bob',
-        context,
-        options,
-      );
+      await graphService.relate('user:alice', 'follows', 'user:bob', context, options);
 
       expect(mockProvider.relate).toHaveBeenCalledWith(
         'user:alice',
@@ -170,11 +158,7 @@ describe('GraphService', () => {
 
       const result = await graphService.traverse('user:alice', context);
 
-      expect(mockProvider.traverse).toHaveBeenCalledWith(
-        'user:alice',
-        context,
-        undefined,
-      );
+      expect(mockProvider.traverse).toHaveBeenCalledWith('user:alice', context, undefined);
       expect(result).toEqual(mockResult);
     });
 
@@ -194,20 +178,16 @@ describe('GraphService', () => {
 
       await graphService.traverse('user:alice', context, options);
 
-      expect(mockProvider.traverse).toHaveBeenCalledWith(
-        'user:alice',
-        context,
-        options,
-      );
+      expect(mockProvider.traverse).toHaveBeenCalledWith('user:alice', context, options);
     });
 
     it('should propagate errors from provider', async () => {
       const error = new Error('Traversal failed');
       mockProvider.traverse.mockRejectedValue(error);
 
-      await expect(
-        graphService.traverse('user:alice', context),
-      ).rejects.toThrow('Traversal failed');
+      await expect(graphService.traverse('user:alice', context)).rejects.toThrow(
+        'Traversal failed',
+      );
     });
   });
 
@@ -232,11 +212,7 @@ describe('GraphService', () => {
 
       mockProvider.shortestPath.mockResolvedValue(mockPath);
 
-      const result = await graphService.shortestPath(
-        'user:alice',
-        'user:bob',
-        context,
-      );
+      const result = await graphService.shortestPath('user:alice', 'user:bob', context);
 
       expect(mockProvider.shortestPath).toHaveBeenCalledWith(
         'user:alice',
@@ -250,11 +226,7 @@ describe('GraphService', () => {
     it('should return null when no path exists', async () => {
       mockProvider.shortestPath.mockResolvedValue(null);
 
-      const result = await graphService.shortestPath(
-        'user:alice',
-        'user:charlie',
-        context,
-      );
+      const result = await graphService.shortestPath('user:alice', 'user:charlie', context);
 
       expect(result).toBeNull();
     });
@@ -267,12 +239,7 @@ describe('GraphService', () => {
 
       mockProvider.shortestPath.mockResolvedValue(null);
 
-      await graphService.shortestPath(
-        'user:alice',
-        'user:bob',
-        context,
-        options,
-      );
+      await graphService.shortestPath('user:alice', 'user:bob', context, options);
 
       expect(mockProvider.shortestPath).toHaveBeenCalledWith(
         'user:alice',
@@ -286,9 +253,9 @@ describe('GraphService', () => {
       const error = new Error('Pathfinding failed');
       mockProvider.shortestPath.mockRejectedValue(error);
 
-      await expect(
-        graphService.shortestPath('user:alice', 'user:bob', context),
-      ).rejects.toThrow('Pathfinding failed');
+      await expect(graphService.shortestPath('user:alice', 'user:bob', context)).rejects.toThrow(
+        'Pathfinding failed',
+      );
     });
   });
 
@@ -308,11 +275,7 @@ describe('GraphService', () => {
 
       const result = await graphService.getOutgoingEdges('user:alice', context);
 
-      expect(mockProvider.getOutgoingEdges).toHaveBeenCalledWith(
-        'user:alice',
-        context,
-        undefined,
-      );
+      expect(mockProvider.getOutgoingEdges).toHaveBeenCalledWith('user:alice', context, undefined);
       expect(result).toEqual(mockEdges);
     });
 
@@ -331,11 +294,9 @@ describe('GraphService', () => {
 
       await graphService.getOutgoingEdges('user:alice', context, ['follows']);
 
-      expect(mockProvider.getOutgoingEdges).toHaveBeenCalledWith(
-        'user:alice',
-        context,
-        ['follows'],
-      );
+      expect(mockProvider.getOutgoingEdges).toHaveBeenCalledWith('user:alice', context, [
+        'follows',
+      ]);
     });
 
     it('should return empty array when no edges exist', async () => {
@@ -363,11 +324,7 @@ describe('GraphService', () => {
 
       const result = await graphService.getIncomingEdges('user:alice', context);
 
-      expect(mockProvider.getIncomingEdges).toHaveBeenCalledWith(
-        'user:alice',
-        context,
-        undefined,
-      );
+      expect(mockProvider.getIncomingEdges).toHaveBeenCalledWith('user:alice', context, undefined);
       expect(result).toEqual(mockEdges);
     });
 
@@ -386,11 +343,9 @@ describe('GraphService', () => {
 
       await graphService.getIncomingEdges('user:alice', context, ['follows']);
 
-      expect(mockProvider.getIncomingEdges).toHaveBeenCalledWith(
-        'user:alice',
-        context,
-        ['follows'],
-      );
+      expect(mockProvider.getIncomingEdges).toHaveBeenCalledWith('user:alice', context, [
+        'follows',
+      ]);
     });
 
     it('should return empty array when no edges exist', async () => {
@@ -406,11 +361,7 @@ describe('GraphService', () => {
     it('should delegate to provider.pathExists', async () => {
       mockProvider.pathExists.mockResolvedValue(true);
 
-      const result = await graphService.pathExists(
-        'user:alice',
-        'user:bob',
-        context,
-      );
+      const result = await graphService.pathExists('user:alice', 'user:bob', context);
 
       expect(mockProvider.pathExists).toHaveBeenCalledWith(
         'user:alice',
@@ -424,11 +375,7 @@ describe('GraphService', () => {
     it('should return false when no path exists', async () => {
       mockProvider.pathExists.mockResolvedValue(false);
 
-      const result = await graphService.pathExists(
-        'user:alice',
-        'user:charlie',
-        context,
-      );
+      const result = await graphService.pathExists('user:alice', 'user:charlie', context);
 
       expect(result).toBe(false);
     });
@@ -438,21 +385,16 @@ describe('GraphService', () => {
 
       await graphService.pathExists('user:alice', 'user:bob', context, 5);
 
-      expect(mockProvider.pathExists).toHaveBeenCalledWith(
-        'user:alice',
-        'user:bob',
-        context,
-        5,
-      );
+      expect(mockProvider.pathExists).toHaveBeenCalledWith('user:alice', 'user:bob', context, 5);
     });
 
     it('should propagate errors from provider', async () => {
       const error = new Error('Path check failed');
       mockProvider.pathExists.mockRejectedValue(error);
 
-      await expect(
-        graphService.pathExists('user:alice', 'user:bob', context),
-      ).rejects.toThrow('Path check failed');
+      await expect(graphService.pathExists('user:alice', 'user:bob', context)).rejects.toThrow(
+        'Path check failed',
+      );
     });
   });
 
@@ -478,9 +420,7 @@ describe('GraphService', () => {
       const error = new Error('Health check failed');
       mockProvider.healthCheck.mockRejectedValue(error);
 
-      await expect(graphService.healthCheck()).rejects.toThrow(
-        'Health check failed',
-      );
+      await expect(graphService.healthCheck()).rejects.toThrow('Health check failed');
     });
   });
 });

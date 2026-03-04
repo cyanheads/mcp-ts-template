@@ -4,9 +4,8 @@
  * @module tests/fixtures
  */
 import { vi } from 'vitest';
-
-import { requestContextService, type RequestContext } from '@/utils/index.js';
 import type { SdkContext } from '@/mcp-server/tools/utils/toolDefinition.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Create a test RequestContext with sensible defaults.
@@ -25,9 +24,7 @@ export function createTestAppContext(
 /**
  * Create a mock SdkContext for tool logic tests.
  */
-export function createTestSdkContext(
-  overrides: Partial<SdkContext> = {},
-): SdkContext {
+export function createTestSdkContext(overrides: Partial<SdkContext> = {}): SdkContext {
   return {
     signal: new AbortController().signal,
     requestId: 'test-request-id',

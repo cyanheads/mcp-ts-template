@@ -13,18 +13,19 @@
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import type { RequestContext } from '@/utils/index.js';
-import { logger } from '@/utils/index.js';
+import { base64ToString, stringToBase64 } from '@/utils/internal/encoding.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 /**
  * Generic pagination state that can be encoded into a cursor.
  * Implementations can extend this with additional fields as needed.
  */
 export interface PaginationState {
-  /** Current page offset or starting position */
-  offset: number;
   /** Maximum number of items per page */
   limit: number;
+  /** Current page offset or starting position */
+  offset: number;
   /** Optional additional state (implementation-specific) */
   [key: string]: unknown;
 }
@@ -53,14 +54,16 @@ export interface PaginatedResult<T> {
 export function encodeCursor(state: PaginationState): string {
   try {
     const jsonString = JSON.stringify(state);
-    const base64 = Buffer.from(jsonString, 'utf-8').toString('base64url');
+    // Use cross-platform encoding, then convert standard base64 to base64url
+    const base64 = stringToBase64(jsonString)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
     return base64;
   } catch (error: unknown) {
-    throw new McpError(
-      JsonRpcErrorCode.InternalError,
-      'Failed to encode pagination cursor',
-      { error: error instanceof Error ? error.message : String(error) },
-    );
+    throw new McpError(JsonRpcErrorCode.InternalError, 'Failed to encode pagination cursor', {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
@@ -73,12 +76,11 @@ export function encodeCursor(state: PaginationState): string {
  * @returns Decoded pagination state
  * @throws {McpError} If cursor is invalid (code -32602)
  */
-export function decodeCursor(
-  cursor: string,
-  context: RequestContext,
-): PaginationState {
+export function decodeCursor(cursor: string, context: RequestContext): PaginationState {
   try {
-    const jsonString = Buffer.from(cursor, 'base64url').toString('utf-8');
+    // Convert base64url back to standard base64, then decode cross-platform
+    const standardBase64 = cursor.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonString = base64ToString(standardBase64);
     const state = JSON.parse(jsonString) as PaginationState;
 
     // Validate required fields

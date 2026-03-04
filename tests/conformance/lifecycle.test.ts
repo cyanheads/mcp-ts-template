@@ -3,7 +3,7 @@
  * Validates graceful shutdown, reconnection, and concurrent operation handling.
  * @module tests/conformance/lifecycle
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { createConformanceHarness } from './helpers/server-harness.js';
 

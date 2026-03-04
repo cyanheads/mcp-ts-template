@@ -1,5 +1,5 @@
 /**
- * @fileoverview Focused tests for initializePerformance_Hrt variants.
+ * @fileoverview Focused tests for initHighResTimer variants.
  * @module tests/utils/internal/performance.init.test
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -17,42 +17,39 @@ afterEach(() => {
     globalThis.performance = originalPerformance;
   } else {
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete (globalThis as { performance?: typeof globalThis.performance })
-      .performance;
+    delete (globalThis as { performance?: typeof globalThis.performance }).performance;
   }
   Date.now = originalDateNow;
   vi.restoreAllMocks();
 });
 
-describe('initializePerformance_Hrt', () => {
+describe('initHighResTimer', () => {
   it('uses browser performance.now when available', async () => {
     const nowSpy = vi.fn(() => 123.45);
     globalThis.performance = {
       now: nowSpy,
     } as unknown as typeof globalThis.performance;
 
-    await performanceModule.initializePerformance_Hrt();
+    await performanceModule.initHighResTimer();
 
     expect(performanceModule.nowMs()).toBe(123.45);
     expect(nowSpy).toHaveBeenCalledTimes(1);
   });
 
-  // Note: This test is skipped because performanceNow is a module-level variable
-  // that gets initialized once. Mocking after module load doesn't affect it.
-  it.skip('falls back to Date.now when perf_hooks import fails', async () => {
+  it('falls back to Date.now when perf_hooks import fails', async () => {
     const warningSpy = vi.spyOn(logger, 'warning').mockImplementation(() => {});
     const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(678.9);
-    vi.spyOn(performanceModule, 'loadPerfHooks').mockRejectedValue(
-      new Error('perf_hooks unavailable'),
-    );
 
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete (globalThis as { performance?: typeof globalThis.performance })
-      .performance;
+    delete (globalThis as { performance?: typeof globalThis.performance }).performance;
 
-    await performanceModule.initializePerformance_Hrt();
+    // Pass a failing loader directly — vi.spyOn on ESM exports doesn't
+    // affect internal module calls.
+    const failingLoader = async () => {
+      throw new Error('perf_hooks unavailable');
+    };
+    await performanceModule.initHighResTimer(failingLoader);
 
-    // Just verify it returns a number and the fallback was called
     const result = performanceModule.nowMs();
     expect(typeof result).toBe('number');
     expect(warningSpy).toHaveBeenCalledWith(
@@ -61,21 +58,18 @@ describe('initializePerformance_Hrt', () => {
     expect(dateNowSpy).toHaveBeenCalled();
   });
 
-  // Note: This test is skipped because performanceNow is a module-level variable
-  // that gets initialized once. Mocking after module load doesn't affect it.
-  it.skip('uses perf_hooks when available in a Node environment', async () => {
+  it('uses perf_hooks when available in a Node environment', async () => {
     const nowSpy = vi.fn(() => 456.78);
-    vi.spyOn(performanceModule, 'loadPerfHooks').mockResolvedValue({
-      performance: { now: nowSpy } as unknown as PerfHooksPerformance,
-    });
 
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete (globalThis as { performance?: typeof globalThis.performance })
-      .performance;
+    delete (globalThis as { performance?: typeof globalThis.performance }).performance;
 
-    await performanceModule.initializePerformance_Hrt();
+    // Pass a mock loader that returns a fake perf_hooks performance object.
+    const mockLoader = async () => ({
+      performance: { now: nowSpy } as unknown as PerfHooksPerformance,
+    });
+    await performanceModule.initHighResTimer(mockLoader);
 
-    // Just verify it returns a number and perf_hooks was loaded
     const result = performanceModule.nowMs();
     expect(typeof result).toBe('number');
     expect(nowSpy).toHaveBeenCalled();

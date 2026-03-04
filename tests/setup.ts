@@ -4,7 +4,7 @@
  * and provides lifecycle hooks.
  * @module tests/setup
  */
-import { beforeAll, afterAll, afterEach, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 
 // Ensure test env so logger suppresses noisy warnings
 if (typeof process !== 'undefined' && process.env && !process.env.NODE_ENV) {
@@ -25,10 +25,8 @@ if (!IS_INTEGRATION) {
   vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
     class McpServer {
       connect = vi.fn(async () => {});
-      constructor(..._args: any[]) {}
     }
     class ResourceTemplate {
-      constructor(..._args: any[]) {}
       match = vi.fn(() => null);
       render = vi.fn(() => '');
     }

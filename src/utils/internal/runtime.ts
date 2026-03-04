@@ -5,13 +5,15 @@
  */
 
 export interface RuntimeCapabilities {
+  hasBuffer: boolean;
+  hasPerformanceNow: boolean;
+  hasProcess: boolean;
+  hasTextEncoder: boolean;
+  isBrowserLike: boolean;
+  /** True for both Node.js and Bun (both expose process.versions.node). */
+  isBun: boolean;
   isNode: boolean;
   isWorkerLike: boolean;
-  isBrowserLike: boolean;
-  hasProcess: boolean;
-  hasBuffer: boolean;
-  hasTextEncoder: boolean;
-  hasPerformanceNow: boolean;
 }
 
 // Best-effort static detection without throwing in restricted envs
@@ -58,6 +60,7 @@ const hasPerformanceNowFunction = (): boolean => {
 };
 
 const isNode = hasNodeVersion();
+const isBun = isNode && typeof process?.versions?.bun === 'string';
 const hasProcess = typeof process !== 'undefined';
 const hasBuffer = typeof Buffer !== 'undefined';
 const hasTextEncoder = safeHas('TextEncoder');
@@ -81,6 +84,7 @@ const isBrowserLike = !isNode && !isWorkerLike && safeHas('window');
 
 export const runtimeCaps: RuntimeCapabilities = {
   isNode,
+  isBun,
   isWorkerLike,
   isBrowserLike,
   hasProcess,

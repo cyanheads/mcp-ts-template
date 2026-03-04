@@ -3,13 +3,9 @@
  * @module tests/utils/parsing/xmlParser.test
  */
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-
-import {
-  JsonRpcErrorCode,
-  McpError,
-} from '../../../src/types-global/errors.js';
+import { logger } from '@/utils/internal/logger.js';
+import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
 import { XmlParser } from '../../../src/utils/parsing/xmlParser.js';
-import { logger } from '../../../src/utils/index.js';
 
 describe('XmlParser', () => {
   const debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
@@ -36,8 +32,7 @@ describe('XmlParser', () => {
 
   it('parses XML and logs when a think block has content', () => {
     const parser = new XmlParser();
-    const xml =
-      '<think> Reasoning notes </think><root><item>value</item></root>';
+    const xml = '<think> Reasoning notes </think><root><item>value</item></root>';
 
     const result = parser.parse(xml);
 

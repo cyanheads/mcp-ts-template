@@ -20,12 +20,13 @@
  * // Exclude test files:
  * // bun run devdocs -- --exclude "*.test.ts" --exclude "*.spec.ts" src/
  */
-import clipboardy from 'clipboardy';
-import { execa } from 'execa';
+
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import clipboardy from 'clipboardy';
+import { execa } from 'execa';
 import { z } from 'zod';
 
 // =============================================================================
@@ -36,24 +37,22 @@ import { z } from 'zod';
 // Embedded to reduce external dependency count.
 // Respects NO_COLOR (https://no-color.org/) and FORCE_COLOR conventions.
 const isColorSupported =
-  !process.env.NO_COLOR &&
-  (process.env.FORCE_COLOR === '1' || !!process.stdout.isTTY);
+  !process.env.NO_COLOR && (process.env.FORCE_COLOR === '1' || !!process.stdout.isTTY);
 
-const createColor =
-  (open: string, close: string, closeRe: RegExp) => (str: string | number) => {
-    if (!isColorSupported) return '' + str;
-    return open + ('' + str).replace(closeRe, close + open) + close;
-  };
+const createColor = (open: string, close: string) => (str: string | number) => {
+  if (!isColorSupported) return `${str}`;
+  return open + `${str}`.replaceAll(close, close + open) + close;
+};
 
 const c = {
-  bold: createColor('\x1b[1m', '\x1b[22m', /\x1b\[22m/g),
-  dim: createColor('\x1b[2m', '\x1b[22m', /\x1b\[22m/g),
-  red: createColor('\x1b[31m', '\x1b[39m', /\x1b\[39m/g),
-  green: createColor('\x1b[32m', '\x1b[39m', /\x1b\[39m/g),
-  yellow: createColor('\x1b[33m', '\x1b[39m', /\x1b\[39m/g),
-  blue: createColor('\x1b[34m', '\x1b[39m', /\x1b\[39m/g),
-  magenta: createColor('\x1b[35m', '\x1b[39m', /\x1b\[39m/g),
-  cyan: createColor('\x1b[36m', '\x1b[39m', /\x1b\[39m/g),
+  bold: createColor('\x1b[1m', '\x1b[22m'),
+  dim: createColor('\x1b[2m', '\x1b[22m'),
+  red: createColor('\x1b[31m', '\x1b[39m'),
+  green: createColor('\x1b[32m', '\x1b[39m'),
+  yellow: createColor('\x1b[33m', '\x1b[39m'),
+  blue: createColor('\x1b[34m', '\x1b[39m'),
+  magenta: createColor('\x1b[35m', '\x1b[39m'),
+  cyan: createColor('\x1b[36m', '\x1b[39m'),
 };
 
 // =============================================================================
@@ -61,6 +60,7 @@ const c = {
 // =============================================================================
 
 interface CliArgs {
+  positionals: string[];
   values: {
     'include-rules': boolean;
     'dry-run': boolean;
@@ -74,7 +74,6 @@ interface CliArgs {
     'no-clipboard': boolean;
     help: boolean;
   };
-  positionals: string[];
 }
 
 const DevDocsConfigSchema = z.object({
@@ -89,15 +88,15 @@ type DevDocsConfig = z.infer<typeof DevDocsConfigSchema>;
 
 interface PathStats {
   filesAnalyzed: number;
+  skippedFiles: number;
   totalLines: number;
   totalSize: number;
-  skippedFiles: number;
   warnings: string[];
 }
 
 interface Statistics extends PathStats {
-  estimatedTokens: number;
   duration: number;
+  estimatedTokens: number;
 }
 
 class DevDocsError extends Error {
@@ -208,9 +207,7 @@ const UI = {
   log: console.log,
 
   printHeader() {
-    UI.log(
-      `\n${c.bold(c.cyan('📚 DevDocs: Generating AI-ready codebase documentation...'))}`,
-    );
+    UI.log(`\n${c.bold(c.cyan('📚 DevDocs: Generating AI-ready codebase documentation...'))}`);
   },
 
   printStep(step: string, detail?: string) {
@@ -240,7 +237,7 @@ const UI = {
   printCommand(cmd: string[]) {
     let cmdStr = cmd.join(' ');
     if (cmdStr.length > 100) {
-      cmdStr = cmdStr.substring(0, 97) + '...';
+      cmdStr = `${cmdStr.substring(0, 97)}...`;
     }
     UI.log(c.dim(`  $ ${cmdStr}`));
   },
@@ -254,20 +251,16 @@ const UI = {
     UI.printSeparator();
     UI.log(`${c.bold('Files analyzed:'.padEnd(25))} ${stats.filesAnalyzed}`);
     UI.log(`${c.bold('Files skipped:'.padEnd(25))} ${stats.skippedFiles}`);
-    UI.log(
-      `${c.bold('Total lines:'.padEnd(25))} ${stats.totalLines.toLocaleString()}`,
-    );
-    UI.log(
-      `${c.bold('Total size:'.padEnd(25))} ${formatBytes(stats.totalSize)}`,
-    );
-    UI.log(
-      `${c.bold('Estimated tokens:'.padEnd(25))} ~${stats.estimatedTokens.toLocaleString()}`,
-    );
+    UI.log(`${c.bold('Total lines:'.padEnd(25))} ${stats.totalLines.toLocaleString()}`);
+    UI.log(`${c.bold('Total size:'.padEnd(25))} ${formatBytes(stats.totalSize)}`);
+    UI.log(`${c.bold('Estimated tokens:'.padEnd(25))} ~${stats.estimatedTokens.toLocaleString()}`);
     UI.log(`${c.bold('Duration:'.padEnd(25))} ${stats.duration.toFixed(2)}s`);
 
     if (stats.warnings.length > 0) {
       UI.log(`\n${c.bold(c.yellow('⚠ Warnings:'))}`);
-      stats.warnings.forEach((warning) => UI.log(`  • ${c.dim(warning)}`));
+      for (const warning of stats.warnings) {
+        UI.log(`  • ${c.dim(warning)}`);
+      }
     }
 
     UI.printSeparator();
@@ -278,10 +271,7 @@ const UI = {
     UI.printSeparator();
   },
 
-  printDryRunFile(
-    status: 'include' | 'exclude' | 'missing' | 'directory',
-    filePath: string,
-  ) {
+  printDryRunFile(status: 'include' | 'exclude' | 'missing' | 'directory', filePath: string) {
     const icons = {
       include: c.green('✓'),
       exclude: c.yellow('⊘'),
@@ -294,9 +284,7 @@ const UI = {
       missing: 'Not found',
       directory: 'Directory',
     };
-    UI.log(
-      `${icons[status]} ${c.bold(labels[status].padEnd(10))} ${c.dim(filePath)}`,
-    );
+    UI.log(`${icons[status]} ${c.bold(labels[status].padEnd(10))} ${c.dim(filePath)}`);
   },
 
   printDryRunSummary(total: number, excluded: number) {
@@ -308,17 +296,13 @@ const UI = {
 
   printFooter(success: boolean, outputPath?: string, copiedToClipboard = true) {
     if (success && outputPath) {
-      UI.log(
-        `\n${c.bold(c.green('🎉 Documentation generated successfully!'))}`,
-      );
+      UI.log(`\n${c.bold(c.green('🎉 Documentation generated successfully!'))}`);
       UI.log(`   ${c.dim('Location:')} ${c.cyan(outputPath)}`);
       if (copiedToClipboard) {
         UI.log(`   ${c.dim('Copied to clipboard')}`);
       }
     } else if (!success) {
-      UI.log(
-        `\n${c.bold(c.red('🛑 Documentation generation failed. Review errors above.'))}`,
-      );
+      UI.log(`\n${c.bold(c.red('🛑 Documentation generation failed. Review errors above.'))}`);
     }
   },
 
@@ -368,15 +352,14 @@ const formatBytes = (bytes: number): string => {
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+  return `${(bytes / k ** i).toFixed(2)} ${sizes[i]}`;
 };
 
 /**
  * Estimates token count from text content.
  */
-const estimateTokens = (text: string): number => {
-  return Math.ceil(text.length / CONFIG.APPROX_CHARS_PER_TOKEN);
-};
+const estimateTokens = (text: string): number =>
+  Math.ceil(text.length / CONFIG.APPROX_CHARS_PER_TOKEN);
 
 /**
  * Checks if a file or directory exists.
@@ -423,22 +406,25 @@ const matchesPattern = (filePath: string, patterns: string[]): boolean => {
 
     // Security: Properly escape regex chars while preserving glob wildcards
     // This prevents regex injection from user-provided patterns
+    const DS = '__DOUBLESTAR__';
+    const SS = '__STAR__';
+    const QS = '__QUESTION__';
     const regexPattern = normalizedPattern
       // Step 1: Temporarily mark glob patterns with placeholders
-      .replace(/\*\*/g, '\x00DOUBLESTAR\x00')
-      .replace(/\*/g, '\x00STAR\x00')
-      .replace(/\?/g, '\x00QUESTION\x00')
+      .replaceAll('**', DS)
+      .replaceAll('*', SS)
+      .replaceAll('?', QS)
       // Step 2: Escape all regex special chars (except the placeholders)
       .replace(/[.+^${}()|[\]\\]/g, '\\$&')
       // Step 3: Convert glob wildcards to regex equivalents
-      .replace(/\x00QUESTION\x00/g, '[^/]')
-      .replace(/\x00STAR\x00/g, '[^/]*')
+      .replaceAll(QS, '[^/]')
+      .replaceAll(SS, '[^/]*')
       // Step 4: Handle **/ pattern specially - matches zero or more path segments
-      .replace(/\x00DOUBLESTAR\x00\//g, '(?:.*/)?')
-      // Step 5: Handle /** pattern at end
-      .replace(/\/\x00DOUBLESTAR\x00$/g, '/.*')
+      .replaceAll(`${DS}/`, '(?:.*/)?')
+      // Step 5: Handle /** pattern at end — only at string end
+      .replace(new RegExp(`/${DS}$`), '/.*')
       // Step 6: Handle remaining ** (not preceded/followed by /)
-      .replace(/\x00DOUBLESTAR\x00/g, '.*');
+      .replaceAll(DS, '.*');
 
     const regex = new RegExp(`^${regexPattern}$`);
 
@@ -463,9 +449,7 @@ const findProjectRoot = async (startPath: string): Promise<string> => {
       currentPath = path.dirname(currentPath);
     }
   }
-  throw new DevDocsError(
-    'Could not find project root (package.json not found).',
-  );
+  throw new DevDocsError('Could not find project root (package.json not found).');
 };
 
 /**
@@ -480,12 +464,12 @@ async function executeCommand(
   command: string,
   args: string[],
   captureOutput: false,
-): Promise<void>;
+): Promise<undefined>;
 async function executeCommand(
   command: string,
   args: string[],
   captureOutput: boolean,
-): Promise<string | void> {
+): Promise<string | undefined> {
   try {
     const stdio = captureOutput ? 'pipe' : 'inherit';
     const result = await execa(command, args, {
@@ -534,9 +518,7 @@ const validateRequiredTools = async (): Promise<void> => {
 /**
  * Gets list of changed files from git.
  */
-const getGitChangedFiles = async (
-  staged: boolean = false,
-): Promise<string[]> => {
+const getGitChangedFiles = async (staged: boolean = false): Promise<string[]> => {
   UI.printStep(`Getting ${staged ? 'staged' : 'unstaged'} files from git...`);
   try {
     const args = staged
@@ -545,16 +527,12 @@ const getGitChangedFiles = async (
     const output = await executeCommand('git', args, true);
 
     if (!output) {
-      UI.printWarning(
-        `No ${staged ? 'staged' : 'unstaged'} files found in git`,
-      );
+      UI.printWarning(`No ${staged ? 'staged' : 'unstaged'} files found in git`);
       return [];
     }
 
     const files = output.split('\n').filter(Boolean);
-    UI.printSuccess(
-      `Found ${files.length} ${staged ? 'staged' : 'unstaged'} file(s)`,
-    );
+    UI.printSuccess(`Found ${files.length} ${staged ? 'staged' : 'unstaged'} file(s)`);
     return files;
   } catch (error: unknown) {
     throw new DevDocsError(
@@ -577,9 +555,7 @@ const loadConfigFile = async (
 
   for (const configFilePath of searchPaths) {
     if (await exists(configFilePath)) {
-      UI.printInfo(
-        `Loading config from: ${path.relative(rootDir, configFilePath)}`,
-      );
+      UI.printInfo(`Loading config from: ${path.relative(rootDir, configFilePath)}`);
       try {
         const content = await fs.readFile(configFilePath, 'utf-8');
         const raw = JSON.parse(content);
@@ -588,17 +564,12 @@ const loadConfigFile = async (
           const issues = result.error.issues
             .map((i) => `  ${i.path.join('.')}: ${i.message}`)
             .join('\n');
-          throw new DevDocsError(
-            `Invalid config file ${configFilePath}:\n${issues}`,
-          );
+          throw new DevDocsError(`Invalid config file ${configFilePath}:\n${issues}`);
         }
         return result.data;
       } catch (error: unknown) {
         if (error instanceof DevDocsError) throw error;
-        throw new DevDocsError(
-          `Failed to parse config file: ${configFilePath}`,
-          error,
-        );
+        throw new DevDocsError(`Failed to parse config file: ${configFilePath}`, error);
       }
     }
   }
@@ -616,16 +587,10 @@ const loadConfigFile = async (
 const generateFileTree = async (rootDir: string): Promise<string> => {
   UI.printStep('Generating file tree...');
   const treeScriptPath = path.resolve(rootDir, CONFIG.TREE_SCRIPT);
-  const treeDocPath = path.resolve(
-    rootDir,
-    CONFIG.DOCS_DIR,
-    CONFIG.TREE_OUTPUT,
-  );
+  const treeDocPath = path.resolve(rootDir, CONFIG.DOCS_DIR, CONFIG.TREE_OUTPUT);
 
   if (!(await exists(treeScriptPath))) {
-    throw new DevDocsError(
-      `Tree generation script not found at: ${treeScriptPath}`,
-    );
+    throw new DevDocsError(`Tree generation script not found at: ${treeScriptPath}`);
   }
 
   await executeCommand('bun', ['run', treeScriptPath], false);
@@ -635,10 +600,7 @@ const generateFileTree = async (rootDir: string): Promise<string> => {
   try {
     return await fs.readFile(treeDocPath, 'utf-8');
   } catch (error: unknown) {
-    throw new DevDocsError(
-      `Failed to read generated tree file at ${treeDocPath}`,
-      error,
-    );
+    throw new DevDocsError(`Failed to read generated tree file at ${treeDocPath}`, error);
   }
 };
 
@@ -646,9 +608,7 @@ const generateFileTree = async (rootDir: string): Promise<string> => {
  * Gathers size statistics for a path using stat (size) and a streaming
  * newline count (lines). Skips binary/unreadable files gracefully.
  */
-const analyzePath = async (
-  targetPath: string,
-): Promise<{ lines: number; size: number } | null> => {
+const analyzePath = async (targetPath: string): Promise<{ lines: number; size: number } | null> => {
   try {
     const stat = await fs.stat(targetPath);
 
@@ -725,10 +685,7 @@ const filterFilePaths = async (
 /**
  * Runs repomix on the filtered file paths in a single batched invocation.
  */
-const runRepomix = async (
-  filePaths: string[],
-  ignorePatterns: string[],
-): Promise<string> => {
+const runRepomix = async (filePaths: string[], ignorePatterns: string[]): Promise<string> => {
   UI.printStep(`Running repomix on ${filePaths.length} path(s)...`);
 
   const repomixArgs = ['repomix', ...filePaths, '-o', '-'];
@@ -741,9 +698,7 @@ const runRepomix = async (
   const output = await executeCommand('bunx', repomixArgs, true);
 
   if (!output || output.length === 0) {
-    throw new DevDocsError(
-      'Repomix produced no output for the provided paths.',
-    );
+    throw new DevDocsError('Repomix produced no output for the provided paths.');
   }
 
   UI.printSuccess(`Repomix analysis complete`);
@@ -760,10 +715,7 @@ const getRepomixOutputs = async (
   excludePatterns: string[],
 ): Promise<{ output: string; stats: PathStats }> => {
   // Filter before running repomix
-  const { filtered, skipped, warnings } = await filterFilePaths(
-    filePaths,
-    excludePatterns,
-  );
+  const { filtered, skipped, warnings } = await filterFilePaths(filePaths, excludePatterns);
 
   if (filtered.length === 0) {
     throw new DevDocsError(
@@ -878,24 +830,16 @@ const findFileCaseInsensitive = async (
 /**
  * Locates and reads the content of the agent rules file.
  */
-const getAgentRulesContent = async (
-  rootDir: string,
-): Promise<string | null> => {
+const getAgentRulesContent = async (rootDir: string): Promise<string | null> => {
   UI.printStep('Searching for agent rules files...');
-  const ruleFilePath = await findFileCaseInsensitive(
-    rootDir,
-    CONFIG.AGENT_RULE_FILES,
-  );
+  const ruleFilePath = await findFileCaseInsensitive(rootDir, CONFIG.AGENT_RULE_FILES);
 
   if (ruleFilePath) {
     UI.printSuccess(`Found agent rules: ${path.basename(ruleFilePath)}`);
     try {
       return await fs.readFile(ruleFilePath, 'utf-8');
     } catch (error: unknown) {
-      throw new DevDocsError(
-        `Failed to read agent rules file: ${ruleFilePath}`,
-        error,
-      );
+      throw new DevDocsError(`Failed to read agent rules file: ${ruleFilePath}`, error);
     }
   }
 
@@ -946,9 +890,7 @@ const createDevDocsFile = async (
     await fs.mkdir(path.dirname(devDocsPath), { recursive: true });
     await fs.writeFile(devDocsPath, devdocsContent);
 
-    UI.printSuccess(
-      `Documentation written to ${path.relative(rootDir, devDocsPath)}`,
-    );
+    UI.printSuccess(`Documentation written to ${path.relative(rootDir, devDocsPath)}`);
     return { content: devdocsContent, warnings };
   } catch (error: unknown) {
     throw new DevDocsError(`Failed to write ${CONFIG.DEVDOCS_OUTPUT}`, error);
@@ -964,19 +906,14 @@ const copyToClipboard = async (content: string): Promise<void> => {
     await clipboardy.write(content);
     UI.printSuccess('Copied to clipboard');
   } catch (_error) {
-    UI.printWarning(
-      'Failed to copy to clipboard (file was generated successfully)',
-    );
+    UI.printWarning('Failed to copy to clipboard (file was generated successfully)');
   }
 };
 
 /**
  * Performs a dry run to preview what will be analyzed.
  */
-const performDryRun = async (
-  filePaths: string[],
-  excludePatterns: string[],
-): Promise<void> => {
+const performDryRun = async (filePaths: string[], excludePatterns: string[]): Promise<void> => {
   UI.printDryRunHeader();
 
   let totalFiles = 0;
@@ -1070,12 +1007,8 @@ const main = async () => {
   const config = await loadConfigFile(rootDir, args.values.config);
 
   // Merge CLI args with config
-  const excludePatterns = [
-    ...(config?.excludePatterns ?? []),
-    ...args.values.exclude,
-  ];
-  const includeRules =
-    args.values['include-rules'] || config?.includeRules || false;
+  const excludePatterns = [...(config?.excludePatterns ?? []), ...args.values.exclude];
+  const includeRules = args.values['include-rules'] || config?.includeRules || false;
   const maxOutputSizeMB = config?.maxOutputSizeMB ?? CONFIG.MAX_OUTPUT_SIZE_MB;
 
   // Determine file paths
@@ -1083,9 +1016,7 @@ const main = async () => {
   const usingGitMode = args.values['git-diff'] || args.values['git-staged'];
 
   if (args.values['git-diff'] && args.values['git-staged']) {
-    UI.printWarning(
-      '--git-diff and --git-staged are mutually exclusive; using --git-staged',
-    );
+    UI.printWarning('--git-diff and --git-staged are mutually exclusive; using --git-staged');
   }
 
   if (usingGitMode) {
@@ -1093,9 +1024,7 @@ const main = async () => {
     if (gitFiles.length > 0) {
       filePaths = gitFiles;
     } else if (filePaths.length > 0) {
-      UI.printWarning(
-        'No git changes found; falling back to positional arguments',
-      );
+      UI.printWarning('No git changes found; falling back to positional arguments');
     } else {
       UI.printError('No git changes found and no positional paths provided');
       process.exit(1);
@@ -1108,7 +1037,7 @@ const main = async () => {
 
   if (filePaths.length === 0) {
     UI.printError('No file paths provided');
-    console.log('\n' + USAGE_INFO);
+    console.log(`\n${USAGE_INFO}`);
     process.exit(1);
   }
 
@@ -1124,10 +1053,7 @@ const main = async () => {
   }
 
   // Get ignored dependencies
-  const ignorePatterns = await getRepomixIgnorePatterns(
-    rootDir,
-    config?.ignoredDependencies,
-  );
+  const ignorePatterns = await getRepomixIgnorePatterns(rootDir, config?.ignoredDependencies);
 
   // Combine ignore patterns: repomix --ignore gets both dependency ignores and exclude patterns
   const allIgnorePatterns = [...ignorePatterns, ...excludePatterns];
@@ -1137,9 +1063,7 @@ const main = async () => {
 
   const treeContent = await generateFileTree(rootDir);
 
-  const agentRulesContent = includeRules
-    ? await getAgentRulesContent(rootDir)
-    : null;
+  const agentRulesContent = includeRules ? await getAgentRulesContent(rootDir) : null;
 
   const { output: repomixOutput, stats: pathStats } = await getRepomixOutputs(
     filePaths,

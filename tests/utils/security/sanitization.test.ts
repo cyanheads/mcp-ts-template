@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  JsonRpcErrorCode,
-  McpError,
-} from '../../../src/types-global/errors.js';
+import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
 import { sanitization } from '../../../src/utils/security/sanitization.js';
 
 describe('Sanitization Utility', () => {
@@ -22,9 +19,7 @@ describe('Sanitization Utility', () => {
 
     it('should return an empty string for null or undefined input', () => {
       expect(sanitization.sanitizeHtml(null as unknown as string)).toBe('');
-      expect(sanitization.sanitizeHtml(undefined as unknown as string)).toBe(
-        '',
-      );
+      expect(sanitization.sanitizeHtml(undefined as unknown as string)).toBe('');
     });
   });
 
@@ -32,22 +27,17 @@ describe('Sanitization Utility', () => {
     it('should handle "text" context by stripping all HTML', () => {
       const input = '<p>Hello World</p>';
       const expected = 'Hello World';
-      expect(sanitization.sanitizeString(input, { context: 'text' })).toBe(
-        expected,
-      );
+      expect(sanitization.sanitizeString(input, { context: 'text' })).toBe(expected);
     });
 
     it('should handle "html" context correctly', () => {
       const maliciousInput = '<script>alert("xss")</script><p>Hello</p>';
       const expected = '<p>Hello</p>';
-      expect(
-        sanitization.sanitizeString(maliciousInput, { context: 'html' }),
-      ).toBe(expected);
+      expect(sanitization.sanitizeString(maliciousInput, { context: 'html' })).toBe(expected);
     });
 
     it('supports explicit tag and attribute whitelists for HTML sanitization', () => {
-      const input =
-        '<a href="https://example.com" onclick="alert(1)">Read more</a>';
+      const input = '<a href="https://example.com" onclick="alert(1)">Read more</a>';
       const sanitized = sanitization.sanitizeString(input, {
         context: 'html',
         allowedTags: ['a'],
@@ -62,22 +52,16 @@ describe('Sanitization Utility', () => {
     it('should handle "url" context and return empty for invalid URLs', () => {
       const validInput = 'https://example.com/path';
       const invalidUrl = 'javascript:alert("xss")';
-      expect(sanitization.sanitizeString(validInput, { context: 'url' })).toBe(
-        validInput,
-      );
-      expect(sanitization.sanitizeString(invalidUrl, { context: 'url' })).toBe(
-        '',
-      );
+      expect(sanitization.sanitizeString(validInput, { context: 'url' })).toBe(validInput);
+      expect(sanitization.sanitizeString(invalidUrl, { context: 'url' })).toBe('');
     });
 
     it('should throw an McpError when context is "javascript"', () => {
       const jsInput = 'alert("hello")';
-      expect(() =>
-        sanitization.sanitizeString(jsInput, { context: 'javascript' }),
-      ).toThrow(McpError);
-      expect(() =>
-        sanitization.sanitizeString(jsInput, { context: 'javascript' }),
-      ).toThrow(
+      expect(() => sanitization.sanitizeString(jsInput, { context: 'javascript' })).toThrow(
+        McpError,
+      );
+      expect(() => sanitization.sanitizeString(jsInput, { context: 'javascript' })).toThrow(
         expect.objectContaining({ code: JsonRpcErrorCode.ValidationError }),
       );
     });
@@ -108,27 +92,22 @@ describe('Sanitization Utility', () => {
       const invalidPath = '../outside.txt';
 
       // The sanitized path should be relative to the rootDir.
-      expect(
-        sanitization.sanitizePath(validPath, { rootDir }).sanitizedPath,
-      ).toBe('data/file.txt');
+      expect(sanitization.sanitizePath(validPath, { rootDir }).sanitizedPath).toBe('data/file.txt');
 
       // This should throw because it tries to leave the root directory.
-      expect(() => sanitization.sanitizePath(invalidPath, { rootDir })).toThrow(
-        McpError,
-      );
+      expect(() => sanitization.sanitizePath(invalidPath, { rootDir })).toThrow(McpError);
     });
 
     it('should handle absolute paths correctly based on the allowAbsolute option', () => {
       const absolutePath = '/etc/passwd';
       // By default, absolute paths are not allowed and should throw.
-      expect(() =>
-        sanitization.sanitizePath(absolutePath, { allowAbsolute: false }),
-      ).toThrow(McpError);
+      expect(() => sanitization.sanitizePath(absolutePath, { allowAbsolute: false })).toThrow(
+        McpError,
+      );
       // When allowed, the path should be returned as is.
-      expect(
-        sanitization.sanitizePath(absolutePath, { allowAbsolute: true })
-          .sanitizedPath,
-      ).toBe(absolutePath);
+      expect(sanitization.sanitizePath(absolutePath, { allowAbsolute: true }).sanitizedPath).toBe(
+        absolutePath,
+      );
     });
   });
 
@@ -140,9 +119,7 @@ describe('Sanitization Utility', () => {
         session_token: 'abc-123',
         secretKey: 'xyz-789',
       };
-      const sanitized = sanitization.sanitizeForLogging(
-        sensitiveObject,
-      ) as Record<string, unknown>;
+      const sanitized = sanitization.sanitizeForLogging(sensitiveObject) as Record<string, unknown>;
       expect(sanitized.password).toBe('[REDACTED]');
       expect(sanitized.session_token).toBe('[REDACTED]');
       expect(sanitized.secretKey).toBe('[REDACTED]');
@@ -158,15 +135,9 @@ describe('Sanitization Utility', () => {
         },
         nonSensitive: 'data',
       };
-      const sanitized = sanitization.sanitizeForLogging(
-        sensitiveObject,
-      ) as Record<string, unknown>;
+      const sanitized = sanitization.sanitizeForLogging(sensitiveObject) as Record<string, unknown>;
       expect(sanitized).toBeDefined();
-      if (
-        sanitized &&
-        typeof sanitized === 'object' &&
-        'credentials' in sanitized
-      ) {
+      if (sanitized && typeof sanitized === 'object' && 'credentials' in sanitized) {
         const creds = sanitized.credentials as Record<string, unknown>;
         expect(creds.password).toBe('[REDACTED]');
         expect(creds.session_token).toBe('[REDACTED]');
@@ -185,9 +156,10 @@ describe('Sanitization Utility', () => {
         { user: 'a', password: '123' },
         { user: 'b', apiKey: '456' },
       ];
-      const sanitized = sanitization.sanitizeForLogging(
-        sensitiveArray,
-      ) as Record<string, unknown>[];
+      const sanitized = sanitization.sanitizeForLogging(sensitiveArray) as Record<
+        string,
+        unknown
+      >[];
 
       expect(sanitized).toBeDefined();
       expect(Array.isArray(sanitized)).toBe(true);
@@ -196,11 +168,11 @@ describe('Sanitization Utility', () => {
         expect(sanitized[0]).toBeDefined();
         expect(sanitized[1]).toBeDefined();
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(sanitized[0]!.password).toBe('[REDACTED]');
+        expect(sanitized[0]?.password).toBe('[REDACTED]');
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(sanitized[1]!.apiKey).toBe('[REDACTED]');
+        expect(sanitized[1]?.apiKey).toBe('[REDACTED]');
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(sanitized[0]!.user).toBe('a');
+        expect(sanitized[0]?.user).toBe('a');
       }
     });
 
@@ -209,9 +181,7 @@ describe('Sanitization Utility', () => {
         user: 'casey',
         nonSensitive: 'data',
       };
-      const sanitized = sanitization.sanitizeForLogging(
-        sensitiveObject,
-      ) as Record<string, unknown>;
+      const sanitized = sanitization.sanitizeForLogging(sensitiveObject) as Record<string, unknown>;
       expect(sanitized).toBeDefined();
       expect((sanitized as Record<string, unknown>).nonSensitive).toBe('data');
     });

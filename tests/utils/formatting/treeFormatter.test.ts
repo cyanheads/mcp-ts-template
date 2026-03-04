@@ -5,12 +5,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
-import {
-  type TreeNode,
-  treeFormatter,
-  TreeFormatter,
-} from '@/utils/formatting/treeFormatter.js';
+import { TreeFormatter, type TreeNode, treeFormatter } from '@/utils/formatting/treeFormatter.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 describe('TreeFormatter', () => {
   const simpleTree: TreeNode = {
@@ -51,7 +48,8 @@ describe('TreeFormatter', () => {
       const result = treeFormatter.format(simpleTree, { style: 'ascii' });
 
       expect(result).toContain('root');
-      expect(result).toContain('+--'); // ASCII tree chars
+      expect(result).toContain('+--'); // ASCII tree chars for non-last children
+      expect(result).toContain('\\--'); // ASCII tree chars for last child
       expect(result).not.toContain('├'); // No unicode
     });
 
@@ -131,6 +129,19 @@ describe('TreeFormatter', () => {
       expect(result).not.toContain('level3'); // Exceeds maxDepth
     });
 
+    it('should show only root with maxDepth: 0', () => {
+      const tree: TreeNode = {
+        name: 'root',
+        children: [{ name: 'child1' }, { name: 'child2' }],
+      };
+
+      const result = treeFormatter.format(tree, { maxDepth: 0 });
+
+      expect(result).toBe('root');
+      expect(result).not.toContain('child1');
+      expect(result).not.toContain('child2');
+    });
+
     it('should respect custom indent option', () => {
       const result = treeFormatter.format(simpleTree, {
         indent: '    ', // 4 spaces
@@ -141,6 +152,19 @@ describe('TreeFormatter', () => {
       // With more indentation, output should be wider
       const lines = result.split('\n');
       expect(lines.some((line) => line.startsWith('    '))).toBe(true);
+    });
+
+    it('should handle single-character indent', () => {
+      const tree: TreeNode = {
+        name: 'root',
+        children: [{ name: 'a', children: [{ name: 'b' }] }, { name: 'c' }],
+      };
+
+      const result = treeFormatter.format(tree, { indent: ' ', style: 'unicode' });
+      expect(result).toContain('root');
+      expect(result).toContain('a');
+      expect(result).toContain('b');
+      expect(result).toContain('c');
     });
   });
 
@@ -196,6 +220,30 @@ describe('TreeFormatter', () => {
       const result = treeFormatter.format(self);
 
       expect(result).toContain('[Circular Reference]');
+    });
+
+    it('should detect circular references with ascii style', () => {
+      const parent: TreeNode = { name: 'parent', children: [] };
+      const child: TreeNode = { name: 'child', children: [parent] };
+      parent.children = [child];
+
+      const result = treeFormatter.format(parent, { style: 'ascii' });
+
+      expect(result).toContain('[Circular Reference]');
+      expect(result).toContain('parent');
+      expect(result).toContain('child');
+    });
+
+    it('should detect circular references with compact style', () => {
+      const parent: TreeNode = { name: 'parent', children: [] };
+      const child: TreeNode = { name: 'child', children: [parent] };
+      parent.children = [child];
+
+      const result = treeFormatter.format(parent, { style: 'compact' });
+
+      expect(result).toContain('[Circular Reference]');
+      expect(result).toContain('parent');
+      expect(result).toContain('child');
     });
   });
 
@@ -320,11 +368,7 @@ describe('TreeFormatter', () => {
     it('should handle nodes with special characters in names', () => {
       const tree: TreeNode = {
         name: 'root/path',
-        children: [
-          { name: 'file name.txt' },
-          { name: 'special@#$%' },
-          { name: 'unicode: 你好' },
-        ],
+        children: [{ name: 'file name.txt' }, { name: 'special@#$%' }, { name: 'unicode: 你好' }],
       };
 
       const result = treeFormatter.format(tree);
@@ -350,6 +394,31 @@ describe('TreeFormatter', () => {
       expect(result).toContain('number=42');
       expect(result).toContain('boolean=true');
       expect(result).toContain('null=null');
+    });
+
+    it('should handle showMetadata when node has no metadata property', () => {
+      const tree: TreeNode = {
+        name: 'root',
+        children: [{ name: 'child' }],
+      };
+
+      const result = treeFormatter.format(tree, { showMetadata: true });
+      expect(result).toContain('root');
+      expect(result).toContain('child');
+      // No metadata brackets should appear
+      expect(result).not.toContain('(');
+    });
+
+    it('should handle showMetadata with empty metadata object', () => {
+      const tree: TreeNode = {
+        name: 'root',
+        metadata: {},
+      };
+
+      const result = treeFormatter.format(tree, { showMetadata: true });
+      expect(result).toBe('root');
+      // Empty metadata should not add parentheses
+      expect(result).not.toContain('(');
     });
 
     it('should handle tree with only one branch', () => {

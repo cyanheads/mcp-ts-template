@@ -2,7 +2,7 @@
  * @fileoverview Tests for session ID generation and validation utilities.
  * @module tests/mcp-server/transports/http/sessionIdUtils.test
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   generateSecureSessionId,
@@ -17,9 +17,7 @@ describe('generateSecureSessionId', () => {
   });
 
   it('generates unique IDs on successive calls', () => {
-    const ids = new Set(
-      Array.from({ length: 50 }, () => generateSecureSessionId()),
-    );
+    const ids = new Set(Array.from({ length: 50 }, () => generateSecureSessionId()));
     expect(ids.size).toBe(50);
   });
 
@@ -64,7 +62,7 @@ describe('validateSessionIdFormat', () => {
   });
 
   it('rejects IDs with spaces', () => {
-    const padded = ' ' + 'a'.repeat(62) + ' ';
+    const padded = ` ${'a'.repeat(62)} `;
     expect(validateSessionIdFormat(padded)).toBe(false);
   });
 });

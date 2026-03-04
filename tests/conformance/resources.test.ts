@@ -4,12 +4,9 @@
  * through the full protocol stack.
  * @module tests/conformance/resources
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import {
-  createConformanceHarness,
-  type ConformanceHarness,
-} from './helpers/server-harness.js';
+import { type ConformanceHarness, createConformanceHarness } from './helpers/server-harness.js';
 
 describe('Resource protocol conformance', () => {
   let harness: ConformanceHarness;
@@ -45,7 +42,7 @@ describe('Resource protocol conformance', () => {
       const { resources } = await harness.client.listResources();
       const echoResource = resources.find((r) => r.uri === 'echo://hello');
       expect(echoResource).toBeDefined();
-      expect(echoResource!.name).toBe('Default Echo Message');
+      expect(echoResource?.name).toBe('Default Echo Message');
     });
   });
 
@@ -59,13 +56,10 @@ describe('Resource protocol conformance', () => {
     });
 
     it('includes echo resource template with URI pattern', async () => {
-      const { resourceTemplates } =
-        await harness.client.listResourceTemplates();
-      const echoTemplate = resourceTemplates.find((t) =>
-        t.uriTemplate.includes('echo'),
-      );
+      const { resourceTemplates } = await harness.client.listResourceTemplates();
+      const echoTemplate = resourceTemplates.find((t) => t.uriTemplate.includes('echo'));
       expect(echoTemplate).toBeDefined();
-      expect(echoTemplate!.uriTemplate).toContain('{message}');
+      expect(echoTemplate?.uriTemplate).toContain('{message}');
     });
   });
 

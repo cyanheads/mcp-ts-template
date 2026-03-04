@@ -30,18 +30,13 @@ const ALL_TOKEN_NAMES = [
 
 /** Helper to get all token values. */
 const getAllTokens = () =>
-  ALL_TOKEN_NAMES.map(
-    (name) => (tokens as Record<string, unknown>)[name] as Token<unknown>,
-  );
+  ALL_TOKEN_NAMES.map((name) => (tokens as Record<string, unknown>)[name] as Token<unknown>);
 
 describe('DI Tokens', () => {
   describe('Token Definitions', () => {
     it('should export all required tokens', () => {
       for (const name of ALL_TOKEN_NAMES) {
-        expect(
-          (tokens as Record<string, unknown>)[name],
-          `Missing token: ${name}`,
-        ).toBeDefined();
+        expect((tokens as Record<string, unknown>)[name], `Missing token: ${name}`).toBeDefined();
       }
     });
 
@@ -66,17 +61,11 @@ describe('DI Tokens', () => {
       expect(tokens.StorageProvider.description).toBe('IStorageProvider');
       expect(tokens.LlmProvider.description).toBe('ILlmProvider');
       expect(tokens.ToolDefinitions.description).toBe('ToolDefinitions');
-      expect(tokens.ResourceDefinitions.description).toBe(
-        'ResourceDefinitions',
-      );
-      expect(tokens.CreateMcpServerInstance.description).toBe(
-        'CreateMcpServerInstance',
-      );
+      expect(tokens.ResourceDefinitions.description).toBe('ResourceDefinitions');
+      expect(tokens.CreateMcpServerInstance.description).toBe('CreateMcpServerInstance');
       expect(tokens.RateLimiterService.description).toBe('RateLimiterService');
       expect(tokens.TransportManagerToken.description).toBe('TransportManager');
-      expect(tokens.SupabaseAdminClient.description).toBe(
-        'SupabaseAdminClient',
-      );
+      expect(tokens.SupabaseAdminClient.description).toBe('SupabaseAdminClient');
       expect(tokens.SpeechService.description).toBe('SpeechService');
     });
   });

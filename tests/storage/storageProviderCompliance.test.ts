@@ -5,9 +5,10 @@
  * storage providers in the system behave consistently.
  * @module tests/storage/storageProviderCompliance
  */
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { IStorageProvider } from '../../src/storage/core/IStorageProvider.js';
 import { requestContextService } from '../../src/utils/internal/requestContext.js';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 /**
  * A factory function that creates a new instance of a storage provider.
@@ -19,6 +20,7 @@ type StorageProviderFactory = () => IStorageProvider;
  * @param providerFactory A function that returns a new instance of the provider.
  * @param providerName The name of the provider, for test descriptions.
  */
+// biome-ignore lint/suspicious/noExportsInTest: shared compliance suite imported by provider test files
 export function storageProviderTests(
   providerFactory: StorageProviderFactory,
   providerName: string,
@@ -60,20 +62,12 @@ export function storageProviderTests(
       const key = 'test-object';
       const value = { a: 1, b: { c: 'nested' }, d: [1, 2, 3] };
       await provider.set(tenantId, key, value, testContext);
-      const retrieved = await provider.get<typeof value>(
-        tenantId,
-        key,
-        testContext,
-      );
+      const retrieved = await provider.get<typeof value>(tenantId, key, testContext);
       expect(retrieved).toEqual(value);
     });
 
     it('should return null for a non-existent key', async () => {
-      const retrieved = await provider.get(
-        tenantId,
-        'non-existent-key',
-        testContext,
-      );
+      const retrieved = await provider.get(tenantId, 'non-existent-key', testContext);
       expect(retrieved).toBeNull();
     });
 
@@ -95,11 +89,7 @@ export function storageProviderTests(
     });
 
     it('should return false when deleting a non-existent key', async () => {
-      const wasDeleted = await provider.delete(
-        tenantId,
-        'non-existent-delete',
-        testContext,
-      );
+      const wasDeleted = await provider.delete(tenantId, 'non-existent-delete', testContext);
       expect(wasDeleted).toBe(false);
     });
 
@@ -172,21 +162,9 @@ export function storageProviderTests(
 
       await provider.setMany(tenantId, entries, testContext);
 
-      const val1 = await provider.get<string>(
-        tenantId,
-        'multi:key1',
-        testContext,
-      );
-      const val2 = await provider.get<number>(
-        tenantId,
-        'multi:key2',
-        testContext,
-      );
-      const val3 = await provider.get<{ nested: boolean }>(
-        tenantId,
-        'multi:key3',
-        testContext,
-      );
+      const val1 = await provider.get<string>(tenantId, 'multi:key1', testContext);
+      const val2 = await provider.get<number>(tenantId, 'multi:key2', testContext);
+      const val3 = await provider.get<{ nested: boolean }>(tenantId, 'multi:key3', testContext);
 
       expect(val1).toBe('value1');
       expect(val2).toBe(42);

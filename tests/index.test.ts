@@ -40,7 +40,7 @@ describe('Application Entry Point', () => {
       const expectedOrder = [
         'composeContainer',
         'initializeOpenTelemetry',
-        'initializePerformance_Hrt',
+        'initHighResTimer',
         'logger.initialize',
         'Storage service',
         'transportManager.start',
@@ -51,16 +51,7 @@ describe('Application Entry Point', () => {
 
     it('should validate log level configuration', () => {
       // Invalid log levels should default to "info"
-      const validLevels = [
-        'debug',
-        'info',
-        'notice',
-        'warning',
-        'error',
-        'crit',
-        'alert',
-        'emerg',
-      ];
+      const validLevels = ['debug', 'info', 'notice', 'warning', 'error', 'crit', 'alert', 'emerg'];
       expect(validLevels).toContain('info');
     });
   });
@@ -95,12 +86,7 @@ describe('Application Entry Point', () => {
 
     it('should create shutdown context with signal information', () => {
       // Shutdown context should include operation and trigger event
-      const validSignals = [
-        'SIGTERM',
-        'SIGINT',
-        'uncaughtException',
-        'unhandledRejection',
-      ];
+      const validSignals = ['SIGTERM', 'SIGINT', 'uncaughtException', 'unhandledRejection'];
       expect(validSignals.length).toBe(4);
     });
 

@@ -2,13 +2,14 @@
  * @fileoverview Unit tests for the CSV parser utility.
  * @module tests/utils/parsing/csvParser.test
  */
-import Papa from 'papaparse';
-import type { ParseConfig, ParseError, ParseResult } from 'papaparse';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { csvParser } from '@/utils/parsing/csvParser.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import type { ParseConfig, ParseError, ParseResult } from 'papaparse';
+import Papa from 'papaparse';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
+import { csvParser } from '@/utils/parsing/csvParser.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -35,11 +36,7 @@ describe('csvParser.parse', () => {
   it('strips a <think> block before parsing and logs through provided context', () => {
     const context = createContext();
     const csv = '<think>pre-computation</think>name,age\nAda,36';
-    const result = csvParser.parse<{ name: string; age: string }>(
-      csv,
-      { header: true },
-      context,
-    );
+    const result = csvParser.parse<{ name: string; age: string }>(csv, { header: true }, context);
 
     expect(result.data).toEqual([{ name: 'Ada', age: '36' }]);
   });
@@ -78,10 +75,7 @@ describe('csvParser.parse', () => {
 
     const parseSpy = vi.spyOn(
       Papa as unknown as {
-        parse: (
-          csvString: string,
-          config?: ParseConfig<unknown>,
-        ) => ParseResult<unknown>;
+        parse: (csvString: string, config?: ParseConfig<unknown>) => ParseResult<unknown>;
       },
       'parse',
     );
@@ -137,10 +131,7 @@ describe('csvParser.parse', () => {
 
     vi.spyOn(
       Papa as unknown as {
-        parse: (
-          csvString: string,
-          config?: ParseConfig<unknown>,
-        ) => ParseResult<unknown>;
+        parse: (csvString: string, config?: ParseConfig<unknown>) => ParseResult<unknown>;
       },
       'parse',
     ).mockImplementation(() => parseResult);

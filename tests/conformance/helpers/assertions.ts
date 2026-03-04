@@ -5,13 +5,7 @@
 import { expect } from 'vitest';
 
 /** Valid MCP content block types per the spec. */
-const VALID_CONTENT_TYPES = [
-  'text',
-  'image',
-  'audio',
-  'resource',
-  'resource_link',
-] as const;
+const VALID_CONTENT_TYPES = ['text', 'image', 'audio', 'resource', 'resource_link'] as const;
 
 type ContentBlock = { type: string; [key: string]: unknown };
 
@@ -41,9 +35,7 @@ export function assertValidContentBlocks(content: ContentBlock[]): void {
         break;
       case 'resource':
         expect(block.resource).toBeDefined();
-        expect(typeof (block.resource as Record<string, unknown>).uri).toBe(
-          'string',
-        );
+        expect(typeof (block.resource as Record<string, unknown>).uri).toBe('string');
         break;
       case 'resource_link':
         expect(typeof block.uri).toBe('string');

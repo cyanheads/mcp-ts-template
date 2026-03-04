@@ -7,12 +7,11 @@
  * @module src/mcp-server/prompts/prompt-registration
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import type { logger as defaultLogger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { allPromptDefinitions } from './definitions/index.js';
-import {
-  type logger as defaultLogger,
-  requestContextService,
-} from '@/utils/index.js';
 
 export class PromptRegistry {
   constructor(private logger: typeof defaultLogger) {}
@@ -25,40 +24,44 @@ export class PromptRegistry {
       operation: 'PromptRegistry.registerAll',
     });
 
-    this.logger.debug(
-      `Registering ${allPromptDefinitions.length} prompts...`,
-      context,
-    );
+    this.logger.debug(`Registering ${allPromptDefinitions.length} prompts...`, context);
 
     // Register each prompt using the SDK's registerPrompt API
     for (const promptDef of allPromptDefinitions) {
       this.logger.debug(`Registering prompt: ${promptDef.name}`, context);
 
-      server.registerPrompt(
-        promptDef.name,
-        {
-          description: promptDef.description,
-          ...(promptDef.argumentsSchema && {
-            argsSchema: promptDef.argumentsSchema.shape,
-          }),
-        },
-        async (args: Record<string, unknown>) => {
-          const validatedArgs = promptDef.argumentsSchema
-            ? promptDef.argumentsSchema.parse(args)
-            : args;
-          const messages = await promptDef.generate(
-            validatedArgs as Parameters<typeof promptDef.generate>[0],
+      ErrorHandler.tryCatch(
+        () => {
+          server.registerPrompt(
+            promptDef.name,
+            {
+              description: promptDef.description,
+              ...(promptDef.argumentsSchema && {
+                argsSchema: promptDef.argumentsSchema.shape,
+              }),
+            },
+            async (args: Record<string, unknown>) => {
+              const validatedArgs = promptDef.argumentsSchema
+                ? promptDef.argumentsSchema.parse(args)
+                : args;
+              const messages = await promptDef.generate(
+                validatedArgs as Parameters<typeof promptDef.generate>[0],
+              );
+              return { messages };
+            },
           );
-          return { messages };
+
+          this.logger.info(`Registered prompt: ${promptDef.name}`, context);
+        },
+        {
+          operation: `RegisteringPrompt_${promptDef.name}`,
+          context,
+          errorCode: JsonRpcErrorCode.InitializationFailed,
+          critical: true,
         },
       );
-
-      this.logger.info(`Registered prompt: ${promptDef.name}`, context);
     }
 
-    this.logger.info(
-      `Successfully registered ${allPromptDefinitions.length} prompts`,
-      context,
-    );
+    this.logger.info(`Successfully registered ${allPromptDefinitions.length} prompts`, context);
   }
 }

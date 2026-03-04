@@ -2,13 +2,11 @@
 
 ## Overview
 
-The `services/` directory contains external service integrations following a consistent domain-driven pattern. Each service domain provides pluggable providers, allowing you to swap implementations without changing business logic.
+The `services/` directory contains external service integrations. Each domain has pluggable providers, so you can swap implementations without changing business logic.
 
-**Service domains:**
-
-- **[llm/](llm/)** - Large Language Model providers (OpenRouter)
-- **[speech/](speech/)** - Text-to-Speech and Speech-to-Text providers (ElevenLabs, Whisper)
-- **[graph/](graph/)** - Graph database operations (no provider currently registered)
+- [llm/](llm/) — LLM providers (OpenRouter)
+- [speech/](speech/) — TTS/STT providers (ElevenLabs, Whisper)
+- [graph/](graph/) — Graph database operations (no provider currently registered)
 
 ---
 
@@ -54,9 +52,9 @@ The `services/` directory contains external service integrations following a con
 └─────────────────────────────────────────────────┘
 ```
 
-### Directory Structure
+### Directory structure
 
-All services follow this consistent structure:
+All services follow this layout:
 
 ```
 services/[service-name]/
@@ -72,9 +70,9 @@ services/[service-name]/
 
 ---
 
-## Service Patterns
+## Service patterns
 
-### Single-Provider Pattern (LLM)
+### Single-provider (LLM)
 
 When a domain has a single provider, inject it directly:
 
@@ -106,11 +104,9 @@ class MyTool {
 }
 ```
 
-### Multi-Provider Pattern with Orchestrator (Speech)
+### Multi-provider with orchestrator (Speech)
 
-When a domain has multiple providers or complex operations, use an orchestrator:
-
-**Speech Service Example:**
+When a domain has multiple providers, use an orchestrator:
 
 ```typescript
 import { injectable, inject } from 'tsyringe';
@@ -135,31 +131,17 @@ class MyTool {
 
 ---
 
-## Provider Requirements
+## Provider requirements
 
-All providers must adhere to the following requirements:
+All providers must:
 
-1. **Implement the interface**
-   - Extend `I[Service]Provider` interface
-   - Implement all required methods with correct signatures
+- Implement the `I[Service]Provider` interface with correct method signatures
+- Use `@injectable()` decorator with constructor injection
+- Include a `healthCheck()` method returning `boolean`
+- Throw `McpError` with `JsonRpcErrorCode` on failures
+- Follow naming: `[name].provider.ts` (file), `[Name]Provider` (class)
 
-2. **Be injectable**
-   - Add `@injectable()` decorator to class
-   - Use constructor injection for dependencies
-
-3. **Include health check**
-   - Implement `healthCheck()` method
-   - Return `boolean` indicating provider availability
-
-4. **Throw McpError on failures**
-   - Use `JsonRpcErrorCode` enum for error codes
-   - Include context information in error messages
-
-5. **Follow naming convention**
-   - File name: `[name].provider.ts` (kebab-case)
-   - Class name: `[Name]Provider` (PascalCase)
-
-### Provider Template
+### Provider template
 
 ```typescript
 /**
@@ -301,18 +283,18 @@ export class [Name]Provider implements I[Service]Provider {
 
 ---
 
-## Adding a New Service
+## Adding a new service
 
-### Step 1: Create Directory Structure
+### Step 1: Create directory structure
 
 ```bash
 mkdir -p src/services/[service-name]/{core,providers}
 touch src/services/[service-name]/{types.ts,index.ts}
 ```
 
-### Step 2: Define Interface
+### Step 2: Define interface
 
-**`core/I[Service]Provider.ts`:**
+`core/I[Service]Provider.ts`:
 
 ```typescript
 /**
@@ -338,9 +320,9 @@ export interface I[Service]Provider {
 }
 ```
 
-### Step 3: Define Types
+### Step 3: Define types
 
-**`types.ts`:**
+`types.ts`:
 
 ```typescript
 /**
@@ -370,23 +352,23 @@ export interface [Service]Config {
 }
 ```
 
-### Step 4: Implement Provider
+### Step 4: Implement provider
 
 Create `providers/[name].provider.ts` following the template above.
 
-### Step 5: Add DI Token
+### Step 5: Add DI token
 
-**`src/container/core/tokens.ts`:**
+`src/container/core/tokens.ts`:
 
 ```typescript
 export const [Service]Provider = Symbol.for('I[Service]Provider');
 ```
 
-### Step 6: Register Provider
+### Step 6: Register provider
 
-**`src/container/registrations/core.ts`:**
+`src/container/registrations/core.ts`:
 
-**For single-provider services (like LLM):**
+For single-provider services (like LLM):
 
 ```typescript
 import { [Name]Provider } from '@/services/[service]/providers/[name].provider.js';
@@ -399,7 +381,7 @@ container.register<I[Service]Provider>([Service]Provider, {
 });
 ```
 
-**For multi-provider services with factory (like Speech):**
+For multi-provider services with factory (like Speech):
 
 ```typescript
 import { [Service]Service } from '@/services/[service]/core/[Service]Service.js';
@@ -434,9 +416,9 @@ container.register<[Service]Service>([Service]ServiceToken, {
 });
 ```
 
-### Step 7: Export from Barrel
+### Step 7: Export from barrel
 
-**`src/services/[service]/index.ts`:**
+`src/services/[service]/index.ts`:
 
 ```typescript
 export * from './core/I[Service]Provider.js';
@@ -444,28 +426,26 @@ export * from './providers/[name].provider.js';
 export * from './types.js';
 ```
 
-### Step 8: Add Tests
+### Step 8: Add tests
 
 Create `tests/services/[service]/providers/[name].provider.test.ts`.
 
 ---
 
-## Service Domains
+## Service domains
 
-### LLM Service
+### LLM
 
-**Purpose:** Large Language Model completions (streaming and non-streaming)
+LLM completions (streaming and non-streaming) via OpenRouter.
 
-**Provider:** OpenRouter
+Interface: [ILlmProvider](llm/core/ILlmProvider.ts)
 
-**Interface:** [ILlmProvider](llm/core/ILlmProvider.ts)
+Methods:
 
-**Methods:**
+- `chatCompletion(params, context)` — Chat completion (streaming or non-streaming based on params)
+- `chatCompletionStream(params, context)` — Streaming chat completion (returns AsyncIterable)
 
-- `chatCompletion(params, context)` - Chat completion (streaming or non-streaming based on params)
-- `chatCompletionStream(params, context)` - Streaming chat completion (returns AsyncIterable)
-
-**Configuration:**
+Configuration:
 
 ```bash
 OPENROUTER_API_KEY=sk-or-...
@@ -476,7 +456,7 @@ LLM_DEFAULT_MAX_TOKENS=4000
 LLM_DEFAULT_TEMPERATURE=0.7
 ```
 
-**Usage Example:**
+Example:
 
 ```typescript
 import { inject } from 'tsyringe';
@@ -515,21 +495,15 @@ for await (const chunk of streamResponse) {
 
 ---
 
-### Speech Service
+### Speech
 
-**Purpose:** Text-to-Speech and Speech-to-Text operations
+TTS and STT via ElevenLabs and Whisper.
 
-**Providers:** ElevenLabs (TTS), Whisper (STT)
+Orchestrator: [SpeechService](speech/core/SpeechService.ts)
 
-**Orchestrator:** [SpeechService](speech/core/SpeechService.ts)
+Methods: `textToSpeech(request)`, `speechToText(request)`, `healthCheck()`.
 
-**Methods:**
-
-- `textToSpeech(request)` - Convert text to audio
-- `speechToText(request)` - Transcribe audio to text
-- `healthCheck()` - Check all providers
-
-**Configuration:**
+Configuration:
 
 ```bash
 SPEECH_TTS_API_KEY=...        # ElevenLabs API key
@@ -538,7 +512,7 @@ SPEECH_TTS_VOICE_ID=EXAVITQu4vr4xnSDxMaL
 SPEECH_STT_API_KEY=...        # Whisper API key
 ```
 
-**Usage Example:**
+Example:
 
 ```typescript
 // Text-to-Speech
@@ -556,29 +530,24 @@ const transcript = await speechService.speechToText({
 
 ---
 
-### Graph Service
+### Graph
 
-**Purpose:** Graph database operations (nodes, edges, traversals, pathfinding)
+Graph database operations (nodes, edges, traversals, pathfinding). No provider currently registered.
 
-**Provider:** None currently registered
+Orchestrator: [GraphService](graph/core/GraphService.ts). Interface: [IGraphProvider](graph/core/IGraphProvider.ts).
 
-**Orchestrator:** [GraphService](graph/core/GraphService.ts)
+Methods:
 
-**Interface:** [IGraphProvider](graph/core/IGraphProvider.ts)
+- `relate(from, edgeTable, to, context, options)` — Create relationship between vertices
+- `unrelate(edgeId, context)` — Remove relationship edge
+- `traverse(startVertexId, context, options)` — Graph traversal from starting vertex
+- `shortestPath(from, to, context, options)` — Find shortest path between vertices
+- `getOutgoingEdges(vertexId, context, edgeTypes)` / `getIncomingEdges(...)` — Edge queries
+- `pathExists(from, to, context, maxDepth)` — Check if path exists
+- `getStats(context)` — Vertex/edge counts and type distributions
+- `healthCheck()` — Provider health check
 
-**Methods:**
-
-- `relate(from, edgeTable, to, context, options)` - Create relationship between vertices
-- `unrelate(edgeId, context)` - Remove relationship edge
-- `traverse(startVertexId, context, options)` - Graph traversal from starting vertex
-- `shortestPath(from, to, context, options)` - Find shortest path between vertices
-- `getOutgoingEdges(vertexId, context, edgeTypes)` - Get outgoing edges from vertex
-- `getIncomingEdges(vertexId, context, edgeTypes)` - Get incoming edges to vertex
-- `pathExists(from, to, context, maxDepth)` - Check if path exists between vertices
-- `getStats(context)` - Get graph statistics (vertex/edge counts, type distributions)
-- `healthCheck()` - Provider health check
-
-**Usage Example:**
+Example:
 
 ```typescript
 import { inject } from 'tsyringe';
@@ -626,9 +595,9 @@ console.log(
 
 ---
 
-## Testing Services
+## Testing
 
-### Unit Testing Pattern
+### Unit testing pattern
 
 ```typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -717,123 +686,28 @@ describe('[Name]Provider', () => {
 
 ---
 
-## Best Practices
+## Best practices
 
-### 1. Error Handling
-
-Always use `McpError` with appropriate `JsonRpcErrorCode`:
-
-```typescript
-// ✅ Good - using McpError with proper error code
-throw new McpError(
-  JsonRpcErrorCode.InternalError,
-  'Descriptive error message',
-  { additionalContext: 'value' },
-);
-```
-
-### 2. Configuration Validation
-
-Validate all configuration in constructor:
-
-```typescript
-// ✅ Good - validating required configuration
-constructor() {
-  this.apiKey = process.env.API_KEY || '';
-  if (!this.apiKey) {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
-      'API key not configured: API_KEY environment variable is required'
-    );
-  }
-}
-```
-
-### 3. Logging
-
-Use structured logging with context:
-
-```typescript
-// ✅ Good - structured logging with context
-import { logger } from '@/utils/index.js';
-
-logger.info('Service operation started', {
-  provider: 'ProviderName',
-  operation: 'execute',
-  requestId: context.requestId,
-});
-```
-
-### 4. Health Checks
-
-Implement meaningful health checks:
-
-```typescript
-// ✅ Good - health check with error handling
-async healthCheck(): Promise<boolean> {
-  try {
-    // Make lightweight API call
-    const response = await fetch(`${this.baseUrl}/health`);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-```
-
-### 5. Type Safety
-
-Use strict types for all inputs and outputs:
-
-```typescript
-// ❌ Bad - using any types
-async execute(data: any): Promise<any>
-
-// ✅ Good - using strict types
-async execute(request: ServiceRequest): Promise<ServiceResponse>
-```
+- Use `McpError` with `JsonRpcErrorCode` for all failures
+- Validate config in constructor; throw `McpError(ConfigurationError)` for missing env vars
+- Use structured logging with `context` in every log call
+- Implement `healthCheck()` with a lightweight API call
+- Use strict types for inputs and outputs, never `any`
 
 ---
 
 ## Troubleshooting
 
-### Provider Not Found
-
-**Error:** `No matching provider found for token I[Service]Provider`
-
-**Solution:** Ensure provider is registered in `src/container/registrations/core.ts`:
-
-```typescript
-container.register([Service]Provider, {
-  useClass: [Name]Provider,
-});
-```
-
-### Configuration Errors
-
-**Error:** `API key not configured`
-
-**Solution:** Set required environment variables in `.env`:
-
-```bash
-API_KEY=your-key-here
-```
-
-### Health Check Failures
-
-**Error:** Provider health check returns false
-
-**Solution:**
-
-1. Verify API credentials are correct
-2. Check network connectivity
-3. Verify API endpoint is accessible
-4. Review provider-specific logs
+| Problem | Fix |
+| :--- | :--- |
+| `No matching provider found for token` | Register provider in `src/container/registrations/core.ts` |
+| `API key not configured` | Set required env vars in `.env` |
+| Health check returns false | Verify API credentials, network connectivity, and endpoint accessibility |
 
 ---
 
-## See Also
+## See also
 
-- [Container Module](../container/README.md) - Dependency injection setup
-- [Storage Module](../storage/README.md) - Data persistence patterns
-- [CLAUDE.md](../../CLAUDE.md) - Architectural mandate (Section V)
+- [Container](../container/README.md) — DI setup
+- [Storage](../storage/README.md) — Persistence patterns
+- [CLAUDE.md](../../CLAUDE.md) — Architectural mandate

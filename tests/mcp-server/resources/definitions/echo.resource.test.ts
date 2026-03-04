@@ -2,11 +2,10 @@
  * @fileoverview Tests for the echo resource definition.
  * @module tests/mcp-server/resources/definitions/echo.resource.test
  */
-import { describe, it, expect } from 'vitest';
-
+import { describe, expect, it } from 'vitest';
+import type { z } from 'zod';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { echoResourceDefinition } from '../../../../src/mcp-server/resources/definitions/echo.resource.js';
-import { requestContextService } from '../../../../src/utils/index.js';
-import { z } from 'zod';
 
 describe('echoResourceDefinition', () => {
   it('should have the correct name, title, and description', () => {
@@ -22,19 +21,13 @@ describe('echoResourceDefinition', () => {
     const rawParams = { message: 'test-message' };
     const parsedParams = echoResourceDefinition.paramsSchema.parse(rawParams);
     const context = requestContextService.createRequestContext();
-    const result = await echoResourceDefinition.logic(
-      uri,
-      parsedParams,
-      context,
-    );
+    const result = await echoResourceDefinition.logic(uri, parsedParams, context);
 
     if (!echoResourceDefinition.outputSchema) {
       throw new Error('Output schema is not defined');
     }
 
-    const typedResult = result as z.infer<
-      typeof echoResourceDefinition.outputSchema
-    >;
+    const typedResult = result as z.infer<typeof echoResourceDefinition.outputSchema>;
 
     expect(typedResult.message).toBe('test-message');
     expect(typedResult.requestUri).toBe('echo://test-message');
@@ -51,10 +44,10 @@ describe('echoResourceDefinition', () => {
       _meta: {},
     } as any;
 
-    const resourceList = await list!(mockExtra);
-    expect(resourceList.resources).toHaveLength(1);
-    expect(resourceList.resources[0]).toHaveProperty('uri', 'echo://hello');
-    expect(resourceList.resources[0]).toHaveProperty('name');
-    expect(resourceList.resources[0]).toHaveProperty('description');
+    const resourceList = await list?.(mockExtra);
+    expect(resourceList!.resources).toHaveLength(1);
+    expect(resourceList!.resources[0]).toHaveProperty('uri', 'echo://hello');
+    expect(resourceList!.resources[0]).toHaveProperty('name');
+    expect(resourceList!.resources[0]).toHaveProperty('description');
   });
 });

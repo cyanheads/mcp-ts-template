@@ -4,8 +4,8 @@
  * @module tests/mcp-server/server.test
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the container module to intercept resolve() calls.
 // Must preserve the `token` factory since tokens.ts calls it at import time.
@@ -21,7 +21,7 @@ vi.mock('@/container/core/container.js', async (importOriginal) => {
 });
 
 // Mock logger and requestContextService
-vi.mock('@/utils/index.js', async (importOriginal) => {
+vi.mock('@/utils/internal/logger.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
@@ -31,13 +31,19 @@ vi.mock('@/utils/index.js', async (importOriginal) => {
       warning: vi.fn(),
       error: vi.fn(),
     },
+  };
+});
+
+vi.mock('@/utils/internal/requestContext.js', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
     requestContextService: {
       createRequestContext: vi.fn(() => ({
         requestId: 'test-req-id',
         timestamp: new Date().toISOString(),
         operation: 'createMcpServerInstance',
       })),
-      configure: vi.fn(),
     },
   };
 });
@@ -51,14 +57,14 @@ vi.mock('@/config/index.js', () => ({
   },
 }));
 
-import { createMcpServerInstance } from '@/mcp-server/server.js';
-import { logger, requestContextService } from '@/utils/index.js';
 import {
-  ToolRegistryToken,
-  ResourceRegistryToken,
   PromptRegistryToken,
+  ResourceRegistryToken,
   RootsRegistryToken,
+  ToolRegistryToken,
 } from '@/container/core/tokens.js';
+import { createMcpServerInstance } from '@/mcp-server/server.js';
+import { logger } from '@/utils/internal/logger.js';
 
 describe('createMcpServerInstance', () => {
   let mockToolRegistry: { registerAll: ReturnType<typeof vi.fn> };
@@ -90,22 +96,11 @@ describe('createMcpServerInstance', () => {
     expect(server).toBeInstanceOf(McpServer);
   });
 
-  it('should configure requestContextService with app identity', async () => {
-    await createMcpServerInstance();
-    expect(requestContextService.configure).toHaveBeenCalledWith({
-      appName: 'test-server',
-      appVersion: '1.0.0',
-      environment: 'test',
-    });
-  });
-
   it('should resolve and call ToolRegistry.registerAll', async () => {
     await createMcpServerInstance();
     expect(mockResolve).toHaveBeenCalledWith(ToolRegistryToken);
     expect(mockToolRegistry.registerAll).toHaveBeenCalledTimes(1);
-    expect(mockToolRegistry.registerAll).toHaveBeenCalledWith(
-      expect.any(McpServer),
-    );
+    expect(mockToolRegistry.registerAll).toHaveBeenCalledWith(expect.any(McpServer));
   });
 
   it('should resolve and call ResourceRegistry.registerAll', async () => {
@@ -142,14 +137,11 @@ describe('createMcpServerInstance', () => {
     const regError = new Error('tool registration failed');
     mockToolRegistry.registerAll.mockRejectedValue(regError);
 
-    await expect(createMcpServerInstance()).rejects.toThrow(
-      'tool registration failed',
-    );
+    await expect(createMcpServerInstance()).rejects.toThrow('tool registration failed');
     expect(logger.error).toHaveBeenCalledWith(
       'Failed to register MCP capabilities',
-      expect.objectContaining({
-        error: 'tool registration failed',
-      }),
+      expect.objectContaining({ message: 'tool registration failed' }),
+      expect.any(Object),
     );
   });
 
@@ -157,9 +149,7 @@ describe('createMcpServerInstance', () => {
     const regError = new Error('resource registration failed');
     mockResourceRegistry.registerAll.mockRejectedValue(regError);
 
-    await expect(createMcpServerInstance()).rejects.toThrow(
-      'resource registration failed',
-    );
+    await expect(createMcpServerInstance()).rejects.toThrow('resource registration failed');
     expect(logger.error).toHaveBeenCalled();
   });
 
@@ -169,9 +159,8 @@ describe('createMcpServerInstance', () => {
     await expect(createMcpServerInstance()).rejects.toBe('string error');
     expect(logger.error).toHaveBeenCalledWith(
       'Failed to register MCP capabilities',
-      expect.objectContaining({
-        error: 'string error',
-      }),
+      expect.objectContaining({ message: 'string error' }),
+      expect.any(Object),
     );
   });
 });

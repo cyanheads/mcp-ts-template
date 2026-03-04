@@ -5,16 +5,16 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  validateTenantId,
+  decodeCursor,
+  encodeCursor,
   validateKey,
+  validateListOptions,
   validatePrefix,
   validateStorageOptions,
-  validateListOptions,
-  encodeCursor,
-  decodeCursor,
+  validateTenantId,
 } from '@/storage/core/storageValidation.js';
-import { McpError, JsonRpcErrorCode } from '@/types-global/errors.js';
-import type { RequestContext } from '@/utils/index.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 describe('Storage Validation', () => {
   const context: RequestContext = {
@@ -32,16 +32,12 @@ describe('Storage Validation', () => {
 
     it('should reject empty tenant ID', () => {
       expect(() => validateTenantId('', context)).toThrow(McpError);
-      expect(() => validateTenantId('', context)).toThrow(
-        /Tenant ID cannot be an empty string/,
-      );
+      expect(() => validateTenantId('', context)).toThrow(/Tenant ID cannot be an empty string/);
     });
 
     it('should reject tenant ID with path traversal', () => {
       expect(() => validateTenantId('../malicious', context)).toThrow(McpError);
-      expect(() => validateTenantId('..\\malicious', context)).toThrow(
-        McpError,
-      );
+      expect(() => validateTenantId('..\\malicious', context)).toThrow(McpError);
     });
 
     it('should reject tenant ID with consecutive dots', () => {
@@ -81,9 +77,7 @@ describe('Storage Validation', () => {
 
     it('should reject empty key', () => {
       expect(() => validateKey('', context)).toThrow(McpError);
-      expect(() => validateKey('', context)).toThrow(
-        /Key must be a non-empty string/,
-      );
+      expect(() => validateKey('', context)).toThrow(/Key must be a non-empty string/);
     });
 
     it('should reject null or undefined key', () => {
@@ -144,17 +138,13 @@ describe('Storage Validation', () => {
     });
 
     it('should reject prefix with invalid characters', () => {
-      expect(() => validatePrefix('prefix with spaces', context)).toThrow(
-        McpError,
-      );
+      expect(() => validatePrefix('prefix with spaces', context)).toThrow(McpError);
       expect(() => validatePrefix('prefix@invalid', context)).toThrow(McpError);
       expect(() => validatePrefix('prefix#hash', context)).toThrow(McpError);
     });
 
     it('should reject prefix with path traversal', () => {
-      expect(() => validatePrefix('prefix/../malicious', context)).toThrow(
-        McpError,
-      );
+      expect(() => validatePrefix('prefix/../malicious', context)).toThrow(McpError);
       expect(() => validatePrefix('..', context)).toThrow(McpError);
     });
 
@@ -173,9 +163,7 @@ describe('Storage Validation', () => {
 
   describe('validateStorageOptions', () => {
     it('should accept valid storage options', () => {
-      expect(() =>
-        validateStorageOptions({ ttl: 3600 }, context),
-      ).not.toThrow();
+      expect(() => validateStorageOptions({ ttl: 3600 }, context)).not.toThrow();
       expect(() => validateStorageOptions({}, context)).not.toThrow();
       expect(() => validateStorageOptions(undefined, context)).not.toThrow();
     });
@@ -185,48 +173,30 @@ describe('Storage Validation', () => {
     });
 
     it('should accept large valid ttl values', () => {
-      expect(() =>
-        validateStorageOptions({ ttl: 86400 * 365 }, context),
-      ).not.toThrow();
+      expect(() => validateStorageOptions({ ttl: 86400 * 365 }, context)).not.toThrow();
     });
 
     it('should reject negative ttl', () => {
-      expect(() => validateStorageOptions({ ttl: -1 }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateStorageOptions({ ttl: -1 }, context)).toThrow(McpError);
     });
 
     it('should reject ttl that is not a number', () => {
-      expect(() =>
-        validateStorageOptions({ ttl: 'invalid' as any }, context),
-      ).toThrow(McpError);
-      expect(() =>
-        validateStorageOptions({ ttl: null as any }, context),
-      ).toThrow(McpError);
-      expect(() => validateStorageOptions({ ttl: {} as any }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateStorageOptions({ ttl: 'invalid' as any }, context)).toThrow(McpError);
+      expect(() => validateStorageOptions({ ttl: null as any }, context)).toThrow(McpError);
+      expect(() => validateStorageOptions({ ttl: {} as any }, context)).toThrow(McpError);
     });
 
     it('should reject ttl that is Infinity', () => {
-      expect(() => validateStorageOptions({ ttl: Infinity }, context)).toThrow(
-        McpError,
-      );
-      expect(() => validateStorageOptions({ ttl: -Infinity }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateStorageOptions({ ttl: Infinity }, context)).toThrow(McpError);
+      expect(() => validateStorageOptions({ ttl: -Infinity }, context)).toThrow(McpError);
     });
 
     it('should reject ttl that is NaN', () => {
-      expect(() => validateStorageOptions({ ttl: NaN }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateStorageOptions({ ttl: NaN }, context)).toThrow(McpError);
     });
 
     it('should throw McpError with ValidationError code', () => {
-      expect(() => validateStorageOptions({ ttl: -1 }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateStorageOptions({ ttl: -1 }, context)).toThrow(McpError);
 
       try {
         validateStorageOptions({ ttl: -1 }, context);
@@ -240,99 +210,61 @@ describe('Storage Validation', () => {
   describe('validateListOptions', () => {
     it('should accept valid list options', () => {
       expect(() => validateListOptions({ limit: 100 }, context)).not.toThrow();
-      expect(() =>
-        validateListOptions({ cursor: 'abc123' }, context),
-      ).not.toThrow();
+      expect(() => validateListOptions({ cursor: 'abc123' }, context)).not.toThrow();
       expect(() => validateListOptions({}, context)).not.toThrow();
       expect(() => validateListOptions(undefined, context)).not.toThrow();
     });
 
     it('should accept valid base64 cursors', () => {
       const validCursor = encodeCursor('key', 'tenant');
-      expect(() =>
-        validateListOptions({ cursor: validCursor }, context),
-      ).not.toThrow();
+      expect(() => validateListOptions({ cursor: validCursor }, context)).not.toThrow();
     });
 
     it('should reject negative limit', () => {
-      expect(() => validateListOptions({ limit: -1 }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateListOptions({ limit: -1 }, context)).toThrow(McpError);
     });
 
     it('should reject limit of 0', () => {
-      expect(() => validateListOptions({ limit: 0 }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateListOptions({ limit: 0 }, context)).toThrow(McpError);
     });
 
     it('should reject limit greater than maximum', () => {
-      expect(() => validateListOptions({ limit: 10001 }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateListOptions({ limit: 10001 }, context)).toThrow(McpError);
     });
 
     it('should reject limit that is not a number', () => {
-      expect(() =>
-        validateListOptions({ limit: 'invalid' as any }, context),
-      ).toThrow(McpError);
-      expect(() =>
-        validateListOptions({ limit: null as any }, context),
-      ).toThrow(McpError);
+      expect(() => validateListOptions({ limit: 'invalid' as any }, context)).toThrow(McpError);
+      expect(() => validateListOptions({ limit: null as any }, context)).toThrow(McpError);
     });
 
     it('should reject limit that is not an integer', () => {
-      expect(() => validateListOptions({ limit: 10.5 }, context)).toThrow(
-        McpError,
-      );
-      expect(() => validateListOptions({ limit: 3.14 }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateListOptions({ limit: 10.5 }, context)).toThrow(McpError);
+      expect(() => validateListOptions({ limit: 3.14 }, context)).toThrow(McpError);
     });
 
     it('should reject limit that is Infinity', () => {
-      expect(() => validateListOptions({ limit: Infinity }, context)).toThrow(
-        McpError,
-      );
-      expect(() => validateListOptions({ limit: -Infinity }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateListOptions({ limit: Infinity }, context)).toThrow(McpError);
+      expect(() => validateListOptions({ limit: -Infinity }, context)).toThrow(McpError);
     });
 
     it('should reject cursor that is not a string', () => {
-      expect(() =>
-        validateListOptions({ cursor: 123 as any }, context),
-      ).toThrow(McpError);
-      expect(() =>
-        validateListOptions({ cursor: null as any }, context),
-      ).toThrow(McpError);
-      expect(() => validateListOptions({ cursor: {} as any }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateListOptions({ cursor: 123 as any }, context)).toThrow(McpError);
+      expect(() => validateListOptions({ cursor: null as any }, context)).toThrow(McpError);
+      expect(() => validateListOptions({ cursor: {} as any }, context)).toThrow(McpError);
     });
 
     it('should reject cursor that is empty or whitespace', () => {
-      expect(() => validateListOptions({ cursor: '' }, context)).toThrow(
-        McpError,
-      );
-      expect(() => validateListOptions({ cursor: '   ' }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateListOptions({ cursor: '' }, context)).toThrow(McpError);
+      expect(() => validateListOptions({ cursor: '   ' }, context)).toThrow(McpError);
     });
 
     it('should reject cursor with invalid base64 characters', () => {
-      expect(() =>
-        validateListOptions({ cursor: 'invalid!@#$' }, context),
-      ).toThrow(McpError);
-      expect(() =>
-        validateListOptions({ cursor: 'test cursor' }, context),
-      ).toThrow(McpError);
+      expect(() => validateListOptions({ cursor: 'invalid!@#$' }, context)).toThrow(McpError);
+      expect(() => validateListOptions({ cursor: 'test cursor' }, context)).toThrow(McpError);
     });
 
     it('should throw McpError with ValidationError code', () => {
-      expect(() => validateListOptions({ limit: -1 }, context)).toThrow(
-        McpError,
-      );
+      expect(() => validateListOptions({ limit: -1 }, context)).toThrow(McpError);
 
       try {
         validateListOptions({ limit: -1 }, context);
@@ -414,71 +346,49 @@ describe('Storage Validation', () => {
     });
 
     it('should reject invalid cursor format', () => {
-      expect(() => decodeCursor('invalid-cursor', 'tenant', context)).toThrow(
-        McpError,
-      );
+      expect(() => decodeCursor('invalid-cursor', 'tenant', context)).toThrow(McpError);
     });
 
     it('should reject malformed JSON in cursor', () => {
       // Create a base64-encoded invalid JSON
       const invalidJson = Buffer.from('{invalid json}').toString('base64');
-      expect(() => decodeCursor(invalidJson, 'tenant', context)).toThrow(
-        McpError,
-      );
+      expect(() => decodeCursor(invalidJson, 'tenant', context)).toThrow(McpError);
     });
 
     it('should reject cursor with missing fields', () => {
       // Cursor missing 'k' field
-      const missingK = Buffer.from(JSON.stringify({ t: 'tenant' })).toString(
-        'base64',
-      );
+      const missingK = Buffer.from(JSON.stringify({ t: 'tenant' })).toString('base64');
       expect(() => decodeCursor(missingK, 'tenant', context)).toThrow(McpError);
 
       // Cursor missing 't' field
-      const missingT = Buffer.from(JSON.stringify({ k: 'key' })).toString(
-        'base64',
-      );
+      const missingT = Buffer.from(JSON.stringify({ k: 'key' })).toString('base64');
       expect(() => decodeCursor(missingT, 'tenant', context)).toThrow(McpError);
 
       // Cursor with neither field
       const missingBoth = Buffer.from(JSON.stringify({})).toString('base64');
-      expect(() => decodeCursor(missingBoth, 'tenant', context)).toThrow(
-        McpError,
-      );
+      expect(() => decodeCursor(missingBoth, 'tenant', context)).toThrow(McpError);
     });
 
     it('should reject cursor that is not a valid object', () => {
       // Cursor that decodes to a string instead of an object
-      const notObject = Buffer.from(JSON.stringify('string')).toString(
-        'base64',
-      );
-      expect(() => decodeCursor(notObject, 'tenant', context)).toThrow(
-        McpError,
-      );
+      const notObject = Buffer.from(JSON.stringify('string')).toString('base64');
+      expect(() => decodeCursor(notObject, 'tenant', context)).toThrow(McpError);
 
       // Cursor that decodes to null
       const nullCursor = Buffer.from(JSON.stringify(null)).toString('base64');
-      expect(() => decodeCursor(nullCursor, 'tenant', context)).toThrow(
-        McpError,
-      );
+      expect(() => decodeCursor(nullCursor, 'tenant', context)).toThrow(McpError);
 
       // Cursor that decodes to a number
       const numberCursor = Buffer.from(JSON.stringify(123)).toString('base64');
-      expect(() => decodeCursor(numberCursor, 'tenant', context)).toThrow(
-        McpError,
-      );
+      expect(() => decodeCursor(numberCursor, 'tenant', context)).toThrow(McpError);
     });
 
     it('should reject cursor that is not valid base64', () => {
-      expect(() => decodeCursor('not-base64!', 'tenant', context)).toThrow(
-        McpError,
-      );
+      expect(() => decodeCursor('not-base64!', 'tenant', context)).toThrow(McpError);
     });
 
     it('should throw McpError with InvalidParams code for invalid cursor', () => {
-      expect(() => decodeCursor('invalid', 'tenant', context)).toThrow(
-        McpError,
-      );
+      expect(() => decodeCursor('invalid', 'tenant', context)).toThrow(McpError);
 
       try {
         decodeCursor('invalid', 'tenant', context);

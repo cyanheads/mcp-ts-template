@@ -4,15 +4,12 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  withToolAuth,
-  withResourceAuth,
-} from '@/mcp-server/transports/auth/lib/withAuth.js';
+import type { SdkContext } from '@/mcp-server/tools/utils/toolDefinition.js';
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
-import type { RequestContext } from '@/utils/index.js';
-import type { SdkContext } from '@/mcp-server/tools/utils/index.js';
+import { withResourceAuth, withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 describe('withAuth Utilities', () => {
   let mockRequestContext: RequestContext;
@@ -47,18 +44,10 @@ describe('withAuth Utilities', () => {
       const mockLogic = vi.fn(async (input: string) => `processed: ${input}`);
       const wrappedLogic = withToolAuth(['tool:read'], mockLogic);
 
-      const result = await wrappedLogic(
-        'test-input',
-        mockRequestContext,
-        mockSdkContext,
-      );
+      const result = await wrappedLogic('test-input', mockRequestContext, mockSdkContext);
 
       expect(result).toBe('processed: test-input');
-      expect(mockLogic).toHaveBeenCalledWith(
-        'test-input',
-        mockRequestContext,
-        mockSdkContext,
-      );
+      expect(mockLogic).toHaveBeenCalledWith('test-input', mockRequestContext, mockSdkContext);
     });
 
     it('should allow execution when user has required scope', async () => {
@@ -72,11 +61,7 @@ describe('withAuth Utilities', () => {
       const wrappedLogic = withToolAuth(['tool:read'], mockLogic);
 
       await authContext.run({ authInfo }, async () => {
-        const result = await wrappedLogic(
-          'authorized-input',
-          mockRequestContext,
-          mockSdkContext,
-        );
+        const result = await wrappedLogic('authorized-input', mockRequestContext, mockSdkContext);
 
         expect(result).toBe('processed: authorized-input');
         expect(mockLogic).toHaveBeenCalledWith(
@@ -99,19 +84,11 @@ describe('withAuth Utilities', () => {
 
       await authContext.run({ authInfo }, async () => {
         await expect(
-          wrappedLogic(
-            'unauthorized-input',
-            mockRequestContext,
-            mockSdkContext,
-          ),
+          wrappedLogic('unauthorized-input', mockRequestContext, mockSdkContext),
         ).rejects.toThrow(McpError);
 
         await expect(
-          wrappedLogic(
-            'unauthorized-input',
-            mockRequestContext,
-            mockSdkContext,
-          ),
+          wrappedLogic('unauthorized-input', mockRequestContext, mockSdkContext),
         ).rejects.toThrow('Insufficient permissions');
 
         expect(mockLogic).not.toHaveBeenCalled();
@@ -149,11 +126,7 @@ describe('withAuth Utilities', () => {
       const wrappedLogic = withToolAuth(['tool:read'], mockLogic);
 
       await authContext.run({ authInfo }, async () => {
-        const result = await wrappedLogic(
-          'sync-input',
-          mockRequestContext,
-          mockSdkContext,
-        );
+        const result = await wrappedLogic('sync-input', mockRequestContext, mockSdkContext);
 
         expect(result).toBe('sync: sync-input');
         expect(mockLogic).toHaveBeenCalled();
@@ -163,9 +136,7 @@ describe('withAuth Utilities', () => {
 
   describe('withResourceAuth', () => {
     it('should wrap a resource logic function with auth check', () => {
-      const mockLogic = vi.fn(
-        async (_uri: URL, _params: unknown) => 'resource',
-      );
+      const mockLogic = vi.fn(async (_uri: URL, _params: unknown) => 'resource');
       const wrappedLogic = withResourceAuth(['resource:read'], mockLogic);
 
       expect(wrappedLogic).toBeDefined();
@@ -173,9 +144,7 @@ describe('withAuth Utilities', () => {
     });
 
     it('should allow execution when auth context is not set (auth disabled)', async () => {
-      const mockLogic = vi.fn(
-        async (_uri: URL, _params: unknown) => 'resource-data',
-      );
+      const mockLogic = vi.fn(async (_uri: URL, _params: unknown) => 'resource-data');
       const wrappedLogic = withResourceAuth(['resource:read'], mockLogic);
 
       const testUri = new URL('resource://test');
@@ -192,18 +161,12 @@ describe('withAuth Utilities', () => {
         token: 'test-token',
       };
 
-      const mockLogic = vi.fn(
-        async (_uri: URL, _params: unknown) => 'authorized-resource',
-      );
+      const mockLogic = vi.fn(async (_uri: URL, _params: unknown) => 'authorized-resource');
       const wrappedLogic = withResourceAuth(['resource:read'], mockLogic);
 
       await authContext.run({ authInfo }, async () => {
         const testUri = new URL('resource://authorized');
-        const result = await wrappedLogic(
-          testUri,
-          { filter: 'active' },
-          mockRequestContext,
-        );
+        const result = await wrappedLogic(testUri, { filter: 'active' }, mockRequestContext);
 
         expect(result).toBe('authorized-resource');
         expect(mockLogic).toHaveBeenCalled();
@@ -222,9 +185,7 @@ describe('withAuth Utilities', () => {
 
       await authContext.run({ authInfo }, async () => {
         const testUri = new URL('resource://unauthorized');
-        await expect(
-          wrappedLogic(testUri, {}, mockRequestContext),
-        ).rejects.toThrow(McpError);
+        await expect(wrappedLogic(testUri, {}, mockRequestContext)).rejects.toThrow(McpError);
 
         expect(mockLogic).not.toHaveBeenCalled();
       });
@@ -242,11 +203,7 @@ describe('withAuth Utilities', () => {
 
       await authContext.run({ authInfo }, async () => {
         try {
-          await wrappedLogic(
-            new URL('resource://test'),
-            {},
-            mockRequestContext,
-          );
+          await wrappedLogic(new URL('resource://test'), {}, mockRequestContext);
         } catch (error) {
           expect(error).toBeInstanceOf(McpError);
           expect((error as McpError).code).toBe(JsonRpcErrorCode.Forbidden);

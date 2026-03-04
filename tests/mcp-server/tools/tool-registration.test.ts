@@ -2,10 +2,10 @@
  * @fileoverview Tests for tool registration system.
  * @module tests/mcp-server/tools/tool-registration.test.ts
  */
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
-import { z } from 'zod';
 
 describe('ToolRegistry', () => {
   let mockServer: any;

@@ -13,15 +13,12 @@ import type {
   ServerRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
-
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { measureToolExecution } from '@/utils/internal/performance.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import type { SdkContext } from './toolDefinition.js';
-import { McpError } from '@/types-global/errors.js';
-import {
-  ErrorHandler,
-  type RequestContext,
-  measureToolExecution,
-  requestContextService,
-} from '@/utils/index.js';
 
 // Default formatter for successful responses
 const defaultResponseFormatter = (result: unknown): ContentBlock[] => [
@@ -61,7 +58,7 @@ export function createMcpToolHandler<
   TOutput extends Record<string, unknown>,
 >({
   toolName,
-  inputSchema: _inputSchema, // Captured for type inference, not used at runtime
+  inputSchema,
   logic,
   responseFormatter = defaultResponseFormatter,
 }: ToolHandlerFactoryOptions<TInputSchema, TOutput>): (
@@ -72,21 +69,19 @@ export function createMcpToolHandler<
     input: z.infer<TInputSchema>,
     callContext: Record<string, unknown>,
   ): Promise<CallToolResult> => {
-    // The `callContext` from the SDK is cast to our specific SdkContext type.
+    // The SDK types `extra` as `Record<string, unknown>` at this boundary, but the
+    // runtime object always carries the full SdkContext shape (signal, sendNotification,
+    // sendRequest, authInfo, and optional capabilities like elicitInput/createMessage).
+    // This cast is unavoidable at the SDK/app type boundary.
     const sdkContext = callContext as SdkContext;
 
-    const sessionId =
-      typeof sdkContext?.sessionId === 'string'
-        ? sdkContext.sessionId
-        : undefined;
+    const sessionId = typeof sdkContext?.sessionId === 'string' ? sdkContext.sessionId : undefined;
 
     // Extract only plain-data fields from sdkContext — spreading the raw SDK
     // object copies native objects (AbortSignal) that crash Pino serialization.
     const appContext = requestContextService.createRequestContext({
       parentContext: {
-        ...(typeof sdkContext?.requestId === 'string'
-          ? { requestId: sdkContext.requestId }
-          : {}),
+        ...(typeof sdkContext?.requestId === 'string' ? { requestId: sdkContext.requestId } : {}),
         ...(sessionId ? { sessionId } : {}),
       },
       operation: 'HandleToolRequest',
@@ -94,11 +89,17 @@ export function createMcpToolHandler<
     });
 
     try {
+      // Defense-in-depth: validate input even though the SDK should have already parsed it.
+      // AnySchema is the SDK's Zod 3/4 compat type — cast to access .parse() at runtime.
+      const validatedInput = (inputSchema as unknown as z.ZodType).parse(
+        input,
+      ) as z.infer<TInputSchema>;
+
       const result = await measureToolExecution(
         // Pass both the app's internal context and the full SDK context to the logic.
-        () => logic(input, appContext, sdkContext),
+        () => logic(validatedInput, appContext, sdkContext),
         { ...appContext, toolName },
-        input,
+        validatedInput,
       );
 
       return {
@@ -106,11 +107,19 @@ export function createMcpToolHandler<
         content: responseFormatter(result),
       };
     } catch (error: unknown) {
-      const mcpError = ErrorHandler.handleError(error, {
+      // handleError always returns McpError when no errorMapper is provided,
+      // but its declared return type is the broader Error. Narrow with instanceof.
+      const handled = ErrorHandler.handleError(error, {
         operation: `tool:${toolName}`,
         context: appContext,
         input,
-      }) as McpError;
+      });
+      const mcpError =
+        handled instanceof McpError
+          ? handled
+          : new McpError(JsonRpcErrorCode.InternalError, handled.message, {
+              originalError: handled.name,
+            });
 
       return {
         isError: true,

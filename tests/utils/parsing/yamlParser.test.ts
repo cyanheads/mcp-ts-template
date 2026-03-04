@@ -3,10 +3,10 @@
  * @module tests/utils/parsing/yamlParser.test
  */
 import { describe, expect, it, vi } from 'vitest';
-
-import { yamlParser } from '@/utils/parsing/yamlParser.js';
-import { logger, requestContextService } from '@/utils/index.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
+import { yamlParser } from '@/utils/parsing/yamlParser.js';
 
 describe('yamlParser.parse', () => {
   const createContext = () =>
@@ -23,17 +23,12 @@ describe('yamlParser.parse', () => {
   it('parses YAML content after stripping a think block', () => {
     const context = createContext();
     const yamlString = '<think>deliberation</think>name: Grace\nrole: Admiral';
-    const result = yamlParser.parse<Record<string, string>>(
-      yamlString,
-      context,
-    );
+    const result = yamlParser.parse<Record<string, string>>(yamlString, context);
     expect(result).toEqual({ name: 'Grace', role: 'Admiral' });
   });
 
   it('throws when the remaining content is empty', () => {
-    expect(() => yamlParser.parse('<think>only thoughts</think>   ')).toThrow(
-      McpError,
-    );
+    expect(() => yamlParser.parse('<think>only thoughts</think>   ')).toThrow(McpError);
   });
 
   it('wraps parser failures in an McpError', () => {

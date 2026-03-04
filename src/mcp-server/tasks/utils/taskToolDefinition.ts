@@ -7,12 +7,8 @@
  * @module src/mcp-server/tasks/utils/taskToolDefinition
  */
 import type { ZodObject, ZodRawShape } from 'zod';
-
+import type { TaskToolExecution, ToolTaskHandler } from '@/mcp-server/tasks/core/taskTypes.js';
 import type { ToolAnnotations } from '@/mcp-server/tools/utils/toolDefinition.js';
-import type {
-  ToolTaskHandler,
-  TaskToolExecution,
-} from '@/mcp-server/tasks/core/taskTypes.js';
 
 /**
  * Represents a task-based tool definition for long-running async operations.
@@ -58,39 +54,15 @@ export interface TaskToolDefinition<
   TOutputSchema extends ZodObject<ZodRawShape>,
 > {
   /**
-   * The programmatic, unique name for the tool (e.g., 'async_analysis').
-   * Must follow MCP tool naming conventions: alphanumeric, underscores, hyphens.
+   * Optional metadata providing hints about the tool's behavior.
    */
-  name: string;
-
-  /**
-   * An optional, human-readable title for the tool.
-   * If not provided, derived from `name` or `annotations.title`.
-   */
-  title?: string;
+  annotations?: ToolAnnotations;
 
   /**
    * A clear, concise description of what the tool does.
    * This is sent to the LLM to help it decide when to use the tool.
    */
   description: string;
-
-  /**
-   * The Zod schema for validating the tool's input parameters.
-   * All fields should have `.describe()` for LLM context.
-   */
-  inputSchema: TInputSchema;
-
-  /**
-   * The Zod schema for validating the tool's successful output structure.
-   * Used for documentation and client-side type inference.
-   */
-  outputSchema?: TOutputSchema;
-
-  /**
-   * Optional metadata providing hints about the tool's behavior.
-   */
-  annotations?: ToolAnnotations;
 
   /**
    * Task execution configuration.
@@ -104,6 +76,23 @@ export interface TaskToolDefinition<
   execution: TaskToolExecution;
 
   /**
+   * The Zod schema for validating the tool's input parameters.
+   * All fields should have `.describe()` for LLM context.
+   */
+  inputSchema: TInputSchema;
+  /**
+   * The programmatic, unique name for the tool (e.g., 'async_analysis').
+   * Must follow MCP tool naming conventions: alphanumeric, underscores, hyphens.
+   */
+  name: string;
+
+  /**
+   * The Zod schema for validating the tool's successful output structure.
+   * Used for documentation and client-side type inference.
+   */
+  outputSchema?: TOutputSchema;
+
+  /**
    * The task handlers implementing the task lifecycle.
    *
    * These handlers are called by the SDK at different points:
@@ -112,6 +101,12 @@ export interface TaskToolDefinition<
    * - `getTaskResult`: When retrieving results (tasks/result)
    */
   taskHandlers: ToolTaskHandler<TInputSchema>;
+
+  /**
+   * An optional, human-readable title for the tool.
+   * If not provided, derived from `name` or `annotations.title`.
+   */
+  title?: string;
 }
 
 /**

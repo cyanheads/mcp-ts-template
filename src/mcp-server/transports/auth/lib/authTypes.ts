@@ -1,19 +1,19 @@
 /**
  * @fileoverview Shared types for authentication middleware.
- * @module src/mcp-server/transports/auth/core/auth.types
+ * @module src/mcp-server/transports/auth/lib/authTypes
  */
 import type { AuthInfo as SdkAuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 
 /**
- * Defines the structure for authentication information derived from a token.
- * It extends the base SDK type to include common optional claims.
+ * Extends the SDK's base AuthInfo with common optional JWT claims
+ * not part of the core MCP auth contract.
+ *
+ * - `subject` — JWT `sub` claim (end-user or service identity)
+ * - `tenantId` — JWT `tid` claim (Azure AD / custom multi-tenant)
  */
 export type AuthInfo = SdkAuthInfo & {
+  /** JWT `sub` claim — the authenticated subject (user or service). */
   subject?: string;
-  /** The unique identifier for the tenant associated with this authentication context. */
+  /** JWT `tid` claim — tenant identifier for multi-tenant deployments. */
   tenantId?: string;
 };
-
-// The declaration for `http.IncomingMessage` is no longer needed here,
-// as the new architecture avoids direct mutation where possible and handles
-// the attachment within the Hono context.

@@ -12,11 +12,12 @@
  * @experimental Tasks API is experimental and may change without notice.
  * @module src/mcp-server/tools/definitions/template-async-countdown.task-tool
  */
-import { z } from 'zod';
+
 import type { RequestTaskStore } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 
-import type { TaskToolDefinition } from '@/mcp-server/tasks/index.js';
+import type { TaskToolDefinition } from '@/mcp-server/tasks/utils/taskToolDefinition.js';
 
 // ============================================================================
 // Tool Metadata
@@ -33,28 +34,19 @@ const TOOL_DESCRIPTION =
 
 const InputSchema = z
   .object({
-    seconds: z
-      .number()
-      .int()
-      .min(1)
-      .max(60)
-      .describe('Number of seconds to count down (1-60)'),
-    message: z
-      .string()
-      .optional()
-      .describe('Optional message to include in the final result'),
+    seconds: z.number().int().min(1).max(60).describe('Number of seconds to count down (1-60)'),
+    message: z.string().optional().describe('Optional message to include in the final result'),
     simulateFailure: z
       .boolean()
       .optional()
+      .default(false)
       .describe('If true, simulates a failure at 50% progress (for testing)'),
   })
   .describe('Parameters for the async countdown task.');
 
 const OutputSchema = z
   .object({
-    success: z
-      .boolean()
-      .describe('Whether the countdown completed successfully'),
+    success: z.boolean().describe('Whether the countdown completed successfully'),
     message: z.string().describe('Completion or cancellation message'),
     startedAt: z.string().describe('ISO timestamp when countdown started'),
     completedAt: z.string().describe('ISO timestamp when countdown ended'),
@@ -74,10 +66,7 @@ type Output = z.infer<typeof OutputSchema>;
  * Check if a task has been cancelled by polling its status.
  * Returns true if the task status is 'cancelled'.
  */
-async function isTaskCancelled(
-  taskId: string,
-  taskStore: RequestTaskStore,
-): Promise<boolean> {
+async function isTaskCancelled(taskId: string, taskStore: RequestTaskStore): Promise<boolean> {
   try {
     const task = await taskStore.getTask(taskId);
     return task.status === 'cancelled';
@@ -90,11 +79,7 @@ async function isTaskCancelled(
 /**
  * Formats a progress status message with percentage.
  */
-function formatProgressMessage(
-  remaining: number,
-  total: number,
-  phase: string,
-): string {
+function formatProgressMessage(remaining: number, total: number, phase: string): string {
   const progress = Math.round(((total - remaining) / total) * 100);
   return `[${progress}%] ${phase}: ${remaining}s remaining`;
 }
@@ -133,18 +118,11 @@ async function runCountdown(
       // Simulate failure at 50% if requested (for testing error handling)
       const progress = Math.round(((seconds - remaining) / seconds) * 100);
       if (simulateFailure && progress >= 50) {
-        throw new Error(
-          'Simulated failure at 50% progress (simulateFailure=true)',
-        );
+        throw new Error('Simulated failure at 50% progress (simulateFailure=true)');
       }
 
       // Update status with progress
-      const phase =
-        progress < 25
-          ? 'Starting'
-          : progress < 75
-            ? 'In progress'
-            : 'Finishing';
+      const phase = progress < 25 ? 'Starting' : progress < 75 ? 'In progress' : 'Finishing';
       await taskStore.updateTaskStatus(
         taskId,
         'working',
@@ -182,8 +160,7 @@ async function runCountdown(
     // because the task is already in terminal state. Wrap in try-catch to handle gracefully.
     try {
       const failedAt = new Date();
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const elapsedSeconds = (failedAt.getTime() - startedAt.getTime()) / 1000;
       const progress = Math.round((elapsedSeconds / seconds) * 100);
 
@@ -251,10 +228,7 @@ async function runCountdown(
  *
  * @experimental
  */
-export const asyncCountdownTaskTool: TaskToolDefinition<
-  typeof InputSchema,
-  typeof OutputSchema
-> = {
+export const asyncCountdownTaskTool: TaskToolDefinition<typeof InputSchema, typeof OutputSchema> = {
   name: TOOL_NAME,
   title: TOOL_TITLE,
   description: TOOL_DESCRIPTION,
@@ -296,7 +270,7 @@ export const asyncCountdownTaskTool: TaskToolDefinition<
         task.taskId,
         input.seconds,
         input.message,
-        input.simulateFailure ?? false,
+        input.simulateFailure,
         extra.taskStore,
       );
 
@@ -307,18 +281,13 @@ export const asyncCountdownTaskTool: TaskToolDefinition<
      * Returns the current status of the countdown task.
      * Status message includes progress percentage.
      */
-    getTask: async (_args, extra) => {
-      return await extra.taskStore.getTask(extra.taskId);
-    },
+    getTask: async (_args, extra) => await extra.taskStore.getTask(extra.taskId),
 
     /**
      * Returns the final result of the countdown task.
      * Includes both human-readable content and structured data.
      */
-    getTaskResult: async (_args, extra) => {
-      return (await extra.taskStore.getTaskResult(
-        extra.taskId,
-      )) as CallToolResult;
-    },
+    getTaskResult: async (_args, extra) =>
+      (await extra.taskStore.getTaskResult(extra.taskId)) as CallToolResult,
   },
 };

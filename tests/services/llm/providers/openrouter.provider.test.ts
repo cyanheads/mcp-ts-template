@@ -2,20 +2,18 @@
  * @fileoverview Tests for OpenRouter LLM provider.
  * @module tests/services/llm/providers/openrouter.provider.test.ts
  */
-import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { config } from '@/config/index.js';
-import { logger } from '@/utils/index.js';
-import { RateLimiter } from '@/utils/security/rateLimiter.js';
+import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
 import { McpError } from '@/types-global/errors.js';
-import { requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
+import type { RateLimiter } from '@/utils/security/rateLimiter.js';
 
 describe('OpenRouterProvider', () => {
   let provider: OpenRouterProvider;
   let mockRateLimiter: RateLimiter;
-  let testContext: ReturnType<
-    typeof requestContextService.createRequestContext
-  >;
+  let testContext: ReturnType<typeof requestContextService.createRequestContext>;
 
   beforeEach(() => {
     testContext = requestContextService.createRequestContext({
@@ -235,9 +233,7 @@ describe('OpenRouterProvider', () => {
         },
       };
 
-      (provider as any).client.chat.completions.create = vi.fn(
-        async () => mockStream,
-      );
+      (provider as any).client.chat.completions.create = vi.fn(async () => mockStream);
 
       const stream = await provider.chatCompletionStream(
         {

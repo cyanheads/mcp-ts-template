@@ -4,12 +4,13 @@
  * McpServer instance.
  * @module src/mcp-server/resources/resource-registration
  */
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { ZodObject, type ZodRawShape } from 'zod';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ZodObject, ZodRawShape } from 'zod';
 
 import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { registerResource } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
-import { logger, requestContextService } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 export class ResourceRegistry {
   constructor(
@@ -27,10 +28,7 @@ export class ResourceRegistry {
     const context = requestContextService.createRequestContext({
       operation: 'ResourceRegistry.registerAll',
     });
-    logger.info(
-      `Registering ${this.resourceDefs.length} resource(s)...`,
-      context,
-    );
+    logger.info(`Registering ${this.resourceDefs.length} resource(s)...`, context);
     for (const resourceDef of this.resourceDefs) {
       await registerResource(server, resourceDef);
     }

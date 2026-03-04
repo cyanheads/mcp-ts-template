@@ -2,16 +2,16 @@
  * @fileoverview Tests for the dependency injection container composition.
  * @module tests/container/index.test.ts
  */
-import { describe, expect, it, beforeAll } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { container } from '@/container/core/container.js';
-import { composeContainer } from '@/container/index.js';
 import {
   AppConfig,
-  Logger,
-  StorageService,
   LlmProvider,
+  Logger,
   RateLimiterService,
+  StorageService,
 } from '@/container/core/tokens.js';
+import { composeContainer } from '@/container/index.js';
 
 describe('Container Composition', () => {
   // Compose container once for all tests since it's designed to be called once at app startup
@@ -58,7 +58,7 @@ describe('Container Composition', () => {
     it('should resolve Logger instance', () => {
       const logger = container.resolve(
         Logger,
-      ) as typeof import('@/utils/index.js').logger;
+      ) as typeof import('@/utils/internal/logger.js').logger;
 
       expect(logger).toBeDefined();
       expect(typeof logger.info).toBe('function');

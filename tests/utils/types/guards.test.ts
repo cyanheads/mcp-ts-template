@@ -140,8 +140,7 @@ describe('Type Guards', () => {
     });
 
     it('should work with custom type guards', () => {
-      const isPositive = (v: unknown): v is number =>
-        typeof v === 'number' && v > 0;
+      const isPositive = (v: unknown): v is number => typeof v === 'number' && v > 0;
       const obj = { positive: 42, negative: -1 };
       expect(hasPropertyOfType(obj, 'positive', isPositive)).toBe(true);
       expect(hasPropertyOfType(obj, 'negative', isPositive)).toBe(false);

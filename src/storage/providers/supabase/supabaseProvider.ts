@@ -4,25 +4,26 @@
  * Assumes a table with columns: `key` (text), `value` (jsonb), and `expires_at` (timestamptz).
  * @module src/storage/providers/supabase/supabaseProvider
  */
-import { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   IStorageProvider,
-  StorageOptions,
   ListOptions,
   ListResult,
+  StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
-import type {
-  Json,
-  Database,
-} from '@/storage/providers/supabase/supabase.types.js';
-import {
-  encodeCursor,
-  decodeCursor,
-} from '@/storage/core/storageValidation.js';
-import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
+import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
+import type { Database, Json } from '@/storage/providers/supabase/supabase.types.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 const TABLE_NAME = 'kv_store';
 const DEFAULT_LIST_LIMIT = 1000;
+
+/** Escapes SQL LIKE wildcard characters (`%` and `_`) in a prefix string. */
+function escapeLikePattern(prefix: string): string {
+  return prefix.replace(/[%_\\]/g, '\\$&');
+}
 
 export class SupabaseProvider implements IStorageProvider {
   constructor(private readonly client: SupabaseClient<Database>) {}
@@ -31,12 +32,8 @@ export class SupabaseProvider implements IStorageProvider {
     return this.client;
   }
 
-  async get<T>(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<T | null> {
-    return ErrorHandler.tryCatch(
+  async get<T>(tenantId: string, key: string, context: RequestContext): Promise<T | null> {
+    return await ErrorHandler.tryCatch(
       async () => {
         const { data, error } = await this.getClient()
           .from(TABLE_NAME)
@@ -53,10 +50,7 @@ export class SupabaseProvider implements IStorageProvider {
           throw error;
         }
 
-        if (
-          data.expires_at &&
-          new Date(data.expires_at).getTime() < Date.now()
-        ) {
+        if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) {
           await this.delete(tenantId, key, context);
           logger.debug(
             `[SupabaseProvider] Key expired and removed: ${key} for tenant: ${tenantId}`,
@@ -82,7 +76,7 @@ export class SupabaseProvider implements IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
         const expires_at =
@@ -109,12 +103,8 @@ export class SupabaseProvider implements IStorageProvider {
     );
   }
 
-  async delete(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<boolean> {
-    return ErrorHandler.tryCatch(
+  async delete(tenantId: string, key: string, context: RequestContext): Promise<boolean> {
+    return await ErrorHandler.tryCatch(
       async () => {
         const { error, count } = await this.getClient()
           .from(TABLE_NAME)
@@ -139,7 +129,7 @@ export class SupabaseProvider implements IStorageProvider {
     context: RequestContext,
     options?: ListOptions,
   ): Promise<ListResult> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         const now = new Date().toISOString();
         const limit = options?.limit ?? DEFAULT_LIST_LIMIT;
@@ -148,7 +138,7 @@ export class SupabaseProvider implements IStorageProvider {
           .from(TABLE_NAME)
           .select('key')
           .eq('tenant_id', tenantId)
-          .like('key', `${prefix}%`)
+          .like('key', `${escapeLikePattern(prefix)}%`)
           .or(`expires_at.is.null,expires_at.gt.${now}`)
           .order('key', { ascending: true })
           .limit(limit + 1); // Fetch one extra to determine if there are more results
@@ -169,7 +159,7 @@ export class SupabaseProvider implements IStorageProvider {
         const resultKeys = hasMore ? keys.slice(0, limit) : keys;
         const nextCursor =
           hasMore && resultKeys.length > 0
-            ? encodeCursor(resultKeys[resultKeys.length - 1]!, tenantId)
+            ? encodeCursor(resultKeys[resultKeys.length - 1] as string, tenantId)
             : undefined;
 
         return {
@@ -190,7 +180,7 @@ export class SupabaseProvider implements IStorageProvider {
     keys: string[],
     context: RequestContext,
   ): Promise<Map<string, T>> {
-    return ErrorHandler.tryCatch<Map<string, T>>(
+    return await ErrorHandler.tryCatch<Map<string, T>>(
       async () => {
         if (keys.length === 0) {
           return new Map<string, T>();
@@ -206,10 +196,7 @@ export class SupabaseProvider implements IStorageProvider {
 
         const results = new Map<string, T>();
         for (const row of data ?? []) {
-          if (
-            !row.expires_at ||
-            new Date(row.expires_at).getTime() >= Date.now()
-          ) {
+          if (!row.expires_at || new Date(row.expires_at).getTime() >= Date.now()) {
             results.set(row.key, row.value as T);
           } else {
             // Clean up expired entries
@@ -233,7 +220,7 @@ export class SupabaseProvider implements IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         if (entries.size === 0) {
           return;
@@ -264,12 +251,8 @@ export class SupabaseProvider implements IStorageProvider {
     );
   }
 
-  async deleteMany(
-    tenantId: string,
-    keys: string[],
-    context: RequestContext,
-  ): Promise<number> {
-    return ErrorHandler.tryCatch(
+  async deleteMany(tenantId: string, keys: string[], context: RequestContext): Promise<number> {
+    return await ErrorHandler.tryCatch(
       async () => {
         if (keys.length === 0) {
           return 0;
@@ -293,7 +276,7 @@ export class SupabaseProvider implements IStorageProvider {
   }
 
   async clear(tenantId: string, context: RequestContext): Promise<number> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         const { error, count } = await this.getClient()
           .from(TABLE_NAME)

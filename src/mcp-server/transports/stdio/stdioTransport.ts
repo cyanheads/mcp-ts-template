@@ -17,15 +17,13 @@
  * @see {@link https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization | MCP Authorization Specification}
  * @module src/mcp-server/transports/stdioTransport
  */
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import {
-  ErrorHandler,
-  type RequestContext,
-  logger,
-  logStartupBanner,
-} from '@/utils/index.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { logStartupBanner } from '@/utils/internal/startupBanner.js';
 
 /**
  * Connects a given `McpServer` instance to the Stdio transport.
@@ -62,16 +60,10 @@ export async function startStdioTransport(
     logger.debug('Creating StdioServerTransport instance...', operationContext);
     const transport = new StdioServerTransport();
 
-    logger.debug(
-      'Connecting McpServer instance to StdioServerTransport...',
-      operationContext,
-    );
+    logger.debug('Connecting McpServer instance to StdioServerTransport...', operationContext);
     await server.connect(transport);
 
-    logger.info(
-      'MCP Server connected and listening via stdio transport.',
-      operationContext,
-    );
+    logger.info('MCP Server connected and listening via stdio transport.', operationContext);
     logStartupBanner(
       `\n🚀 MCP Server running in STDIO mode.\n   (MCP Spec: 2025-06-18 Stdio Transport)\n`,
       'stdio',

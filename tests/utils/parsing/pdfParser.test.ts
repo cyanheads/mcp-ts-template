@@ -4,20 +4,17 @@
  */
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
+import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
 import {
-  JsonRpcErrorCode,
-  McpError,
-} from '../../../src/types-global/errors.js';
-import { logger, requestContextService } from '../../../src/utils/index.js';
-import {
-  PdfParser,
   type AddPageOptions,
   type DrawImageOptions,
   type DrawTextOptions,
   type EmbedImageOptions,
   type FillFormOptions,
   type PageRange,
+  PdfParser,
   type SetMetadataOptions,
 } from '../../../src/utils/parsing/pdfParser.js';
 
@@ -58,9 +55,7 @@ describe('PdfParser', () => {
     });
 
     it('should throw McpError on document creation failure', async () => {
-      vi.spyOn(PDFDocument, 'create').mockRejectedValueOnce(
-        new Error('Creation failed'),
-      );
+      vi.spyOn(PDFDocument, 'create').mockRejectedValueOnce(new Error('Creation failed'));
       const errorSpy = vi.spyOn(logger, 'error');
 
       await expect(parser.createDocument(context)).rejects.toThrow(McpError);
@@ -120,9 +115,7 @@ describe('PdfParser', () => {
       const invalidBytes = new Uint8Array([1, 2, 3, 4]);
       const errorSpy = vi.spyOn(logger, 'error');
 
-      await expect(parser.loadDocument(invalidBytes, context)).rejects.toThrow(
-        McpError,
-      );
+      await expect(parser.loadDocument(invalidBytes, context)).rejects.toThrow(McpError);
 
       try {
         await parser.loadDocument(invalidBytes, context);
@@ -346,9 +339,7 @@ describe('PdfParser', () => {
       };
       const errorSpy = vi.spyOn(logger, 'error');
 
-      await expect(parser.embedImage(doc, options, context)).rejects.toThrow(
-        McpError,
-      );
+      await expect(parser.embedImage(doc, options, context)).rejects.toThrow(McpError);
 
       try {
         await parser.embedImage(doc, options, context);
@@ -461,10 +452,9 @@ describe('PdfParser', () => {
       page = doc.addPage([600, 400]);
       // Create a minimal valid PNG (1x1 red pixel)
       pngBytes = new Uint8Array([
-        137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0,
-        1, 0, 0, 0, 1, 8, 2, 0, 0, 0, 144, 119, 83, 222, 0, 0, 0, 12, 73, 68,
-        65, 84, 8, 215, 99, 248, 207, 192, 0, 0, 3, 1, 1, 0, 24, 221, 141, 82,
-        0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+        137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 2,
+        0, 0, 0, 144, 119, 83, 222, 0, 0, 0, 12, 73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 0, 0, 3,
+        1, 1, 0, 24, 221, 141, 82, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
       ]);
       image = await doc.embedPng(pngBytes);
     });
@@ -560,10 +550,7 @@ describe('PdfParser', () => {
     });
 
     it('should merge three PDF documents', async () => {
-      const merged = await parser.mergePdfs(
-        [pdf1Bytes, pdf2Bytes, pdf3Bytes],
-        context,
-      );
+      const merged = await parser.mergePdfs([pdf1Bytes, pdf2Bytes, pdf3Bytes], context);
       expect(merged.getPageCount()).toBe(6); // 2 + 1 + 3 pages
     });
 
@@ -595,9 +582,7 @@ describe('PdfParser', () => {
       const invalidBytes = new Uint8Array([1, 2, 3, 4]);
       const errorSpy = vi.spyOn(logger, 'error');
 
-      await expect(
-        parser.mergePdfs([pdf1Bytes, invalidBytes], context),
-      ).rejects.toThrow(McpError);
+      await expect(parser.mergePdfs([pdf1Bytes, invalidBytes], context)).rejects.toThrow(McpError);
 
       try {
         await parser.mergePdfs([pdf1Bytes, invalidBytes], context);
@@ -689,9 +674,7 @@ describe('PdfParser', () => {
       const ranges: PageRange[] = [{ start: 0, end: 1 }];
       const errorSpy = vi.spyOn(logger, 'error');
 
-      await expect(
-        parser.splitPdf(invalidBytes, ranges, context),
-      ).rejects.toThrow(McpError);
+      await expect(parser.splitPdf(invalidBytes, ranges, context)).rejects.toThrow(McpError);
 
       try {
         await parser.splitPdf(invalidBytes, ranges, context);
@@ -817,10 +800,7 @@ describe('PdfParser', () => {
         }),
       );
 
-      expect(debugSpy).toHaveBeenCalledWith(
-        'Successfully filled PDF form.',
-        expect.any(Object),
-      );
+      expect(debugSpy).toHaveBeenCalledWith('Successfully filled PDF form.', expect.any(Object));
     });
 
     it('should handle non-existent fields gracefully', () => {
@@ -1041,11 +1021,7 @@ describe('PdfParser', () => {
     });
 
     it('should extract text as merged string when mergePages is true', async () => {
-      const result = await parser.extractText(
-        doc,
-        { mergePages: true },
-        context,
-      );
+      const result = await parser.extractText(doc, { mergePages: true }, context);
 
       expect(result.totalPages).toBe(3);
       expect(typeof result.text).toBe('string');
@@ -1058,11 +1034,7 @@ describe('PdfParser', () => {
     });
 
     it('should extract text as array when mergePages is false', async () => {
-      const result = await parser.extractText(
-        doc,
-        { mergePages: false },
-        context,
-      );
+      const result = await parser.extractText(doc, { mergePages: false }, context);
 
       expect(result.totalPages).toBe(3);
       expect(Array.isArray(result.text)).toBe(true);
@@ -1110,9 +1082,7 @@ describe('PdfParser', () => {
       // Force an error by spying on doc.save
       vi.spyOn(doc, 'save').mockRejectedValueOnce(new Error('Save failed'));
 
-      await expect(parser.extractText(doc, undefined, context)).rejects.toThrow(
-        McpError,
-      );
+      await expect(parser.extractText(doc, undefined, context)).rejects.toThrow(McpError);
 
       expect(errorSpy).toHaveBeenCalledWith(
         'Failed to extract text from PDF.',
@@ -1258,10 +1228,7 @@ describe('PdfParser', () => {
       const pdf3Bytes = await parser.saveDocument(doc3);
 
       // Merge all three
-      const merged = await parser.mergePdfs(
-        [pdf1Bytes, pdf2Bytes, pdf3Bytes],
-        context,
-      );
+      const merged = await parser.mergePdfs([pdf1Bytes, pdf2Bytes, pdf3Bytes], context);
       expect(merged.getPageCount()).toBe(6); // 2 + 1 + 3
 
       // Split merged PDF
@@ -1285,26 +1252,26 @@ describe('PdfParser', () => {
 
   describe('Singleton export', () => {
     it('should export pdfParser singleton', async () => {
-      const { pdfParser } =
-        await import('../../../src/utils/parsing/pdfParser.js');
+      const { pdfParser } = await import('../../../src/utils/parsing/pdfParser.js');
       expect(pdfParser).toBeInstanceOf(PdfParser);
     });
 
     it('should export PDFDocument class', async () => {
-      const { PDFDocument: ExportedPDFDocument } =
-        await import('../../../src/utils/parsing/pdfParser.js');
+      const { PDFDocument: ExportedPDFDocument } = await import(
+        '../../../src/utils/parsing/pdfParser.js'
+      );
       expect(ExportedPDFDocument).toBe(PDFDocument);
     });
 
     it('should export StandardFonts enum', async () => {
-      const { StandardFonts: ExportedStandardFonts } =
-        await import('../../../src/utils/parsing/pdfParser.js');
+      const { StandardFonts: ExportedStandardFonts } = await import(
+        '../../../src/utils/parsing/pdfParser.js'
+      );
       expect(ExportedStandardFonts).toBe(StandardFonts);
     });
 
     it('should export rgb utility', async () => {
-      const { rgb: exportedRgb } =
-        await import('../../../src/utils/parsing/pdfParser.js');
+      const { rgb: exportedRgb } = await import('../../../src/utils/parsing/pdfParser.js');
       expect(exportedRgb).toBe(rgb);
     });
   });

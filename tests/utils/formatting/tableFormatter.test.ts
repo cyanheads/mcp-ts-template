@@ -5,11 +5,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
-import {
-  tableFormatter,
-  TableFormatter,
-} from '@/utils/formatting/tableFormatter.js';
+import { TableFormatter, tableFormatter } from '@/utils/formatting/tableFormatter.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 describe('TableFormatter', () => {
   const sampleData = [
@@ -56,9 +54,7 @@ describe('TableFormatter', () => {
     });
 
     it('should handle various data types', () => {
-      const mixedData = [
-        { str: 'text', num: 42, bool: true, nul: null, arr: [1, 2] },
-      ];
+      const mixedData = [{ str: 'text', num: 42, bool: true, nul: null, arr: [1, 2] }];
       const result = tableFormatter.format(mixedData);
 
       expect(result).toContain('text');
@@ -66,6 +62,32 @@ describe('TableFormatter', () => {
       expect(result).toContain('true');
       expect(result).toContain('null');
       expect(result).toContain('[1,2]');
+    });
+
+    it('should handle undefined values', () => {
+      const data = [{ a: 'hello', b: undefined }];
+      const result = tableFormatter.format(data);
+
+      expect(result).toContain('hello');
+      expect(result).toContain('undefined');
+    });
+
+    it('should handle nested objects', () => {
+      const data = [{ name: 'test', config: { key: 'value' } }];
+      const result = tableFormatter.format(data);
+
+      expect(result).toContain('test');
+      expect(result).toContain('{"key":"value"}');
+    });
+
+    it('should handle circular objects gracefully', () => {
+      const circular: Record<string, unknown> = { name: 'test' };
+      circular.self = circular;
+      const data = [circular];
+      const result = tableFormatter.format(data);
+
+      expect(result).toContain('test');
+      expect(result).toContain('[Object]');
     });
   });
 
@@ -142,22 +164,28 @@ describe('TableFormatter', () => {
       expect(lines.length).toBeGreaterThan(0);
     });
 
-    it('should align columns to the right', () => {
+    it('should render right-alignment indicators in markdown separators', () => {
       const result = tableFormatter.formatRaw(headers, rows, {
         style: 'markdown',
         alignment: { Age: 'right', Score: 'right' },
       });
 
+      // Right-aligned columns use trailing colon in separator
+      const separatorLine = result.split('\n')[1];
+      expect(separatorLine).toMatch(/-+:/);
       expect(result).toContain('Age');
       expect(result).toContain('Score');
     });
 
-    it('should center-align columns', () => {
+    it('should render center-alignment indicators in markdown separators', () => {
       const result = tableFormatter.formatRaw(headers, rows, {
         style: 'markdown',
         alignment: { Name: 'center' },
       });
 
+      // Center-aligned columns use leading and trailing colons in separator
+      const separatorLine = result.split('\n')[1];
+      expect(separatorLine).toMatch(/:-+:/);
       expect(result).toContain('Alice');
       expect(result).toContain('Bob');
     });
@@ -176,13 +204,22 @@ describe('TableFormatter', () => {
       expect(result).toContain('30');
       expect(result).toContain('95');
     });
+
+    it('should support alignment by column index string', () => {
+      const result = tableFormatter.formatRaw(headers, rows, {
+        style: 'markdown',
+        alignment: { '1': 'right', '2': 'right' },
+      });
+
+      // Index-based alignment should produce same separator indicators as name-based
+      const separatorLine = result.split('\n')[1];
+      expect(separatorLine).toMatch(/-+:/);
+    });
   });
 
   describe('Truncation and maxWidth', () => {
     it('should truncate long content when truncate is true', () => {
-      const longData = [
-        { short: 'OK', long: 'This is a very long string that exceeds limits' },
-      ];
+      const longData = [{ short: 'OK', long: 'This is a very long string that exceeds limits' }];
 
       const result = tableFormatter.format(longData, {
         maxWidth: 15,
@@ -240,13 +277,13 @@ describe('TableFormatter', () => {
       expect(result).toContain('Age');
     });
 
-    it('should handle bold header style', () => {
+    it('should apply bold header style (markdown wrapping)', () => {
       const result = tableFormatter.formatRaw(headers, rows, {
         headerStyle: 'bold',
       });
 
-      expect(result).toContain('Name');
-      expect(result).toContain('Age');
+      expect(result).toContain('**Name**');
+      expect(result).toContain('**Age**');
     });
   });
 

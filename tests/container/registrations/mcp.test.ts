@@ -2,16 +2,16 @@
  * @fileoverview Tests for MCP service registration.
  * @module tests/container/registrations/mcp.test.ts
  */
-import { describe, expect, it, beforeAll } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { container } from '@/container/core/container.js';
-import { registerCoreServices } from '@/container/registrations/core.js';
-import { registerMcpServices } from '@/container/registrations/mcp.js';
 import {
   CreateMcpServerInstance,
-  TransportManagerToken,
-  ToolRegistryToken,
   ResourceRegistryToken,
+  ToolRegistryToken,
+  TransportManagerToken,
 } from '@/container/core/tokens.js';
+import { registerCoreServices } from '@/container/registrations/core.js';
+import { registerMcpServices } from '@/container/registrations/mcp.js';
 
 describe('MCP Service Registration', () => {
   beforeAll(() => {

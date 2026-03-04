@@ -5,43 +5,69 @@
  * @module src/utils/parsing/pdfParser
  */
 import {
-  PDFDocument,
-  PDFFont,
-  PDFImage,
-  PDFPage,
-  StandardFonts,
   degrees,
-  rgb,
+  PDFDocument,
+  type PDFFont,
+  type PDFImage,
+  type PDFPage,
   type RGB,
+  rgb,
+  StandardFonts,
 } from 'pdf-lib';
-import { extractText as unpdfExtractText, getDocumentProxy } from 'unpdf';
+import { getDocumentProxy, extractText as unpdfExtractText } from 'unpdf';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Options for adding a new page to a PDF document.
  */
 export interface AddPageOptions {
   /**
-   * Width of the page in points (1/72 inch). Defaults to US Letter width (612 points).
-   */
-  width?: number;
-
-  /**
    * Height of the page in points (1/72 inch). Defaults to US Letter height (792 points).
    */
   height?: number;
+  /**
+   * Width of the page in points (1/72 inch). Defaults to US Letter width (612 points).
+   */
+  width?: number;
 }
 
 /**
  * Options for drawing text on a PDF page.
  */
 export interface DrawTextOptions {
+  /**
+   * Text color as an RGB object. Defaults to black.
+   */
+  color?: RGB;
+
+  /**
+   * Font to use. Must be embedded first via embedFont().
+   * Defaults to Helvetica.
+   */
+  font?: PDFFont;
+
+  /**
+   * Line height multiplier for wrapped text. Defaults to 1.2.
+   */
+  lineHeight?: number;
+
+  /**
+   * Maximum width for text wrapping (in points). If specified, text will wrap.
+   */
+  maxWidth?: number;
+
+  /**
+   * Rotation angle in degrees. Defaults to 0.
+   */
+  rotate?: number;
+
+  /**
+   * Font size in points. Defaults to 12.
+   */
+  size?: number;
   /**
    * The text string to draw.
    */
@@ -56,37 +82,6 @@ export interface DrawTextOptions {
    * Y-coordinate (in points) of the text baseline.
    */
   y: number;
-
-  /**
-   * Font size in points. Defaults to 12.
-   */
-  size?: number;
-
-  /**
-   * Font to use. Must be embedded first via embedFont().
-   * Defaults to Helvetica.
-   */
-  font?: PDFFont;
-
-  /**
-   * Text color as an RGB object. Defaults to black.
-   */
-  color?: RGB;
-
-  /**
-   * Rotation angle in degrees. Defaults to 0.
-   */
-  rotate?: number;
-
-  /**
-   * Maximum width for text wrapping (in points). If specified, text will wrap.
-   */
-  maxWidth?: number;
-
-  /**
-   * Line height multiplier for wrapped text. Defaults to 1.2.
-   */
-  lineHeight?: number;
 }
 
 /**
@@ -94,14 +89,13 @@ export interface DrawTextOptions {
  */
 export interface EmbedImageOptions {
   /**
-   * Image data as Uint8Array or ArrayBuffer.
-   */
-  imageBytes: Uint8Array | ArrayBuffer;
-
-  /**
    * Image format: 'png' or 'jpg'.
    */
   format: 'png' | 'jpg';
+  /**
+   * Image data as Uint8Array or ArrayBuffer.
+   */
+  imageBytes: Uint8Array | ArrayBuffer;
 }
 
 /**
@@ -109,9 +103,28 @@ export interface EmbedImageOptions {
  */
 export interface DrawImageOptions {
   /**
+   * Height of the image in points. Defaults to original height.
+   */
+  height?: number;
+  /**
    * The embedded PDF image.
    */
   image: PDFImage;
+
+  /**
+   * Opacity (0-1). Defaults to 1 (fully opaque).
+   */
+  opacity?: number;
+
+  /**
+   * Rotation angle in degrees. Defaults to 0.
+   */
+  rotate?: number;
+
+  /**
+   * Width of the image in points. Defaults to original width.
+   */
+  width?: number;
 
   /**
    * X-coordinate (in points) of the image's top-left corner.
@@ -122,26 +135,6 @@ export interface DrawImageOptions {
    * Y-coordinate (in points) of the image's top-left corner.
    */
   y: number;
-
-  /**
-   * Width of the image in points. Defaults to original width.
-   */
-  width?: number;
-
-  /**
-   * Height of the image in points. Defaults to original height.
-   */
-  height?: number;
-
-  /**
-   * Rotation angle in degrees. Defaults to 0.
-   */
-  rotate?: number;
-
-  /**
-   * Opacity (0-1). Defaults to 1 (fully opaque).
-   */
-  opacity?: number;
 }
 
 /**
@@ -149,14 +142,13 @@ export interface DrawImageOptions {
  */
 export interface PageRange {
   /**
-   * Starting page index (0-based).
-   */
-  start: number;
-
-  /**
    * Ending page index (0-based, inclusive).
    */
   end: number;
+  /**
+   * Starting page index (0-based).
+   */
+  start: number;
 }
 
 /**
@@ -164,24 +156,14 @@ export interface PageRange {
  */
 export interface PdfMetadata {
   /**
-   * Document title.
-   */
-  title?: string;
-
-  /**
    * Document author.
    */
   author?: string;
 
   /**
-   * Document subject.
+   * Creation date (ISO 8601 string).
    */
-  subject?: string;
-
-  /**
-   * Keywords associated with the document.
-   */
-  keywords?: string;
+  creationDate?: string;
 
   /**
    * Application that created the document.
@@ -189,14 +171,9 @@ export interface PdfMetadata {
   creator?: string;
 
   /**
-   * Application that produced the PDF.
+   * Keywords associated with the document.
    */
-  producer?: string;
-
-  /**
-   * Creation date (ISO 8601 string).
-   */
-  creationDate?: string;
+  keywords?: string;
 
   /**
    * Modification date (ISO 8601 string).
@@ -207,6 +184,20 @@ export interface PdfMetadata {
    * Total number of pages.
    */
   pageCount: number;
+
+  /**
+   * Application that produced the PDF.
+   */
+  producer?: string;
+
+  /**
+   * Document subject.
+   */
+  subject?: string;
+  /**
+   * Document title.
+   */
+  title?: string;
 }
 
 /**
@@ -214,24 +205,9 @@ export interface PdfMetadata {
  */
 export interface SetMetadataOptions {
   /**
-   * Document title.
-   */
-  title?: string;
-
-  /**
    * Document author.
    */
   author?: string;
-
-  /**
-   * Document subject.
-   */
-  subject?: string;
-
-  /**
-   * Keywords associated with the document.
-   */
-  keywords?: string;
 
   /**
    * Application that created the document.
@@ -239,9 +215,23 @@ export interface SetMetadataOptions {
   creator?: string;
 
   /**
+   * Keywords associated with the document.
+   */
+  keywords?: string;
+
+  /**
    * Application that produced the PDF.
    */
   producer?: string;
+
+  /**
+   * Document subject.
+   */
+  subject?: string;
+  /**
+   * Document title.
+   */
+  title?: string;
 }
 
 /**
@@ -278,16 +268,15 @@ export interface ExtractTextOptions {
  */
 export interface ExtractTextResult {
   /**
-   * Total number of pages in the PDF.
-   */
-  totalPages: number;
-
-  /**
    * Extracted text content.
    * String array if mergePages is false (one entry per page).
    * Single string if mergePages is true (all pages concatenated).
    */
   text: string | string[];
+  /**
+   * Total number of pages in the PDF.
+   */
+  totalPages: number;
 }
 
 /**
@@ -320,7 +309,7 @@ export class PdfParser {
       const doc = await PDFDocument.create();
       return doc;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to create PDF document.', {
         ...logContext,
         errorDetails: error.message,
@@ -363,16 +352,13 @@ export class PdfParser {
     try {
       logger.debug('Loading PDF document from bytes.', {
         ...logContext,
-        byteLength:
-          pdfBytes instanceof Uint8Array
-            ? pdfBytes.length
-            : pdfBytes.byteLength,
+        byteLength: pdfBytes instanceof Uint8Array ? pdfBytes.length : pdfBytes.byteLength,
       });
 
       const doc = await PDFDocument.load(pdfBytes);
       return doc;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to load PDF document.', {
         ...logContext,
         errorDetails: error.message,
@@ -439,7 +425,7 @@ export class PdfParser {
       const font = await doc.embedFont(StandardFonts[fontName]);
       return font;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to embed font.', {
         ...logContext,
         fontName,
@@ -498,7 +484,7 @@ export class PdfParser {
 
       return image;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to embed image.', {
         ...logContext,
         format: options.format,
@@ -704,11 +690,8 @@ export class PdfParser {
         if (!pdfBytes) continue;
 
         const pdfDoc = await PDFDocument.load(pdfBytes);
-        const copiedPages = await mergedPdf.copyPages(
-          pdfDoc,
-          pdfDoc.getPageIndices(),
-        );
-        copiedPages.forEach((page) => mergedPdf.addPage(page));
+        const copiedPages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
+        for (const page of copiedPages) mergedPdf.addPage(page);
       }
 
       logger.debug('Successfully merged PDF documents.', {
@@ -718,20 +701,16 @@ export class PdfParser {
 
       return mergedPdf;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to merge PDF documents.', {
         ...logContext,
         errorDetails: error.message,
       });
 
-      throw new McpError(
-        JsonRpcErrorCode.InternalError,
-        `Failed to merge PDFs: ${error.message}`,
-        {
-          ...context,
-          rawError: error instanceof Error ? error.stack : String(error),
-        },
-      );
+      throw new McpError(JsonRpcErrorCode.InternalError, `Failed to merge PDFs: ${error.message}`, {
+        ...context,
+        rawError: error instanceof Error ? error.stack : String(error),
+      });
     }
   }
 
@@ -781,7 +760,7 @@ export class PdfParser {
         }
 
         const copiedPages = await newPdf.copyPages(sourcePdf, pageIndices);
-        copiedPages.forEach((page) => newPdf.addPage(page));
+        for (const page of copiedPages) newPdf.addPage(page);
 
         results.push(newPdf);
       }
@@ -793,20 +772,16 @@ export class PdfParser {
 
       return results;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to split PDF document.', {
         ...logContext,
         errorDetails: error.message,
       });
 
-      throw new McpError(
-        JsonRpcErrorCode.InternalError,
-        `Failed to split PDF: ${error.message}`,
-        {
-          ...context,
-          rawError: error instanceof Error ? error.stack : String(error),
-        },
-      );
+      throw new McpError(JsonRpcErrorCode.InternalError, `Failed to split PDF: ${error.message}`, {
+        ...context,
+        rawError: error instanceof Error ? error.stack : String(error),
+      });
     }
   }
 
@@ -829,11 +804,7 @@ export class PdfParser {
    * });
    * ```
    */
-  fillForm(
-    doc: PDFDocument,
-    options: FillFormOptions,
-    context?: RequestContext,
-  ): void {
+  fillForm(doc: PDFDocument, options: FillFormOptions, context?: RequestContext): void {
     const logContext =
       context ||
       requestContextService.createRequestContext({
@@ -871,19 +842,14 @@ export class PdfParser {
             }
           } else if (typeof value === 'number') {
             if ('setText' in field) {
-              (field as { setText: (text: string) => void }).setText(
-                String(value),
-              );
+              (field as { setText: (text: string) => void }).setText(String(value));
             }
           }
         } catch (fieldError: unknown) {
           logger.warning('Failed to fill form field.', {
             ...logContext,
             fieldName,
-            fieldError:
-              fieldError instanceof Error
-                ? fieldError.message
-                : String(fieldError),
+            fieldError: fieldError instanceof Error ? fieldError.message : String(fieldError),
           });
         }
       }
@@ -894,7 +860,7 @@ export class PdfParser {
 
       logger.debug('Successfully filled PDF form.', logContext);
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to fill PDF form.', {
         ...logContext,
         errorDetails: error.message,
@@ -942,10 +908,8 @@ export class PdfParser {
     if (keywords !== undefined) metadata.keywords = keywords;
     if (creator !== undefined) metadata.creator = creator;
     if (producer !== undefined) metadata.producer = producer;
-    if (creationDate !== undefined)
-      metadata.creationDate = creationDate.toISOString();
-    if (modificationDate !== undefined)
-      metadata.modificationDate = modificationDate.toISOString();
+    if (creationDate !== undefined) metadata.creationDate = creationDate.toISOString();
+    if (modificationDate !== undefined) metadata.modificationDate = modificationDate.toISOString();
 
     return metadata;
   }
@@ -1050,7 +1014,7 @@ export class PdfParser {
         text: result.text,
       };
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to extract text from PDF.', {
         ...logContext,
         errorDetails: error.message,
@@ -1080,10 +1044,7 @@ export class PdfParser {
    * await fs.writeFile('output.pdf', pdfBytes);
    * ```
    */
-  async saveDocument(
-    doc: PDFDocument,
-    context?: RequestContext,
-  ): Promise<Uint8Array> {
+  async saveDocument(doc: PDFDocument, context?: RequestContext): Promise<Uint8Array> {
     const logContext =
       context ||
       requestContextService.createRequestContext({
@@ -1099,7 +1060,7 @@ export class PdfParser {
       });
       return bytes;
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error('Failed to serialize PDF document.', {
         ...logContext,
         errorDetails: error.message,

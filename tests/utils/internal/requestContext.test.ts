@@ -2,73 +2,27 @@
  * @fileoverview Unit tests for the requestContextService utilities.
  * @module tests/utils/internal/requestContext.test
  */
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type MockInstance,
-} from 'vitest';
-import { trace, type Span } from '@opentelemetry/api';
 
-import * as utilsIndex from '../../../src/utils/index.js';
-import { logger } from '../../../src/utils/internal/logger.js';
-import { requestContextService } from '../../../src/utils/internal/requestContext.js';
+import { type Span, trace } from '@opentelemetry/api';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+import * as idGeneratorModule from '@/utils/security/idGenerator.js';
 import { authContext } from '../../../src/mcp-server/transports/auth/lib/authContext.js';
+import { requestContextService } from '../../../src/utils/internal/requestContext.js';
 
 describe('requestContextService', () => {
-  let debugSpy: MockInstance;
   let idSpy: MockInstance;
   let getActiveSpanSpy: MockInstance;
-  let originalConfig: Record<string, unknown>;
 
   beforeEach(() => {
-    debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
     getActiveSpanSpy = vi
       .spyOn(trace, 'getActiveSpan')
       .mockReturnValue(undefined as unknown as Span);
-    originalConfig = {
-      ...(
-        requestContextService as unknown as { config: Record<string, unknown> }
-      ).config,
-    };
-    idSpy = vi
-      .spyOn(utilsIndex, 'generateRequestContextId')
-      .mockReturnValue('CTX-TEST-ID');
+    idSpy = vi.spyOn(idGeneratorModule, 'generateRequestContextId').mockReturnValue('CTX-TEST-ID');
   });
 
   afterEach(() => {
-    (
-      requestContextService as unknown as { config: Record<string, unknown> }
-    ).config = {
-      ...originalConfig,
-    };
-    debugSpy.mockRestore();
     idSpy.mockRestore();
     getActiveSpanSpy.mockRestore();
-  });
-
-  it('merges configuration updates and logs the change', () => {
-    const result = requestContextService.configure({ featureFlag: true });
-
-    expect(result.featureFlag).toBe(true);
-    expect(debugSpy).toHaveBeenCalledWith(
-      'RequestContextService configuration updated',
-      expect.objectContaining({ operation: 'RequestContextService.configure' }),
-    );
-  });
-
-  it('returns a defensive copy when reading the current configuration', () => {
-    requestContextService.configure({ featureFlag: true });
-
-    const snapshot = requestContextService.getConfig();
-    expect(snapshot.featureFlag).toBe(true);
-
-    // Mutating the snapshot should not affect the internal state.
-    (snapshot as { featureFlag?: boolean }).featureFlag = false;
-    expect(requestContextService.getConfig().featureFlag).toBe(true);
   });
 
   it('creates a context with generated IDs, added fields, and trace metadata', () => {
@@ -137,6 +91,80 @@ describe('requestContextService', () => {
     expect(typeof context.timestamp).toBe('string');
   });
 
+  it('passes ad-hoc properties through the index signature', () => {
+    const context = requestContextService.createRequestContext({
+      operation: 'test',
+      toolName: 'my-tool',
+      sessionId: 'sess-123',
+      isServerless: true,
+    });
+
+    expect(context.toolName).toBe('my-tool');
+    expect(context.sessionId).toBe('sess-123');
+    expect(context.isServerless).toBe(true);
+  });
+
+  describe('tenant ID resolution priority', () => {
+    it('prefers additionalContext over rest params', () => {
+      const context = requestContextService.createRequestContext({
+        tenantId: 'rest-tenant',
+        additionalContext: { tenantId: 'additional-tenant' },
+      });
+
+      expect(context.tenantId).toBe('additional-tenant');
+    });
+
+    it('prefers rest params over parent context', () => {
+      const parent = requestContextService.createRequestContext({
+        tenantId: 'parent-tenant',
+      });
+
+      const child = requestContextService.createRequestContext({
+        parentContext: parent,
+        tenantId: 'rest-tenant',
+      });
+
+      expect(child.tenantId).toBe('rest-tenant');
+    });
+
+    it('uses parent context tenant when no closer source provides one', () => {
+      const parent = requestContextService.createRequestContext({
+        tenantId: 'parent-tenant',
+      });
+
+      const child = requestContextService.createRequestContext({
+        parentContext: parent,
+      });
+
+      expect(child.tenantId).toBe('parent-tenant');
+    });
+
+    it('falls back to auth store as lowest priority', async () => {
+      const parent = requestContextService.createRequestContext();
+
+      await new Promise<void>((resolve) => {
+        authContext.run(
+          {
+            authInfo: {
+              subject: 'u',
+              scopes: [],
+              tenantId: 'auth-tenant',
+              token: 't',
+              clientId: 'c',
+            },
+          },
+          () => {
+            const child = requestContextService.createRequestContext({
+              parentContext: parent,
+            });
+            expect(child.tenantId).toBe('auth-tenant');
+            resolve();
+          },
+        );
+      });
+    });
+  });
+
   describe('withAuthInfo', () => {
     it('populates auth context from AuthInfo', () => {
       const authInfo = {
@@ -151,11 +179,11 @@ describe('requestContextService', () => {
 
       expect(context.tenantId).toBe('tenant-1');
       expect(context.auth).toBeDefined();
-      expect(context.auth!.sub).toBe('user-42');
-      expect(context.auth!.scopes).toEqual(['read', 'write']);
-      expect(context.auth!.clientId).toBe('client-abc');
-      expect(context.auth!.token).toBe('jwt-token-xyz');
-      expect(context.auth!.tenantId).toBe('tenant-1');
+      expect(context.auth?.sub).toBe('user-42');
+      expect(context.auth?.scopes).toEqual(['read', 'write']);
+      expect(context.auth?.clientId).toBe('client-abc');
+      expect(context.auth?.token).toBe('jwt-token-xyz');
+      expect(context.auth?.tenantId).toBe('tenant-1');
     });
 
     it('uses clientId as sub fallback when subject is undefined', () => {
@@ -166,7 +194,7 @@ describe('requestContextService', () => {
       };
 
       const context = requestContextService.withAuthInfo(authInfo);
-      expect(context.auth!.sub).toBe('service-account');
+      expect(context.auth?.sub).toBe('service-account');
     });
 
     it('omits tenantId from auth when not provided', () => {
@@ -178,7 +206,7 @@ describe('requestContextService', () => {
       };
 
       const context = requestContextService.withAuthInfo(authInfo);
-      expect(context.auth!.tenantId).toBeUndefined();
+      expect(context.auth?.tenantId).toBeUndefined();
     });
 
     it('inherits properties from a parent context', () => {

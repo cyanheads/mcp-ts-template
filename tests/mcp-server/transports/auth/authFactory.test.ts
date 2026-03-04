@@ -2,12 +2,11 @@
  * @fileoverview Unit tests for authentication strategy factory.
  * @module tests/mcp-server/transports/auth/authFactory
  */
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { config } from '@/config/index.js';
 import { createAuthStrategy } from '@/mcp-server/transports/auth/authFactory.js';
 import { JwtStrategy } from '@/mcp-server/transports/auth/strategies/jwtStrategy.js';
 import { OauthStrategy } from '@/mcp-server/transports/auth/strategies/oauthStrategy.js';
-import { config } from '@/config/index.js';
 
 describe('createAuthStrategy', () => {
   let originalAuthMode: string;
@@ -79,9 +78,7 @@ describe('createAuthStrategy', () => {
       configurable: true,
     });
 
-    expect(() => createAuthStrategy()).toThrow(
-      'Unknown authentication mode: unknown-auth-mode',
-    );
+    expect(() => createAuthStrategy()).toThrow('Unknown authentication mode: unknown-auth-mode');
   });
 
   it('should resolve strategies from DI container', () => {

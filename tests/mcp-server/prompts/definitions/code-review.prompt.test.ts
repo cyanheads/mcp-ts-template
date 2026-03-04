@@ -4,14 +4,12 @@
  * @module tests/mcp-server/prompts/definitions/code-review.prompt.test
  */
 
-import { describe, it, expect } from 'vitest';
-import { codeReviewPrompt } from '@/mcp-server/prompts/definitions/code-review.prompt.js';
 import type { PromptMessage } from '@modelcontextprotocol/sdk/types.js';
+import { describe, expect, it } from 'vitest';
+import { codeReviewPrompt } from '@/mcp-server/prompts/definitions/code-review.prompt.js';
 
 // Helper to resolve generate result (handles sync or async return)
-async function generate(
-  args: Record<string, string> = {},
-): Promise<PromptMessage[]> {
+async function generate(args: Record<string, string> = {}): Promise<PromptMessage[]> {
   return await codeReviewPrompt.generate(args);
 }
 

@@ -2,12 +2,12 @@
  * @fileoverview Unit tests for storage provider factory.
  * @module tests/storage/core/storageFactory
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { AppConfig } from '@/config/index.js';
 
 import { createStorageProvider } from '@/storage/core/storageFactory.js';
-import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
+import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
 import { McpError } from '@/types-global/errors.js';
 
@@ -192,9 +192,7 @@ describe('createStorageProvider', () => {
       } as AppConfig;
 
       expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
-      expect(() => createStorageProvider(mockConfig)).toThrow(
-        /Unhandled storage provider type/,
-      );
+      expect(() => createStorageProvider(mockConfig)).toThrow(/Unhandled storage provider type/);
     });
   });
 
@@ -240,11 +238,7 @@ describe('createStorageProvider', () => {
     });
 
     it('should handle filesystem provider with various path formats', () => {
-      const testPaths = [
-        '/tmp/test-storage-1',
-        '/tmp/test-storage-2',
-        '/tmp/test-storage-3',
-      ];
+      const testPaths = ['/tmp/test-storage-1', '/tmp/test-storage-2', '/tmp/test-storage-3'];
 
       for (const path of testPaths) {
         const mockConfig = {

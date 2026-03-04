@@ -15,11 +15,3 @@ export type HonoNodeBindings = {
   incoming: IncomingMessage;
   outgoing: ServerResponse;
 };
-
-/**
- * Defines the custom variables that can be set on the Hono context.
- * Used for passing strongly-typed data between middleware.
- */
-export type HonoVariables = {
-  mcpSessionId?: string;
-};

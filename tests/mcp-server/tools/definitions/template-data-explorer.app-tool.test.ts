@@ -4,12 +4,12 @@
  * @module tests/mcp-server/tools/definitions/template-data-explorer.app-tool.test
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { dataExplorerAppTool } from '@/mcp-server/tools/definitions/template-data-explorer.app-tool.js';
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 // Suppress logger output
-vi.mock('@/utils/index.js', async (importOriginal) => {
+vi.mock('@/utils/internal/logger.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
@@ -56,12 +56,8 @@ describe('Data Explorer App Tool', () => {
     });
 
     it('should have UI resource URI in _meta', () => {
-      const meta = dataExplorerAppTool._meta as
-        | { ui?: { resourceUri?: string } }
-        | undefined;
-      expect(meta?.ui?.resourceUri).toBe(
-        'ui://template-data-explorer/app.html',
-      );
+      const meta = dataExplorerAppTool._meta as { ui?: { resourceUri?: string } } | undefined;
+      expect(meta?.ui?.resourceUri).toBe('ui://template-data-explorer/app.html');
     });
   });
 
@@ -101,6 +97,7 @@ describe('Data Explorer App Tool', () => {
 
     it('should generate rows with correct structure', async () => {
       const result = await invokeLogic(5);
+
       const row = result.rows[0]!;
       expect(row).toHaveProperty('id');
       expect(row).toHaveProperty('region');
@@ -112,8 +109,8 @@ describe('Data Explorer App Tool', () => {
 
     it('should generate sequential IDs starting at 1', async () => {
       const result = await invokeLogic(5);
-      expect(result.rows[0]!.id).toBe(1);
-      expect(result.rows[4]!.id).toBe(5);
+      expect(result.rows[0]?.id).toBe(1);
+      expect(result.rows[4]?.id).toBe(5);
     });
 
     it('should generate valid date format (YYYY-MM-DD)', async () => {
@@ -130,10 +127,7 @@ describe('Data Explorer App Tool', () => {
 
     it('should compute correct summary totalRevenue', async () => {
       const result = await invokeLogic(10);
-      const expectedRevenue = result.rows.reduce(
-        (sum, r) => sum + r.revenue,
-        0,
-      );
+      const expectedRevenue = result.rows.reduce((sum, r) => sum + r.revenue, 0);
       expect(result.summary.totalRevenue).toBe(expectedRevenue);
     });
 
@@ -146,14 +140,12 @@ describe('Data Explorer App Tool', () => {
     it('should include generatedAt ISO timestamp', async () => {
       const result = await invokeLogic(5);
       expect(result.generatedAt).toBeTruthy();
-      expect(new Date(result.generatedAt).toISOString()).toBe(
-        result.generatedAt,
-      );
+      expect(new Date(result.generatedAt).toISOString()).toBe(result.generatedAt);
     });
 
     it('should validate output against OutputSchema', async () => {
       const result = await invokeLogic(5);
-      const parsed = dataExplorerAppTool.outputSchema!.safeParse(result);
+      const parsed = dataExplorerAppTool.outputSchema?.safeParse(result);
       expect(parsed.success).toBe(true);
     });
   });
@@ -163,15 +155,15 @@ describe('Data Explorer App Tool', () => {
   describe('Response Formatter', () => {
     it('should return ContentBlock array with type text', async () => {
       const result = await invokeLogic(5);
-      const blocks = dataExplorerAppTool.responseFormatter!(result);
+      const blocks = dataExplorerAppTool.responseFormatter?.(result);
       expect(blocks).toHaveLength(1);
-      expect(blocks[0]!.type).toBe('text');
+      expect(blocks![0]?.type).toBe('text');
     });
 
     it('should include table header and separator', async () => {
       const result = await invokeLogic(5);
-      const blocks = dataExplorerAppTool.responseFormatter!(result);
-      const text = (blocks[0] as { type: 'text'; text: string }).text;
+      const blocks = dataExplorerAppTool.responseFormatter?.(result);
+      const text = (blocks![0] as { type: 'text'; text: string }).text;
       expect(text).toContain('ID');
       expect(text).toContain('Region');
       expect(text).toContain('Product');
@@ -180,8 +172,8 @@ describe('Data Explorer App Tool', () => {
 
     it('should include summary line with totals', async () => {
       const result = await invokeLogic(5);
-      const blocks = dataExplorerAppTool.responseFormatter!(result);
-      const text = (blocks[0] as { type: 'text'; text: string }).text;
+      const blocks = dataExplorerAppTool.responseFormatter?.(result);
+      const text = (blocks![0] as { type: 'text'; text: string }).text;
       expect(text).toContain('Total:');
       expect(text).toContain('5 rows');
     });

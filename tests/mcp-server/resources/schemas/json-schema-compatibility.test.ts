@@ -5,7 +5,7 @@
  * Ensures resource schemas remain compatible with clients using older JSON Schema
  * draft versions (particularly Draft 4, used by Go-based MCP clients).
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
@@ -31,10 +31,7 @@ type JsonSchema = {
  * Recursively find all properties in a JSON Schema that have Draft 7-only
  * numeric exclusiveMinimum or exclusiveMaximum values.
  */
-function findDraft7Incompatibilities(
-  schema: JsonSchemaProperty,
-  path: string = '',
-): string[] {
+function findDraft7Incompatibilities(schema: JsonSchemaProperty, path: string = ''): string[] {
   const issues: string[] = [];
 
   if (typeof schema.exclusiveMinimum === 'number') {
@@ -50,19 +47,12 @@ function findDraft7Incompatibilities(
 
   if (schema.properties) {
     for (const [key, prop] of Object.entries(schema.properties)) {
-      issues.push(
-        ...findDraft7Incompatibilities(prop, path ? `${path}.${key}` : key),
-      );
+      issues.push(...findDraft7Incompatibilities(prop, path ? `${path}.${key}` : key));
     }
   }
 
   if (schema.items && typeof schema.items === 'object') {
-    issues.push(
-      ...findDraft7Incompatibilities(
-        schema.items as JsonSchemaProperty,
-        `${path}[]`,
-      ),
-    );
+    issues.push(...findDraft7Incompatibilities(schema.items as JsonSchemaProperty, `${path}[]`));
   }
 
   return issues;
@@ -79,9 +69,7 @@ describe('Resource JSON Schema Draft 4 Compatibility', () => {
 
       for (const resource of allResourceDefinitions) {
         const paramsSchema = toJsonSchema(resource.paramsSchema);
-        const paramsIssues = findDraft7Incompatibilities(
-          paramsSchema as JsonSchemaProperty,
-        );
+        const paramsIssues = findDraft7Incompatibilities(paramsSchema as JsonSchemaProperty);
 
         if (paramsIssues.length > 0) {
           allIssues.push(
@@ -92,9 +80,7 @@ describe('Resource JSON Schema Draft 4 Compatibility', () => {
         // Test output schema if defined
         if (resource.outputSchema) {
           const outputSchema = toJsonSchema(resource.outputSchema);
-          const outputIssues = findDraft7Incompatibilities(
-            outputSchema as JsonSchemaProperty,
-          );
+          const outputIssues = findDraft7Incompatibilities(outputSchema as JsonSchemaProperty);
 
           if (outputIssues.length > 0) {
             allIssues.push(
@@ -118,9 +104,7 @@ describe('Individual Resource Schema Validation', () => {
     describe(`Resource: ${resource.name}`, () => {
       it('paramsSchema should be Draft 4 compatible', () => {
         const jsonSchema = toJsonSchema(resource.paramsSchema);
-        const issues = findDraft7Incompatibilities(
-          jsonSchema as JsonSchemaProperty,
-        );
+        const issues = findDraft7Incompatibilities(jsonSchema as JsonSchemaProperty);
 
         expect(
           issues,
@@ -131,9 +115,7 @@ describe('Individual Resource Schema Validation', () => {
       if (resource.outputSchema) {
         it('outputSchema should be Draft 4 compatible', () => {
           const jsonSchema = toJsonSchema(resource.outputSchema!);
-          const issues = findDraft7Incompatibilities(
-            jsonSchema as JsonSchemaProperty,
-          );
+          const issues = findDraft7Incompatibilities(jsonSchema as JsonSchemaProperty);
 
           expect(
             issues,

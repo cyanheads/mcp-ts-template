@@ -56,8 +56,7 @@ describe('Configuration Service', () => {
 
     process.env.NODE_ENV = 'production';
     // Since we can't easily reset modules, we'll just re-run parseConfig
-    const { parseConfig: prodParseConfig } =
-      await import('../../src/config/index.js');
+    const { parseConfig: prodParseConfig } = await import('../../src/config/index.js');
     const prodConfig = prodParseConfig();
     expect(prodConfig.environment).toBe('production');
   });
@@ -161,8 +160,7 @@ describe('Configuration Service', () => {
     process.env.OAUTH_PROXY_TOKEN_URL = 'https://token.example.com';
     process.env.OAUTH_PROXY_REVOCATION_URL = 'https://revoke.example.com';
     process.env.OAUTH_PROXY_ISSUER_URL = 'https://issuer.example.com';
-    process.env.OAUTH_PROXY_SERVICE_DOCUMENTATION_URL =
-      'https://docs.example.com';
+    process.env.OAUTH_PROXY_SERVICE_DOCUMENTATION_URL = 'https://docs.example.com';
     process.env.OAUTH_PROXY_DEFAULT_CLIENT_REDIRECT_URIS =
       ' https://app.example.com/callback , https://app.example.com/alt ';
 

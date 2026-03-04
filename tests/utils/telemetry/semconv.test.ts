@@ -24,9 +24,7 @@ describe('OpenTelemetry Semantic Conventions', () => {
 
     describe('Deployment environment attributes', () => {
       test('should export deployment environment name attribute', () => {
-        expect(semconv.ATTR_DEPLOYMENT_ENVIRONMENT_NAME).toBe(
-          'deployment.environment.name',
-        );
+        expect(semconv.ATTR_DEPLOYMENT_ENVIRONMENT_NAME).toBe('deployment.environment.name');
       });
     });
 
@@ -44,9 +42,7 @@ describe('OpenTelemetry Semantic Conventions', () => {
       });
 
       test('should export cloud availability zone attribute', () => {
-        expect(semconv.ATTR_CLOUD_AVAILABILITY_ZONE).toBe(
-          'cloud.availability_zone',
-        );
+        expect(semconv.ATTR_CLOUD_AVAILABILITY_ZONE).toBe('cloud.availability_zone');
       });
 
       test('should export cloud account ID attribute', () => {
@@ -60,9 +56,7 @@ describe('OpenTelemetry Semantic Conventions', () => {
       });
 
       test('should export HTTP response status code attribute', () => {
-        expect(semconv.ATTR_HTTP_RESPONSE_STATUS_CODE).toBe(
-          'http.response.status_code',
-        );
+        expect(semconv.ATTR_HTTP_RESPONSE_STATUS_CODE).toBe('http.response.status_code');
       });
 
       test('should export HTTP route attribute', () => {
@@ -70,15 +64,11 @@ describe('OpenTelemetry Semantic Conventions', () => {
       });
 
       test('should export HTTP request body size attribute', () => {
-        expect(semconv.ATTR_HTTP_REQUEST_BODY_SIZE).toBe(
-          'http.request.body.size',
-        );
+        expect(semconv.ATTR_HTTP_REQUEST_BODY_SIZE).toBe('http.request.body.size');
       });
 
       test('should export HTTP response body size attribute', () => {
-        expect(semconv.ATTR_HTTP_RESPONSE_BODY_SIZE).toBe(
-          'http.response.body.size',
-        );
+        expect(semconv.ATTR_HTTP_RESPONSE_BODY_SIZE).toBe('http.response.body.size');
       });
 
       test('should export URL full attribute', () => {
@@ -144,15 +134,11 @@ describe('OpenTelemetry Semantic Conventions', () => {
       });
 
       test('should export network protocol name attribute', () => {
-        expect(semconv.ATTR_NETWORK_PROTOCOL_NAME).toBe(
-          'network.protocol.name',
-        );
+        expect(semconv.ATTR_NETWORK_PROTOCOL_NAME).toBe('network.protocol.name');
       });
 
       test('should export network protocol version attribute', () => {
-        expect(semconv.ATTR_NETWORK_PROTOCOL_VERSION).toBe(
-          'network.protocol.version',
-        );
+        expect(semconv.ATTR_NETWORK_PROTOCOL_VERSION).toBe('network.protocol.version');
       });
     });
 
@@ -190,21 +176,15 @@ describe('OpenTelemetry Semantic Conventions', () => {
 
     describe('Memory tracking attributes', () => {
       test('should export RSS memory before attribute', () => {
-        expect(semconv.ATTR_MCP_TOOL_MEMORY_RSS_BEFORE).toBe(
-          'mcp.tool.memory_rss_bytes.before',
-        );
+        expect(semconv.ATTR_MCP_TOOL_MEMORY_RSS_BEFORE).toBe('mcp.tool.memory_rss_bytes.before');
       });
 
       test('should export RSS memory after attribute', () => {
-        expect(semconv.ATTR_MCP_TOOL_MEMORY_RSS_AFTER).toBe(
-          'mcp.tool.memory_rss_bytes.after',
-        );
+        expect(semconv.ATTR_MCP_TOOL_MEMORY_RSS_AFTER).toBe('mcp.tool.memory_rss_bytes.after');
       });
 
       test('should export RSS memory delta attribute', () => {
-        expect(semconv.ATTR_MCP_TOOL_MEMORY_RSS_DELTA).toBe(
-          'mcp.tool.memory_rss_bytes.delta',
-        );
+        expect(semconv.ATTR_MCP_TOOL_MEMORY_RSS_DELTA).toBe('mcp.tool.memory_rss_bytes.delta');
       });
 
       test('should export heap used memory before attribute', () => {
@@ -233,15 +213,11 @@ describe('OpenTelemetry Semantic Conventions', () => {
     });
 
     test('should export MCP resource MIME type attribute', () => {
-      expect(semconv.ATTR_MCP_RESOURCE_MIME_TYPE).toBe(
-        'mcp.resource.mime_type',
-      );
+      expect(semconv.ATTR_MCP_RESOURCE_MIME_TYPE).toBe('mcp.resource.mime_type');
     });
 
     test('should export MCP resource size attribute', () => {
-      expect(semconv.ATTR_MCP_RESOURCE_SIZE_BYTES).toBe(
-        'mcp.resource.size_bytes',
-      );
+      expect(semconv.ATTR_MCP_RESOURCE_SIZE_BYTES).toBe('mcp.resource.size_bytes');
     });
   });
 

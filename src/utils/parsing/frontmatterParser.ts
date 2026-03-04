@@ -5,11 +5,8 @@
  * @module src/utils/parsing/frontmatterParser
  */
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { yamlParser } from './yamlParser.js';
 
 /**
@@ -27,14 +24,14 @@ const frontmatterRegex = /^---\s*\n([\s\S]*?)^---\s*([\s\S]*)$/m;
  */
 export interface FrontmatterResult<T = unknown> {
   /**
-   * Parsed frontmatter object. Empty object if no frontmatter found.
-   */
-  frontmatter: T;
-  /**
    * Remaining markdown content after frontmatter extraction.
    * If no frontmatter exists, contains the original markdown.
    */
   content: string;
+  /**
+   * Parsed frontmatter object. Empty object if no frontmatter found.
+   */
+  frontmatter: T;
   /**
    * Indicates whether frontmatter was found and extracted.
    */
@@ -58,10 +55,7 @@ export class FrontmatterParser {
    * @returns A `FrontmatterResult` containing parsed frontmatter and remaining content.
    * @throws {McpError} If frontmatter is malformed or YAML parsing fails.
    */
-  parse<T = unknown>(
-    markdown: string,
-    context?: RequestContext,
-  ): FrontmatterResult<T> {
+  parse<T = unknown>(markdown: string, context?: RequestContext): FrontmatterResult<T> {
     const match = markdown.match(frontmatterRegex);
 
     if (!match) {
@@ -126,7 +120,7 @@ export class FrontmatterParser {
         hasFrontmatter: true,
       };
     } catch (e: unknown) {
-      const error = e as Error;
+      const error = e instanceof Error ? e : new Error(String(e));
       const errorLogContext =
         context ||
         requestContextService.createRequestContext({
@@ -150,8 +144,7 @@ export class FrontmatterParser {
         {
           ...context,
           yamlContentSample:
-            yamlContent.substring(0, 200) +
-            (yamlContent.length > 200 ? '...' : ''),
+            yamlContent.substring(0, 200) + (yamlContent.length > 200 ? '...' : ''),
           rawError: error instanceof Error ? error.stack : String(error),
         },
       );

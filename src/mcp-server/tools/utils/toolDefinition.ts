@@ -12,7 +12,7 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 /**
  * Defines the annotations that provide hints about a tool's behavior.
@@ -20,22 +20,34 @@ import type { RequestContext } from '@/utils/index.js';
  * The index signature `[key: string]: unknown;` ensures compatibility with the MCP SDK.
  */
 export interface ToolAnnotations {
-  [key: string]: unknown;
   /**
-   * An optional human-readable name for the tool, optimized for UI display.
-   * If provided, it may be used by clients instead of the programmatic `name`.
+   * A hint indicating that the tool may destroy or modify data in a way that cannot
+   * be undone. Only meaningful when `readOnlyHint` is false (the default).
+   * Defaults to `true` when unset.
    */
-  title?: string;
+  destructiveHint?: boolean;
+  /**
+   * A hint indicating that repeated calls with the same arguments have no additional
+   * effect beyond the first call. Only meaningful when `readOnlyHint` is false.
+   * Defaults to `false` when unset.
+   */
+  idempotentHint?: boolean;
+  /**
+   * A hint indicating that the tool may interact with external, unpredictable,
+   * or dynamic systems (e.g., fetching from a live API, web search).
+   */
+  openWorldHint?: boolean;
   /**
    * A hint indicating that the tool does not modify any state.
    * For example, a "read" operation.
    */
   readOnlyHint?: boolean;
   /**
-   * A hint indicating that the tool may interact with external, unpredictable,
-   * or dynamic systems (e.g., fetching from a live API, web search).
+   * An optional human-readable name for the tool, optimized for UI display.
+   * If provided, it may be used by clients instead of the programmatic `name`.
    */
-  openWorldHint?: boolean;
+  title?: string;
+  [key: string]: unknown;
 }
 
 /**
@@ -52,14 +64,17 @@ export interface ToolDefinition<
   TOutputSchema extends ZodObject<ZodRawShape>,
 > {
   /**
-   * The programmatic, unique name for the tool (e.g., 'echo_message').
+   * Optional protocol-level metadata passed alongside the tool registration.
+   * Extensions use namespaced keys within `_meta` to attach additional semantics.
+   *
+   * Currently used by the MCP Apps extension (`io.modelcontextprotocol/ui`)
+   * to link a tool to an interactive UI resource.
    */
-  name: string;
+  _meta?: Record<string, unknown>;
   /**
-   * An optional, human-readable title for the tool. This is preferred for display in UIs.
-   * If not provided, the `name` or `annotations.title` may be used as a fallback.
+   * Optional metadata providing hints about the tool's behavior.
    */
-  title?: string;
+  annotations?: ToolAnnotations;
   /**
    * A clear, concise description of what the tool does.
    * This is sent to the LLM to help it decide when to use the tool.
@@ -69,14 +84,6 @@ export interface ToolDefinition<
    * The Zod schema for validating the tool's input parameters.
    */
   inputSchema: TInputSchema;
-  /**
-   * The Zod schema for validating the tool's successful output structure.
-   */
-  outputSchema: TOutputSchema;
-  /**
-   * Optional metadata providing hints about the tool's behavior.
-   */
-  annotations?: ToolAnnotations;
   /**
    * The core business logic function for the tool. It receives the validated
    * input and two context objects, and returns a structured output or throws an McpError.
@@ -103,6 +110,14 @@ export interface ToolDefinition<
     sdkContext: SdkContext,
   ) => Promise<z.infer<TOutputSchema>>;
   /**
+   * The programmatic, unique name for the tool (e.g., 'echo_message').
+   */
+  name: string;
+  /**
+   * The Zod schema for validating the tool's successful output structure.
+   */
+  outputSchema: TOutputSchema;
+  /**
    * An optional function to format the successful output into an array of ContentBlocks
    * for the `CallToolResult`. If not provided, a default JSON stringifier is used.
    * @param result The successful output from the logic function.
@@ -110,11 +125,8 @@ export interface ToolDefinition<
    */
   responseFormatter?: (result: z.infer<TOutputSchema>) => ContentBlock[];
   /**
-   * Optional protocol-level metadata passed alongside the tool registration.
-   * Extensions use namespaced keys within `_meta` to attach additional semantics.
-   *
-   * Currently used by the MCP Apps extension (`io.modelcontextprotocol/ui`)
-   * to link a tool to an interactive UI resource.
+   * An optional, human-readable title for the tool. This is preferred for display in UIs.
+   * If not provided, the `name` or `annotations.title` may be used as a fallback.
    */
-  _meta?: Record<string, unknown>;
+  title?: string;
 }

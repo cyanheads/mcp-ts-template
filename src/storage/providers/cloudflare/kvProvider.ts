@@ -6,12 +6,15 @@ import type { KVNamespace } from '@cloudflare/workers-types';
 
 import type {
   IStorageProvider,
-  StorageOptions,
   ListOptions,
   ListResult,
+  StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
+import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { ErrorHandler, logger, type RequestContext } from '@/utils/index.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 const DEFAULT_LIST_LIMIT = 1000;
 
@@ -32,13 +35,9 @@ export class KvProvider implements IStorageProvider {
     return `${tenantId}:${key}`;
   }
 
-  async get<T>(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<T | null> {
+  async get<T>(tenantId: string, key: string, context: RequestContext): Promise<T | null> {
     const kvKey = this.getKvKey(tenantId, key);
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[KvProvider] Getting key: ${kvKey}`, context);
         try {
@@ -68,7 +67,7 @@ export class KvProvider implements IStorageProvider {
     options?: StorageOptions,
   ): Promise<void> {
     const kvKey = this.getKvKey(tenantId, key);
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[KvProvider] Setting key: ${kvKey}`, {
           ...context,
@@ -76,11 +75,10 @@ export class KvProvider implements IStorageProvider {
         });
         const valueToStore = JSON.stringify(value);
 
-        const putOptions: import('@cloudflare/workers-types').KVNamespacePutOptions =
-          {};
-        // Fix: Check for undefined instead of truthy to handle ttl=0 correctly
+        const putOptions: import('@cloudflare/workers-types').KVNamespacePutOptions = {};
         if (options?.ttl !== undefined) {
-          putOptions.expirationTtl = options.ttl;
+          // Cloudflare KV requires expirationTtl >= 60 seconds
+          putOptions.expirationTtl = Math.max(options.ttl, 60);
         }
 
         await this.kv.put(kvKey, valueToStore, putOptions);
@@ -94,21 +92,14 @@ export class KvProvider implements IStorageProvider {
     );
   }
 
-  async delete(
-    tenantId: string,
-    key: string,
-    context: RequestContext,
-  ): Promise<boolean> {
+  async delete(tenantId: string, key: string, context: RequestContext): Promise<boolean> {
     const kvKey = this.getKvKey(tenantId, key);
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[KvProvider] Deleting key: ${kvKey}`, context);
         // KV delete is idempotent — no need to check existence first
         await this.kv.delete(kvKey);
-        logger.debug(
-          `[KvProvider] Successfully deleted key: ${kvKey}`,
-          context,
-        );
+        logger.debug(`[KvProvider] Successfully deleted key: ${kvKey}`, context);
         return true;
       },
       {
@@ -126,7 +117,7 @@ export class KvProvider implements IStorageProvider {
     options?: ListOptions,
   ): Promise<ListResult> {
     const kvPrefix = this.getKvKey(tenantId, prefix);
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[KvProvider] Listing keys with prefix: ${kvPrefix}`, {
           ...context,
@@ -134,13 +125,13 @@ export class KvProvider implements IStorageProvider {
         });
 
         const limit = options?.limit ?? DEFAULT_LIST_LIMIT;
-        const listOptions: import('@cloudflare/workers-types').KVNamespaceListOptions =
-          {
-            prefix: kvPrefix,
-            limit,
-          };
+        const listOptions: import('@cloudflare/workers-types').KVNamespaceListOptions = {
+          prefix: kvPrefix,
+          limit,
+        };
         if (options?.cursor) {
-          listOptions.cursor = options.cursor;
+          // Decode tenant-bound cursor to get the native KV cursor
+          listOptions.cursor = decodeCursor(options.cursor, tenantId, context);
         }
         const listed = await this.kv.list(listOptions);
 
@@ -151,15 +142,12 @@ export class KvProvider implements IStorageProvider {
             : keyInfo.name,
         );
 
-        const nextCursor =
-          'cursor' in listed && !listed.list_complete
-            ? listed.cursor
-            : undefined;
+        // Wrap native KV cursor in tenant-bound envelope
+        const nativeCursor =
+          'cursor' in listed && !listed.list_complete ? listed.cursor : undefined;
+        const nextCursor = nativeCursor ? encodeCursor(nativeCursor, tenantId) : undefined;
 
-        logger.debug(
-          `[KvProvider] Found ${keys.length} keys with prefix: ${kvPrefix}`,
-          context,
-        );
+        logger.debug(`[KvProvider] Found ${keys.length} keys with prefix: ${kvPrefix}`, context);
 
         return {
           keys,
@@ -179,7 +167,7 @@ export class KvProvider implements IStorageProvider {
     keys: string[],
     context: RequestContext,
   ): Promise<Map<string, T>> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         if (keys.length === 0) {
           return new Map<string, T>();
@@ -213,7 +201,7 @@ export class KvProvider implements IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         if (entries.size === 0) {
           return;
@@ -232,12 +220,8 @@ export class KvProvider implements IStorageProvider {
     );
   }
 
-  async deleteMany(
-    tenantId: string,
-    keys: string[],
-    context: RequestContext,
-  ): Promise<number> {
-    return ErrorHandler.tryCatch(
+  async deleteMany(tenantId: string, keys: string[], context: RequestContext): Promise<number> {
+    return await ErrorHandler.tryCatch(
       async () => {
         if (keys.length === 0) {
           return 0;
@@ -256,7 +240,7 @@ export class KvProvider implements IStorageProvider {
   }
 
   async clear(tenantId: string, context: RequestContext): Promise<number> {
-    return ErrorHandler.tryCatch(
+    return await ErrorHandler.tryCatch(
       async () => {
         const kvPrefix = `${tenantId}:`;
         let deletedCount = 0;
@@ -264,19 +248,16 @@ export class KvProvider implements IStorageProvider {
         let listComplete = false;
 
         while (!listComplete) {
-          const listOpts: import('@cloudflare/workers-types').KVNamespaceListOptions =
-            {
-              prefix: kvPrefix,
-              limit: 1000,
-            };
+          const listOpts: import('@cloudflare/workers-types').KVNamespaceListOptions = {
+            prefix: kvPrefix,
+            limit: 1000,
+          };
           if (cursor) {
             listOpts.cursor = cursor;
           }
           const listed = await this.kv.list(listOpts);
 
-          const deletePromises = listed.keys.map((keyInfo) =>
-            this.kv.delete(keyInfo.name),
-          );
+          const deletePromises = listed.keys.map((keyInfo) => this.kv.delete(keyInfo.name));
           await Promise.all(deletePromises);
           deletedCount += listed.keys.length;
 
@@ -284,10 +265,7 @@ export class KvProvider implements IStorageProvider {
           cursor = 'cursor' in listed ? listed.cursor : undefined;
         }
 
-        logger.info(
-          `[KvProvider] Cleared ${deletedCount} keys for tenant: ${tenantId}`,
-          context,
-        );
+        logger.info(`[KvProvider] Cleared ${deletedCount} keys for tenant: ${tenantId}`, context);
         return deletedCount;
       },
       {

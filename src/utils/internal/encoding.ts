@@ -17,14 +17,16 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
     // Node.js environment
     return Buffer.from(buffer).toString('base64');
   } else {
-    // Browser/Worker environment
-    let binary = '';
+    // Browser/Worker environment — chunked to avoid stack overflow on large buffers
     const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]!);
+    const chunks: string[] = [];
+    const CHUNK_SIZE = 0x8000; // 32KB
+    for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+      chunks.push(
+        String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK_SIZE) as unknown as number[]),
+      );
     }
-    return btoa(binary);
+    return btoa(chunks.join(''));
   }
 }
 
@@ -64,8 +66,10 @@ export function base64ToString(base64: string): string {
   } else {
     // Worker/Browser environment - use Web APIs
     const decoded = atob(base64);
-    const decoder = new TextDecoder();
-    const bytes = new Uint8Array(decoded.split('').map((c) => c.charCodeAt(0)));
-    return decoder.decode(bytes);
+    const bytes = new Uint8Array(decoded.length);
+    for (let i = 0; i < decoded.length; i++) {
+      bytes[i] = decoded.charCodeAt(i);
+    }
+    return new TextDecoder().decode(bytes);
   }
 }

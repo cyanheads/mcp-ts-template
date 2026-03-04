@@ -1,4 +1,7 @@
 #!/usr/bin/env bun
+import * as path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 /// <reference types="bun-types" />
 /**
  * @fileoverview Comprehensive development script for quality and security checks.
@@ -9,8 +12,7 @@
  *   Pre-commit hooks analyze only staged files for maximum performance.
  *
  * @performance
- *   - Uses ESLint cache (.eslintcache) for faster linting
- *   - Uses Prettier cache (.prettiercache) for faster formatting
+ *   - Uses Biome for unified linting and formatting
  *   - Uses TypeScript incremental builds (.tsbuildinfo) for faster type checking
  *   - Runs all checks in parallel using Promise.allSettled
  *   - Fast mode (--fast) skips slow network-bound checks
@@ -34,10 +36,7 @@
  * // Run only a single check (case-insensitive partial match):
  * // bun run scripts/devcheck.ts --only lint
  */
-import { spawn, type Subprocess } from 'bun';
-import * as path from 'node:path';
-import process from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { type Subprocess, spawn } from 'bun';
 
 /** Track active child processes for clean shutdown on SIGINT/SIGTERM. */
 const activeProcs = new Set<Subprocess>();
@@ -60,25 +59,24 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
 // Respects NO_COLOR (https://no-color.org/) and FORCE_COLOR conventions.
 const isColorSupported =
   !process.env.NO_COLOR &&
-  ((!!process.env.FORCE_COLOR && process.env.FORCE_COLOR !== '0') ||
-    !!process.stdout.isTTY);
+  ((!!process.env.FORCE_COLOR && process.env.FORCE_COLOR !== '0') || !!process.stdout.isTTY);
 
-const createColor =
-  (open: string, close: string, closeRe: RegExp) => (str: string | number) => {
-    if (!isColorSupported) return '' + str;
-    // Replace any inner close sequences so outer color is restored
-    return open + ('' + str).replace(closeRe, close + open) + close;
-  };
+const createColor = (open: string, close: string, closeRe: RegExp) => (str: string | number) => {
+  if (!isColorSupported) return `${str}`;
+  // Replace any inner close sequences so outer color is restored
+  return open + `${str}`.replace(closeRe, close + open) + close;
+};
 
+const esc = (code: string) => new RegExp(code.replace('[', '\\['), 'g');
 const c = {
-  bold: createColor('\x1b[1m', '\x1b[22m', /\x1b\[22m/g),
-  dim: createColor('\x1b[2m', '\x1b[22m', /\x1b\[22m/g),
-  red: createColor('\x1b[31m', '\x1b[39m', /\x1b\[39m/g),
-  green: createColor('\x1b[32m', '\x1b[39m', /\x1b\[39m/g),
-  yellow: createColor('\x1b[33m', '\x1b[39m', /\x1b\[39m/g),
-  blue: createColor('\x1b[34m', '\x1b[39m', /\x1b\[39m/g),
-  magenta: createColor('\x1b[35m', '\x1b[39m', /\x1b\[39m/g),
-  cyan: createColor('\x1b[36m', '\x1b[39m', /\x1b\[39m/g),
+  bold: createColor('\x1b[1m', '\x1b[22m', esc('\x1b[22m')),
+  dim: createColor('\x1b[2m', '\x1b[22m', esc('\x1b[22m')),
+  red: createColor('\x1b[31m', '\x1b[39m', esc('\x1b[39m')),
+  green: createColor('\x1b[32m', '\x1b[39m', esc('\x1b[39m')),
+  yellow: createColor('\x1b[33m', '\x1b[39m', esc('\x1b[39m')),
+  blue: createColor('\x1b[34m', '\x1b[39m', esc('\x1b[39m')),
+  magenta: createColor('\x1b[35m', '\x1b[39m', esc('\x1b[39m')),
+  cyan: createColor('\x1b[36m', '\x1b[39m', esc('\x1b[39m')),
 };
 
 /** A type alias for the picocolors object. */
@@ -92,10 +90,10 @@ type RunMode = 'check' | 'fix';
 type UIMode = 'Checking' | 'Fixing';
 
 interface AppContext {
-  flags: Set<string>;
-  noFix: boolean;
-  isHuskyHook: boolean;
   fastMode: boolean;
+  flags: Set<string>;
+  isHuskyHook: boolean;
+  noFix: boolean;
   /** When set, only run checks whose name matches (case-insensitive). */
   onlyCheck: string | null;
   rootDir: string;
@@ -105,39 +103,36 @@ interface AppContext {
 
 interface CommandResult {
   checkName: string;
-  exitCode: number;
-  stdout: string;
-  stderr: string;
   duration: number;
-  skipped: boolean;
+  exitCode: number;
   /** Buffered log lines captured during parallel execution. */
   logLines: string[];
+  skipped: boolean;
+  stderr: string;
+  stdout: string;
 }
 
 /** Represents the raw result from a shell execution. */
-type ShellResult = Omit<
-  CommandResult,
-  'checkName' | 'duration' | 'skipped' | 'logLines'
->;
+type ShellResult = Omit<CommandResult, 'checkName' | 'duration' | 'skipped' | 'logLines'>;
 
 interface Check {
-  name: string;
+  /** Indicates if the check supports auto-fixing. */
+  canFix: boolean;
   /** The flag to skip this check (e.g., '--no-lint'). */
   flag: string;
   /** Function that returns the command array based on the context and mode. Returns null to skip. */
   getCommand: (ctx: AppContext, mode: RunMode) => string[] | null;
-  /** Indicates if the check supports auto-fixing. */
-  canFix: boolean;
-  /** If true, this check is skipped in fast mode (typically network-bound or very slow). */
-  slowCheck?: boolean;
-  /** If true, check is off by default — only runs when its flag is explicitly provided. */
-  requiresFlag?: boolean;
-  tip?: (c: Colors) => string;
   /**
    * Optional predicate to determine success.
    * Useful for tools that signal issues via stdout or have non-standard exit codes.
    */
   isSuccess?: (result: ShellResult, mode: RunMode) => boolean;
+  name: string;
+  /** If true, check is off by default — only runs when its flag is explicitly provided. */
+  requiresFlag?: boolean;
+  /** If true, this check is skipped in fast mode (typically network-bound or very slow). */
+  slowCheck?: boolean;
+  tip?: (c: Colors) => string;
 }
 
 // =============================================================================
@@ -172,8 +167,7 @@ const Shell = {
       };
     } catch (error: unknown) {
       // Handle cases where the command itself fails to spawn (e.g., command not found)
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         exitCode: 127,
         stdout: '',
@@ -218,41 +212,6 @@ const OUTDATED_ALLOWLIST = new Set(['zod']);
 
 // Define file extensions for linting and formatting
 const LINT_EXTS = ['.ts', '.tsx', '.js', '.jsx'];
-const FORMAT_EXTS = [
-  ...LINT_EXTS,
-  '.json',
-  '.md',
-  '.html',
-  '.css',
-  '.yaml',
-  '.yml',
-];
-
-/**
- * Optimization Helper: Determines the targets for a command.
- * If running in Husky mode, filters staged files by allowed extensions.
- * If no relevant files are staged, returns an empty array (skipping the check).
- * Otherwise, returns the default target (e.g., ".").
- */
-const getTargets = (
-  ctx: AppContext,
-  extensions: string[],
-  defaultTarget: string,
-): string[] => {
-  if (ctx.isHuskyHook && ctx.stagedFiles.length > 0) {
-    const filtered = ctx.stagedFiles.filter((file) =>
-      extensions.includes(path.extname(file)),
-    );
-    // If we have matching staged files, return them.
-    if (filtered.length > 0) {
-      return filtered;
-    }
-    // If staged files exist, but none match the extensions, we should run nothing.
-    return [];
-  }
-  // Not a husky hook, or no files staged at all.
-  return [defaultTarget];
-};
 
 const ALL_CHECKS: Check[] = [
   // Fast checks first (local operations, no network)
@@ -286,8 +245,7 @@ const ALL_CHECKS: Check[] = [
       // but override stdout so the summary shows the actual error, not "TODOs found".
       return false;
     },
-    tip: (c) =>
-      `Resolve ${c.bold('TODO')} or ${c.bold('FIXME')} comments before committing.`,
+    tip: (c) => `Resolve ${c.bold('TODO')} or ${c.bold('FIXME')} comments before committing.`,
   },
   {
     name: 'Tracked Secrets',
@@ -311,73 +269,39 @@ const ALL_CHECKS: Check[] = [
       if (result.exitCode !== 0) return false;
       const SAFE_PATTERNS = ['.env.example', '.env.template', '.env.sample'];
       const files = result.stdout.trim().split('\n').filter(Boolean);
-      const dangerous = files.filter(
-        (f) => !SAFE_PATTERNS.some((safe) => f.endsWith(safe)),
-      );
+      const dangerous = files.filter((f) => !SAFE_PATTERNS.some((safe) => f.endsWith(safe)));
       return dangerous.length === 0;
     },
     tip: (c) =>
       `Add sensitive files to ${c.bold('.gitignore')} and run ${c.bold('git rm --cached <file>')}.`,
   },
   {
-    name: 'ESLint',
+    name: 'Biome',
     flag: '--no-lint',
     canFix: true,
     getCommand: (ctx, mode) => {
-      const targets = getTargets(ctx, LINT_EXTS, '.');
-      if (targets.length === 0) return null;
-
-      const command = [
-        path.join(ctx.rootDir, 'node_modules', '.bin', 'eslint'),
-        ...targets,
-        '--max-warnings',
-        '0',
-        '--cache',
-        '--cache-location',
-        '.eslintcache',
-      ];
-      if (mode === 'fix') {
-        command.push('--fix');
-      }
-      return command;
-    },
-    tip: (c) =>
-      `Run without ${c.bold('--no-fix')} to automatically fix issues.`,
-  },
-  {
-    name: 'Prettier',
-    flag: '--no-format',
-    canFix: true,
-    getCommand: (ctx, mode) => {
-      // We use '.' as the default target, assuming a .prettierignore file is present.
-      const targets = getTargets(ctx, FORMAT_EXTS, '.');
-      if (targets.length === 0) return null;
-
-      const command = [
-        path.join(ctx.rootDir, 'node_modules', '.bin', 'prettier'),
-        '--cache',
-        '--cache-location',
-        '.prettiercache',
-      ];
+      const command = [path.join(ctx.rootDir, 'node_modules', '.bin', 'biome'), 'check'];
       if (mode === 'fix') {
         command.push('--write');
-      } else {
-        command.push('--check');
       }
-      command.push(...targets);
+      // In husky mode, target only staged files; otherwise let biome.json includes handle it
+      if (ctx.isHuskyHook && ctx.stagedFiles.length > 0) {
+        const relevant = ctx.stagedFiles.filter((file) =>
+          [...LINT_EXTS, '.json'].includes(path.extname(file)),
+        );
+        if (relevant.length === 0) return null;
+        command.push(...relevant);
+      }
       return command;
     },
-    tip: (c) => `Run without ${c.bold('--no-fix')} to fix formatting.`,
+    tip: (c) => `Run without ${c.bold('--no-fix')} to automatically fix issues.`,
   },
   {
     name: 'TypeScript',
     flag: '--no-types',
     canFix: false,
     // TypeScript generally needs the whole project context for accurate checking.
-    getCommand: (ctx) => [
-      path.join(ctx.rootDir, 'node_modules', '.bin', 'tsc'),
-      '--noEmit',
-    ],
+    getCommand: (ctx) => [path.join(ctx.rootDir, 'node_modules', '.bin', 'tsc'), '--noEmit'],
     tip: () => 'Check TypeScript errors in your IDE or the console output.',
   },
   {
@@ -385,10 +309,7 @@ const ALL_CHECKS: Check[] = [
     flag: '--test',
     canFix: false,
     requiresFlag: true,
-    getCommand: (ctx) => [
-      path.join(ctx.rootDir, 'node_modules', '.bin', 'vitest'),
-      'run',
-    ],
+    getCommand: (ctx) => [path.join(ctx.rootDir, 'node_modules', '.bin', 'vitest'), 'run'],
     tip: () => 'Fix failing tests before committing.',
   },
   {
@@ -450,8 +371,7 @@ const ALL_CHECKS: Check[] = [
         if (!line.includes('|')) return false;
         // Skip table chrome: header row and separator (e.g., "---")
         const firstCell = line.split('|')[0]?.trim() ?? '';
-        if (!firstCell || firstCell === 'Package' || /^-+$/.test(firstCell))
-          return false;
+        if (!firstCell || firstCell === 'Package' || /^-+$/.test(firstCell)) return false;
         return true;
       });
 
@@ -482,7 +402,7 @@ const UI = {
   formatCheckStart(check: Check, command: string[], mode: UIMode): string {
     let commandStr = command.join(' ');
     if (commandStr.length > 150) {
-      commandStr = commandStr.substring(0, 147) + '... (truncated)';
+      commandStr = `${commandStr.substring(0, 147)}... (truncated)`;
     }
     return [
       `${c.bold(c.blue('🔷'))} ${mode} ${c.yellow(check.name)}${c.blue('...')} `,
@@ -491,7 +411,7 @@ const UI = {
   },
 
   formatSkipped(check: Check, reason: string): string {
-    return `${c.bold(c.yellow('🔶 Skipping ' + check.name + '...'))}${c.dim(` (${reason})`)}`;
+    return `${c.bold(c.yellow(`🔶 Skipping ${check.name}...`))}${c.dim(` (${reason})`)}`;
   },
 
   formatCheckResult(result: CommandResult, _mode: UIMode): string {
@@ -529,9 +449,7 @@ const UI = {
         : c.magenta(`(${fixMode} mode${speedMode})`);
     }
 
-    UI.log(
-      `${c.bold('🚀 DevCheck: Kicking off comprehensive checks...')} ${modeMessage}\n`,
-    );
+    UI.log(`${c.bold('🚀 DevCheck: Kicking off comprehensive checks...')} ${modeMessage}\n`);
   },
 
   printSummary(results: CommandResult[], ctx: AppContext): boolean {
@@ -550,9 +468,7 @@ const UI = {
       } else {
         status = `${c.red('❌ FAILED')}`;
         overallSuccess = false;
-        const foundCheck = ALL_CHECKS.find(
-          (check) => check.name === result.checkName,
-        );
+        const foundCheck = ALL_CHECKS.find((check) => check.name === result.checkName);
         if (foundCheck) failedChecks.push(foundCheck);
       }
 
@@ -570,12 +486,8 @@ const UI = {
     // Highlight the slowest check to help identify bottlenecks
     const ranChecks = results.filter((r) => !r.skipped);
     if (ranChecks.length > 1) {
-      const slowest = ranChecks.reduce((a, b) =>
-        a.duration > b.duration ? a : b,
-      );
-      UI.log(
-        c.dim(`\n  Slowest: ${slowest.checkName} (${slowest.duration}ms)`),
-      );
+      const slowest = ranChecks.reduce((a, b) => (a.duration > b.duration ? a : b));
+      UI.log(c.dim(`\n  Slowest: ${slowest.checkName} (${slowest.duration}ms)`));
     }
 
     UI.log('\n------------------------------------------------');
@@ -602,21 +514,14 @@ const UI = {
   printFooter(success: boolean, totalDuration: number) {
     const timeStr = c.dim(`(total: ${totalDuration}ms)`);
     if (success) {
-      UI.log(
-        `\n${c.bold(c.green('🎉 All checks passed! Ship it!'))} ${timeStr}`,
-      );
+      UI.log(`\n${c.bold(c.green('🎉 All checks passed! Ship it!'))} ${timeStr}`);
     } else {
-      UI.log(
-        `\n${c.bold(c.red('🛑 Found issues. Please review the output above.'))} ${timeStr}`,
-      );
+      UI.log(`\n${c.bold(c.red('🛑 Found issues. Please review the output above.'))} ${timeStr}`);
     }
   },
 
   printError(error: unknown) {
-    console.error(
-      `${c.red('\nAn unexpected error occurred in the check script:')}`,
-      error,
-    );
+    console.error(`${c.red('\nAn unexpected error occurred in the check script:')}`, error);
   },
 };
 
@@ -625,29 +530,16 @@ const UI = {
 // =============================================================================
 
 /** Global flags handled separately from per-check skip flags. */
-const GLOBAL_FLAGS = new Set([
-  '--no-fix',
-  '--husky-hook',
-  '--fast',
-  '--help',
-  '--only',
-]);
+const GLOBAL_FLAGS = new Set(['--no-fix', '--husky-hook', '--fast', '--help', '--only']);
 
 /** All recognized flags (global + per-check skip flags). */
-const KNOWN_FLAGS = new Set([
-  ...GLOBAL_FLAGS,
-  ...ALL_CHECKS.map((check) => check.flag),
-]);
+const KNOWN_FLAGS = new Set([...GLOBAL_FLAGS, ...ALL_CHECKS.map((check) => check.flag)]);
 
 function printHelp() {
   UI.log(`${c.bold('Usage:')} bun run devcheck [options]\n`);
   UI.log(`${c.bold('Options:')}`);
-  UI.log(
-    `  ${c.yellow('--no-fix')}        Run in read-only mode (no auto-fixing)`,
-  );
-  UI.log(
-    `  ${c.yellow('--fast')}          Skip slow network-bound checks (audit, outdated)`,
-  );
+  UI.log(`  ${c.yellow('--no-fix')}        Run in read-only mode (no auto-fixing)`);
+  UI.log(`  ${c.yellow('--fast')}          Skip slow network-bound checks (audit, outdated)`);
   UI.log(
     `  ${c.yellow('--husky-hook')}    Run in pre-commit hook mode (analyze staged files only)`,
   );
@@ -677,9 +569,7 @@ function printHelp() {
  * Parses CLI arguments and determines the initial run context.
  * Returns null if the program should exit (e.g., --help).
  */
-function parseArgs(
-  args: string[],
-): Omit<AppContext, 'rootDir' | 'stagedFiles'> | null {
+function parseArgs(args: string[]): Omit<AppContext, 'rootDir' | 'stagedFiles'> | null {
   const flags = new Set<string>();
   let noFix = false;
   let isHuskyHook = false;
@@ -687,7 +577,7 @@ function parseArgs(
   let onlyCheck: string | null = null;
 
   for (let i = 0; i < args.length; i++) {
-    const arg = args[i]!;
+    const arg = args[i] as string;
     if (arg === '--help') {
       printHelp();
       return null;
@@ -713,9 +603,7 @@ function parseArgs(
     } else if (arg.startsWith('--')) {
       if (!KNOWN_FLAGS.has(arg)) {
         UI.log(c.yellow(`Warning: Unknown flag '${arg}' — ignoring.`));
-        UI.log(
-          c.dim(`  Run with ${c.bold('--help')} to see available options.\n`),
-        );
+        UI.log(c.dim(`  Run with ${c.bold('--help')} to see available options.\n`));
       } else {
         flags.add(arg);
       }
@@ -745,9 +633,7 @@ async function runCheck(check: Check, ctx: AppContext): Promise<CommandResult> {
 
   // 1. Check for --only filter
   if (ctx.onlyCheck) {
-    const match = check.name
-      .toLowerCase()
-      .includes(ctx.onlyCheck.toLowerCase());
+    const match = check.name.toLowerCase().includes(ctx.onlyCheck.toLowerCase());
     if (!match) {
       log.push(UI.formatSkipped(check, `--only ${ctx.onlyCheck}`));
       return { ...baseResult, skipped: true };
@@ -824,7 +710,7 @@ async function runCheck(check: Check, ctx: AppContext): Promise<CommandResult> {
 
 /**
  * Handles the specific logic required for git pre-commit hooks, primarily re-staging
- * files that were modified by auto-fixers (like ESLint or Prettier).
+ * files that were modified by auto-fixers (like Biome).
  * Returns false if re-staging failed (should fail the commit).
  */
 async function handleHuskyReStaging(ctx: AppContext): Promise<boolean> {
@@ -834,15 +720,12 @@ async function handleHuskyReStaging(ctx: AppContext): Promise<boolean> {
   // If no files were staged initially, there's nothing to re-stage.
   if (ctx.stagedFiles.length === 0) return true;
 
-  UI.log(
-    `\n${c.bold(c.cyan('✨ Husky: Checking for modifications by fixers...'))}`,
-  );
+  UI.log(`\n${c.bold(c.cyan('✨ Husky: Checking for modifications by fixers...'))}`);
 
   try {
-    const { stdout: gitStatus } = await Shell.exec(
-      ['git', 'status', '--porcelain'],
-      { cwd: ctx.rootDir },
-    );
+    const { stdout: gitStatus } = await Shell.exec(['git', 'status', '--porcelain'], {
+      cwd: ctx.rootDir,
+    });
 
     // Identify files modified by fixers after staging.
     // Porcelain format: XY path — X=index status, Y=working tree status.
@@ -850,37 +733,25 @@ async function handleHuskyReStaging(ctx: AppContext): Promise<boolean> {
     const stagedSet = new Set(ctx.stagedFiles);
     const modifiedStagedFiles = gitStatus
       .split('\n')
-      .filter(
-        (line) =>
-          line.length > 3 &&
-          line[1] === 'M' &&
-          line[0] !== ' ' &&
-          line[0] !== '?',
-      )
+      .filter((line) => line.length > 3 && line[1] === 'M' && line[0] !== ' ' && line[0] !== '?')
       .map((line) => line.substring(3).trim())
       // Only re-stage files that were originally staged — avoid pulling in unrelated changes
       .filter((file) => stagedSet.has(file));
 
     if (modifiedStagedFiles.length > 0) {
-      UI.log(
-        c.yellow(
-          `   Re-staging ${modifiedStagedFiles.length} files modified by fixers...`,
-        ),
-      );
+      UI.log(c.yellow(`   Re-staging ${modifiedStagedFiles.length} files modified by fixers...`));
 
       const cmd = ['git', 'add', ...modifiedStagedFiles];
       const addResult = await Shell.exec(cmd, { cwd: ctx.rootDir });
 
       let cmdStr = cmd.join(' ');
       if (cmdStr.length > 100) {
-        cmdStr = cmdStr.substring(0, 97) + '...';
+        cmdStr = `${cmdStr.substring(0, 97)}...`;
       }
       UI.log(c.dim(`     $ ${cmdStr}`));
 
       if (addResult.exitCode !== 0) {
-        UI.log(
-          c.red(`   ✗ Failed to re-stage files (exit ${addResult.exitCode}).`),
-        );
+        UI.log(c.red(`   ✗ Failed to re-stage files (exit ${addResult.exitCode}).`));
         if (addResult.stderr) UI.log(c.red(`     ${addResult.stderr}`));
         return false;
       }
@@ -892,11 +763,7 @@ async function handleHuskyReStaging(ctx: AppContext): Promise<boolean> {
 
     return true;
   } catch (error: unknown) {
-    UI.log(
-      c.red(
-        '🛑 Error during Husky hook file management. Fixes might not be staged.',
-      ),
-    );
+    UI.log(c.red('🛑 Error during Husky hook file management. Fixes might not be staged.'));
     UI.printError(error);
     return false;
   }
@@ -945,9 +812,7 @@ async function main() {
       stderr: `Check runner failed: ${String(res.reason)}`,
       duration: 0,
       skipped: false,
-      logLines: [
-        `${c.bold(c.red('❌'))} ${c.yellow(checkName)} ${c.red('runner crashed')}`,
-      ],
+      logLines: [`${c.bold(c.red('❌'))} ${c.yellow(checkName)} ${c.red('runner crashed')}`],
     };
   });
 

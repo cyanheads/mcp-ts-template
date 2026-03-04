@@ -13,42 +13,42 @@ export type AudioFormat = 'mp3' | 'wav' | 'ogg' | 'flac' | 'pcm' | 'webm';
  * Voice settings for text-to-speech synthesis.
  */
 export interface VoiceSettings {
-  /** Voice ID or name (provider-specific) */
-  voiceId?: string;
-  /** Speech rate/speed (0.5 to 2.0, where 1.0 is normal) */
-  speed?: number;
   /** Voice pitch (-20.0 to 20.0, where 0 is normal) */
   pitch?: number;
-  /** Volume level (0.0 to 1.0) */
-  volume?: number;
-  /** Stability setting (0.0 to 1.0, provider-specific) */
-  stability?: number;
   /** Similarity boost (0.0 to 1.0, provider-specific) */
   similarityBoost?: number;
+  /** Speech rate/speed (0.5 to 2.0, where 1.0 is normal) */
+  speed?: number;
+  /** Stability setting (0.0 to 1.0, provider-specific) */
+  stability?: number;
   /** Style exaggeration (0.0 to 1.0, provider-specific) */
   style?: number;
+  /** Voice ID or name (provider-specific) */
+  voiceId?: string;
+  /** Volume level (0.0 to 1.0) */
+  volume?: number;
 }
 
 /**
  * Options for text-to-speech synthesis.
  */
 export interface TextToSpeechOptions {
-  /** Text to convert to speech */
-  text: string;
-  /** Voice settings */
-  voice?: VoiceSettings;
-  /** Output audio format */
-  format?: AudioFormat;
-  /** Model ID (provider-specific) */
-  modelId?: string;
-  /** Language code (e.g., 'en-US', 'es-ES') */
-  language?: string;
   /** Optional context for request tracing */
   context?: {
     requestId?: string;
     traceId?: string;
     tenantId?: string;
   };
+  /** Output audio format */
+  format?: AudioFormat;
+  /** Language code (e.g., 'en-US', 'es-ES') */
+  language?: string;
+  /** Model ID (provider-specific) */
+  modelId?: string;
+  /** Text to convert to speech */
+  text: string;
+  /** Voice settings */
+  voice?: VoiceSettings;
 }
 
 /**
@@ -57,12 +57,12 @@ export interface TextToSpeechOptions {
 export interface TextToSpeechResult {
   /** Audio data as Buffer or base64 string */
   audio: Buffer | string;
-  /** Audio format */
-  format: AudioFormat;
-  /** Duration in seconds (if available) */
-  duration?: number;
   /** Character count of input text */
   characterCount: number;
+  /** Duration in seconds (if available) */
+  duration?: number;
+  /** Audio format */
+  format: AudioFormat;
   /** Provider-specific metadata */
   metadata?: Record<string, unknown>;
 }
@@ -73,96 +73,96 @@ export interface TextToSpeechResult {
 export interface SpeechToTextOptions {
   /** Audio data as Buffer or base64 string */
   audio: Buffer | string;
-  /** Audio format */
-  format?: AudioFormat;
-  /** Language code hint (e.g., 'en', 'es') */
-  language?: string;
-  /** Model ID (provider-specific) */
-  modelId?: string;
-  /** Enable word-level timestamps */
-  timestamps?: boolean;
-  /** Temperature for sampling (0.0 to 1.0) */
-  temperature?: number;
-  /** Prompt to guide transcription style */
-  prompt?: string;
   /** Optional context for request tracing */
   context?: {
     requestId?: string;
     traceId?: string;
     tenantId?: string;
   };
+  /** Audio format */
+  format?: AudioFormat;
+  /** Language code hint (e.g., 'en', 'es') */
+  language?: string;
+  /** Model ID (provider-specific) */
+  modelId?: string;
+  /** Prompt to guide transcription style */
+  prompt?: string;
+  /** Temperature for sampling (0.0 to 1.0) */
+  temperature?: number;
+  /** Enable word-level timestamps */
+  timestamps?: boolean;
 }
 
 /**
  * Word-level timestamp information.
  */
 export interface WordTimestamp {
-  /** The word or token */
-  word: string;
-  /** Start time in seconds */
-  start: number;
-  /** End time in seconds */
-  end: number;
   /** Confidence score (0.0 to 1.0) */
   confidence?: number;
+  /** End time in seconds */
+  end: number;
+  /** Start time in seconds */
+  start: number;
+  /** The word or token */
+  word: string;
 }
 
 /**
  * Result from speech-to-text transcription.
  */
 export interface SpeechToTextResult {
-  /** Transcribed text */
-  text: string;
-  /** Detected language code */
-  language?: string;
-  /** Duration in seconds */
-  duration?: number;
-  /** Word-level timestamps (if requested) */
-  words?: WordTimestamp[];
   /** Overall confidence score (0.0 to 1.0) */
   confidence?: number;
+  /** Duration in seconds */
+  duration?: number;
+  /** Detected language code */
+  language?: string;
   /** Provider-specific metadata */
   metadata?: Record<string, unknown>;
+  /** Transcribed text */
+  text: string;
+  /** Word-level timestamps (if requested) */
+  words?: WordTimestamp[];
 }
 
 /**
  * Available voices from a provider.
  */
 export interface Voice {
-  /** Voice ID */
-  id: string;
-  /** Voice name */
-  name: string;
-  /** Voice description */
-  description?: string;
-  /** Language codes supported */
-  languages?: string[];
   /** Voice category (e.g., 'premade', 'cloned', 'professional') */
   category?: string;
+  /** Voice description */
+  description?: string;
   /** Gender (if applicable) */
   gender?: 'male' | 'female' | 'neutral';
-  /** Preview URL (if available) */
-  previewUrl?: string;
+  /** Voice ID */
+  id: string;
+  /** Language codes supported */
+  languages?: string[];
   /** Provider-specific metadata */
   metadata?: Record<string, unknown>;
+  /** Voice name */
+  name: string;
+  /** Preview URL (if available) */
+  previewUrl?: string;
 }
 
 /**
  * Configuration for speech service providers.
  */
 export interface SpeechProviderConfig {
-  /** Provider type */
-  provider: 'elevenlabs' | 'openai-whisper' | 'mock';
   /** API key */
   apiKey?: string;
   /** API base URL (optional override) */
   baseUrl?: string;
-  /** Default voice ID for TTS */
-  defaultVoiceId?: string;
   /** Default model ID */
   defaultModelId?: string;
-  /** Request timeout in milliseconds */
-  timeout?: number;
+  /** Default voice ID for TTS */
+  defaultVoiceId?: string;
   /** Additional provider-specific options */
   options?: Record<string, unknown>;
+  /** Provider type */
+  provider: 'elevenlabs' | 'openai-whisper' | 'mock';
+  /** Request timeout in milliseconds */
+  timeout?: number;
 }

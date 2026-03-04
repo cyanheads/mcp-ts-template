@@ -4,14 +4,14 @@
  */
 
 export type {
-  Vertex,
   Edge,
   GraphPath,
-  TraversalResult,
-  TraversalDirection,
-  RelateOptions,
-  TraversalOptions,
   PathOptions,
+  RelateOptions,
+  TraversalDirection,
+  TraversalOptions,
+  TraversalResult,
+  Vertex,
 } from './core/IGraphProvider.js';
 
 /**
@@ -23,42 +23,44 @@ export type GraphProviderType = 'mock';
  * Configuration for graph service.
  */
 export interface GraphServiceConfig {
-  /** Provider type to use */
-  provider: GraphProviderType;
   /** Additional provider-specific configuration */
   config?: Record<string, unknown>;
+  /** Provider type to use */
+  provider: GraphProviderType;
 }
 
 /**
  * Statistics about a graph.
  */
 export interface GraphStats {
-  /** Total number of vertices */
-  vertexCount: number;
-  /** Total number of edges */
-  edgeCount: number;
   /** Average degree (edges per vertex) */
   avgDegree: number;
-  /** Vertex types and their counts */
-  vertexTypes: Record<string, number>;
+  /** Total number of edges */
+  edgeCount: number;
   /** Edge types and their counts */
   edgeTypes: Record<string, number>;
+  /** Total number of vertices */
+  vertexCount: number;
+  /** Vertex types and their counts */
+  vertexTypes: Record<string, number>;
 }
 
 /**
  * Pattern for graph matching.
  */
 export interface GraphPattern {
-  /** Pattern string (e.g., "(person)-[knows]->(person)") */
-  pattern: string;
   /** Parameters for the pattern */
   params?: Record<string, unknown>;
+  /** Pattern string (e.g., "(person)-[knows]->(person)") */
+  pattern: string;
 }
 
 /**
  * Result of pattern matching.
  */
 export interface PatternMatchResult {
+  /** Total number of matches */
+  count: number;
   /** Matched subgraphs */
   matches: Array<{
     /** Vertices in the matched path */
@@ -78,6 +80,4 @@ export interface PatternMatchResult {
     /** Path weight */
     weight?: number;
   }>;
-  /** Total number of matches */
-  count: number;
 }

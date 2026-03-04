@@ -10,16 +10,18 @@
  * @experimental These APIs are experimental and may change without notice.
  * @module src/mcp-server/tasks/core/taskManager
  */
-import { type config as configType } from '@/config/index.js';
-import { StorageService } from '@/storage/core/StorageService.js';
-import { idGenerator, logger, type RequestContext } from '@/utils/index.js';
-import {
-  InMemoryTaskStore,
-  InMemoryTaskMessageQueue,
-  type TaskStore,
-  type TaskMessageQueue,
-} from './taskTypes.js';
+import type { config as configType } from '@/config/index.js';
+import type { StorageService } from '@/storage/core/StorageService.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { idGenerator } from '@/utils/security/idGenerator.js';
 import { StorageBackedTaskStore } from './storageBackedTaskStore.js';
+import {
+  InMemoryTaskMessageQueue,
+  InMemoryTaskStore,
+  type TaskMessageQueue,
+  type TaskStore,
+} from './taskTypes.js';
 
 /**
  * Singleton service that manages task state and message queues for the MCP server.
@@ -62,6 +64,9 @@ export class TaskManager {
         defaultTtl: config.tasks.defaultTtlMs ?? null,
       });
     } else {
+      // NOTE: The SDK's InMemoryTaskStore does not enforce session ownership.
+      // Only StorageBackedTaskStore validates that callers own the tasks they access.
+      // This is a known SDK limitation (sessionId params are accepted but ignored).
       this.inMemoryTaskStore = new InMemoryTaskStore();
       this.taskStore = this.inMemoryTaskStore;
     }

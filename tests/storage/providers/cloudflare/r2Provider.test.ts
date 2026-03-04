@@ -3,10 +3,11 @@
  * @module tests/storage/providers/cloudflare/r2Provider.test
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
+import { encodeCursor } from '../../../../src/storage/core/storageValidation.js';
 import { R2Provider } from '../../../../src/storage/providers/cloudflare/r2Provider.js';
 import { McpError } from '../../../../src/types-global/errors.js';
-import type { RequestContext } from '../../../../src/utils/index.js';
-import { requestContextService } from '../../../../src/utils/index.js';
 
 // Mock R2Bucket
 const createMockR2Bucket = () => ({
@@ -48,11 +49,7 @@ describe('R2Provider', () => {
         text: async () => JSON.stringify(envelope),
       };
       mockBucket.get.mockResolvedValue(mockR2Object);
-      const result = await r2Provider.get<{ data: string }>(
-        'tenant-1',
-        'key-1',
-        context,
-      );
+      const result = await r2Provider.get<{ data: string }>('tenant-1', 'key-1', context);
       expect(result).toEqual(storedObject);
     });
 
@@ -61,9 +58,7 @@ describe('R2Provider', () => {
         text: async () => 'invalid-json',
       };
       mockBucket.get.mockResolvedValue(mockR2Object);
-      await expect(
-        r2Provider.get('tenant-1', 'key-1', context),
-      ).rejects.toThrow(McpError);
+      await expect(r2Provider.get('tenant-1', 'key-1', context)).rejects.toThrow(McpError);
     });
 
     it('should delete expired keys and return null', async () => {
@@ -136,11 +131,7 @@ describe('R2Provider', () => {
   describe('list', () => {
     it('should return a list of keys with tenant prefix stripped', async () => {
       mockBucket.list.mockResolvedValue({
-        objects: [
-          { key: 'tenant-1:key-1' },
-          { key: 'tenant-1:key-2' },
-          { key: 'unrelated-key' },
-        ],
+        objects: [{ key: 'tenant-1:key-1' }, { key: 'tenant-1:key-2' }, { key: 'unrelated-key' }],
         truncated: false,
       });
       const result = await r2Provider.list('tenant-1', 'key', context);
@@ -156,11 +147,7 @@ describe('R2Provider', () => {
 
     it('should apply limit, cursor, and expose next cursor when truncated', async () => {
       const listedResponse = {
-        objects: [
-          { key: 'tenant-1:key-a' },
-          { key: 'tenant-1:key-b' },
-          { key: 'tenant-1:key-c' },
-        ],
+        objects: [{ key: 'tenant-1:key-a' }, { key: 'tenant-1:key-b' }, { key: 'tenant-1:key-c' }],
         truncated: true,
         cursor: 'cursor-token',
       };
@@ -168,19 +155,22 @@ describe('R2Provider', () => {
         .mockResolvedValueOnce(listedResponse)
         .mockResolvedValueOnce({ objects: [], truncated: false });
 
+      // Pass a tenant-bound cursor (provider decodes before forwarding to R2)
+      const tenantBoundCursor = encodeCursor('incoming-cursor', 'tenant-1');
       const result = await r2Provider.list('tenant-1', 'key', context, {
         limit: 2,
-        cursor: 'incoming-cursor',
+        cursor: tenantBoundCursor,
       });
 
       expect(result.keys).toEqual(['key-a', 'key-b']);
-      expect(result.nextCursor).toBe('cursor-token');
+      // nextCursor should be tenant-bound encoded
+      expect(result.nextCursor).toBe(encodeCursor('cursor-token', 'tenant-1'));
       expect(mockBucket.list).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
           prefix: 'tenant-1:key',
           limit: 3,
-          cursor: 'incoming-cursor',
+          cursor: 'incoming-cursor', // decoded native cursor passed to R2
         }),
       );
     });
@@ -194,11 +184,7 @@ describe('R2Provider', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ payload: 3 });
 
-      const result = await r2Provider.getMany(
-        'tenant-1',
-        ['key-1', 'key-2', 'key-3'],
-        context,
-      );
+      const result = await r2Provider.getMany('tenant-1', ['key-1', 'key-2', 'key-3'], context);
 
       expect(result.size).toBe(2);
       expect(result.get('key-1')).toEqual({ payload: 1 });
@@ -219,32 +205,18 @@ describe('R2Provider', () => {
       await r2Provider.setMany('tenant-1', entries, context, { ttl: 10 });
 
       expect(spy).toHaveBeenCalledTimes(2);
-      expect(spy).toHaveBeenNthCalledWith(
-        1,
-        'tenant-1',
-        'key-1',
-        { data: 1 },
-        context,
-        { ttl: 10 },
-      );
-      expect(spy).toHaveBeenNthCalledWith(
-        2,
-        'tenant-1',
-        'key-2',
-        { data: 2 },
-        context,
-        { ttl: 10 },
-      );
+      expect(spy).toHaveBeenNthCalledWith(1, 'tenant-1', 'key-1', { data: 1 }, context, {
+        ttl: 10,
+      });
+      expect(spy).toHaveBeenNthCalledWith(2, 'tenant-1', 'key-2', { data: 2 }, context, {
+        ttl: 10,
+      });
     });
   });
 
   describe('deleteMany', () => {
     it('should batch delete all keys and return count', async () => {
-      const count = await r2Provider.deleteMany(
-        'tenant-1',
-        ['key-1', 'key-2', 'key-3'],
-        context,
-      );
+      const count = await r2Provider.deleteMany('tenant-1', ['key-1', 'key-2', 'key-3'], context);
 
       expect(count).toBe(3);
       // Single batch delete call with all R2 keys
@@ -281,10 +253,7 @@ describe('R2Provider', () => {
       expect(deletedCount).toBe(3);
       // One batch delete per page
       expect(mockBucket.delete).toHaveBeenCalledTimes(2);
-      expect(mockBucket.delete).toHaveBeenNthCalledWith(1, [
-        'tenant-1:key-1',
-        'tenant-1:key-2',
-      ]);
+      expect(mockBucket.delete).toHaveBeenNthCalledWith(1, ['tenant-1:key-1', 'tenant-1:key-2']);
       expect(mockBucket.delete).toHaveBeenNthCalledWith(2, ['tenant-1:key-3']);
       expect(mockBucket.list).toHaveBeenNthCalledWith(
         1,

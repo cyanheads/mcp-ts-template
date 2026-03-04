@@ -3,13 +3,11 @@
  * checking token scopes against required permissions for a given operation.
  * @module src/mcp-server/transports/auth/core/authUtils
  */
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  logger,
-  type RequestContext,
-  requestContextService,
-} from '@/utils/index.js';
+
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Checks if the current authentication context contains all the specified scopes.
@@ -22,10 +20,7 @@ import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
  * @throws {McpError} Throws an error with `JsonRpcErrorCode.Forbidden` if authentication
  *   is active and one or more required scopes are not present in the validated token.
  */
-export function withRequiredScopes(
-  requiredScopes: string[],
-  parentContext?: RequestContext,
-): void {
+export function withRequiredScopes(requiredScopes: string[], parentContext?: RequestContext): void {
   const initialContext = parentContext
     ? {
         ...parentContext,
@@ -53,9 +48,7 @@ export function withRequiredScopes(
   const { scopes: grantedScopes, clientId, subject } = store.authInfo;
   const grantedScopeSet = new Set(grantedScopes);
 
-  const missingScopes = requiredScopes.filter(
-    (scope) => !grantedScopeSet.has(scope),
-  );
+  const missingScopes = requiredScopes.filter((scope) => !grantedScopeSet.has(scope));
 
   const finalContext = {
     ...initialContext,
@@ -66,10 +59,7 @@ export function withRequiredScopes(
 
   if (missingScopes.length > 0) {
     const errorContext = { ...finalContext, missingScopes };
-    logger.warning(
-      'Authorization failed: Missing required scopes.',
-      errorContext,
-    );
+    logger.warning('Authorization failed: Missing required scopes.', errorContext);
     throw new McpError(
       JsonRpcErrorCode.Forbidden,
       `Insufficient permissions. Missing required scopes: ${missingScopes.join(', ')}`,

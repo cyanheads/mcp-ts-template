@@ -4,10 +4,7 @@
  */
 import { describe, expect, test } from 'vitest';
 
-import {
-  MarkdownBuilder,
-  markdown,
-} from '@/utils/formatting/markdownBuilder.js';
+import { MarkdownBuilder, markdown } from '@/utils/formatting/markdownBuilder.js';
 
 describe('MarkdownBuilder', () => {
   describe('Basic instantiation', () => {
@@ -60,12 +57,13 @@ describe('MarkdownBuilder', () => {
       expect(result).toBe('#### Minor heading');
     });
 
+    test('should create h4 with emoji', () => {
+      const result = markdown().h4('Detail', '🔍').build();
+      expect(result).toBe('#### 🔍 Detail');
+    });
+
     test('should chain multiple headings', () => {
-      const result = markdown()
-        .h1('Title')
-        .h2('Section')
-        .h3('Subsection')
-        .build();
+      const result = markdown().h1('Title').h2('Section').h3('Subsection').build();
       expect(result).toBe('# Title\n\n## Section\n\n### Subsection');
     });
   });
@@ -96,11 +94,23 @@ describe('MarkdownBuilder', () => {
       expect(result).toBe('Status: active');
     });
 
+    test('should handle numeric values in plain key-value', () => {
+      const result = markdown().keyValuePlain('Count', 42).build();
+      expect(result).toBe('Count: 42');
+    });
+
+    test('should handle boolean values in plain key-value', () => {
+      const result = markdown().keyValuePlain('Enabled', false).build();
+      expect(result).toBe('Enabled: false');
+    });
+
+    test('should handle null values in plain key-value', () => {
+      const result = markdown().keyValuePlain('Value', null).build();
+      expect(result).toBe('Value: null');
+    });
+
     test('should chain multiple key-value pairs', () => {
-      const result = markdown()
-        .keyValue('Name', 'Test')
-        .keyValue('Age', 25)
-        .build();
+      const result = markdown().keyValue('Name', 'Test').keyValue('Age', 25).build();
       expect(result).toBe('**Name:** Test\n**Age:** 25');
     });
   });
@@ -112,9 +122,7 @@ describe('MarkdownBuilder', () => {
     });
 
     test('should create ordered list', () => {
-      const result = markdown()
-        .list(['First', 'Second', 'Third'], true)
-        .build();
+      const result = markdown().list(['First', 'Second', 'Third'], true).build();
       expect(result).toBe('1. First\n2. Second\n3. Third');
     });
 
@@ -136,18 +144,12 @@ describe('MarkdownBuilder', () => {
     });
 
     test('should create code block with language', () => {
-      const result = markdown()
-        .codeBlock('const x = 42;', 'typescript')
-        .build();
+      const result = markdown().codeBlock('const x = 42;', 'typescript').build();
       expect(result).toBe('```typescript\nconst x = 42;\n```');
     });
 
     test('should create inline code', () => {
-      const result = markdown()
-        .text('Use ')
-        .inlineCode('npm install')
-        .text(' to install.')
-        .build();
+      const result = markdown().text('Use ').inlineCode('npm install').text(' to install.').build();
       expect(result).toBe('Use `npm install` to install.');
     });
   });
@@ -191,11 +193,7 @@ describe('MarkdownBuilder', () => {
     });
 
     test('should use hr as separator', () => {
-      const result = markdown()
-        .paragraph('Before')
-        .hr()
-        .paragraph('After')
-        .build();
+      const result = markdown().paragraph('Before').hr().paragraph('After').build();
       expect(result).toBe('Before\n\n---\n\nAfter');
     });
   });
@@ -212,9 +210,7 @@ describe('MarkdownBuilder', () => {
         .link('our site', 'https://example.com')
         .text(' for more info.')
         .build();
-      expect(result).toBe(
-        'Visit [our site](https://example.com) for more info.',
-      );
+      expect(result).toBe('Visit [our site](https://example.com) for more info.');
     });
   });
 
@@ -257,7 +253,7 @@ describe('MarkdownBuilder', () => {
       expect(result).toContain('- file1.ts');
     });
 
-    test('should create section with custom level', () => {
+    test('should create section with level 3', () => {
       const md = markdown();
       const result = md
         .section('Details', 3, () => {
@@ -267,13 +263,22 @@ describe('MarkdownBuilder', () => {
       expect(result).toContain('### Details');
       expect(result).toContain('Some details');
     });
+
+    test('should create section with level 4', () => {
+      const md = markdown();
+      const result = md
+        .section('Sub-detail', 4, () => {
+          md.paragraph('Deep content');
+        })
+        .build();
+      expect(result).toContain('#### Sub-detail');
+      expect(result).toContain('Deep content');
+    });
   });
 
   describe('Details/summary', () => {
     test('should create collapsible details', () => {
-      const result = markdown()
-        .details('Click to expand', 'Hidden content here')
-        .build();
+      const result = markdown().details('Click to expand', 'Hidden content here').build();
       expect(result).toContain('<details>');
       expect(result).toContain('<summary>Click to expand</summary>');
       expect(result).toContain('Hidden content here');
@@ -290,11 +295,7 @@ describe('MarkdownBuilder', () => {
 
   describe('Blank lines', () => {
     test('should add blank line', () => {
-      const result = markdown()
-        .text('Line 1')
-        .blankLine()
-        .text('Line 2')
-        .build();
+      const result = markdown().text('Line 1').blankLine().text('Line 2').build();
       expect(result).toBe('Line 1\nLine 2');
     });
   });
@@ -482,9 +483,7 @@ describe('MarkdownBuilder', () => {
 
   describe('Images', () => {
     test('should create image without title', () => {
-      const result = markdown()
-        .image('Alt text', 'https://example.com/image.png')
-        .build();
+      const result = markdown().image('Alt text', 'https://example.com/image.png').build();
       expect(result).toBe('![Alt text](https://example.com/image.png)');
     });
 
@@ -492,9 +491,7 @@ describe('MarkdownBuilder', () => {
       const result = markdown()
         .image('Alt text', 'https://example.com/image.png', 'Hover title')
         .build();
-      expect(result).toBe(
-        '![Alt text](https://example.com/image.png "Hover title")',
-      );
+      expect(result).toBe('![Alt text](https://example.com/image.png "Hover title")');
     });
   });
 
@@ -591,17 +588,13 @@ describe('MarkdownBuilder', () => {
     test('should create basic badge', () => {
       const result = markdown().badge('build', 'passing', 'green').build();
       expect(result).toContain('![build: passing]');
-      expect(result).toContain(
-        'https://img.shields.io/badge/build-passing-green',
-      );
+      expect(result).toContain('https://img.shields.io/badge/build-passing-green');
     });
 
     test('should create badge with default color', () => {
       const result = markdown().badge('version', '1.0.0').build();
       expect(result).toContain('![version: 1.0.0]');
-      expect(result).toContain(
-        'https://img.shields.io/badge/version-1.0.0-blue',
-      );
+      expect(result).toContain('https://img.shields.io/badge/version-1.0.0-blue');
     });
 
     test('should encode special characters in badge', () => {

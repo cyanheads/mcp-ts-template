@@ -258,22 +258,19 @@ describe('Auth Context', () => {
       };
 
       // Simulate middleware setting context
-      const middlewareResult = await authContext.run(
-        { authInfo: testAuthInfo },
-        async () => {
-          // Simulate handler accessing context
-          const handler = () => {
-            const store = authContext.getStore();
-            return {
-              authenticated: !!store,
-              clientId: store?.authInfo.clientId,
-              hasReadScope: store?.authInfo.scopes.includes('middleware:read'),
-            };
+      const middlewareResult = await authContext.run({ authInfo: testAuthInfo }, async () => {
+        // Simulate handler accessing context
+        const handler = () => {
+          const store = authContext.getStore();
+          return {
+            authenticated: !!store,
+            clientId: store?.authInfo.clientId,
+            hasReadScope: store?.authInfo.scopes.includes('middleware:read'),
           };
+        };
 
-          return handler();
-        },
-      );
+        return handler();
+      });
 
       expect(middlewareResult.authenticated).toBe(true);
       expect(middlewareResult.clientId).toBe('middleware-client');
@@ -311,9 +308,7 @@ describe('Auth Context', () => {
         const hasAllScopes = (requiredScopes: string[]): boolean => {
           const store = authContext.getStore();
           if (!store) return false;
-          return requiredScopes.every((scope) =>
-            store.authInfo.scopes.includes(scope),
-          );
+          return requiredScopes.every((scope) => store.authInfo.scopes.includes(scope));
         };
 
         expect(hasAllScopes(['read', 'write'])).toBe(true);

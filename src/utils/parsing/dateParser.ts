@@ -6,7 +6,9 @@
 import * as chrono from 'chrono-node';
 
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
-import { ErrorHandler, type RequestContext, logger } from '@/utils/index.js';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 /**
  * Parses a natural language date string into a JavaScript Date object.
@@ -32,10 +34,7 @@ export async function parseDateString(
     () => {
       const parsedDate = chrono.parseDate(text, refDate, { forwardDate: true });
       if (parsedDate) {
-        logger.debug(
-          `Successfully parsed "${text}" to ${parsedDate.toISOString()}`,
-          logContext,
-        );
+        logger.debug(`Successfully parsed "${text}" to ${parsedDate.toISOString()}`, logContext);
         return parsedDate;
       } else {
         logger.warning(`Failed to parse date string: "${text}"`, logContext);
@@ -69,10 +68,7 @@ export async function parseDateStringDetailed(
 ): Promise<chrono.ParsedResult[]> {
   const operation = 'parseDateStringDetailed';
   const logContext = { ...context, operation, inputText: text, refDate };
-  logger.debug(
-    `Attempting detailed parse of date string: "${text}"`,
-    logContext,
-  );
+  logger.debug(`Attempting detailed parse of date string: "${text}"`, logContext);
 
   return await ErrorHandler.tryCatch(
     () => {

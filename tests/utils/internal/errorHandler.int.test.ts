@@ -5,21 +5,9 @@
  * @module
  */
 import { SpanStatusCode, trace } from '@opentelemetry/api';
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
-
-import {
-  JsonRpcErrorCode,
-  McpError,
-} from '../../../src/types-global/errors.js';
-import { ErrorHandler } from '../../../src/utils/internal/error-handler/index.js';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
 import { logger } from '../../../src/utils/internal/logger.js';
 
 // Suppress logger stdout output for this test by mocking the underlying pino logger
@@ -69,7 +57,7 @@ describe('ErrorHandler', () => {
 
   afterAll(async () => {
     // Restore pino spies
-    pinoSpies.forEach((spy) => spy.mockRestore());
+    for (const spy of pinoSpies) spy.mockRestore();
 
     // Close the logger once after all tests have run
     await logger.close();
@@ -83,36 +71,34 @@ describe('ErrorHandler', () => {
   describe('determineErrorCode', () => {
     it('should return the code from an McpError instance', () => {
       const error = new McpError(JsonRpcErrorCode.NotFound, 'Not found');
-      expect(ErrorHandler.determineErrorCode(error)).toBe(
-        JsonRpcErrorCode.NotFound,
-      );
+      expect(ErrorHandler.determineErrorCode(error)).toBe(JsonRpcErrorCode.NotFound);
     });
 
     it('should map standard JS errors correctly', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new TypeError('Invalid type')),
-      ).toBe(JsonRpcErrorCode.ValidationError);
-      expect(
-        ErrorHandler.determineErrorCode(new ReferenceError('Var not found')),
-      ).toBe(JsonRpcErrorCode.InternalError);
+      expect(ErrorHandler.determineErrorCode(new TypeError('Invalid type'))).toBe(
+        JsonRpcErrorCode.ValidationError,
+      );
+      expect(ErrorHandler.determineErrorCode(new ReferenceError('Var not found'))).toBe(
+        JsonRpcErrorCode.InternalError,
+      );
     });
 
     it('should map errors based on message patterns', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('User is not authorized')),
-      ).toBe(JsonRpcErrorCode.Unauthorized);
-      expect(
-        ErrorHandler.determineErrorCode(new Error('This item is missing')),
-      ).toBe(JsonRpcErrorCode.NotFound);
-      expect(
-        ErrorHandler.determineErrorCode(new Error('Request timed out')),
-      ).toBe(JsonRpcErrorCode.Timeout);
+      expect(ErrorHandler.determineErrorCode(new Error('User is not authorized'))).toBe(
+        JsonRpcErrorCode.Unauthorized,
+      );
+      expect(ErrorHandler.determineErrorCode(new Error('This item is missing'))).toBe(
+        JsonRpcErrorCode.NotFound,
+      );
+      expect(ErrorHandler.determineErrorCode(new Error('Request timed out'))).toBe(
+        JsonRpcErrorCode.Timeout,
+      );
     });
 
     it('should default to InternalError for unknown errors', () => {
-      expect(
-        ErrorHandler.determineErrorCode(new Error('A strange error')),
-      ).toBe(JsonRpcErrorCode.InternalError);
+      expect(ErrorHandler.determineErrorCode(new Error('A strange error'))).toBe(
+        JsonRpcErrorCode.InternalError,
+      );
       expect(ErrorHandler.determineErrorCode('just a string error')).toBe(
         JsonRpcErrorCode.InternalError,
       );
@@ -132,9 +118,7 @@ describe('ErrorHandler', () => {
       const call = errorSpy.mock.calls[0];
       if (!call) throw new Error('errorSpy was not called');
       const [errorMessage, logContext] = call;
-      expect(errorMessage).toContain(
-        'Error in testOperation: Something failed',
-      );
+      expect(errorMessage).toContain('Error in testOperation: Something failed');
       expect(logContext).toMatchObject({
         requestId: 'test-123',
         operation: 'testOperation',
@@ -193,11 +177,9 @@ describe('ErrorHandler', () => {
 
   describe('formatError', () => {
     it('should format an McpError correctly', () => {
-      const error = new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Invalid input',
-        { field: 'email' },
-      );
+      const error = new McpError(JsonRpcErrorCode.ValidationError, 'Invalid input', {
+        field: 'email',
+      });
       const formatted = ErrorHandler.formatError(error);
       expect(formatted).toEqual({
         code: JsonRpcErrorCode.ValidationError,
@@ -219,10 +201,9 @@ describe('ErrorHandler', () => {
 
   describe('tryCatch', () => {
     it('should return the result of a successful async function', async () => {
-      const result = await ErrorHandler.tryCatch(
-        async () => Promise.resolve('success'),
-        { operation: 'tryCatchSuccess' },
-      );
+      const result = await ErrorHandler.tryCatch(async () => Promise.resolve('success'), {
+        operation: 'tryCatchSuccess',
+      });
       expect(result).toBe('success');
       expect(errorSpy).not.toHaveBeenCalled();
     });

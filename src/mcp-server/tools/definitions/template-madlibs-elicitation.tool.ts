@@ -11,10 +11,11 @@ import type {
   SdkContext,
   ToolAnnotations,
   ToolDefinition,
-} from '@/mcp-server/tools/utils/index.js';
+} from '@/mcp-server/tools/utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { type RequestContext, logger } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 const TOOL_NAME = 'template_madlibs_elicitation';
 const TOOL_TITLE = 'Mad Libs Elicitation Game';
@@ -34,9 +35,7 @@ const InputSchema = z
     verb: z.string().optional().describe('A verb (past tense) for the story.'),
     adjective: z.string().optional().describe('An adjective for the story.'),
   })
-  .describe(
-    'Inputs for the Mad Libs game. Any missing fields will be elicited.',
-  );
+  .describe('Inputs for the Mad Libs game. Any missing fields will be elicited.');
 
 const OutputSchema = z
   .object({
@@ -86,9 +85,19 @@ async function elicitAndValidate(
     },
   });
 
+  // Check the elicitation action before parsing the value
+  const result = elicitedUnknown as { action?: string; content?: Record<string, unknown> } | null;
+  if (!result || result.action === 'decline' || result.action === 'cancel') {
+    throw new McpError(
+      JsonRpcErrorCode.InvalidRequest,
+      `User ${result?.action ?? 'cancelled'} the ${partOfSpeech} elicitation.`,
+    );
+  }
+
+  // Elicitation returns { action: 'accept', content: { value: '...' } }
   const validation = z
-    .object({ value: z.string().min(1) })
-    .safeParse(elicitedUnknown);
+    .object({ content: z.object({ value: z.string().min(1) }) })
+    .safeParse(result);
   if (!validation.success) {
     throw new McpError(
       JsonRpcErrorCode.InvalidParams,
@@ -96,7 +105,7 @@ async function elicitAndValidate(
       { provided: elicitedUnknown },
     );
   }
-  return validation.data.value;
+  return validation.data.content.value;
 }
 
 // --- Pure business logic ---
@@ -113,8 +122,7 @@ async function madlibsToolLogic(
   // No cast is needed; sdkContext is already the correct type.
   const noun = input.noun ?? (await elicitAndValidate('noun', sdkContext));
   const verb = input.verb ?? (await elicitAndValidate('verb', sdkContext));
-  const adjective =
-    input.adjective ?? (await elicitAndValidate('adjective', sdkContext));
+  const adjective = input.adjective ?? (await elicitAndValidate('adjective', sdkContext));
 
   const story = `The ${adjective} ${noun} ${verb} over the lazy dog.`;
 
@@ -151,10 +159,7 @@ function responseFormatter(result: MadlibsToolResponse): ContentBlock[] {
 }
 
 // --- Tool Definition ---
-export const madlibsElicitationTool: ToolDefinition<
-  typeof InputSchema,
-  typeof OutputSchema
-> = {
+export const madlibsElicitationTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
   name: TOOL_NAME,
   title: TOOL_TITLE,
   description: TOOL_DESCRIPTION,

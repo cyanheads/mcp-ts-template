@@ -2,11 +2,12 @@
  * @fileoverview Tests for authentication middleware.
  * @module tests/mcp-server/transports/auth/authMiddleware.test.ts
  */
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+
 import type { Context, Next } from 'hono';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAuthMiddleware } from '@/mcp-server/transports/auth/authMiddleware.js';
-import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
+import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 
 describe('Auth Middleware', () => {
@@ -38,7 +39,7 @@ describe('Auth Middleware', () => {
           if (name === undefined) {
             return { Authorization: 'Bearer valid-token' };
           }
-          return undefined;
+          return;
         }) as any,
         method: 'POST',
         path: '/mcp',
@@ -91,7 +92,7 @@ describe('Auth Middleware', () => {
         if (name === undefined) {
           return {};
         }
-        return undefined;
+        return;
       }) as any;
 
       const middleware = createAuthMiddleware(mockStrategy);
@@ -112,7 +113,7 @@ describe('Auth Middleware', () => {
         if (name === undefined) {
           return { Authorization: 'Basic dGVzdDp0ZXN0' };
         }
-        return undefined;
+        return;
       }) as any;
 
       const middleware = createAuthMiddleware(mockStrategy);
@@ -129,15 +130,13 @@ describe('Auth Middleware', () => {
         if (name === undefined) {
           return { Authorization: 'Bearer ' };
         }
-        return undefined;
+        return;
       }) as any;
 
       const middleware = createAuthMiddleware(mockStrategy);
 
       await expect(middleware(mockContext, mockNext)).rejects.toThrow(McpError);
-      await expect(middleware(mockContext, mockNext)).rejects.toThrow(
-        'token is missing',
-      );
+      await expect(middleware(mockContext, mockNext)).rejects.toThrow('token is missing');
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -149,7 +148,7 @@ describe('Auth Middleware', () => {
         if (name === undefined) {
           return { Authorization: 'InvalidFormat' };
         }
-        return undefined;
+        return;
       }) as any;
 
       const middleware = createAuthMiddleware(mockStrategy);
@@ -191,9 +190,7 @@ describe('Auth Middleware', () => {
 
       const middleware = createAuthMiddleware(mockStrategy);
 
-      await expect(middleware(mockContext, mockNext)).rejects.toThrow(
-        'Invalid token',
-      );
+      await expect(middleware(mockContext, mockNext)).rejects.toThrow('Invalid token');
       expect(mockNext).not.toHaveBeenCalled();
     });
 
@@ -204,9 +201,7 @@ describe('Auth Middleware', () => {
 
       const middleware = createAuthMiddleware(mockStrategy);
 
-      await expect(middleware(mockContext, mockNext)).rejects.toThrow(
-        'Token has expired',
-      );
+      await expect(middleware(mockContext, mockNext)).rejects.toThrow('Token has expired');
       expect(mockNext).not.toHaveBeenCalled();
     });
   });
@@ -267,10 +262,7 @@ describe('Auth Middleware', () => {
 
   describe('Error Handling', () => {
     it('should propagate McpError from strategy', async () => {
-      const customError = new McpError(
-        JsonRpcErrorCode.Unauthorized,
-        'Custom auth error',
-      );
+      const customError = new McpError(JsonRpcErrorCode.Unauthorized, 'Custom auth error');
 
       mockStrategy.verify = vi.fn(async () => {
         throw customError;
@@ -278,12 +270,10 @@ describe('Auth Middleware', () => {
 
       const middleware = createAuthMiddleware(mockStrategy);
 
-      await expect(middleware(mockContext, mockNext)).rejects.toThrow(
-        'Custom auth error',
-      );
+      await expect(middleware(mockContext, mockNext)).rejects.toThrow('Custom auth error');
     });
 
-    it('should wrap non-McpError exceptions', async () => {
+    it('should propagate non-McpError exceptions from strategy', async () => {
       mockStrategy.verify = vi.fn(async () => {
         throw new Error('Unexpected error');
       });
@@ -302,7 +292,7 @@ describe('Auth Middleware', () => {
 
       try {
         await middleware(mockContext, mockNext);
-      } catch (error) {
+      } catch (_error) {
         // Expected
       }
 
@@ -322,7 +312,7 @@ describe('Auth Middleware', () => {
             if (name === undefined) {
               return { Authorization: 'Bearer valid-token' };
             }
-            return undefined;
+            return;
           }) as any,
           method: 'GET',
           path: '/api/test',
@@ -350,7 +340,7 @@ describe('Auth Middleware', () => {
               if (name === undefined) {
                 return { Authorization: 'Bearer valid-token' };
               }
-              return undefined;
+              return;
             }) as any,
             method,
             path: '/mcp',

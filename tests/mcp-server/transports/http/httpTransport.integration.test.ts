@@ -3,9 +3,9 @@
  * @module tests/mcp-server/transports/http/httpTransport.integration.test
  */
 
-import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { RequestContext } from '@/utils/index.js';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 describe('HTTP Transport Integration - Server Lifecycle', () => {
   afterEach(() => {
@@ -48,13 +48,9 @@ describe('HTTP Transport Integration - RPC Handling', () => {
     };
 
     // Import createHttpApp
-    const { createHttpApp } =
-      await import('@/mcp-server/transports/http/httpTransport.js');
+    const { createHttpApp } = await import('@/mcp-server/transports/http/httpTransport.js');
 
-    const app = createHttpApp(
-      () => Promise.resolve(mockMcpServer as McpServer),
-      mockContext,
-    );
+    const app = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
 
     // Test supported protocol version
     const request = new Request('http://localhost:3000/mcp', {
@@ -97,13 +93,9 @@ describe('HTTP Transport Integration - RPC Handling', () => {
       configurable: true,
     });
 
-    const { createHttpApp } =
-      await import('@/mcp-server/transports/http/httpTransport.js');
+    const { createHttpApp } = await import('@/mcp-server/transports/http/httpTransport.js');
 
-    const app = createHttpApp(
-      () => Promise.resolve(mockMcpServer as McpServer),
-      mockContext,
-    );
+    const app = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
 
     const request = new Request('http://localhost:3000/mcp', {
       method: 'POST',
@@ -156,30 +148,17 @@ describe('HTTP Transport Integration - OAuth Metadata', () => {
 
     // Mock OAuth config
     const config = await import('@/config/index.js');
-    vi.spyOn(config.config, 'oauthIssuerUrl', 'get').mockReturnValue(
-      'https://auth.example.com',
-    );
-    vi.spyOn(config.config, 'oauthAudience', 'get').mockReturnValue(
-      'https://api.example.com',
-    );
-    vi.spyOn(config.config, 'oauthJwksUri', 'get').mockReturnValue(
-      'https://auth.example.com/.well-known/jwks.json',
-    );
+    vi.spyOn(config.config, 'mcpAuthMode', 'get').mockReturnValue('oauth' as any);
+    vi.spyOn(config.config, 'oauthIssuerUrl', 'get').mockReturnValue('https://auth.example.com');
+    vi.spyOn(config.config, 'oauthAudience', 'get').mockReturnValue('https://api.example.com');
 
-    const { createHttpApp } =
-      await import('@/mcp-server/transports/http/httpTransport.js');
+    const { createHttpApp } = await import('@/mcp-server/transports/http/httpTransport.js');
 
-    const app = createHttpApp(
-      () => Promise.resolve(mockMcpServer as McpServer),
-      mockContext,
-    );
+    const app = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
 
-    const request = new Request(
-      'http://localhost:3000/.well-known/oauth-protected-resource',
-      {
-        method: 'GET',
-      },
-    );
+    const request = new Request('http://localhost:3000/.well-known/oauth-protected-resource', {
+      method: 'GET',
+    });
 
     const response = await app.fetch(request);
     const data: any = await response.json();
@@ -187,9 +166,7 @@ describe('HTTP Transport Integration - OAuth Metadata', () => {
     expect(response.status).toBe(200);
     expect(data.resource).toBeDefined();
     expect(data.authorization_servers).toContain('https://auth.example.com');
-    expect(data.jwks_uri).toBe(
-      'https://auth.example.com/.well-known/jwks.json',
-    );
+    expect(data.bearer_methods_supported).toEqual(['header']);
     expect(response.headers.get('cache-control')).toContain('max-age=3600');
   });
 });

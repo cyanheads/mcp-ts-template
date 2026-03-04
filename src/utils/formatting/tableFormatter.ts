@@ -6,11 +6,8 @@
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  logger,
-  requestContextService,
-} from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Table output style options.
@@ -27,31 +24,11 @@ export type Alignment = 'left' | 'center' | 'right';
  */
 export interface TableFormatterOptions {
   /**
-   * Table style to use for rendering.
-   * - markdown: GitHub-style markdown tables (| Header | Header |)
-   * - ascii: ASCII box drawing with +, -, | characters
-   * - grid: Unicode box-drawing characters (┌─┬─┐)
-   * - compact: Space-separated columns (no borders)
-   */
-  style?: TableStyle;
-
-  /**
    * Column-specific alignment configuration.
    * Key is column name (for object arrays) or index (for raw arrays).
    * @example { name: 'left', age: 'right', email: 'center' }
    */
   alignment?: Record<string, Alignment>;
-
-  /**
-   * Maximum width for any column. Content exceeding this will be truncated.
-   */
-  maxWidth?: number;
-
-  /**
-   * Whether to truncate long content with ellipsis (default: true).
-   * If false, content may wrap or overflow depending on style.
-   */
-  truncate?: boolean;
 
   /**
    * Header styling option.
@@ -62,6 +39,11 @@ export interface TableFormatterOptions {
   headerStyle?: 'bold' | 'uppercase' | 'none';
 
   /**
+   * Maximum width for any column. Content exceeding this will be truncated.
+   */
+  maxWidth?: number;
+
+  /**
    * Minimum column width (default: 3).
    */
   minWidth?: number;
@@ -70,6 +52,20 @@ export interface TableFormatterOptions {
    * Padding around cell content (default: 1 space).
    */
   padding?: number;
+  /**
+   * Table style to use for rendering.
+   * - markdown: GitHub-style markdown tables (| Header | Header |)
+   * - ascii: ASCII box drawing with +, -, | characters
+   * - grid: Unicode box-drawing characters (┌─┬─┐)
+   * - compact: Space-separated columns (no borders)
+   */
+  style?: TableStyle;
+
+  /**
+   * Whether to truncate long content with ellipsis (default: true).
+   * If false, content may wrap or overflow depending on style.
+   */
+  truncate?: boolean;
 }
 
 /**
@@ -77,9 +73,9 @@ export interface TableFormatterOptions {
  * @private
  */
 interface ColumnInfo {
+  alignment: Alignment;
   name: string;
   width: number;
-  alignment: Alignment;
 }
 
 /**
@@ -133,11 +129,7 @@ export class TableFormatter {
       });
 
     if (!Array.isArray(data)) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Data must be an array',
-        logContext,
-      );
+      throw new McpError(JsonRpcErrorCode.ValidationError, 'Data must be an array', logContext);
     }
 
     if (data.length === 0) {
@@ -145,13 +137,12 @@ export class TableFormatter {
       return '';
     }
 
-    // Extract headers from first object
-    const headers = Object.keys(data[0]!);
+    // Extract headers from first object (safe: length checked above)
+    const firstRow = data[0] as T;
+    const headers = Object.keys(firstRow);
 
     // Convert objects to 2D array
-    const rows = data.map((obj) =>
-      headers.map((header) => this.stringify(obj[header])),
-    );
+    const rows = data.map((obj) => headers.map((header) => this.stringify(obj[header])));
 
     logger.debug('Formatting table from object array', {
       ...logContext,
@@ -205,11 +196,7 @@ export class TableFormatter {
     }
 
     if (!Array.isArray(rows)) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Rows must be an array',
-        logContext,
-      );
+      throw new McpError(JsonRpcErrorCode.ValidationError, 'Rows must be an array', logContext);
     }
 
     if (rows.length === 0) {
@@ -220,10 +207,10 @@ export class TableFormatter {
     // Validate row lengths
     const columnCount = headers.length;
     for (let i = 0; i < rows.length; i++) {
-      if (rows[i]!.length !== columnCount) {
+      if (rows[i]?.length !== columnCount) {
         throw new McpError(
           JsonRpcErrorCode.ValidationError,
-          `Row ${i} has ${rows[i]!.length} columns but expected ${columnCount}`,
+          `Row ${i} has ${rows[i]?.length} columns but expected ${columnCount}`,
           { ...logContext, rowIndex: i, expectedColumns: columnCount },
         );
       }
@@ -240,12 +227,7 @@ export class TableFormatter {
     const styledHeaders = this.applyHeaderStyle(headers, opts.headerStyle);
 
     // Calculate column widths and metadata
-    const columns = this.calculateColumns(
-      styledHeaders,
-      rows,
-      opts,
-      logContext,
-    );
+    const columns = this.calculateColumns(styledHeaders, rows, opts, logContext);
 
     // Render table based on style
     try {
@@ -260,17 +242,17 @@ export class TableFormatter {
 
       return result;
     } catch (error: unknown) {
-      const err = error as Error;
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
       logger.error('Failed to render table', {
         ...logContext,
-        error: err.message,
+        error: message,
       });
 
-      throw new McpError(
-        JsonRpcErrorCode.InternalError,
-        `Failed to render table: ${err.message}`,
-        { ...logContext, originalError: err.stack },
-      );
+      throw new McpError(JsonRpcErrorCode.InternalError, `Failed to render table: ${message}`, {
+        ...logContext,
+        originalError: stack,
+      });
     }
   }
 
@@ -278,15 +260,12 @@ export class TableFormatter {
    * Apply header styling transformations.
    * @private
    */
-  private applyHeaderStyle(
-    headers: string[],
-    style: 'bold' | 'uppercase' | 'none',
-  ): string[] {
+  private applyHeaderStyle(headers: string[], style: 'bold' | 'uppercase' | 'none'): string[] {
     switch (style) {
+      case 'bold':
+        return headers.map((h) => `**${h}**`);
       case 'uppercase':
         return headers.map((h) => h.toUpperCase());
-      case 'bold':
-      case 'none':
       default:
         return headers;
     }
@@ -304,16 +283,11 @@ export class TableFormatter {
   ): ColumnInfo[] {
     const columns: ColumnInfo[] = headers.map((header, index) => {
       // Determine alignment (use configured or default to left)
-      const alignment =
-        options.alignment[header] ||
-        options.alignment[index.toString()] ||
-        'left';
+      const alignment = options.alignment[header] || options.alignment[index.toString()] || 'left';
 
       // Calculate max content width for this column
       const headerWidth = header.length;
-      const maxContentWidth = Math.max(
-        ...rows.map((row) => (row[index] || '').length),
-      );
+      const maxContentWidth = Math.max(...rows.map((row) => (row[index] || '').length));
 
       // Determine final width (respecting min/max constraints)
       let width = Math.max(headerWidth, maxContentWidth);
@@ -372,22 +346,26 @@ export class TableFormatter {
 
     // Header row
     const headerCells = headers.map((header, i) =>
-      this.formatCell(header, columns[i]!, options),
+      this.formatCell(header, columns[i] as ColumnInfo, options),
     );
     lines.push(`|${pad}${headerCells.join(`${pad}|${pad}`)}${pad}|`);
 
-    // Separator row
+    // Separator row (with alignment indicators for markdown)
     const separators = columns.map((col) => {
-      const dashes = '-'.repeat(col.width);
-      return dashes;
+      switch (col.alignment) {
+        case 'right':
+          return `${'-'.repeat(Math.max(col.width - 1, 1))}:`;
+        case 'center':
+          return `:${'-'.repeat(Math.max(col.width - 2, 1))}:`;
+        default:
+          return '-'.repeat(col.width);
+      }
     });
     lines.push(`|${pad}${separators.join(`${pad}|${pad}`)}${pad}|`);
 
     // Data rows
     for (const row of rows) {
-      const cells = row.map((cell, i) =>
-        this.formatCell(cell, columns[i]!, options),
-      );
+      const cells = row.map((cell, i) => this.formatCell(cell, columns[i] as ColumnInfo, options));
       lines.push(`|${pad}${cells.join(`${pad}|${pad}`)}${pad}|`);
     }
 
@@ -408,28 +386,22 @@ export class TableFormatter {
     const pad = ' '.repeat(options.padding);
 
     // Top border
-    const topBorder = columns
-      .map((col) => '-'.repeat(col.width + options.padding * 2))
-      .join('+');
+    const topBorder = columns.map((col) => '-'.repeat(col.width + options.padding * 2)).join('+');
     lines.push(`+${topBorder}+`);
 
     // Header row
     const headerCells = headers.map((header, i) =>
-      this.formatCell(header, columns[i]!, options),
+      this.formatCell(header, columns[i] as ColumnInfo, options),
     );
     lines.push(`|${pad}${headerCells.join(`${pad}|${pad}`)}${pad}|`);
 
     // Header separator
-    const headerSep = columns
-      .map((col) => '-'.repeat(col.width + options.padding * 2))
-      .join('+');
+    const headerSep = columns.map((col) => '-'.repeat(col.width + options.padding * 2)).join('+');
     lines.push(`+${headerSep}+`);
 
     // Data rows
     for (const row of rows) {
-      const cells = row.map((cell, i) =>
-        this.formatCell(cell, columns[i]!, options),
-      );
+      const cells = row.map((cell, i) => this.formatCell(cell, columns[i] as ColumnInfo, options));
       lines.push(`|${pad}${cells.join(`${pad}|${pad}`)}${pad}|`);
     }
 
@@ -456,28 +428,22 @@ export class TableFormatter {
     const pad = ' '.repeat(options.padding);
 
     // Top border
-    const topBorder = columns
-      .map((col) => '─'.repeat(col.width + options.padding * 2))
-      .join('┬');
+    const topBorder = columns.map((col) => '─'.repeat(col.width + options.padding * 2)).join('┬');
     lines.push(`┌${topBorder}┐`);
 
     // Header row
     const headerCells = headers.map((header, i) =>
-      this.formatCell(header, columns[i]!, options),
+      this.formatCell(header, columns[i] as ColumnInfo, options),
     );
     lines.push(`│${pad}${headerCells.join(`${pad}│${pad}`)}${pad}│`);
 
     // Header separator
-    const headerSep = columns
-      .map((col) => '─'.repeat(col.width + options.padding * 2))
-      .join('┼');
+    const headerSep = columns.map((col) => '─'.repeat(col.width + options.padding * 2)).join('┼');
     lines.push(`├${headerSep}┤`);
 
     // Data rows
     for (const row of rows) {
-      const cells = row.map((cell, i) =>
-        this.formatCell(cell, columns[i]!, options),
-      );
+      const cells = row.map((cell, i) => this.formatCell(cell, columns[i] as ColumnInfo, options));
       lines.push(`│${pad}${cells.join(`${pad}│${pad}`)}${pad}│`);
     }
 
@@ -505,15 +471,13 @@ export class TableFormatter {
 
     // Header row
     const headerCells = headers.map((header, i) =>
-      this.formatCell(header, columns[i]!, options),
+      this.formatCell(header, columns[i] as ColumnInfo, options),
     );
     lines.push(headerCells.join(pad));
 
     // Data rows
     for (const row of rows) {
-      const cells = row.map((cell, i) =>
-        this.formatCell(cell, columns[i]!, options),
-      );
+      const cells = row.map((cell, i) => this.formatCell(cell, columns[i] as ColumnInfo, options));
       lines.push(cells.join(pad));
     }
 
@@ -533,7 +497,8 @@ export class TableFormatter {
 
     // Truncate if needed
     if (options.truncate && text.length > column.width) {
-      text = text.substring(0, column.width - 3) + '...';
+      const visibleChars = Math.max(column.width - 3, 0);
+      text = `${text.substring(0, visibleChars)}...`;
     }
 
     // Apply alignment padding
@@ -588,7 +553,7 @@ export class TableFormatter {
  *
  * @example
  * ```typescript
- * import { tableFormatter } from '@/utils/index.js';
+ * import { tableFormatter } from '@/utils/formatting/tableFormatter.js';
  *
  * const data = [
  *   { name: 'Alice', age: 30, role: 'Engineer' },

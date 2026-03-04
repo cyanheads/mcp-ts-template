@@ -11,14 +11,12 @@ import type {
   SdkContext,
   ToolAnnotations,
   ToolDefinition,
-} from '@/mcp-server/tools/utils/index.js';
+} from '@/mcp-server/tools/utils/toolDefinition.js';
 import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import {
-  type RequestContext,
-  fetchWithTimeout,
-  logger,
-} from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
 
 /**
  * Programmatic tool name (must be unique).
@@ -85,9 +83,7 @@ const InputSchema = z
       .int('Max length must be an integer.')
       .min(1, 'Max length must be at least 1.')
       .optional()
-      .describe(
-        'Optional: The maximum character length of the cat fact to retrieve.',
-      ),
+      .describe('Optional: The maximum character length of the cat fact to retrieve.'),
   })
   .describe('Parameters for fetching a random cat fact.');
 
@@ -130,11 +126,7 @@ async function catFactToolLogic(
 
   logger.info(`Fetching random cat fact from: ${url}`, appContext);
 
-  const response = await fetchWithTimeout(
-    url,
-    CAT_FACT_API_TIMEOUT_MS,
-    appContext,
-  );
+  const response = await fetchWithTimeout(url, CAT_FACT_API_TIMEOUT_MS, appContext);
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => undefined);
@@ -188,12 +180,9 @@ async function catFactToolLogic(
  */
 function responseFormatter(result: CatFactToolResponse): ContentBlock[] {
   const maxPart =
-    typeof result.requestedMaxLength === 'number'
-      ? `, max<=${result.requestedMaxLength}`
-      : '';
+    typeof result.requestedMaxLength === 'number' ? `, max<=${result.requestedMaxLength}` : '';
   const header = `Cat Fact (length=${result.length}${maxPart})`;
-  const preview =
-    result.fact.length > 300 ? `${result.fact.slice(0, 297)}…` : result.fact;
+  const preview = result.fact.length > 300 ? `${result.fact.slice(0, 297)}…` : result.fact;
   const lines = [header, preview, `timestamp=${result.timestamp}`];
   return [{ type: 'text', text: lines.filter(Boolean).join('\n') }];
 }
@@ -201,10 +190,7 @@ function responseFormatter(result: CatFactToolResponse): ContentBlock[] {
 /**
  * The complete tool definition for the cat fact tool.
  */
-export const catFactTool: ToolDefinition<
-  typeof InputSchema,
-  typeof OutputSchema
-> = {
+export const catFactTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
   name: TOOL_NAME,
   title: TOOL_TITLE,
   description: TOOL_DESCRIPTION,

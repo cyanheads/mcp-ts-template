@@ -5,11 +5,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger, requestContextService } from '@/utils/index.js';
-import {
-  diffFormatter,
-  DiffFormatter,
-} from '@/utils/formatting/diffFormatter.js';
+import { DiffFormatter, diffFormatter } from '@/utils/formatting/diffFormatter.js';
+import { logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 describe('DiffFormatter', () => {
   const oldText = `function hello() {
@@ -26,6 +24,7 @@ describe('DiffFormatter', () => {
       expect(diffFormatter.diff).toBeInstanceOf(Function);
       expect(diffFormatter.diffLines).toBeInstanceOf(Function);
       expect(diffFormatter.diffWords).toBeInstanceOf(Function);
+      expect(diffFormatter.getStats).toBeInstanceOf(Function);
     });
   });
 
@@ -103,6 +102,27 @@ describe('DiffFormatter', () => {
       expect(result).not.toContain('---'); // No file headers
       expect(result).not.toContain('+++'); // No file headers
     });
+
+    it('should support patch format with includeHeaders: false', () => {
+      const result = diffFormatter.diff(oldText, newText, {
+        format: 'patch',
+        includeHeaders: false,
+      });
+
+      // Should strip file headers but keep hunk markers
+      expect(result).toContain('@@');
+      expect(result).not.toContain('---');
+      expect(result).not.toContain('+++');
+    });
+
+    it('should handle identical text with unified format (stripHeaders no @@ found)', () => {
+      const result = diffFormatter.diff('same text', 'same text', {
+        format: 'unified',
+      });
+
+      // stripHeaders returns raw patch when no @@ marker is found
+      expect(result).not.toContain('@@');
+    });
   });
 
   describe('diffLines() method', () => {
@@ -172,24 +192,6 @@ describe('DiffFormatter', () => {
       const result = diffFormatter.diffWords('old words here', '');
 
       expect(result).toContain('[-old words here-]');
-    });
-  });
-
-  describe('isEqual() method', () => {
-    it('should return true for identical strings', () => {
-      expect(diffFormatter.isEqual('same', 'same')).toBe(true);
-    });
-
-    it('should return false for different strings', () => {
-      expect(diffFormatter.isEqual('different', 'strings')).toBe(false);
-    });
-
-    it('should return true for empty strings', () => {
-      expect(diffFormatter.isEqual('', '')).toBe(true);
-    });
-
-    it('should be case-sensitive', () => {
-      expect(diffFormatter.isEqual('Test', 'test')).toBe(false);
     });
   });
 
@@ -272,10 +274,31 @@ describe('DiffFormatter', () => {
       }
     });
 
+    it('should throw McpError for non-array second argument in diffLines()', () => {
+      expect(() => {
+        // @ts-expect-error Testing invalid input
+        diffFormatter.diffLines(['valid'], 'not array');
+      }).toThrow(McpError);
+    });
+
     it('should throw McpError for non-string inputs in diffWords()', () => {
       expect(() => {
         // @ts-expect-error Testing invalid input
         diffFormatter.diffWords(undefined, 'text');
+      }).toThrow(McpError);
+    });
+
+    it('should throw McpError for non-string second argument in diffWords()', () => {
+      expect(() => {
+        // @ts-expect-error Testing invalid input
+        diffFormatter.diffWords('valid', 42);
+      }).toThrow(McpError);
+    });
+
+    it('should throw McpError for non-string second argument in diff()', () => {
+      expect(() => {
+        // @ts-expect-error Testing invalid input
+        diffFormatter.diff('valid', 123);
       }).toThrow(McpError);
     });
   });
@@ -319,10 +342,7 @@ describe('DiffFormatter', () => {
 
       diffFormatter.diffWords('old words', 'new words');
 
-      expect(debugSpy).toHaveBeenCalledWith(
-        'Word diff generated successfully',
-        expect.any(Object),
-      );
+      expect(debugSpy).toHaveBeenCalledWith('Word diff generated successfully', expect.any(Object));
 
       debugSpy.mockRestore();
     });
@@ -339,7 +359,7 @@ describe('DiffFormatter', () => {
 
     it('should handle very long lines', () => {
       const longLine = 'A'.repeat(10000);
-      const modifiedLine = 'A'.repeat(9999) + 'B';
+      const modifiedLine = `${'A'.repeat(9999)}B`;
 
       const result = diffFormatter.diff(longLine, modifiedLine);
       expect(result).toBeTruthy();
@@ -380,6 +400,12 @@ describe('DiffFormatter', () => {
       // Patch should include headers, unified should not
       expect(patch).toContain('---');
       expect(unified).not.toContain('---');
+
+      // Inline should use visual markers, not raw diff prefixes
+      expect(inline).not.toContain('@@');
+      expect(inline).not.toContain('---');
+      expect(inline).toContain('[-');
+      expect(inline).toContain('[+');
 
       // All should contain some diff content
       expect(unified).toBeTruthy();

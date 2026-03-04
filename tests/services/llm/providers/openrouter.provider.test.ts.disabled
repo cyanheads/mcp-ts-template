@@ -10,10 +10,10 @@ import type {
 
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
 import { config } from '@/config/index.js';
-import { logger } from '@/utils/index.js';
+import { logger } from '@/utils/internal/logger.js';
 import { RateLimiter } from '@/utils/security/rateLimiter.js';
 import { McpError } from '@/types-global/errors.js';
-import { requestContextService } from '@/utils/index.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
 // Mock OpenAI client
 vi.mock('openai', () => {

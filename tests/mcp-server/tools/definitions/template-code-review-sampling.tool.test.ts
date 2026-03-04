@@ -2,14 +2,10 @@
  * @fileoverview Tests for the template-code-review-sampling tool.
  * @module tests/mcp-server/tools/definitions/template-code-review-sampling.tool.test
  */
-import { describe, it, expect, vi } from 'vitest';
-
+import { describe, expect, it, vi } from 'vitest';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 import { codeReviewSamplingTool } from '../../../../src/mcp-server/tools/definitions/template-code-review-sampling.tool.js';
-import { requestContextService } from '../../../../src/utils/index.js';
-import {
-  McpError,
-  JsonRpcErrorCode,
-} from '../../../../src/types-global/errors.js';
+import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
 
 describe('codeReviewSamplingTool', () => {
   const mockSdkContextWithSampling = {
@@ -37,19 +33,11 @@ describe('codeReviewSamplingTool', () => {
     const parsedInput = codeReviewSamplingTool.inputSchema.parse(rawInput);
 
     await expect(
-      codeReviewSamplingTool.logic(
-        parsedInput,
-        context,
-        mockSdkContextWithoutSampling,
-      ),
+      codeReviewSamplingTool.logic(parsedInput, context, mockSdkContextWithoutSampling),
     ).rejects.toThrow(McpError);
 
     await expect(
-      codeReviewSamplingTool.logic(
-        parsedInput,
-        context,
-        mockSdkContextWithoutSampling,
-      ),
+      codeReviewSamplingTool.logic(parsedInput, context, mockSdkContextWithoutSampling),
     ).rejects.toHaveProperty('code', JsonRpcErrorCode.InvalidRequest);
   });
 
@@ -136,17 +124,11 @@ describe('codeReviewSamplingTool', () => {
     };
     const parsedInput = codeReviewSamplingTool.inputSchema.parse(rawInput);
 
-    mockSdkContextWithSampling.createMessage.mockRejectedValue(
-      new Error('Sampling failed'),
-    );
+    mockSdkContextWithSampling.createMessage.mockRejectedValue(new Error('Sampling failed'));
 
     // Logic propagates the raw error; the handler factory normalizes it
     await expect(
-      codeReviewSamplingTool.logic(
-        parsedInput,
-        context,
-        mockSdkContextWithSampling,
-      ),
+      codeReviewSamplingTool.logic(parsedInput, context, mockSdkContextWithSampling),
     ).rejects.toThrow('Sampling failed');
   });
 
@@ -162,10 +144,10 @@ describe('codeReviewSamplingTool', () => {
       tokenUsage: { requested: 500 },
     };
 
-    const formatted = formatter!(result);
+    const formatted = formatter?.(result);
 
     expect(formatted).toHaveLength(1);
-    const block = formatted[0];
+    const block = formatted![0];
     expect(block).toBeDefined();
     if (!block || block.type !== 'text') {
       throw new Error('Expected text content block');

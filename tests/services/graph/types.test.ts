@@ -4,21 +4,21 @@
  * @module tests/services/graph/types.test
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type {
-  Vertex,
   Edge,
   GraphPath,
-  TraversalResult,
-  TraversalDirection,
-  RelateOptions,
-  TraversalOptions,
-  PathOptions,
+  GraphPattern,
   GraphProviderType,
   GraphServiceConfig,
   GraphStats,
-  GraphPattern,
+  PathOptions,
   PatternMatchResult,
+  RelateOptions,
+  TraversalDirection,
+  TraversalOptions,
+  TraversalResult,
+  Vertex,
 } from '@/services/graph/types.js';
 
 describe('Graph Service Types', () => {

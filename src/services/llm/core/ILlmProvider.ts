@@ -11,7 +11,7 @@ import type {
 } from 'openai/resources/chat/completions';
 import type { Stream } from 'openai/streaming';
 
-import type { RequestContext } from '@/utils/index.js';
+import type { RequestContext } from '@/utils/internal/requestContext.js';
 
 export type OpenRouterChatParams =
   | ChatCompletionCreateParamsNonStreaming
