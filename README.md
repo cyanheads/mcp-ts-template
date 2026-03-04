@@ -15,6 +15,8 @@
 
 ---
 
+> **Try it live** — A public demo instance is running at `https://mcp-ts-template.caseyjhand.com/mcp`. Connect any MCP client to test the template's tools and resources without installing anything.
+
 ## Features
 
 - Define tools and resources in single, self-contained files. The framework handles registration.
@@ -115,6 +117,19 @@ Add the following to your MCP client configuration file.
         "STORAGE_PROVIDER_TYPE": "filesystem",
         "STORAGE_FILESYSTEM_PATH": "/path/to/your/storage"
       }
+    }
+  }
+}
+```
+
+Or connect to the public demo server over HTTP — no installation required:
+
+```json
+{
+  "mcpServers": {
+    "mcp-ts-template": {
+      "type": "streamable-http",
+      "url": "https://mcp-ts-template.caseyjhand.com/mcp"
     }
   }
 }

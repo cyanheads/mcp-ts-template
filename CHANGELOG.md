@@ -6,6 +6,19 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 
 ---
 
+## [3.0.3] - 2026-03-04
+
+### Fixed
+
+- **Task tool client compatibility**: Changed `template_async_countdown` from `taskSupport: 'required'` to `'optional'` so the tool works with clients that don't advertise Tasks API support (currently all major clients). Updated description to reflect dual-mode behavior.
+- **MCP Apps host detection**: Added flat `_meta["ui/resourceUri"]` key alongside nested `_meta.ui.resourceUri` on `template_data_explorer`, matching the format `registerAppTool` from `@modelcontextprotocol/ext-apps` produces. Hosts like Claude Desktop that look for the flat key can now discover the linked UI resource.
+
+### Changed
+
+- **README**: Added public demo instance callout and streamable-http client configuration example.
+
+---
+
 ## [3.0.2] - 2026-03-04
 
 ### Fixed
