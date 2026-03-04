@@ -179,6 +179,38 @@ describe('fetchWithTimeout', () => {
     );
   });
 
+  it('throws FetchAborted (not Timeout) when an external signal aborts the request', async () => {
+    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+    const externalController = new AbortController();
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            const abortError = new Error('Aborted');
+            abortError.name = 'AbortError';
+            reject(abortError);
+          });
+        }),
+    );
+
+    const promise = fetchWithTimeout('https://example.com', 30_000, context, {
+      signal: externalController.signal,
+    });
+
+    externalController.abort('client disconnected');
+
+    await expect(promise).rejects.toMatchObject({
+      code: JsonRpcErrorCode.InternalError,
+      data: expect.objectContaining({ errorSource: 'FetchAborted' }),
+    });
+
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('aborted by caller'),
+      expect.objectContaining({ errorSource: 'FetchAborted' }),
+    );
+  });
+
   describe('SSRF protection', () => {
     describe('hostname/IP pattern checks', () => {
       const ssrfOpts = { rejectPrivateIPs: true };

@@ -194,7 +194,8 @@ export async function fetchWithTimeout(
   // Use AbortController instead of AbortSignal.timeout() for cross-runtime compatibility
   // (AbortSignal.timeout() can fail in Bun's stdio transport due to realm mismatch)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutSentinel = 'FETCH_TIMEOUT';
+  const timeoutId = setTimeout(() => controller.abort(timeoutSentinel), timeoutMs);
 
   // If an external signal is provided (e.g., client disconnect), forward its abort
   if (externalSignal) {
@@ -277,14 +278,28 @@ export async function fetchWithTimeout(
     }
   } catch (error: unknown) {
     if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-      logger.error(`${operationDescription} timed out after ${timeoutMs}ms.`, {
+      const isTimeout =
+        error.name === 'TimeoutError' || controller.signal.reason === timeoutSentinel;
+      if (isTimeout) {
+        logger.error(`${operationDescription} timed out after ${timeoutMs}ms.`, {
+          ...context,
+          errorSource: 'FetchTimeout',
+        });
+        throw new McpError(JsonRpcErrorCode.Timeout, `${operationDescription} timed out.`, {
+          requestId: context.requestId,
+          operation: context.operation as string | undefined,
+          errorSource: 'FetchTimeout',
+        });
+      }
+      // External signal abort (e.g., client disconnect) — not a timeout
+      logger.info(`${operationDescription} aborted by caller.`, {
         ...context,
-        errorSource: 'FetchTimeout',
+        errorSource: 'FetchAborted',
       });
-      throw new McpError(JsonRpcErrorCode.Timeout, `${operationDescription} timed out.`, {
+      throw new McpError(JsonRpcErrorCode.InternalError, `${operationDescription} was aborted.`, {
         requestId: context.requestId,
         operation: context.operation as string | undefined,
-        errorSource: 'FetchTimeout',
+        errorSource: 'FetchAborted',
       });
     }
 
