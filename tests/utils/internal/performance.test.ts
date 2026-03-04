@@ -18,6 +18,7 @@ import {
 import { JsonRpcErrorCode, McpError } from '../../../src/types-global/errors.js';
 import { logger } from '../../../src/utils/internal/logger.js';
 import { measureToolExecution } from '../../../src/utils/internal/performance.js';
+import * as metricsModule from '../../../src/utils/telemetry/metrics.js';
 
 describe('measureToolExecution', () => {
   const span = {
@@ -34,11 +35,24 @@ describe('measureToolExecution', () => {
   const memoryUsageSpy = vi.spyOn(process, 'memoryUsage');
   let infoSpy: MockInstance;
 
+  // Mock OTel metric instruments
+  const mockCounterAdd = vi.fn();
+  const mockHistogramRecord = vi.fn();
+  const mockErrorCounterAdd = vi.fn();
   beforeEach(() => {
     vi.clearAllMocks();
     tracerSpy.mockReturnValue(tracer as never);
     memoryUsageSpy.mockReset();
     infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+
+    // Track which metric name maps to which mock
+    vi.spyOn(metricsModule, 'createCounter').mockImplementation((name) => {
+      if (name === 'mcp.tool.errors') return { add: mockErrorCounterAdd } as any;
+      return { add: mockCounterAdd } as any;
+    });
+    vi.spyOn(metricsModule, 'createHistogram').mockReturnValue({
+      record: mockHistogramRecord,
+    } as any);
   });
 
   afterEach(() => {
@@ -83,6 +97,54 @@ describe('measureToolExecution', () => {
     expect(span.end).toHaveBeenCalled();
     expect(byteLengthSpy).toHaveBeenCalled();
     byteLengthSpy.mockRestore();
+  });
+
+  it('records OTel metric counter and histogram on success', async () => {
+    memoryUsageSpy
+      .mockReturnValueOnce({ rss: 1000, heapUsed: 400 } as NodeJS.MemoryUsage)
+      .mockReturnValueOnce({ rss: 1600, heapUsed: 700 } as NodeJS.MemoryUsage);
+
+    await measureToolExecution(
+      async () => ({ message: 'ok' }),
+      { toolName: 'metric-tool', requestId: 'req-m1', timestamp: new Date().toISOString() },
+      { input: 'v' },
+    );
+
+    expect(mockCounterAdd).toHaveBeenCalledWith(1, {
+      'mcp.tool.name': 'metric-tool',
+      'mcp.tool.success': true,
+    });
+    expect(mockHistogramRecord).toHaveBeenCalledWith(expect.any(Number), {
+      'mcp.tool.name': 'metric-tool',
+      'mcp.tool.success': true,
+    });
+    expect(mockErrorCounterAdd).not.toHaveBeenCalled();
+  });
+
+  it('records OTel error counter on failure', async () => {
+    memoryUsageSpy
+      .mockReturnValueOnce({ rss: 500, heapUsed: 250 } as NodeJS.MemoryUsage)
+      .mockReturnValueOnce({ rss: 560, heapUsed: 290 } as NodeJS.MemoryUsage);
+
+    await expect(
+      measureToolExecution(
+        async () => {
+          throw new McpError(JsonRpcErrorCode.InternalError, 'fail');
+        },
+        { toolName: 'err-tool', requestId: 'req-m2', timestamp: new Date().toISOString() },
+        {},
+      ),
+    ).rejects.toThrow();
+
+    expect(mockCounterAdd).toHaveBeenCalledWith(1, {
+      'mcp.tool.name': 'err-tool',
+      'mcp.tool.success': false,
+    });
+    expect(mockHistogramRecord).toHaveBeenCalledWith(expect.any(Number), {
+      'mcp.tool.name': 'err-tool',
+      'mcp.tool.success': false,
+    });
+    expect(mockErrorCounterAdd).toHaveBeenCalledWith(1, { 'mcp.tool.name': 'err-tool' });
   });
 
   it('captures error metadata and rethrows the original McpError', async () => {

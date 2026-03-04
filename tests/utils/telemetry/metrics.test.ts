@@ -213,6 +213,13 @@ describe('OpenTelemetry Metrics', () => {
       expect(gauge).toBeDefined();
     });
 
+    test('should register callback via addCallback', () => {
+      const callback = () => 99;
+      const gauge = metricsUtils.createObservableGauge('test.cb', 'Callback gauge', callback);
+      expect(gauge.addCallback).toHaveBeenCalledTimes(1);
+      expect(gauge.addCallback).toHaveBeenCalledWith(expect.any(Function));
+    });
+
     test('should create observable gauge with unit', () => {
       const callback = () => Promise.resolve(100);
       metricsUtils.createObservableGauge('test.temp', 'Temperature', callback, 'celsius');
@@ -265,6 +272,13 @@ describe('OpenTelemetry Metrics', () => {
       expect(counter).toBeDefined();
     });
 
+    test('should register callback via addCallback', () => {
+      const callback = () => 7;
+      const counter = metricsUtils.createObservableCounter('test.cb', 'CB counter', callback);
+      expect(counter.addCallback).toHaveBeenCalledTimes(1);
+      expect(counter.addCallback).toHaveBeenCalledWith(expect.any(Function));
+    });
+
     test('should create observable counter with custom unit', () => {
       const callback = () => Promise.resolve(50);
       metricsUtils.createObservableCounter('test.jobs', 'Jobs processed', callback, '{jobs}');
@@ -315,6 +329,13 @@ describe('OpenTelemetry Metrics', () => {
         unit: '1',
       });
       expect(counter).toBeDefined();
+    });
+
+    test('should register callback via addCallback', () => {
+      const callback = () => 3;
+      const counter = metricsUtils.createObservableUpDownCounter('test.cb', 'CB updown', callback);
+      expect(counter.addCallback).toHaveBeenCalledTimes(1);
+      expect(counter.addCallback).toHaveBeenCalledWith(expect.any(Function));
     });
 
     test('should create observable up-down counter with custom unit', () => {

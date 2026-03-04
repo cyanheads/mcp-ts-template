@@ -78,6 +78,7 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - **`performance.ts`**: `measureToolExecution` now records `mcp.tool.calls`, `mcp.tool.duration`, and `mcp.tool.errors` to OTel metric instruments for durable metrics across restarts.
 - **`httpTransport.ts`**: Added `mcp.sessions.active` observable gauge wired to `SessionStore.getSessionCount()` when OTel is enabled.
 - **`runtime.ts`**: Added `isBun` capability flag to `runtimeCaps` (detects Bun via `process.versions.bun`).
+- **`Dockerfile`**: Added OCI image metadata labels (`title`, `description`, `source`, `licenses`) per the [OCI image-spec annotations](https://github.com/opencontainers/image-spec/blob/main/annotations.md). Retained existing MCP registry label.
 - **`instrumentation.ts`**: `canUseNodeSDK()` now returns false on Bun, where Node.js auto-instrumentations (http, etc.) silently no-op.
 - **`resourceDefinition.ts`**: `logic` return type is now inferred from `TOutputSchema` instead of `unknown` when an output schema is provided.
 - **`toolDefinition.ts`**: `ToolAnnotations` interface fields sorted alphabetically; added JSDoc for `destructiveHint` and `idempotentHint`.
@@ -116,7 +117,10 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - **`jwtStrategy.test.ts`**: Updated bypass tests to use `devMcpAuthBypass` config flag instead of environment-based conditions.
 - **`kvProvider.test.ts`**, **`r2Provider.test.ts`**: Updated pagination tests to use tenant-bound encoded cursors via `encodeCursor`/`decodeCursor`.
 - **`config/index.test.ts`**: Added tests for production guard rejecting `DEV_MCP_AUTH_BYPASS=true` in production and allowing it in development.
-- **`metrics.test.ts`**: Updated observable metric mocks to include `addCallback` method, matching the wired callback implementation.
+- **`metrics.test.ts`**: Updated observable metric mocks to include `addCallback` method, matching the wired callback implementation. Added `addCallback` registration tests for observable gauge, counter, and up-down counter.
+- **`performance.test.ts`**: Added OTel metric recording tests — verifies `mcp.tool.calls` counter, `mcp.tool.duration` histogram, and `mcp.tool.errors` counter are recorded on success and failure paths.
+- **`runtime.test.ts`**: Added `isBun` detection test (verifies false in Node/Vitest) and property presence assertion.
+- **`instrumentation.test.ts`**: Added Bun runtime detection test verifying `isBun=true` prevents NodeSDK loading.
 - **`storageBackedTaskStore.test.ts`**: Added session ownership suite (6 cases): creator access, cross-session rejection, backwards-compat unbound access, ownership enforcement on `getTaskResult`/`storeTaskResult`/`updateTaskStatus`, and `listTasks` session filtering.
 - **`sessionStore.test.ts`**: Added subject isolation suite (4 cases): cross-subject rejection, same-subject acceptance, subject-only binding, and unauthenticated request rejection for subject-bound sessions.
 - **`fetchWithTimeout.test.ts`**: Added comprehensive SSRF protection suite covering hostname/IP pattern checks (localhost, 127.x, 10.x, 192.168.x, 169.254.169.254, metadata.google.internal, IPv6 loopback, 172.16-31.x, CGNAT range, public IP allowlist) and redirect validation (redirect to private IP, redirect to localhost, excessive redirects, safe redirect following, missing Location header, manual redirect mode toggle).

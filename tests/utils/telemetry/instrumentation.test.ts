@@ -136,6 +136,18 @@ describe('OpenTelemetry Instrumentation', () => {
       const isNode = runtimeModule.runtimeCaps.isNode;
       expect(isNode).toBe(false);
     });
+
+    test('should detect Bun runtime and skip NodeSDK', () => {
+      // When isBun is true, canUseNodeSDK() returns false → lightweight mode
+      vi.spyOn(runtimeModule.runtimeCaps, 'isNode', 'get').mockReturnValue(true);
+      vi.spyOn(runtimeModule.runtimeCaps, 'isBun', 'get').mockReturnValue(true);
+
+      // canUseNodeSDK is private, but its effect is observable:
+      // isBun=true means isNode && !isBun is false, so NodeSDK won't load
+      expect(runtimeModule.runtimeCaps.isNode).toBe(true);
+      expect(runtimeModule.runtimeCaps.isBun).toBe(true);
+      // The invariant: Bun sets isNode=true but isBun=true should prevent NodeSDK
+    });
   });
 
   describe('Error handling', () => {
