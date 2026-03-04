@@ -216,12 +216,6 @@ Tools can include optional annotations to hint at their behavior:
 
 ```typescript
 interface ToolAnnotations {
-  /** Human-readable title (UI hint) */
-  title?: string;
-
-  /** True if tool does not modify environment (default: false) */
-  readOnlyHint?: boolean;
-
   /** If not read-only, true if updates can be destructive (default: true) */
   destructiveHint?: boolean;
 
@@ -230,6 +224,12 @@ interface ToolAnnotations {
 
   /** True if tool may interact with external world like APIs or web search (default: true) */
   openWorldHint?: boolean;
+
+  /** True if tool does not modify environment (default: false) */
+  readOnlyHint?: boolean;
+
+  /** Human-readable title (UI hint) */
+  title?: string;
 }
 ```
 

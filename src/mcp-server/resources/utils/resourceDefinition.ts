@@ -53,7 +53,7 @@ export interface ResourceDefinition<
    *
    * @example
    * ```typescript
-   * import { extractCursor, paginateArray } from '@/utils/index.js';
+   * import { extractCursor, paginateArray } from '@/utils/pagination/pagination.js';
    *
    * list: (extra) => {
    *   const allResources = [...]  // Your full resource list
@@ -79,7 +79,13 @@ export interface ResourceDefinition<
    * The pure, stateless core logic for the resource read operation.
    * MUST NOT contain try/catch. Throw McpError on failure.
    */
-  logic: (uri: URL, params: z.infer<TParamsSchema>, context: RequestContext) => unknown;
+  logic: (
+    uri: URL,
+    params: z.infer<TParamsSchema>,
+    context: RequestContext,
+  ) => TOutputSchema extends ZodObject<ZodRawShape>
+    ? z.infer<TOutputSchema> | Promise<z.infer<TOutputSchema>>
+    : unknown;
   /** Default mime type for the response content. */
   mimeType?: string;
   /** The programmatic, unique name for the resource (e.g., 'echo-resource'). */

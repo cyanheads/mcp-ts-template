@@ -21,6 +21,18 @@ import type { RequestContext } from '@/utils/internal/requestContext.js';
  */
 export interface ToolAnnotations {
   /**
+   * A hint indicating that the tool may destroy or modify data in a way that cannot
+   * be undone. Only meaningful when `readOnlyHint` is false (the default).
+   * Defaults to `true` when unset.
+   */
+  destructiveHint?: boolean;
+  /**
+   * A hint indicating that repeated calls with the same arguments have no additional
+   * effect beyond the first call. Only meaningful when `readOnlyHint` is false.
+   * Defaults to `false` when unset.
+   */
+  idempotentHint?: boolean;
+  /**
    * A hint indicating that the tool may interact with external, unpredictable,
    * or dynamic systems (e.g., fetching from a live API, web search).
    */

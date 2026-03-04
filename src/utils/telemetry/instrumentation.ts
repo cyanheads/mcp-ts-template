@@ -21,11 +21,13 @@ let initializationPromise: Promise<void> | null = null;
 
 /**
  * Determines if the NodeSDK can be used in the current runtime.
- * Returns false in Worker/Edge environments where Node modules are unavailable.
+ * Returns false in Worker/Edge environments where Node modules are unavailable,
+ * and false on Bun where Node auto-instrumentations (http, etc.) silently no-op.
  */
 function canUseNodeSDK(): boolean {
   return (
     runtimeCaps.isNode &&
+    !runtimeCaps.isBun &&
     typeof process?.versions?.node === 'string' &&
     typeof process.env === 'object'
   );
