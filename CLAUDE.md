@@ -2,7 +2,9 @@
 
 **Version:** 3.0.0
 **Project:** mcp-ts-template
-**Updated:** 2026-02-27
+**Updated:** 2026-03-04
+**npm:** [mcp-ts-template](https://www.npmjs.com/package/mcp-ts-template)
+**Docker:** [ghcr.io/cyanheads/mcp-ts-template](https://ghcr.io/cyanheads/mcp-ts-template)
 
 > **Symlink note:** `AGENTS.md` is a symlink to `CLAUDE.md`. Only edit the root `CLAUDE.md`.
 
@@ -681,6 +683,25 @@ Group related changes into atomic commits. Use `filesToStage` to control which f
 | `bun run dev:stdio/http`   | Development mode                                                                                                    |
 | `bun run start:stdio/http` | Production mode (after build)                                                                                       |
 | `bun run build:worker`     | Cloudflare Worker bundle                                                                                            |
+
+---
+
+## Publishing
+
+After a version bump and final commit, publish to npm, GHCR, and the MCP Registry:
+
+```bash
+bun publish --access public
+
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/cyanheads/mcp-ts-template:<version> \
+  -t ghcr.io/cyanheads/mcp-ts-template:latest \
+  --push .
+
+mcp-publisher publish
+```
+
+Remind the user to run these after completing a release flow.
 
 ---
 
