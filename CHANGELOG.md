@@ -73,7 +73,14 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
   - `pagination.ts`: Replaced Node-only `Buffer.from(..., 'base64url')` encoding/decoding with cross-platform `stringToBase64`/`base64ToString` from `@/utils/internal/encoding.js`.
   - `sanitization.ts`: Replaced ad-hoc `isServerless` check with `runtimeCaps.isNode`; used `runtimeCaps.hasBuffer` and `runtimeCaps.hasTextEncoder` for feature detection. Replaced fire-and-forget `import('node:path').then()` chain with top-level `await import()`, eliminating a race condition where `sanitizePath` could run before `pathModule` was assigned.
 - **`scheduler.ts`**: Replaced plain `Error` throws with `McpError` using appropriate codes (`Conflict` for duplicate job IDs, `InvalidParams` for bad cron expressions, `NotFound` for missing jobs). Replaced bare inline log context objects with `requestContextService.createRequestContext()` for OTel trace correlation. Extracted `resolveJob()` private helper to deduplicate job-lookup-or-throw pattern across `start`, `stop`, and `remove`.
-- **`metrics/registry.ts`**: Removed unused `bind`/`unbind` methods from no-op counter and histogram stubs.
+- **`metrics/registry.ts`**: Removed module entirely — superseded by `telemetry/metrics.ts` which provides the same counter/histogram/gauge API with proper no-op fallbacks.
+- **`telemetry/metrics.ts`**: Observable gauge, counter, and upDownCounter `createObservable*` functions now wire the callback parameter to `addCallback` (were no-ops that ignored the `_callback` parameter).
+- **`performance.ts`**: `measureToolExecution` now records `mcp.tool.calls`, `mcp.tool.duration`, and `mcp.tool.errors` to OTel metric instruments for durable metrics across restarts.
+- **`httpTransport.ts`**: Added `mcp.sessions.active` observable gauge wired to `SessionStore.getSessionCount()` when OTel is enabled.
+- **`runtime.ts`**: Added `isBun` capability flag to `runtimeCaps` (detects Bun via `process.versions.bun`).
+- **`instrumentation.ts`**: `canUseNodeSDK()` now returns false on Bun, where Node.js auto-instrumentations (http, etc.) silently no-op.
+- **`resourceDefinition.ts`**: `logic` return type is now inferred from `TOutputSchema` instead of `unknown` when an output schema is provided.
+- **`toolDefinition.ts`**: `ToolAnnotations` interface fields sorted alphabetically; added JSDoc for `destructiveHint` and `idempotentHint`.
 - **README.md**: Updated Bun version badge and prerequisites from v1.2.21 to v1.3.2 to match `packageManager` field. Stripped AI writing patterns: removed all emoji from headings, replaced bold inline-header bullet lists with plain bullets, removed promotional language, converted Title Case headings to sentence case, and collapsed nested documentation sub-lists. Added `MCP_AUTH_MODE`, `OAUTH_AUDIENCE`, and `DEV_MCP_AUTH_BYPASS` to the configuration reference table. Added dev bypass guidance to the authentication section.
 - **`.env.example`**: Reorganized into labeled sections. Added missing variables: `NODE_ENV`, `MCP_AUTH_MODE`, `MCP_RESPONSE_VERBOSITY`, `DEV_MCP_AUTH_BYPASS`, `OAUTH_ISSUER_URL`, `OAUTH_AUDIENCE`, `OAUTH_JWKS_URI`, and `OTEL_ENABLED`. Moved Supabase vars to a conditional section (commented out). Fixed `STORAGE_PROVIDER_TYPE` comment to include `cloudflare-d1`. Corrected stale auth comment that incorrectly stated the secret key is required for all HTTP transport.
 - **Module READMEs** (`src/mcp-server/`, `src/container/`, `src/services/`, `src/storage/`): Applied the same editorial pass. Collapsed numbered bold-header sections into tables or plain bullets, removed promotional filler, converted headings to sentence case, and stripped bold `**Label:**` patterns throughout.
@@ -109,6 +116,7 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - **`jwtStrategy.test.ts`**: Updated bypass tests to use `devMcpAuthBypass` config flag instead of environment-based conditions.
 - **`kvProvider.test.ts`**, **`r2Provider.test.ts`**: Updated pagination tests to use tenant-bound encoded cursors via `encodeCursor`/`decodeCursor`.
 - **`config/index.test.ts`**: Added tests for production guard rejecting `DEV_MCP_AUTH_BYPASS=true` in production and allowing it in development.
+- **`metrics.test.ts`**: Updated observable metric mocks to include `addCallback` method, matching the wired callback implementation.
 - **`storageBackedTaskStore.test.ts`**: Added session ownership suite (6 cases): creator access, cross-session rejection, backwards-compat unbound access, ownership enforcement on `getTaskResult`/`storeTaskResult`/`updateTaskStatus`, and `listTasks` session filtering.
 - **`sessionStore.test.ts`**: Added subject isolation suite (4 cases): cross-subject rejection, same-subject acceptance, subject-only binding, and unauthenticated request rejection for subject-bound sessions.
 - **`fetchWithTimeout.test.ts`**: Added comprehensive SSRF protection suite covering hostname/IP pattern checks (localhost, 127.x, 10.x, 192.168.x, 169.254.169.254, metadata.google.internal, IPv6 loopback, 172.16-31.x, CGNAT range, public IP allowlist) and redirect validation (redirect to private IP, redirect to localhost, excessive redirects, safe redirect following, missing Location header, manual redirect mode toggle).
@@ -118,10 +126,14 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 - `eslint` (10.0.2), `prettier` (3.8.1), `typescript-eslint` (8.56.1), `globals` (17.3.0), `@eslint/js` (10.0.1) dev dependencies.
 - `.prettierignore`, `.prettierrc.json`, `eslint.config.js` config files.
 - 22 barrel `index.ts` files and their 15 corresponding barrel test files.
+- `src/utils/metrics/registry.ts` and `tests/utils/metrics/registry.test.ts` — redundant metrics registry, superseded by `telemetry/metrics.ts`.
 - `coverage/` directory from version control (generated build artifact).
 
 ### Dependencies
 
 - Updated all runtime and dev dependency specifiers to `latest` in `bun.lock`, resolving to current package versions.
+- Updated OpenTelemetry SDK packages from 2.5.x/0.212.x to 2.6.x/0.213.x (`@opentelemetry/resources`, `sdk-metrics`, `sdk-trace-node`, `sdk-node`, `exporter-metrics-otlp-http`, `exporter-trace-otlp-http`, `instrumentation-pino`, `auto-instrumentations-node`).
+- Updated `@hono/otel` from 1.1.0 to 1.1.1, `fast-xml-parser` from 5.4.1 to 5.4.2, `@biomejs/biome` from 2.4.4 to 2.4.5.
+- Updated dev type packages: `@cloudflare/workers-types`, `@types/bun`, `@types/node`.
 
 ---
