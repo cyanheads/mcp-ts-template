@@ -10,7 +10,8 @@
  * 4. **`app.connect()`** — Establish the postMessage channel with the host
  *
  * The HTML is entirely self-contained with inline CSS and JS. The App class is
- * loaded from esm.sh (it runs in a browser iframe, not Node).
+ * loaded from unpkg CDN (it runs in a browser iframe, not Node). CSP metadata
+ * on the resource response whitelists the CDN domain for MCP Apps-capable hosts.
  *
  * @module src/mcp-server/resources/definitions/data-explorer-ui.app-resource
  * @see {@link ../../tools/definitions/template-data-explorer.app-tool.ts} linked tool
@@ -126,7 +127,7 @@ const APP_HTML = `<!DOCTYPE html>
   </div>
 
   <script type="module">
-    import { App } from "https://esm.sh/@modelcontextprotocol/ext-apps";
+    import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@1/app-with-deps";
 
     const app = new App({ name: "Data Explorer", version: "1.0.0" });
 
@@ -252,7 +253,7 @@ const APP_HTML = `<!DOCTYPE html>
       const text = "User selected " + selectedRows.length + " row(s):\\n" +
         JSON.stringify(selectedRows, null, 2);
       try {
-        await app.sendMessage({ role: "user", content: { type: "text", text } });
+        await app.sendMessage({ role: "user", content: [{ type: "text", text }] });
       } catch (err) {
         console.error("Failed to send selection:", err);
       }
@@ -323,6 +324,15 @@ export const dataExplorerUiResource: ResourceDefinition<typeof ParamsSchema> = {
   }),
   logic: withResourceAuth(['resource:data-explorer-ui:read'], dataExplorerUiLogic),
   responseFormatter: (result, meta) => [
-    { uri: meta.uri.href, mimeType: meta.mimeType, text: result as string },
+    {
+      uri: meta.uri.href,
+      mimeType: meta.mimeType,
+      text: result as string,
+      _meta: {
+        ui: {
+          csp: { resource_domains: ['https://unpkg.com'] },
+        },
+      },
+    },
   ],
 };
