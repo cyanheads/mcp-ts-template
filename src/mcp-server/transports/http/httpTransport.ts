@@ -29,6 +29,7 @@ import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { logStartupBanner } from '@/utils/internal/startupBanner.js';
+import { createObservableGauge } from '@/utils/telemetry/metrics.js';
 
 /**
  * Extends the base StreamableHTTPTransport to include a session ID.
@@ -72,6 +73,16 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     config.mcpSessionMode === 'stateful'
       ? new SessionStore(config.mcpStatefulSessionStaleTimeoutMs)
       : null;
+
+  // Wire session count to OTel observable gauge for durable metrics
+  if (sessionStore && config.openTelemetry.enabled) {
+    createObservableGauge(
+      'mcp.sessions.active',
+      'Number of active MCP sessions',
+      () => sessionStore.getSessionCount(),
+      '{sessions}',
+    );
+  }
 
   // OpenTelemetry request tracing — outermost middleware on the MCP endpoint
   // so the span captures the full lifecycle (CORS, auth, handler).

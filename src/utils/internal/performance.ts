@@ -13,6 +13,7 @@ import { config } from '@/config/index.js';
 import { McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 import {
   ATTR_CODE_FUNCTION,
   ATTR_CODE_NAMESPACE,
@@ -25,9 +26,22 @@ import {
   ATTR_MCP_TOOL_MEMORY_RSS_AFTER,
   ATTR_MCP_TOOL_MEMORY_RSS_BEFORE,
   ATTR_MCP_TOOL_MEMORY_RSS_DELTA,
+  ATTR_MCP_TOOL_NAME,
   ATTR_MCP_TOOL_OUTPUT_BYTES,
   ATTR_MCP_TOOL_SUCCESS,
 } from '@/utils/telemetry/semconv.js';
+
+// OTel metric instruments for tool execution (lazy-initialized on first use)
+let toolCallCounter: ReturnType<typeof createCounter> | undefined;
+let toolCallDuration: ReturnType<typeof createHistogram> | undefined;
+let toolCallErrors: ReturnType<typeof createCounter> | undefined;
+
+function getToolMetrics() {
+  toolCallCounter ??= createCounter('mcp.tool.calls', 'Total MCP tool invocations', '{calls}');
+  toolCallDuration ??= createHistogram('mcp.tool.duration', 'MCP tool execution duration', 'ms');
+  toolCallErrors ??= createCounter('mcp.tool.errors', 'Total MCP tool errors', '{errors}');
+  return { toolCallCounter, toolCallDuration, toolCallErrors };
+}
 
 // Environment-aware high-resolution timer
 let performanceNow: () => number = () => Date.now(); // Fallback
@@ -174,6 +188,13 @@ export async function measureToolExecution<T>(
       });
       if (errorCode) span.setAttribute(ATTR_MCP_TOOL_ERROR_CODE, errorCode);
       span.end();
+
+      // Record to OTel metric instruments (durable across restarts)
+      const m = getToolMetrics();
+      const metricAttrs = { [ATTR_MCP_TOOL_NAME]: toolName, [ATTR_MCP_TOOL_SUCCESS]: ok };
+      m.toolCallCounter.add(1, metricAttrs);
+      m.toolCallDuration.record(durationMs, metricAttrs);
+      if (!ok) m.toolCallErrors.add(1, { [ATTR_MCP_TOOL_NAME]: toolName });
 
       logger.info('Tool execution finished.', {
         ...context,

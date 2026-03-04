@@ -193,7 +193,7 @@ describe('OpenTelemetry Metrics', () => {
 
     beforeEach(() => {
       mockMeter = {
-        createObservableGauge: vi.fn().mockReturnValue({}),
+        createObservableGauge: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
       };
       vi.spyOn(metrics, 'getMeter').mockReturnValue(mockMeter);
       createObservableGaugeSpy = mockMeter.createObservableGauge;
@@ -244,7 +244,7 @@ describe('OpenTelemetry Metrics', () => {
 
     beforeEach(() => {
       mockMeter = {
-        createObservableCounter: vi.fn().mockReturnValue({}),
+        createObservableCounter: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
       };
       vi.spyOn(metrics, 'getMeter').mockReturnValue(mockMeter);
       createObservableCounterSpy = mockMeter.createObservableCounter;
@@ -292,7 +292,7 @@ describe('OpenTelemetry Metrics', () => {
 
     beforeEach(() => {
       mockMeter = {
-        createObservableUpDownCounter: vi.fn().mockReturnValue({}),
+        createObservableUpDownCounter: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
       };
       vi.spyOn(metrics, 'getMeter').mockReturnValue(mockMeter);
       createObservableUpDownCounterSpy = mockMeter.createObservableUpDownCounter;
@@ -346,9 +346,9 @@ describe('OpenTelemetry Metrics', () => {
         createCounter: vi.fn().mockReturnValue({ add: vi.fn() }),
         createHistogram: vi.fn().mockReturnValue({ record: vi.fn() }),
         createUpDownCounter: vi.fn().mockReturnValue({ add: vi.fn() }),
-        createObservableGauge: vi.fn().mockReturnValue({}),
-        createObservableCounter: vi.fn().mockReturnValue({}),
-        createObservableUpDownCounter: vi.fn().mockReturnValue({}),
+        createObservableGauge: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
+        createObservableCounter: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
+        createObservableUpDownCounter: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
       };
       vi.spyOn(metrics, 'getMeter').mockReturnValue(mockMeter);
     });

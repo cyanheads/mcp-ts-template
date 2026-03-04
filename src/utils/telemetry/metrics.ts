@@ -150,12 +150,16 @@ export function createHistogram(name: string, description: string, unit?: string
 export function createObservableGauge(
   name: string,
   description: string,
-  _callback: () => Promise<number> | number,
+  callback: () => Promise<number> | number,
   unit?: string,
 ): ObservableGauge {
   const meter = getMeter();
   const options = unit ? { description, unit } : { description };
-  return meter.createObservableGauge(name, options);
+  const gauge = meter.createObservableGauge(name, options);
+  gauge.addCallback(async (result) => {
+    result.observe(await callback());
+  });
+  return gauge;
 }
 
 /**
@@ -183,11 +187,15 @@ export function createObservableGauge(
 export function createObservableCounter(
   name: string,
   description: string,
-  _callback: () => Promise<number> | number,
+  callback: () => Promise<number> | number,
   unit = '1',
 ) {
   const meter = getMeter();
-  return meter.createObservableCounter(name, { description, unit });
+  const counter = meter.createObservableCounter(name, { description, unit });
+  counter.addCallback(async (result) => {
+    result.observe(await callback());
+  });
+  return counter;
 }
 
 /**
@@ -196,7 +204,7 @@ export function createObservableCounter(
  *
  * @param name - Metric name
  * @param description - Human-readable description
- * @param _callback - Async function returning the current value (unused in current implementation)
+ * @param callback - Async function returning the current value
  * @param unit - Optional unit of measurement
  * @returns ObservableUpDownCounter instance
  *
@@ -214,9 +222,13 @@ export function createObservableCounter(
 export function createObservableUpDownCounter(
   name: string,
   description: string,
-  _callback: () => Promise<number> | number,
+  callback: () => Promise<number> | number,
   unit = '1',
 ) {
   const meter = getMeter();
-  return meter.createObservableUpDownCounter(name, { description, unit });
+  const counter = meter.createObservableUpDownCounter(name, { description, unit });
+  counter.addCallback(async (result) => {
+    result.observe(await callback());
+  });
+  return counter;
 }
