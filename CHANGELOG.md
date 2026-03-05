@@ -6,6 +6,19 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 
 ---
 
+## [3.0.5] - 2026-03-04
+
+### Fixed
+
+- **Config path resolution**: Replaced `URL`-based path derivation with proper `node:path` utilities (`fileURLToPath`, `dirname`, `join`, `isAbsolute`) for cross-runtime compatibility.
+
+### Changed
+
+- **OpenTelemetry on Bun**: Removed `!runtimeCaps.isBun` guard from `canUseNodeSDK()`. Auto-instrumentations that rely on Node http hooks silently no-op on Bun, but manual spans, custom metrics, and OTLP export all work correctly.
+- **Dependencies**: Pinned all `latest` specifiers in `bun.lock` to exact versions. Bumped `hono` 4.12.3→4.12.5 and `@hono/node-server` 1.19.9→1.19.11.
+
+---
+
 ## [3.0.4] - 2026-03-04
 
 ### Fixed
