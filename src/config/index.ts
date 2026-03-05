@@ -7,6 +7,9 @@
  *
  * @module src/config/index
  */
+import { dirname, isAbsolute, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
@@ -437,11 +440,11 @@ const parseConfig = () => {
           // Bundled (dist/index.js) is one level deep; source (src/config/index.ts) is two.
           // Detect bundle path to avoid overshooting the project root.
           const depth = import.meta.url.includes('/dist/') ? '..' : '../..';
-          const p = new URL(depth, import.meta.url).pathname;
-          const root = p.endsWith('/') ? p.slice(0, -1) : p;
+          const thisFile = fileURLToPath(import.meta.url);
+          const root = join(dirname(thisFile), depth);
           const logsDir = rawConfig.logsPath ?? 'logs';
-          if (logsDir.startsWith('/')) return logsDir;
-          return `${root}/${logsDir}`;
+          if (isAbsolute(logsDir)) return logsDir;
+          return join(root, logsDir);
         })()
       : undefined,
     mcpServerName: env.MCP_SERVER_NAME ?? parsedPkg.name,
