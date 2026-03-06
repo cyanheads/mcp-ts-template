@@ -477,11 +477,56 @@ const parseConfig = () => {
   return parsedConfig.data;
 };
 
-const config = parseConfig();
+let _config: AppConfig | undefined;
+
+/**
+ * Resets the cached config, forcing re-parse on next access.
+ * Used in Cloudflare Workers (env vars injected at request time, after ESM
+ * static imports) and for test isolation.
+ */
+const resetConfig = (): void => {
+  _config = undefined;
+};
+
+/**
+ * Lazy config proxy. Defers `parseConfig()` until the first property access.
+ * This is critical for Cloudflare Workers where environment variables are
+ * injected via `injectEnvVars()` at request time — before config is read,
+ * but after ESM static imports have been evaluated. Without this, config
+ * would freeze at module-load time with empty/default env values.
+ */
+const config = new Proxy({} as AppConfig, {
+  get(_target, prop) {
+    _config ??= parseConfig();
+    return (_config as Record<string | symbol, unknown>)[prop];
+  },
+  set(_target, prop, value) {
+    _config ??= parseConfig();
+    (_config as Record<string | symbol, unknown>)[prop] = value;
+    return true;
+  },
+  defineProperty(_target, prop, descriptor) {
+    _config ??= parseConfig();
+    Object.defineProperty(_config, prop, descriptor);
+    return true;
+  },
+  has(_target, prop) {
+    _config ??= parseConfig();
+    return prop in _config;
+  },
+  ownKeys() {
+    _config ??= parseConfig();
+    return Reflect.ownKeys(_config);
+  },
+  getOwnPropertyDescriptor(_target, prop) {
+    _config ??= parseConfig();
+    return Object.getOwnPropertyDescriptor(_config, prop);
+  },
+});
 
 /**
  * Export the runtime configuration, parser, and schema, plus a static AppConfig type.
  */
 export type AppConfig = z.infer<typeof ConfigSchema>;
 
-export { config, ConfigSchema, parseConfig };
+export { config, ConfigSchema, parseConfig, resetConfig };
