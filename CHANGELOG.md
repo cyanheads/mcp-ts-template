@@ -6,6 +6,27 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 
 ---
 
+## [3.0.6] - 2026-03-05
+
+### Fixed
+
+- **HTTP CORS credentials**: `Access-Control-Allow-Credentials: true` with wildcard origin is invalid per Fetch spec — browsers reject the preflight. Now only sets credentials when origin is explicitly configured.
+- **HTTP session minting**: Sessions were allocated before the SDK processed the request, wasting resources on requests that fail protocol validation. Deferred session creation until after a successful response.
+- **HTTP transport shutdown**: `SessionStore` cleanup interval was not cleared on server stop, leaking timers.
+
+### Changed
+
+- **Config module**: Replaced eager `parseConfig()` at module load with a lazy `Proxy` that defers parsing until first property access. Critical for Cloudflare Workers where env vars are injected at request time after ESM imports evaluate. Added `resetConfig()` for test isolation.
+- **HTTP transport API**: `createHttpApp` now returns `{ app, sessionStore }`. `startHttpTransport` returns `HttpTransportHandle` with a `stop()` method that encapsulates cleanup.
+- **Dependencies**: Bumped `@biomejs/biome` 2.4.5→2.4.6, `@types/node` ^25.3.3→^25.3.5, `jose` ^6.1.3→^6.2.0, `openai` ^6.25.0→^6.27.0.
+
+### Added
+
+- **Output schema coverage tests**: Validates that tool output schemas cover all fields returned by logic at runtime using `schema.strict().parse()`. Catches silent field stripping that causes strict clients to reject responses.
+- **HTTP transport tests**: Unskipped and implemented previously-skipped tests for stateful session management, wildcard CORS, and DELETE handling. Added `withConfigOverrides` test helper.
+
+---
+
 ## [3.0.5] - 2026-03-04
 
 ### Fixed
