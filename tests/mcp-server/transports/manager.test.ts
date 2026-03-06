@@ -11,8 +11,10 @@ import { logger } from '@/utils/internal/logger.js';
 
 // Mock the transport modules
 vi.mock('@/mcp-server/transports/http/httpTransport.js', () => ({
-  startHttpTransport: vi.fn().mockResolvedValue({ server: 'http-mock' }),
-  stopHttpTransport: vi.fn().mockResolvedValue(undefined),
+  startHttpTransport: vi.fn().mockResolvedValue({
+    server: 'http-mock',
+    stop: vi.fn().mockResolvedValue(undefined),
+  }),
 }));
 
 vi.mock('@/mcp-server/transports/stdio/stdioTransport.js', () => ({
@@ -178,10 +180,14 @@ describe('TransportManager', () => {
       manager = new TransportManager(config, logger, mockCreateMcpServer);
       await manager.start();
 
+      // Grab the handle's stop mock before calling manager.stop()
+      const { startHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
+      const handle = await (startHttpTransport as ReturnType<typeof vi.fn>).mock.results.at(-1)
+        ?.value;
+
       await manager.stop('SIGTERM');
 
-      const { stopHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
-      expect(stopHttpTransport).toHaveBeenCalledTimes(1);
+      expect(handle.stop).toHaveBeenCalledTimes(1);
 
       // Restore original value
       Object.defineProperty(config, 'mcpTransportType', {

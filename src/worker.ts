@@ -190,7 +190,7 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
       // Create the Hono application with Cloudflare Worker bindings.
       // Pass server factory so each request gets a fresh McpServer+transport pair
       // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
-      const app = createHttpApp<CloudflareBindings>(createMcpServerInstance, workerContext);
+      const { app } = createHttpApp<CloudflareBindings>(createMcpServerInstance, workerContext);
 
       const initDuration = Date.now() - initStartTime;
       logger.info('Cloudflare Worker initialized successfully.', {

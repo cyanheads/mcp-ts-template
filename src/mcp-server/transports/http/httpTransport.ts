@@ -61,7 +61,7 @@ class McpSessionTransport extends StreamableHTTPTransport {
 export function createHttpApp<TBindings extends object = HonoNodeBindings>(
   serverFactory: () => Promise<McpServer>,
   parentContext: RequestContext,
-): Hono<{ Bindings: TBindings }> {
+): { app: Hono<{ Bindings: TBindings }>; sessionStore: SessionStore | null } {
   const app = new Hono<{ Bindings: TBindings }>();
   const transportContext = {
     ...parentContext,
@@ -110,6 +110,9 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     );
   }
 
+  // Per Fetch spec, Access-Control-Allow-Origin: * with
+  // Access-Control-Allow-Credentials: true is invalid — browsers reject the
+  // preflight. Only enable credentials when origin is explicitly configured.
   app.use(
     '*',
     cors({
@@ -117,7 +120,7 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
       allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization', 'Mcp-Session-Id', 'MCP-Protocol-Version'],
       exposeHeaders: ['Mcp-Session-Id'],
-      credentials: true,
+      ...(allowedOrigin !== '*' && { credentials: true }),
     }),
   );
 
@@ -268,7 +271,6 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
     }
 
     const providedSessionId = c.req.header('mcp-session-id');
-    const sessionId = providedSessionId ?? generateSecureSessionId();
 
     // Extract identity from auth context (if auth is enabled)
     // This MUST happen before session validation for security
@@ -300,10 +302,11 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
       return c.json({ error: 'Session not found or expired' }, 404);
     }
 
-    // Create or update session for stateful mode WITH identity binding
-    if (sessionStore) {
-      sessionStore.getOrCreate(sessionId, sessionIdentity);
-    }
+    // Defer session minting for stateful mode: only assign a session ID to
+    // requests that already carry one (returning clients) or after the SDK
+    // processes the request (new initialize handshakes). This prevents
+    // allocating sessions for requests that will fail protocol validation.
+    const sessionId = providedSessionId ?? generateSecureSessionId();
 
     const transport = new McpSessionTransport(sessionId);
 
@@ -315,17 +318,24 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
       await server.connect(transport);
       const response = await transport.handleRequest(c);
 
-      // MCP Spec 2025-06-18: For stateful sessions, return Mcp-Session-Id header
-      // in InitializeResponse (and all subsequent responses)
-      if (response && config.mcpSessionMode === 'stateful') {
-        response.headers.set('Mcp-Session-Id', sessionId);
-        logger.debug('Added Mcp-Session-Id header to response', {
-          ...transportContext,
-          sessionId,
-        });
-      }
-
       if (response) {
+        // Only register the session in the store AFTER a successful response.
+        // This avoids minting sessions for requests that fail protocol
+        // validation (e.g. tools/list without prior initialize).
+        if (sessionStore && response.ok) {
+          sessionStore.getOrCreate(sessionId, sessionIdentity);
+        }
+
+        // MCP Spec 2025-06-18: For stateful sessions, return Mcp-Session-Id header
+        // in InitializeResponse (and all subsequent responses)
+        if (config.mcpSessionMode === 'stateful' && response.ok) {
+          response.headers.set('Mcp-Session-Id', sessionId);
+          logger.debug('Added Mcp-Session-Id header to response', {
+            ...transportContext,
+            sessionId,
+          });
+        }
+
         return response;
       }
       return c.body(null, 204);
@@ -352,7 +362,7 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
   });
 
   logger.info('Hono application setup complete.', transportContext);
-  return app;
+  return { app, sessionStore };
 }
 
 function isPortInUse(port: number, host: string, parentContext: RequestContext): Promise<boolean> {
@@ -432,17 +442,27 @@ function startHttpServerWithRetry<TBindings extends object = HonoNodeBindings>(
   return promise;
 }
 
+/**
+ * Handle returned by {@link startHttpTransport} bundling the HTTP server
+ * and a shutdown function that cleans up all associated resources
+ * (session store intervals, etc.).
+ */
+export interface HttpTransportHandle {
+  server: ServerType;
+  stop: (parentContext: RequestContext) => Promise<void>;
+}
+
 export async function startHttpTransport(
   serverFactory: () => Promise<McpServer>,
   parentContext: RequestContext,
-): Promise<ServerType> {
+): Promise<HttpTransportHandle> {
   const transportContext = {
     ...parentContext,
     component: 'HttpTransportStart',
   };
   logger.info('Starting HTTP transport.', transportContext);
 
-  const app = createHttpApp(serverFactory, transportContext);
+  const { app, sessionStore } = createHttpApp(serverFactory, transportContext);
 
   const server = await startHttpServerWithRetry(
     app,
@@ -453,11 +473,16 @@ export async function startHttpTransport(
   );
 
   logger.info('HTTP transport started successfully.', transportContext);
-  return server;
+
+  return {
+    server,
+    stop: (ctx: RequestContext) => stopHttpTransport(server, sessionStore, ctx),
+  };
 }
 
-export function stopHttpTransport(
+function stopHttpTransport(
   server: ServerType,
+  sessionStore: SessionStore | null,
   parentContext: RequestContext,
 ): Promise<void> {
   const operationContext = {
@@ -466,6 +491,8 @@ export function stopHttpTransport(
     transportType: 'Http',
   };
   logger.info('Attempting to stop http transport...', operationContext);
+
+  sessionStore?.destroy();
 
   return new Promise((resolve, reject) => {
     server.close((err) => {

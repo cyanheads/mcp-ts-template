@@ -50,7 +50,7 @@ describe('HTTP Transport Integration - RPC Handling', () => {
     // Import createHttpApp
     const { createHttpApp } = await import('@/mcp-server/transports/http/httpTransport.js');
 
-    const app = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+    const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
 
     // Test supported protocol version
     const request = new Request('http://localhost:3000/mcp', {
@@ -95,7 +95,7 @@ describe('HTTP Transport Integration - RPC Handling', () => {
 
     const { createHttpApp } = await import('@/mcp-server/transports/http/httpTransport.js');
 
-    const app = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+    const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
 
     const request = new Request('http://localhost:3000/mcp', {
       method: 'POST',
@@ -146,27 +146,55 @@ describe('HTTP Transport Integration - OAuth Metadata', () => {
       connect: vi.fn().mockResolvedValue(undefined),
     };
 
-    // Mock OAuth config
-    const config = await import('@/config/index.js');
-    vi.spyOn(config.config, 'mcpAuthMode', 'get').mockReturnValue('oauth' as any);
-    vi.spyOn(config.config, 'oauthIssuerUrl', 'get').mockReturnValue('https://auth.example.com');
-    vi.spyOn(config.config, 'oauthAudience', 'get').mockReturnValue('https://api.example.com');
-
-    const { createHttpApp } = await import('@/mcp-server/transports/http/httpTransport.js');
-
-    const app = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
-
-    const request = new Request('http://localhost:3000/.well-known/oauth-protected-resource', {
-      method: 'GET',
+    // Override config properties for this test
+    const configModule = await import('@/config/index.js');
+    const saved = {
+      mcpAuthMode: configModule.config.mcpAuthMode,
+      oauthIssuerUrl: configModule.config.oauthIssuerUrl,
+      oauthAudience: configModule.config.oauthAudience,
+    };
+    Object.defineProperty(configModule.config, 'mcpAuthMode', {
+      value: 'oauth',
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(configModule.config, 'oauthIssuerUrl', {
+      value: 'https://auth.example.com',
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(configModule.config, 'oauthAudience', {
+      value: 'https://api.example.com',
+      writable: true,
+      configurable: true,
     });
 
-    const response = await app.fetch(request);
-    const data: any = await response.json();
+    try {
+      const { createHttpApp } = await import('@/mcp-server/transports/http/httpTransport.js');
 
-    expect(response.status).toBe(200);
-    expect(data.resource).toBeDefined();
-    expect(data.authorization_servers).toContain('https://auth.example.com');
-    expect(data.bearer_methods_supported).toEqual(['header']);
-    expect(response.headers.get('cache-control')).toContain('max-age=3600');
+      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+
+      const request = new Request('http://localhost:3000/.well-known/oauth-protected-resource', {
+        method: 'GET',
+      });
+
+      const response = await app.fetch(request);
+      const data: any = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.resource).toBeDefined();
+      expect(data.authorization_servers).toContain('https://auth.example.com');
+      expect(data.bearer_methods_supported).toEqual(['header']);
+      expect(response.headers.get('cache-control')).toContain('max-age=3600');
+    } finally {
+      // Restore original config values
+      for (const [key, value] of Object.entries(saved)) {
+        Object.defineProperty(configModule.config, key, {
+          value,
+          writable: true,
+          configurable: true,
+        });
+      }
+    }
   });
 });
