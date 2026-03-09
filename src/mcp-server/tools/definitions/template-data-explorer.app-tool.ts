@@ -127,6 +127,10 @@ function dataExplorerLogic(
 // ─── Response Formatter (text fallback for non-app hosts) ─────────────────────
 
 function responseFormatter(result: DataExplorerOutput): ContentBlock[] {
+  // First block: JSON for MCP Apps UI (loadData parses the first text block)
+  const jsonBlock = JSON.stringify(result);
+
+  // Second block: human-readable table for non-app hosts / LLM context
   const header = 'ID  | Region           | Product        | Units | Revenue    | Date';
   const sep = '----|------------------|----------------|-------|------------|----------';
   const rows = result.rows.map(
@@ -136,10 +140,8 @@ function responseFormatter(result: DataExplorerOutput): ContentBlock[] {
   const summary = `\nTotal: ${result.summary.totalRows} rows | ${result.summary.totalUnits.toLocaleString()} units | $${result.summary.totalRevenue.toLocaleString('en-US')} revenue`;
 
   return [
-    {
-      type: 'text',
-      text: [header, sep, ...rows, summary].join('\n'),
-    },
+    { type: 'text', text: jsonBlock },
+    { type: 'text', text: [header, sep, ...rows, summary].join('\n') },
   ];
 }
 
