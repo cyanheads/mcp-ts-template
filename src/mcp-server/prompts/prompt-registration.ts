@@ -19,7 +19,7 @@ export class PromptRegistry {
   /**
    * Registers all prompts on the given MCP server.
    */
-  registerAll(server: McpServer): void {
+  async registerAll(server: McpServer): Promise<void> {
     const context = requestContextService.createRequestContext({
       operation: 'PromptRegistry.registerAll',
     });
@@ -30,7 +30,7 @@ export class PromptRegistry {
     for (const promptDef of allPromptDefinitions) {
       this.logger.debug(`Registering prompt: ${promptDef.name}`, context);
 
-      ErrorHandler.tryCatch(
+      await ErrorHandler.tryCatch(
         () => {
           server.registerPrompt(
             promptDef.name,

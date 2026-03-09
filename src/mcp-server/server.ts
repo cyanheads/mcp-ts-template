@@ -74,9 +74,12 @@ export async function createMcpServerInstance(): Promise<McpServer> {
       container.resolve(RootsRegistryToken),
     ];
 
-    await Promise.all([toolRegistry.registerAll(server), resourceRegistry.registerAll(server)]);
+    await Promise.all([
+      toolRegistry.registerAll(server),
+      resourceRegistry.registerAll(server),
+      promptRegistry.registerAll(server),
+    ]);
 
-    promptRegistry.registerAll(server);
     rootsRegistry.registerAll(server);
 
     logger.info('All MCP capabilities registered successfully', context);
