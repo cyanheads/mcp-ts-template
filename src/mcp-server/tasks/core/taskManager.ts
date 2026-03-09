@@ -15,6 +15,7 @@ import type { StorageService } from '@/storage/core/StorageService.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { idGenerator } from '@/utils/security/idGenerator.js';
+import { SessionAwareTaskStore } from './sessionAwareTaskStore.js';
 import { StorageBackedTaskStore } from './storageBackedTaskStore.js';
 import {
   InMemoryTaskMessageQueue,
@@ -64,11 +65,10 @@ export class TaskManager {
         defaultTtl: config.tasks.defaultTtlMs ?? null,
       });
     } else {
-      // NOTE: The SDK's InMemoryTaskStore does not enforce session ownership.
-      // Only StorageBackedTaskStore validates that callers own the tasks they access.
-      // This is a known SDK limitation (sessionId params are accepted but ignored).
       this.inMemoryTaskStore = new InMemoryTaskStore();
-      this.taskStore = this.inMemoryTaskStore;
+      // Wrap with session ownership enforcement — the SDK's InMemoryTaskStore
+      // ignores sessionId parameters, so SessionAwareTaskStore adds that layer.
+      this.taskStore = new SessionAwareTaskStore(this.inMemoryTaskStore);
     }
 
     logger.info(`TaskManager initialized with ${this.storeType} task store`, {
