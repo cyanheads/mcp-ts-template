@@ -1,11 +1,7 @@
 /**
- * @fileoverview Main entry point for the MCP (Model Context Protocol) server.
- * This file orchestrates the server's lifecycle:
- * 1. Initializes the core `McpServer` instance (from `@modelcontextprotocol/sdk`) with its identity and capabilities.
- * 2. Registers available resources and tools, making them discoverable and usable by clients.
- * 3. Selects and starts the appropriate communication transport (stdio or Streamable HTTP)
- *    based on configuration.
- * 4. Handles top-level error management during startup.
+ * @fileoverview Factory for creating configured MCP server instances.
+ * Creates an McpServer with identity, capabilities, and registered
+ * tools/resources/prompts/roots from the provided registries.
  *
  * MCP Specification References:
  * - Lifecycle: https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle
@@ -15,26 +11,31 @@
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import { config } from '@/config/index.js';
-import { container } from '@/container/core/container.js';
-import {
-  PromptRegistryToken,
-  ResourceRegistryToken,
-  RootsRegistryToken,
-  ToolRegistryToken,
-} from '@/container/core/tokens.js';
+import type { AppConfig } from '@/config/index.js';
+import type { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
+import type { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
+import type { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
+import type { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
+/** Dependencies required to create an MCP server instance. */
+export interface McpServerDeps {
+  config: AppConfig;
+  promptRegistry: PromptRegistry;
+  resourceRegistry: ResourceRegistry;
+  rootsRegistry: RootsRegistry;
+  toolRegistry: ToolRegistry;
+}
+
 /**
  * Creates and configures a new instance of the `McpServer`.
- * This function now resolves tool and resource definitions from the DI container.
+ * Registries are provided directly — no DI container resolution.
  *
  * @returns A promise resolving with the configured `McpServer` instance.
  * @throws {McpError} If any resource or tool registration fails.
- * @private
  */
-export async function createMcpServerInstance(): Promise<McpServer> {
+export async function createMcpServerInstance(deps: McpServerDeps): Promise<McpServer> {
   const context = requestContextService.createRequestContext({
     operation: 'createMcpServerInstance',
   });
@@ -42,8 +43,8 @@ export async function createMcpServerInstance(): Promise<McpServer> {
 
   const server = new McpServer(
     {
-      name: config.mcpServerName,
-      version: config.mcpServerVersion,
+      name: deps.config.mcpServerName,
+      version: deps.config.mcpServerVersion,
     },
     {
       capabilities: {
@@ -66,21 +67,13 @@ export async function createMcpServerInstance(): Promise<McpServer> {
   try {
     logger.debug('Registering all MCP capabilities via registries...', context);
 
-    // Resolve and use registry services — tool and resource registration run in parallel
-    const [toolRegistry, resourceRegistry, promptRegistry, rootsRegistry] = [
-      container.resolve(ToolRegistryToken),
-      container.resolve(ResourceRegistryToken),
-      container.resolve(PromptRegistryToken),
-      container.resolve(RootsRegistryToken),
-    ];
-
     await Promise.all([
-      toolRegistry.registerAll(server),
-      resourceRegistry.registerAll(server),
-      promptRegistry.registerAll(server),
+      deps.toolRegistry.registerAll(server),
+      deps.resourceRegistry.registerAll(server),
+      deps.promptRegistry.registerAll(server),
     ]);
 
-    rootsRegistry.registerAll(server);
+    deps.rootsRegistry.registerAll(server);
 
     logger.info('All MCP capabilities registered successfully', context);
   } catch (err) {

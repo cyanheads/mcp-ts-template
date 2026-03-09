@@ -5,7 +5,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import type { AppConfig as AppConfigType } from '@/config/index.js';
-import { container, TaskManagerToken } from '@/container/index.js';
+import type { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { startHttpTransport } from '@/mcp-server/transports/http/httpTransport.js';
 import type { TransportServer } from '@/mcp-server/transports/ITransport.js';
 import {
@@ -24,6 +24,7 @@ export class TransportManager {
     private config: AppConfigType,
     private logger: typeof LoggerType,
     private createMcpServer: () => Promise<McpServer>,
+    private taskManager: TaskManager,
   ) {}
 
   async start(): Promise<void> {
@@ -67,9 +68,7 @@ export class TransportManager {
     await this.shutdown(context);
 
     // Clean up task manager timers to allow clean process exit
-    if (container.has(TaskManagerToken)) {
-      container.resolve(TaskManagerToken).cleanup();
-    }
+    this.taskManager.cleanup();
 
     this.serverInstance = null;
     this.shutdown = null;

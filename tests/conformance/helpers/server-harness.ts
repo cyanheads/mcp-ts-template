@@ -8,8 +8,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ClientCapabilities } from '@modelcontextprotocol/sdk/types.js';
 
-import { composeContainer } from '@/container/index.js';
-import { createMcpServerInstance } from '@/mcp-server/server.js';
+import { createApp } from '@/app.js';
 
 export interface ConformanceHarness {
   cleanup: () => Promise<void>;
@@ -27,11 +26,11 @@ export interface ConformanceHarness {
 export async function createConformanceHarness(
   clientCapabilities?: ClientCapabilities,
 ): Promise<ConformanceHarness> {
-  // Ensure DI is bootstrapped (idempotent)
-  composeContainer();
+  // Direct construction — no DI container
+  const { createServer } = createApp();
 
-  // Real server — full DI, all tools/resources/prompts registered
-  const server = await createMcpServerInstance();
+  // Real server — all tools/resources/prompts registered
+  const server = await createServer();
 
   // Paired in-process transports — no network
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();

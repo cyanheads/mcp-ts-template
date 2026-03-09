@@ -25,12 +25,8 @@ if (isStdioMode || isHttpModeWithoutTty) {
   process.env.FORCE_COLOR = '0'; // Disable forced coloring
 }
 
-import {
-  AppConfig,
-  composeContainer,
-  container,
-  TransportManagerToken,
-} from '@/container/index.js';
+import { createApp } from '@/app.js';
+import { config } from '@/config/index.js';
 import type { TransportManager } from '@/mcp-server/transports/manager.js';
 import { logger, type McpLogLevel } from '@/utils/internal/logger.js';
 import { initHighResTimer } from '@/utils/internal/performance.js';
@@ -82,8 +78,8 @@ const shutdown = async (signal: string): Promise<void> => {
 
 const start = async (): Promise<void> => {
   try {
-    // Initialize DI container first — config is parsed and validated here
-    composeContainer();
+    // Construct all services — config is parsed and validated here
+    ({ transportManager } = createApp());
   } catch (_error) {
     // This will catch the McpError from parseConfig
     if (process.stdout.isTTY) {
@@ -94,8 +90,6 @@ const start = async (): Promise<void> => {
     await shutdownOpenTelemetry();
     process.exit(1);
   }
-
-  const config = container.resolve(AppConfig);
 
   // Initialize OpenTelemetry before logger to capture all spans
   // This must happen before logger initialization for proper instrumentation
@@ -118,8 +112,6 @@ const start = async (): Promise<void> => {
     `Storage service initialized with provider: ${config.storage.providerType}`,
     requestContextService.createRequestContext({ operation: 'StorageInit' }),
   );
-
-  transportManager = container.resolve(TransportManagerToken);
 
   const startupContext = requestContextService.createRequestContext({
     operation: 'ServerStartup',

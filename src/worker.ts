@@ -14,8 +14,7 @@ import type {
   ScheduledController,
 } from '@cloudflare/workers-types';
 import type { Hono } from 'hono';
-import { composeContainer } from '@/container/index.js';
-import { createMcpServerInstance } from '@/mcp-server/server.js';
+import { createApp } from '@/app.js';
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
 import { logger, type McpLogLevel } from '@/utils/internal/logger.js';
 import { initHighResTimer } from '@/utils/internal/performance.js';
@@ -149,8 +148,8 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
         Object.assign(globalThis, { IS_SERVERLESS: true });
       }
 
-      // Initialize core services lazily.
-      composeContainer();
+      // Construct all services — config is parsed lazily on first access.
+      const { createServer } = createApp();
       await initHighResTimer();
 
       // Initialize logger with level from env or default to 'info'
@@ -187,7 +186,7 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
       // Create the Hono application with Cloudflare Worker bindings.
       // Pass server factory so each request gets a fresh McpServer+transport pair
       // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
-      const { app } = createHttpApp<CloudflareBindings>(createMcpServerInstance, workerContext);
+      const { app } = createHttpApp<CloudflareBindings>(createServer, workerContext);
 
       const initDuration = Date.now() - initStartTime;
       logger.info('Cloudflare Worker initialized successfully.', {

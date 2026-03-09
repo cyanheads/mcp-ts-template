@@ -6,6 +6,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { config } from '@/config/index.js';
+import type { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
 import { logger } from '@/utils/internal/logger.js';
 
@@ -26,6 +27,7 @@ describe('TransportManager', () => {
   let manager: TransportManager;
   let mockCreateMcpServer: () => Promise<McpServer>;
   let mockMcpServer: McpServer;
+  let mockTaskManager: TaskManager;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -38,8 +40,9 @@ describe('TransportManager', () => {
     } as unknown as McpServer;
 
     mockCreateMcpServer = vi.fn().mockResolvedValue(mockMcpServer);
+    mockTaskManager = { cleanup: vi.fn() } as unknown as TaskManager;
 
-    manager = new TransportManager(config, logger, mockCreateMcpServer);
+    manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
   });
 
   describe('start', () => {
@@ -140,7 +143,7 @@ describe('TransportManager', () => {
       });
 
       // Re-create manager to avoid leftover state from beforeEach start
-      manager = new TransportManager(config, logger, mockCreateMcpServer);
+      manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
       await manager.start();
 
       // HTTP transport receives factory — does NOT eagerly create an instance
@@ -177,7 +180,7 @@ describe('TransportManager', () => {
       });
 
       // Re-create manager with HTTP transport
-      manager = new TransportManager(config, logger, mockCreateMcpServer);
+      manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
       await manager.start();
 
       // Grab the handle's stop mock before calling manager.stop()
@@ -206,7 +209,7 @@ describe('TransportManager', () => {
       });
 
       // Re-create manager with stdio transport
-      manager = new TransportManager(config, logger, mockCreateMcpServer);
+      manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
       await manager.start();
 
       await manager.stop('SIGTERM');
@@ -225,7 +228,12 @@ describe('TransportManager', () => {
     });
 
     it('should handle stop when no server instance is active', async () => {
-      const freshManager = new TransportManager(config, logger, mockCreateMcpServer);
+      const freshManager = new TransportManager(
+        config,
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+      );
 
       // Should not throw
       await expect(freshManager.stop('SIGTERM')).resolves.toBeUndefined();
@@ -242,7 +250,12 @@ describe('TransportManager', () => {
 
   describe('getServer', () => {
     it('should return null before start is called', () => {
-      const freshManager = new TransportManager(config, logger, mockCreateMcpServer);
+      const freshManager = new TransportManager(
+        config,
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+      );
 
       expect(freshManager.getServer()).toBeNull();
     });

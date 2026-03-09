@@ -4,31 +4,21 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { config as configType } from '@/config/index.js';
-import { container } from '@/container/core/container.js';
-import {
-  AppConfig,
-  StorageProvider,
-  StorageService as StorageServiceToken,
-} from '@/container/core/tokens.js';
 import type { StorageBackedTaskStore } from '@/mcp-server/tasks/core/storageBackedTaskStore.js';
 import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { StorageService } from '@/storage/core/StorageService.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 
-/** Helper to set up storage dependencies in the new container. */
-function registerStorageDeps() {
-  container.registerSingleton(StorageProvider, () => new InMemoryProvider());
-  container.registerSingleton(
-    StorageServiceToken,
-    (c) => new StorageService(c.resolve(StorageProvider)),
-  );
+/** Construct a fresh StorageService backed by InMemoryProvider. */
+function createStorageService(): StorageService {
+  return new StorageService(new InMemoryProvider());
 }
 
 describe('TaskManager', () => {
+  let storageService: StorageService;
+
   beforeEach(() => {
-    container.reset();
-    // Register base dependencies
-    registerStorageDeps();
+    storageService = createStorageService();
   });
 
   describe('with in-memory store (default)', () => {
@@ -44,8 +34,6 @@ describe('TaskManager', () => {
         },
       } as typeof configType;
 
-      container.registerValue(AppConfig, mockConfig);
-      const storageService = container.resolve(StorageServiceToken);
       taskManager = new TaskManager(mockConfig, storageService);
     });
 
@@ -112,8 +100,6 @@ describe('TaskManager', () => {
         },
       } as typeof configType;
 
-      container.registerValue(AppConfig, mockConfig);
-      const storageService = container.resolve(StorageServiceToken);
       taskManager = new TaskManager(mockConfig, storageService);
     });
 
@@ -143,8 +129,6 @@ describe('TaskManager', () => {
         },
       } as typeof configType;
 
-      container.registerValue(AppConfig, mockConfig);
-      const storageService = container.resolve(StorageServiceToken);
       const tm = new TaskManager(mockConfig, storageService);
 
       expect(tm.getStoreType()).toBe('in-memory');
@@ -159,8 +143,6 @@ describe('TaskManager', () => {
         },
       } as typeof configType;
 
-      container.registerValue(AppConfig, mockConfig);
-      const storageService = container.resolve(StorageServiceToken);
       const tm = new TaskManager(mockConfig, storageService);
 
       expect(tm.getStoreType()).toBe('storage');
