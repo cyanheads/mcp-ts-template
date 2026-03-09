@@ -116,7 +116,7 @@ After extraction, core's test suite validates:
 | Transports | HTTP route registration, stdio message framing |
 | Auth | JWT verification, scope checking, `withToolAuth`/`withResourceAuth` wrappers |
 | Utils | Each utility module in isolation |
-| Bootstrap | `bootstrap()` lifecycle (init, shutdown, double-shutdown guard) |
+| App lifecycle | `createApp()` lifecycle (init, shutdown, double-shutdown guard) |
 | Worker | `createWorkerHandler()` env injection, binding storage, singleton caching |
 
 ## Examples as Integration Tests
@@ -128,6 +128,22 @@ CI runs:
 2. Build examples against core's `dist/`
 3. Run examples' tests
 4. `devcheck` on examples
+
+---
+
+## Examples Local Resolution
+
+During development and CI, examples resolve `@cyanheads/mcp-ts-core` imports against the local `dist/` output — not a published npm version. This avoids workspace tooling complexity.
+
+**Mechanism:** Examples use `"@cyanheads/mcp-ts-core": "file:.."` in their `package.json`. This creates a symlink to the parent directory, so TypeScript resolves subpath exports through core's `package.json` `exports` field against `dist/`. No workspace linking, no `bun link`.
+
+**CI sequence:**
+1. `tsc && tsc-alias` (build core)
+2. `cd examples && bun install` (resolves `file:..` symlink)
+3. `tsc --noEmit` (type-check examples against core's `dist/`)
+4. `bun test` (run example tests)
+
+The published reference template repo (`mcp-ts-template`) uses the real npm version, not `file:`.
 
 ---
 

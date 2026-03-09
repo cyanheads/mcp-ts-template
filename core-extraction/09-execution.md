@@ -28,7 +28,7 @@ Replace DI container with `createApp()`, fix coupling, and fix dependency placem
 
 ### Checklist
 - [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
-- [ ] `diff` moved from `devDependencies` to `dependencies` (#3b)
+- [ ] `diff` duplicate removed from `devDependencies` (#3b)
 - [ ] `src/container/` deleted; `createApp()` implemented in `src/app.ts`
 - [ ] `createMcpServerInstance` receives registries as params (not via container)
 - [ ] `TransportManager` receives deps as constructor params (not via container)
@@ -81,6 +81,7 @@ The core of the extraction. Transform the repo in-place.
 - [ ] External skill definitions written in `skills/` with `audience: external` (see [05-agent-dx.md](05-agent-dx.md))
 - [ ] Internal skill definitions written in `skills-internal/` with `audience: internal`
 - [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js`, `eslint.config.js`
+- [ ] Test helpers implemented in `src/testing/index.ts` (`createMockSdkContext`, `createMockAppContext`)
 - [ ] `files` array excludes `skills-internal/`, `core-extraction/`, `CONTRIBUTING.md`
 - [ ] `prepublishOnly` script added
 - [ ] Package compiles cleanly (`tsc && tsc-alias`)
@@ -126,7 +127,7 @@ A new thin `mcp-ts-template` repo that depends on `@cyanheads/mcp-ts-core`.
 ### Checklist
 - [ ] New `cyanheads/mcp-ts-template` repo created
 - [ ] Depends on published `@cyanheads/mcp-ts-core`
-- [ ] Demonstrates the scaffold pattern (bootstrap call, example tool/resource/prompt)
+- [ ] Demonstrates the scaffold pattern (`createApp()` call, example tool/resource/prompt)
 - [ ] CI runs against the published core package
 - [ ] `devcheck` passes
 - [ ] Old `mcp-ts-template` npm package gets final major version with deprecation notice

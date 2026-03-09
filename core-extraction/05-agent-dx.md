@@ -64,10 +64,10 @@ Initially hand-maintained. Can be auto-generated from TypeScript source (JSDoc +
 
 ### Layer 3: Type signatures on demand
 
-When the agent needs exact API details — "what fields does `BootstrapOptions` have?" — it reads the `.d.ts` file from `node_modules`. The exports catalog tells it which subpath to look at:
+When the agent needs exact API details — "what fields does `CreateAppOptions` have?" — it reads the `.d.ts` file from `node_modules`. The exports catalog tells it which subpath to look at:
 
 ```
-node_modules/@cyanheads/mcp-ts-core/dist/bootstrap.d.ts
+node_modules/@cyanheads/mcp-ts-core/dist/app.d.ts
 ```
 
 Standard file reading. No special tooling.
@@ -91,9 +91,9 @@ Two distinct documents serve different audiences.
 Consumer-facing reference. Structured for an LLM agent working on a downstream server. Contains:
 - **Exports Reference** — the catalog table (Layer 2)
 - **Patterns** — tool/resource/prompt definitions, context objects, error handling, auth wrappers
-- **Contracts** — `ToolDefinition`, `ResourceDefinition`, `PromptDefinition` shapes; `bootstrap()` / `createWorkerHandler()` options
+- **Contracts** — `ToolDefinition`, `ResourceDefinition`, `PromptDefinition` shapes; `createApp()` / `createWorkerHandler()` options
 - **Error codes** — `JsonRpcErrorCode` table with when-to-use guidance
-- **DI** — container API, core tokens, server-specific service registration
+- **App wiring** — `createApp()` options, `CoreServices`, `setup()` callback, lazy accessor pattern for server-specific services
 - **Common imports** — the 10 most-used import lines, copy-paste ready
 
 Does **not** contain: internal development instructions, contribution guide, CI setup, release process. Those live in `CONTRIBUTING.md` in the repo (not shipped in the package).

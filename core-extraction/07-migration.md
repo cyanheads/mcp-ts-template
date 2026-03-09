@@ -67,7 +67,7 @@ npx create-mcp-server my-server
 
 1. `package.json` with `@cyanheads/mcp-ts-core` dependency, build scripts, bin entry
 2. `tsconfig.json` extending core's base config
-3. `src/index.ts` — the bootstrap call
+3. `src/index.ts` — the `createApp()` call
 4. `src/worker.ts` — the worker factory call
 5. `src/mcp-server/tools/definitions/` — one example tool + `index.ts` barrel
 6. `src/mcp-server/resources/definitions/` — one example resource + `index.ts` barrel

@@ -30,6 +30,12 @@ interface CoreServices {
   storage: StorageService;
   /** Rate limiter instance */
   rateLimiter: RateLimiter;
+  /** LLM provider — present only when OPENROUTER_API_KEY is configured */
+  llmProvider?: ILlmProvider;
+  /** Speech service (TTS/STT) — present only when speech providers are configured */
+  speechService?: SpeechService;
+  /** Supabase admin client — present only when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are set */
+  supabase?: SupabaseClient;
 }
 
 interface CreateAppOptions {
@@ -65,7 +71,7 @@ export async function createApp(options: CreateAppOptions): Promise<ServerHandle
 3. Construct core services directly — no DI container:
    - Config -> Logger -> StorageProvider -> StorageService -> RateLimiter
    - Conditional: Supabase client (if configured), LLM provider, SpeechService
-4. `await options.setup?.({ config, logger, storage, rateLimiter })` — server-specific init
+4. `await options.setup?.({ config, logger, storage, rateLimiter, llmProvider?, speechService?, supabase? })` — server-specific init
 5. Construct MCP registries from `options.definitions` (ToolRegistry, ResourceRegistry, PromptRegistry, RootsRegistry)
 6. Construct TaskManager, server factory, TransportManager — passing dependencies directly
 7. Initialize OpenTelemetry
@@ -81,6 +87,8 @@ export async function createApp(options: CreateAppOptions): Promise<ServerHandle
 **Opinionated process runner.** `createApp()` owns signal handlers, unhandled error hooks, logger lifecycle, and transport startup. This is intentional — the primary product is a standalone MCP server process, not an embeddable library. For cases that need manual composition (embedding in a larger app, custom signal handling, testing infrastructure), the individual building blocks are exported as first-class public API: config, transport manager, registries, logger. Skipping `createApp()` and wiring these directly is a supported path, not a workaround.
 
 **No DI container.** The dependency graph is static, linear, and small (~15 services). No tool, resource, or prompt definition resolves services from a container — they receive context via function parameters (`appContext`, `sdkContext`) or access server-specific services through module-level lazy accessors. Direct construction in `createApp()` makes the wiring explicit, debuggable with a stack trace, and eliminates the token/registration/resolve indirection of a service locator. Server-specific services initialized in `setup()` follow the same lazy accessor pattern. See [10-decisions.md](10-decisions.md) #15.
+
+**HTTP infrastructure ownership.** `createApp()` owns the health endpoint (`/healthz`) and CORS configuration (`MCP_ALLOWED_ORIGINS`). These are part of the HTTP transport layer — they ship with core and are not configurable by downstream servers beyond the existing env vars. The health endpoint is always unprotected; CORS applies to protected endpoints when auth is enabled.
 
 **Shutdown subtleties.** The current `index.ts` shutdown handler has real nuance — double-shutdown guard, OTEL flush ordering, logger close as final step, error handling during shutdown itself. `createApp()` must preserve all of these, not just absorb line count.
 

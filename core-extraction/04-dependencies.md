@@ -20,7 +20,7 @@ Servers shouldn't pay for deps they never use. The package has three tiers.
 
 ## Tier 1: Core dependencies (always installed)
 
-In the critical path of `bootstrap()`. Every server needs these.
+In the critical path of `createApp()`. Every server needs these.
 
 | Package | Used By | Notes |
 |:--------|:--------|:------|
@@ -40,7 +40,7 @@ In the critical path of `bootstrap()`. Every server needs these.
 
 **Current `package.json` bugs to fix before extraction:**
 - `@hono/mcp` is in `devDependencies` ([package.json:83](../package.json#L83)) but is required at runtime by the HTTP transport. Must move to `dependencies`.
-- `diff` is in `devDependencies` ([package.json:99](../package.json#L99)) but is imported at runtime by `diffFormatter.ts`. As a Tier 3 dep it becomes an optional peer, but the current placement means `bun install --production` would break any server using the diff formatter. Move to `dependencies` now (it becomes an optional peer during extraction).
+- `diff` is duplicated: pinned `8.0.3` in `dependencies` ([package.json:68](../package.json#L68)) and `^8.0.3` in `devDependencies` ([package.json:99](../package.json#L99)). Remove the `devDependencies` duplicate. During extraction it becomes an optional peer (Tier 3).
 
 ### `hono` as peer dependency consideration
 
@@ -201,7 +201,7 @@ export async function parseYaml(input: string) {
 ## Checklist
 
 - [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (pre-extraction fix)
-- [ ] `diff` moved from `devDependencies` to `dependencies` (pre-extraction fix; becomes optional peer during extraction)
+- [ ] `diff` duplicate removed from `devDependencies` (already in `dependencies`; becomes optional peer during extraction)
 - [ ] `package.json` reorganized: Tier 1 in `dependencies`, Tier 2 in `peerDependencies` (`"zod": "^4.3.0"`), Tier 3 in `peerDependencies` + `peerDependenciesMeta` optional
 - [ ] All Tier 3 static imports converted to lazy dynamic `import()` with cached module ref
 - [ ] Each lazy import throws `McpError(ConfigurationError)` with install instruction on missing dep

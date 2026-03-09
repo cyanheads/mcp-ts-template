@@ -25,7 +25,7 @@ These are misplacements in the current `package.json` that must be fixed before 
 | # | Issue | Location | Fix | Status |
 |:--|:------|:---------|:----|:-------|
 | 3a | `@hono/mcp` in `devDependencies` | [package.json:83](../package.json#L83) | Move to `dependencies` — required at runtime by the HTTP transport (`httpTransport.ts` imports `StreamableHTTPTransport` from it) | Not started |
-| 3b | `diff` in `devDependencies` only | [package.json:99](../package.json#L99) | Move to `dependencies` — imported at runtime by `diffFormatter.ts`. Becomes an optional peer during extraction, but the current placement means `bun install --production` breaks any server using the diff formatter. | Not started |
+| 3b | `diff` duplicated in both `dependencies` and `devDependencies` | [package.json:68](../package.json#L68), [package.json:99](../package.json#L99) | Remove the `devDependencies` duplicate (pinned `8.0.3` already in `dependencies`). During extraction it becomes an optional peer (Tier 3). | Not started |
 
 ---
 
@@ -33,7 +33,7 @@ These are misplacements in the current `package.json` that must be fixed before 
 
 | # | Issue | Detail | Resolution | Status |
 |:--|:------|:-------|:-----------|:-------|
-| 4 | `logger.ts` imports `sanitization.ts` | [logger.ts:13](../src/utils/internal/logger.ts#L13) pulls `sanitize-html` + `validator` into bootstrap critical path. Logger only calls `sanitization.getSensitivePinoFields()` ([logger.ts:82,173](../src/utils/internal/logger.ts#L82)) — a static `string[]` for Pino's `redact.paths`. | Inline the field list as a `const` array in `logger.ts`. Remove the import. This fully eliminates the coupling. | Not started |
+| 4 | `logger.ts` imports `sanitization.ts` | [logger.ts:13](../src/utils/internal/logger.ts#L13) pulls `sanitize-html` + `validator` into startup critical path. Logger only calls `sanitization.getSensitivePinoFields()` ([logger.ts:82,173](../src/utils/internal/logger.ts#L82)) — a static `string[]` for Pino's `redact.paths`. | Inline the field list as a `const` array in `logger.ts`. Remove the import. This fully eliminates the coupling. | Not started |
 | 5 | `openrouter.provider.ts` imports `sanitization.ts` | [openrouter.provider.ts:17](../src/services/llm/providers/openrouter.provider.ts#L17). LLM provider is already Tier 3, so this doesn't change tiering. | Convert to lazy import alongside the `openai` dep, or inline the specific calls. | Not started |
 | 6 | `pdf-lib` in `dependencies` | Used by `pdfParser.ts` (PDF creation/modification alongside `unpdf` for extraction). | Both become Tier 3 optional peers — only needed if the server imports `pdfParser`. | Not started |
 
@@ -98,7 +98,7 @@ Convert all Tier 3 static imports. Run `devcheck` + full test suite, commit. Bac
 
 ### Phase 1: DI removal + wiring + coupling + dep placement
 - [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
-- [ ] `diff` moved from `devDependencies` to `dependencies` (#3b)
+- [ ] `diff` duplicate removed from `devDependencies` (already in `dependencies`) (#3b)
 - [ ] `src/container/` deleted; `createApp()` implemented in `src/app.ts` with direct construction (#1)
 - [ ] `createMcpServerInstance` receives registries as params (not via container)
 - [ ] `TransportManager` receives deps as constructor params (not via container)

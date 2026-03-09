@@ -74,7 +74,7 @@ composeContainer()
   -> registerMcpServices()      // imports allToolDefinitions, allResourceDefinitions directly
 ```
 
-Uses a DI container with tokens, registrations, and lazy singleton resolution. The container has 6 production `resolve()` calls. Zero tool/resource/prompt definitions use it.
+Uses a DI container with tokens, registrations, and lazy singleton resolution. The container has 7 production `resolve()` calls (2 in `index.ts`, 4 in `server.ts`, 1 in `transports/manager.ts`). Zero tool/resource/prompt definitions use it.
 
 ### After extraction
 
@@ -105,8 +105,8 @@ const llmProvider = config.openRouter?.apiKey
   ? new OpenRouterProvider(rateLimiter, config, logger)
   : undefined;
 
-// Server-specific setup
-await options.setup?.({ config, logger, storage, rateLimiter });
+// Server-specific setup (optional services included when configured)
+await options.setup?.({ config, logger, storage, rateLimiter, llmProvider, speechService, supabase });
 
 // Registries from definitions
 const toolRegistry = new ToolRegistry(options.definitions.tools);

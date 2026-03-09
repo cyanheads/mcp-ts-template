@@ -57,7 +57,7 @@ src/
     tasks/                 # TaskManager, TaskToolDefinition, taskHandlerFactory
     transports/            # stdio, http (Hono), auth strategies, TransportManager
     roots/                 # RootsRegistry
-  bootstrap.ts             # bootstrap() — main entry point for Node servers
+  app.ts                   # createApp() — main entry point for Node servers
   worker.ts                # createWorkerHandler() — factory for Cloudflare Workers
 examples/                  # Template definitions (tools, resources, prompts) for CI and reference
 ```
@@ -81,7 +81,7 @@ src/
     prompts/definitions/    # The actual prompts
   services/                # Domain-specific integrations (providers, not interfaces)
   config/                  # Server-specific env vars (own Zod schema, not merged with core)
-  index.ts                 # Entry point: imports core bootstrap, passes definitions
+  index.ts                 # Entry point: imports core createApp, passes definitions
   worker.ts                # Worker entry point: imports core factory, passes definitions
 package.json
 CLAUDE.md                  # Extends core protocol with server-specific instructions
@@ -125,7 +125,7 @@ The current `mcp-ts-template` repo transforms in-place into `@cyanheads/mcp-ts-c
 ## Versioning Strategy
 
 - `@cyanheads/mcp-ts-core` follows semver strictly
-- Breaking changes to `ToolDefinition`, `ResourceDefinition`, DI container API, bootstrap options, or subpath export names = major bump
+- Breaking changes to `ToolDefinition`, `ResourceDefinition`, `createApp` options, or subpath export names = major bump
 - New utils, formatters, storage providers, optional features = minor bump
 - Bug fixes = patch
 

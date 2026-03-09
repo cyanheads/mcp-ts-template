@@ -116,9 +116,9 @@ Every subpath export needs both `import` and `types` conditions:
 ```jsonc
 {
   "exports": {
-    "./bootstrap": {
-      "types": "./dist/bootstrap.d.ts",
-      "import": "./dist/bootstrap.js"
+    ".": {
+      "types": "./dist/app.d.ts",
+      "import": "./dist/app.js"
     },
     "./tools": {
       "types": "./dist/mcp-server/tools/utils/toolDefinition.d.ts",
@@ -137,7 +137,6 @@ The `types` condition must come first — TypeScript requires it before `import`
 {
   "scripts": {
     "build": "tsc && tsc-alias",
-    "build:worker": "bun build ./src/worker.ts --outdir ./dist --target bun --no-external",
     "build:check": "tsc --noEmit",
     "prepublishOnly": "bun run build"
   }
@@ -145,17 +144,20 @@ The `types` condition must come first — TypeScript requires it before `import`
 ```
 
 - `build` — library output for npm (`tsc` + alias resolution)
-- `build:worker` — bundled output for Cloudflare Workers (unchanged, uses `bun build`)
 - `build:check` — type-check without emitting (CI, `devcheck`)
 - `prepublishOnly` — ensure fresh build before `bun publish`
+
+> **Note:** `build:worker` is removed from core. After extraction, Worker builds are a server-level concern — each server's `build:worker` targets its own `src/worker.ts` entry point that calls `createWorkerHandler()`.
 
 ---
 
 ## Worker Build
 
-The Worker build (`build:worker`) remains `bun build` with `--no-external`. This is correct — Workers need a single bundled file, not unbundled library output. The Worker entry point (`src/worker.ts`) imports from core's source (same repo), so path resolution works.
+After extraction, core no longer has a Worker entry point — `src/worker.ts` becomes `createWorkerHandler()`, a factory that returns a Workers export object. The actual entry point moves to each downstream server (or `examples/`).
 
-After extraction, downstream servers' Worker builds will import from `@cyanheads/mcp-ts-core/*` subpaths, which resolve to `dist/` files in `node_modules`. `bun build` handles this natively.
+**Core:** Remove `build:worker` from `package.json` scripts. Core ships `createWorkerHandler()` as library code compiled by `tsc`.
+
+**Downstream servers:** Each server owns its own `build:worker` script using `bun build` with `--no-external`, targeting the server's `src/worker.ts` that calls `createWorkerHandler()`. Imports from `@cyanheads/mcp-ts-core/*` subpaths resolve to `dist/` files in `node_modules`. `bun build` handles this natively.
 
 ---
 
@@ -216,5 +218,5 @@ console.log(`All ${Object.keys(exports).length} export paths verified.`);
 - [ ] Every subpath in `exports` has both `types` and `import` conditions (`types` first)
 - [ ] `prepublishOnly` script added
 - [ ] Export verification script added to CI
-- [ ] `build:worker` unchanged (still `bun build`)
+- [ ] `build:worker` removed from core scripts (server-level concern post-extraction)
 - [ ] `npm pack --dry-run` produces expected file set
