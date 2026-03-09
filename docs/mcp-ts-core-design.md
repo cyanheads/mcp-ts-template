@@ -118,7 +118,7 @@ interface BootstrapOptions {
   /** Tool, resource, and prompt definitions to register */
   definitions: ServerDefinitions;
   /** Register additional services after core services are composed */
-  services?: (container: Container) => void;
+  services?: (container: Container) => void | Promise<void>;
 }
 
 interface ServerHandle {
@@ -140,7 +140,7 @@ export async function bootstrap(options: BootstrapOptions): Promise<ServerHandle
 2. `registerCoreServices()` — config, logger, storage, rate limiter, LLM, speech
 3. Apply `options.name`/`options.version` overrides to config (before anything reads them)
 4. `registerMcpServices(options.definitions)` — multi-register definitions, build registries, wire TaskManager, TransportManager, server factory
-5. `options.services?.(container)` — server-specific DI overrides
+5. `await options.services?.(container)` — server-specific DI overrides (supports async init)
 6. Initialize OpenTelemetry
 7. Initialize high-res timer
 8. Initialize logger with config-derived level and transport type
@@ -148,6 +148,8 @@ export async function bootstrap(options: BootstrapOptions): Promise<ServerHandle
 10. Resolve TransportManager, call `start()`
 11. Register `SIGTERM` / `SIGINT` handlers with graceful shutdown
 12. Return `ServerHandle` with `shutdown()` for programmatic teardown (tests, embedding)
+
+**`bootstrap()` is the opinionated process runner.** It owns signal handlers, unhandled error hooks, logger lifecycle, and transport startup. This is intentional — the primary product is a standalone MCP server process, not an embeddable library. For cases that need manual composition (embedding in a larger app, custom signal handling, testing infrastructure), the individual building blocks are exported as first-class public API: container, transport manager, registries, config, logger. Skipping `bootstrap()` and wiring these directly is a supported path, not a workaround.
 
 **Shutdown subtleties:** The current `index.ts` shutdown handler has real nuance — double-shutdown guard, OTEL flush ordering, logger close as final step, error handling during shutdown itself. `bootstrap()` must preserve all of these, not just absorb line count.
 
@@ -1108,9 +1110,7 @@ Pin downstream servers to `^major` so they get minor/patch updates automatically
 
 3. **`ServerHandle` surface area.** `bootstrap()` currently returns only `shutdown()`. Downstream servers may need `container` access for integration testing, health checks, or programmatic embedding. Consider exposing `container: Container` (read-only) on `ServerHandle`.
 
-4. **`services` callback async support.** The current signature `(container: Container) => void` blocks server-specific services that need async init (DB connections, API client warm-up, remote config). Should be `(container: Container) => void | Promise<void>`.
-
-5. **`extraEnvBindings`/`extraObjectBindings` typing.** Both are `Array<[string, string]>` which loses type information. A generic `createWorkerHandler<B extends CoreBindings>` could enforce the mapping at compile time. Possibly overengineered for 0.1 — note as a refinement for 1.0.
+4. **`extraEnvBindings`/`extraObjectBindings` typing.** Both are `Array<[string, string]>` which loses type information. A generic `createWorkerHandler<B extends CoreBindings>` could enforce the mapping at compile time. Possibly overengineered for 0.1 — note as a refinement for 1.0.
 
 ### Resolved (post-review)
 
@@ -1119,6 +1119,8 @@ Pin downstream servers to `^major` so they get minor/patch updates automatically
 7. **Service interfaces in core.** Defer. Start with zero service interfaces (`ILlmProvider`, `ISpeechProvider`, `IGraphProvider`) in core. Pull them in only when two or more servers share the same interface. Promoting is a minor bump; demoting is a breaking change.
 
 8. **Template repo identity after extraction.** The `mcp-ts-template` npm package gets a final major version pointing users to the new `@cyanheads/mcp-ts-core` architecture. The GitHub repo transforms into core. A new thin `mcp-ts-template` reference repo is created as a consumer of core (see Repo Strategy).
+
+9. **`services` callback async support.** Resolved: signature is `(container: Container) => void | Promise<void>`. `bootstrap()` awaits the result. Supports async service init (DB connections, API client warm-up, remote config) without blocking synchronous-only registrations.
 
 ---
 
