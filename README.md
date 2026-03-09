@@ -25,7 +25,7 @@
 - Auth modes: `none`, `jwt`, or `oauth`. Wrap logic with `withToolAuth`/`withResourceAuth`.
 - Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `Cloudflare D1/KV/R2`) without changing tool logic. Includes cursor pagination, batch ops, and input validation.
 - Structured logging (Pino) with optional OpenTelemetry for tracing and metrics.
-- Custom typed DI container with `Token<T>` phantom branding. No external deps.
+- Direct construction via `createApp()` composition root. No DI framework.
 - Pluggable service integrations: LLM (OpenRouter), TTS (ElevenLabs).
 - Parsing helpers (PDF, YAML, CSV, frontmatter), formatting (diffs, tables, trees, markdown), scheduling, security.
 - Runs on local (stdio/HTTP) and edge (Cloudflare Workers) with the same code.
@@ -44,13 +44,8 @@ Modular, domain-driven layout with clear separation of concerns:
 │           MCP Server (Tools, Resources)                 │
 │              [MCP Server Guide](src/mcp-server/)         │
 └────────────────────┬────────────────────────────────────┘
-                     │ Dependency Injection
+                     │ createApp() composition root
                      ▼
-┌─────────────────────────────────────────────────────────┐
-│          Dependency Injection Container                 │
-│              [Container Guide](src/container/)           │
-└────────────────────┬────────────────────────────────────┘
-                     │
         ┌────────────┼────────────┐
         ▼            ▼            ▼
  ┌──────────┐   ┌──────────┐   ┌──────────┐
@@ -64,7 +59,6 @@ Modular, domain-driven layout with clear separation of concerns:
 Key modules:
 
 - [MCP Server](src/mcp-server/) — Tools, resources, prompts, and transport layer
-- [Container](src/container/) — Typed DI container, no external deps
 - [Services](src/services/) — External integrations (LLM, Speech, Graph) with pluggable providers
 - [Storage](src/storage/) — Persistence layer with multiple backend support
 - [Utilities](src/utils/) — Logging, security, parsing, telemetry
@@ -189,7 +183,7 @@ All configuration is centralized and validated at startup in `src/config/index.t
 
 ### Storage
 
-- DI-managed `StorageService` provides a consistent API for persistence. Never access `fs` or storage SDKs directly from tool logic.
+- `StorageService` provides a consistent API for persistence. Never access `fs` or storage SDKs directly from tool logic.
 - Default provider is `in-memory`. Node-only: `filesystem`. Edge-compatible: `supabase`, `cloudflare-kv`, `cloudflare-r2`.
 - `StorageService` requires `context.tenantId`, auto-propagated from the JWT `tid` claim when auth is enabled.
 - Opaque cursor pagination with tenant binding, parallel batch ops (`getMany`/`setMany`/`deleteMany`), TTL support, centralized input validation.
@@ -254,7 +248,7 @@ bun run deploy:prod
 | `src/mcp-server/transports`             | HTTP and STDIO transports, including auth middleware.                                 | [MCP Guide](src/mcp-server/)      |
 | `src/storage`                           | `StorageService` abstraction and provider implementations.                           | [Storage Guide](src/storage/)     |
 | `src/services`                          | External service integrations (LLM, Speech, Graph) with pluggable providers.         | [Services Guide](src/services/)   |
-| `src/container`                         | DI container registrations and tokens.                                               | [Container Guide](src/container/) |
+| `src/app.ts`                            | Composition root — `createApp()` constructs all services in dependency order.         |                                      |
 | `src/utils`                             | Core utilities for logging, error handling, performance, security, and telemetry.    |                                      |
 | `src/config`                            | Environment variable parsing and validation with Zod.                                |                                      |
 | `tests/`                                | Unit and integration tests, mirroring the `src/` directory structure.                |                                      |
@@ -266,7 +260,6 @@ Each module directory has its own README with architecture details and examples.
 ### Core modules
 
 - [MCP Server Guide](src/mcp-server/) — Building tools, resources, auth, transports, SDK context, response formatting
-- [Container Guide](src/container/) — DI tokens, registration, service lifetimes, testing with mocks
 - [Services Guide](src/services/) — LLM (OpenRouter), Speech (ElevenLabs, Whisper), Graph, custom providers
 - [Storage Guide](src/storage/) — Provider implementations, multi-tenancy, pagination, batch ops, TTL
 

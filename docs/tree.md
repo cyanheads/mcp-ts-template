@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-03-09 15:28:28
+Generated on: 2026-03-09 21:42:27
 
 ```
 mcp-ts-template/
@@ -11,8 +11,21 @@ mcp-ts-template/
 ├── .storage/
 ├── .vscode/
 │   └── settings.json
-├── changelog/
-│   └── archive.md
+├── core-extraction/
+│   ├── 01-architecture.md
+│   ├── 02-public-api.md
+│   ├── 03-config-container.md
+│   ├── 03a-build.md
+│   ├── 04-dependencies.md
+│   ├── 05-agent-dx.md
+│   ├── 06-testing.md
+│   ├── 07-migration.md
+│   ├── 08-pre-extraction.md
+│   ├── 09-execution.md
+│   ├── 10-decisions.md
+│   ├── 11-consumer-workflow.md
+│   ├── 12-developer-api.md
+│   └── README.md
 ├── docs/
 │   ├── mcp-specification/
 │   │   └── 2025-06-18/
@@ -30,10 +43,9 @@ mcp-ts-template/
 │   │           ├── pagination.md
 │   │           ├── ping.md
 │   │           └── progress.md
+│   ├── conformance-test-plan.md
 │   ├── mcp-apps.md
 │   ├── mcp-elicitation-summary.md
-│   ├── mcp-sdk-changes.md
-│   ├── mcp-ts-core-extraction.md
 │   └── publishing-mcp-server-registry.md
 ├── schemas/
 │   └── cloudflare-d1-schema.sql
@@ -48,15 +60,7 @@ mcp-ts-template/
 ├── src/
 │   ├── config/
 │   │   └── index.ts
-│   ├── container/
-│   │   ├── core/
-│   │   │   ├── container.ts
-│   │   │   └── tokens.ts
-│   │   ├── registrations/
-│   │   │   ├── core.ts
-│   │   │   └── mcp.ts
-│   │   ├── index.ts
-│   │   └── README.md
+│   ├── app.ts
 │   ├── mcp-server/
 │   │   ├── prompts/
 │   │   │   ├── definitions/
@@ -230,13 +234,6 @@ mcp-ts-template/
 │   │   ├── protocol-init.test.ts
 │   │   ├── resources.test.ts
 │   │   └── tools.test.ts
-│   ├── container/
-│   │   ├── registrations/
-│   │   │   ├── core.test.ts
-│   │   │   └── mcp.test.ts
-│   │   ├── container.test.ts
-│   │   ├── index.test.ts
-│   │   └── tokens.test.ts
 │   ├── fixtures/
 │   │   └── index.ts
 │   ├── mcp-server/
