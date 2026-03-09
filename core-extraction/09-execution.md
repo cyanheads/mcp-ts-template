@@ -8,8 +8,8 @@
 
 | Phase | Description | Depends on | Risk | Status |
 |:------|:------------|:-----------|:-----|:-------|
-| 1a | Fixes & hardening (deps, coupling, tests) | — | Low (additive, non-breaking) | Not started |
-| 1b | DI removal & `createApp()` | Phase 1a | Medium (central wiring) | Not started |
+| 1a | Fixes & hardening (deps, coupling, tests) | — | Low (additive, non-breaking) | **Complete** (`3cd85b1` on main) |
+| 1b | DI removal & `createApp()` | Phase 1a | Medium (central wiring) | **Complete** (`708bd16` on feat/core-extraction) |
 | 2 | Lazy dependency conversion | Phase 1b | Low (backwards-compatible) | Not started |
 | 3 | Repo transformation (the extraction) | Phase 2 | Medium (breaking rename) | Not started |
 | 4 | Validate with examples | Phase 3 | Low | Not started |
@@ -28,31 +28,31 @@ Dependency placement fixes, coupling fixes, worker prep, and test cleanup. All a
 **Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (items 2-6, 3a-3c, T1-T6), [06-testing.md](06-testing.md)
 
 ### Dep placement fixes
-- [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
-- [ ] `diff` moved from `devDependencies` to `dependencies` (#3b)
-- [ ] `pino-pretty` moved from `dependencies` to `devDependencies` (#3c)
-- [ ] `pdf-lib` moved to optional peer (#6)
+- [x] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
+- [x] `diff` moved from `devDependencies` to `dependencies` (#3b)
+- [x] `pino-pretty` moved from `dependencies` to `devDependencies` (#3c)
+- [ ] `pdf-lib` moved to optional peer (#6) — deferred to Phase 3 (tiering)
 
 ### Coupling fixes
-- [ ] Logger's `sanitization` import inlined as `const` array (#4)
-- [ ] `openrouter.provider.ts` sanitization import made lazy or inlined (#5)
+- [x] Logger's `sanitization` import inlined as `const` array (#4)
+- [x] `openrouter.provider.ts` sanitization import made lazy or inlined (#5)
 
 ### Worker prep
-- [ ] Worker binding keys extracted to `CoreBindingMappings` const (#2)
-- [ ] `CloudflareBindings` index signature removed (#3)
+- [x] Worker binding keys extracted to `CORE_ENV_BINDINGS` / `CORE_OBJECT_BINDINGS` consts (#2)
+- [x] `CloudflareBindings` index signature removed (#3)
 
 ### Test cleanup
-- [ ] `tests/index.test.ts` deleted — noise tests (#T1)
-- [ ] Type-existence-only tests deleted (#T2)
-- [ ] Storage TTL test uncommented and working (#T3)
-- [ ] `fakeTimers` removed from `vitest.config.ts` global config; per-test opt-in (#T4)
-- [ ] Handler factory execution tests added (#T5)
-- [ ] HTTP transport integration test added (#T6)
+- [x] `tests/index.test.ts` deleted — noise tests (#T1)
+- [x] Type-existence-only tests deleted (#T2)
+- [x] Storage TTL test uncommented and working (#T3)
+- [x] `fakeTimers` removed from `vitest.config.ts` global config; per-test opt-in (#T4)
+- [x] Handler factory execution tests added (#T5)
+- [x] HTTP transport integration test added (#T6)
 
 ### Gate
-- [ ] `bun run devcheck` passes
-- [ ] All tests pass
-- [ ] Committed
+- [x] `bun run devcheck` passes
+- [x] All tests pass
+- [x] Committed (`3cd85b1` on main)
 
 ---
 
@@ -63,15 +63,15 @@ Replace the DI container with direct construction in `createApp()`. This is the 
 **Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (item 1), [03-config-container.md](03-config-container.md)
 
 ### Checklist
-- [ ] `src/container/` deleted entirely (container, tokens, registrations, barrel)
-- [ ] `createApp()` implemented in `src/app.ts` with direct service construction
-- [ ] `createMcpServerInstance` receives registries as params (not via container)
-- [ ] `TransportManager` receives deps as constructor params (not via container)
-- [ ] Container tests deleted or rewritten as `createApp()` integration tests
-- [ ] Existing `index.ts` updated to use `createApp()` internally
-- [ ] `bun run devcheck` passes
-- [ ] All tests pass
-- [ ] Committed
+- [x] `src/container/` deleted entirely (container, tokens, registrations, barrel)
+- [x] `createApp()` implemented in `src/app.ts` with direct service construction
+- [x] `createMcpServerInstance` receives `McpServerDeps` (registries as params, not via container)
+- [x] `TransportManager` receives `TaskManager` as 4th constructor param (not via container)
+- [x] Container tests deleted; server/task/transport tests rewritten with direct construction
+- [x] `index.ts` and `worker.ts` updated to use `createApp()`
+- [x] `bun run devcheck` passes
+- [x] All tests pass (117 files, 2030 tests)
+- [x] Committed (`708bd16` on feat/core-extraction)
 
 ---
 

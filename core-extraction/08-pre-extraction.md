@@ -14,9 +14,9 @@
 
 | # | Issue | Location | Fix | Status |
 |:--|:------|:---------|:----|:-------|
-| 1 | `src/container/` exists — entire DI system replaced by `createApp()` | [src/container/](../src/container/) | Delete `src/container/` entirely. Implement `createApp()` with direct construction in a new `src/app.ts`. `createMcpServerInstance` and `TransportManager` receive deps as constructor params instead of resolving from container. See [03-config-container.md](03-config-container.md). | Not started |
-| 2 | `worker.ts` has hardcoded binding keys | [worker.ts:86-106](../src/worker.ts#L86-L106) | Extract `CoreBindingMappings` as a const; `createWorkerHandler` merges with `extraEnvBindings` (strings -> process.env) and `extraObjectBindings` (KV/R2/D1 -> globalThis) | Not started |
-| 3 | `worker.ts` `CloudflareBindings` has index signature | [worker.ts:62](../src/worker.ts#L62) | Remove `[key: string]: unknown` so servers must declare extra bindings via `extends` | Not started |
+| 1 | `src/container/` exists — entire DI system replaced by `createApp()` | [src/container/](../src/container/) | Delete `src/container/` entirely. Implement `createApp()` with direct construction in a new `src/app.ts`. `createMcpServerInstance` and `TransportManager` receive deps as constructor params instead of resolving from container. See [03-config-container.md](03-config-container.md). | **Done** (Phase 1b) |
+| 2 | `worker.ts` has hardcoded binding keys | [worker.ts:86-106](../src/worker.ts#L86-L106) | Extract `CoreBindingMappings` as a const; `createWorkerHandler` merges with `extraEnvBindings` (strings -> process.env) and `extraObjectBindings` (KV/R2/D1 -> globalThis) | **Done** (Phase 1a) |
+| 3 | `worker.ts` `CloudflareBindings` has index signature | [worker.ts:62](../src/worker.ts#L62) | Remove `[key: string]: unknown` so servers must declare extra bindings via `extends` | **Done** (Phase 1a) |
 
 ### `package.json` dep placement bugs
 
@@ -24,9 +24,9 @@ These are misplacements in the current `package.json` that must be fixed before 
 
 | # | Issue | Location | Fix | Status |
 |:--|:------|:---------|:----|:-------|
-| 3a | `@hono/mcp` in `devDependencies` | [package.json:83](../package.json#L83) | Move to `dependencies` — required at runtime by the HTTP transport (`httpTransport.ts` imports `StreamableHTTPTransport` from it) | Not started |
-| 3b | `diff` only in `devDependencies` and `resolutions` — missing from `dependencies` | [package.json:99](../package.json#L99) (devDeps), [package.json:68](../package.json#L68) (resolutions) | Move `diff` from `devDependencies` to `dependencies`. `resolutions` only pins versions — it doesn't install packages. Without this fix, `diffFormatter.ts` has no runtime install path in production. During extraction it becomes an optional peer (Tier 3). | Not started |
-| 3c | `pino-pretty` in `dependencies` instead of `devDependencies` | [package.json:186](../package.json#L186) | Move to `devDependencies`. The logger already loads it via dynamic `require.resolve()` with try/catch fallback to JSON output ([logger.ts:107-112](../src/utils/internal/logger.ts#L107-L112)). Consumers that want pretty dev output install it themselves. | Not started |
+| 3a | `@hono/mcp` in `devDependencies` | [package.json:83](../package.json#L83) | Move to `dependencies` — required at runtime by the HTTP transport (`httpTransport.ts` imports `StreamableHTTPTransport` from it) | **Done** |
+| 3b | `diff` only in `devDependencies` and `resolutions` — missing from `dependencies` | [package.json:99](../package.json#L99) (devDeps), [package.json:68](../package.json#L68) (resolutions) | Move `diff` from `devDependencies` to `dependencies`. `resolutions` only pins versions — it doesn't install packages. Without this fix, `diffFormatter.ts` has no runtime install path in production. During extraction it becomes an optional peer (Tier 3). | **Done** |
+| 3c | `pino-pretty` in `dependencies` instead of `devDependencies` | [package.json:186](../package.json#L186) | Move to `devDependencies`. The logger already loads it via dynamic `require.resolve()` with try/catch fallback to JSON output ([logger.ts:107-112](../src/utils/internal/logger.ts#L107-L112)). Consumers that want pretty dev output install it themselves. | **Done** |
 
 ---
 
@@ -34,9 +34,9 @@ These are misplacements in the current `package.json` that must be fixed before 
 
 | # | Issue | Detail | Resolution | Status |
 |:--|:------|:-------|:-----------|:-------|
-| 4 | `logger.ts` imports `sanitization.ts` | [logger.ts:13](../src/utils/internal/logger.ts#L13) pulls `sanitize-html` + `validator` into startup critical path. Logger only calls `sanitization.getSensitivePinoFields()` ([logger.ts:82,173](../src/utils/internal/logger.ts#L82)) — a static `string[]` for Pino's `redact.paths`. | Inline the field list as a `const` array in `logger.ts`. Remove the import. This fully eliminates the coupling. | Not started |
-| 5 | `openrouter.provider.ts` imports `sanitization.ts` | [openrouter.provider.ts:17](../src/services/llm/providers/openrouter.provider.ts#L17). LLM provider is already Tier 3, so this doesn't change tiering. | Convert to lazy import alongside the `openai` dep, or inline the specific calls. | Not started |
-| 6 | `pdf-lib` in `dependencies` | Used by `pdfParser.ts` (PDF creation/modification alongside `unpdf` for extraction). | Both become Tier 3 optional peers — only needed if the server imports `pdfParser`. | Not started |
+| 4 | `logger.ts` imports `sanitization.ts` | [logger.ts:13](../src/utils/internal/logger.ts#L13) pulls `sanitize-html` + `validator` into startup critical path. Logger only calls `sanitization.getSensitivePinoFields()` ([logger.ts:82,173](../src/utils/internal/logger.ts#L82)) — a static `string[]` for Pino's `redact.paths`. | Inline the field list as a `const` array in `logger.ts`. Remove the import. This fully eliminates the coupling. | **Done** |
+| 5 | `openrouter.provider.ts` imports `sanitization.ts` | [openrouter.provider.ts:17](../src/services/llm/providers/openrouter.provider.ts#L17). LLM provider is already Tier 3, so this doesn't change tiering. | Convert to lazy import alongside the `openai` dep, or inline the specific calls. | **Done** (lazy) |
+| 6 | `pdf-lib` in `dependencies` | Used by `pdfParser.ts` (PDF creation/modification alongside `unpdf` for extraction). | Both become Tier 3 optional peers — only needed if the server imports `pdfParser`. | Deferred to Phase 3 |
 
 ---
 
@@ -46,12 +46,12 @@ Existing test gaps that should be fixed before extraction. These don't change th
 
 | # | Issue | Detail | Resolution | Status |
 |:--|:------|:-------|:-----------|:-------|
-| T1 | `tests/index.test.ts` is noise | Every test is `expect(true).toBe(true)`. Tests nothing, inflates count. | Delete the file. Replace with real `createApp()` integration test in Phase 3. | Not started |
-| T2 | Type-existence-only tests | Files like `ILlmProvider.test.ts` (2 tests), `ISpeechProvider.test.ts` (4 tests) just verify an interface exists. TypeScript compilation is the test. | Delete tests that only assert `expect(SomeType).toBeDefined()` with no behavior. | Not started |
-| T3 | Storage TTL test commented out | [storageProviderCompliance.test.ts:209-229](../tests/storage/storageProviderCompliance.test.ts#L209-L229). `vi.useFakeTimers()` calls also commented out. TTL untested across all providers. | Uncomment TTL test. Use per-test `vi.useFakeTimers()`. | Not started |
-| T4 | Global fake timers in vitest.config.ts | `fakeTimers.toFake` configured globally but only consumer (TTL test) has it commented out. Global fake `Date` is a footgun. | Remove `fakeTimers` from vitest.config.ts. Tests that need it opt in per-test. | Not started |
-| T5 | Handler factory never executed in tests | [tool-registration.test.ts](../tests/mcp-server/tools/tool-registration.test.ts) checks `typeof handler === 'function'` but never calls it. The core "logic throws, handlers catch" contract has no unit test. | Add handler factory execution tests: valid input → output, McpError propagation, unknown error normalization, auth checking, format application. | Not started |
-| T6 | No HTTP transport integration test | Conformance suite only uses `InMemoryTransport`. HTTP-specific behavior (CORS, auth middleware, `/healthz`, session lifecycle) only unit-tested in isolation. | Add integration test: boot Hono server, verify `/healthz`, send tool call via HTTP, verify auth rejection. | Not started |
+| T1 | `tests/index.test.ts` is noise | Every test is `expect(true).toBe(true)`. Tests nothing, inflates count. | Delete the file. Replace with real `createApp()` integration test in Phase 3. | **Done** |
+| T2 | Type-existence-only tests | Files like `ILlmProvider.test.ts` (2 tests), `ISpeechProvider.test.ts` (4 tests) just verify an interface exists. TypeScript compilation is the test. | Delete tests that only assert `expect(SomeType).toBeDefined()` with no behavior. | **Done** |
+| T3 | Storage TTL test commented out | [storageProviderCompliance.test.ts:209-229](../tests/storage/storageProviderCompliance.test.ts#L209-L229). `vi.useFakeTimers()` calls also commented out. TTL untested across all providers. | Uncomment TTL test. Use per-test `vi.useFakeTimers()`. | **Done** |
+| T4 | Global fake timers in vitest.config.ts | `fakeTimers.toFake` configured globally but only consumer (TTL test) has it commented out. Global fake `Date` is a footgun. | Remove `fakeTimers` from vitest.config.ts. Tests that need it opt in per-test. | **Done** |
+| T5 | Handler factory never executed in tests | [tool-registration.test.ts](../tests/mcp-server/tools/tool-registration.test.ts) checks `typeof handler === 'function'` but never calls it. The core "logic throws, handlers catch" contract has no unit test. | Add handler factory execution tests: valid input → output, McpError propagation, unknown error normalization, auth checking, format application. | **Done** (5 tests) |
+| T6 | No HTTP transport integration test | Conformance suite only uses `InMemoryTransport`. HTTP-specific behavior (CORS, auth middleware, `/healthz`, session lifecycle) only unit-tested in isolation. | Add integration test: boot Hono server, verify `/healthz`, send tool call via HTTP, verify auth rejection. | **Done** (4 tests) |
 
 ---
 
@@ -115,42 +115,42 @@ Convert all Tier 3 static imports. Run `devcheck` + full test suite, commit. Bac
 
 ## Master Checklist
 
-### Phase 1a: Fixes & hardening (deps, coupling, worker prep, tests)
+### Phase 1a: Fixes & hardening (deps, coupling, worker prep, tests) — **Complete**
 
 **Dep placement fixes:**
-- [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
-- [ ] `diff` moved from `devDependencies` to `dependencies` (#3b)
-- [ ] `pino-pretty` moved from `dependencies` to `devDependencies` (#3c)
-- [ ] `pdf-lib` moved to optional peer (#6)
+- [x] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
+- [x] `diff` moved from `devDependencies` to `dependencies` (#3b)
+- [x] `pino-pretty` moved from `dependencies` to `devDependencies` (#3c)
+- [ ] `pdf-lib` moved to optional peer (#6) — deferred to Phase 3
 
 **Coupling fixes:**
-- [ ] Logger's `sanitization` import inlined (#4)
-- [ ] `openrouter.provider.ts` sanitization import made lazy or inlined (#5)
+- [x] Logger's `sanitization` import inlined (#4)
+- [x] `openrouter.provider.ts` sanitization import made lazy (#5)
 
 **Worker prep:**
-- [ ] Worker binding keys extracted to `CoreBindingMappings` const (#2)
-- [ ] `CloudflareBindings` index signature removed (#3)
+- [x] Worker binding keys extracted to `CORE_ENV_BINDINGS` / `CORE_OBJECT_BINDINGS` consts (#2)
+- [x] `CloudflareBindings` index signature removed (#3)
 
 **Test cleanup:**
-- [ ] `tests/index.test.ts` deleted — noise tests (#T1)
-- [ ] Type-existence-only tests deleted (#T2)
-- [ ] Storage TTL test uncommented and working (#T3)
-- [ ] `fakeTimers` removed from `vitest.config.ts` global config (#T4)
-- [ ] Handler factory execution tests added (#T5)
-- [ ] HTTP transport integration test added (#T6)
+- [x] `tests/index.test.ts` deleted — noise tests (#T1)
+- [x] Type-existence-only tests deleted (#T2)
+- [x] Storage TTL test uncommented and working (#T3)
+- [x] `fakeTimers` removed from `vitest.config.ts` global config (#T4)
+- [x] Handler factory execution tests added (#T5)
+- [x] HTTP transport integration test added (#T6)
 
 **Gate:**
-- [ ] `devcheck` passes
-- [ ] All tests pass
+- [x] `devcheck` passes
+- [x] All tests pass
 
-### Phase 1b: DI removal & `createApp()`
-- [ ] `src/container/` deleted; `createApp()` implemented in `src/app.ts` with direct construction (#1)
-- [ ] `createMcpServerInstance` receives registries as params (not via container)
-- [ ] `TransportManager` receives deps as constructor params (not via container)
-- [ ] Container tests deleted or rewritten as `createApp()` integration tests
-- [ ] Existing `index.ts` updated to use `createApp()` internally
-- [ ] `devcheck` passes
-- [ ] All tests pass
+### Phase 1b: DI removal & `createApp()` — **Complete**
+- [x] `src/container/` deleted; `createApp()` implemented in `src/app.ts` with direct construction (#1)
+- [x] `createMcpServerInstance` receives `McpServerDeps` (registries as params)
+- [x] `TransportManager` receives `TaskManager` as 4th constructor param
+- [x] Container tests deleted; server/task/transport tests rewritten
+- [x] `index.ts` and `worker.ts` updated to use `createApp()`
+- [x] `devcheck` passes
+- [x] All tests pass (117 files, 2030 tests)
 
 ### Phase 2: Lazy dependency conversion
 - [ ] `yamlParser.ts` — `js-yaml` lazy (#7)
