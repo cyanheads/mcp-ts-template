@@ -863,26 +863,6 @@ Skills complement Discovery (knowing what exists) and CLAUDE.md (knowing the pat
 | Invocation | Passive (agent reads once) | On-demand (`/skill-name`) or auto-triggered by description match |
 | Portability | Agent-specific | Open standard — same skill works across Claude Code, Copilot, Codex, etc. |
 
-### Canonical location
-
-Skills live at `.agents/skills/` — the cross-platform standard location recognized by all compatible agents. Agent-specific directories (`.claude/skills/`, `.codex/skills/`, etc.) are populated by the `/setup` skill as part of first-time project setup.
-
-```
-.agents/
-  skills/
-    setup/
-      SKILL.md
-    add-tool/
-      SKILL.md
-      assets/
-        tool-template.ts     # skeleton code
-    add-resource/
-      SKILL.md
-      assets/
-        resource-template.ts
-    ...
-```
-
 ### What ships with core
 
 | Skill | Description (agent-facing trigger) | What it does |
@@ -943,19 +923,27 @@ skill is not complete until every item passes.
 
 ### The `/setup` skill
 
-The setup skill is special — it's the entry point for a new project and handles environment adaptation. When invoked:
+The setup skill is the entry point for a new project. Its instructions tell the agent to self-identify and adapt placement accordingly.
 
-1. **Detect environment.** Check which agents are available (Claude Code → `.claude/`, Codex → `.codex/`, Copilot → `.github/`, etc.)
-2. **Install skills.** Copy core skills from `node_modules/@cyanheads/mcp-ts-core/skills/` to `.agents/skills/` (canonical) and symlink into each detected agent's skill directory
-3. **Generate CLAUDE.md.** Create the server's `CLAUDE.md` from a template, with the core framework pointer and server-specific sections
+**What the skill's SKILL.md instructs the agent to do:**
+
+1. **Identify yourself.** Determine which agent you are and what skill directory you use:
+   - Claude Code → `.claude/skills/`
+   - OpenAI Codex → `.codex/skills/` or `.agents/skills/`
+   - Cursor → `.cursor/skills/`
+   - Other → check your own documentation for skill directory conventions
+2. **Copy skills.** Copy all skill directories from `node_modules/@cyanheads/mcp-ts-core/skills/` into the appropriate project-level skill directory identified in step 1
+3. **Generate CLAUDE.md.** Create the server's `CLAUDE.md` from a template, with the core framework pointer and server-specific sections (adapt if the agent uses a different convention, e.g. `AGENTS.md`)
 4. **Validate structure.** Check that `src/mcp-server/tools/definitions/`, `src/mcp-server/resources/definitions/`, and `src/mcp-server/prompts/definitions/` exist with their barrel files
 5. **Run devcheck.** Verify the project builds and passes all checks
 
+The key insight: the agent knows what it is. The skill doesn't need to enumerate every possible agent — it tells the agent to figure out its own skill directory and copy there.
+
 **Setup checklist:**
 
-- [ ] `.agents/skills/` populated with core skills
-- [ ] Agent-specific skill directories created and symlinked (`.claude/skills/`, etc.)
-- [ ] `CLAUDE.md` created with core framework pointer
+- [ ] Agent's skill directory identified and created
+- [ ] Core skills copied from `node_modules/@cyanheads/mcp-ts-core/skills/`
+- [ ] `CLAUDE.md` (or equivalent agent instructions file) created with core framework pointer
 - [ ] Project structure validated (definitions directories, barrel files)
 - [ ] `bun run devcheck` passes
 
@@ -973,37 +961,20 @@ node_modules/@cyanheads/mcp-ts-core/skills/
   ...
 ```
 
-The `/setup` skill handles copying these to `.agents/skills/` and symlinking into agent-specific directories. After setup:
+The `/setup` skill copies these into the agent's skill directory. For Claude Code, after setup:
 
 ```
-.agents/skills/                    # canonical, cross-platform
+.claude/skills/
   setup/SKILL.md
   add-tool/SKILL.md
   add-tool/assets/tool-template.ts
+  add-resource/SKILL.md
   ...
-.claude/skills/                    # symlinks (if Claude Code detected)
-  setup -> ../../.agents/skills/setup
-  add-tool -> ../../.agents/skills/add-tool
-  ...
+  query-pubmed/SKILL.md          # server-specific (added later)
+  update-citations/SKILL.md      # server-specific (added later)
 ```
 
-Servers can override any skill by replacing the directory in `.agents/skills/` with a local version. The symlinks in agent-specific directories follow automatically.
-
-### Server-specific skills
-
-Servers add their own skills alongside core's in `.agents/skills/`:
-
-```
-.agents/
-  skills/
-    add-tool/SKILL.md          # from core
-    add-resource/SKILL.md      # from core
-    devcheck/SKILL.md          # from core
-    query-pubmed/SKILL.md      # server-specific
-    update-citations/SKILL.md  # server-specific
-```
-
-Server-specific skills follow the same `SKILL.md` format with mandatory checklist. They can reference both core's `CLAUDE.md` and the server's `CLAUDE.md` for context.
+Servers can override any core skill by replacing its directory with a local version. Server-specific skills are created directly in the agent's skill directory following the same `SKILL.md` format with mandatory checklist.
 
 ### Progressive disclosure
 
