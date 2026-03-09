@@ -1,20 +1,19 @@
 # 02 — Public API
 
-> `bootstrap()`, `createWorkerHandler()`, subpath exports.
+> `createApp()`, `createWorkerHandler()`, subpath exports.
 
 ---
 
-## Bootstrap API
+## App Factory
 
-The primary API contract. The current `index.ts` is 168 lines of boilerplate (color suppression, DI composition, OTEL init, timer init, logger init, error handlers, signal handlers, transport startup). All identical across servers. `bootstrap()` absorbs it.
+The primary API contract. The current `index.ts` is 168 lines of boilerplate (color suppression, DI composition, OTEL init, timer init, logger init, error handlers, signal handlers, transport startup). All identical across servers. `createApp()` absorbs it.
 
-### `bootstrap(options): Promise<ServerHandle>`
+### `createApp(options): Promise<ServerHandle>`
 
 ```ts
 import type { AnyToolDefinition } from '@cyanheads/mcp-ts-core/tools';
 import type { AnyResourceDefinition } from '@cyanheads/mcp-ts-core/resources';
 import type { PromptDefinition } from '@cyanheads/mcp-ts-core/prompts';
-import type { Container } from '@cyanheads/mcp-ts-core/container';
 
 interface ServerDefinitions {
   tools: AnyToolDefinition[];
@@ -22,67 +21,83 @@ interface ServerDefinitions {
   prompts: PromptDefinition[];
 }
 
-interface BootstrapOptions {
+interface CoreServices {
+  /** Zod-validated config from environment variables */
+  config: AppConfig;
+  /** Pino structured logger */
+  logger: Logger;
+  /** Tenant-scoped storage abstraction */
+  storage: StorageService;
+  /** Rate limiter instance */
+  rateLimiter: RateLimiter;
+}
+
+interface CreateAppOptions {
   /** Server name — overrides package.json and MCP_SERVER_NAME env var */
   name?: string;
   /** Server version — overrides package.json and MCP_SERVER_VERSION env var */
   version?: string;
   /** Tool, resource, and prompt definitions to register */
   definitions: ServerDefinitions;
-  /** Register additional services after core services are composed */
-  services?: (container: Container) => void | Promise<void>;
+  /** Runs after core services are constructed. Use for server-specific initialization. */
+  setup?: (core: CoreServices) => void | Promise<void>;
 }
 
 interface ServerHandle {
   /** Initiates graceful shutdown (flushes OTEL, closes logger, stops transport) */
   shutdown(signal?: string): Promise<void>;
-  /** Read-only access to the DI container for integration testing, health checks, or embedding */
-  readonly container: Container;
+  /** Read-only access to core services for integration testing, health checks, or embedding */
+  readonly services: CoreServices;
 }
 
 /**
- * Composes DI container, initializes telemetry/logger, starts transport,
+ * Constructs core services, initializes telemetry/logger, starts transport,
  * registers shutdown/signal handlers. This is the entire entry point for
  * a Node.js MCP server.
  */
-export async function bootstrap(options: BootstrapOptions): Promise<ServerHandle>;
+export async function createApp(options: CreateAppOptions): Promise<ServerHandle>;
 ```
 
-### What `bootstrap()` does internally
+### What `createApp()` does internally
 
 1. Suppress ANSI colors for stdio/non-TTY (currently lines 19-26 of `index.ts`)
-2. `registerCoreServices()` — config, logger, storage, rate limiter, LLM, speech
-3. Apply `options.name`/`options.version` overrides to config (before anything reads them)
-4. `registerMcpServices(options.definitions)` — multi-register definitions, build registries, wire TaskManager, TransportManager, server factory
-5. `await options.services?.(container)` — server-specific DI overrides (supports async init)
-6. Initialize OpenTelemetry
-7. Initialize high-res timer
-8. Initialize logger with config-derived level and transport type
-9. Register `uncaughtException` / `unhandledRejection` handlers
-10. Resolve TransportManager, call `start()`
-11. Register `SIGTERM` / `SIGINT` handlers with graceful shutdown
-12. Return `ServerHandle` with `shutdown()` for programmatic teardown (tests, embedding)
+2. Parse and validate config with `options.name`/`options.version` overrides
+3. Construct core services directly — no DI container:
+   - Config -> Logger -> StorageProvider -> StorageService -> RateLimiter
+   - Conditional: Supabase client (if configured), LLM provider, SpeechService
+4. `await options.setup?.({ config, logger, storage, rateLimiter })` — server-specific init
+5. Construct MCP registries from `options.definitions` (ToolRegistry, ResourceRegistry, PromptRegistry, RootsRegistry)
+6. Construct TaskManager, server factory, TransportManager — passing dependencies directly
+7. Initialize OpenTelemetry
+8. Initialize high-res timer
+9. Initialize logger with config-derived level and transport type
+10. Register `uncaughtException` / `unhandledRejection` handlers
+11. Start transport via TransportManager
+12. Register `SIGTERM` / `SIGINT` handlers with graceful shutdown
+13. Return `ServerHandle` with `shutdown()` and `services`
 
 ### Design notes
 
-**Opinionated process runner.** `bootstrap()` owns signal handlers, unhandled error hooks, logger lifecycle, and transport startup. This is intentional — the primary product is a standalone MCP server process, not an embeddable library. For cases that need manual composition (embedding in a larger app, custom signal handling, testing infrastructure), the individual building blocks are exported as first-class public API: container, transport manager, registries, config, logger. Skipping `bootstrap()` and wiring these directly is a supported path, not a workaround.
+**Opinionated process runner.** `createApp()` owns signal handlers, unhandled error hooks, logger lifecycle, and transport startup. This is intentional — the primary product is a standalone MCP server process, not an embeddable library. For cases that need manual composition (embedding in a larger app, custom signal handling, testing infrastructure), the individual building blocks are exported as first-class public API: config, transport manager, registries, logger. Skipping `createApp()` and wiring these directly is a supported path, not a workaround.
 
-**Shutdown subtleties.** The current `index.ts` shutdown handler has real nuance — double-shutdown guard, OTEL flush ordering, logger close as final step, error handling during shutdown itself. `bootstrap()` must preserve all of these, not just absorb line count.
+**No DI container.** The dependency graph is static, linear, and small (~15 services). No tool, resource, or prompt definition resolves services from a container — they receive context via function parameters (`appContext`, `sdkContext`) or access server-specific services through module-level lazy accessors. Direct construction in `createApp()` makes the wiring explicit, debuggable with a stack trace, and eliminates the token/registration/resolve indirection of a service locator. Server-specific services initialized in `setup()` follow the same lazy accessor pattern. See [10-decisions.md](10-decisions.md) #15.
+
+**Shutdown subtleties.** The current `index.ts` shutdown handler has real nuance — double-shutdown guard, OTEL flush ordering, logger close as final step, error handling during shutdown itself. `createApp()` must preserve all of these, not just absorb line count.
 
 **Type erasure for definition arrays.** `ToolDefinition` and `ResourceDefinition` are generic (`ToolDefinition<TInput, TOutput>`). A mixed array like `allToolDefinitions` (which includes both `ToolDefinition` and `TaskToolDefinition` variants with different schema types) can't be typed as `ToolDefinition[]` without defaults or widening. Core must export erased union types — `AnyToolDefinition` (union of `ToolDefinition<any, any> | TaskToolDefinition<any, any>`) and `AnyResourceDefinition` (`ResourceDefinition<any, any>`) — for use in collection contexts like `ServerDefinitions`. Individual tool files still use the fully-typed generic for their own definitions.
 
-**DI resolution timing.** Tool definitions must defer container resolution to call time (inside `logic`), not registration time. `options.services` runs after `registerMcpServices`, so tokens registered there won't be available during definition registration — only during request handling.
+**Service initialization timing.** `setup()` runs after core services are constructed but before registries and transport start. Server-specific services initialized in `setup()` can depend on `CoreServices` (config, storage, etc.). Tool definitions access server-specific services at call time via module-level lazy accessors — not at definition time. This replaces the DI resolution timing constraint from the old container design.
 
 ### Generated `index.ts` (minimal server)
 
 ```ts
 #!/usr/bin/env node
-import { bootstrap } from '@cyanheads/mcp-ts-core/bootstrap';
+import { createApp } from '@cyanheads/mcp-ts-core';
 import { allToolDefinitions } from './mcp-server/tools/definitions/index.js';
 import { allResourceDefinitions } from './mcp-server/resources/definitions/index.js';
 import { allPromptDefinitions } from './mcp-server/prompts/definitions/index.js';
 
-await bootstrap({
+await createApp({
   definitions: {
     tools: allToolDefinitions,
     resources: allResourceDefinitions,
@@ -97,23 +112,47 @@ await bootstrap({
 
 ```ts
 #!/usr/bin/env node
-import { bootstrap } from '@cyanheads/mcp-ts-core/bootstrap';
+import { createApp } from '@cyanheads/mcp-ts-core';
 import { allToolDefinitions } from './mcp-server/tools/definitions/index.js';
 import { allResourceDefinitions } from './mcp-server/resources/definitions/index.js';
 import { allPromptDefinitions } from './mcp-server/prompts/definitions/index.js';
-import { PubMedServiceToken } from './container/tokens.js';
-import { PubMedService } from './services/pubmed/pubmed-service.js';
+import { initPubMedService } from './services/pubmed/pubmed-service.js';
 
-await bootstrap({
+await createApp({
   definitions: {
     tools: allToolDefinitions,
     resources: allResourceDefinitions,
     prompts: allPromptDefinitions,
   },
-  services(c) {
-    c.registerSingleton(PubMedServiceToken, () => new PubMedService());
+  setup(core) {
+    initPubMedService(core.config, core.storage);
   },
 });
+```
+
+Tool logic accesses server-specific services via module-level lazy accessors:
+
+```ts
+// services/pubmed/pubmed-service.ts
+let _service: PubMedService | undefined;
+
+export function initPubMedService(config: AppConfig, storage: StorageService): void {
+  _service = new PubMedService(config, storage);
+}
+
+export function getPubMedService(): PubMedService {
+  if (!_service) {
+    throw new McpError(JsonRpcErrorCode.InitializationFailed, 'PubMedService not initialized');
+  }
+  return _service;
+}
+
+// tools/definitions/search-pubmed.tool.ts
+import { getPubMedService } from '../../services/pubmed/pubmed-service.js';
+
+logic: async (input, appContext) => {
+  return getPubMedService().search(input.query);
+},
 ```
 
 ---
@@ -129,7 +168,7 @@ import type { CloudflareBindings } from '@cyanheads/mcp-ts-core/worker';
 
 interface WorkerOptions {
   definitions: ServerDefinitions;
-  services?: (container: Container) => void;
+  setup?: (core: CoreServices) => void | Promise<void>;
   /** Extra string CF bindings to inject into process.env (beyond the core set) */
   extraEnvBindings?: Array<[string, string]>;
   /** Extra object CF bindings (KV, R2, D1, etc.) to store on globalThis */
@@ -180,9 +219,9 @@ interface MyBindings extends CoreBindings {
 
 export default createWorkerHandler({
   definitions: { ... },
-  // String bindings → injected into process.env (for config parsing)
+  // String bindings -> injected into process.env (for config parsing)
   extraEnvBindings: [['MY_API_KEY', 'MY_API_KEY']],
-  // Object bindings → stored on globalThis (for KV, R2, D1, etc.)
+  // Object bindings -> stored on globalThis (for KV, R2, D1, etc.)
   extraObjectBindings: [['MY_CUSTOM_KV', 'MY_CUSTOM_KV']],
 });
 ```
@@ -205,8 +244,10 @@ The `exports` field in `@cyanheads/mcp-ts-core/package.json` defines the public 
 ```jsonc
 {
   "exports": {
-    // Entry points
-    "./bootstrap":       { "types": "./dist/bootstrap.d.ts",       "import": "./dist/bootstrap.js" },
+    // Main entry point — createApp(), CreateAppOptions, ServerHandle, CoreServices
+    ".":                 { "types": "./dist/app.d.ts",               "import": "./dist/app.js" },
+
+    // Worker entry point
     "./worker":          { "types": "./dist/worker.d.ts",          "import": "./dist/worker.js" },
 
     // MCP primitives
@@ -218,8 +259,6 @@ The `exports` field in `@cyanheads/mcp-ts-core/package.json` defines the public 
     // Core infrastructure
     "./errors":          { "types": "./dist/types-global/errors.d.ts",          "import": "./dist/types-global/errors.js" },
     "./config":          { "types": "./dist/config/index.d.ts",                 "import": "./dist/config/index.js" },
-    "./container":       { "types": "./dist/container/core/container.d.ts",     "import": "./dist/container/core/container.js" },
-    "./tokens":          { "types": "./dist/container/core/tokens.d.ts",        "import": "./dist/container/core/tokens.js" },
 
     // Auth
     "./auth":            { "types": "./dist/mcp-server/transports/auth/lib/withAuth.d.ts", "import": "./dist/mcp-server/transports/auth/lib/withAuth.js" },
@@ -253,6 +292,10 @@ The `exports` field in `@cyanheads/mcp-ts-core/package.json` defines the public 
 ```
 
 Every compiled export has both `types` and `import` conditions. The `types` condition must come first — TypeScript requires it before `import` for correct resolution. Build config exports are plain strings (no `.d.ts`). Internal file structure can change without breaking downstream — only subpath names are the contract. See [03a-build.md](03a-build.md) for the build pipeline that produces `dist/`.
+
+**Changes from the original plan:**
+- Main entry (`.`) replaces `./bootstrap` — `createApp` is the primary export
+- `./container` and `./tokens` removed — no DI container in the public API (see [10-decisions.md](10-decisions.md) #15)
 
 **Notes:**
 - `./utils/parsing` and `./utils/security` point to barrel `index.js` files. These are legitimate aggregation points — they collect lazy-import wrappers into a single entry point. Each individual parser/utility uses dynamic `import()` internally, so importing the barrel doesn't pull in unused Tier 3 deps.

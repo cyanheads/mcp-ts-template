@@ -1,6 +1,6 @@
-# 03 — Config & Container
+# 03 — Config & App Wiring
 
-> Config extension pattern, container split, DI registration changes.
+> Config extension pattern, `createApp()` internal wiring.
 
 ---
 
@@ -56,17 +56,15 @@ import { getServerConfig } from '../../config/server-config.js';
 // Called inside logic (at request time), not at import time
 const config = getServerConfig();
 
-// Core config still available via DI for infrastructure concerns
-import { container } from '@cyanheads/mcp-ts-core/container';
-import { AppConfig } from '@cyanheads/mcp-ts-core/tokens';
-const coreConfig = container.resolve(AppConfig);
+// Core config available via the setup() callback or lazy accessor
+import type { AppConfig } from '@cyanheads/mcp-ts-core/config';
 ```
 
 ---
 
-## Container Split
+## App Wiring (internal)
 
-The current `composeContainer()` calls two functions. After extraction, core owns both — but `registerMcpServices` takes definitions as input instead of importing them.
+> This section describes how `createApp()` is implemented inside core. Consumers never see this — they call `createApp()` and get a `ServerHandle`. See [02-public-api.md](02-public-api.md) for the consumer-facing API.
 
 ### Current (monolith)
 
@@ -76,55 +74,111 @@ composeContainer()
   -> registerMcpServices()      // imports allToolDefinitions, allResourceDefinitions directly
 ```
 
+Uses a DI container with tokens, registrations, and lazy singleton resolution. The container has 6 production `resolve()` calls. Zero tool/resource/prompt definitions use it.
+
 ### After extraction
 
 ```
-bootstrap(options)
-  -> registerCoreServices()                    // unchanged — all from core
-  -> registerMcpServices(options.definitions)   // definitions injected, not imported
-  -> options.services?.(container)              // server-specific DI extensions
+createApp(options)
+  -> constructCoreServices()              // direct construction, no container
+  -> options.setup?.(coreServices)        // server-specific init
+  -> constructRegistries(options.definitions)  // ToolRegistry, ResourceRegistry, etc.
+  -> constructTransport(...)              // TaskManager, TransportManager
+  -> start()
 ```
 
-### `registerMcpServices` changes
+No DI container. No tokens. No `registerSingleton`/`resolve` indirection. Services are constructed in dependency order and passed by reference.
+
+### Direct construction replaces container
+
+What was `registerCoreServices()` with container registrations becomes direct construction:
 
 ```ts
-// Before (imports definitions directly)
-import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
-import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
+// Inside createApp() — simplified
+const config = parseConfig(options.name, options.version);
+const storageProvider = createStorageProvider(config, deps);
+const storage = new StorageService(storageProvider);
+const rateLimiter = new RateLimiter(config, logger);
 
-export const registerMcpServices = () => {
-  for (const tool of allToolDefinitions) {
-    container.registerMulti(ToolDefinitions, tool);
-  }
-  // ...
-};
+// Optional services — constructed only if configured
+const llmProvider = config.openRouter?.apiKey
+  ? new OpenRouterProvider(rateLimiter, config, logger)
+  : undefined;
 
-// After (definitions passed in)
-export const registerMcpServices = (definitions: ServerDefinitions) => {
-  for (const tool of definitions.tools) {
-    container.registerMulti(ToolDefinitions, tool);
-  }
-  for (const resource of definitions.resources) {
-    container.registerMulti(ResourceDefinitions, resource);
-  }
-  for (const prompt of definitions.prompts) {
-    container.registerMulti(PromptDefinitions, prompt);
-  }
-  // Prompts also go through DI now (see Pre-extraction Cleanup)
-  // Registries, TaskManager, TransportManager, server factory — unchanged
-};
+// Server-specific setup
+await options.setup?.({ config, logger, storage, rateLimiter });
+
+// Registries from definitions
+const toolRegistry = new ToolRegistry(options.definitions.tools);
+const resourceRegistry = new ResourceRegistry(options.definitions.resources);
+const promptRegistry = new PromptRegistry(options.definitions.prompts, logger);
+const rootsRegistry = new RootsRegistry(logger);
+const taskManager = new TaskManager(config, storage);
+
+// Transport
+const transportManager = new TransportManager(config, logger, serverFactory);
 ```
+
+### What gets deleted
+
+The entire `src/container/` directory:
+
+| File | Purpose | Replacement |
+|:-----|:--------|:------------|
+| `core/container.ts` | `Container` class, `Token<T>`, `token()` | Direct construction in `createApp()` |
+| `core/tokens.ts` | All DI tokens (`AppConfig`, `StorageService`, etc.) | Local variables passed by reference |
+| `registrations/core.ts` | `registerCoreServices()` | Inline construction in `createApp()` |
+| `registrations/mcp.ts` | `registerMcpServices()` | Inline construction in `createApp()` |
+| `index.ts` | `composeContainer()` barrel | `createApp()` entry point |
 
 ### Key constraint
 
-**DI resolution timing.** `options.services` runs after `registerMcpServices`, so tokens registered there won't be available during definition registration — only during request handling. Tool definitions must defer container resolution to call time (inside `logic`), not registration time. This is already the pattern but must be explicit in the contract.
+**Service initialization timing.** `setup()` runs after core services are constructed but before registries and transport. Tool definitions access server-specific services at call time (inside `logic`) via module-level lazy accessors — not at definition time. This is already the established pattern; no code needs to change.
+
+### Server-specific services without DI
+
+The container's `services(container)` callback let servers register tokens. Without a container, servers use the init/accessor pattern:
+
+```ts
+// Server's service module
+let _service: PubMedService | undefined;
+
+export function initPubMedService(config: AppConfig, storage: StorageService): void {
+  _service = new PubMedService(config, storage);
+}
+
+export function getPubMedService(): PubMedService {
+  if (!_service) {
+    throw new McpError(JsonRpcErrorCode.InitializationFailed, 'PubMedService not initialized');
+  }
+  return _service;
+}
+
+// Called in createApp's setup() callback
+await createApp({
+  definitions: { ... },
+  setup(core) {
+    initPubMedService(core.config, core.storage);
+  },
+});
+
+// Consumed in tool logic at call time
+logic: async (input, appContext) => {
+  return getPubMedService().search(input.query);
+},
+```
+
+This is the same lazy singleton pattern tools already use for config. No tokens, no indirection.
 
 ---
 
 ## Checklist
 
-- [ ] `registerMcpServices()` accepts `ServerDefinitions` parameter instead of static imports
-- [ ] `bootstrap()` applies name/version overrides before DI registration
-- [ ] `options.services` callback runs after core services, supports async
+- [ ] `src/container/` deleted entirely (container, tokens, registrations, barrel)
+- [ ] `createApp()` constructs core services directly in dependency order
+- [ ] `createApp()` applies name/version overrides before config parsing
+- [ ] `setup()` callback runs after core services, supports async
+- [ ] `createMcpServerInstance` receives registries as parameters (not via container)
+- [ ] `TransportManager` receives dependencies as constructor params (not via container)
 - [ ] Server config uses lazy accessor pattern (no top-level `process.env` parsing)
 - [ ] Core config exposes `overrides` parameter on `parseConfig` for name/version

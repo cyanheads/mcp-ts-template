@@ -100,7 +100,7 @@ describe('myTool', () => {
 
 ### Test isolation
 
-Use `container.fork()` when tests need to override DI registrations without affecting other tests.
+Create separate `createApp()` instances per test suite when tests need independent service state. For unit-testing tool logic directly, mock `CoreServices` and pass to `setup()`.
 
 ---
 
@@ -110,7 +110,7 @@ After extraction, core's test suite validates:
 
 | Area | What to test |
 |:-----|:-------------|
-| Container | `register*`, `resolve`, `fork`, `clearInstances`, `reset`, token typing |
+| App wiring | `createApp()` construction order, `setup()` callback, `ServerHandle` lifecycle |
 | Storage | `StorageService` with in-memory provider, validation, pagination, batch ops |
 | Config | `parseConfig` with various env combinations, override precedence |
 | Transports | HTTP route registration, stdio message framing |
@@ -136,6 +136,6 @@ CI runs:
 - [ ] Test helpers exported from `@cyanheads/mcp-ts-core/testing`
 - [ ] `createMockSdkContext` supports optional capability injection
 - [ ] `createMockAppContext` produces valid `RequestContext`
-- [ ] Core test suite covers container, storage, config, transports, auth, utils, bootstrap, worker
+- [ ] Core test suite covers app wiring (`createApp`), storage, config, transports, auth, utils, worker
 - [ ] `examples/` in core CI validates public export contract
 - [ ] Server vitest config extends core's base config

@@ -15,8 +15,8 @@ This directory contains the living plan for extracting the infrastructure layer 
 | # | Document | Scope |
 |:--|:---------|:------|
 | 01 | [Architecture](01-architecture.md) | Problem, solution, package boundary, repo strategy, versioning |
-| 02 | [Public API](02-public-api.md) | `bootstrap()`, `createWorkerHandler()`, subpath exports |
-| 03 | [Config & Container](03-config-container.md) | Config extension pattern, container split, DI changes |
+| 02 | [Public API](02-public-api.md) | `createApp()`, `createWorkerHandler()`, subpath exports |
+| 03 | [Config & App Wiring](03-config-container.md) | Config extension pattern, `createApp()` internal wiring (no DI container) |
 | 03a | [Build Pipeline](03a-build.md) | `tsc` + `tsc-alias`, `.d.ts` generation, `files` array, export verification |
 | 04 | [Dependencies](04-dependencies.md) | Dependency tiers, lazy import conversion, minimal install |
 | 05 | [Agent DX](05-agent-dx.md) | Agent discovery, `CLAUDE.md` management, Agent Skills |
@@ -39,6 +39,10 @@ This directory contains the living plan for extracting the infrastructure layer 
 | 7 | Migrate downstream servers | Not started |
 | 8 | Cut 1.0 | Not started |
 | 9 | Build `create-mcp-server` (deferred) | Not started |
+
+## Audience
+
+These documents are **internal** — they describe how we build and maintain `@cyanheads/mcp-ts-core`. They are NOT shipped in the published package. Consumer-facing documentation (how to use the core package to build MCP servers) lives in `CLAUDE.md` and `skills/`, which ship with the package. See [05-agent-dx.md](05-agent-dx.md) for the full internal/external distinction.
 
 ## How to Use
 

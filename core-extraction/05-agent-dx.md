@@ -1,6 +1,19 @@
 # 05 — Agent DX
 
-> Agent discovery, `CLAUDE.md` management, Agent Skills.
+> Agent discovery, `CLAUDE.md` management, Agent Skills, internal vs external audience.
+
+---
+
+## Audience Distinction
+
+Every artifact in this project targets one of two audiences:
+
+| Audience | Who | Where it lives | Examples |
+|:---------|:----|:---------------|:---------|
+| **Internal** | Us — core package developers | Core repo only. NOT shipped in the npm package. | `core-extraction/` docs, `CONTRIBUTING.md`, internal skills (`add-export`, `release`) |
+| **External** | Consumers — developers building MCP servers with `@cyanheads/mcp-ts-core` | Shipped in the published package (`files` array). | `CLAUDE.md`, `skills/` directory, `examples/` |
+
+This distinction applies to documentation, skills, and build configs. When adding a new artifact, always ask: "Is this for us building the core, or for someone using the core to build their server?"
 
 ---
 
@@ -24,15 +37,14 @@ A compact, scannable reference of every subpath export — what it provides, key
 
 | Subpath | Key Exports | Purpose |
 |:--------|:------------|:--------|
-| `@cyanheads/mcp-ts-core/bootstrap` | `bootstrap`, `BootstrapOptions`, `ServerHandle` | Node.js server entry point |
+| `@cyanheads/mcp-ts-core` | `createApp`, `CreateAppOptions`, `ServerHandle`, `CoreServices` | Node.js server entry point |
 | `@cyanheads/mcp-ts-core/worker` | `createWorkerHandler`, `CloudflareBindings` | Cloudflare Workers entry point |
 | `@cyanheads/mcp-ts-core/tools` | `ToolDefinition`, `ToolAnnotations` | Tool definition type and factory |
 | `@cyanheads/mcp-ts-core/resources` | `ResourceDefinition` | Resource definition type and factory |
 | `@cyanheads/mcp-ts-core/prompts` | `PromptDefinition` | Prompt definition type |
 | `@cyanheads/mcp-ts-core/tasks` | `TaskToolDefinition`, `RequestTaskStore` | Async task tool definitions |
 | `@cyanheads/mcp-ts-core/errors` | `McpError`, `JsonRpcErrorCode` | Error types and codes |
-| `@cyanheads/mcp-ts-core/container` | `Container`, `token` | DI container and token factory |
-| `@cyanheads/mcp-ts-core/tokens` | `AppConfig`, `StorageService`, `LlmProvider`, ... | Core DI tokens |
+| `@cyanheads/mcp-ts-core/config` | `AppConfig`, `parseConfig` | Zod-validated config types |
 | `@cyanheads/mcp-ts-core/auth` | `withToolAuth`, `withResourceAuth` | Auth wrappers for tool/resource logic |
 | `@cyanheads/mcp-ts-core/storage` | `StorageService` | Tenant-scoped storage abstraction |
 | `@cyanheads/mcp-ts-core/utils/logger` | `logger` | Pino structured logger |
@@ -130,18 +142,30 @@ Skills complement Discovery (knowing what exists) and CLAUDE.md (knowing the pat
 | Invocation | Passive (agent reads once) | On-demand (`/skill-name`) or auto-triggered |
 | Portability | Agent-specific | Open standard (Claude Code, Copilot, Codex, etc.) |
 
-### Skills that ship with core
+### External skills (ship in the package)
+
+These are copied to consumer repos by the `/setup` skill. They teach agents how to work on MCP servers built with `@cyanheads/mcp-ts-core`.
 
 | Skill | Description (agent-facing trigger) | What it does |
 |:------|:-----------------------------------|:-------------|
-| `setup` | First-time project setup for an MCP server using `@cyanheads/mcp-ts-core` | Detects installed agents, copies/symlinks skills to agent-specific directories (`.claude/skills/`, `.codex/skills/`, etc.). Sets up `.agents/skills/` with core skills. Creates initial `CLAUDE.md` from template. Validates project structure. |
+| `setup` | First-time project setup for an MCP server using `@cyanheads/mcp-ts-core` | Detects installed agents, copies/symlinks skills to agent-specific directories (`.claude/skills/`, `.codex/skills/`, etc.). Creates initial `CLAUDE.md` from template. Validates project structure. |
 | `add-tool` | Scaffold a new MCP tool definition | Creates `.tool.ts` with metadata, Zod schemas with `.describe()`, typed logic, auth wrapper, response formatter. Registers in `definitions/index.ts`. |
 | `add-task-tool` | Scaffold an async MCP task tool for long-running operations | Same as `add-tool` but with `.task-tool.ts` suffix, `TaskToolDefinition` type, `taskHandlers` (create/get/getResult), background work pattern. |
 | `add-resource` | Scaffold a new MCP resource definition | Creates `.resource.ts` with URI template, params/output schemas, logic, optional `list()` with pagination. Registers in `definitions/index.ts`. |
 | `add-prompt` | Scaffold a new MCP prompt template | Creates `.prompt.ts` with arguments schema and `generate` function. Registers in `definitions/index.ts`. |
-| `add-service` | Scaffold a new service integration with DI | Creates `services/[name]/` with `core/` (interface), `providers/` (implementation), `types.ts`. Adds DI token, registers in container. |
+| `add-service` | Scaffold a new service integration | Creates `services/[name]/` with `core/` (interface), `providers/` (implementation), `types.ts`. Uses init/accessor pattern for lazy singletons. |
 | `devcheck` | Lint, format, typecheck, and audit the project | Runs `bun run devcheck`. Interprets output, fixes issues, re-runs until clean. |
 | `migrate-imports` | Migrate a template fork to use `@cyanheads/mcp-ts-core` | Rewrites `@/` imports to `@cyanheads/mcp-ts-core/` subpaths using the mapping table. Validates no internal paths remain. |
+
+### Internal skills (core repo only, NOT shipped)
+
+These live in the core repo and are used when developing `@cyanheads/mcp-ts-core` itself. They are excluded from the `files` array and never reach consumer projects.
+
+| Skill | Description (agent-facing trigger) | What it does |
+|:------|:-----------------------------------|:-------------|
+| `add-export` | Add a new subpath export to the core package | Creates the entry point file, adds the subpath to `package.json` `exports`, updates the exports catalog in `CLAUDE.md`, runs the export verification script. |
+| `add-provider` | Add a new storage or service provider to core | Creates provider file in the correct directory, implements the provider interface, adds lazy dep import if Tier 3, updates the serverless whitelist if needed. |
+| `release` | Prepare and publish a core release | Version bump, CHANGELOG entry, `devcheck`, `bun publish`, Docker image push, `mcp-publisher publish`. Enforces the wrapup checklist. |
 
 ### SKILL.md format
 
@@ -156,6 +180,8 @@ description: >
 metadata:
   author: cyanheads
   version: "1.0"
+  audience: external   # external = ships in package, copied to consumer repos
+                       # internal = core repo only, NOT shipped
 ---
 
 ## Context
@@ -216,6 +242,8 @@ The key insight: the agent knows what it is. The skill doesn't need to enumerate
 
 ### Distribution
 
+**External skills** ship in the published package:
+
 ```
 node_modules/@cyanheads/mcp-ts-core/skills/
   setup/SKILL.md
@@ -226,7 +254,16 @@ node_modules/@cyanheads/mcp-ts-core/skills/
   ...
 ```
 
-After setup, in a Claude Code project:
+**Internal skills** live in the core repo only (excluded from `files`):
+
+```
+skills-internal/
+  add-export/SKILL.md
+  add-provider/SKILL.md
+  release/SKILL.md
+```
+
+After setup, in a Claude Code consumer project:
 ```
 .claude/skills/
   setup/SKILL.md
@@ -253,9 +290,11 @@ With 10 skills: ~500 tokens at startup. The agent knows what it can do without f
 
 ## Checklist
 
-- [ ] Core `CLAUDE.md` written: exports catalog, patterns, contracts, error codes, DI, common imports
+- [ ] Core `CLAUDE.md` written: exports catalog, patterns, contracts, error codes, common imports (no DI/container references)
 - [ ] Core `CONTRIBUTING.md` written (repo-only, not in `files`)
 - [ ] Server `CLAUDE.md` template created with core framework pointer
-- [ ] All skills written as `SKILL.md` with mandatory checklists
-- [ ] Skills directory included in package `files` array
+- [ ] External skills written as `SKILL.md` with `audience: external` and mandatory checklists
+- [ ] Internal skills written as `SKILL.md` with `audience: internal` in `skills-internal/`
+- [ ] External `skills/` directory included in package `files` array
+- [ ] Internal `skills-internal/` excluded from package `files` array
 - [ ] Progressive disclosure verified (frontmatter-only at startup)

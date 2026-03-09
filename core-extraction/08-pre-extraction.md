@@ -14,8 +14,8 @@
 
 | # | Issue | Location | Fix | Status |
 |:--|:------|:---------|:----|:-------|
-| 1 | `registerMcpServices()` imports definition barrels directly | [mcp.ts:23,25,30](../src/container/registrations/mcp.ts#L23-L30) | Accept `ServerDefinitions` parameter instead of static imports | Not started |
-| 2 | `worker.ts` has hardcoded binding keys | [worker.ts:86-106](../src/worker.ts#L86-L106) | Extract `CoreBindingMappings` as a const; `createWorkerHandler` merges with `extraEnvBindings` (strings → process.env) and `extraObjectBindings` (KV/R2/D1 → globalThis) | Not started |
+| 1 | `src/container/` exists — entire DI system replaced by `createApp()` | [src/container/](../src/container/) | Delete `src/container/` entirely. Implement `createApp()` with direct construction in a new `src/app.ts`. `createMcpServerInstance` and `TransportManager` receive deps as constructor params instead of resolving from container. See [03-config-container.md](03-config-container.md). | Not started |
+| 2 | `worker.ts` has hardcoded binding keys | [worker.ts:86-106](../src/worker.ts#L86-L106) | Extract `CoreBindingMappings` as a const; `createWorkerHandler` merges with `extraEnvBindings` (strings -> process.env) and `extraObjectBindings` (KV/R2/D1 -> globalThis) | Not started |
 | 3 | `worker.ts` `CloudflareBindings` has index signature | [worker.ts:62](../src/worker.ts#L62) | Remove `[key: string]: unknown` so servers must declare extra bindings via `extends` | Not started |
 
 ### `package.json` dep placement bugs
@@ -96,10 +96,13 @@ Convert all Tier 3 static imports. Run `devcheck` + full test suite, commit. Bac
 
 ## Master Checklist
 
-### Phase 1: DI/wiring + coupling + dep placement
+### Phase 1: DI removal + wiring + coupling + dep placement
 - [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
 - [ ] `diff` moved from `devDependencies` to `dependencies` (#3b)
-- [ ] `registerMcpServices()` parameterized (#1)
+- [ ] `src/container/` deleted; `createApp()` implemented in `src/app.ts` with direct construction (#1)
+- [ ] `createMcpServerInstance` receives registries as params (not via container)
+- [ ] `TransportManager` receives deps as constructor params (not via container)
+- [ ] Container tests deleted or rewritten as `createApp()` integration tests
 - [ ] Worker binding keys extracted to `CoreBindingMappings` const (#2)
 - [ ] `CloudflareBindings` index signature removed (#3)
 - [ ] Logger's `sanitization` import inlined (#4)

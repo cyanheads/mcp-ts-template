@@ -22,14 +22,17 @@
 
 ## Phase 1: Pre-extraction Cleanup
 
-Fix DI/wiring issues, coupling, and dependency placement bugs. Small, non-breaking changes that align the code with the extraction boundary.
+Replace DI container with `createApp()`, fix coupling, and fix dependency placement bugs. Aligns the code with the extraction boundary.
 
-**Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (items 1-6, 3a-3b)
+**Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (items 1-6, 3a-3b), [03-config-container.md](03-config-container.md)
 
 ### Checklist
 - [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
 - [ ] `diff` moved from `devDependencies` to `dependencies` (#3b)
-- [ ] `registerMcpServices()` accepts `ServerDefinitions` parameter
+- [ ] `src/container/` deleted; `createApp()` implemented in `src/app.ts`
+- [ ] `createMcpServerInstance` receives registries as params (not via container)
+- [ ] `TransportManager` receives deps as constructor params (not via container)
+- [ ] Container tests deleted or rewritten as `createApp()` integration tests
 - [ ] Worker binding keys extracted to `CoreBindingMappings` const
 - [ ] `CloudflareBindings` index signature removed
 - [ ] Logger's `sanitization` import inlined
@@ -65,7 +68,7 @@ The core of the extraction. Transform the repo in-place.
 ### Checklist
 - [ ] `package.json` renamed to `@cyanheads/mcp-ts-core`
 - [ ] Template definitions moved to `examples/`
-- [ ] `bootstrap()` implemented as public entry point (returns `ServerHandle` with `shutdown()` and `container`)
+- [ ] `createApp()` implemented as public entry point (returns `ServerHandle` with `shutdown()` and `services`)
 - [ ] `createWorkerHandler()` implemented as public entry point
 - [ ] Current `index.ts` and `worker.ts` converted to example entry points in `examples/`
 - [ ] Build pipeline: `build` script changed to `tsc && tsc-alias`, `tsc-alias` added to devDeps (see [03a-build.md](03a-build.md))
@@ -73,10 +76,12 @@ The core of the extraction. Transform the repo in-place.
 - [ ] `exports` field added with all subpath exports, each with `types` + `import` conditions (see [02-public-api.md](02-public-api.md))
 - [ ] Export verification script added to CI
 - [ ] `peerDependencies` / `peerDependenciesMeta` configured for tiered deps (`"zod": "^4.3.0"`)
-- [ ] Consumer-facing `CLAUDE.md` written with exports catalog
+- [ ] Consumer-facing `CLAUDE.md` written with exports catalog (no DI/container references)
 - [ ] `CONTRIBUTING.md` written (repo-only, excluded from package)
-- [ ] Agent skill definitions written in `skills/` (see [05-agent-dx.md](05-agent-dx.md))
+- [ ] External skill definitions written in `skills/` with `audience: external` (see [05-agent-dx.md](05-agent-dx.md))
+- [ ] Internal skill definitions written in `skills-internal/` with `audience: internal`
 - [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js`, `eslint.config.js`
+- [ ] `files` array excludes `skills-internal/`, `core-extraction/`, `CONTRIBUTING.md`
 - [ ] `prepublishOnly` script added
 - [ ] Package compiles cleanly (`tsc && tsc-alias`)
 - [ ] `npm pack --dry-run` produces expected file set
@@ -137,11 +142,11 @@ One at a time, starting with the least-diverged.
 
 ### Per-server checklist
 - [ ] `@cyanheads/mcp-ts-core` added as dependency
-- [ ] Infrastructure files deleted
-- [ ] Imports rewritten (`@/` → `@cyanheads/mcp-ts-core/`)
-- [ ] `index.ts` replaced with bootstrap call
-- [ ] `worker.ts` replaced with worker factory call
-- [ ] Server-specific DI moved to `services` callback
+- [ ] Infrastructure files deleted (including `src/container/`)
+- [ ] Imports rewritten (`@/` -> `@cyanheads/mcp-ts-core/`)
+- [ ] `index.ts` replaced with `createApp()` call
+- [ ] `worker.ts` replaced with `createWorkerHandler()` call
+- [ ] Server-specific services moved to `setup()` callback (init/accessor pattern)
 - [ ] `CLAUDE.md` updated to reference core
 - [ ] `devcheck` passes
 - [ ] All tests pass
