@@ -156,7 +156,7 @@ export class OpenRouterProvider implements ILlmProvider {
 
     return await ErrorHandler.tryCatch(
       async () => {
-        const rateLimitKey = context.requestId ?? 'openrouter_default_key';
+        const rateLimitKey = context.auth?.clientId ?? context.tenantId ?? 'openrouter_global';
         this.rateLimiter.check(rateLimitKey, context);
         const finalApiParams = this._prepareApiParameters(params) as OpenRouterChatParams;
         return await this._openRouterChatCompletionLogic(this.client, finalApiParams, context);
