@@ -153,27 +153,37 @@ describe('Data Explorer App Tool', () => {
   // ─── Response Formatter ──────────────────────────────────────────────────────
 
   describe('Response Formatter', () => {
-    it('should return ContentBlock array with type text', async () => {
+    it('should return two ContentBlock text entries (JSON + table)', async () => {
       const result = await invokeLogic(5);
       const blocks = dataExplorerAppTool.responseFormatter?.(result);
-      expect(blocks).toHaveLength(1);
+      expect(blocks).toHaveLength(2);
       expect(blocks![0]?.type).toBe('text');
+      expect(blocks![1]?.type).toBe('text');
     });
 
-    it('should include table header and separator', async () => {
+    it('should emit valid JSON in the first block (for MCP Apps UI)', async () => {
       const result = await invokeLogic(5);
       const blocks = dataExplorerAppTool.responseFormatter?.(result);
-      const text = (blocks![0] as { type: 'text'; text: string }).text;
+      const jsonText = (blocks![0] as { type: 'text'; text: string }).text;
+      const parsed = JSON.parse(jsonText);
+      expect(parsed.rows).toHaveLength(5);
+      expect(parsed.summary.totalRows).toBe(5);
+    });
+
+    it('should include table header and separator in the second block', async () => {
+      const result = await invokeLogic(5);
+      const blocks = dataExplorerAppTool.responseFormatter?.(result);
+      const text = (blocks![1] as { type: 'text'; text: string }).text;
       expect(text).toContain('ID');
       expect(text).toContain('Region');
       expect(text).toContain('Product');
       expect(text).toContain('---');
     });
 
-    it('should include summary line with totals', async () => {
+    it('should include summary line with totals in the second block', async () => {
       const result = await invokeLogic(5);
       const blocks = dataExplorerAppTool.responseFormatter?.(result);
-      const text = (blocks![0] as { type: 'text'; text: string }).text;
+      const text = (blocks![1] as { type: 'text'; text: string }).text;
       expect(text).toContain('Total:');
       expect(text).toContain('5 rows');
     });

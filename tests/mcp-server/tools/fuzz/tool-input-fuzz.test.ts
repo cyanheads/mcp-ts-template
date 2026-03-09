@@ -61,7 +61,7 @@ const mockSdkContext = {
  */
 const fuzz = (schema: ZodObject<ZodRawShape>): fc.Arbitrary<Record<string, unknown>> =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  zxTest.fuzz(schema as any);
+  zxTest.fuzz(schema as any) as any;
 
 /** Separate regular tools from task tools for different test strategies. */
 const regularTools = allToolDefinitions.filter((t) => !isTaskToolDefinition(t)) as AnyToolDef[];

@@ -577,20 +577,19 @@ describe('HTTP Transport - Port Retry Logic', () => {
   });
 
   test('should detect if port is in use', async () => {
-    // This test validates the isPortInUse utility function exists and works
+    // Use port 0 so the OS assigns a free port — avoids collisions with other processes
     const http = await import('node:http');
-    const testPort = 9999;
     const testHost = '127.0.0.1';
 
-    // Create a server to occupy the port
     const blockingServer = http.createServer();
-    await new Promise<void>((resolve) => {
-      blockingServer.listen(testPort, testHost, () => {
-        resolve();
+    const occupiedPort = await new Promise<number>((resolve) => {
+      blockingServer.listen(0, testHost, () => {
+        const addr = blockingServer.address();
+        resolve(typeof addr === 'object' && addr ? addr.port : 0);
       });
     });
 
-    // Now test if we can detect the port is in use
+    // Probe the occupied port — should get EADDRINUSE
     const tempServer = http.createServer();
     let portInUse = false;
 
@@ -606,7 +605,7 @@ describe('HTTP Transport - Port Retry Logic', () => {
             resolve();
           });
         })
-        .listen(testPort, testHost);
+        .listen(occupiedPort, testHost);
     });
 
     expect(portInUse).toBe(true);

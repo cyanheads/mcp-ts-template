@@ -432,6 +432,16 @@ describe('StorageBackedTaskStore', () => {
       // Should see own task + unbound task, but not session-2's task
       expect(result.tasks.length).toBe(2);
     });
+
+    it('should hide session-bound tasks from callers without a sessionId', async () => {
+      await taskStore.createTask({ ttl: 30000 }, 1, testRequest, 'session-1');
+      await taskStore.createTask({ ttl: 30000 }, 2, testRequest, 'session-2');
+      await taskStore.createTask({ ttl: 30000 }, 3, testRequest); // no session
+
+      // Caller with no sessionId should only see unbound tasks
+      const result = await taskStore.listTasks(undefined, undefined);
+      expect(result.tasks.length).toBe(1);
+    });
   });
 
   describe('configuration options', () => {
