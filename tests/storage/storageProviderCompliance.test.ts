@@ -6,7 +6,7 @@
  * @module tests/storage/storageProviderCompliance
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IStorageProvider } from '../../src/storage/core/IStorageProvider.js';
 import { requestContextService } from '../../src/utils/internal/requestContext.js';
 
@@ -32,14 +32,8 @@ export function storageProviderTests(
     });
     const tenantId = 'test-tenant';
 
-    // Use fake timers to test TTL
     beforeEach(() => {
       provider = providerFactory();
-      // vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      // vi.useRealTimers();
     });
 
     it('should set and get a string value', async () => {
@@ -206,27 +200,32 @@ export function storageProviderTests(
       expect(result.keys).toHaveLength(0);
     });
 
-    // it('should respect TTL and return null after expiration', async () => {
-    //   const key = 'test-ttl';
-    //   const value = 'ephemeral';
-    //   const ttlInSeconds = 10;
-    //
-    //   await provider.set(key, value, testContext, { ttl: ttlInSeconds });
-    //
-    //   // Should exist immediately after setting
-    //   let retrieved = await provider.get(key, testContext);
-    //   expect(retrieved).toBe(value);
-    //
-    //   // Advance time just before expiration
-    //   vi.advanceTimersByTime((ttlInSeconds - 1) * 1000);
-    //   retrieved = await provider.get(key, testContext);
-    //   expect(retrieved).toBe(value);
-    //
-    //   // Advance time past expiration
-    //   vi.advanceTimersByTime(2 * 1000); // 1 sec past + 1 for boundary
-    //   retrieved = await provider.get(key, testContext);
-    //   expect(retrieved).toBeNull();
-    // });
+    it('should respect TTL and return null after expiration', async () => {
+      vi.useFakeTimers();
+      try {
+        const key = 'test-ttl';
+        const value = 'ephemeral';
+        const ttlInSeconds = 10;
+
+        await provider.set(tenantId, key, value, testContext, { ttl: ttlInSeconds });
+
+        // Should exist immediately after setting
+        let retrieved = await provider.get(tenantId, key, testContext);
+        expect(retrieved).toBe(value);
+
+        // Advance time just before expiration
+        vi.advanceTimersByTime((ttlInSeconds - 1) * 1000);
+        retrieved = await provider.get(tenantId, key, testContext);
+        expect(retrieved).toBe(value);
+
+        // Advance time past expiration
+        vi.advanceTimersByTime(2 * 1000);
+        retrieved = await provider.get(tenantId, key, testContext);
+        expect(retrieved).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 }
 

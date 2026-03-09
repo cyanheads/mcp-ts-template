@@ -48,8 +48,13 @@ describe('Cloudflare Worker Entry Point', () => {
       expect(bindings.MCP_AUTH_SECRET_KEY).toBe('secret');
     });
 
-    it('should support string index signature for additional bindings', () => {
-      const bindings: CloudflareBindings = {
+    it('should require explicit extension for additional bindings', () => {
+      // CloudflareBindings no longer has an index signature.
+      // Servers must declare extra bindings via TypeScript intersection/extends.
+      interface ExtendedBindings extends CloudflareBindings {
+        CUSTOM_BINDING: string;
+      }
+      const bindings: ExtendedBindings = {
         CUSTOM_BINDING: 'value',
       };
       expect(bindings.CUSTOM_BINDING).toBe('value');

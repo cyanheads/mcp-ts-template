@@ -57,9 +57,6 @@ export interface CloudflareBindings {
   SUPABASE_ANON_KEY?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
   SUPABASE_URL?: string;
-
-  // Allow additional string-based bindings
-  [key: string]: unknown;
 }
 
 /**
@@ -70,6 +67,37 @@ type WorkerEnv = {
   Bindings: CloudflareBindings;
 };
 
+/** Core string bindings injected into process.env for config parsing. */
+const CORE_ENV_BINDINGS: ReadonlyArray<[keyof CloudflareBindings, string]> = [
+  ['ENVIRONMENT', 'NODE_ENV'],
+  ['LOG_LEVEL', 'MCP_LOG_LEVEL'],
+  ['MCP_AUTH_SECRET_KEY', 'MCP_AUTH_SECRET_KEY'],
+  ['OPENROUTER_API_KEY', 'OPENROUTER_API_KEY'],
+  ['SUPABASE_URL', 'SUPABASE_URL'],
+  ['SUPABASE_ANON_KEY', 'SUPABASE_ANON_KEY'],
+  ['SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY'],
+  ['STORAGE_PROVIDER_TYPE', 'STORAGE_PROVIDER_TYPE'],
+  ['OAUTH_ISSUER_URL', 'OAUTH_ISSUER_URL'],
+  ['OAUTH_AUDIENCE', 'OAUTH_AUDIENCE'],
+  ['OAUTH_JWKS_URI', 'OAUTH_JWKS_URI'],
+  ['MCP_ALLOWED_ORIGINS', 'MCP_ALLOWED_ORIGINS'],
+  ['SPEECH_TTS_ENABLED', 'SPEECH_TTS_ENABLED'],
+  ['SPEECH_TTS_API_KEY', 'SPEECH_TTS_API_KEY'],
+  ['SPEECH_STT_ENABLED', 'SPEECH_STT_ENABLED'],
+  ['SPEECH_STT_API_KEY', 'SPEECH_STT_API_KEY'],
+  ['OTEL_ENABLED', 'OTEL_ENABLED'],
+  ['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT', 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'],
+  ['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT', 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'],
+] as const;
+
+/** Core object bindings stored on globalThis for storage/AI providers. */
+const CORE_OBJECT_BINDINGS: ReadonlyArray<[keyof CloudflareBindings, string]> = [
+  ['KV_NAMESPACE', 'KV_NAMESPACE'],
+  ['R2_BUCKET', 'R2_BUCKET'],
+  ['DB', 'DB'],
+  ['AI', 'AI'],
+] as const;
+
 // Use a Promise to ensure the app is only initialized once per worker instance.
 let appPromise: Promise<Hono<WorkerEnv>> | null = null;
 
@@ -79,33 +107,8 @@ let appPromise: Promise<Hono<WorkerEnv>> | null = null;
  * across local and Worker environments.
  */
 function injectEnvVars(env: CloudflareBindings): void {
-  if (typeof process === 'undefined') {
-    return; // No process in pure Workers runtime
-  }
-
-  const envMappings: Array<[keyof CloudflareBindings, string]> = [
-    ['ENVIRONMENT', 'NODE_ENV'],
-    ['LOG_LEVEL', 'MCP_LOG_LEVEL'],
-    ['MCP_AUTH_SECRET_KEY', 'MCP_AUTH_SECRET_KEY'],
-    ['OPENROUTER_API_KEY', 'OPENROUTER_API_KEY'],
-    ['SUPABASE_URL', 'SUPABASE_URL'],
-    ['SUPABASE_ANON_KEY', 'SUPABASE_ANON_KEY'],
-    ['SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY'],
-    ['STORAGE_PROVIDER_TYPE', 'STORAGE_PROVIDER_TYPE'],
-    ['OAUTH_ISSUER_URL', 'OAUTH_ISSUER_URL'],
-    ['OAUTH_AUDIENCE', 'OAUTH_AUDIENCE'],
-    ['OAUTH_JWKS_URI', 'OAUTH_JWKS_URI'],
-    ['MCP_ALLOWED_ORIGINS', 'MCP_ALLOWED_ORIGINS'],
-    ['SPEECH_TTS_ENABLED', 'SPEECH_TTS_ENABLED'],
-    ['SPEECH_TTS_API_KEY', 'SPEECH_TTS_API_KEY'],
-    ['SPEECH_STT_ENABLED', 'SPEECH_STT_ENABLED'],
-    ['SPEECH_STT_API_KEY', 'SPEECH_STT_API_KEY'],
-    ['OTEL_ENABLED', 'OTEL_ENABLED'],
-    ['OTEL_EXPORTER_OTLP_TRACES_ENDPOINT', 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'],
-    ['OTEL_EXPORTER_OTLP_METRICS_ENDPOINT', 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'],
-  ];
-
-  for (const [bindingKey, processKey] of envMappings) {
+  if (typeof process === 'undefined') return;
+  for (const [bindingKey, processKey] of CORE_ENV_BINDINGS) {
     const value = env[bindingKey];
     if (typeof value === 'string' && value.trim() !== '') {
       process.env[processKey] = value;
@@ -118,17 +121,11 @@ function injectEnvVars(env: CloudflareBindings): void {
  * This is necessary because R2/KV providers need runtime binding instances.
  */
 function storeBindings(env: CloudflareBindings): void {
-  if (env.KV_NAMESPACE) {
-    Object.assign(globalThis, { KV_NAMESPACE: env.KV_NAMESPACE });
-  }
-  if (env.R2_BUCKET) {
-    Object.assign(globalThis, { R2_BUCKET: env.R2_BUCKET });
-  }
-  if (env.DB) {
-    Object.assign(globalThis, { DB: env.DB });
-  }
-  if (env.AI) {
-    Object.assign(globalThis, { AI: env.AI });
+  for (const [bindingKey, globalKey] of CORE_OBJECT_BINDINGS) {
+    const value = env[bindingKey];
+    if (value != null) {
+      Object.assign(globalThis, { [globalKey]: value });
+    }
   }
 }
 

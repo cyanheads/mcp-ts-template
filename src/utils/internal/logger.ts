@@ -10,7 +10,6 @@ import pino from 'pino';
 
 import { config } from '@/config/index.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
-import { sanitization } from '@/utils/security/sanitization.js';
 
 export type McpLogLevel =
   | 'debug'
@@ -42,6 +41,24 @@ const pinoToMcpLevelSeverity: Record<string, number> = {
 };
 
 const isServerless = typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
+
+/** Pino redact paths for sensitive fields (top-level, one-deep, two-deep). */
+const SENSITIVE_PINO_FIELDS: string[] = [
+  'password',
+  'token',
+  'secret',
+  'apiKey',
+  'credential',
+  'jwt',
+  'ssn',
+  'cvv',
+  'authorization',
+  'cookie',
+  'clientsecret',
+  'client_secret',
+  'private_key',
+  'privatekey',
+].flatMap((field) => [field, `*.${field}`, `*.*.${field}`]);
 
 export class Logger {
   private static readonly instance: Logger = new Logger();
@@ -79,7 +96,7 @@ export class Logger {
         pid: !isServerless ? process.pid : undefined,
       },
       redact: {
-        paths: sanitization.getSensitivePinoFields(),
+        paths: SENSITIVE_PINO_FIELDS,
         censor: '[REDACTED]',
       },
     };
@@ -170,7 +187,7 @@ export class Logger {
     const { default: path } = await import('node:path');
     return pino({
       redact: {
-        paths: sanitization.getSensitivePinoFields(),
+        paths: SENSITIVE_PINO_FIELDS,
         censor: '[REDACTED]',
       },
       transport: {

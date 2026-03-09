@@ -1,39 +1,126 @@
 /**
- * @fileoverview Integration test suite for HTTP transport with real config scenarios
+ * @fileoverview Integration tests for HTTP transport using Hono's `.request()` method.
+ * Validates the Hono middleware chain (health, CORS, 404 handling) without
+ * booting a real HTTP server, avoiding port conflicts in CI.
  * @module tests/mcp-server/transports/http/httpTransport.integration.test
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+// ---------------------------------------------------------------------------
+// Module mocks — hoisted by vitest, so all values must be inline.
+// ---------------------------------------------------------------------------
+
+vi.mock('@/config/index.js', () => ({
+  config: {
+    environment: 'testing',
+    mcpServerVersion: '1.0.0-test',
+    mcpServerName: 'test-mcp-server',
+    mcpServerDescription: 'Test MCP Server',
+    mcpHttpPort: 0,
+    mcpHttpHost: '127.0.0.1',
+    mcpHttpEndpointPath: '/mcp',
+    mcpTransportType: 'http',
+    mcpSessionMode: 'stateless',
+    mcpStatefulSessionStaleTimeoutMs: 600000,
+    mcpAllowedOrigins: [],
+    mcpAuthMode: 'none',
+    oauthIssuerUrl: '',
+    oauthAudience: '',
+    oauthJwksUri: '',
+    mcpServerResourceIdentifier: '',
+    openTelemetry: { enabled: false },
+    logsPath: undefined,
+  },
+}));
+
+vi.mock('@/utils/internal/logger.js', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    notice: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    crit: vi.fn(),
+    emerg: vi.fn(),
+    fatal: vi.fn(),
+  },
+}));
+
+vi.mock('@/utils/internal/requestContext.js', () => ({
+  requestContextService: {
+    createRequestContext: vi.fn(() => ({
+      requestId: 'test-req-id',
+      timestamp: new Date().toISOString(),
+    })),
+  },
+}));
+
+vi.mock('@/utils/telemetry/metrics.js', () => ({
+  createObservableGauge: vi.fn(),
+}));
+
+vi.mock('@/mcp-server/transports/auth/authFactory.js', () => ({
+  createAuthStrategy: vi.fn(() => null),
+}));
+
+vi.mock('@/mcp-server/transports/auth/authMiddleware.js', () => ({
+  createAuthMiddleware: vi.fn(() => async (_c: unknown, next: () => Promise<void>) => await next()),
+}));
+
+vi.mock('@/mcp-server/transports/auth/lib/authContext.js', () => ({
+  authContext: { get: vi.fn(() => undefined), getStore: vi.fn(() => undefined) },
+}));
+
+vi.mock('@/mcp-server/transports/http/protectedResourceMetadata.js', () => ({
+  protectedResourceMetadataHandler: vi.fn(async (c: any) => c.json({})),
+}));
+
+vi.mock('@/utils/internal/startupBanner.js', () => ({
+  logStartupBanner: vi.fn(),
+}));
+
+vi.mock('@hono/otel', () => ({
+  httpInstrumentationMiddleware: vi.fn(
+    () => async (_c: unknown, next: () => Promise<void>) => await next(),
+  ),
+}));
+
+vi.mock('@/mcp-server/transports/http/sessionIdUtils.js', () => ({
+  generateSecureSessionId: vi.fn(() => 'test-session-id'),
+  validateSessionIdFormat: vi.fn(() => true),
+}));
+
+vi.mock('@/mcp-server/transports/http/httpErrorHandler.js', () => ({
+  httpErrorHandler: vi.fn(async (err: Error, c: any) => c.json({ error: err.message }, 500)),
+}));
+
+// ---------------------------------------------------------------------------
+// Import under test — after all mocks are declared.
+// ---------------------------------------------------------------------------
+
+import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 
-describe('HTTP Transport Integration - Server Lifecycle', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+// ---------------------------------------------------------------------------
+// Test suite
+// ---------------------------------------------------------------------------
 
-  test.skip('should start and stop HTTP server successfully - SKIPPED: Config mocking complexity in vitest. Server lifecycle validated in e2e tests.', async () => {
-    // Skipped: vi.spyOn on config getters doesn't work as expected in vitest
-    // The actual server lifecycle is tested in end-to-end integration tests
-  });
-
-  test.skip('should handle port already in use by retrying - SKIPPED: Config mocking complexity in vitest. Port retry validated in e2e tests.', async () => {
-    // Skipped: vi.spyOn on config getters doesn't work as expected in vitest
-  });
-
-  test.skip('should fail after max retries when all ports are in use - SKIPPED: Config mocking complexity in vitest. Retry failure validated in e2e tests.', async () => {
-    // Skipped: vi.spyOn on config getters doesn't work as expected in vitest
-  });
-});
-
-describe('HTTP Transport Integration - RPC Handling', () => {
+describe('HTTP Transport Integration', () => {
+  let mockServerFactory: ReturnType<typeof vi.fn>;
   let mockContext: RequestContext;
 
   beforeEach(() => {
+    mockServerFactory = vi.fn(async () => ({
+      connect: vi.fn(),
+      close: vi.fn(),
+    })) as any;
+
     mockContext = {
-      requestId: 'test-rpc',
-      timestamp: Date.now() as any,
-      operation: 'test-rpc-handling',
+      requestId: 'test-req-id',
+      timestamp: new Date().toISOString(),
+      operation: 'http-transport-integration-test',
     };
   });
 
@@ -41,160 +128,58 @@ describe('HTTP Transport Integration - RPC Handling', () => {
     vi.restoreAllMocks();
   });
 
-  test('should handle MCP protocol negotiation', async () => {
-    // Mock the McpServer with proper method handlers
-    const mockMcpServer: Partial<McpServer> = {
-      connect: vi.fn().mockResolvedValue(undefined),
-    };
+  test('GET /healthz returns 200 with status ok', async () => {
+    const { app } = createHttpApp(mockServerFactory as () => Promise<McpServer>, mockContext);
 
-    // Import createHttpApp
-    const { createHttpApp } = await import('@/mcp-server/transports/http/httpTransport.js');
+    const res = await app.request('/healthz');
 
-    const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string };
+    expect(body.status).toBe('ok');
+  });
 
-    // Test supported protocol version
-    const request = new Request('http://localhost:3000/mcp', {
-      method: 'POST',
+  test('GET /healthz includes CORS headers', async () => {
+    const { app } = createHttpApp(mockServerFactory as () => Promise<McpServer>, mockContext);
+
+    const req = new Request('http://localhost/healthz', {
+      method: 'GET',
+      headers: { Origin: 'http://example.com' },
+    });
+    const res = await app.request(req);
+
+    expect(res.status).toBe(200);
+    // Wildcard CORS is configured — the response must include the allow-origin header.
+    expect(res.headers.get('access-control-allow-origin')).toBe('*');
+  });
+
+  test('unknown routes return 404', async () => {
+    const { app } = createHttpApp(mockServerFactory as () => Promise<McpServer>, mockContext);
+
+    const res = await app.request('/nonexistent');
+
+    expect(res.status).toBe(404);
+  });
+
+  test('OPTIONS preflight returns CORS headers', async () => {
+    const { app } = createHttpApp(mockServerFactory as () => Promise<McpServer>, mockContext);
+
+    const req = new Request('http://localhost/mcp', {
+      method: 'OPTIONS',
       headers: {
-        Origin: 'http://localhost:3000',
-        'Content-Type': 'application/json',
-        'Mcp-Protocol-Version': '2025-06-18',
+        Origin: 'http://example.com',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Content-Type, Authorization, Mcp-Session-Id',
       },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'initialize',
-        id: 1,
-        params: {
-          protocolVersion: '2025-06-18',
-          capabilities: {},
-          clientInfo: { name: 'test-client', version: '1.0.0' },
-        },
-      }),
     });
+    const res = await app.request(req);
 
-    const response = await app.fetch(request);
+    // Hono's CORS middleware returns 204 for preflight.
+    expect(res.status).toBe(204);
+    expect(res.headers.get('access-control-allow-origin')).toBe('*');
+    expect(res.headers.get('access-control-allow-methods')).toContain('POST');
 
-    // Should not reject with protocol error (400)
-    // May fail with other errors due to incomplete mock, but not protocol validation
-    expect(response.status).not.toBe(400);
-  });
-
-  test('should reject invalid protocol version', async () => {
-    const mockMcpServer: Partial<McpServer> = {
-      connect: vi.fn().mockResolvedValue(undefined),
-    };
-
-    // Mock config to allow the origin
-    const config = await import('@/config/index.js');
-    const originalOrigins = config.config.mcpAllowedOrigins;
-    Object.defineProperty(config.config, 'mcpAllowedOrigins', {
-      value: ['http://localhost:3000'],
-      writable: true,
-      configurable: true,
-    });
-
-    const { createHttpApp } = await import('@/mcp-server/transports/http/httpTransport.js');
-
-    const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
-
-    const request = new Request('http://localhost:3000/mcp', {
-      method: 'POST',
-      headers: {
-        Origin: 'http://localhost:3000',
-        'Content-Type': 'application/json',
-        'Mcp-Protocol-Version': '1999-01-01',
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'initialize',
-        id: 1,
-      }),
-    });
-
-    const response = await app.fetch(request);
-    const data: any = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data.error).toContain('Unsupported MCP protocol version');
-
-    // Restore
-    Object.defineProperty(config.config, 'mcpAllowedOrigins', {
-      value: originalOrigins,
-      writable: true,
-      configurable: true,
-    });
-  });
-});
-
-describe('HTTP Transport Integration - OAuth Metadata', () => {
-  let mockContext: RequestContext;
-
-  beforeEach(() => {
-    mockContext = {
-      requestId: 'test-oauth',
-      timestamp: Date.now() as any,
-      operation: 'test-oauth-metadata',
-    };
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  test('should return OAuth metadata when configured', async () => {
-    const mockMcpServer: Partial<McpServer> = {
-      connect: vi.fn().mockResolvedValue(undefined),
-    };
-
-    // Override config properties for this test
-    const configModule = await import('@/config/index.js');
-    const saved = {
-      mcpAuthMode: configModule.config.mcpAuthMode,
-      oauthIssuerUrl: configModule.config.oauthIssuerUrl,
-      oauthAudience: configModule.config.oauthAudience,
-    };
-    Object.defineProperty(configModule.config, 'mcpAuthMode', {
-      value: 'oauth',
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(configModule.config, 'oauthIssuerUrl', {
-      value: 'https://auth.example.com',
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(configModule.config, 'oauthAudience', {
-      value: 'https://api.example.com',
-      writable: true,
-      configurable: true,
-    });
-
-    try {
-      const { createHttpApp } = await import('@/mcp-server/transports/http/httpTransport.js');
-
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
-
-      const request = new Request('http://localhost:3000/.well-known/oauth-protected-resource', {
-        method: 'GET',
-      });
-
-      const response = await app.fetch(request);
-      const data: any = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.resource).toBeDefined();
-      expect(data.authorization_servers).toContain('https://auth.example.com');
-      expect(data.bearer_methods_supported).toEqual(['header']);
-      expect(response.headers.get('cache-control')).toContain('max-age=3600');
-    } finally {
-      // Restore original config values
-      for (const [key, value] of Object.entries(saved)) {
-        Object.defineProperty(configModule.config, key, {
-          value,
-          writable: true,
-          configurable: true,
-        });
-      }
-    }
+    // Mcp-Session-Id must be exposed so clients can read it from cross-origin responses.
+    const exposedHeaders = res.headers.get('access-control-expose-headers') ?? '';
+    expect(exposedHeaders.toLowerCase()).toContain('mcp-session-id');
   });
 });

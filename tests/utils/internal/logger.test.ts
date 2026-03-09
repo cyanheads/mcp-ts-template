@@ -41,13 +41,6 @@ vi.mock('@/config/index.js', () => ({
   },
 }));
 
-// Mock sanitization
-vi.mock('@/utils/security/sanitization.js', () => ({
-  sanitization: {
-    getSensitivePinoFields: vi.fn(() => ['password', 'secret', 'token', 'authorization']),
-  },
-}));
-
 // Mock requestContextService
 vi.mock('@/utils/internal/requestContext.js', () => ({
   requestContextService: {

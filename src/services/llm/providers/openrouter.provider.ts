@@ -14,7 +14,12 @@ import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { logger as LoggerType } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import type { RateLimiter } from '@/utils/security/rateLimiter.js';
-import { sanitization } from '@/utils/security/sanitization.js';
+
+let _sanitization: typeof import('@/utils/security/sanitization.js') | undefined;
+async function getSanitization() {
+  _sanitization ??= await import('@/utils/security/sanitization.js');
+  return _sanitization.sanitization;
+}
 
 export interface OpenRouterClientOptions {
   apiKey: string;
@@ -152,7 +157,7 @@ export class OpenRouterProvider implements ILlmProvider {
     context: RequestContext,
   ): Promise<ChatCompletion | Stream<ChatCompletionChunk>> {
     const operation = 'OpenRouterProvider.chatCompletion';
-    const sanitizedParams = sanitization.sanitizeForLogging(params);
+    const sanitizedParams = (await getSanitization()).sanitizeForLogging(params);
 
     return await ErrorHandler.tryCatch(
       async () => {
