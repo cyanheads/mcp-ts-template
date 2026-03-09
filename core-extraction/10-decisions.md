@@ -17,6 +17,11 @@
 | 7 | `@/` alias in server code? | **Two import styles, self-documenting.** | `@/` = server's `src/`. `@cyanheads/mcp-ts-core/*` = framework. Clear which code is "mine" vs. "framework." |
 | 8 | Template repo identity after extraction? | **`mcp-ts-template` npm gets final major with deprecation.** | GitHub repo transforms in-place. New thin template repo created as consumer. See [01-architecture.md](01-architecture.md). |
 | 9 | `services` callback async support? | **`(container: Container) => void \| Promise<void>`.** | `bootstrap()` awaits the result. Supports async init (DB connections, API warm-up, remote config). |
+| 10 | `ServerHandle` surface area? | **Expose `container` (read-only).** | Downstream servers need container access for integration testing, health checks, and programmatic embedding. Deferring to 1.0 forces workarounds in every migrated server. `ServerHandle.container` is typed as `Container` (read-only access through the existing API — `resolve`/`has`/`resolveAll`). |
+| 11 | `pino-pretty` placement? | **`devDependencies` only.** | Already dynamically resolved via `require.resolve()` with try/catch fallback to JSON output ([logger.ts:107-112](../src/utils/internal/logger.ts#L107-L112)). No code change needed — the current pattern is already correct. Servers that want pretty dev output install it themselves. |
+| 12 | `hono` as peer dependency? | **Core dependency only, not peer.** | Core owns the Hono version. Servers extending the HTTP transport use the version core provides. If version conflicts arise in practice, promote to peer in a minor release. |
+| 13 | Provider code in core without interfaces? | **Yes — intentional.** | Storage and service providers ship in core. Their heavy deps (`@supabase/supabase-js`, `openai`) are Tier 3 optional peers. The lazy import pattern means provider code is inert until activated by config. Service interfaces stay in downstream servers until shared by 2+ servers. |
+| 14 | Zod peer dep version range? | **`"zod": "^4.3.0"`.** | `^4.0.0` is too broad — earlier Zod 4 releases had API churn. Pin minimum to `4.3.0`, the version the codebase is tested against. |
 
 ---
 
@@ -26,8 +31,7 @@
 |:--|:---------|:--------|:------|
 | 1 | Exports catalog format: hand-maintained or auto-generated? | **Hand-maintained initially.** Graduate to generation once exports stabilize. | Generated (via build step extracting JSDoc + export names) can't drift. But premature until the export surface is stable. |
 | 2 | `examples/` in the published npm package? | **Exclude.** | Useful as runnable reference but adds package size. The reference template repo is the user-facing example; `examples/` exists for core's CI. |
-| 3 | `ServerHandle` surface area? | **Consider exposing `container`.** | Downstream servers may need `container` access for integration testing, health checks, or programmatic embedding. `container: Container` (read-only) on `ServerHandle`. |
-| 4 | `extraEnvBindings`/`extraObjectBindings` typing? | **Defer to 1.0.** | Both are `Array<[string, string]>` which loses type info. Generic `createWorkerHandler<B extends CoreBindings>` could enforce at compile time. Possibly overengineered for 0.1. |
+| 3 | `extraEnvBindings`/`extraObjectBindings` typing? | **Defer to 1.0.** | Both are `Array<[string, string]>` which loses type info. Generic `createWorkerHandler<B extends CoreBindings>` could enforce at compile time. Possibly overengineered for 0.1. |
 
 ---
 
@@ -41,3 +45,7 @@ Record significant decisions made during execution here. Include date, context, 
 | 2026-03-09 | Tier 3 deps as optional peers with lazy imports | Dependency strategy | Minimal install footprint. Servers pay only for what they use. |
 | 2026-03-09 | Agent Skills for workflow packaging | Agent DX | Progressive disclosure (~50 tokens/skill at startup). Portable across agent platforms. |
 | 2026-03-09 | Decomposed monolithic design doc into `core-extraction/` | Planning | Modular docs are easier to maintain, reference, and update incrementally. |
+| 2026-03-09 | Resolve `ServerHandle.container`, pino-pretty, hono peer, zod range, providers in core | Plan review | Moved from open questions to resolved decisions (#10-#14). Deferring these created risk for Phase 7 migrations. |
+| 2026-03-09 | Added build pipeline doc ([03a-build.md](03a-build.md)) | Plan review | Build strategy for multi-entry subpath exports was unaddressed — `bun build` doesn't emit `.d.ts`. |
+
+| 2026-03-09 | Fixed `@hono/mcp` and `diff` dep placement | Plan review | Both misplaced in current `package.json` — would cause runtime failures in production installs. |

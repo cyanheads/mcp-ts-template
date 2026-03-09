@@ -36,6 +36,8 @@ interface BootstrapOptions {
 interface ServerHandle {
   /** Initiates graceful shutdown (flushes OTEL, closes logger, stops transport) */
   shutdown(signal?: string): Promise<void>;
+  /** Read-only access to the DI container for integration testing, health checks, or embedding */
+  readonly container: Container;
 }
 
 /**
@@ -204,43 +206,43 @@ The `exports` field in `@cyanheads/mcp-ts-core/package.json` defines the public 
 {
   "exports": {
     // Entry points
-    "./bootstrap":       "./dist/bootstrap.js",
-    "./worker":          "./dist/worker.js",
+    "./bootstrap":       { "types": "./dist/bootstrap.d.ts",       "import": "./dist/bootstrap.js" },
+    "./worker":          { "types": "./dist/worker.d.ts",          "import": "./dist/worker.js" },
 
     // MCP primitives
-    "./tools":           "./dist/mcp-server/tools/utils/toolDefinition.js",
-    "./resources":       "./dist/mcp-server/resources/utils/resourceDefinition.js",
-    "./prompts":         "./dist/mcp-server/prompts/utils/promptDefinition.js",
-    "./tasks":           "./dist/mcp-server/tasks/utils/taskToolDefinition.js",
+    "./tools":           { "types": "./dist/mcp-server/tools/utils/toolDefinition.d.ts",           "import": "./dist/mcp-server/tools/utils/toolDefinition.js" },
+    "./resources":       { "types": "./dist/mcp-server/resources/utils/resourceDefinition.d.ts",   "import": "./dist/mcp-server/resources/utils/resourceDefinition.js" },
+    "./prompts":         { "types": "./dist/mcp-server/prompts/utils/promptDefinition.d.ts",       "import": "./dist/mcp-server/prompts/utils/promptDefinition.js" },
+    "./tasks":           { "types": "./dist/mcp-server/tasks/utils/taskToolDefinition.d.ts",       "import": "./dist/mcp-server/tasks/utils/taskToolDefinition.js" },
 
     // Core infrastructure
-    "./errors":          "./dist/types-global/errors.js",
-    "./config":          "./dist/config/index.js",
-    "./container":       "./dist/container/core/container.js",
-    "./tokens":          "./dist/container/core/tokens.js",
+    "./errors":          { "types": "./dist/types-global/errors.d.ts",          "import": "./dist/types-global/errors.js" },
+    "./config":          { "types": "./dist/config/index.d.ts",                 "import": "./dist/config/index.js" },
+    "./container":       { "types": "./dist/container/core/container.d.ts",     "import": "./dist/container/core/container.js" },
+    "./tokens":          { "types": "./dist/container/core/tokens.d.ts",        "import": "./dist/container/core/tokens.js" },
 
     // Auth
-    "./auth":            "./dist/mcp-server/transports/auth/lib/withAuth.js",
+    "./auth":            { "types": "./dist/mcp-server/transports/auth/lib/withAuth.d.ts", "import": "./dist/mcp-server/transports/auth/lib/withAuth.js" },
 
     // Storage
-    "./storage":         "./dist/storage/core/StorageService.js",
-    "./storage/types":   "./dist/storage/core/IStorageProvider.js",
+    "./storage":         { "types": "./dist/storage/core/StorageService.d.ts",       "import": "./dist/storage/core/StorageService.js" },
+    "./storage/types":   { "types": "./dist/storage/core/IStorageProvider.d.ts",     "import": "./dist/storage/core/IStorageProvider.js" },
 
     // Utils (grouped, not one-per-file)
-    "./utils/logger":          "./dist/utils/internal/logger.js",
-    "./utils/requestContext":  "./dist/utils/internal/requestContext.js",
-    "./utils/errorHandler":    "./dist/utils/internal/error-handler/errorHandler.js",
-    "./utils/formatting":      "./dist/utils/formatting/markdownBuilder.js",
-    "./utils/parsing":         "./dist/utils/parsing/index.js",
-    "./utils/security":        "./dist/utils/security/index.js",
-    "./utils/network":         "./dist/utils/network/fetchWithTimeout.js",
-    "./utils/pagination":      "./dist/utils/pagination/pagination.js",
-    "./utils/runtime":         "./dist/utils/internal/runtime.js",
-    "./utils/scheduling":      "./dist/utils/scheduling/scheduler.js",
-    "./utils/types":           "./dist/utils/types/index.js",
+    "./utils/logger":          { "types": "./dist/utils/internal/logger.d.ts",                         "import": "./dist/utils/internal/logger.js" },
+    "./utils/requestContext":  { "types": "./dist/utils/internal/requestContext.d.ts",                  "import": "./dist/utils/internal/requestContext.js" },
+    "./utils/errorHandler":    { "types": "./dist/utils/internal/error-handler/errorHandler.d.ts",      "import": "./dist/utils/internal/error-handler/errorHandler.js" },
+    "./utils/formatting":      { "types": "./dist/utils/formatting/markdownBuilder.d.ts",               "import": "./dist/utils/formatting/markdownBuilder.js" },
+    "./utils/parsing":         { "types": "./dist/utils/parsing/index.d.ts",                            "import": "./dist/utils/parsing/index.js" },
+    "./utils/security":        { "types": "./dist/utils/security/index.d.ts",                           "import": "./dist/utils/security/index.js" },
+    "./utils/network":         { "types": "./dist/utils/network/fetchWithTimeout.d.ts",                 "import": "./dist/utils/network/fetchWithTimeout.js" },
+    "./utils/pagination":      { "types": "./dist/utils/pagination/pagination.d.ts",                    "import": "./dist/utils/pagination/pagination.js" },
+    "./utils/runtime":         { "types": "./dist/utils/internal/runtime.d.ts",                         "import": "./dist/utils/internal/runtime.js" },
+    "./utils/scheduling":      { "types": "./dist/utils/scheduling/scheduler.d.ts",                     "import": "./dist/utils/scheduling/scheduler.js" },
+    "./utils/types":           { "types": "./dist/utils/types/index.d.ts",                              "import": "./dist/utils/types/index.js" },
 
     // Test utilities
-    "./testing":               "./dist/testing/index.js",
+    "./testing":               { "types": "./dist/testing/index.d.ts", "import": "./dist/testing/index.js" },
 
     // Build configs (not compiled — shipped as-is from package root)
     "./tsconfig.base.json":    "./tsconfig.base.json",
@@ -250,7 +252,7 @@ The `exports` field in `@cyanheads/mcp-ts-core/package.json` defines the public 
 }
 ```
 
-Each export includes both `import` and `types` conditions for TypeScript consumers. Internal file structure can change without breaking downstream — only subpath names are the contract.
+Every compiled export has both `types` and `import` conditions. The `types` condition must come first — TypeScript requires it before `import` for correct resolution. Build config exports are plain strings (no `.d.ts`). Internal file structure can change without breaking downstream — only subpath names are the contract. See [03a-build.md](03a-build.md) for the build pipeline that produces `dist/`.
 
 **Notes:**
 - `./utils/parsing` and `./utils/security` point to barrel `index.js` files. These are legitimate aggregation points — they collect lazy-import wrappers into a single entry point. Each individual parser/utility uses dynamic `import()` internally, so importing the barrel doesn't pull in unused Tier 3 deps.

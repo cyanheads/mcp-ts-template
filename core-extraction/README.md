@@ -17,11 +17,12 @@ This directory contains the living plan for extracting the infrastructure layer 
 | 01 | [Architecture](01-architecture.md) | Problem, solution, package boundary, repo strategy, versioning |
 | 02 | [Public API](02-public-api.md) | `bootstrap()`, `createWorkerHandler()`, subpath exports |
 | 03 | [Config & Container](03-config-container.md) | Config extension pattern, container split, DI changes |
+| 03a | [Build Pipeline](03a-build.md) | `tsc` + `tsc-alias`, `.d.ts` generation, `files` array, export verification |
 | 04 | [Dependencies](04-dependencies.md) | Dependency tiers, lazy import conversion, minimal install |
 | 05 | [Agent DX](05-agent-dx.md) | Agent discovery, `CLAUDE.md` management, Agent Skills |
 | 06 | [Testing](06-testing.md) | Testing strategy post-extraction |
 | 07 | [Migration](07-migration.md) | Migration path for existing servers, `create-mcp-server` CLI |
-| 08 | [Pre-extraction Cleanup](08-pre-extraction.md) | DI/wiring fixes, lazy dep conversion, coupling fixes |
+| 08 | [Pre-extraction Cleanup](08-pre-extraction.md) | DI/wiring fixes, dep placement bugs, lazy dep conversion, coupling fixes |
 | 09 | [Execution Sequence](09-execution.md) | Phased execution with per-phase checklists |
 | 10 | [Decisions](10-decisions.md) | Resolved decisions, open questions, decision log |
 

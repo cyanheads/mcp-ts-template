@@ -18,6 +18,15 @@
 | 2 | `worker.ts` has hardcoded binding keys | [worker.ts:86-106](../src/worker.ts#L86-L106) | Extract `CoreBindingMappings` as a const; `createWorkerHandler` merges with `extraEnvBindings` (strings → process.env) and `extraObjectBindings` (KV/R2/D1 → globalThis) | Not started |
 | 3 | `worker.ts` `CloudflareBindings` has index signature | [worker.ts:62](../src/worker.ts#L62) | Remove `[key: string]: unknown` so servers must declare extra bindings via `extends` | Not started |
 
+### `package.json` dep placement bugs
+
+These are misplacements in the current `package.json` that must be fixed before extraction. They don't affect template development (where all deps are installed) but would cause runtime failures in production installs.
+
+| # | Issue | Location | Fix | Status |
+|:--|:------|:---------|:----|:-------|
+| 3a | `@hono/mcp` in `devDependencies` | [package.json:83](../package.json#L83) | Move to `dependencies` — required at runtime by the HTTP transport (`httpTransport.ts` imports `StreamableHTTPTransport` from it) | Not started |
+| 3b | `diff` in `devDependencies` only | [package.json:99](../package.json#L99) | Move to `dependencies` — imported at runtime by `diffFormatter.ts`. Becomes an optional peer during extraction, but the current placement means `bun install --production` breaks any server using the diff formatter. | Not started |
+
 ---
 
 ## Coupling Fixes
@@ -51,7 +60,7 @@ All Tier 3 deps that currently use static `import` need conversion to lazy dynam
 | 12 | [dateParser.ts](../src/utils/parsing/dateParser.ts) | `chrono-node` | Not started |
 | 13 | [diffFormatter.ts](../src/utils/formatting/diffFormatter.ts) | `diff` | Not started |
 | 14 | [sanitization.ts](../src/utils/security/sanitization.ts) | `sanitize-html`, `validator` | Not started |
-| 15 | [httpTransport.ts](../src/mcp-server/transports/http/httpTransport.ts) | `@hono/otel` (conditional on OTEL enabled) | Not started |
+| 15 | [httpTransport.ts](../src/mcp-server/transports/http/httpTransport.ts) | `@hono/otel` — static import at line 14, but only used inside `if (config.openTelemetry.enabled)` at line 90-96. Lazy conversion requires moving the `import()` inside the `if` block, not just swapping the top-level import. The middleware registration becomes async. | Not started |
 | 16 | [openrouter.provider.ts](../src/services/llm/providers/openrouter.provider.ts) | `openai` | Not started |
 | 17 | [core.ts](../src/container/registrations/core.ts) | `@supabase/supabase-js` (runtime import) | Not started |
 
@@ -87,7 +96,9 @@ Convert all Tier 3 static imports. Run `devcheck` + full test suite, commit. Bac
 
 ## Master Checklist
 
-### Phase 1: DI/wiring + coupling
+### Phase 1: DI/wiring + coupling + dep placement
+- [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
+- [ ] `diff` moved from `devDependencies` to `dependencies` (#3b)
 - [ ] `registerMcpServices()` parameterized (#1)
 - [ ] Worker binding keys extracted to `CoreBindingMappings` const (#2)
 - [ ] `CloudflareBindings` index signature removed (#3)
@@ -106,7 +117,7 @@ Convert all Tier 3 static imports. Run `devcheck` + full test suite, commit. Bac
 - [ ] `dateParser.ts` — `chrono-node` lazy (#12)
 - [ ] `diffFormatter.ts` — `diff` lazy (#13)
 - [ ] `sanitization.ts` — `sanitize-html`, `validator` lazy (#14)
-- [ ] `httpTransport.ts` — `@hono/otel` conditional (#15)
+- [ ] `httpTransport.ts` — `@hono/otel` lazy inside OTEL-enabled guard (#15)
 - [ ] `openrouter.provider.ts` — `openai` lazy (#16)
 - [ ] `core.ts` — `@supabase/supabase-js` lazy (#17)
 - [ ] All lazy imports throw `McpError(ConfigurationError)` with install instruction

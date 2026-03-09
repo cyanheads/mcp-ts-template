@@ -22,11 +22,13 @@
 
 ## Phase 1: Pre-extraction Cleanup
 
-Fix DI/wiring issues and coupling. Small, non-breaking changes that align the code with the extraction boundary.
+Fix DI/wiring issues, coupling, and dependency placement bugs. Small, non-breaking changes that align the code with the extraction boundary.
 
-**Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (items 1-6)
+**Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (items 1-6, 3a-3b)
 
 ### Checklist
+- [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
+- [ ] `diff` moved from `devDependencies` to `dependencies` (#3b)
 - [ ] `registerMcpServices()` accepts `ServerDefinitions` parameter
 - [ ] Worker binding keys extracted to `CoreBindingMappings` const
 - [ ] `CloudflareBindings` index signature removed
@@ -58,21 +60,26 @@ Convert all Tier 3 static imports to lazy dynamic `import()`. Backwards-compatib
 
 The core of the extraction. Transform the repo in-place.
 
-**Detail docs:** [01-architecture.md](01-architecture.md), [02-public-api.md](02-public-api.md), [03-config-container.md](03-config-container.md)
+**Detail docs:** [01-architecture.md](01-architecture.md), [02-public-api.md](02-public-api.md), [03-config-container.md](03-config-container.md), [03a-build.md](03a-build.md)
 
 ### Checklist
 - [ ] `package.json` renamed to `@cyanheads/mcp-ts-core`
 - [ ] Template definitions moved to `examples/`
-- [ ] `bootstrap()` implemented as public entry point
+- [ ] `bootstrap()` implemented as public entry point (returns `ServerHandle` with `shutdown()` and `container`)
 - [ ] `createWorkerHandler()` implemented as public entry point
 - [ ] Current `index.ts` and `worker.ts` converted to example entry points in `examples/`
-- [ ] `exports` field added with all subpath exports (see [02-public-api.md](02-public-api.md))
-- [ ] `peerDependencies` / `peerDependenciesMeta` configured for tiered deps
+- [ ] Build pipeline: `build` script changed to `tsc && tsc-alias`, `tsc-alias` added to devDeps (see [03a-build.md](03a-build.md))
+- [ ] `tsconfig.base.json` created for downstream server extension
+- [ ] `exports` field added with all subpath exports, each with `types` + `import` conditions (see [02-public-api.md](02-public-api.md))
+- [ ] Export verification script added to CI
+- [ ] `peerDependencies` / `peerDependenciesMeta` configured for tiered deps (`"zod": "^4.3.0"`)
 - [ ] Consumer-facing `CLAUDE.md` written with exports catalog
 - [ ] `CONTRIBUTING.md` written (repo-only, excluded from package)
 - [ ] Agent skill definitions written in `skills/` (see [05-agent-dx.md](05-agent-dx.md))
-- [ ] `files` array includes `dist/`, build configs, `CLAUDE.md`, `skills/`
-- [ ] Package compiles cleanly
+- [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js`, `eslint.config.js`
+- [ ] `prepublishOnly` script added
+- [ ] Package compiles cleanly (`tsc && tsc-alias`)
+- [ ] `npm pack --dry-run` produces expected file set
 - [ ] Examples build against the exports
 
 ---
