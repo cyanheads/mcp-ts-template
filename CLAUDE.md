@@ -1,12 +1,10 @@
 # Agent Protocol
 
-**Version:** 3.0.0
+**Version:** 0.1.0-beta.1
 **Project:** mcp-ts-template
-**Updated:** 2026-03-04
+**Updated:** 2026-03-09
 **npm:** [mcp-ts-template](https://www.npmjs.com/package/mcp-ts-template)
 **Docker:** [ghcr.io/cyanheads/mcp-ts-template](https://ghcr.io/cyanheads/mcp-ts-template)
-
-> **Symlink note:** `AGENTS.md` is a symlink to `CLAUDE.md`. Only edit the root `CLAUDE.md`.
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
 
@@ -20,7 +18,7 @@
 
 **Structured, traceable operations.** Logic receives `appContext` (logging/tracing) and `sdkContext` (Elicitation, Sampling, Roots). Pass the same `appContext` through the call stack. Use global `logger` with `appContext` in every log.
 
-**Decoupled storage.** Never access persistence backends directly. Always use DI-injected `StorageService`. It provides built-in validation, opaque cursor pagination, and parallel batch operations. All inputs (tenant IDs, keys, prefixes) are validated before reaching providers.
+**Decoupled storage.** Never access persistence backends directly. Use `StorageService` (constructed in `createApp()`). It provides built-in validation, opaque cursor pagination, and parallel batch operations. All inputs (tenant IDs, keys, prefixes) are validated before reaching providers.
 
 **Local/edge runtime parity.** All features work with local transports (`stdio`/`http`) and Worker bundle (`build:worker` + `wrangler`). Guard non-portable deps using `runtimeCaps` from `@/utils/internal/runtime.js`. Prefer runtime-agnostic abstractions (Hono + `@hono/mcp`, Fetch APIs).
 
@@ -45,9 +43,9 @@ See [docs/tree.md](docs/tree.md) for the complete visual tree. Respect the estab
 | `src/mcp-server/transports/`            | Transport implementations: `http/` (Hono + `@hono/mcp` Streamable HTTP), `stdio/` (MCP spec stdio), `auth/` (strategies and helpers). HTTP can enforce JWT/OAuth. Stdio should not implement HTTP-based auth. |
 | `src/config/`                           | Zod-validated config from environment variables. Derives `serviceName`/`version` from `package.json`.                                                                                                         |
 | `src/types-global/`                     | Global type definitions shared across the codebase (`McpError`, `JsonRpcErrorCode`, etc.).                                                                                                                    |
-| `src/services/`                         | External service integrations. Each domain (e.g. `llm/`, `speech/`, `graph/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`. Use DI for all service deps.         |
+| `src/services/`                         | External service integrations. Each domain (e.g. `llm/`, `speech/`, `graph/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`.                                      |
 | `src/storage/`                          | Storage abstractions and provider implementations (in-memory, filesystem, supabase, cloudflare).                                                                                                              |
-| `src/container/`                        | Dependency injection (custom typed container). `Token<T>` phantom branding, service registration/resolution. Zero external deps.                                                                              |
+| `src/app.ts`                            | Composition root. `createApp()` constructs all services in dependency order, returns `AppHandle` with `createServer` factory and `transportManager`.                                                          |
 | `src/utils/`                            | Global utilities: logging, performance, parsing, network, security, formatting, telemetry. Error handling is at `src/utils/internal/error-handler/`.                                                          |
 | `tests/`                                | Unit/integration tests. Mirrors `src/` layout. Includes compliance suites.                                                                                                                                    |
 
@@ -89,7 +87,6 @@ import type { ToolDefinition } from '@/mcp-server/tools/utils/index.js';
 | `src/mcp-server/tools/definitions/index.ts` | Collects `allToolDefinitions[]` for registration |
 | `src/mcp-server/resources/definitions/index.ts` | Collects `allResourceDefinitions[]` for registration |
 | `src/mcp-server/prompts/definitions/index.ts` | Collects `allPromptDefinitions[]` for registration |
-| `src/container/index.ts` | Composes the DI container |
 | `src/config/index.ts` | Config public API |
 
 Do not create new barrel files. Do not import from barrel files in tool/resource/prompt logic.
@@ -222,9 +219,9 @@ All services live in `src/services/[service-name]/` with `core/` (interfaces), `
 - Single-provider (e.g. LLM) — inject via constructor
 - Multi-provider (e.g. Speech) — create orchestrator for routing/aggregation
 
-**Provider requirements:** implement `I<Service>Provider`, add `healthCheck()`, throw `McpError` on failure, name as `<name>.provider.ts`. Register in `registrations/core.ts` via `container.registerSingleton(token, factory)`.
+**Provider requirements:** implement `I<Service>Provider`, add `healthCheck()`, throw `McpError` on failure, name as `<name>.provider.ts`.
 
-**Sequence:** directory structure, interface, providers, types, DI token in `tokens.ts`, register in `registrations/core.ts`.
+**Sequence:** directory structure, interface, providers, types. Construct the service in `src/app.ts` `createApp()` if it's a core dependency, or use the init/accessor pattern for server-specific services.
 
 ---
 
@@ -441,64 +438,53 @@ const mockSdkContextWithoutSampling = { ...mockSdkContext };
 
 ### Test Isolation
 
-Use `container.fork()` when tests need to override DI registrations without affecting other tests.
+Construct dependencies directly in `beforeEach`. For storage-dependent tests, use `new StorageService(new InMemoryProvider())`. For server tests, pass mock deps to `createMcpServerInstance()` via the `McpServerDeps` interface.
 
 ---
 
-## DI Container
+## Application Wiring
 
-Custom zero-dependency container in `src/container/core/container.ts`. Tokens in `src/container/core/tokens.ts`.
+All services are constructed directly in `src/app.ts` via `createApp()`. No DI container, no tokens, no registration/resolution indirection.
 
-### Container API
-
-| Method | Purpose |
-| :--- | :--- |
-| `registerValue(token, value)` | Always singleton. Stores pre-built instance. |
-| `registerSingleton(token, factory)` | Lazy singleton — factory called on first `resolve()`. |
-| `registerFactory(token, factory, opts?)` | Transient by default. `{ singleton: true }` for singleton. |
-| `registerMulti(token, value)` | Append to multi-registry (for collecting arrays like tool definitions). |
-| `resolve(token)` | Get instance. Throws if not registered. |
-| `resolveAll(token)` | Get all multi-registered values. Returns `[]` if none. |
-| `has(token)` | Check if token is registered. |
-| `fork()` | Shallow-copy registries into child container (test isolation). |
-| `clearInstances()` | Clear cached singletons, keep registrations. |
-| `reset()` | Full wipe — registrations and instances. |
-
-### Tokens
-
-Tokens are phantom-branded with `Token<T>` — full type safety at compile time, zero cost at runtime.
+### `createApp()` → `AppHandle`
 
 ```ts
-import { token } from '@/container/core/container.js';
-const MyServiceToken = token<MyService>('MyService');
+import { createApp, type AppHandle } from '@/app.js';
+
+const { createServer, transportManager }: AppHandle = createApp();
 ```
 
-| Token | Type | Notes |
-| :--- | :--- | :--- |
-| `AppConfig` | `ReturnType<typeof parseConfig>` | |
-| `Logger` | Pino logger | |
-| `StorageService` | `StorageService` | Requires `context.tenantId` |
-| `StorageProvider` | `IStorageProvider` | |
-| `LlmProvider` | `ILlmProvider` | |
-| `RateLimiterService` | `RateLimiter` | |
-| `SpeechService` | `SpeechService` | TTS/STT orchestrator |
-| `SupabaseAdminClient` | `SupabaseClient<Database>` | Only when configured |
-| `TransportManagerToken` | `TransportManager` | |
-| `TaskManagerToken` | `TaskManager` | MCP Tasks API |
-| `CreateMcpServerInstance` | `() => Promise<McpServer>` | Factory function |
-| `ToolRegistryToken` | `ToolRegistry` | |
-| `ResourceRegistryToken` | `ResourceRegistry` | |
-| `PromptRegistryToken` | `PromptRegistry` | |
-| `RootsRegistryToken` | `RootsRegistry` | |
-| `ToolDefinitions` | Multi-token | All tool definitions |
-| `ResourceDefinitions` | Multi-token | All resource definitions |
+**Construction order** (inside `createApp()`):
 
-### Composition Root
+1. **Config** — lazy proxy, parsed on first property access
+2. **Supabase client** — only when `storage.providerType === 'supabase'`
+3. **StorageProvider** → **StorageService**
+4. **Registries** — `ToolRegistry`, `ResourceRegistry`, `PromptRegistry`, `RootsRegistry` (from imported definition arrays)
+5. **TaskManager** — receives config + storageService
+6. **Server factory** — `createServer()` closure that calls `createMcpServerInstance(deps)` with all registries
+7. **TransportManager** — receives config, logger, createServer factory, taskManager
 
-`composeContainer()` in `src/container/index.ts` is idempotent. Calls:
+### `McpServerDeps`
 
-1. `registerCoreServices()` — config, logger, Supabase, storage provider/service, rate limiter, LLM, speech
-2. `registerMcpServices()` — multi-registers all tool/resource definitions, builds registries, wires TaskManager and TransportManager
+`createMcpServerInstance()` in `src/mcp-server/server.ts` accepts an explicit deps struct:
+
+```ts
+export interface McpServerDeps {
+  config: AppConfig;
+  promptRegistry: PromptRegistry;
+  resourceRegistry: ResourceRegistry;
+  rootsRegistry: RootsRegistry;
+  toolRegistry: ToolRegistry;
+}
+```
+
+### Entry points
+
+| Entry | Usage |
+| :--- | :--- |
+| `src/index.ts` | `const { transportManager } = createApp()` — then `transportManager.start()` |
+| `src/worker.ts` | `const { createServer } = createApp()` — passed to `createHttpApp(createServer, ctx)` |
+| Tests (conformance) | `const { createServer } = createApp()` — server connected via `InMemoryTransport` |
 
 ---
 
@@ -537,7 +523,7 @@ All imports use direct file paths: `@/utils/<module>/<file>.js`.
 
 `STORAGE_PROVIDER_TYPE` = `in-memory` | `filesystem` | `supabase` | `cloudflare-r2` | `cloudflare-kv` | `cloudflare-d1`
 
-Use DI-injected `StorageService`. Features: input validation, parallel batch ops (`getMany`/`setMany`/`deleteMany`), secure tenant-bound pagination, TTL support. See [storage docs](src/storage/README.md).
+Use `StorageService` (constructed in `createApp()`). Features: input validation, parallel batch ops (`getMany`/`setMany`/`deleteMany`), secure tenant-bound pagination, TTL support. See [storage docs](src/storage/README.md).
 
 ---
 
@@ -562,10 +548,10 @@ Use DI-injected `StorageService`. Features: input validation, parallel batch ops
 
 ## Transports & Lifecycle
 
-- `createMcpServerInstance` (`server.ts`): initializes context, creates server with declared capabilities (`logging`, `resources`/`tools`/`prompts` with `listChanged`, `tasks` with list/cancel/requests)
+- `createMcpServerInstance(deps)` (`server.ts`): accepts `McpServerDeps`, creates server with declared capabilities (`logging`, `resources`/`tools`/`prompts` with `listChanged`, `tasks` with list/cancel/requests)
 - Elicitation, sampling, and roots are SDK context features available to tool logic via `sdkContext`, not declared server capabilities
-- `TransportManager` (`transports/manager.ts`): resolves factory, instantiates transport, handles lifecycle
-- Worker (`worker.ts`): Cloudflare adapter with `serverless` flag
+- `TransportManager` (`transports/manager.ts`): receives `createServer` factory, config, logger, and `taskManager` as constructor params. Instantiates transport and handles lifecycle.
+- Worker (`worker.ts`): Cloudflare adapter with `serverless` flag. Uses `createApp()` to get server factory.
 
 **Local/edge parity:** stdio and HTTP transports work identically. Worker: `build:worker` + `wrangler dev --local` must succeed. `wrangler.toml`: `compatibility_date` >= `2025-09-01`, `nodejs_compat`.
 
@@ -589,7 +575,7 @@ Entry point: `src/worker.ts`. Exports standard Workers `{ fetch, scheduled }` ob
 | :--- | :--- | :--- |
 | `runtimeCaps` | `@/utils/internal/runtime.js` | Feature detection: `isNode`, `isWorkerLike`, `hasBuffer`, etc. |
 | Serverless whitelist | `storageFactory.ts` | Only `in-memory`, `cloudflare-r2`, `cloudflare-kv`, `cloudflare-d1` in Workers; others fall back to `in-memory` |
-| `IS_SERVERLESS` flag | `worker.ts` | Set on `process.env` (or `globalThis` if `process` absent) before `composeContainer()` |
+| `IS_SERVERLESS` flag | `worker.ts` | Set on `process.env` (or `globalThis` if `process` absent) before `createApp()` |
 
 **Non-portable deps:** `filesystem` and `supabase` storage providers. Gated by the serverless whitelist — won't load in Workers.
 
@@ -616,7 +602,7 @@ Entry point: `src/worker.ts`. Exports standard Workers `{ fetch, scheduled }` ob
 - **Logging:** include `appContext` spread, use `logger.{debug|info|notice|warning|error|crit|emerg}`
 - **Errors:** logic throws `McpError`, handlers catch. `ErrorHandler.tryCatch` for services only.
 - **Secrets:** `src/config/index.ts` only
-- **Rate limiting:** DI-injected `RateLimiter`
+- **Rate limiting:** `RateLimiter` from `@/utils/security/rateLimiter.js`
 - **Telemetry:** auto-init, no manual spans
 - **Imports:** direct file imports everywhere. Barrels only for aggregation (see [Imports](#imports)).
 - **No fabricated signal:** Don't invent synthetic scores, composite metrics, or calculated "confidence percentages" from arbitrary weights. They look authoritative but are epistemically empty and mislead both users and AI agents. Surface real signal: actual API scores, direct measurements, factual orderings with interpretable criteria. If ranking/sorting, use transparent rules and document them.
@@ -778,7 +764,7 @@ If any condition isn't met, do it yourself. When in doubt, do it yourself.
 - [ ] Zod schemas: all fields have `.describe()`, input/output schemas defined
 - [ ] JSDoc `@fileoverview` + `@module` header on every new/modified file
 - [ ] Auth applied with `withToolAuth`/`withResourceAuth`
-- [ ] Logger used with `appContext` spread, `StorageService` (DI) for persistence
+- [ ] Logger used with `appContext` spread, `StorageService` for persistence
 - [ ] `sdkContext` capabilities duck-typed with guards before use
 - [ ] `tenantId` set on `RequestContext` when using `StorageService`
 - [ ] Direct file imports — no barrel imports
