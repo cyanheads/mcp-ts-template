@@ -3,6 +3,7 @@
  * @module tests/mcp-server/prompts/prompt-registration.test.ts
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { allPromptDefinitions } from '@/mcp-server/prompts/definitions/index.js';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import { logger } from '@/utils/internal/logger.js';
 
@@ -17,7 +18,7 @@ describe('PromptRegistry', () => {
     };
 
     // Create registry with logger
-    registry = new PromptRegistry(logger);
+    registry = new PromptRegistry(allPromptDefinitions, logger);
   });
 
   describe('Prompt Registration', () => {
@@ -190,7 +191,7 @@ describe('PromptRegistry', () => {
       const newMockServer: any = {
         registerPrompt: vi.fn(() => {}),
       };
-      const newRegistry = new PromptRegistry(logger);
+      const newRegistry = new PromptRegistry(allPromptDefinitions, logger);
 
       await newRegistry.registerAll(newMockServer);
       const secondCount = newMockServer.registerPrompt.mock.calls.length;

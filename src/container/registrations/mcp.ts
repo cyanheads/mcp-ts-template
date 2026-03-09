@@ -9,6 +9,7 @@ import {
   AppConfig,
   CreateMcpServerInstance,
   Logger,
+  PromptDefinitions,
   PromptRegistryToken,
   ResourceDefinitions,
   ResourceRegistryToken,
@@ -19,6 +20,7 @@ import {
   ToolRegistryToken,
   TransportManagerToken,
 } from '@/container/core/tokens.js';
+import { allPromptDefinitions } from '@/mcp-server/prompts/definitions/index.js';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
@@ -44,6 +46,11 @@ export const registerMcpServices = () => {
     container.registerMulti(ResourceDefinitions, resource);
   }
 
+  // Multi-register all prompt definitions
+  for (const prompt of allPromptDefinitions) {
+    container.registerMulti(PromptDefinitions, prompt);
+  }
+
   // Registry singletons — constructed with resolved dependencies
   container.registerSingleton(
     ToolRegistryToken,
@@ -55,7 +62,10 @@ export const registerMcpServices = () => {
     (c) => new ResourceRegistry(c.resolveAll(ResourceDefinitions)),
   );
 
-  container.registerSingleton(PromptRegistryToken, (c) => new PromptRegistry(c.resolve(Logger)));
+  container.registerSingleton(
+    PromptRegistryToken,
+    (c) => new PromptRegistry(c.resolveAll(PromptDefinitions), c.resolve(Logger)),
+  );
 
   container.registerSingleton(RootsRegistryToken, (c) => new RootsRegistry(c.resolve(Logger)));
 

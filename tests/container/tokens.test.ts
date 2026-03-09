@@ -26,6 +26,7 @@ const ALL_TOKEN_NAMES = [
   'RootsRegistryToken',
   'ToolDefinitions',
   'ResourceDefinitions',
+  'PromptDefinitions',
 ] as const;
 
 /** Helper to get all token values. */

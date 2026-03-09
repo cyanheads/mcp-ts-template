@@ -9,6 +9,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { parseConfig } from '@/config/index.js';
 import { token } from '@/container/core/container.js';
+import type { allPromptDefinitions } from '@/mcp-server/prompts/definitions/index.js';
 import type { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import type { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
 import type { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
@@ -56,3 +57,4 @@ export const RootsRegistryToken = token<RootsRegistry>('RootsRegistry');
 export const ToolDefinitions = token<(typeof allToolDefinitions)[number]>('ToolDefinitions');
 export const ResourceDefinitions =
   token<(typeof allResourceDefinitions)[number]>('ResourceDefinitions');
+export const PromptDefinitions = token<(typeof allPromptDefinitions)[number]>('PromptDefinitions');

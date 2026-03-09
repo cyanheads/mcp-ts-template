@@ -7,14 +7,18 @@
  * @module src/mcp-server/prompts/prompt-registration
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ZodObject, ZodRawShape } from 'zod';
+import type { PromptDefinition } from '@/mcp-server/prompts/utils/promptDefinition.js';
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { logger as defaultLogger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
-import { allPromptDefinitions } from './definitions/index.js';
 
 export class PromptRegistry {
-  constructor(private logger: typeof defaultLogger) {}
+  constructor(
+    private promptDefs: PromptDefinition<ZodObject<ZodRawShape> | undefined>[],
+    private logger: typeof defaultLogger,
+  ) {}
 
   /**
    * Registers all prompts on the given MCP server.
@@ -24,10 +28,10 @@ export class PromptRegistry {
       operation: 'PromptRegistry.registerAll',
     });
 
-    this.logger.debug(`Registering ${allPromptDefinitions.length} prompts...`, context);
+    this.logger.debug(`Registering ${this.promptDefs.length} prompts...`, context);
 
     // Register each prompt using the SDK's registerPrompt API
-    for (const promptDef of allPromptDefinitions) {
+    for (const promptDef of this.promptDefs) {
       this.logger.debug(`Registering prompt: ${promptDef.name}`, context);
 
       await ErrorHandler.tryCatch(
@@ -62,6 +66,6 @@ export class PromptRegistry {
       );
     }
 
-    this.logger.info(`Successfully registered ${allPromptDefinitions.length} prompts`, context);
+    this.logger.info(`Successfully registered ${this.promptDefs.length} prompts`, context);
   }
 }
