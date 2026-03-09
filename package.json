@@ -1,6 +1,6 @@
 {
   "name": "mcp-ts-template",
-  "version": "3.0.6",
+  "version": "3.0.7",
   "mcpName": "io.github.cyanheads/mcp-ts-template",
   "description": "TypeScript template for MCP servers with declarative tools/resources, pluggable auth, multi-backend storage, OpenTelemetry observability, and Cloudflare Workers support.",
   "main": "dist/index.js",

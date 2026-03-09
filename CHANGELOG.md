@@ -6,6 +6,14 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 
 ---
 
+## [3.0.7] - 2026-03-09
+
+### Fixed
+
+- **Tool error responses**: Removed `structuredContent` from error results in `toolHandlerFactory`. Per MCP spec, `structuredContent` is reserved for successful structured output tied to `outputSchema`, not error details. Errors now return only `content` with `isError: true`.
+
+---
+
 ## [3.0.6] - 2026-03-05
 
 ### Fixed
