@@ -719,6 +719,25 @@ All config validated via Zod in `src/config/index.ts`. Config module derives `mc
 
 ---
 
+## Code Navigation
+
+**Use LSP tools over Grep/Glob for code intelligence.** LSP understands the language — types, scopes, call graphs — not just text. It eliminates false positives from comments, strings, or same-named symbols in different scopes.
+
+| Task | Use | Why |
+| :--- | :--- | :--- |
+| Find where a symbol is defined | LSP `goToDefinition` | Resolves through aliases, re-exports, type-level indirection |
+| Find all usages of a symbol | LSP `findReferences` | Scope-aware — won't match unrelated identifiers with the same name |
+| Understand a symbol's type | LSP `hover` | Resolves inferred types, generics, mapped types, intersections |
+| Map a file's exports/structure | LSP `documentSymbol` | Complete symbol tree, not regex approximation |
+| Find implementations of an interface | LSP `goToImplementation` | Follows the type hierarchy, not string matching |
+| Trace call chains | LSP `incomingCalls` / `outgoingCalls` | Actual call graph, not grep for function names |
+| Search for a text pattern | Grep | Regex over raw text — LSP doesn't do arbitrary text search |
+| Find files by name/glob | Glob | Structural file matching |
+
+**Decision rule:** If the question involves symbol identity, type information, or code structure, reach for LSP first. Fall back to Grep for text-level searches, non-code files, and regex patterns.
+
+---
+
 ## Subagent Rules
 
 **Default: do the work yourself.** The orchestrator should directly perform nearly all tasks — reading files, analyzing diffs, searching the codebase, editing code, running commands. You need information in your own context to make good decisions; a summarized version from an agent loses nuance and forces you to trust conclusions you can't verify.
