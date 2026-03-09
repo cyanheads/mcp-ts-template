@@ -149,7 +149,7 @@ All storage operations are scoped to a tenant. `StorageService` extracts `tenant
 
 Tenant ID sources:
 
-- With auth: auto-extracted from JWT `tid` claim via `requestContextService.withAuthInfo()`
+- With auth: auto-extracted from JWT `tid` claim (middleware sets ALS, `createRequestContext` reads it)
 - STDIO: explicitly set via `requestContextService.createRequestContext({ tenantId: '...' })`
 
 Validation: max 128 chars, `[a-zA-Z0-9._-]`, must start/end alphanumeric, no `..` or path traversal.
@@ -327,15 +327,20 @@ const myStorageTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
 ### With authentication context
 
 ```typescript
-import { requestContextService } from '@/utils/index.js';
-import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
-// After JWT verification:
-const authInfo: AuthInfo = await jwtStrategy.verify(token);
-const context = requestContextService.withAuthInfo(authInfo);
-
-// tenantId is now available in context
+// Inside auth middleware continuation (ALS is already populated):
+const context = requestContextService.createRequestContext({
+  operation: 'myOperation',
+});
+// tenantId is auto-resolved from ALS auth context
 await storage.set('user:data', { ... }, context);
+
+// Or explicitly for STDIO:
+const context = requestContextService.createRequestContext({
+  operation: 'myOperation',
+  tenantId: 'my-tenant',
+});
 ```
 
 ---

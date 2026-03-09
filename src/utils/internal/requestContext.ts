@@ -165,8 +165,11 @@ const requestContextServiceInstance = {
    * This method populates the context with auth data from a validated token,
    * including tenant ID, client ID, scopes, and subject.
    *
-   * The auth info is also propagated to the async-local storage context for
-   * downstream access via `authContext.getStore()`.
+   * **Note:** This method builds and returns a `RequestContext` object only.
+   * It does NOT propagate auth into `AsyncLocalStorage`. ALS propagation is
+   * handled by the auth middleware via `authContext.run()`. If you need
+   * scope enforcement via `withRequiredScopes()`, ensure the call runs
+   * inside the middleware's ALS continuation.
    *
    * @param authInfo - The validated authentication information from JWT/OAuth token.
    * @param parentContext - Optional parent context to inherit properties from.
