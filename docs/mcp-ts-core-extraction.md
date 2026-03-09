@@ -71,6 +71,7 @@ Also ships:
 - Base `vitest.config.ts`
 - Shared ESLint config
 - `CLAUDE.md` — consumer-facing agent reference with exports catalog (see Agent Discovery)
+- `skills/` — [Agent Skills](https://agentskills.io/specification) definitions (`SKILL.md` format) for scaffolding, validation, and migration (see Agent Skills)
 
 ### Per-server (what stays in each MCP server repo)
 
@@ -796,7 +797,7 @@ No special tooling — standard file reading that already works.
 1. Read the server's `CLAUDE.md` → sees pointer to core's reference
 2. Read `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` → gets the exports catalog, patterns, contracts
 3. For exact signatures, read specific `.d.ts` files from `node_modules/@cyanheads/mcp-ts-core/dist/`
-4. For common tasks, invoke skills (`/add-tool`, `/add-resource`, etc.) — see Agent Skills
+4. For common tasks, invoke skills (`/add-tool`, `/add-resource`, `/setup`, etc.) — see Agent Skills
 5. For server-specific code, use standard Grep/Glob/LSP on the server's `src/`
 
 ---
@@ -849,100 +850,172 @@ The server's `CLAUDE.md` focuses on what's unique — its domain, its tools, its
 
 ## Agent Skills
 
-Skills are structured workflows that an agent can invoke via `/skill-name`. They complement Discovery (knowing what exists) and CLAUDE.md (knowing the patterns) with executable recipes for common tasks. Core ships skill definitions that downstream servers inherit.
+[Agent Skills](https://agentskills.io/specification) is an open standard (developed by Anthropic, adopted by 25+ tools including Claude Code, GitHub Copilot, OpenAI Codex, Gemini CLI, Cursor) for packaging modular, reusable agent capabilities. Each skill is a directory with a `SKILL.md` file — YAML frontmatter for discovery + markdown body for instructions.
+
+Skills complement Discovery (knowing what exists) and CLAUDE.md (knowing the patterns) with executable recipes for common tasks. Core ships skill definitions that downstream servers inherit.
+
+### Why skills over CLAUDE.md for workflows
+
+| Concern | CLAUDE.md | Skills |
+|:--------|:----------|:-------|
+| Loading | Always in context | Progressive disclosure — only name + description loaded at startup (~50 tokens/skill), full instructions loaded on activation |
+| Scope | General patterns and contracts | Specific task workflows |
+| Invocation | Passive (agent reads once) | On-demand (`/skill-name`) or auto-triggered by description match |
+| Portability | Agent-specific | Open standard — same skill works across Claude Code, Copilot, Codex, etc. |
+
+### Canonical location
+
+Skills live at `.agents/skills/` — the cross-platform standard location recognized by all compatible agents. Agent-specific directories (`.claude/skills/`, `.codex/skills/`, etc.) are populated by the `/setup` skill as part of first-time project setup.
+
+```
+.agents/
+  skills/
+    setup/
+      SKILL.md
+    add-tool/
+      SKILL.md
+      assets/
+        tool-template.ts     # skeleton code
+    add-resource/
+      SKILL.md
+      assets/
+        resource-template.ts
+    ...
+```
 
 ### What ships with core
 
-| Skill | Trigger | What it does |
-|:------|:--------|:-------------|
-| `/add-tool` | User asks to add a new tool | Scaffolds a `.tool.ts` file with correct structure: metadata, Zod schemas with `.describe()`, typed logic function, auth wrapper, response formatter. Registers in `definitions/index.ts`. Runs devcheck. |
-| `/add-task-tool` | User asks to add an async/long-running tool | Same as `/add-tool` but with `.task-tool.ts` suffix, `TaskToolDefinition` type, `taskHandlers` (create/get/getResult), background work pattern. |
-| `/add-resource` | User asks to add a resource | Scaffolds a `.resource.ts` file with URI template, params/output schemas, logic, optional `list()` with pagination. Registers in `definitions/index.ts`. |
-| `/add-prompt` | User asks to add a prompt | Scaffolds a `.prompt.ts` file with arguments schema and `generate` function. Registers in `definitions/index.ts`. |
-| `/add-service` | User asks to add a service integration | Creates `services/[name]/` with `core/` (interface), `providers/` (implementation), `types.ts`. Adds DI token, registers in container. |
-| `/devcheck` | User asks to lint, check, or validate | Runs `bun run devcheck`. Interprets output, fixes issues, re-runs until clean. |
-| `/migrate-imports` | User is migrating from template fork | Rewrites `@/` imports to `@cyanheads/mcp-ts-core/` subpaths using the mapping table. Validates no internal paths remain. |
+| Skill | Description (agent-facing trigger) | What it does |
+|:------|:-----------------------------------|:-------------|
+| `setup` | First-time project setup for an MCP server using `@cyanheads/mcp-ts-core` | Detects installed agents, copies/symlinks skills to agent-specific directories (`.claude/skills/`, `.codex/skills/`, etc.). Sets up `.agents/skills/` with core skills. Creates initial `CLAUDE.md` from template. Validates project structure. |
+| `add-tool` | Scaffold a new MCP tool definition | Creates `.tool.ts` with metadata, Zod schemas with `.describe()`, typed logic, auth wrapper, response formatter. Registers in `definitions/index.ts`. |
+| `add-task-tool` | Scaffold an async MCP task tool for long-running operations | Same as `add-tool` but with `.task-tool.ts` suffix, `TaskToolDefinition` type, `taskHandlers` (create/get/getResult), background work pattern. |
+| `add-resource` | Scaffold a new MCP resource definition | Creates `.resource.ts` with URI template, params/output schemas, logic, optional `list()` with pagination. Registers in `definitions/index.ts`. |
+| `add-prompt` | Scaffold a new MCP prompt template | Creates `.prompt.ts` with arguments schema and `generate` function. Registers in `definitions/index.ts`. |
+| `add-service` | Scaffold a new service integration with DI | Creates `services/[name]/` with `core/` (interface), `providers/` (implementation), `types.ts`. Adds DI token, registers in container. |
+| `devcheck` | Lint, format, typecheck, and audit the project | Runs `bun run devcheck`. Interprets output, fixes issues, re-runs until clean. |
+| `migrate-imports` | Migrate a template fork to use `@cyanheads/mcp-ts-core` | Rewrites `@/` imports to `@cyanheads/mcp-ts-core/` subpaths using the mapping table. Validates no internal paths remain. |
 
-### Skill definition format
+### SKILL.md format
 
-Each skill is a markdown file in `.claude/commands/`. The file contains the full prompt — context, constraints, step-by-step instructions, and examples. The agent reads it when invoked and follows the workflow.
-
-```
-.claude/
-  commands/
-    add-tool.md
-    add-task-tool.md
-    add-resource.md
-    add-prompt.md
-    add-service.md
-    devcheck.md
-    migrate-imports.md
-```
-
-### Distribution
-
-Core ships skill definitions in a `skills/` directory within the published package:
-
-```
-node_modules/@cyanheads/mcp-ts-core/skills/
-  add-tool.md
-  add-task-tool.md
-  add-resource.md
-  ...
-```
-
-Downstream servers symlink or copy them into their `.claude/commands/`:
-
-```bash
-# Option A: symlink (always up to date with installed version)
-ln -s ../node_modules/@cyanheads/mcp-ts-core/skills/*.md .claude/commands/
-
-# Option B: copy (explicit, version-locked)
-cp node_modules/@cyanheads/mcp-ts-core/skills/*.md .claude/commands/
-```
-
-The `create-mcp-server` CLI sets up Option A by default. Servers can override any skill by replacing the symlink with a local file.
-
-### Skill content structure
-
-Each skill file follows a consistent structure:
+Each skill follows the [Agent Skills specification](https://agentskills.io/specification). The `name` field must match the parent directory name.
 
 ```markdown
 ---
-description: Scaffold a new MCP tool definition
+name: add-tool
+description: >
+  Scaffold a new MCP tool definition. Use when the user asks to add a tool,
+  create a new tool, or implement a new capability.
+metadata:
+  author: cyanheads
+  version: "1.0"
 ---
 
 ## Context
-[What the agent needs to know — imports, patterns, file conventions]
+
+[What the agent needs to know — imports, file conventions, key types.
+Reference core's CLAUDE.md for contracts rather than duplicating them.]
 
 ## Steps
+
 1. [Concrete, ordered instructions]
 2. [Each step is actionable — no ambiguity]
+3. [Include the specific files to create/modify]
 
 ## Template
-[The skeleton code to generate, with placeholders]
+
+[The skeleton code to generate, with placeholders marked as `{{TOOL_NAME}}` etc.]
 
 ## Checklist
-- [ ] [Post-generation validation — schema describes, auth wrapper, registration, devcheck]
+
+Every skill MUST include a checklist. This is the acceptance criteria — the
+skill is not complete until every item passes.
+
+- [ ] File created with correct suffix (`.tool.ts` / `.task-tool.ts` / etc.)
+- [ ] All Zod schema fields have `.describe()` annotations
+- [ ] Auth wrapper applied with `withToolAuth`
+- [ ] Registered in `definitions/index.ts` barrel
+- [ ] `bun run devcheck` passes
+- [ ] Smoke-tested with `bun run dev:stdio` or `dev:http`
 ```
 
-Skills reference core's `CLAUDE.md` for contracts and patterns rather than duplicating them. The skill says "create a `ToolDefinition` (see core CLAUDE.md for the full type)" — not "here's what a ToolDefinition looks like." Single source of truth.
+**The Checklist section is mandatory.** Every skill must end with a markdown checklist of specific, verifiable goals. The checklist serves as both acceptance criteria for the agent and a progress tracker for the user. The agent must not consider a skill complete until every checkbox could be checked.
+
+### The `/setup` skill
+
+The setup skill is special — it's the entry point for a new project and handles environment adaptation. When invoked:
+
+1. **Detect environment.** Check which agents are available (Claude Code → `.claude/`, Codex → `.codex/`, Copilot → `.github/`, etc.)
+2. **Install skills.** Copy core skills from `node_modules/@cyanheads/mcp-ts-core/skills/` to `.agents/skills/` (canonical) and symlink into each detected agent's skill directory
+3. **Generate CLAUDE.md.** Create the server's `CLAUDE.md` from a template, with the core framework pointer and server-specific sections
+4. **Validate structure.** Check that `src/mcp-server/tools/definitions/`, `src/mcp-server/resources/definitions/`, and `src/mcp-server/prompts/definitions/` exist with their barrel files
+5. **Run devcheck.** Verify the project builds and passes all checks
+
+**Setup checklist:**
+
+- [ ] `.agents/skills/` populated with core skills
+- [ ] Agent-specific skill directories created and symlinked (`.claude/skills/`, etc.)
+- [ ] `CLAUDE.md` created with core framework pointer
+- [ ] Project structure validated (definitions directories, barrel files)
+- [ ] `bun run devcheck` passes
+
+### Distribution
+
+Core ships skills in a `skills/` directory within the published package:
+
+```
+node_modules/@cyanheads/mcp-ts-core/skills/
+  setup/SKILL.md
+  add-tool/SKILL.md
+  add-tool/assets/tool-template.ts
+  add-resource/SKILL.md
+  add-resource/assets/resource-template.ts
+  ...
+```
+
+The `/setup` skill handles copying these to `.agents/skills/` and symlinking into agent-specific directories. After setup:
+
+```
+.agents/skills/                    # canonical, cross-platform
+  setup/SKILL.md
+  add-tool/SKILL.md
+  add-tool/assets/tool-template.ts
+  ...
+.claude/skills/                    # symlinks (if Claude Code detected)
+  setup -> ../../.agents/skills/setup
+  add-tool -> ../../.agents/skills/add-tool
+  ...
+```
+
+Servers can override any skill by replacing the directory in `.agents/skills/` with a local version. The symlinks in agent-specific directories follow automatically.
 
 ### Server-specific skills
 
-Servers can add their own skills alongside core's:
+Servers add their own skills alongside core's in `.agents/skills/`:
 
 ```
-.claude/
-  commands/
-    add-tool.md          -> symlink to core
-    add-resource.md      -> symlink to core
-    devcheck.md          -> symlink to core
-    query-pubmed.md      # server-specific
-    update-citations.md  # server-specific
+.agents/
+  skills/
+    add-tool/SKILL.md          # from core
+    add-resource/SKILL.md      # from core
+    devcheck/SKILL.md          # from core
+    query-pubmed/SKILL.md      # server-specific
+    update-citations/SKILL.md  # server-specific
 ```
 
-Server-specific skills follow the same format. They can reference both core's `CLAUDE.md` and the server's `CLAUDE.md` for context.
+Server-specific skills follow the same `SKILL.md` format with mandatory checklist. They can reference both core's `CLAUDE.md` and the server's `CLAUDE.md` for context.
+
+### Progressive disclosure
+
+The Agent Skills spec uses three-tier loading to keep context efficient:
+
+| Tier | What loads | When | Token cost |
+|:-----|:-----------|:-----|:-----------|
+| Discovery | `name` + `description` from frontmatter only | Agent startup | ~50 tokens/skill |
+| Activation | Full `SKILL.md` body | Agent decides skill is relevant, or user invokes `/skill-name` | ~500–5,000 tokens |
+| Execution | Files from `scripts/`, `references/`, `assets/` | Skill instructions reference them | ~2,000+ tokens/resource |
+
+With 10 skills installed, that's ~500 tokens at startup. The agent knows what it can do without carrying the full instructions in context. This is why skills scale better than cramming workflows into CLAUDE.md.
 
 ---
 
@@ -1051,7 +1124,7 @@ Pin downstream servers to `^major` so they get minor/patch updates automatically
    - Add `exports` field with all subpath exports
    - Configure `peerDependencies` / `peerDependenciesMeta` for tiered deps
    - Write the consumer-facing `CLAUDE.md` with exports catalog (see Agent Discovery)
-   - Write agent skill definitions in `skills/` (see Agent Skills)
+   - Write agent skill definitions as `SKILL.md` directories in `skills/` per the [Agent Skills spec](https://agentskills.io/specification) (see Agent Skills)
    - Build and verify the package compiles, examples work against the exports
 
 4. **Validate with examples.** The `examples/` directory acts as an integration test — a thin server consuming core through its public exports, not internal paths. If the examples can't cleanly use the package API, the boundary is wrong. Run devcheck + full test suite against the examples.
