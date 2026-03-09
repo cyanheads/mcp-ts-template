@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-03-04 19:27:52
+Generated on: 2026-03-09 15:28:28
 
 ```
 mcp-ts-template/
@@ -33,6 +33,7 @@ mcp-ts-template/
 │   ├── mcp-apps.md
 │   ├── mcp-elicitation-summary.md
 │   ├── mcp-sdk-changes.md
+│   ├── mcp-ts-core-extraction.md
 │   └── publishing-mcp-server-registry.md
 ├── schemas/
 │   └── cloudflare-d1-schema.sql
@@ -77,6 +78,7 @@ mcp-ts-template/
 │   │   │   └── roots-registration.ts
 │   │   ├── tasks/
 │   │   │   ├── core/
+│   │   │   │   ├── sessionAwareTaskStore.ts
 │   │   │   │   ├── storageBackedTaskStore.ts
 │   │   │   │   ├── taskManager.ts
 │   │   │   │   └── taskTypes.ts
@@ -282,6 +284,7 @@ mcp-ts-template/
 │   │   │   │   ├── __snapshots__/
 │   │   │   │   │   └── schema-snapshots.test.ts.snap
 │   │   │   │   ├── json-schema-compatibility.test.ts
+│   │   │   │   ├── output-schema-coverage.test.ts
 │   │   │   │   ├── schema-snapshots.test.ts
 │   │   │   │   └── zod4-compatibility.test.ts
 │   │   │   ├── utils/
@@ -339,7 +342,6 @@ mcp-ts-template/
 │   │       ├── providers/
 │   │       │   ├── elevenlabs.provider.test.ts
 │   │       │   └── whisper.provider.test.ts
-│   │       ├── index.test.ts
 │   │       └── types.test.ts
 │   ├── storage/
 │   │   ├── core/
@@ -372,7 +374,6 @@ mcp-ts-template/
 │   │   │   ├── error-handler/
 │   │   │   │   ├── errorHandler.test.ts
 │   │   │   │   ├── helpers.test.ts
-│   │   │   │   ├── index.test.ts
 │   │   │   │   ├── mappings.test.ts
 │   │   │   │   └── types.test.ts
 │   │   │   ├── encoding.test.ts

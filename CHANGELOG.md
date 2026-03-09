@@ -6,6 +6,26 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 
 ---
 
+## [3.0.9] - 2026-03-09
+
+### Fixed
+
+- **Rate limiter key**: OpenRouter provider now keys rate limiting on `clientId`/`tenantId` instead of `requestId`, so limits apply per-caller rather than per-request.
+- **Session ownership (in-memory tasks)**: Wrapped SDK's `InMemoryTaskStore` with `SessionAwareTaskStore` that enforces session ownership. Previously the in-memory store ignored `sessionId` parameters, allowing any session to access any task.
+
+### Changed
+
+- **Prompt DI**: `PromptRegistry` now receives prompt definitions via DI (`PromptDefinitions` multi-token) instead of importing `allPromptDefinitions` directly. Consistent with how tools and resources are registered.
+- **CLAUDE.md**: Rewrote Code Navigation section — clarified that LSP tools are deferred and must be loaded via `ToolSearch` before use. Added workflow guidance (discover with Grep/Glob, understand with LSP).
+- **Storage README**: Updated auth context docs to reflect that ALS propagation is handled by middleware, not by `withAuthInfo()`.
+- **`requestContext.ts` JSDoc**: Clarified that `withAuthInfo` builds a `RequestContext` only and does not propagate auth into `AsyncLocalStorage`.
+
+### Removed
+
+- Removed placeholder tests from `worker.test.ts` (all were `expect(true).toBe(true)` with no assertions).
+
+---
+
 ## [3.0.8] - 2026-03-09
 
 ### Fixed
