@@ -101,7 +101,7 @@ export class OpenRouterProvider implements ILlmProvider {
   private _prepareApiParameters(params: OpenRouterChatParams) {
     const { model, temperature, top_p: topP, max_tokens: maxTokens, stream, ...rest } = params;
 
-    return {
+    const result = {
       ...rest,
       model: model ?? this.defaultParams.model,
       temperature:
@@ -110,6 +110,17 @@ export class OpenRouterProvider implements ILlmProvider {
       max_tokens: maxTokens === null ? undefined : (maxTokens ?? this.defaultParams.maxTokens),
       ...(typeof stream === 'boolean' && { stream }),
     };
+
+    // OpenRouter-specific params not in OpenAI types — apply defaults
+    const extra = rest as Record<string, unknown>;
+    if (extra.top_k === undefined && this.defaultParams.topK !== undefined) {
+      (result as Record<string, unknown>).top_k = this.defaultParams.topK;
+    }
+    if (extra.min_p === undefined && this.defaultParams.minP !== undefined) {
+      (result as Record<string, unknown>).min_p = this.defaultParams.minP;
+    }
+
+    return result;
   }
 
   private async _openRouterChatCompletionLogic(
