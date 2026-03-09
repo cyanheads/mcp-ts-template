@@ -796,7 +796,8 @@ No special tooling — standard file reading that already works.
 1. Read the server's `CLAUDE.md` → sees pointer to core's reference
 2. Read `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` → gets the exports catalog, patterns, contracts
 3. For exact signatures, read specific `.d.ts` files from `node_modules/@cyanheads/mcp-ts-core/dist/`
-4. For server-specific code, use standard Grep/Glob/LSP on the server's `src/`
+4. For common tasks, invoke skills (`/add-tool`, `/add-resource`, etc.) — see Agent Skills
+5. For server-specific code, use standard Grep/Glob/LSP on the server's `src/`
 
 ---
 
@@ -843,6 +844,105 @@ Only read it once per session — the content is stable between updates.
 ```
 
 The server's `CLAUDE.md` focuses on what's unique — its domain, its tools, its services. Infrastructure docs live in one place and update with `bun update @cyanheads/mcp-ts-core`.
+
+---
+
+## Agent Skills
+
+Skills are structured workflows that an agent can invoke via `/skill-name`. They complement Discovery (knowing what exists) and CLAUDE.md (knowing the patterns) with executable recipes for common tasks. Core ships skill definitions that downstream servers inherit.
+
+### What ships with core
+
+| Skill | Trigger | What it does |
+|:------|:--------|:-------------|
+| `/add-tool` | User asks to add a new tool | Scaffolds a `.tool.ts` file with correct structure: metadata, Zod schemas with `.describe()`, typed logic function, auth wrapper, response formatter. Registers in `definitions/index.ts`. Runs devcheck. |
+| `/add-task-tool` | User asks to add an async/long-running tool | Same as `/add-tool` but with `.task-tool.ts` suffix, `TaskToolDefinition` type, `taskHandlers` (create/get/getResult), background work pattern. |
+| `/add-resource` | User asks to add a resource | Scaffolds a `.resource.ts` file with URI template, params/output schemas, logic, optional `list()` with pagination. Registers in `definitions/index.ts`. |
+| `/add-prompt` | User asks to add a prompt | Scaffolds a `.prompt.ts` file with arguments schema and `generate` function. Registers in `definitions/index.ts`. |
+| `/add-service` | User asks to add a service integration | Creates `services/[name]/` with `core/` (interface), `providers/` (implementation), `types.ts`. Adds DI token, registers in container. |
+| `/devcheck` | User asks to lint, check, or validate | Runs `bun run devcheck`. Interprets output, fixes issues, re-runs until clean. |
+| `/migrate-imports` | User is migrating from template fork | Rewrites `@/` imports to `@cyanheads/mcp-ts-core/` subpaths using the mapping table. Validates no internal paths remain. |
+
+### Skill definition format
+
+Each skill is a markdown file in `.claude/commands/`. The file contains the full prompt — context, constraints, step-by-step instructions, and examples. The agent reads it when invoked and follows the workflow.
+
+```
+.claude/
+  commands/
+    add-tool.md
+    add-task-tool.md
+    add-resource.md
+    add-prompt.md
+    add-service.md
+    devcheck.md
+    migrate-imports.md
+```
+
+### Distribution
+
+Core ships skill definitions in a `skills/` directory within the published package:
+
+```
+node_modules/@cyanheads/mcp-ts-core/skills/
+  add-tool.md
+  add-task-tool.md
+  add-resource.md
+  ...
+```
+
+Downstream servers symlink or copy them into their `.claude/commands/`:
+
+```bash
+# Option A: symlink (always up to date with installed version)
+ln -s ../node_modules/@cyanheads/mcp-ts-core/skills/*.md .claude/commands/
+
+# Option B: copy (explicit, version-locked)
+cp node_modules/@cyanheads/mcp-ts-core/skills/*.md .claude/commands/
+```
+
+The `create-mcp-server` CLI sets up Option A by default. Servers can override any skill by replacing the symlink with a local file.
+
+### Skill content structure
+
+Each skill file follows a consistent structure:
+
+```markdown
+---
+description: Scaffold a new MCP tool definition
+---
+
+## Context
+[What the agent needs to know — imports, patterns, file conventions]
+
+## Steps
+1. [Concrete, ordered instructions]
+2. [Each step is actionable — no ambiguity]
+
+## Template
+[The skeleton code to generate, with placeholders]
+
+## Checklist
+- [ ] [Post-generation validation — schema describes, auth wrapper, registration, devcheck]
+```
+
+Skills reference core's `CLAUDE.md` for contracts and patterns rather than duplicating them. The skill says "create a `ToolDefinition` (see core CLAUDE.md for the full type)" — not "here's what a ToolDefinition looks like." Single source of truth.
+
+### Server-specific skills
+
+Servers can add their own skills alongside core's:
+
+```
+.claude/
+  commands/
+    add-tool.md          -> symlink to core
+    add-resource.md      -> symlink to core
+    devcheck.md          -> symlink to core
+    query-pubmed.md      # server-specific
+    update-citations.md  # server-specific
+```
+
+Server-specific skills follow the same format. They can reference both core's `CLAUDE.md` and the server's `CLAUDE.md` for context.
 
 ---
 
@@ -951,6 +1051,7 @@ Pin downstream servers to `^major` so they get minor/patch updates automatically
    - Add `exports` field with all subpath exports
    - Configure `peerDependencies` / `peerDependenciesMeta` for tiered deps
    - Write the consumer-facing `CLAUDE.md` with exports catalog (see Agent Discovery)
+   - Write agent skill definitions in `skills/` (see Agent Skills)
    - Build and verify the package compiles, examples work against the exports
 
 4. **Validate with examples.** The `examples/` directory acts as an integration test — a thin server consuming core through its public exports, not internal paths. If the examples can't cleanly use the package API, the boundary is wrong. Run devcheck + full test suite against the examples.
