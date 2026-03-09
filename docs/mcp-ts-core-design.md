@@ -99,14 +99,14 @@ This is the primary API contract. The current `index.ts` is 168 lines of boilerp
 ### `bootstrap(options): Promise<ServerHandle>`
 
 ```ts
-import type { ToolDefinition } from '@cyanheads/mcp-ts-core/tools';
-import type { ResourceDefinition } from '@cyanheads/mcp-ts-core/resources';
+import type { AnyToolDefinition } from '@cyanheads/mcp-ts-core/tools';
+import type { AnyResourceDefinition } from '@cyanheads/mcp-ts-core/resources';
 import type { PromptDefinition } from '@cyanheads/mcp-ts-core/prompts';
 import type { Container } from '@cyanheads/mcp-ts-core/container';
 
 interface ServerDefinitions {
-  tools: ToolDefinition[];
-  resources: ResourceDefinition[];
+  tools: AnyToolDefinition[];
+  resources: AnyResourceDefinition[];
   prompts: PromptDefinition[];
 }
 
@@ -150,6 +150,8 @@ export async function bootstrap(options: BootstrapOptions): Promise<ServerHandle
 12. Return `ServerHandle` with `shutdown()` for programmatic teardown (tests, embedding)
 
 **Shutdown subtleties:** The current `index.ts` shutdown handler has real nuance — double-shutdown guard, OTEL flush ordering, logger close as final step, error handling during shutdown itself. `bootstrap()` must preserve all of these, not just absorb line count.
+
+**Type erasure for definition arrays.** `ToolDefinition` and `ResourceDefinition` are generic (`ToolDefinition<TInput, TOutput>`). A mixed array like `allToolDefinitions` (which includes both `ToolDefinition` and `TaskToolDefinition` variants with different schema types) can't be typed as `ToolDefinition[]` without defaults or widening. Core must export erased union types — `AnyToolDefinition` (union of `ToolDefinition<any, any> | TaskToolDefinition<any, any>`) and `AnyResourceDefinition` (`ResourceDefinition<any, any>`) — for use in collection contexts like `ServerDefinitions`. Individual tool files still use the fully-typed generic for their own definitions.
 
 **DI resolution timing:** Tool definitions must defer container resolution to call time (inside `logic`), not registration time. `options.services` runs after `registerMcpServices`, so tokens registered there won't be available during definition registration — only during request handling. This is already the pattern but should be explicit in the contract.
 
@@ -210,8 +212,10 @@ import type { CloudflareBindings } from '@cyanheads/mcp-ts-core/worker';
 interface WorkerOptions {
   definitions: ServerDefinitions;
   services?: (container: Container) => void;
-  /** Extra CF binding keys to inject into process.env (beyond the core set) */
-  extraBindings?: Array<[string, string]>;
+  /** Extra string CF bindings to inject into process.env (beyond the core set) */
+  extraEnvBindings?: Array<[string, string]>;
+  /** Extra object CF bindings (KV, R2, D1, etc.) to store on globalThis */
+  extraObjectBindings?: Array<[string, string]>;
   /** Handler for scheduled/cron events. Called after app init and binding refresh. */
   onScheduled?: (controller: ScheduledController, env: CloudflareBindings, ctx: ExecutionContext) => Promise<void>;
 }
@@ -258,13 +262,27 @@ interface MyBindings extends CoreBindings {
 
 export default createWorkerHandler({
   definitions: { ... },
-  extraBindings: [
+  // String bindings → injected into process.env (for config parsing)
+  extraEnvBindings: [
     ['MY_API_KEY', 'MY_API_KEY'],
+  ],
+  // Object bindings → stored on globalThis (for KV, R2, D1, etc.)
+  extraObjectBindings: [
+    ['MY_CUSTOM_KV', 'MY_CUSTOM_KV'],
   ],
 });
 ```
 
-The current `worker.ts` has `[key: string]: unknown` on `CloudflareBindings` — this must be removed during extraction so the type actually enforces the binding contract. The `extraBindings` array is typed as `Array<[string, string]>` (not `keyof CloudflareBindings`) since it maps server-specific keys that core doesn't know about.
+Worker bindings come in two forms that require different handling:
+
+| Binding type | Examples | Injection method | Access pattern |
+|:-------------|:---------|:-----------------|:---------------|
+| String values | API keys, env flags, URLs | `process.env` via `injectEnvVars()` | `process.env.MY_API_KEY` or lazy config parsing |
+| Object bindings | KV namespaces, R2 buckets, D1 databases, AI | `globalThis` via `storeBindings()` | `(globalThis as any).MY_CUSTOM_KV` |
+
+`extraEnvBindings` maps `[bindingKey, processEnvKey]` — the string value from `env[bindingKey]` is written to `process.env[processEnvKey]`. `extraObjectBindings` maps `[bindingKey, globalKey]` — the object reference from `env[bindingKey]` is assigned to `(globalThis as any)[globalKey]`. Core already uses `storeBindings()` for its own object bindings (`KV_NAMESPACE`, `R2_BUCKET`, `DB`, `AI`); this extends the same pattern to server-specific bindings.
+
+The current `worker.ts` has `[key: string]: unknown` on `CloudflareBindings` — this must be removed during extraction so the type actually enforces the binding contract.
 
 ---
 
@@ -292,16 +310,33 @@ const ServerConfigSchema = z.object({
 
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;
 
-export const serverConfig = ServerConfigSchema.parse({
-  pubmedApiKey: process.env.PUBMED_API_KEY,
-  maxResultsPerQuery: process.env.PUBMED_MAX_RESULTS,
-});
+/**
+ * Lazy config accessor — must NOT parse at module top-level.
+ *
+ * Core's own config is lazy because Worker bindings are injected into
+ * process.env AFTER static imports execute. Parsing process.env at
+ * module load would see empty/stale values in Cloudflare Workers.
+ * Server config must follow the same pattern.
+ */
+let _serverConfig: ServerConfig | undefined;
+export function getServerConfig(): ServerConfig {
+  _serverConfig ??= ServerConfigSchema.parse({
+    pubmedApiKey: process.env.PUBMED_API_KEY,
+    maxResultsPerQuery: process.env.PUBMED_MAX_RESULTS,
+  });
+  return _serverConfig;
+}
 ```
+
+**Warning:** Do not eagerly parse `process.env` at module top-level (e.g. `export const serverConfig = Schema.parse({...})`). In Cloudflare Workers, env bindings are injected into `process.env` by `injectEnvVars()` during the request handler — after all static imports have executed. Eager parsing sees empty values. Core's own `parseConfig()` is lazy for exactly this reason; server config must follow the same pattern.
 
 Tool logic imports from the server's config, not from core:
 
 ```ts
-import { serverConfig } from '../../config/server-config.js';
+import { getServerConfig } from '../../config/server-config.js';
+
+// Called inside logic (at request time), not at import time
+const config = getServerConfig();
 
 // Core config is still available via DI for infrastructure concerns
 import { container } from '@cyanheads/mcp-ts-core/container';
@@ -408,7 +443,12 @@ The `exports` field in `@cyanheads/mcp-ts-core/package.json` defines the public 
     "./utils/types":           "./dist/utils/types/index.js",
 
     // Test utilities
-    "./testing":               "./dist/testing/index.js"
+    "./testing":               "./dist/testing/index.js",
+
+    // Build configs (not compiled — shipped as-is from package root)
+    "./tsconfig.base.json":    "./tsconfig.base.json",
+    "./vitest.config":         "./vitest.config.js",
+    "./eslint.config":         "./eslint.config.js"
   }
 }
 ```
@@ -418,24 +458,25 @@ Each export should include both `import` and `types` conditions for TypeScript c
 **Notes:**
 - `./utils/parsing` and `./utils/security` point to barrel `index.js` files. These are legitimate aggregation points — they collect lazy-import wrappers into a single entry point. Each individual parser/utility uses dynamic `import()` internally, so importing the barrel doesn't pull in unused Tier 3 deps.
 - Service interfaces (`ILlmProvider`, `ISpeechProvider`, `IGraphProvider`) are excluded from initial exports. They'll be promoted to core only when two or more servers share the same interface (see Open Questions).
+- Build config exports point to root-level files in the package, not to `dist/`. They're shipped as-is and must be listed in the `files` array alongside `dist/`.
 
 ### Build configs
 
-Shared build configs are exported as root-level files in the published package (not subpath exports). Servers reference them directly:
+Build configs are explicitly listed in the `exports` map above. Once `exports` is present in `package.json`, only listed paths are resolvable — unlisted files are unreachable even if physically present in the package. Servers reference them via their subpath exports:
 
 ```jsonc
 // tsconfig.json
-{ "extends": "@cyanheads/mcp-ts-core/tsconfig.base.json" }
+{ "extends": "@cyanheads/mcp-ts-core/tsconfig.base.json" }  // resolves via exports map
 ```
 
 ```ts
 // vitest.config.ts
-import coreConfig from '@cyanheads/mcp-ts-core/vitest.config.js';
+import coreConfig from '@cyanheads/mcp-ts-core/vitest.config';
 ```
 
 ```jsonc
 // .eslintrc or eslint.config.js
-{ "extends": "@cyanheads/mcp-ts-core/eslint.config.js" }
+{ "extends": "@cyanheads/mcp-ts-core/eslint.config" }
 ```
 
 These files are listed in the package's `files` array alongside `dist/`.
@@ -712,7 +753,7 @@ The `node-cron` scheduler already uses this pattern. The OTEL instrumentation al
 ```ts
 // vitest.config.ts (in the server repo)
 import { defineConfig } from 'vitest/config';
-import coreConfig from '@cyanheads/mcp-ts-core/vitest-config'; // base config
+import coreConfig from '@cyanheads/mcp-ts-core/vitest.config'; // base config
 
 export default defineConfig({
   ...coreConfig,
@@ -1001,7 +1042,7 @@ Issues to fix in the current codebase before extracting:
 | Issue | Location | Fix |
 |:------|:---------|:----|
 | `registerMcpServices()` imports definition barrels directly | [mcp.ts:23,25,30](src/container/registrations/mcp.ts#L23-L30) | Accept `ServerDefinitions` parameter instead of static imports. |
-| `worker.ts` has hardcoded binding keys | [worker.ts:86-106](src/worker.ts#L86-L106) | Extract `CoreBindingMappings` as a const; `createWorkerHandler` merges with `extraBindings`. |
+| `worker.ts` has hardcoded binding keys | [worker.ts:86-106](src/worker.ts#L86-L106) | Extract `CoreBindingMappings` as a const; `createWorkerHandler` merges with `extraEnvBindings` (strings → process.env) and `extraObjectBindings` (KV/R2/D1 → globalThis). |
 | `worker.ts` `CloudflareBindings` has index signature | [worker.ts:62](src/worker.ts#L62) | Remove `[key: string]: unknown` so servers must explicitly declare extra bindings via `extends`. |
 
 ### Lazy dependency conversion (Tier 3 deps)
@@ -1069,7 +1110,7 @@ Pin downstream servers to `^major` so they get minor/patch updates automatically
 
 4. **`services` callback async support.** The current signature `(container: Container) => void` blocks server-specific services that need async init (DB connections, API client warm-up, remote config). Should be `(container: Container) => void | Promise<void>`.
 
-5. **`extraBindings` typing.** `Array<[string, string]>` loses type information. A generic `createWorkerHandler<B extends CoreBindings>` could enforce the mapping at compile time. Possibly overengineered for 0.1 — note as a refinement for 1.0.
+5. **`extraEnvBindings`/`extraObjectBindings` typing.** Both are `Array<[string, string]>` which loses type information. A generic `createWorkerHandler<B extends CoreBindings>` could enforce the mapping at compile time. Possibly overengineered for 0.1 — note as a refinement for 1.0.
 
 ### Resolved (post-review)
 
