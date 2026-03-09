@@ -6,6 +6,33 @@ For changelog details prior to version 3.0.0, please refer to the [changelog/arc
 
 ---
 
+## [3.0.8] - 2026-03-09
+
+### Fixed
+
+- **Prompt registration**: Made `PromptRegistry.registerAll` async so `ErrorHandler.tryCatch` errors are properly awaited. Moved into `Promise.all` alongside tool and resource registration for parallel startup.
+- **Task list visibility**: Session-bound tasks are now hidden from callers without a `sessionId`. Previously only filtered when the caller had a *different* session, leaking task existence to unauthenticated list requests.
+- **HTTP transport test**: Replaced hardcoded port 9999 with OS-assigned port (`:0`) to avoid collisions with other processes.
+- **Fuzz test types**: Added cast to fix `zxTest.fuzz` return type incompatibility with `fast-check` ^4.6.0.
+
+### Changed
+
+- **Data Explorer response formatter**: Now emits two content blocks — a JSON blob (for MCP Apps UI `loadData`) and a human-readable table (for non-app hosts / LLM context).
+- **OpenRouter provider**: `_prepareApiParameters` now propagates `top_k` and `min_p` defaults when not explicitly set in params.
+- **Dependencies**: Bumped `@cloudflare/workers-types` ^4.20260305.1→^4.20260307.1, `@types/sanitize-html` ^2.16.0→^2.16.1, `fast-check` ^4.5.3→^4.6.0, `@modelcontextprotocol/ext-apps` ^1.1.2→^1.2.0, `@supabase/supabase-js` ^2.98.0→^2.99.0, `jose` ^6.2.0→^6.2.1.
+
+### Added
+
+- **Type-satisfaction tests**: Replaced TODO stubs with real tests for `PromptDefinition`, `ResourceDefinition`, `ILlmProvider`, speech service types, Supabase types, and error handler types.
+- **Task store test**: Coverage for session-bound task hiding from callers without a sessionId.
+- **CLAUDE.md**: Added Code Navigation section with LSP-vs-Grep decision table.
+
+### Removed
+
+- Deleted barrel-export stub tests (`tests/services/speech/index.test.ts`, `tests/utils/internal/error-handler/index.test.ts`).
+
+---
+
 ## [3.0.7] - 2026-03-09
 
 ### Fixed
