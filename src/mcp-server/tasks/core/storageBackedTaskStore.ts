@@ -297,8 +297,10 @@ export class StorageBackedTaskStore implements TaskStore {
     const taskPromises = listResult.keys.map(async (key) => {
       const stored = await this.storage.get<StoredTask>(key, context);
       if (!stored) return null;
-      // Filter: show tasks owned by this session or unbound tasks
-      if (sessionId && stored.sessionId && stored.sessionId !== sessionId) {
+      // Filter: hide tasks whose sessionId doesn't match the caller's.
+      // Consistent with assertOwnership: session-bound tasks are only
+      // visible to the session that created them.
+      if (stored.sessionId && stored.sessionId !== sessionId) {
         return null;
       }
       return { ...stored.task };
