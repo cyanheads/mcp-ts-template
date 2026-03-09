@@ -24,11 +24,12 @@
 
 Replace DI container with `createApp()`, fix coupling, and fix dependency placement bugs. Aligns the code with the extraction boundary.
 
-**Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (items 1-6, 3a-3b), [03-config-container.md](03-config-container.md)
+**Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (items 1-6, 3a-3b, T1-T6), [03-config-container.md](03-config-container.md), [06-testing.md](06-testing.md)
 
 ### Checklist
 - [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
-- [ ] `diff` duplicate removed from `devDependencies` (#3b)
+- [ ] `diff` moved from `devDependencies` to `dependencies` (#3b)
+- [ ] `pino-pretty` moved from `dependencies` to `devDependencies` (#3c)
 - [ ] `src/container/` deleted; `createApp()` implemented in `src/app.ts`
 - [ ] `createMcpServerInstance` receives registries as params (not via container)
 - [ ] `TransportManager` receives deps as constructor params (not via container)
@@ -38,6 +39,12 @@ Replace DI container with `createApp()`, fix coupling, and fix dependency placem
 - [ ] Logger's `sanitization` import inlined
 - [ ] `openrouter.provider.ts` sanitization import resolved
 - [ ] `pdf-lib` moved to optional peer
+- [ ] `tests/index.test.ts` deleted (noise tests)
+- [ ] Type-existence-only tests deleted
+- [ ] Storage TTL test uncommented and working
+- [ ] `fakeTimers` removed from `vitest.config.ts` global config
+- [ ] Handler factory execution tests added
+- [ ] HTTP transport integration test added
 - [ ] `bun run devcheck` passes
 - [ ] All tests pass
 - [ ] Committed
@@ -63,7 +70,7 @@ Convert all Tier 3 static imports to lazy dynamic `import()`. Backwards-compatib
 
 The core of the extraction. Transform the repo in-place.
 
-**Detail docs:** [01-architecture.md](01-architecture.md), [02-public-api.md](02-public-api.md), [03-config-container.md](03-config-container.md), [03a-build.md](03a-build.md)
+**Detail docs:** [01-architecture.md](01-architecture.md), [02-public-api.md](02-public-api.md), [03-config-container.md](03-config-container.md), [03a-build.md](03a-build.md), [12-developer-api.md](12-developer-api.md)
 
 ### Checklist
 - [ ] `package.json` renamed to `@cyanheads/mcp-ts-core`
@@ -80,8 +87,26 @@ The core of the extraction. Transform the repo in-place.
 - [ ] `CONTRIBUTING.md` written (repo-only, excluded from package)
 - [ ] External skill definitions written in `skills/` with `audience: external` (see [05-agent-dx.md](05-agent-dx.md))
 - [ ] Internal skill definitions written in `skills-internal/` with `audience: internal`
-- [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js`, `eslint.config.js`
-- [ ] Test helpers implemented in `src/testing/index.ts` (`createMockSdkContext`, `createMockAppContext`)
+- [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js`, `biome.json`
+- [ ] Test helpers implemented in `src/testing/index.ts` (`createMockContext`)
+- [ ] `Context` interface defined and exported from `./context`
+- [ ] `createContext()` factory constructs `Context` from `RequestContext` + `SdkContext` + services
+- [ ] `ContextLogger` delegates to Pino with auto-correlated request metadata
+- [ ] `ContextState` delegates to `StorageService` with tenant scoping
+- [ ] `ContextProgress` wraps `TaskStore` status updates
+- [ ] `tool()` builder exported from `./tools` and `.`
+- [ ] `resource()` builder exported from `./resources` and `.`
+- [ ] `prompt()` builder exported from `./prompts` and `.`
+- [ ] `ToolDefinition` uses new field names (`handler`, `input`, `output`, `format`, `auth`, `task`)
+- [ ] `ResourceDefinition` uses new field names, handler receives `(params, ctx)` not `(uri, params, context)`
+- [ ] `PromptDefinition` uses `args` instead of `argumentsSchema`
+- [ ] `task: true` tools auto-managed by framework (create task, background run, store result)
+- [ ] `TaskToolDefinition` with manual `taskHandlers` preserved as escape hatch in `./tasks`
+- [ ] Inline `auth` property checked by handler factory before calling `handler`
+- [ ] `checkScopes(ctx, scopes)` exported from `./auth`; `withToolAuth`/`withResourceAuth` removed
+- [ ] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth
+- [ ] All existing template tools (`echo`, `cat_fact`, `countdown`, etc.) updated to new API
+- [ ] Conformance harness updated to use `createApp()` instead of `composeContainer()`
 - [ ] `files` array excludes `skills-internal/`, `core-extraction/`, `CONTRIBUTING.md`
 - [ ] `prepublishOnly` script added
 - [ ] Package compiles cleanly (`tsc && tsc-alias`)
@@ -144,10 +169,13 @@ One at a time, starting with the least-diverged.
 ### Per-server checklist
 - [ ] `@cyanheads/mcp-ts-core` added as dependency
 - [ ] Infrastructure files deleted (including `src/container/`)
-- [ ] Imports rewritten (`@/` -> `@cyanheads/mcp-ts-core/`)
-- [ ] `index.ts` replaced with `createApp()` call
+- [ ] Imports rewritten (`@/` → `@cyanheads/mcp-ts-core/`; logger/requestContext/withAuth deleted from tool files)
+- [ ] Tool/resource definitions updated to new API (`handler`/`input`/`output`/`format`/`auth`, `(input, ctx)` signature)
+- [ ] Task tools converted from `TaskToolDefinition` + `taskHandlers` to `task: true`
+- [ ] `index.ts` replaced with `createApp()` call (flattened `tools`/`resources`/`prompts`)
 - [ ] `worker.ts` replaced with `createWorkerHandler()` call
 - [ ] Server-specific services moved to `setup()` callback (init/accessor pattern)
+- [ ] Tests updated: `createMockContext()` replaces split mocks, `.handler()` replaces `.logic()`
 - [ ] `CLAUDE.md` updated to reference core
 - [ ] `devcheck` passes
 - [ ] All tests pass

@@ -48,12 +48,12 @@ export function getServerConfig(): ServerConfig {
 
 **Warning:** Do not eagerly parse `process.env` at module top-level (e.g. `export const serverConfig = Schema.parse({...})`). In Cloudflare Workers, env bindings are injected into `process.env` by `injectEnvVars()` during the request handler — after all static imports have executed. Eager parsing sees empty values. Core's own `parseConfig()` is lazy for exactly this reason; server config must follow the same pattern.
 
-Tool logic imports from the server's config, not from core:
+Tool handlers import from the server's config, not from core:
 
 ```ts
 import { getServerConfig } from '../../config/server-config.js';
 
-// Called inside logic (at request time), not at import time
+// Called inside handler (at request time), not at import time
 const config = getServerConfig();
 
 // Core config available via the setup() callback or lazy accessor
@@ -82,7 +82,7 @@ Uses a DI container with tokens, registrations, and lazy singleton resolution. T
 createApp(options)
   -> constructCoreServices()              // direct construction, no container
   -> options.setup?.(coreServices)        // server-specific init
-  -> constructRegistries(options.definitions)  // ToolRegistry, ResourceRegistry, etc.
+  -> constructRegistries(options.tools, options.resources, options.prompts)
   -> constructTransport(...)              // TaskManager, TransportManager
   -> start()
 ```
@@ -108,10 +108,10 @@ const llmProvider = config.openRouter?.apiKey
 // Server-specific setup (optional services included when configured)
 await options.setup?.({ config, logger, storage, rateLimiter, llmProvider, speechService, supabase });
 
-// Registries from definitions
-const toolRegistry = new ToolRegistry(options.definitions.tools);
-const resourceRegistry = new ResourceRegistry(options.definitions.resources);
-const promptRegistry = new PromptRegistry(options.definitions.prompts, logger);
+// Registries from top-level arrays
+const toolRegistry = new ToolRegistry(options.tools ?? []);
+const resourceRegistry = new ResourceRegistry(options.resources ?? []);
+const promptRegistry = new PromptRegistry(options.prompts ?? [], logger);
 const rootsRegistry = new RootsRegistry(logger);
 const taskManager = new TaskManager(config, storage);
 
@@ -133,7 +133,7 @@ The entire `src/container/` directory:
 
 ### Key constraint
 
-**Service initialization timing.** `setup()` runs after core services are constructed but before registries and transport. Tool definitions access server-specific services at call time (inside `logic`) via module-level lazy accessors — not at definition time. This is already the established pattern; no code needs to change.
+**Service initialization timing.** `setup()` runs after core services are constructed but before registries and transport. Tool definitions access server-specific services at call time (inside `handler`) via module-level lazy accessors — not at definition time. This is already the established pattern; no code needs to change.
 
 ### Server-specific services without DI
 
@@ -156,14 +156,14 @@ export function getPubMedService(): PubMedService {
 
 // Called in createApp's setup() callback
 await createApp({
-  definitions: { ... },
+  tools: [...],
   setup(core) {
     initPubMedService(core.config, core.storage);
   },
 });
 
-// Consumed in tool logic at call time
-logic: async (input, appContext) => {
+// Consumed in tool handler at call time
+handler: async (input, ctx) => {
   return getPubMedService().search(input.query);
 },
 ```

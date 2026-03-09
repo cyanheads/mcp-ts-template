@@ -25,6 +25,7 @@ This directory contains the living plan for extracting the infrastructure layer 
 | 08 | [Pre-extraction Cleanup](08-pre-extraction.md) | DI/wiring fixes, dep placement bugs, lazy dep conversion, coupling fixes |
 | 09 | [Execution Sequence](09-execution.md) | Phased execution with per-phase checklists |
 | 10 | [Decisions](10-decisions.md) | Resolved decisions, open questions, decision log |
+| 11 | [Consumer Workflow](11-consumer-workflow.md) | End-to-end walkthrough of building a server on core |
 
 ## Phase Summary
 

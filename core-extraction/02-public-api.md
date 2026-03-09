@@ -1,6 +1,8 @@
 # 02 — Public API
 
-> `createApp()`, `createWorkerHandler()`, subpath exports.
+> `createApp()`, `createWorkerHandler()`, subpath exports, developer API.
+>
+> **Developer-facing API (builders, `Context`, inline auth, task tools):** See [12-developer-api.md](12-developer-api.md).
 
 ---
 
@@ -14,12 +16,6 @@ The primary API contract. The current `index.ts` is 168 lines of boilerplate (co
 import type { AnyToolDefinition } from '@cyanheads/mcp-ts-core/tools';
 import type { AnyResourceDefinition } from '@cyanheads/mcp-ts-core/resources';
 import type { PromptDefinition } from '@cyanheads/mcp-ts-core/prompts';
-
-interface ServerDefinitions {
-  tools: AnyToolDefinition[];
-  resources: AnyResourceDefinition[];
-  prompts: PromptDefinition[];
-}
 
 interface CoreServices {
   /** Zod-validated config from environment variables */
@@ -43,8 +39,12 @@ interface CreateAppOptions {
   name?: string;
   /** Server version — overrides package.json and MCP_SERVER_VERSION env var */
   version?: string;
-  /** Tool, resource, and prompt definitions to register */
-  definitions: ServerDefinitions;
+  /** Tool definitions to register */
+  tools?: AnyToolDefinition[];
+  /** Resource definitions to register */
+  resources?: AnyResourceDefinition[];
+  /** Prompt definitions to register */
+  prompts?: PromptDefinition[];
   /** Runs after core services are constructed. Use for server-specific initialization. */
   setup?: (core: CoreServices) => void | Promise<void>;
 }
@@ -69,24 +69,26 @@ export async function createApp(options: CreateAppOptions): Promise<ServerHandle
 1. Suppress ANSI colors for stdio/non-TTY (currently lines 19-26 of `index.ts`)
 2. Parse and validate config with `options.name`/`options.version` overrides
 3. Construct core services directly — no DI container:
-   - Config -> Logger -> StorageProvider -> StorageService -> RateLimiter
+   - Config -> StorageProvider -> StorageService -> RateLimiter
    - Conditional: Supabase client (if configured), LLM provider, SpeechService
-4. `await options.setup?.({ config, logger, storage, rateLimiter, llmProvider?, speechService?, supabase? })` — server-specific init
-5. Construct MCP registries from `options.definitions` (ToolRegistry, ResourceRegistry, PromptRegistry, RootsRegistry)
-6. Construct TaskManager, server factory, TransportManager — passing dependencies directly
-7. Initialize OpenTelemetry
-8. Initialize high-res timer
-9. Initialize logger with config-derived level and transport type
+4. Initialize logger with config-derived level and transport type
+5. `await options.setup?.({ config, logger, storage, rateLimiter, llmProvider?, speechService?, supabase? })` — server-specific init
+6. Construct MCP registries from `options.tools`/`resources`/`prompts` (ToolRegistry, ResourceRegistry, PromptRegistry, RootsRegistry)
+7. Construct TaskManager, server factory, TransportManager — passing dependencies directly
+8. Initialize OpenTelemetry
+9. Initialize high-res timer
 10. Register `uncaughtException` / `unhandledRejection` handlers
 11. Start transport via TransportManager
 12. Register `SIGTERM` / `SIGINT` handlers with graceful shutdown
 13. Return `ServerHandle` with `shutdown()` and `services`
 
+**Key change from earlier plan:** Logger initialized at step 4 (before `setup()`), so `setup()` can log via `core.logger`. See [10-decisions.md](10-decisions.md) #23.
+
 ### Design notes
 
 **Opinionated process runner.** `createApp()` owns signal handlers, unhandled error hooks, logger lifecycle, and transport startup. This is intentional — the primary product is a standalone MCP server process, not an embeddable library. For cases that need manual composition (embedding in a larger app, custom signal handling, testing infrastructure), the individual building blocks are exported as first-class public API: config, transport manager, registries, logger. Skipping `createApp()` and wiring these directly is a supported path, not a workaround.
 
-**No DI container.** The dependency graph is static, linear, and small (~15 services). No tool, resource, or prompt definition resolves services from a container — they receive context via function parameters (`appContext`, `sdkContext`) or access server-specific services through module-level lazy accessors. Direct construction in `createApp()` makes the wiring explicit, debuggable with a stack trace, and eliminates the token/registration/resolve indirection of a service locator. Server-specific services initialized in `setup()` follow the same lazy accessor pattern. See [10-decisions.md](10-decisions.md) #15.
+**No DI container.** The dependency graph is static, linear, and small (~15 services). No tool, resource, or prompt definition resolves services from a container — they receive a unified `Context` object (see [12-developer-api.md](12-developer-api.md)) or access server-specific services through module-level lazy accessors. Direct construction in `createApp()` makes the wiring explicit, debuggable with a stack trace, and eliminates the token/registration/resolve indirection of a service locator. Server-specific services initialized in `setup()` follow the same lazy accessor pattern. See [10-decisions.md](10-decisions.md) #15.
 
 **HTTP infrastructure ownership.** `createApp()` owns the health endpoint (`/healthz`) and CORS configuration (`MCP_ALLOWED_ORIGINS`). These are part of the HTTP transport layer — they ship with core and are not configurable by downstream servers beyond the existing env vars. The health endpoint is always unprotected; CORS applies to protected endpoints when auth is enabled.
 
@@ -101,16 +103,14 @@ export async function createApp(options: CreateAppOptions): Promise<ServerHandle
 ```ts
 #!/usr/bin/env node
 import { createApp } from '@cyanheads/mcp-ts-core';
-import { allToolDefinitions } from './mcp-server/tools/definitions/index.js';
-import { allResourceDefinitions } from './mcp-server/resources/definitions/index.js';
-import { allPromptDefinitions } from './mcp-server/prompts/definitions/index.js';
+import { allToolDefinitions } from './mcp-server/tools/index.js';
+import { allResourceDefinitions } from './mcp-server/resources/index.js';
+import { allPromptDefinitions } from './mcp-server/prompts/index.js';
 
 await createApp({
-  definitions: {
-    tools: allToolDefinitions,
-    resources: allResourceDefinitions,
-    prompts: allPromptDefinitions,
-  },
+  tools: allToolDefinitions,
+  resources: allResourceDefinitions,
+  prompts: allPromptDefinitions,
 });
 ```
 
@@ -121,17 +121,15 @@ await createApp({
 ```ts
 #!/usr/bin/env node
 import { createApp } from '@cyanheads/mcp-ts-core';
-import { allToolDefinitions } from './mcp-server/tools/definitions/index.js';
-import { allResourceDefinitions } from './mcp-server/resources/definitions/index.js';
-import { allPromptDefinitions } from './mcp-server/prompts/definitions/index.js';
+import { allToolDefinitions } from './mcp-server/tools/index.js';
+import { allResourceDefinitions } from './mcp-server/resources/index.js';
+import { allPromptDefinitions } from './mcp-server/prompts/index.js';
 import { initPubMedService } from './services/pubmed/pubmed-service.js';
 
 await createApp({
-  definitions: {
-    tools: allToolDefinitions,
-    resources: allResourceDefinitions,
-    prompts: allPromptDefinitions,
-  },
+  tools: allToolDefinitions,
+  resources: allResourceDefinitions,
+  prompts: allPromptDefinitions,
   setup(core) {
     initPubMedService(core.config, core.storage);
   },
@@ -155,10 +153,10 @@ export function getPubMedService(): PubMedService {
   return _service;
 }
 
-// tools/definitions/search-pubmed.tool.ts
+// tools/search-pubmed.tool.ts
 import { getPubMedService } from '../../services/pubmed/pubmed-service.js';
 
-logic: async (input, appContext) => {
+handler: async (input, ctx) => {
   return getPubMedService().search(input.query);
 },
 ```
@@ -175,7 +173,9 @@ The current `worker.ts` is 357 lines — CloudflareBindings type, env injection,
 import type { CloudflareBindings } from '@cyanheads/mcp-ts-core/worker';
 
 interface WorkerOptions {
-  definitions: ServerDefinitions;
+  tools?: AnyToolDefinition[];
+  resources?: AnyResourceDefinition[];
+  prompts?: PromptDefinition[];
   setup?: (core: CoreServices) => void | Promise<void>;
   /** Extra string CF bindings to inject into process.env (beyond the core set) */
   extraEnvBindings?: Array<[string, string]>;
@@ -200,16 +200,14 @@ export function createWorkerHandler(options: WorkerOptions): {
 
 ```ts
 import { createWorkerHandler } from '@cyanheads/mcp-ts-core/worker';
-import { allToolDefinitions } from './mcp-server/tools/definitions/index.js';
-import { allResourceDefinitions } from './mcp-server/resources/definitions/index.js';
-import { allPromptDefinitions } from './mcp-server/prompts/definitions/index.js';
+import { allToolDefinitions } from './mcp-server/tools/index.js';
+import { allResourceDefinitions } from './mcp-server/resources/index.js';
+import { allPromptDefinitions } from './mcp-server/prompts/index.js';
 
 export default createWorkerHandler({
-  definitions: {
-    tools: allToolDefinitions,
-    resources: allResourceDefinitions,
-    prompts: allPromptDefinitions,
-  },
+  tools: allToolDefinitions,
+  resources: allResourceDefinitions,
+  prompts: allPromptDefinitions,
 });
 ```
 
@@ -252,24 +250,27 @@ The `exports` field in `@cyanheads/mcp-ts-core/package.json` defines the public 
 ```jsonc
 {
   "exports": {
-    // Main entry point — createApp(), CreateAppOptions, ServerHandle, CoreServices
+    // Main entry — createApp, tool, resource, prompt, Context type
     ".":                 { "types": "./dist/app.d.ts",               "import": "./dist/app.js" },
 
     // Worker entry point
     "./worker":          { "types": "./dist/worker.d.ts",          "import": "./dist/worker.js" },
 
-    // MCP primitives
+    // MCP primitives (builders + definition types)
     "./tools":           { "types": "./dist/mcp-server/tools/utils/toolDefinition.d.ts",           "import": "./dist/mcp-server/tools/utils/toolDefinition.js" },
     "./resources":       { "types": "./dist/mcp-server/resources/utils/resourceDefinition.d.ts",   "import": "./dist/mcp-server/resources/utils/resourceDefinition.js" },
     "./prompts":         { "types": "./dist/mcp-server/prompts/utils/promptDefinition.d.ts",       "import": "./dist/mcp-server/prompts/utils/promptDefinition.js" },
     "./tasks":           { "types": "./dist/mcp-server/tasks/utils/taskToolDefinition.d.ts",       "import": "./dist/mcp-server/tasks/utils/taskToolDefinition.js" },
 
+    // Context type (for consumers typing against context directly)
+    "./context":         { "types": "./dist/context.d.ts",         "import": "./dist/context.js" },
+
     // Core infrastructure
     "./errors":          { "types": "./dist/types-global/errors.d.ts",          "import": "./dist/types-global/errors.js" },
     "./config":          { "types": "./dist/config/index.d.ts",                 "import": "./dist/config/index.js" },
 
-    // Auth
-    "./auth":            { "types": "./dist/mcp-server/transports/auth/lib/withAuth.d.ts", "import": "./dist/mcp-server/transports/auth/lib/withAuth.js" },
+    // Auth (checkScopes for dynamic auth — inline auth is the primary pattern)
+    "./auth":            { "types": "./dist/mcp-server/transports/auth/lib/auth.d.ts", "import": "./dist/mcp-server/transports/auth/lib/auth.js" },
 
     // Storage
     "./storage":         { "types": "./dist/storage/core/StorageService.d.ts",       "import": "./dist/storage/core/StorageService.js" },
@@ -294,7 +295,7 @@ The `exports` field in `@cyanheads/mcp-ts-core/package.json` defines the public 
     // Build configs (not compiled — shipped as-is from package root)
     "./tsconfig.base.json":    "./tsconfig.base.json",
     "./vitest.config":         "./vitest.config.js",
-    "./eslint.config":         "./eslint.config.js"
+    "./biome.json":            "./biome.json"
   }
 }
 ```
@@ -302,13 +303,18 @@ The `exports` field in `@cyanheads/mcp-ts-core/package.json` defines the public 
 Every compiled export has both `types` and `import` conditions. The `types` condition must come first — TypeScript requires it before `import` for correct resolution. Build config exports are plain strings (no `.d.ts`). Internal file structure can change without breaking downstream — only subpath names are the contract. See [03a-build.md](03a-build.md) for the build pipeline that produces `dist/`.
 
 **Changes from the original plan:**
-- Main entry (`.`) replaces `./bootstrap` — `createApp` is the primary export
+- Main entry (`.`) exports `createApp` + builder functions (`tool`, `resource`, `prompt`) + `Context` type for convenience
 - `./container` and `./tokens` removed — no DI container in the public API (see [10-decisions.md](10-decisions.md) #15)
+- `./context` added — `Context`, `ContextLogger`, `ContextState`, `ContextProgress` types (see [12-developer-api.md](12-developer-api.md))
+- `./auth` exports `checkScopes()` for dynamic auth — `withToolAuth`/`withResourceAuth` removed (inline `auth` property is the primary pattern)
+- `./eslint.config` replaced with `./biome.json` (see [10-decisions.md](10-decisions.md) #24)
 
 **Notes:**
-- `./utils/parsing` and `./utils/security` point to barrel `index.js` files. These are legitimate aggregation points — they collect lazy-import wrappers into a single entry point. Each individual parser/utility uses dynamic `import()` internally, so importing the barrel doesn't pull in unused Tier 3 deps.
+- `./tools`, `./resources`, `./prompts` export both builder functions and definition types
+- `./tasks` exports the raw `TaskToolDefinition` type for power-user escape hatch (most users use `task: true` on a regular tool)
+- `./utils/parsing` and `./utils/security` point to barrel `index.js` files — legitimate aggregation points with lazy-import wrappers
 - Service interfaces excluded from initial exports — promoted when shared by 2+ servers
-- Once `exports` is present in `package.json`, only listed paths are resolvable — unlisted files are unreachable even if physically present in the package. Build config exports point to root-level files, not `dist/`. They're shipped as-is and must be listed in the `files` array alongside `dist/`.
+- Once `exports` is present in `package.json`, only listed paths are resolvable — unlisted files are unreachable
 
 ### Import changes for downstream servers
 
@@ -321,13 +327,13 @@ import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { markdown } from '@/utils/formatting/markdownBuilder.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 
-// After (core package — stable subpath exports)
-import type { ToolDefinition } from '@cyanheads/mcp-ts-core/tools';
-import { withToolAuth } from '@cyanheads/mcp-ts-core/auth';
-import { logger } from '@cyanheads/mcp-ts-core/utils/logger';
-import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
+// After (core package — builder + stable subpath exports)
+import { tool } from '@cyanheads/mcp-ts-core';                          // or '@cyanheads/mcp-ts-core/tools'
+import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import { markdown } from '@cyanheads/mcp-ts-core/utils/formatting';
-import type { RequestContext } from '@cyanheads/mcp-ts-core/utils/requestContext';
+// No logger import needed — use ctx.log
+// No withToolAuth import needed — use auth: ['scope'] on definition
+// No RequestContext import needed — use Context from the handler
 ```
 
 ### Build config usage in servers
@@ -343,6 +349,6 @@ import coreConfig from '@cyanheads/mcp-ts-core/vitest.config';
 ```
 
 ```jsonc
-// eslint.config.js
-{ "extends": "@cyanheads/mcp-ts-core/eslint.config" }
+// biome.json — extends core's Biome config
+{ "extends": ["@cyanheads/mcp-ts-core/biome.json"] }
 ```

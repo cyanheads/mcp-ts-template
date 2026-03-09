@@ -35,12 +35,12 @@ In the critical path of `createApp()`. Every server needs these.
 | `@opentelemetry/api` | Trace context extraction (requestContext, errorHandler, performance) | Lightweight API surface only, not the SDK |
 
 **Notes:**
-- `pino-pretty` stays in `devDependencies` only. The logger already loads it via dynamic `require.resolve()` with a try/catch fallback to JSON output ([logger.ts:107-112](../src/utils/internal/logger.ts#L107-L112)). Servers that want pretty dev output install it themselves; production servers never need it.
+- `pino-pretty` is currently in `dependencies` ([package.json:186](../package.json#L186)) but must be moved to `devDependencies` before extraction. The logger already loads it via dynamic `require.resolve()` with a try/catch fallback to JSON output ([logger.ts:107-112](../src/utils/internal/logger.ts#L107-L112)). Servers that want pretty dev output install it themselves; production servers never need it.
 - `dotenv` is unused in Workers (env comes from CF bindings). Acceptable in Tier 1 since every Node server needs it, but the Worker entry point should not import it.
 
 **Current `package.json` bugs to fix before extraction:**
 - `@hono/mcp` is in `devDependencies` ([package.json:83](../package.json#L83)) but is required at runtime by the HTTP transport. Must move to `dependencies`.
-- `diff` is duplicated: pinned `8.0.3` in `dependencies` ([package.json:68](../package.json#L68)) and `^8.0.3` in `devDependencies` ([package.json:99](../package.json#L99)). Remove the `devDependencies` duplicate. During extraction it becomes an optional peer (Tier 3).
+- `diff` is only in `devDependencies` ([package.json:99](../package.json#L99)) and `resolutions` ([package.json:68](../package.json#L68)). `resolutions` pins versions but doesn't install packages — so `diff` has no runtime install path in production. Move from `devDependencies` to `dependencies`. During extraction it becomes an optional peer (Tier 3).
 
 ### `hono` as peer dependency consideration
 
@@ -201,11 +201,11 @@ export async function parseYaml(input: string) {
 ## Checklist
 
 - [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (pre-extraction fix)
-- [ ] `diff` duplicate removed from `devDependencies` (already in `dependencies`; becomes optional peer during extraction)
+- [ ] `diff` moved from `devDependencies` to `dependencies` (becomes optional peer during extraction)
 - [ ] `package.json` reorganized: Tier 1 in `dependencies`, Tier 2 in `peerDependencies` (`"zod": "^4.3.0"`), Tier 3 in `peerDependencies` + `peerDependenciesMeta` optional
 - [ ] All Tier 3 static imports converted to lazy dynamic `import()` with cached module ref
 - [ ] Each lazy import throws `McpError(ConfigurationError)` with install instruction on missing dep
-- [ ] `pino-pretty` stays in `devDependencies` only (already dynamically resolved with fallback)
+- [ ] `pino-pretty` moved from `dependencies` to `devDependencies` (already dynamically resolved with fallback)
 - [ ] `@opentelemetry/api` stays in Tier 1 (lightweight API surface)
 - [ ] Full OTEL SDK stays in Tier 3 (already dynamically imported)
 - [ ] `@hono/otel` lazy conversion uses dynamic `import()` inside the OTEL-enabled guard, not just a top-level swap
