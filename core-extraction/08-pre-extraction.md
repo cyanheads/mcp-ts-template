@@ -100,10 +100,13 @@ export async function doSomething(input: string) {
 
 ## Execution Order
 
-These cleanup tasks form **Phase 1** and **Phase 2** of the [execution sequence](09-execution.md).
+These cleanup tasks form **Phase 1a**, **Phase 1b**, and **Phase 2** of the [execution sequence](09-execution.md).
 
-**Phase 1 — DI/wiring + coupling (items 1-6):**
-Small, non-breaking changes that align the code with the extraction boundary. Run `devcheck`, commit.
+**Phase 1a — Fixes & hardening (items 2-6, 3a-3c, T1-T6):**
+Dep placement, coupling fixes, worker prep, test cleanup. All additive or corrective — no architectural changes. Low risk, independent items that can be done in any order. Run `devcheck`, commit.
+
+**Phase 1b — DI removal & `createApp()` (item 1):**
+Replace the DI container with direct construction. Medium risk, central wiring change. Isolated from 1a to contain blast radius. Run `devcheck`, commit.
 
 **Phase 2 — Lazy dependency conversion (items 7-17):**
 Convert all Tier 3 static imports. Run `devcheck` + full test suite, commit. Backwards-compatible.
@@ -112,25 +115,40 @@ Convert all Tier 3 static imports. Run `devcheck` + full test suite, commit. Bac
 
 ## Master Checklist
 
-### Phase 1: DI removal + wiring + coupling + dep placement + test cleanup
+### Phase 1a: Fixes & hardening (deps, coupling, worker prep, tests)
+
+**Dep placement fixes:**
 - [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
 - [ ] `diff` moved from `devDependencies` to `dependencies` (#3b)
 - [ ] `pino-pretty` moved from `dependencies` to `devDependencies` (#3c)
-- [ ] `src/container/` deleted; `createApp()` implemented in `src/app.ts` with direct construction (#1)
-- [ ] `createMcpServerInstance` receives registries as params (not via container)
-- [ ] `TransportManager` receives deps as constructor params (not via container)
-- [ ] Container tests deleted or rewritten as `createApp()` integration tests
-- [ ] Worker binding keys extracted to `CoreBindingMappings` const (#2)
-- [ ] `CloudflareBindings` index signature removed (#3)
+- [ ] `pdf-lib` moved to optional peer (#6)
+
+**Coupling fixes:**
 - [ ] Logger's `sanitization` import inlined (#4)
 - [ ] `openrouter.provider.ts` sanitization import made lazy or inlined (#5)
-- [ ] `pdf-lib` moved to optional peer (#6)
+
+**Worker prep:**
+- [ ] Worker binding keys extracted to `CoreBindingMappings` const (#2)
+- [ ] `CloudflareBindings` index signature removed (#3)
+
+**Test cleanup:**
 - [ ] `tests/index.test.ts` deleted — noise tests (#T1)
 - [ ] Type-existence-only tests deleted (#T2)
 - [ ] Storage TTL test uncommented and working (#T3)
 - [ ] `fakeTimers` removed from `vitest.config.ts` global config (#T4)
 - [ ] Handler factory execution tests added (#T5)
 - [ ] HTTP transport integration test added (#T6)
+
+**Gate:**
+- [ ] `devcheck` passes
+- [ ] All tests pass
+
+### Phase 1b: DI removal & `createApp()`
+- [ ] `src/container/` deleted; `createApp()` implemented in `src/app.ts` with direct construction (#1)
+- [ ] `createMcpServerInstance` receives registries as params (not via container)
+- [ ] `TransportManager` receives deps as constructor params (not via container)
+- [ ] Container tests deleted or rewritten as `createApp()` integration tests
+- [ ] Existing `index.ts` updated to use `createApp()` internally
 - [ ] `devcheck` passes
 - [ ] All tests pass
 

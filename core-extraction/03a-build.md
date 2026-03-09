@@ -97,7 +97,7 @@ The base `tsconfig.base.json` that downstream servers extend will be a subset �
     "CLAUDE.md",
     "tsconfig.base.json",
     "vitest.config.js",
-    "eslint.config.js"
+    "biome.json"
   ]
 }
 ```
@@ -105,7 +105,9 @@ The base `tsconfig.base.json` that downstream servers extend will be a subset �
 - `dist/` — compiled `.js`, `.d.ts`, `.d.ts.map`, `.js.map`
 - `skills/` — Agent Skills definitions (`SKILL.md` files + assets)
 - `CLAUDE.md` — consumer-facing agent reference
-- `tsconfig.base.json`, `vitest.config.js`, `eslint.config.js` — shared build configs (shipped as-is, not compiled)
+- `tsconfig.base.json`, `vitest.config.js`, `biome.json` — shared build configs (shipped as-is, not compiled)
+
+**`vitest.config.js` is authored as plain JS, not compiled from `.ts`.** Vitest configs are simple objects that don't benefit from TypeScript. A `.ts` file can't be imported from `node_modules` through subpath exports without extra consumer-side TypeScript config — `.js` works universally. Core's own `vitest.config.ts` (used internally during development) is separate from the exported `vitest.config.js` base preset.
 
 **Excluded:** `examples/`, `tests/`, `CONTRIBUTING.md`, `src/`, `.github/`
 
@@ -214,7 +216,8 @@ console.log(`All ${Object.keys(exports).length} export paths verified.`);
 - [ ] `tsc-alias` added to `devDependencies`
 - [ ] `tsconfig.json` updated: `types` without `bun-types`, `include` excludes tests/examples
 - [ ] `tsconfig.base.json` created for downstream server extension
-- [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, build configs
+- [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js`, `biome.json`
+- [ ] `vitest.config.js` authored as plain JS (not compiled from `.ts`)
 - [ ] Every subpath in `exports` has both `types` and `import` conditions (`types` first)
 - [ ] `"./package.json": "./package.json"` included in `exports` (toolchain compatibility)
 - [ ] `prepublishOnly` script added

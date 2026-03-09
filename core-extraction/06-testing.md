@@ -183,8 +183,9 @@ The `examples/` directory in core acts as an integration test — a thin server 
 CI runs:
 1. Build core
 2. Build examples against core's `dist/`
-3. Run examples' tests
-4. `devcheck` on examples
+3. Worker bundle build (`bun build examples/worker.ts --target=node --outdir=examples/dist-worker --no-external`) — validates bundler resolution of subpath exports from `node_modules`
+4. Run examples' tests
+5. `devcheck` on examples
 
 ---
 
@@ -198,7 +199,8 @@ During development and CI, examples resolve `@cyanheads/mcp-ts-core` imports aga
 1. `tsc && tsc-alias` (build core)
 2. `cd examples && bun install` (resolves `file:..` symlink)
 3. `tsc --noEmit` (type-check examples against core's `dist/`)
-4. `bun test` (run example tests)
+4. `bun build src/worker.ts --target=node --outdir=dist-worker --no-external` (validate Worker bundling of subpath exports)
+5. `bun test` (run example tests)
 
 The published reference template repo (`mcp-ts-template`) uses the real npm version, not `file:`.
 
@@ -206,7 +208,7 @@ The published reference template repo (`mcp-ts-template`) uses the real npm vers
 
 ## Checklist
 
-### Pre-extraction cleanup (Phase 1)
+### Pre-extraction cleanup (Phase 1a)
 - [ ] `tests/index.test.ts` deleted (all `expect(true).toBe(true)` noise)
 - [ ] Type-existence-only tests deleted (verify behavior, not type identity)
 - [ ] Storage TTL test uncommented and working in `storageProviderCompliance.test.ts`
@@ -220,5 +222,6 @@ The published reference template repo (`mcp-ts-template`) uses the real npm vers
 - [ ] `createMockContext({ tenantId })` produces context with working `ctx.state`
 - [ ] Conformance harness updated to use `createApp()` instead of `composeContainer()`
 - [ ] Core test suite covers app wiring, handler factory, storage, config, transports, HTTP integration, auth, utils, worker
-- [ ] `examples/` in core CI validates public export contract
+- [ ] `examples/` in core CI validates public export contract (type-check + tests + Worker bundle)
+- [ ] Worker bundle build validates bundler resolution of subpath exports from `node_modules`
 - [ ] Server vitest config extends core's base config

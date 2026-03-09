@@ -8,8 +8,9 @@
 
 | Phase | Description | Depends on | Risk | Status |
 |:------|:------------|:-----------|:-----|:-------|
-| 1 | Pre-extraction cleanup (DI/wiring) | — | Low (non-breaking) | Not started |
-| 2 | Lazy dependency conversion | Phase 1 | Low (backwards-compatible) | Not started |
+| 1a | Fixes & hardening (deps, coupling, tests) | — | Low (additive, non-breaking) | Not started |
+| 1b | DI removal & `createApp()` | Phase 1a | Medium (central wiring) | Not started |
+| 2 | Lazy dependency conversion | Phase 1b | Low (backwards-compatible) | Not started |
 | 3 | Repo transformation (the extraction) | Phase 2 | Medium (breaking rename) | Not started |
 | 4 | Validate with examples | Phase 3 | Low | Not started |
 | 5 | Publish `@cyanheads/mcp-ts-core@0.1.0` | Phase 4 | Medium (public API) | Not started |
@@ -20,31 +21,54 @@
 
 ---
 
-## Phase 1: Pre-extraction Cleanup
+## Phase 1a: Fixes & Hardening
 
-Replace DI container with `createApp()`, fix coupling, and fix dependency placement bugs. Aligns the code with the extraction boundary.
+Dependency placement fixes, coupling fixes, worker prep, and test cleanup. All additive or corrective — no architectural changes. The project continues working as a standalone server throughout.
 
-**Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (items 1-6, 3a-3b, T1-T6), [03-config-container.md](03-config-container.md), [06-testing.md](06-testing.md)
+**Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (items 2-6, 3a-3c, T1-T6), [06-testing.md](06-testing.md)
 
-### Checklist
+### Dep placement fixes
 - [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (#3a)
 - [ ] `diff` moved from `devDependencies` to `dependencies` (#3b)
 - [ ] `pino-pretty` moved from `dependencies` to `devDependencies` (#3c)
-- [ ] `src/container/` deleted; `createApp()` implemented in `src/app.ts`
+- [ ] `pdf-lib` moved to optional peer (#6)
+
+### Coupling fixes
+- [ ] Logger's `sanitization` import inlined as `const` array (#4)
+- [ ] `openrouter.provider.ts` sanitization import made lazy or inlined (#5)
+
+### Worker prep
+- [ ] Worker binding keys extracted to `CoreBindingMappings` const (#2)
+- [ ] `CloudflareBindings` index signature removed (#3)
+
+### Test cleanup
+- [ ] `tests/index.test.ts` deleted — noise tests (#T1)
+- [ ] Type-existence-only tests deleted (#T2)
+- [ ] Storage TTL test uncommented and working (#T3)
+- [ ] `fakeTimers` removed from `vitest.config.ts` global config; per-test opt-in (#T4)
+- [ ] Handler factory execution tests added (#T5)
+- [ ] HTTP transport integration test added (#T6)
+
+### Gate
+- [ ] `bun run devcheck` passes
+- [ ] All tests pass
+- [ ] Committed
+
+---
+
+## Phase 1b: DI Removal & `createApp()`
+
+Replace the DI container with direct construction in `createApp()`. This is the central wiring change — isolated from the fixes in 1a to contain blast radius.
+
+**Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (item 1), [03-config-container.md](03-config-container.md)
+
+### Checklist
+- [ ] `src/container/` deleted entirely (container, tokens, registrations, barrel)
+- [ ] `createApp()` implemented in `src/app.ts` with direct service construction
 - [ ] `createMcpServerInstance` receives registries as params (not via container)
 - [ ] `TransportManager` receives deps as constructor params (not via container)
 - [ ] Container tests deleted or rewritten as `createApp()` integration tests
-- [ ] Worker binding keys extracted to `CoreBindingMappings` const
-- [ ] `CloudflareBindings` index signature removed
-- [ ] Logger's `sanitization` import inlined
-- [ ] `openrouter.provider.ts` sanitization import resolved
-- [ ] `pdf-lib` moved to optional peer
-- [ ] `tests/index.test.ts` deleted (noise tests)
-- [ ] Type-existence-only tests deleted
-- [ ] Storage TTL test uncommented and working
-- [ ] `fakeTimers` removed from `vitest.config.ts` global config
-- [ ] Handler factory execution tests added
-- [ ] HTTP transport integration test added
+- [ ] Existing `index.ts` updated to use `createApp()` internally
 - [ ] `bun run devcheck` passes
 - [ ] All tests pass
 - [ ] Committed
@@ -54,6 +78,8 @@ Replace DI container with `createApp()`, fix coupling, and fix dependency placem
 ## Phase 2: Lazy Dependency Conversion
 
 Convert all Tier 3 static imports to lazy dynamic `import()`. Backwards-compatible.
+
+**Depends on Phase 1b.** Lazy conversion touches files that may have changed during DI removal.
 
 **Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (items 7-17), [04-dependencies.md](04-dependencies.md)
 
@@ -87,7 +113,7 @@ The core of the extraction. Transform the repo in-place.
 - [ ] `CONTRIBUTING.md` written (repo-only, excluded from package)
 - [ ] External skill definitions written in `skills/` with `audience: external` (see [05-agent-dx.md](05-agent-dx.md))
 - [ ] Internal skill definitions written in `skills-internal/` with `audience: internal`
-- [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js`, `biome.json`
+- [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js` (plain JS preset), `biome.json`
 - [ ] Test helpers implemented in `src/testing/index.ts` (`createMockContext`)
 - [ ] `Context` interface defined and exported from `./context`
 - [ ] `createContext()` factory constructs `Context` from `RequestContext` + `SdkContext` + services
@@ -132,6 +158,9 @@ The `examples/` directory acts as an integration test — a thin server consumin
 
 First public release for external iteration.
 
+### Pre-publish gate
+- [ ] `@modelcontextprotocol/ext-apps` stability assessed — if still experimental/pre-stable, demote to Tier 3 optional peer before publishing (see [10-decisions.md](10-decisions.md) open question #4)
+
 ### Checklist
 - [ ] Version set to `0.1.0` in `package.json`
 - [ ] `CHANGELOG.md` has `0.1.0` entry
@@ -150,13 +179,13 @@ A new thin `mcp-ts-template` repo that depends on `@cyanheads/mcp-ts-core`.
 **Detail doc:** [01-architecture.md](01-architecture.md) (Repo Strategy)
 
 ### Checklist
-- [ ] New `cyanheads/mcp-ts-template` repo created
-- [ ] Depends on published `@cyanheads/mcp-ts-core`
+- [ ] Old `mcp-ts-template` npm package gets final major version with deprecation notice pointing to `@cyanheads/mcp-ts-core`
+- [ ] GitHub repo renamed: `cyanheads/mcp-ts-template` → `cyanheads/mcp-ts-core` (automatic redirect created)
+- [ ] New `cyanheads/mcp-ts-template` repo created (name now available after rename)
+- [ ] New repo depends on published `@cyanheads/mcp-ts-core`
 - [ ] Demonstrates the scaffold pattern (`createApp()` call, example tool/resource/prompt)
 - [ ] CI runs against the published core package
 - [ ] `devcheck` passes
-- [ ] Old `mcp-ts-template` npm package gets final major version with deprecation notice
-- [ ] GitHub repo renamed: `cyanheads/mcp-ts-template` → `cyanheads/mcp-ts-core` (with redirect)
 
 ---
 

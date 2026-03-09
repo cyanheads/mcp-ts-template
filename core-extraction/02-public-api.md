@@ -319,7 +319,7 @@ The `exports` field in `@cyanheads/mcp-ts-core/package.json` defines the public 
 }
 ```
 
-Every compiled export has both `types` and `import` conditions. The `types` condition must come first — TypeScript requires it before `import` for correct resolution. Build config exports are plain strings (no `.d.ts`). Internal file structure can change without breaking downstream — only subpath names are the contract. See [03a-build.md](03a-build.md) for the build pipeline that produces `dist/`.
+Every compiled export has both `types` and `import` conditions. The `types` condition must come first — TypeScript requires it before `import` for correct resolution. Build config exports are plain strings (no `.d.ts`). `vitest.config.js` is authored as plain JS (not compiled from `.ts`) so consumers can import it from `node_modules` without extra TypeScript loader config. Internal file structure can change without breaking downstream — only subpath names are the contract. See [03a-build.md](03a-build.md) for the build pipeline that produces `dist/`.
 
 **Changes from the original plan:**
 - Main entry (`.`) exports `createApp` + builder functions (`tool`, `resource`, `prompt`) + `Context` type for convenience

@@ -114,11 +114,16 @@ interface ContextState {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, opts?: { ttl?: number }): Promise<void>;
   delete(key: string): Promise<void>;
-  list(prefix?: string): Promise<{ items: Array<{ key: string; value: string }>; cursor?: string }>;
+  list(prefix?: string, opts?: { cursor?: string; limit?: number }): Promise<{
+    items: Array<{ key: string; value: string }>;
+    cursor?: string;
+  }>;
 }
 ```
 
 Throws `McpError(InvalidRequest, 'tenantId required for state operations')` if `tenantId` is not present on the context. For stdio servers (single-tenant), `createApp()` defaults `tenantId` to `'default'` so `ctx.state` works without auth.
+
+**Workers persistence warning:** `ctx.state` delegates to whatever `StorageService` provider is configured. With `in-memory` provider in Cloudflare Workers, data is lost between cold starts — the isolate has no durable state. For persistent storage in Workers, configure `cloudflare-kv`, `cloudflare-r2`, or `cloudflare-d1` as the storage provider. The convenience of `ctx.state` can mask this distinction — choose a durable provider before deploying stateful tools to Workers.
 
 ### `ctx.elicit` / `ctx.sample`
 

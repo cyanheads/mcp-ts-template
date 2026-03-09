@@ -26,12 +26,14 @@ This directory contains the living plan for extracting the infrastructure layer 
 | 09 | [Execution Sequence](09-execution.md) | Phased execution with per-phase checklists |
 | 10 | [Decisions](10-decisions.md) | Resolved decisions, open questions, decision log |
 | 11 | [Consumer Workflow](11-consumer-workflow.md) | End-to-end walkthrough of building a server on core |
+| 12 | [Developer API](12-developer-api.md) | Builders, `Context`, inline auth, task tools |
 
 ## Phase Summary
 
 | Phase | Description | Status |
 |:------|:------------|:-------|
-| 1 | Pre-extraction cleanup (DI/wiring) | Not started |
+| 1a | Fixes & hardening (deps, coupling, tests) | Not started |
+| 1b | DI removal & `createApp()` | Not started |
 | 2 | Lazy dependency conversion | Not started |
 | 3 | Repo transformation (the extraction) | Not started |
 | 4 | Validate with examples | Not started |

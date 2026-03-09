@@ -45,7 +45,7 @@ A compact, scannable reference of every subpath export — what it provides, key
 | `@cyanheads/mcp-ts-core/tasks` | `TaskToolDefinition`, `RequestTaskStore` | Async task tool definitions |
 | `@cyanheads/mcp-ts-core/errors` | `McpError`, `JsonRpcErrorCode` | Error types and codes |
 | `@cyanheads/mcp-ts-core/config` | `AppConfig`, `parseConfig` | Zod-validated config types |
-| `@cyanheads/mcp-ts-core/auth` | `withToolAuth`, `withResourceAuth` | Auth wrappers for tool/resource logic |
+| `@cyanheads/mcp-ts-core/auth` | `checkScopes` | Dynamic scope checking for advanced auth patterns |
 | `@cyanheads/mcp-ts-core/storage` | `StorageService` | Tenant-scoped storage abstraction |
 | `@cyanheads/mcp-ts-core/utils/logger` | `logger` | Pino structured logger |
 | `@cyanheads/mcp-ts-core/utils/requestContext` | `requestContextService`, `RequestContext` | Request tracing context |
@@ -204,9 +204,9 @@ Reference core's CLAUDE.md for contracts rather than duplicating them.]
 Every skill MUST include a checklist. This is the acceptance criteria — the
 skill is not complete until every item passes.
 
-- [ ] File created with correct suffix (`.tool.ts` / `.task-tool.ts` / etc.)
+- [ ] File created with correct suffix (`.tool.ts` / `.resource.ts` / `.prompt.ts`)
 - [ ] All Zod schema fields have `.describe()` annotations
-- [ ] Auth wrapper applied with `withToolAuth`
+- [ ] Auth declared via `auth: ['scope']` on the definition (if applicable)
 - [ ] Registered in `definitions/index.ts` barrel
 - [ ] `bun run devcheck` passes
 - [ ] Smoke-tested with `bun run dev:stdio` or `dev:http`
