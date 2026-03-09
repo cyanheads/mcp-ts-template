@@ -188,7 +188,8 @@ interface WorkerOptions {
 /**
  * Returns a standard Cloudflare Workers export object ({ fetch, scheduled }).
  * Handles env injection, binding storage, singleton init caching, per-request
- * server creation (GHSA-345p-7cg4-v4c7), and error responses.
+ * server creation (GHSA-345p-7cg4-v4c7), error responses, and telemetry flush
+ * via ctx.waitUntil().
  */
 export function createWorkerHandler(options: WorkerOptions): {
   fetch: (request: Request, env: CloudflareBindings, ctx: ExecutionContext) => Promise<Response>;
@@ -240,6 +241,21 @@ export default createWorkerHandler({
 |:-------------|:---------|:-----------------|:---------------|
 | String values | API keys, env flags, URLs | `process.env` via `injectEnvVars()` | `process.env.MY_API_KEY` |
 | Object bindings | KV namespaces, R2 buckets, D1 databases, AI | `globalThis` via `storeBindings()` | `(globalThis as any).MY_CUSTOM_KV` |
+
+### Telemetry flush via `waitUntil()`
+
+Cloudflare Workers freeze the isolate the moment the Response is returned. If OpenTelemetry's batch exporter or Pino's async transport hasn't flushed, spans and logs are silently dropped. The current `worker.ts` passes `ExecutionContext` to Hono but never calls `ctx.waitUntil()` for telemetry.
+
+`createWorkerHandler` must use `ctx.waitUntil()` to defer isolate freeze until telemetry is drained:
+
+```ts
+// Inside the generated fetch handler
+const response = await app.fetch(request, env, ctx);
+ctx.waitUntil(flushTelemetry()); // OTEL flush + log drain
+return response;
+```
+
+Where `flushTelemetry()` calls the OTEL SDK's `forceFlush()` (if OTEL is enabled) and any async logger transport drain. This is internal to `createWorkerHandler` — consumers don't need to think about it.
 
 ---
 
@@ -295,7 +311,10 @@ The `exports` field in `@cyanheads/mcp-ts-core/package.json` defines the public 
     // Build configs (not compiled — shipped as-is from package root)
     "./tsconfig.base.json":    "./tsconfig.base.json",
     "./vitest.config":         "./vitest.config.js",
-    "./biome.json":            "./biome.json"
+    "./biome.json":            "./biome.json",
+
+    // Package metadata (required for toolchain compatibility with strict exports)
+    "./package.json":          "./package.json"
   }
 }
 ```
@@ -314,6 +333,7 @@ Every compiled export has both `types` and `import` conditions. The `types` cond
 - `./tasks` exports the raw `TaskToolDefinition` type for power-user escape hatch (most users use `task: true` on a regular tool)
 - `./utils/parsing` and `./utils/security` point to barrel `index.js` files — legitimate aggregation points with lazy-import wrappers
 - Service interfaces excluded from initial exports — promoted when shared by 2+ servers
+- `./package.json` is explicitly exported — some bundlers and tools resolve `<pkg>/package.json` as a subpath import, which fails under strict `exports` without it
 - Once `exports` is present in `package.json`, only listed paths are resolvable — unlisted files are unreachable
 
 ### Import changes for downstream servers

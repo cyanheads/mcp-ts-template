@@ -111,7 +111,7 @@ The base `tsconfig.base.json` that downstream servers extend will be a subset â€
 
 ### `exports` with dual conditions
 
-Every subpath export needs both `import` and `types` conditions:
+Every compiled subpath export needs both `import` and `types` conditions. Additionally, `"./package.json": "./package.json"` must be included â€” some bundlers and tools resolve `<pkg>/package.json` as a subpath import, which fails under strict `exports` without it. See [02-public-api.md](02-public-api.md) for the full map.
 
 ```jsonc
 {
@@ -216,6 +216,7 @@ console.log(`All ${Object.keys(exports).length} export paths verified.`);
 - [ ] `tsconfig.base.json` created for downstream server extension
 - [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, build configs
 - [ ] Every subpath in `exports` has both `types` and `import` conditions (`types` first)
+- [ ] `"./package.json": "./package.json"` included in `exports` (toolchain compatibility)
 - [ ] `prepublishOnly` script added
 - [ ] Export verification script added to CI
 - [ ] `build:worker` removed from core scripts (server-level concern post-extraction)

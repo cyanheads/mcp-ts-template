@@ -76,11 +76,11 @@ The core of the extraction. Transform the repo in-place.
 - [ ] `package.json` renamed to `@cyanheads/mcp-ts-core`
 - [ ] Template definitions moved to `examples/`
 - [ ] `createApp()` implemented as public entry point (returns `ServerHandle` with `shutdown()` and `services`)
-- [ ] `createWorkerHandler()` implemented as public entry point
+- [ ] `createWorkerHandler()` implemented as public entry point (includes `ctx.waitUntil()` for telemetry flush)
 - [ ] Current `index.ts` and `worker.ts` converted to example entry points in `examples/`
 - [ ] Build pipeline: `build` script changed to `tsc && tsc-alias`, `tsc-alias` added to devDeps (see [03a-build.md](03a-build.md))
 - [ ] `tsconfig.base.json` created for downstream server extension
-- [ ] `exports` field added with all subpath exports, each with `types` + `import` conditions (see [02-public-api.md](02-public-api.md))
+- [ ] `exports` field added with all subpath exports, each with `types` + `import` conditions, plus `./package.json` (see [02-public-api.md](02-public-api.md))
 - [ ] Export verification script added to CI
 - [ ] `peerDependencies` / `peerDependenciesMeta` configured for tiered deps (`"zod": "^4.3.0"`)
 - [ ] Consumer-facing `CLAUDE.md` written with exports catalog (no DI/container references)
