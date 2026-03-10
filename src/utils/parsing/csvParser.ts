@@ -4,18 +4,27 @@
  * optional <think>...</think> blocks often found at the beginning of LLM outputs.
  * @module src/utils/parsing/csvParser
  */
-import Papa from 'papaparse';
+import type Papa from 'papaparse';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
+import { thinkBlockRegex } from './thinkBlock.js';
 
-/**
- * Regular expression to find a <think> block at the start of a string.
- * Captures content within <think>...</think> (Group 1) and the rest of the string (Group 2).
- * @private
- */
-const thinkBlockRegex = /^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/;
+let _papa: typeof Papa | undefined;
+async function getPapa() {
+  if (!_papa) {
+    const mod = await import('papaparse').catch(() => {
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        'Install "papaparse" to use CSV parsing: bun add papaparse',
+      );
+    });
+    // Handle CJS/ESM interop — papaparse uses `export =`
+    _papa = ('default' in mod ? (mod.default as typeof Papa) : mod) as typeof Papa;
+  }
+  return _papa;
+}
 
 /**
  * Utility class for parsing CSV strings.
@@ -35,11 +44,11 @@ export class CsvParser {
    * @returns The parsed CSV data.
    * @throws {McpError} If the string is empty after processing or if parsing fails.
    */
-  parse<T = unknown>(
+  async parse<T = unknown>(
     csvString: string,
     options?: Papa.ParseConfig,
     context?: RequestContext,
-  ): Papa.ParseResult<T> {
+  ): Promise<Papa.ParseResult<T>> {
     let stringToParse = csvString;
     const match = csvString.match(thinkBlockRegex);
 
@@ -73,7 +82,8 @@ export class CsvParser {
       );
     }
 
-    const result = Papa.parse<T>(stringToParse, options);
+    const papa = await getPapa();
+    const result = papa.parse<T>(stringToParse, options);
 
     if (result.errors.length > 0) {
       const errorLogContext =

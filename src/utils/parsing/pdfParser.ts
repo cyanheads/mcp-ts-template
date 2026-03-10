@@ -4,21 +4,33 @@
  * Uses 'unpdf' for robust text extraction compatible with Cloudflare Workers.
  * @module src/utils/parsing/pdfParser
  */
-import {
-  degrees,
-  PDFDocument,
-  type PDFFont,
-  type PDFImage,
-  type PDFPage,
-  type RGB,
-  rgb,
-  StandardFonts,
-} from 'pdf-lib';
-import { getDocumentProxy, extractText as unpdfExtractText } from 'unpdf';
+import type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from 'pdf-lib';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
+
+let _pdfLib: typeof import('pdf-lib') | undefined;
+async function getPdfLib() {
+  _pdfLib ??= await import('pdf-lib').catch(() => {
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      'Install "pdf-lib" to use PDF operations: bun add pdf-lib',
+    );
+  });
+  return _pdfLib;
+}
+
+let _unpdf: typeof import('unpdf') | undefined;
+async function getUnpdf() {
+  _unpdf ??= await import('unpdf').catch(() => {
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      'Install "unpdf" to use PDF text extraction: bun add unpdf',
+    );
+  });
+  return _unpdf;
+}
 
 /**
  * Options for adding a new page to a PDF document.
@@ -305,8 +317,9 @@ export class PdfParser {
       });
 
     try {
+      const pdfLib = await getPdfLib();
       logger.debug('Creating new PDF document.', logContext);
-      const doc = await PDFDocument.create();
+      const doc = await pdfLib.PDFDocument.create();
       return doc;
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
@@ -350,12 +363,13 @@ export class PdfParser {
       });
 
     try {
+      const pdfLib = await getPdfLib();
       logger.debug('Loading PDF document from bytes.', {
         ...logContext,
         byteLength: pdfBytes instanceof Uint8Array ? pdfBytes.length : pdfBytes.byteLength,
       });
 
-      const doc = await PDFDocument.load(pdfBytes);
+      const doc = await pdfLib.PDFDocument.load(pdfBytes);
       return doc;
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
@@ -407,7 +421,7 @@ export class PdfParser {
    */
   async embedFont(
     doc: PDFDocument,
-    fontName: keyof typeof StandardFonts = 'Helvetica',
+    fontName: string = 'Helvetica',
     context?: RequestContext,
   ): Promise<PDFFont> {
     const logContext =
@@ -417,12 +431,13 @@ export class PdfParser {
       });
 
     try {
+      const { StandardFonts } = await getPdfLib();
       logger.debug('Embedding standard font.', {
         ...logContext,
         fontName,
       });
 
-      const font = await doc.embedFont(StandardFonts[fontName]);
+      const font = await doc.embedFont(StandardFonts[fontName as keyof typeof StandardFonts]);
       return font;
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
@@ -520,39 +535,21 @@ export class PdfParser {
    * });
    * ```
    */
-  drawText(page: PDFPage, options: DrawTextOptions): void {
-    const {
-      text,
-      x,
-      y,
-      size = 12,
-      font,
-      color = rgb(0, 0, 0),
-      rotate = 0,
-      maxWidth,
-      lineHeight = 1.2,
-    } = options;
+  async drawText(page: PDFPage, options: DrawTextOptions): Promise<void> {
+    const pdfLib = await getPdfLib();
+    const { text, x, y, size = 12, font, rotate = 0, maxWidth, lineHeight = 1.2 } = options;
+    const color = options.color ?? pdfLib.rgb(0, 0, 0);
 
     if (!maxWidth) {
       // Simple single-line text
-      const drawOptions: {
-        x: number;
-        y: number;
-        size: number;
-        font?: PDFFont;
-        color: RGB;
-        rotate?: ReturnType<typeof degrees>;
-      } = {
+      page.drawText(text, {
         x,
         y,
         size,
         color,
-      };
-
-      if (font) drawOptions.font = font;
-      if (rotate) drawOptions.rotate = degrees(rotate);
-
-      page.drawText(text, drawOptions);
+        ...(font && { font }),
+        ...(rotate && { rotate: pdfLib.degrees(rotate) }),
+      });
     } else {
       // Text wrapping
       const words = text.split(' ');
@@ -582,24 +579,14 @@ export class PdfParser {
       // Draw each line
       let currentY = y;
       for (const line of lines) {
-        const drawOptions: {
-          x: number;
-          y: number;
-          size: number;
-          font?: PDFFont;
-          color: RGB;
-          rotate?: ReturnType<typeof degrees>;
-        } = {
+        page.drawText(line, {
           x,
           y: currentY,
           size,
           color,
-        };
-
-        if (font) drawOptions.font = font;
-        if (rotate) drawOptions.rotate = degrees(rotate);
-
-        page.drawText(line, drawOptions);
+          ...(font && { font }),
+          ...(rotate && { rotate: pdfLib.degrees(rotate) }),
+        });
         currentY -= size * lineHeight;
       }
     }
@@ -622,7 +609,8 @@ export class PdfParser {
    * });
    * ```
    */
-  drawImage(page: PDFPage, options: DrawImageOptions): void {
+  async drawImage(page: PDFPage, options: DrawImageOptions): Promise<void> {
+    const pdfLib = await getPdfLib();
     const {
       image,
       x,
@@ -633,24 +621,14 @@ export class PdfParser {
       opacity = 1,
     } = options;
 
-    const drawOptions: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      rotate?: ReturnType<typeof degrees>;
-      opacity: number;
-    } = {
+    page.drawImage(image, {
       x,
       y,
       width,
       height,
       opacity,
-    };
-
-    if (rotate) drawOptions.rotate = degrees(rotate);
-
-    page.drawImage(image, drawOptions);
+      ...(rotate && { rotate: pdfLib.degrees(rotate) }),
+    });
   }
 
   /**
@@ -678,18 +656,19 @@ export class PdfParser {
       });
 
     try {
+      const pdfLib = await getPdfLib();
       logger.debug('Merging PDF documents.', {
         ...logContext,
         documentCount: pdfBytesArray.length,
       });
 
-      const mergedPdf = await PDFDocument.create();
+      const mergedPdf = await pdfLib.PDFDocument.create();
 
       for (let i = 0; i < pdfBytesArray.length; i++) {
         const pdfBytes = pdfBytesArray[i];
         if (!pdfBytes) continue;
 
-        const pdfDoc = await PDFDocument.load(pdfBytes);
+        const pdfDoc = await pdfLib.PDFDocument.load(pdfBytes);
         const copiedPages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
         for (const page of copiedPages) mergedPdf.addPage(page);
       }
@@ -743,16 +722,17 @@ export class PdfParser {
       });
 
     try {
+      const pdfLib = await getPdfLib();
       logger.debug('Splitting PDF document.', {
         ...logContext,
         rangeCount: ranges.length,
       });
 
-      const sourcePdf = await PDFDocument.load(pdfBytes);
+      const sourcePdf = await pdfLib.PDFDocument.load(pdfBytes);
       const results: PDFDocument[] = [];
 
       for (const range of ranges) {
-        const newPdf = await PDFDocument.create();
+        const newPdf = await pdfLib.PDFDocument.create();
         const pageIndices: number[] = [];
 
         for (let i = range.start; i <= range.end; i++) {
@@ -982,6 +962,8 @@ export class PdfParser {
       // Convert PDFDocument to bytes
       const pdfBytes = await doc.save();
 
+      const { getDocumentProxy, extractText: unpdfExtractText } = await getUnpdf();
+
       // Create document proxy for unpdf
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const pdfProxy = await getDocumentProxy(pdfBytes);
@@ -1085,20 +1067,19 @@ export class PdfParser {
  *
  * @example
  * ```typescript
- * import { pdfParser, rgb } from '@/utils';
+ * import { pdfParser } from '@/utils/parsing/pdfParser.js';
  *
  * // Create a new PDF
  * const doc = await pdfParser.createDocument();
  * const page = pdfParser.addPage(doc);
  * const font = await pdfParser.embedFont(doc, 'Helvetica');
  *
- * pdfParser.drawText(page, {
+ * await pdfParser.drawText(page, {
  *   text: 'Hello, World!',
  *   x: 50,
  *   y: 750,
  *   size: 30,
  *   font,
- *   color: rgb(0, 0.53, 0.71)
  * });
  *
  * const pdfBytes = await pdfParser.saveDocument(doc);
@@ -1107,7 +1088,4 @@ export class PdfParser {
  */
 export const pdfParser = new PdfParser();
 
-/**
- * Re-export commonly used pdf-lib utilities for convenience.
- */
-export { PDFDocument, StandardFonts, degrees, rgb };
+export type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from 'pdf-lib';

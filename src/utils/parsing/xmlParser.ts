@@ -4,18 +4,22 @@
  * optional <think>...</think> blocks often found at the beginning of LLM outputs.
  * @module src/utils/parsing/xmlParser
  */
-import { XMLParser as FastXmlParser } from 'fast-xml-parser';
-
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
+import { thinkBlockRegex } from './thinkBlock.js';
 
-/**
- * Regular expression to find a <think> block at the start of a string.
- * Captures content within <think>...</think> (Group 1) and the rest of the string (Group 2).
- * @private
- */
-const thinkBlockRegex = /^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/;
+let _fxp: typeof import('fast-xml-parser') | undefined;
+let _xmlParserInstance: { parse(data: string): unknown } | undefined;
+async function getFxp() {
+  _fxp ??= await import('fast-xml-parser').catch(() => {
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      'Install "fast-xml-parser" to use XML parsing: bun add fast-xml-parser',
+    );
+  });
+  return _fxp;
+}
 
 /**
  * Utility class for parsing XML strings.
@@ -23,18 +27,6 @@ const thinkBlockRegex = /^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/;
  * optional <think> blocks from LLMs.
  */
 export class XmlParser {
-  private parser: FastXmlParser;
-
-  constructor() {
-    this.parser = new FastXmlParser({
-      // Explicitly disable entity processing to prevent XXE-style expansion attacks.
-      // These are off by default in fast-xml-parser v4, but being explicit guards
-      // against default changes in future versions.
-      processEntities: false,
-      htmlEntities: false,
-    });
-  }
-
   /**
    * Parses an XML string, which may be prefixed with a <think> block.
    * If a <think> block is present, its content is logged, and parsing proceeds on the
@@ -46,7 +38,7 @@ export class XmlParser {
    * @returns The parsed JavaScript object.
    * @throws {McpError} If the string is empty after processing or if parsing fails.
    */
-  parse<T = unknown>(xmlString: string, context?: RequestContext): T {
+  async parse<T = unknown>(xmlString: string, context?: RequestContext): Promise<T> {
     let stringToParse = xmlString;
     const match = xmlString.match(thinkBlockRegex);
 
@@ -81,7 +73,12 @@ export class XmlParser {
     }
 
     try {
-      return this.parser.parse(stringToParse) as T;
+      const fxp = await getFxp();
+      _xmlParserInstance ??= new fxp.XMLParser({
+        processEntities: false,
+        htmlEntities: false,
+      });
+      return _xmlParserInstance.parse(stringToParse) as T;
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
       const errorLogContext =

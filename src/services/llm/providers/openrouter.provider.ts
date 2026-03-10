@@ -1,12 +1,12 @@
 /**
  * @fileoverview Provides a service class (`OpenRouterProvider`) for interacting with the
- * OpenRouter API. This class is designed to be managed by a dependency injection
- * container, receiving its dependencies via constructor injection.
+ * OpenRouter API, receiving its dependencies via constructor injection.
  * @module src/services/llm/providers/openrouter.provider
  */
-import OpenAI from 'openai';
+import type OpenAI from 'openai';
 import type { ChatCompletion, ChatCompletionChunk } from 'openai/resources/chat/completions';
 import type { Stream } from 'openai/streaming';
+
 import type { config as ConfigType } from '@/config/index.js';
 import type { ILlmProvider, OpenRouterChatParams } from '@/services/llm/core/ILlmProvider.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
@@ -14,11 +14,17 @@ import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { logger as LoggerType } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import type { RateLimiter } from '@/utils/security/rateLimiter.js';
+import { sanitization } from '@/utils/security/sanitization.js';
 
-let _sanitization: typeof import('@/utils/security/sanitization.js') | undefined;
-async function getSanitization() {
-  _sanitization ??= await import('@/utils/security/sanitization.js');
-  return _sanitization.sanitization;
+let _openai: typeof import('openai') | undefined;
+async function getOpenAI() {
+  _openai ??= await import('openai').catch(() => {
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      'Install "openai" to use the OpenRouter LLM provider: bun add openai',
+    );
+  });
+  return _openai.default;
 }
 
 export interface OpenRouterClientOptions {
@@ -29,7 +35,8 @@ export interface OpenRouterClientOptions {
 }
 
 export class OpenRouterProvider implements ILlmProvider {
-  private readonly client: OpenAI;
+  private client: OpenAI | undefined;
+  private clientInitPromise: Promise<OpenAI> | undefined;
   private readonly defaultParams: {
     model: string;
     temperature: number | undefined;
@@ -60,14 +67,36 @@ export class OpenRouterProvider implements ILlmProvider {
       );
     }
 
+    this.defaultParams = {
+      model: this.config.llmDefaultModel,
+      temperature: this.config.llmDefaultTemperature,
+      topP: this.config.llmDefaultTopP,
+      maxTokens: this.config.llmDefaultMaxTokens,
+      topK: this.config.llmDefaultTopK,
+      minP: this.config.llmDefaultMinP,
+    };
+
+    this.logger.info('OpenRouter provider instance created and ready.', context);
+  }
+
+  private async ensureClient(): Promise<OpenAI> {
+    if (this.client) return this.client;
+    this.clientInitPromise ??= this.initClient();
+    return await this.clientInitPromise;
+  }
+
+  private async initClient(): Promise<OpenAI> {
+    const context = requestContextService.createRequestContext({
+      operation: 'OpenRouterProvider.initClient',
+    });
     try {
+      const OpenAIClass = await getOpenAI();
       const options: OpenRouterClientOptions = {
-        apiKey: this.config.openrouterApiKey,
+        apiKey: this.config.openrouterApiKey as string,
         siteUrl: this.config.openrouterAppUrl,
         siteName: this.config.openrouterAppName,
       };
-
-      this.client = new OpenAI({
+      this.client = new OpenAIClass({
         baseURL: options.baseURL ?? 'https://openrouter.ai/api/v1',
         apiKey: options.apiKey,
         defaultHeaders: {
@@ -76,18 +105,9 @@ export class OpenRouterProvider implements ILlmProvider {
         },
         maxRetries: 0,
       });
-
-      this.defaultParams = {
-        model: this.config.llmDefaultModel,
-        temperature: this.config.llmDefaultTemperature,
-        topP: this.config.llmDefaultTopP,
-        maxTokens: this.config.llmDefaultMaxTokens,
-        topK: this.config.llmDefaultTopK,
-        minP: this.config.llmDefaultMinP,
-      };
-
-      this.logger.info('OpenRouter provider instance created and ready.', context);
+      return this.client;
     } catch (e: unknown) {
+      this.clientInitPromise = undefined;
       const error = e instanceof Error ? e : new Error(String(e));
       this.logger.error('Failed to construct OpenRouter client', {
         ...context,
@@ -157,14 +177,15 @@ export class OpenRouterProvider implements ILlmProvider {
     context: RequestContext,
   ): Promise<ChatCompletion | Stream<ChatCompletionChunk>> {
     const operation = 'OpenRouterProvider.chatCompletion';
-    const sanitizedParams = (await getSanitization()).sanitizeForLogging(params);
+    const sanitizedParams = sanitization.sanitizeForLogging(params);
 
     return await ErrorHandler.tryCatch(
       async () => {
         const rateLimitKey = context.auth?.clientId ?? context.tenantId ?? 'openrouter_global';
         this.rateLimiter.check(rateLimitKey, context);
         const finalApiParams = this._prepareApiParameters(params) as OpenRouterChatParams;
-        return await this._openRouterChatCompletionLogic(this.client, finalApiParams, context);
+        const client = await this.ensureClient();
+        return await this._openRouterChatCompletionLogic(client, finalApiParams, context);
       },
       { operation, context, input: sanitizedParams },
     );

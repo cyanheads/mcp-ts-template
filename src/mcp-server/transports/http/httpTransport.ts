@@ -11,7 +11,6 @@
 import http from 'node:http';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { type ServerType, serve } from '@hono/node-server';
-import { httpInstrumentationMiddleware } from '@hono/otel';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
 import { Hono } from 'hono';
@@ -26,6 +25,7 @@ import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js
 import { protectedResourceMetadataHandler } from '@/mcp-server/transports/http/protectedResourceMetadata.js';
 import { generateSecureSessionId } from '@/mcp-server/transports/http/sessionIdUtils.js';
 import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { logStartupBanner } from '@/utils/internal/startupBanner.js';
@@ -58,10 +58,10 @@ class McpSessionTransport extends StreamableHTTPTransport {
  * @param parentContext - Parent request context for logging
  * @returns Configured Hono application with the specified binding type
  */
-export function createHttpApp<TBindings extends object = HonoNodeBindings>(
+export async function createHttpApp<TBindings extends object = HonoNodeBindings>(
   serverFactory: () => Promise<McpServer>,
   parentContext: RequestContext,
-): { app: Hono<{ Bindings: TBindings }>; sessionStore: SessionStore | null } {
+): Promise<{ app: Hono<{ Bindings: TBindings }>; sessionStore: SessionStore | null }> {
   const app = new Hono<{ Bindings: TBindings }>();
   const transportContext = {
     ...parentContext,
@@ -87,7 +87,14 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
   // OpenTelemetry request tracing — outermost middleware on the MCP endpoint
   // so the span captures the full lifecycle (CORS, auth, handler).
   // On Bun, Node.js HTTP auto-instrumentation is a no-op; this fills that gap.
+  // @hono/otel is a Tier 3 optional peer — lazy import inside the guard.
   if (config.openTelemetry.enabled) {
+    const { httpInstrumentationMiddleware } = await import('@hono/otel').catch(() => {
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        'Install "@hono/otel" to use OpenTelemetry HTTP instrumentation: bun add @hono/otel',
+      );
+    });
     app.use(
       config.mcpHttpEndpointPath,
       httpInstrumentationMiddleware({
@@ -462,7 +469,7 @@ export async function startHttpTransport(
   };
   logger.info('Starting HTTP transport.', transportContext);
 
-  const { app, sessionStore } = createHttpApp(serverFactory, transportContext);
+  const { app, sessionStore } = await createHttpApp(serverFactory, transportContext);
 
   const server = await startHttpServerWithRetry(
     app,

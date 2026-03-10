@@ -149,7 +149,7 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
       }
 
       // Construct all services — config is parsed lazily on first access.
-      const { createServer } = createApp();
+      const { createServer } = await createApp();
       await initHighResTimer();
 
       // Initialize logger with level from env or default to 'info'
@@ -186,7 +186,7 @@ function initializeApp(env: CloudflareBindings): Promise<Hono<WorkerEnv>> {
       // Create the Hono application with Cloudflare Worker bindings.
       // Pass server factory so each request gets a fresh McpServer+transport pair
       // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
-      const { app } = createHttpApp<CloudflareBindings>(createServer, workerContext);
+      const { app } = await createHttpApp<CloudflareBindings>(createServer, workerContext);
 
       const initDuration = Date.now() - initStartTime;
       logger.info('Cloudflare Worker initialized successfully.', {

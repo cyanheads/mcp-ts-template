@@ -55,7 +55,10 @@ export class FrontmatterParser {
    * @returns A `FrontmatterResult` containing parsed frontmatter and remaining content.
    * @throws {McpError} If frontmatter is malformed or YAML parsing fails.
    */
-  parse<T = unknown>(markdown: string, context?: RequestContext): FrontmatterResult<T> {
+  async parse<T = unknown>(
+    markdown: string,
+    context?: RequestContext,
+  ): Promise<FrontmatterResult<T>> {
     const match = markdown.match(frontmatterRegex);
 
     if (!match) {
@@ -102,7 +105,7 @@ export class FrontmatterParser {
 
     try {
       // Use existing yamlParser for parsing (handles <think> blocks too)
-      const parsedFrontmatter = yamlParser.parse<T>(yamlContent, context);
+      const parsedFrontmatter = await yamlParser.parse<T>(yamlContent, context);
 
       logger.debug('Frontmatter parsed successfully.', {
         ...logContext,

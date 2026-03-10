@@ -3,12 +3,23 @@
  * into Date objects or detailed parsing results using the `chrono-node` library.
  * @module src/utils/parsing/dateParser
  */
-import * as chrono from 'chrono-node';
+import type * as chrono from 'chrono-node';
 
-import { JsonRpcErrorCode } from '@/types-global/errors.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
+
+let _chrono: typeof import('chrono-node') | undefined;
+async function getChrono() {
+  _chrono ??= await import('chrono-node').catch(() => {
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      'Install "chrono-node" to use date parsing: bun add chrono-node',
+    );
+  });
+  return _chrono;
+}
 
 /**
  * Parses a natural language date string into a JavaScript Date object.
@@ -31,8 +42,9 @@ export async function parseDateString(
   logger.debug(`Attempting to parse date string: "${text}"`, logContext);
 
   return await ErrorHandler.tryCatch(
-    () => {
-      const parsedDate = chrono.parseDate(text, refDate, { forwardDate: true });
+    async () => {
+      const chronoMod = await getChrono();
+      const parsedDate = chronoMod.parseDate(text, refDate, { forwardDate: true });
       if (parsedDate) {
         logger.debug(`Successfully parsed "${text}" to ${parsedDate.toISOString()}`, logContext);
         return parsedDate;
@@ -71,8 +83,9 @@ export async function parseDateStringDetailed(
   logger.debug(`Attempting detailed parse of date string: "${text}"`, logContext);
 
   return await ErrorHandler.tryCatch(
-    () => {
-      const results = chrono.parse(text, refDate, { forwardDate: true });
+    async () => {
+      const chronoMod = await getChrono();
+      const results = chronoMod.parse(text, refDate, { forwardDate: true });
       logger.debug(
         `Detailed parse of "${text}" resulted in ${results.length} result(s)`,
         logContext,

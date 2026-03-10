@@ -6,7 +6,7 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { config } from '@/config/index.js';
 import { allPromptDefinitions } from '@/mcp-server/prompts/definitions/index.js';
@@ -43,11 +43,11 @@ export interface AppHandle {
  * @returns An {@link AppHandle} for starting the transport.
  * @throws {McpError} If config parsing or service construction fails.
  */
-export function createApp(): AppHandle {
+export async function createApp(): Promise<AppHandle> {
   // --- Core services (was registerCoreServices) ---
 
   // Supabase client — only when the storage provider requires it
-  let supabaseClient: ReturnType<typeof createClient<Database>> | undefined;
+  let supabaseClient: SupabaseClient<Database> | undefined;
   if (config.storage.providerType === 'supabase') {
     if (!config.supabase?.url || !config.supabase?.serviceRoleKey) {
       throw new McpError(
@@ -55,6 +55,12 @@ export function createApp(): AppHandle {
         'Supabase URL or service role key is missing for admin client.',
       );
     }
+    const { createClient } = await import('@supabase/supabase-js').catch(() => {
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        'Install "@supabase/supabase-js" to use Supabase storage: bun add @supabase/supabase-js',
+      );
+    });
     supabaseClient = createClient<Database>(config.supabase.url, config.supabase.serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });

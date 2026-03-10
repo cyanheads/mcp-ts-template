@@ -4,42 +4,42 @@
  * optional <think>...</think> blocks often found at the beginning of LLM outputs.
  * @module src/utils/parsing/jsonParser
  */
-import { Allow as PartialJsonAllow, parse as parsePartialJson } from 'partial-json';
-
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
+import { thinkBlockRegex } from './thinkBlock.js';
+
+let _partialJson: typeof import('partial-json') | undefined;
+async function getPartialJson() {
+  _partialJson ??= await import('partial-json').catch(() => {
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      'Install "partial-json" to use partial JSON parsing: bun add partial-json',
+    );
+  });
+  return _partialJson;
+}
 
 /**
- * Enum mirroring `partial-json`'s `Allow` constants. These specify
- * what types of partial JSON structures are permissible during parsing.
- * They can be combined using bitwise OR (e.g., `Allow.STR | Allow.OBJ`).
- *
- * The available properties are:
- * - `STR`: Allow partial string.
- * - `NUM`: Allow partial number.
- * - `ARR`: Allow partial array.
- * - `OBJ`: Allow partial object.
- * - `NULL`: Allow partial null.
- * - `BOOL`: Allow partial boolean.
- * - `NAN`: Allow partial NaN. (Note: Standard JSON does not support NaN)
- * - `INFINITY`: Allow partial Infinity. (Note: Standard JSON does not support Infinity)
- * - `_INFINITY`: Allow partial -Infinity. (Note: Standard JSON does not support -Infinity)
- * - `INF`: Allow both partial Infinity and -Infinity.
- * - `SPECIAL`: Allow all special values (NaN, Infinity, -Infinity).
- * - `ATOM`: Allow all atomic values (strings, numbers, booleans, null, special values).
- * - `COLLECTION`: Allow all collection values (objects, arrays).
- * - `ALL`: Allow all value types to be partial (default for `partial-json`'s parse).
- * @see {@link https://github.com/promplate/partial-json-parser-js} for more details.
+ * Bit flags specifying which partial JSON types are permissible during parsing.
+ * Mirrors `partial-json`'s `Allow` constants. Combine with bitwise OR.
  */
-export const Allow = PartialJsonAllow;
-
-/**
- * Regular expression to find a <think> block at the start of a string.
- * Captures content within <think>...</think> (Group 1) and the rest of the string (Group 2).
- * @private
- */
-const thinkBlockRegex = /^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/;
+export const Allow = {
+  STR: 0x1,
+  NUM: 0x2,
+  ARR: 0x4,
+  OBJ: 0x8,
+  NULL: 0x10,
+  BOOL: 0x20,
+  NAN: 0x40,
+  INFINITY: 0x80,
+  _INFINITY: 0x100,
+  INF: 0x80 | 0x100,
+  SPECIAL: 0x10 | 0x20 | 0x40 | 0x80 | 0x100,
+  ATOM: 0x1 | 0x2 | 0x10 | 0x20 | 0x40 | 0x80 | 0x100,
+  COLLECTION: 0x4 | 0x8,
+  ALL: 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x20 | 0x40 | 0x80 | 0x100,
+} as const;
 
 /**
  * Utility class for parsing potentially partial JSON strings.
@@ -60,11 +60,11 @@ export class JsonParser {
    * @returns The parsed JavaScript value.
    * @throws {McpError} If the string is empty after processing or if `partial-json` fails.
    */
-  parse<T = unknown>(
+  async parse<T = unknown>(
     jsonString: string,
     allowPartial: number = Allow.ALL,
     context?: RequestContext,
-  ): T {
+  ): Promise<T> {
     let stringToParse = jsonString;
     const match = jsonString.match(thinkBlockRegex);
 
@@ -99,6 +99,7 @@ export class JsonParser {
     }
 
     try {
+      const { parse: parsePartialJson } = await getPartialJson();
       return parsePartialJson(stringToParse, allowPartial) as T;
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));

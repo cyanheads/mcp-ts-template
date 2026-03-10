@@ -79,7 +79,7 @@ const shutdown = async (signal: string): Promise<void> => {
 const start = async (): Promise<void> => {
   try {
     // Construct all services — config is parsed and validated here
-    ({ transportManager } = createApp());
+    ({ transportManager } = await createApp());
   } catch (_error) {
     // This will catch the McpError from parseConfig
     if (process.stdout.isTTY) {

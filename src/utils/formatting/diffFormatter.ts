@@ -5,10 +5,20 @@
  * @module src/utils/formatting/diffFormatter
  */
 
-import * as Diff from 'diff';
-
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
+
+let _diff: typeof import('diff') | undefined;
+async function getDiff() {
+  _diff ??= await import('diff').catch(() => {
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      'Install "diff" to use diff formatting: bun add diff',
+    );
+  });
+  return _diff;
+}
+
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
@@ -89,12 +99,12 @@ export class DiffFormatter {
    * const diff = diffFormatter.diff(oldCode, newCode, { context: 2 });
    * ```
    */
-  diff(
+  async diff(
     oldText: string,
     newText: string,
     options?: DiffFormatterOptions,
     context?: RequestContext,
-  ): string {
+  ): Promise<string> {
     const logContext =
       context ||
       requestContextService.createRequestContext({
@@ -125,6 +135,7 @@ export class DiffFormatter {
       });
 
       // Generate diff using jsdiff library
+      const Diff = await getDiff();
       const patches = Diff.createPatch(
         opts.oldPath || 'a/file',
         oldText,
@@ -176,12 +187,12 @@ export class DiffFormatter {
    * const diff = diffFormatter.diffLines(oldLines, newLines);
    * ```
    */
-  diffLines(
+  async diffLines(
     oldLines: string[],
     newLines: string[],
     options?: DiffFormatterOptions,
     context?: RequestContext,
-  ): string {
+  ): Promise<string> {
     const logContext =
       context ||
       requestContextService.createRequestContext({
@@ -201,7 +212,7 @@ export class DiffFormatter {
     const oldText = oldLines.join('\n');
     const newText = newLines.join('\n');
 
-    return this.diff(oldText, newText, options, logContext);
+    return await this.diff(oldText, newText, options, logContext);
   }
 
   /**
@@ -222,7 +233,7 @@ export class DiffFormatter {
    * const diff = diffFormatter.diffWords(old, new);
    * ```
    */
-  diffWords(oldText: string, newText: string, context?: RequestContext): string {
+  async diffWords(oldText: string, newText: string, context?: RequestContext): Promise<string> {
     const logContext =
       context ||
       requestContextService.createRequestContext({
@@ -241,11 +252,12 @@ export class DiffFormatter {
     try {
       logger.debug('Generating word-level diff', logContext);
 
-      const changes = Diff.diffWords(oldText, newText);
+      const DiffMod = await getDiff();
+      const changes = DiffMod.diffWords(oldText, newText);
 
       // Format word diff as inline changes
       const result = changes
-        .map((part) => {
+        .map((part: { added?: boolean; removed?: boolean; value: string }) => {
           if (part.added) {
             return `[+${part.value}+]`;
           } else if (part.removed) {
@@ -370,11 +382,11 @@ export class DiffFormatter {
    * console.log(`+${stats.additions} -${stats.deletions}`);
    * ```
    */
-  getStats(
+  async getStats(
     oldText: string,
     newText: string,
     context?: RequestContext,
-  ): { additions: number; deletions: number; changes: number } {
+  ): Promise<{ additions: number; deletions: number; changes: number }> {
     const logContext =
       context ||
       requestContextService.createRequestContext({
@@ -382,10 +394,14 @@ export class DiffFormatter {
       });
 
     try {
-      const changes = Diff.diffLines(oldText, newText);
+      const DiffMod = await getDiff();
+      const changes = DiffMod.diffLines(oldText, newText);
 
       const stats = changes.reduce(
-        (acc, c) => {
+        (
+          acc: { additions: number; deletions: number },
+          c: { added?: boolean; removed?: boolean; count?: number },
+        ) => {
           if (c.added) acc.additions += c.count || 0;
           else if (c.removed) acc.deletions += c.count || 0;
           return acc;

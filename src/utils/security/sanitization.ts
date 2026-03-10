@@ -5,14 +5,39 @@
  * The path sanitization utilities are only available in a Node.js environment.
  * @module src/utils/security/sanitization
  */
-import sanitizeHtml from 'sanitize-html';
-import validator from 'validator';
+import type sanitizeHtml from 'sanitize-html';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 import { runtimeCaps } from '@/utils/internal/runtime.js';
 import { isRecord } from '@/utils/types/guards.js';
+
+let _sanitizeHtmlFn: typeof sanitizeHtml | undefined;
+async function loadSanitizeHtml() {
+  _sanitizeHtmlFn ??= (
+    await import('sanitize-html').catch(() => {
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        'Install "sanitize-html" to use HTML sanitization: bun add sanitize-html',
+      );
+    })
+  ).default;
+  return _sanitizeHtmlFn;
+}
+
+let _validator: typeof import('validator').default | undefined;
+async function loadValidator() {
+  _validator ??= (
+    await import('validator').catch(() => {
+      throw new McpError(
+        JsonRpcErrorCode.ConfigurationError,
+        'Install "validator" to use input validation: bun add validator',
+      );
+    })
+  ).default;
+  return _validator;
+}
 
 // Dynamically import 'path' only in Node.js environments.
 // Top-level await ensures the module is loaded before any sanitizePath call.
@@ -169,11 +194,7 @@ export class Sanitization {
       td: ['colspan', 'rowspan'],
     },
     preserveComments: true,
-    // Enforce rel="noopener noreferrer" on all links to prevent tabnabbing
-    // (window.opener access when target="_blank" is used)
-    transformTags: {
-      a: sanitizeHtml.simpleTransform('a', { rel: 'noopener noreferrer' }),
-    },
+    // transformTags is built lazily in sanitizeHtml() when the dep is loaded
   };
 
   /** @private */
@@ -241,13 +262,21 @@ export class Sanitization {
    * @param config - Optional custom configuration for `sanitize-html`.
    * @returns The sanitized HTML string. Returns an empty string if input is falsy.
    */
-  public sanitizeHtml(input: string, config?: HtmlSanitizeConfig): string {
+  public async sanitizeHtml(input: string, config?: HtmlSanitizeConfig): Promise<string> {
     if (!input) return '';
+    const sanitizeHtmlFn = await loadSanitizeHtml();
+
+    // Build default transformTags lazily now that the dep is loaded
+    const defaultTransformTags = config?.transformTags ??
+      this.defaultHtmlSanitizeConfig.transformTags ?? {
+        a: sanitizeHtmlFn.simpleTransform('a', { rel: 'noopener noreferrer' }),
+      };
+
     const effectiveConfig = {
       allowedTags: config?.allowedTags ?? this.defaultHtmlSanitizeConfig.allowedTags,
       allowedAttributes:
         config?.allowedAttributes ?? this.defaultHtmlSanitizeConfig.allowedAttributes,
-      transformTags: config?.transformTags ?? this.defaultHtmlSanitizeConfig.transformTags,
+      transformTags: defaultTransformTags,
       preserveComments: config?.preserveComments ?? this.defaultHtmlSanitizeConfig.preserveComments,
     };
 
@@ -258,11 +287,10 @@ export class Sanitization {
     };
 
     if (effectiveConfig.preserveComments) {
-      // Ensure allowedTags is an array before spreading
       const baseTags = Array.isArray(options.allowedTags) ? options.allowedTags : [];
       options.allowedTags = [...baseTags, '!--'];
     }
-    return sanitizeHtml(input, options);
+    return sanitizeHtmlFn(input, options);
   }
 
   /**
@@ -274,7 +302,7 @@ export class Sanitization {
    * @returns The sanitized string. Returns an empty string if input is falsy.
    * @throws {McpError} If `options.context` is 'javascript', or URL validation fails.
    */
-  public sanitizeString(input: string, options: SanitizeStringOptions = {}): string {
+  public async sanitizeString(input: string, options: SanitizeStringOptions = {}): Promise<string> {
     if (!input) return '';
 
     const context = options.context ?? 'text';
@@ -288,13 +316,16 @@ export class Sanitization {
         if (options.allowedAttributes) {
           config.allowedAttributes = this.convertAttributesFormat(options.allowedAttributes);
         }
-        return this.sanitizeHtml(input, config);
+        return await this.sanitizeHtml(input, config);
       }
-      case 'attribute':
-        return sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} });
-      case 'url':
+      case 'attribute': {
+        const sanitizeHtmlFn = await loadSanitizeHtml();
+        return sanitizeHtmlFn(input, { allowedTags: [], allowedAttributes: {} });
+      }
+      case 'url': {
+        const v = await loadValidator();
         if (
-          !validator.isURL(input, {
+          !v.isURL(input, {
             protocols: ['http', 'https'],
             require_protocol: true,
             require_host: true,
@@ -309,7 +340,8 @@ export class Sanitization {
           );
           return '';
         }
-        return validator.trim(input);
+        return v.trim(input);
+      }
       case 'javascript':
         logger.error(
           'Attempted JavaScript sanitization via sanitizeString, which is disallowed.',
@@ -322,8 +354,10 @@ export class Sanitization {
           JsonRpcErrorCode.ValidationError,
           'JavaScript sanitization is not supported through sanitizeString due to security risks.',
         );
-      default:
-        return sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} });
+      default: {
+        const sanitizeHtmlFn = await loadSanitizeHtml();
+        return sanitizeHtmlFn(input, { allowedTags: [], allowedAttributes: {} });
+      }
     }
   }
 
@@ -346,11 +380,15 @@ export class Sanitization {
    * @returns The sanitized and trimmed URL string.
    * @throws {McpError} If the URL is invalid or uses a disallowed protocol.
    */
-  public sanitizeUrl(input: string, allowedProtocols: string[] = ['http', 'https']): string {
+  public async sanitizeUrl(
+    input: string,
+    allowedProtocols: string[] = ['http', 'https'],
+  ): Promise<string> {
     try {
+      const v = await loadValidator();
       const trimmedInput = input.trim();
       if (
-        !validator.isURL(trimmedInput, {
+        !v.isURL(trimmedInput, {
           protocols: allowedProtocols,
           require_protocol: true,
           require_host: true,
@@ -537,11 +575,12 @@ export class Sanitization {
    * @returns The sanitized (and potentially clamped) number.
    * @throws {McpError} If input is not a valid number, NaN, or Infinity.
    */
-  public sanitizeNumber(input: number | string, min?: number, max?: number): number {
+  public async sanitizeNumber(input: number | string, min?: number, max?: number): Promise<number> {
     let value: number;
     if (typeof input === 'string') {
+      const v = await loadValidator();
       const trimmedInput = input.trim();
-      if (trimmedInput === '' || !validator.isNumeric(trimmedInput)) {
+      if (trimmedInput === '' || !v.isNumeric(trimmedInput)) {
         throw new McpError(
           JsonRpcErrorCode.ValidationError,
           'Invalid number format: input is empty or not numeric.',

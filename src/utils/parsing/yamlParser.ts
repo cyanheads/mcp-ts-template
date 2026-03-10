@@ -4,18 +4,21 @@
  * optional <think>...</think> blocks often found at the beginning of LLM outputs.
  * @module src/utils/parsing/yamlParser
  */
-import * as yaml from 'js-yaml';
-
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
+import { thinkBlockRegex } from './thinkBlock.js';
 
-/**
- * Regular expression to find a <think> block at the start of a string.
- * Captures content within <think>...</think> (Group 1) and the rest of the string (Group 2).
- * @private
- */
-const thinkBlockRegex = /^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/;
+let _yaml: typeof import('js-yaml') | undefined;
+async function getYaml() {
+  _yaml ??= await import('js-yaml').catch(() => {
+    throw new McpError(
+      JsonRpcErrorCode.ConfigurationError,
+      'Install "js-yaml" to use YAML parsing: bun add js-yaml',
+    );
+  });
+  return _yaml;
+}
 
 /**
  * Utility class for parsing YAML strings.
@@ -34,7 +37,7 @@ export class YamlParser {
    * @returns The parsed JavaScript object.
    * @throws {McpError} If the string is empty after processing or if parsing fails.
    */
-  parse<T = unknown>(yamlString: string, context?: RequestContext): T {
+  async parse<T = unknown>(yamlString: string, context?: RequestContext): Promise<T> {
     let stringToParse = yamlString;
     const match = yamlString.match(thinkBlockRegex);
 
@@ -69,8 +72,7 @@ export class YamlParser {
     }
 
     try {
-      // DEFAULT_SCHEMA is safe in js-yaml v4+ (no !!js/function, !!js/object).
-      // Specifying it explicitly guards against default changes in future versions.
+      const yaml = await getYaml();
       return yaml.load(stringToParse, { schema: yaml.DEFAULT_SCHEMA }) as T;
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
