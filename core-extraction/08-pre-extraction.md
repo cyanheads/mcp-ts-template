@@ -68,17 +68,17 @@ All Tier 3 deps that currently use static `import` need conversion to lazy dynam
 
 | # | File | Static dep | Status |
 |:--|:-----|:-----------|:-------|
-| 7 | [yamlParser.ts](../src/utils/parsing/yamlParser.ts) | `js-yaml` | Not started |
-| 8 | [xmlParser.ts](../src/utils/parsing/xmlParser.ts) | `fast-xml-parser` | Not started |
-| 9 | [csvParser.ts](../src/utils/parsing/csvParser.ts) | `papaparse` | Not started |
-| 10 | [jsonParser.ts](../src/utils/parsing/jsonParser.ts) | `partial-json` | Not started |
-| 11 | [pdfParser.ts](../src/utils/parsing/pdfParser.ts) | `unpdf`, `pdf-lib` | Not started |
-| 12 | [dateParser.ts](../src/utils/parsing/dateParser.ts) | `chrono-node` | Not started |
-| 13 | [diffFormatter.ts](../src/utils/formatting/diffFormatter.ts) | `diff` | Not started |
-| 14 | [sanitization.ts](../src/utils/security/sanitization.ts) | `sanitize-html`, `validator` | Not started |
-| 15 | [httpTransport.ts](../src/mcp-server/transports/http/httpTransport.ts) | `@hono/otel` — static import at line 14, but only used inside `if (config.openTelemetry.enabled)` at line 90-96. Lazy conversion requires moving the `import()` inside the `if` block, not just swapping the top-level import. The middleware registration becomes async. | Not started |
-| 16 | [openrouter.provider.ts](../src/services/llm/providers/openrouter.provider.ts) | `openai` | Not started |
-| 17 | [core.ts](../src/container/registrations/core.ts) | `@supabase/supabase-js` (runtime import) | Not started |
+| 7 | [yamlParser.ts](../src/utils/parsing/yamlParser.ts) | `js-yaml` | **Done** |
+| 8 | [xmlParser.ts](../src/utils/parsing/xmlParser.ts) | `fast-xml-parser` | **Done** |
+| 9 | [csvParser.ts](../src/utils/parsing/csvParser.ts) | `papaparse` | **Done** |
+| 10 | [jsonParser.ts](../src/utils/parsing/jsonParser.ts) | `partial-json` | **Done** |
+| 11 | [pdfParser.ts](../src/utils/parsing/pdfParser.ts) | `unpdf`, `pdf-lib` | **Done** |
+| 12 | [dateParser.ts](../src/utils/parsing/dateParser.ts) | `chrono-node` | **Done** |
+| 13 | [diffFormatter.ts](../src/utils/formatting/diffFormatter.ts) | `diff` | **Done** |
+| 14 | [sanitization.ts](../src/utils/security/sanitization.ts) | `sanitize-html`, `validator` | **Done** |
+| 15 | [httpTransport.ts](../src/mcp-server/transports/http/httpTransport.ts) | `@hono/otel` — moved `import()` inside `if (config.openTelemetry.enabled)` guard. | **Done** |
+| 16 | [openrouter.provider.ts](../src/services/llm/providers/openrouter.provider.ts) | `openai` | **Done** |
+| 17 | [app.ts](../src/app.ts) | `@supabase/supabase-js` (moved from deleted `core.ts` to `createApp()`) | **Done** |
 
 ### Lazy import template
 
@@ -152,18 +152,18 @@ Convert all Tier 3 static imports. Run `devcheck` + full test suite, commit. Bac
 - [x] `devcheck` passes
 - [x] All tests pass (117 files, 2030 tests)
 
-### Phase 2: Lazy dependency conversion
-- [ ] `yamlParser.ts` — `js-yaml` lazy (#7)
-- [ ] `xmlParser.ts` — `fast-xml-parser` lazy (#8)
-- [ ] `csvParser.ts` — `papaparse` lazy (#9)
-- [ ] `jsonParser.ts` — `partial-json` lazy (#10)
-- [ ] `pdfParser.ts` — `unpdf`, `pdf-lib` lazy (#11)
-- [ ] `dateParser.ts` — `chrono-node` lazy (#12)
-- [ ] `diffFormatter.ts` — `diff` lazy (#13)
-- [ ] `sanitization.ts` — `sanitize-html`, `validator` lazy (#14)
-- [ ] `httpTransport.ts` — `@hono/otel` lazy inside OTEL-enabled guard (#15)
-- [ ] `openrouter.provider.ts` — `openai` lazy (#16)
-- [ ] `core.ts` — `@supabase/supabase-js` lazy (#17)
-- [ ] All lazy imports throw `McpError(ConfigurationError)` with install instruction
-- [ ] `devcheck` passes
-- [ ] Full test suite passes
+### Phase 2: Lazy dependency conversion — **Complete**
+- [x] `yamlParser.ts` — `js-yaml` lazy (#7)
+- [x] `xmlParser.ts` — `fast-xml-parser` lazy (#8)
+- [x] `csvParser.ts` — `papaparse` lazy (#9)
+- [x] `jsonParser.ts` — `partial-json` lazy (#10)
+- [x] `pdfParser.ts` — `unpdf`, `pdf-lib` lazy (#11)
+- [x] `dateParser.ts` — `chrono-node` lazy (#12)
+- [x] `diffFormatter.ts` — `diff` lazy (#13)
+- [x] `sanitization.ts` — `sanitize-html`, `validator` lazy (#14)
+- [x] `httpTransport.ts` — `@hono/otel` lazy inside OTEL-enabled guard (#15)
+- [x] `openrouter.provider.ts` — `openai` lazy (#16)
+- [x] `app.ts` — `@supabase/supabase-js` lazy (#17, moved from deleted `core.ts`)
+- [x] All lazy imports throw `McpError(ConfigurationError)` with install instruction
+- [x] `devcheck` passes (lint, format, typecheck, unused deps)
+- [x] All test suites pass (236 tests across 10 modified files)

@@ -1,9 +1,9 @@
 # MCP Conformance Test Plan
 
 **Version:** 1.0.0
-**Target Spec:** MCP 2025-06-18
+**Target Spec:** MCP 2025-06-18 (SDK `LATEST_PROTOCOL_VERSION` is `2025-11-25`; codebase targets `2025-06-18`)
 **SDK:** `@modelcontextprotocol/sdk` ^1.27.1
-**Created:** 2025-03-09
+**Created:** 2026-03-09
 
 ---
 
@@ -76,9 +76,14 @@ The conformance suite lives in `tests/conformance/` and uses a real `McpServer` 
 | `resources.test.ts` | listResources, resource templates, readResource, invalid URI |
 | `prompts.test.ts` | listPrompts, prompt arguments, getPrompt, unknown prompt |
 
-### What's Missing
+### Implementation Status
 
-Every other area of the spec. The server declares `logging`, `resources.listChanged`, `tools.listChanged`, `prompts.listChanged`, and experimental `tasks` capabilities. It implements tools that use elicitation and sampling. None of these protocol features have conformance tests.
+All planned conformance and integration tests have been implemented. **122 tests across 19 conformance files** plus **4 integration test files** covering stdio, HTTP, auth, and session management.
+
+**Known SDK limitations documented in tests:**
+- `elicitInput` / `createMessage` live on the `Server` class, not `RequestHandlerExtra` — tool duck-type checks fail at runtime
+- `getTaskResult` triggers a Zod 4 compat error in SDK 1.27.x (`isZ4Schema` receives undefined schema)
+- Integration tests skip when `dist/index.js` is not built (`bun run build` first)
 
 ---
 
@@ -133,15 +138,26 @@ Option 2 is more reliable. Register a test-only tool in the harness that waits f
 ```ts
 // Pseudocode for the test-only blocking tool
 const blocker = Promise.withResolvers<void>();
-// Register tool whose logic awaits blocker.promise with sdkContext.signal
-// Client calls tool, then sends cancel notification
-// Assert: tool receives abort, blocker rejects, no response for cancelled request
+// Register tool whose logic awaits blocker.promise, respecting sdkContext.signal
+// Client calls tool with an AbortController, then aborts mid-flight:
+const ac = new AbortController();
+const toolPromise = client.callTool(
+  { name: 'test_blocking_tool', arguments: {} },
+  undefined,
+  { signal: ac.signal },
+);
+// Cancel while tool is still blocked
+ac.abort();
+// Assert: server-side sdkContext.signal fires, tool logic stops
+// The client-side toolPromise rejects with AbortError
+await expect(toolPromise).rejects.toThrow(/abort/i);
 ```
 
 **Implementation notes:**
 
-- The SDK `Client` doesn't expose a direct `cancel(requestId)` method. You need to use `client.notification({ method: 'notifications/cancelled', params: { requestId } })` or access the low-level protocol. Check the SDK's `Client` class for cancellation support -- it may handle this automatically via `AbortController` on the request options.
-- Alternative: use `sendNotification` on the client's transport directly.
+- The SDK `Client` supports cancellation via `AbortSignal` in `RequestOptions`. Pass `{ signal: abortController.signal }` as the `options` parameter to `callTool()` or any request method. When `abortController.abort()` is called, the SDK automatically sends `notifications/cancelled` to the server and the server's `sdkContext.signal` fires.
+- Example: `const ac = new AbortController(); client.callTool(params, undefined, { signal: ac.signal }); ac.abort();`
+- There is no `cancel(requestId)` method — `AbortController` is the intended API.
 
 ---
 
@@ -358,28 +374,46 @@ If we later implement subscriptions, this test becomes a full validation suite.
 The server declares `listChanged: true` for all three. To test emission:
 
 1. Connect client and collect notifications.
-2. Programmatically add/remove a tool definition via the server's `McpServer` API (the SDK's `McpServer` class has `tool()` and `removeTool()` methods).
+2. Programmatically add a tool via `McpServer.tool()` — it returns a `RegisteredTool` handle with `.remove()`, `.enable()`, `.disable()`, `.update()` methods.
 3. Assert that a `notifications/tools/list_changed` notification arrives.
-4. Call `listTools` again and verify the new tool is (or is not) in the list.
+4. Call `listTools` again and verify the new tool is in the list.
+5. Call `handle.remove()` on the registered tool, assert another `list_changed` notification, and verify it's gone from `listTools`.
+
+**Note:** There is no `McpServer.removeTool(name)` method. Removal is done via the handle returned by `server.tool()`.
 
 ```ts
-const listChangedReceived = new Promise<void>((resolve) => {
-  client.setNotificationHandler(
-    { method: 'notifications/tools/list_changed' },
-    () => { resolve(); }
-  );
-});
+const listChangedEvents: void[] = [];
+const listChangedReceived = Promise.withResolvers<void>();
+client.setNotificationHandler(
+  { method: 'notifications/tools/list_changed' },
+  () => {
+    listChangedEvents.push();
+    listChangedReceived.resolve();
+  }
+);
 
-// Add a tool at runtime via the McpServer API
-harness.server.tool('runtime_test_tool', { message: z.string() }, async (args) => ({
+// Add a tool at runtime — returns a RegisteredTool handle
+const handle = harness.server.tool('runtime_test_tool', { message: z.string() }, async (args) => ({
   content: [{ type: 'text', text: args.message }],
 }));
 
-await listChangedReceived; // Should resolve quickly
+await listChangedReceived.promise; // Should resolve quickly
 
 const { tools } = await client.listTools();
 const added = tools.find(t => t.name === 'runtime_test_tool');
 expect(added).toBeDefined();
+
+// Remove via handle
+const removeReceived = Promise.withResolvers<void>();
+client.setNotificationHandler(
+  { method: 'notifications/tools/list_changed' },
+  () => { removeReceived.resolve(); }
+);
+handle.remove();
+await removeReceived.promise;
+
+const { tools: afterRemove } = await client.listTools();
+expect(afterRemove.find(t => t.name === 'runtime_test_tool')).toBeUndefined();
 ```
 
 ---
@@ -534,7 +568,11 @@ expect(result.isError).toBeFalsy();
 
 Use `template_async_countdown` with short durations (1-3 seconds).
 
+**SDK note:** Task methods live on `client.experimental.tasks`, not directly on `Client`. Key methods: `getTask(taskId)`, `getTaskResult(taskId, schema?)`, `cancelTask(taskId)`, `listTasks(cursor?)`.
+
 ```ts
+const tasks = client.experimental.tasks;
+
 // Start a countdown task
 const response = await client.callTool({
   name: 'template_async_countdown',
@@ -546,23 +584,25 @@ expect(response.task).toBeDefined();
 const { taskId } = response.task;
 
 // Poll until complete
-let task = await client.getTask({ taskId });
+let task = await tasks.getTask(taskId);
 while (task.status === 'working') {
   expect(task.statusMessage).toBeTruthy(); // Has progress message
   await new Promise(r => setTimeout(r, task.pollInterval ?? 500));
-  task = await client.getTask({ taskId });
+  task = await tasks.getTask(taskId);
 }
 
 expect(task.status).toBe('completed');
 
 // Get result
-const result = await client.getTaskResult({ taskId });
+const result = await tasks.getTaskResult(taskId);
 expect(result.structuredContent).toBeDefined();
 expect(result.structuredContent.success).toBe(true);
 ```
 
 For cancellation:
 ```ts
+const tasks = client.experimental.tasks;
+
 const response = await client.callTool({
   name: 'template_async_countdown',
   arguments: { seconds: 10 }, // Long enough to cancel mid-flight
@@ -571,9 +611,9 @@ const { taskId } = response.task;
 
 // Wait briefly then cancel
 await new Promise(r => setTimeout(r, 1000));
-await client.cancelTask({ taskId });
+await tasks.cancelTask(taskId);
 
-const task = await client.getTask({ taskId });
+const task = await tasks.getTask(taskId);
 expect(task.status).toBe('cancelled');
 ```
 
@@ -600,6 +640,8 @@ This is tricky with the high-level SDK Client because it handles version negotia
 
 Option 1 gives the most control:
 ```ts
+const { createServer } = createApp();
+const server = await createServer();
 const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 await server.connect(serverTransport);
 
@@ -615,8 +657,9 @@ clientTransport.send({
   },
 });
 
-// Collect response
-const response = await collectNextMessage(serverTransport);
+// Collect response — arrives on clientTransport (server responds via serverTransport,
+// which is linked to clientTransport.onmessage)
+const response = await collectNextMessage(clientTransport);
 // Server MUST respond with a version it supports
 expect(response.result.protocolVersion).not.toBe('1999-01-01');
 expect(SUPPORTED_PROTOCOL_VERSIONS).toContain(response.result.protocolVersion);
@@ -644,6 +687,8 @@ expect(SUPPORTED_PROTOCOL_VERSIONS).toContain(response.result.protocolVersion);
 Use low-level transport (same as 1.12) to send malformed JSON-RPC messages:
 
 ```ts
+const { createServer } = createApp();
+const server = await createServer();
 const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 await server.connect(serverTransport);
 
@@ -655,7 +700,8 @@ clientTransport.send({
   params: {},
 });
 
-const response = await collectNextMessage(serverTransport);
+// Collect response from clientTransport (linked to serverTransport)
+const response = await collectNextMessage(clientTransport);
 expect(response.error).toBeDefined();
 expect(response.error.code).toBe(-32601);
 ```
@@ -763,7 +809,9 @@ export class RecordingTransport implements Transport {
 
 ### 2.2 Harness Integration
 
-Modify `createConformanceHarness` to optionally wrap transports with `RecordingTransport`:
+Modify `createConformanceHarness` to optionally wrap transports with `RecordingTransport`.
+
+**Note:** This wraps only the client-side transport, producing a single-sided trace. Client-sent messages are recorded directly; server-sent messages (including server-initiated notifications like `notifications/message`) are captured when they arrive at `clientTransport.onmessage`. This is sufficient for all protocol ordering assertions, but be aware that the trace reflects the client's view, not a true bidirectional wiretap.
 
 ```ts
 export interface ConformanceHarness {
@@ -828,7 +876,7 @@ A dedicated test file that validates protocol invariants across the full message
 
 ```ts
 it('follows correct initialization sequence', async () => {
-  const { cleanup, recorder } = await createConformanceHarness({}, { recording: true });
+  const { client, cleanup, recorder } = await createConformanceHarness({}, { recording: true });
 
   // Do some operations to generate a trace
   await client.listTools();
@@ -948,6 +996,7 @@ await client.close();
 | GET to MCP endpoint with SSE accept opens stream | MUST return SSE |
 | `/healthz` is accessible without auth | Unprotected endpoint |
 | Unsupported `MCP-Protocol-Version` returns 400 | MUST respond 400 |
+| Missing `MCP-Protocol-Version` defaults to `2025-03-26` | Server fallback behavior |
 | CORS headers are present | Configuration |
 
 **Approach:**
@@ -977,13 +1026,13 @@ await client.connect(transport);
 
 **B. Direct HTTP requests (for header/protocol validation):**
 ```ts
-// Raw fetch for protocol-level assertions
-const response = await fetch(`http://localhost:${port}/mcp`, {
+// Initialize request — MCP-Protocol-Version header is NOT required on the initial request,
+// only on subsequent requests after version negotiation.
+const initResponse = await fetch(`http://localhost:${port}/mcp`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json, text/event-stream',
-    'MCP-Protocol-Version': '2025-06-18',
   },
   body: JSON.stringify({
     jsonrpc: '2.0',
@@ -997,11 +1046,49 @@ const response = await fetch(`http://localhost:${port}/mcp`, {
   }),
 });
 
-expect(response.ok).toBe(true);
-const contentType = response.headers.get('content-type');
+expect(initResponse.ok).toBe(true);
+const contentType = initResponse.headers.get('content-type');
 expect(
   contentType?.includes('application/json') || contentType?.includes('text/event-stream')
 ).toBe(true);
+
+// Subsequent request — MUST include MCP-Protocol-Version
+const sessionId = initResponse.headers.get('mcp-session-id');
+const toolsResponse = await fetch(`http://localhost:${port}/mcp`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json, text/event-stream',
+    'MCP-Protocol-Version': '2025-06-18',
+    ...(sessionId && { 'Mcp-Session-Id': sessionId }),
+  },
+  body: JSON.stringify({
+    jsonrpc: '2.0',
+    id: 2,
+    method: 'tools/list',
+    params: {},
+  }),
+});
+expect(toolsResponse.ok).toBe(true);
+
+// Protocol version fallback — missing header defaults to 2025-03-26 in our implementation
+// (see httpTransport.ts:245). Verify the server accepts the request.
+const fallbackResponse = await fetch(`http://localhost:${port}/mcp`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json, text/event-stream',
+    // No MCP-Protocol-Version header — server should use DEFAULT_NEGOTIATED_PROTOCOL_VERSION
+    ...(sessionId && { 'Mcp-Session-Id': sessionId }),
+  },
+  body: JSON.stringify({
+    jsonrpc: '2.0',
+    id: 3,
+    method: 'tools/list',
+    params: {},
+  }),
+});
+expect(fallbackResponse.ok).toBe(true);
 ```
 
 ### 3.3 Auth Integration
@@ -1022,6 +1109,8 @@ expect(
 **Approach:**
 
 Start the server with `MCP_AUTH_MODE=jwt` and `MCP_AUTH_SECRET_KEY=test-secret`. Generate JWTs with known claims and test each scenario.
+
+**Dependency note:** Requires `jsonwebtoken` as a devDependency (`bun add -d jsonwebtoken @types/jsonwebtoken`), or use Node's `crypto.createHmac` / `crypto.sign` to construct test JWTs manually.
 
 ```ts
 import jwt from 'jsonwebtoken';
@@ -1064,7 +1153,7 @@ expect(response.ok).toBe(true);
 
 **Approach:**
 
-Start server with `MCP_SESSION_MODE=stateful`. Use raw `fetch` to control headers precisely.
+Start server with `MCP_SESSION_MODE=stateful`. (The default is `auto`, which behaves as stateful in HTTP mode, so an explicit override may not be needed — but setting it explicitly makes test intent clear.) Use raw `fetch` to control headers precisely.
 
 ```ts
 // Initialize -- should get session ID
@@ -1193,8 +1282,9 @@ For tests that need raw JSON-RPC control (version negotiation, edge cases):
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 /**
- * Sends a raw JSON-RPC message and waits for the next response.
- * Used for testing protocol-level behavior that the SDK Client abstracts away.
+ * Sends a raw JSON-RPC message and waits for the next response on the same transport.
+ * Pass the **client-side** transport from `InMemoryTransport.createLinkedPair()` —
+ * it sends to the server and receives the server's response via the linked pair.
  */
 export async function sendRawAndCollect(
   transport: InMemoryTransport,
@@ -1261,70 +1351,74 @@ Add conformance and integration test stages:
 
 Tracks which spec sections have conformance tests. Update as tests are added.
 
-| Spec Section | File | Status |
-|:-------------|:-----|:-------|
-| **Core** | | |
-| JSON-RPC 2.0 messages | `jsonrpc-edge-cases.test.ts` | Planned |
-| Lifecycle: initialize handshake | `protocol-init.test.ts` | Done |
-| Lifecycle: version negotiation | `version-negotiation.test.ts` | Planned |
-| Lifecycle: capability negotiation | `protocol-init.test.ts` | Done |
-| Lifecycle: shutdown | `lifecycle.test.ts` | Done |
-| Lifecycle: timeouts | -- | Not planned (SDK-handled) |
-| **Server Features** | | |
-| Tools: list | `tools.test.ts` | Done |
-| Tools: call | `tools.test.ts` | Done |
-| Tools: outputSchema / structuredContent | `tools.test.ts` | Done |
-| Tools: annotations | `tools.test.ts` | Done |
-| Tools: error handling | `tools.test.ts` | Done |
-| Resources: list | `resources.test.ts` | Done |
-| Resources: templates | `resources.test.ts` | Done |
-| Resources: read | `resources.test.ts` | Done |
-| Resources: subscribe | `subscriptions.test.ts` | Planned |
-| Prompts: list | `prompts.test.ts` | Done |
-| Prompts: get | `prompts.test.ts` | Done |
-| Prompts: arguments | `prompts.test.ts` | Done |
-| **Client Features** | | |
-| Sampling: createMessage | `sampling.test.ts` | Planned |
-| Elicitation: elicitInput | `elicitation.test.ts` | Planned |
-| Roots: listRoots | `roots.test.ts` | Planned |
-| **Utilities** | | |
-| Ping | `protocol-init.test.ts` | Done |
-| Cancellation | `cancellation.test.ts` | Planned |
-| Progress | `progress.test.ts` | Planned |
-| Logging | `logging.test.ts` | Planned |
-| Pagination | `pagination.test.ts` | Planned |
-| Completions | `completions.test.ts` | Planned |
-| **Notifications** | | |
-| tools/list_changed | `list-changed.test.ts` | Planned |
-| resources/list_changed | `list-changed.test.ts` | Planned |
-| prompts/list_changed | `list-changed.test.ts` | Planned |
-| roots/list_changed | `roots.test.ts` | Planned |
-| **Tasks API** (experimental) | | |
-| Task creation | `tasks.test.ts` | Planned |
-| Task polling | `tasks.test.ts` | Planned |
-| Task cancellation | `tasks.test.ts` | Planned |
-| Task result retrieval | `tasks.test.ts` | Planned |
-| **Wire-Level** | | |
-| Message ordering | `protocol-ordering.test.ts` | Planned |
-| Request ID uniqueness | `protocol-ordering.test.ts` | Planned |
-| Full message audit trail | Recording transport | Planned |
-| **Transport: stdio** | | |
-| Subprocess launch + handshake | `stdio.test.ts` | Planned |
-| Newline-delimited messages | `stdio.test.ts` | Planned |
-| Clean shutdown | `stdio.test.ts` | Planned |
-| **Transport: Streamable HTTP** | | |
-| POST JSON-RPC | `http.test.ts` | Planned |
-| SSE streaming | `http.test.ts` | Planned |
-| MCP-Protocol-Version header | `http.test.ts` | Planned |
-| Session management | `http-sessions.test.ts` | Planned |
-| Session termination (DELETE) | `http-sessions.test.ts` | Planned |
-| Origin validation | `http.test.ts` | Planned |
-| CORS headers | `http.test.ts` | Planned |
-| **Auth** | | |
-| JWT validation | `http-auth.test.ts` | Planned |
-| Scope enforcement | `http-auth.test.ts` | Planned |
-| Unprotected endpoints | `http-auth.test.ts` | Planned |
-| OAuth protected resource metadata | `http-auth.test.ts` | Planned |
+| Spec Section | File | Status | Notes |
+|:-------------|:-----|:-------|:------|
+| **Core** | | | |
+| JSON-RPC 2.0 messages | `jsonrpc-edge-cases.test.ts` | Done | 3 tests: unknown method, extra params fields, notifications |
+| Lifecycle: initialize handshake | `protocol-init.test.ts` | Done | |
+| Lifecycle: version negotiation | `version-negotiation.test.ts` | Done | 3 tests via raw transport: supported, past, future versions |
+| Lifecycle: capability negotiation | `protocol-init.test.ts` | Done | |
+| Lifecycle: shutdown | `lifecycle.test.ts` | Done | |
+| Lifecycle: timeouts | -- | Not planned | SDK-handled |
+| **Server Features** | | | |
+| Tools: list | `tools.test.ts` | Done | |
+| Tools: call | `tools.test.ts` | Done | |
+| Tools: outputSchema / structuredContent | `tools.test.ts` | Done | |
+| Tools: annotations | `tools.test.ts` | Done | |
+| Tools: error handling | `tools.test.ts` | Done | |
+| Resources: list | `resources.test.ts` | Done | |
+| Resources: templates | `resources.test.ts` | Done | |
+| Resources: read | `resources.test.ts` | Done | |
+| Resources: subscribe | `subscriptions.test.ts` | Done | Negative test: server does not declare subscribe capability |
+| Prompts: list | `prompts.test.ts` | Done | |
+| Prompts: get | `prompts.test.ts` | Done | |
+| Prompts: arguments | `prompts.test.ts` | Done | |
+| **Client Features** | | | |
+| Sampling: createMessage | `sampling.test.ts` | Done | SDK limitation: `createMessage` not on `RequestHandlerExtra`; tests verify graceful error |
+| Elicitation: elicitInput | `elicitation.test.ts` | Done | SDK limitation: `elicitInput` not on `RequestHandlerExtra`; tests verify bypass + graceful error |
+| Roots: listRoots | `roots.test.ts` | Done | 10 tests: with/without roots, listChanged variants |
+| **Utilities** | | | |
+| Ping | `protocol-init.test.ts` | Done | |
+| Cancellation | `cancellation.test.ts` | Done | 4 tests: mid-flight cancel, post-complete, unused, pre-aborted |
+| Progress | `progress.test.ts` | Done | 6 tests: delivery, monotonic, messages, total, no-callback, single-step |
+| Logging | `logging.test.ts` | Done | 5 tests: capability, level control, syslog levels, severity filtering |
+| Pagination | `pagination.test.ts` | Done | 4 tests: tools, resources, prompts (no nextCursor), invalid cursor |
+| Completions | `completions.test.ts` | Done | Negative test: server does not declare completions capability |
+| **Notifications** | | | |
+| tools/list_changed | `list-changed.test.ts` | Done | Add, remove, enable/disable lifecycle |
+| resources/list_changed | `list-changed.test.ts` | Done | |
+| prompts/list_changed | `list-changed.test.ts` | Done | |
+| roots/list_changed | `roots.test.ts` | Done | Capability negotiation variants |
+| **Tasks API** (experimental) | | | |
+| Task creation | `tasks.test.ts` | Done | Uses dedicated TaskHarness with InMemoryTaskStore |
+| Task polling | `tasks.test.ts` | Done | Polls through working → completed with status messages |
+| Task cancellation | `tasks.test.ts` | Done | |
+| Task result retrieval | `tasks.test.ts` | Done | SDK Zod 4 compat issue with `getTaskResult`; falls back to stream result |
+| Task listing | `tasks.test.ts` | Done | |
+| Task failure | `tasks.test.ts` | Done | simulateFailure → failed status |
+| Task fields | `tasks.test.ts` | Done | Validates required fields per spec |
+| **Wire-Level** | | | |
+| Message ordering | `protocol-ordering.test.ts` | Done | 6 tests via RecordingTransport |
+| Request ID uniqueness | `protocol-ordering.test.ts` | Done | |
+| Full message audit trail | Recording transport | Done | RecordingTransport helper with query API |
+| **Transport: stdio** | | | |
+| Subprocess launch + handshake | `stdio.test.ts` | Done | Skips if dist/index.js not built |
+| Newline-delimited messages | `stdio.test.ts` | Done | |
+| Clean shutdown | `stdio.test.ts` | Done | |
+| **Transport: Streamable HTTP** | | | |
+| POST JSON-RPC | `http.test.ts` | Done | SDK Client over HTTP, healthz, GET /mcp |
+| SSE streaming | `http.test.ts` | Done | |
+| MCP-Protocol-Version header | `http.test.ts` | Done | |
+| Protocol version fallback (missing header → `2025-03-26`) | `http.test.ts` | Done | |
+| Session management | `http-sessions.test.ts` | Done | Session ID tracking, DELETE termination |
+| Session termination (DELETE) | `http-sessions.test.ts` | Done | |
+| Origin validation | `http.test.ts` | Done | |
+| CORS headers | `http.test.ts` | Done | |
+| **Auth** | | | |
+| JWT validation | `http-auth.test.ts` | Done | 401 without token, valid token, expired token |
+| Scope enforcement | `http-auth.test.ts` | Done | |
+| Unprotected endpoints | `http-auth.test.ts` | Done | |
+| OAuth protected resource metadata | `http-auth.test.ts` | Done | |
 
 ---
 
@@ -1388,6 +1482,6 @@ Prioritized by value delivered per unit of effort.
 
 3. **Pagination page size:** Is there a way to configure the SDK's/server's default page size? If not, pagination tests need to register enough items to exceed the default. Check the SDK source for `DEFAULT_PAGE_SIZE` or similar.
 
-4. **SDK Client cancellation API:** The SDK `Client` class may not expose a public `cancel(requestId)` method. If not, we need to send the notification via the low-level transport. Check the SDK docs/source.
+4. ~~**SDK Client cancellation API:**~~ **Resolved.** The SDK Client uses `AbortSignal` via `RequestOptions.signal`. Call `abortController.abort()` to cancel in-flight requests — the SDK handles sending `notifications/cancelled` automatically. No raw transport manipulation needed.
 
 5. **Task tool in conformance:** The `template_async_countdown` uses `setTimeout` with real delays. For fast tests, consider a variant with very short intervals (10ms instead of 1s) or a test-only task tool with controllable timing.
