@@ -45,7 +45,7 @@ See [docs/tree.md](docs/tree.md) for the complete visual tree. Respect the estab
 | `src/types-global/`                     | Global type definitions shared across the codebase (`McpError`, `JsonRpcErrorCode`, etc.).                                                                                                                    |
 | `src/services/`                         | External service integrations. Each domain (e.g. `llm/`, `speech/`, `graph/`) contains: `core/` (interfaces, orchestrators), `providers/` (implementations), `types.ts`.                                      |
 | `src/storage/`                          | Storage abstractions and provider implementations (in-memory, filesystem, supabase, cloudflare).                                                                                                              |
-| `src/app.ts`                            | Composition root. `createApp()` constructs all services in dependency order, returns `AppHandle` with `createServer` factory and `transportManager`.                                                          |
+| `src/app.ts`                            | Composition root. `await createApp()` (async) constructs all services in dependency order, returns `AppHandle` with `createServer` factory and `transportManager`.                                                          |
 | `src/utils/`                            | Global utilities: logging, performance, parsing, network, security, formatting, telemetry. Error handling is at `src/utils/internal/error-handler/`.                                                          |
 | `tests/`                                | Unit/integration tests. Mirrors `src/` layout. Includes compliance suites.                                                                                                                                    |
 
@@ -451,13 +451,13 @@ All services are constructed directly in `src/app.ts` via `createApp()`. No DI c
 ```ts
 import { createApp, type AppHandle } from '@/app.js';
 
-const { createServer, transportManager }: AppHandle = createApp();
+const { createServer, transportManager }: AppHandle = await createApp();
 ```
 
 **Construction order** (inside `createApp()`):
 
 1. **Config** — lazy proxy, parsed on first property access
-2. **Supabase client** — only when `storage.providerType === 'supabase'`
+2. **Supabase client** — lazy `import('@supabase/supabase-js')`, only when `storage.providerType === 'supabase'`
 3. **StorageProvider** → **StorageService**
 4. **Registries** — `ToolRegistry`, `ResourceRegistry`, `PromptRegistry`, `RootsRegistry` (from imported definition arrays)
 5. **TaskManager** — receives config + storageService
@@ -482,9 +482,9 @@ export interface McpServerDeps {
 
 | Entry | Usage |
 | :--- | :--- |
-| `src/index.ts` | `const { transportManager } = createApp()` — then `transportManager.start()` |
-| `src/worker.ts` | `const { createServer } = createApp()` — passed to `createHttpApp(createServer, ctx)` |
-| Tests (conformance) | `const { createServer } = createApp()` — server connected via `InMemoryTransport` |
+| `src/index.ts` | `const { transportManager } = await createApp()` — then `transportManager.start()` |
+| `src/worker.ts` | `const { createServer } = await createApp()` — passed to `await createHttpApp(createServer, ctx)` |
+| Tests (conformance) | `const { createServer } = await createApp()` — server connected via `InMemoryTransport` |
 
 ---
 
@@ -507,9 +507,9 @@ import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 
 | Module | Key Exports |
 | :--- | :--- |
-| `parsing/` | `csvParser`, `yamlParser`, `xmlParser`, `jsonParser`, `pdfParser`, `frontmatterParser` (handles LLM `<think>` blocks) |
-| `formatting/` | `MarkdownBuilder`, `markdown()` helper, `diffFormatter`, `tableFormatter`, `treeFormatter` |
-| `security/` | `sanitization`, `rateLimiter`, `idGenerator` |
+| `parsing/` | `csvParser`, `yamlParser`, `xmlParser`, `jsonParser`, `pdfParser`, `frontmatterParser` (handles LLM `<think>` blocks), `thinkBlock` (shared regex). All `parse()` methods are **async** (lazy-load third-party deps). |
+| `formatting/` | `MarkdownBuilder`, `markdown()` helper, `diffFormatter` (**async** methods), `tableFormatter`, `treeFormatter` |
+| `security/` | `sanitization` (**async** `sanitizeHtml`/`sanitizeString`/`sanitizeUrl`/`sanitizeNumber`), `rateLimiter`, `idGenerator` |
 | `network/` | `fetchWithTimeout` |
 | `scheduling/` | `scheduler` (node-cron wrapper) |
 | `pagination/` | `extractCursor`, `paginateArray` |

@@ -10,7 +10,7 @@
 |:------|:------------|:-----------|:-----|:-------|
 | 1a | Fixes & hardening (deps, coupling, tests) | — | Low (additive, non-breaking) | **Complete** (`3cd85b1` on main) |
 | 1b | DI removal & `createApp()` | Phase 1a | Medium (central wiring) | **Complete** (`708bd16` on feat/core-extraction) |
-| 2 | Lazy dependency conversion | Phase 1b | Low (backwards-compatible) | Not started |
+| 2 | Lazy dependency conversion | Phase 1b | Low (backwards-compatible) | **Complete** |
 | 3 | Repo transformation (the extraction) | Phase 2 | Medium (breaking rename) | Not started |
 | 4 | Validate with examples | Phase 3 | Low | Not started |
 | 5 | Publish `@cyanheads/mcp-ts-core@0.1.0` | Phase 4 | Medium (public API) | Not started |
@@ -84,11 +84,11 @@ Convert all Tier 3 static imports to lazy dynamic `import()`. Backwards-compatib
 **Detail doc:** [08-pre-extraction.md](08-pre-extraction.md) (items 7-17), [04-dependencies.md](04-dependencies.md)
 
 ### Checklist
-- [ ] All 11 files converted to lazy imports (see conversion table)
-- [ ] Each lazy import throws `McpError(ConfigurationError)` with install instruction
-- [ ] `bun run devcheck` passes
-- [ ] Full test suite passes
-- [ ] Committed
+- [x] All 11 files converted to lazy imports (see conversion table)
+- [x] Each lazy import throws `McpError(ConfigurationError)` with install instruction
+- [x] `bun run devcheck` passes
+- [x] Full test suite passes (236 tests across 10 modified files)
+- [x] Committed (`83e50ac` on feat/core-extraction)
 
 ---
 
