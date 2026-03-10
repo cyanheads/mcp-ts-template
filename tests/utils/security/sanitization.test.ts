@@ -5,40 +5,40 @@ import { sanitization } from '../../../src/utils/security/sanitization.js';
 
 describe('Sanitization Utility', () => {
   describe('sanitizeHtml', () => {
-    it('should remove <script> tags and other malicious HTML', () => {
+    it('should remove <script> tags and other malicious HTML', async () => {
       const maliciousInput =
         '<script>alert("xss")</script><p>Hello</p><iframe src="http://example.com"></iframe>';
       const expectedOutput = '<p>Hello</p>';
-      expect(sanitization.sanitizeHtml(maliciousInput)).toBe(expectedOutput);
+      expect(await sanitization.sanitizeHtml(maliciousInput)).toBe(expectedOutput);
     });
 
-    it('should allow safe HTML tags like <p> and <b>', () => {
+    it('should allow safe HTML tags like <p> and <b>', async () => {
       const safeInput = '<p>This is a <b>bold</b> statement.</p>';
-      expect(sanitization.sanitizeHtml(safeInput)).toBe(safeInput);
+      expect(await sanitization.sanitizeHtml(safeInput)).toBe(safeInput);
     });
 
-    it('should return an empty string for null or undefined input', () => {
-      expect(sanitization.sanitizeHtml(null as unknown as string)).toBe('');
-      expect(sanitization.sanitizeHtml(undefined as unknown as string)).toBe('');
+    it('should return an empty string for null or undefined input', async () => {
+      expect(await sanitization.sanitizeHtml(null as unknown as string)).toBe('');
+      expect(await sanitization.sanitizeHtml(undefined as unknown as string)).toBe('');
     });
   });
 
   describe('sanitizeString', () => {
-    it('should handle "text" context by stripping all HTML', () => {
+    it('should handle "text" context by stripping all HTML', async () => {
       const input = '<p>Hello World</p>';
       const expected = 'Hello World';
-      expect(sanitization.sanitizeString(input, { context: 'text' })).toBe(expected);
+      expect(await sanitization.sanitizeString(input, { context: 'text' })).toBe(expected);
     });
 
-    it('should handle "html" context correctly', () => {
+    it('should handle "html" context correctly', async () => {
       const maliciousInput = '<script>alert("xss")</script><p>Hello</p>';
       const expected = '<p>Hello</p>';
-      expect(sanitization.sanitizeString(maliciousInput, { context: 'html' })).toBe(expected);
+      expect(await sanitization.sanitizeString(maliciousInput, { context: 'html' })).toBe(expected);
     });
 
-    it('supports explicit tag and attribute whitelists for HTML sanitization', () => {
+    it('supports explicit tag and attribute whitelists for HTML sanitization', async () => {
       const input = '<a href="https://example.com" onclick="alert(1)">Read more</a>';
-      const sanitized = sanitization.sanitizeString(input, {
+      const sanitized = await sanitization.sanitizeString(input, {
         context: 'html',
         allowedTags: ['a'],
         allowedAttributes: {
@@ -49,19 +49,19 @@ describe('Sanitization Utility', () => {
       expect(sanitized).toBe('<a href="https://example.com">Read more</a>');
     });
 
-    it('should handle "url" context and return empty for invalid URLs', () => {
+    it('should handle "url" context and return empty for invalid URLs', async () => {
       const validInput = 'https://example.com/path';
       const invalidUrl = 'javascript:alert("xss")';
-      expect(sanitization.sanitizeString(validInput, { context: 'url' })).toBe(validInput);
-      expect(sanitization.sanitizeString(invalidUrl, { context: 'url' })).toBe('');
+      expect(await sanitization.sanitizeString(validInput, { context: 'url' })).toBe(validInput);
+      expect(await sanitization.sanitizeString(invalidUrl, { context: 'url' })).toBe('');
     });
 
-    it('should throw an McpError when context is "javascript"', () => {
+    it('should throw an McpError when context is "javascript"', async () => {
       const jsInput = 'alert("hello")';
-      expect(() => sanitization.sanitizeString(jsInput, { context: 'javascript' })).toThrow(
+      await expect(sanitization.sanitizeString(jsInput, { context: 'javascript' })).rejects.toThrow(
         McpError,
       );
-      expect(() => sanitization.sanitizeString(jsInput, { context: 'javascript' })).toThrow(
+      await expect(sanitization.sanitizeString(jsInput, { context: 'javascript' })).rejects.toThrow(
         expect.objectContaining({ code: JsonRpcErrorCode.ValidationError }),
       );
     });
@@ -189,19 +189,19 @@ describe('Sanitization Utility', () => {
 
   // Adding tests for other public methods to ensure full coverage
   describe('sanitizeUrl', () => {
-    it('should return a valid URL', () => {
+    it('should return a valid URL', async () => {
       const url = 'https://example.com';
-      expect(sanitization.sanitizeUrl(url)).toBe(url);
+      expect(await sanitization.sanitizeUrl(url)).toBe(url);
     });
 
-    it('should throw for invalid URL', () => {
+    it('should throw for invalid URL', async () => {
       const url = 'not-a-url';
-      expect(() => sanitization.sanitizeUrl(url)).toThrow(McpError);
+      await expect(sanitization.sanitizeUrl(url)).rejects.toThrow(McpError);
     });
 
-    it('should throw for disallowed protocols', () => {
+    it('should throw for disallowed protocols', async () => {
       const url = 'ftp://example.com';
-      expect(() => sanitization.sanitizeUrl(url)).toThrow(McpError);
+      await expect(sanitization.sanitizeUrl(url)).rejects.toThrow(McpError);
     });
   });
 
@@ -223,18 +223,18 @@ describe('Sanitization Utility', () => {
   });
 
   describe('sanitizeNumber', () => {
-    it('should return a valid number', () => {
-      expect(sanitization.sanitizeNumber(123)).toBe(123);
-      expect(sanitization.sanitizeNumber('123.45')).toBe(123.45);
+    it('should return a valid number', async () => {
+      expect(await sanitization.sanitizeNumber(123)).toBe(123);
+      expect(await sanitization.sanitizeNumber('123.45')).toBe(123.45);
     });
 
-    it('should throw for an invalid number string', () => {
-      expect(() => sanitization.sanitizeNumber('abc')).toThrow(McpError);
+    it('should throw for an invalid number string', async () => {
+      await expect(sanitization.sanitizeNumber('abc')).rejects.toThrow(McpError);
     });
 
-    it('should clamp number to min/max range', () => {
-      expect(sanitization.sanitizeNumber(5, 10, 20)).toBe(10);
-      expect(sanitization.sanitizeNumber(25, 10, 20)).toBe(20);
+    it('should clamp number to min/max range', async () => {
+      expect(await sanitization.sanitizeNumber(5, 10, 20)).toBe(10);
+      expect(await sanitization.sanitizeNumber(25, 10, 20)).toBe(20);
     });
   });
 

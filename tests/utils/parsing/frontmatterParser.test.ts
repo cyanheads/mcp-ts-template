@@ -16,7 +16,7 @@ describe('frontmatterParser.parse', () => {
     });
 
   describe('valid frontmatter extraction', () => {
-    it('parses markdown with valid frontmatter successfully', () => {
+    it('parses markdown with valid frontmatter successfully', async () => {
       const markdown = `---
 title: My Note
 tags: [productivity, notes]
@@ -26,7 +26,7 @@ published: true
 # Note Content
 This is the actual note.`;
 
-      const result = frontmatterParser.parse<{
+      const result = await frontmatterParser.parse<{
         title: string;
         tags: string[];
         published: boolean;
@@ -41,7 +41,7 @@ This is the actual note.`;
       expect(result.content).toBe('# Note Content\nThis is the actual note.');
     });
 
-    it('parses frontmatter with nested objects', () => {
+    it('parses frontmatter with nested objects', async () => {
       const markdown = `---
 metadata:
   author: John Doe
@@ -53,7 +53,7 @@ settings:
 
 Content here.`;
 
-      const result = frontmatterParser.parse(markdown);
+      const result = await frontmatterParser.parse(markdown);
 
       expect(result.hasFrontmatter).toBe(true);
       expect(result.frontmatter).toEqual({
@@ -69,7 +69,7 @@ Content here.`;
       expect(result.content).toBe('Content here.');
     });
 
-    it('handles frontmatter with context for logging', () => {
+    it('handles frontmatter with context for logging', async () => {
       const context = createContext();
       const debugSpy = vi.spyOn(logger, 'debug');
 
@@ -79,7 +79,7 @@ simple: value
 
 Content`;
 
-      const result = frontmatterParser.parse(markdown, context);
+      const result = await frontmatterParser.parse(markdown, context);
 
       expect(result.hasFrontmatter).toBe(true);
       expect(debugSpy).toHaveBeenCalledWith(
@@ -92,7 +92,7 @@ Content`;
       debugSpy.mockRestore();
     });
 
-    it('handles YAML with LLM think blocks via yamlParser', () => {
+    it('handles YAML with LLM think blocks via yamlParser', async () => {
       const markdown = `---
 <think>processing metadata</think>
 title: Test
@@ -100,7 +100,7 @@ title: Test
 
 Content`;
 
-      const result = frontmatterParser.parse(markdown);
+      const result = await frontmatterParser.parse(markdown);
 
       expect(result.hasFrontmatter).toBe(true);
       expect(result.frontmatter).toEqual({ title: 'Test' });
@@ -109,11 +109,11 @@ Content`;
   });
 
   describe('documents without frontmatter', () => {
-    it('returns original content when no frontmatter exists', () => {
+    it('returns original content when no frontmatter exists', async () => {
       const markdown = '# Just a heading\n\nSome content.';
       const debugSpy = vi.spyOn(logger, 'debug');
 
-      const result = frontmatterParser.parse(markdown);
+      const result = await frontmatterParser.parse(markdown);
 
       expect(result.hasFrontmatter).toBe(false);
       expect(result.frontmatter).toEqual({});
@@ -126,7 +126,7 @@ Content`;
       debugSpy.mockRestore();
     });
 
-    it('handles markdown with --- in the middle of content', () => {
+    it('handles markdown with --- in the middle of content', async () => {
       const markdown = `# Title
 
 Some content here.
@@ -135,30 +135,30 @@ Some content here.
 
 More content after the separator.`;
 
-      const result = frontmatterParser.parse(markdown);
+      const result = await frontmatterParser.parse(markdown);
 
       expect(result.hasFrontmatter).toBe(false);
       expect(result.frontmatter).toEqual({});
       expect(result.content).toBe(markdown);
     });
 
-    it('handles markdown with only opening --- delimiter', () => {
+    it('handles markdown with only opening --- delimiter', async () => {
       const markdown = `---
 title: Test
 # Missing closing delimiter`;
 
-      const result = frontmatterParser.parse(markdown);
+      const result = await frontmatterParser.parse(markdown);
 
       expect(result.hasFrontmatter).toBe(false);
       expect(result.frontmatter).toEqual({});
       expect(result.content).toBe(markdown);
     });
 
-    it('creates auto-generated context when none is provided', () => {
+    it('creates auto-generated context when none is provided', async () => {
       const debugSpy = vi.spyOn(logger, 'debug');
       const markdown = 'No frontmatter here';
 
-      frontmatterParser.parse(markdown);
+      await frontmatterParser.parse(markdown);
 
       expect(debugSpy).toHaveBeenCalledWith(
         'No frontmatter detected in markdown.',
@@ -172,14 +172,14 @@ title: Test
   });
 
   describe('empty frontmatter', () => {
-    it('handles empty frontmatter block', () => {
+    it('handles empty frontmatter block', async () => {
       const markdown = `---
 ---
 
 Content here.`;
 
       const debugSpy = vi.spyOn(logger, 'debug');
-      const result = frontmatterParser.parse(markdown);
+      const result = await frontmatterParser.parse(markdown);
 
       expect(result.hasFrontmatter).toBe(true);
       expect(result.frontmatter).toEqual({});
@@ -192,7 +192,7 @@ Content here.`;
       debugSpy.mockRestore();
     });
 
-    it('handles frontmatter with only whitespace', () => {
+    it('handles frontmatter with only whitespace', async () => {
       const markdown = `---
 
 
@@ -200,7 +200,7 @@ Content here.`;
 
 Content here.`;
 
-      const result = frontmatterParser.parse(markdown);
+      const result = await frontmatterParser.parse(markdown);
 
       expect(result.hasFrontmatter).toBe(true);
       expect(result.frontmatter).toEqual({});
@@ -209,7 +209,7 @@ Content here.`;
   });
 
   describe('error handling', () => {
-    it('throws McpError for invalid YAML in frontmatter', () => {
+    it('throws McpError for invalid YAML in frontmatter', async () => {
       const context = createContext();
       const markdown = `---
 invalid: [unterminated array
@@ -217,10 +217,10 @@ invalid: [unterminated array
 
 Content`;
 
-      expect(() => frontmatterParser.parse(markdown, context)).toThrow(McpError);
+      await expect(frontmatterParser.parse(markdown, context)).rejects.toThrow(McpError);
 
       try {
-        frontmatterParser.parse(markdown, context);
+        await frontmatterParser.parse(markdown, context);
       } catch (error) {
         expect(error).toBeInstanceOf(McpError);
         const mcpError = error as McpError;
@@ -229,7 +229,7 @@ Content`;
       }
     });
 
-    it('logs parsing errors with context', () => {
+    it('logs parsing errors with context', async () => {
       const context = createContext();
       const errorSpy = vi.spyOn(logger, 'error');
       const markdown = `---
@@ -238,7 +238,7 @@ bad: yaml: content
 
 Content`;
 
-      expect(() => frontmatterParser.parse(markdown, context)).toThrow(McpError);
+      await expect(frontmatterParser.parse(markdown, context)).rejects.toThrow(McpError);
 
       expect(errorSpy).toHaveBeenCalledWith(
         'Failed to parse YAML content.',
@@ -250,7 +250,7 @@ Content`;
       errorSpy.mockRestore();
     });
 
-    it('creates auto-generated context for errors when none provided', () => {
+    it('creates auto-generated context for errors when none provided', async () => {
       const errorSpy = vi.spyOn(logger, 'error');
       const markdown = `---
 invalid yaml content here: {{{{
@@ -258,14 +258,14 @@ invalid yaml content here: {{{{
 
 Content`;
 
-      expect(() => frontmatterParser.parse(markdown)).toThrow(McpError);
+      await expect(frontmatterParser.parse(markdown)).rejects.toThrow(McpError);
 
       expect(errorSpy).toHaveBeenCalled();
 
       errorSpy.mockRestore();
     });
 
-    it('includes YAML content sample in error details', () => {
+    it('includes YAML content sample in error details', async () => {
       const context = createContext();
       const markdown = `---
 ${'x: invalid\n'.repeat(100)}
@@ -274,7 +274,7 @@ ${'x: invalid\n'.repeat(100)}
 Content`;
 
       try {
-        frontmatterParser.parse(markdown, context);
+        await frontmatterParser.parse(markdown, context);
       } catch (error) {
         const mcpError = error as McpError;
         expect(mcpError.message).toContain('Failed to parse YAML');
@@ -285,28 +285,28 @@ Content`;
   });
 
   describe('edge cases', () => {
-    it('handles empty string input', () => {
-      const result = frontmatterParser.parse('');
+    it('handles empty string input', async () => {
+      const result = await frontmatterParser.parse('');
 
       expect(result.hasFrontmatter).toBe(false);
       expect(result.frontmatter).toEqual({});
       expect(result.content).toBe('');
     });
 
-    it('handles frontmatter with no content after', () => {
+    it('handles frontmatter with no content after', async () => {
       const markdown = `---
 title: Test
 ---
 `;
 
-      const result = frontmatterParser.parse(markdown);
+      const result = await frontmatterParser.parse(markdown);
 
       expect(result.hasFrontmatter).toBe(true);
       expect(result.frontmatter).toEqual({ title: 'Test' });
       expect(result.content).toBe('');
     });
 
-    it('preserves formatting in markdown content', () => {
+    it('preserves formatting in markdown content', async () => {
       const markdown = `---
 title: Test
 ---
@@ -320,7 +320,7 @@ title: Test
 const code = true;
 \`\`\``;
 
-      const result = frontmatterParser.parse(markdown);
+      const result = await frontmatterParser.parse(markdown);
 
       expect(result.hasFrontmatter).toBe(true);
       expect(result.content).toContain('# Heading');
@@ -328,7 +328,7 @@ const code = true;
       expect(result.content).toContain('const code = true;');
     });
 
-    it('handles frontmatter with special YAML features (anchors, references)', () => {
+    it('handles frontmatter with special YAML features (anchors, references)', async () => {
       const markdown = `---
 defaults: &defaults
   timeout: 30
@@ -341,7 +341,7 @@ production:
 
 Content`;
 
-      const result = frontmatterParser.parse(markdown);
+      const result = await frontmatterParser.parse(markdown);
 
       expect(result.hasFrontmatter).toBe(true);
       expect(result.frontmatter).toEqual({
@@ -352,7 +352,7 @@ Content`;
   });
 
   describe('type safety', () => {
-    it('supports generic type parameter for frontmatter', () => {
+    it('supports generic type parameter for frontmatter', async () => {
       interface NoteFrontmatter {
         published: boolean;
         tags: string[];
@@ -367,7 +367,7 @@ published: true
 
 Content`;
 
-      const result = frontmatterParser.parse<NoteFrontmatter>(markdown);
+      const result = await frontmatterParser.parse<NoteFrontmatter>(markdown);
 
       // TypeScript should recognize these properties
       expect(result.frontmatter.title).toBe('TypeScript Note');

@@ -14,27 +14,27 @@ describe('yamlParser.parse', () => {
       operation: 'yaml-parser-test',
     });
 
-  it('parses YAML content successfully', () => {
+  it('parses YAML content successfully', async () => {
     const yamlString = 'name: Ada\nrole: Engineer';
-    const result = yamlParser.parse<Record<string, string>>(yamlString);
+    const result = await yamlParser.parse<Record<string, string>>(yamlString);
     expect(result).toEqual({ name: 'Ada', role: 'Engineer' });
   });
 
-  it('parses YAML content after stripping a think block', () => {
+  it('parses YAML content after stripping a think block', async () => {
     const context = createContext();
     const yamlString = '<think>deliberation</think>name: Grace\nrole: Admiral';
-    const result = yamlParser.parse<Record<string, string>>(yamlString, context);
+    const result = await yamlParser.parse<Record<string, string>>(yamlString, context);
     expect(result).toEqual({ name: 'Grace', role: 'Admiral' });
   });
 
-  it('throws when the remaining content is empty', () => {
-    expect(() => yamlParser.parse('<think>only thoughts</think>   ')).toThrow(McpError);
+  it('throws when the remaining content is empty', async () => {
+    await expect(yamlParser.parse('<think>only thoughts</think>   ')).rejects.toThrow(McpError);
   });
 
-  it('wraps parser failures in an McpError', () => {
+  it('wraps parser failures in an McpError', async () => {
     const context = createContext();
     try {
-      yamlParser.parse('invalid: [unterminated', context);
+      await yamlParser.parse('invalid: [unterminated', context);
       throw new Error('Expected yamlParser.parse to throw');
     } catch (error) {
       expect(error).toBeInstanceOf(McpError);
@@ -44,9 +44,9 @@ describe('yamlParser.parse', () => {
     }
   });
 
-  it('logs parse failures with an auto-generated context when none is provided', () => {
+  it('logs parse failures with an auto-generated context when none is provided', async () => {
     const errorSpy = vi.spyOn(logger, 'error');
-    expect(() => yamlParser.parse('invalid: [unterminated')).toThrow(McpError);
+    await expect(yamlParser.parse('invalid: [unterminated')).rejects.toThrow(McpError);
     expect(errorSpy).toHaveBeenCalledWith(
       'Failed to parse YAML content.',
       expect.objectContaining({ operation: 'YamlParser.parseError' }),
@@ -54,11 +54,11 @@ describe('yamlParser.parse', () => {
     errorSpy.mockRestore();
   });
 
-  it('logs an empty think block with an auto-generated context when none is provided', () => {
+  it('logs an empty think block with an auto-generated context when none is provided', async () => {
     const debugSpy = vi.spyOn(logger, 'debug');
     const yamlString = '<think></think>key: value';
 
-    const result = yamlParser.parse<Record<string, string>>(yamlString);
+    const result = await yamlParser.parse<Record<string, string>>(yamlString);
 
     expect(result).toEqual({ key: 'value' });
     expect(debugSpy).toHaveBeenCalledWith(

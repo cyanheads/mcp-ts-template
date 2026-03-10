@@ -88,8 +88,11 @@ describe('HTTP Transport', () => {
   });
 
   describe('createHttpApp', () => {
-    test('should create Hono app instance', () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+    test('should create Hono app instance', async () => {
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       expect(app).toBeDefined();
       expect(typeof app.fetch).toBe('function');
@@ -99,7 +102,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should configure CORS middleware', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       // Make an OPTIONS request to test CORS
       const request = new Request('http://localhost:3000/test', {
@@ -116,7 +122,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should register health endpoint', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/healthz', {
         method: 'GET',
@@ -130,7 +139,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should register MCP status endpoint', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'GET',
@@ -152,7 +164,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should pass SSE GET requests through to transport handler', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'GET',
@@ -173,7 +188,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should serve OAuth metadata endpoint with minimal metadata when OAuth not configured', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/.well-known/oauth-protected-resource', {
         method: 'GET',
@@ -189,7 +207,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should handle DELETE request in stateless mode', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'DELETE',
@@ -206,7 +227,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should handle DELETE request without session ID', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'DELETE',
@@ -221,7 +245,7 @@ describe('HTTP Transport', () => {
 
     test('should handle DELETE request in stateful mode', async () => {
       await withConfigOverrides({ mcpSessionMode: 'stateful' }, async () => {
-        const { app, sessionStore } = createHttpApp(
+        const { app, sessionStore } = await createHttpApp(
           () => Promise.resolve(mockMcpServer as McpServer),
           mockContext,
         );
@@ -247,7 +271,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should reject requests with invalid origin', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'POST',
@@ -270,7 +297,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should allow requests with valid origin', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'POST',
@@ -300,7 +330,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should include credentials in CORS when origin is explicitly configured', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'OPTIONS',
@@ -316,7 +349,7 @@ describe('HTTP Transport', () => {
 
     test('should omit credentials in CORS when origin is wildcard', async () => {
       await withConfigOverrides({ mcpAllowedOrigins: [] }, async () => {
-        const { app } = createHttpApp(
+        const { app } = await createHttpApp(
           () => Promise.resolve(mockMcpServer as McpServer),
           mockContext,
         );
@@ -337,7 +370,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should reject unsupported MCP protocol version', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'POST',
@@ -361,7 +397,10 @@ describe('HTTP Transport', () => {
     });
 
     test('should default to protocol version 2025-03-26 when not provided', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'POST',
@@ -391,7 +430,10 @@ describe('HTTP Transport', () => {
 
   describe('Error handling integration', () => {
     test('should use centralized error handler', async () => {
-      const { app } = createHttpApp(() => Promise.resolve(mockMcpServer as McpServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+      );
 
       // Simulate an error by accessing a non-existent route with proper method
       const request = new Request('http://localhost:3000/nonexistent', {
@@ -407,8 +449,8 @@ describe('HTTP Transport', () => {
 
   describe('Session management', () => {
     test('should create session store in stateful mode', async () => {
-      await withConfigOverrides({ mcpSessionMode: 'stateful' }, () => {
-        const { sessionStore } = createHttpApp(
+      await withConfigOverrides({ mcpSessionMode: 'stateful' }, async () => {
+        const { sessionStore } = await createHttpApp(
           () => Promise.resolve(mockMcpServer as McpServer),
           mockContext,
         );
@@ -419,8 +461,8 @@ describe('HTTP Transport', () => {
       });
     });
 
-    test('should not create session store in stateless mode', () => {
-      const { sessionStore } = createHttpApp(
+    test('should not create session store in stateless mode', async () => {
+      const { sessionStore } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
       );
@@ -435,7 +477,10 @@ describe('HTTP Transport', () => {
           connect: vi.fn().mockResolvedValue(undefined),
         } as unknown as McpServer;
 
-        const { app, sessionStore } = createHttpApp(() => Promise.resolve(mockServer), mockContext);
+        const { app, sessionStore } = await createHttpApp(
+          () => Promise.resolve(mockServer),
+          mockContext,
+        );
 
         const request = new Request('http://localhost:3000/mcp', {
           method: 'POST',
@@ -477,7 +522,7 @@ describe('HTTP Transport', () => {
         connect: vi.fn().mockResolvedValue(undefined),
       } as unknown as McpServer;
 
-      const { app } = createHttpApp(() => Promise.resolve(mockServer), mockContext);
+      const { app } = await createHttpApp(() => Promise.resolve(mockServer), mockContext);
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'POST',
@@ -510,7 +555,10 @@ describe('HTTP Transport', () => {
           connect: vi.fn().mockResolvedValue(undefined),
         } as unknown as McpServer;
 
-        const { app, sessionStore } = createHttpApp(() => Promise.resolve(mockServer), mockContext);
+        const { app, sessionStore } = await createHttpApp(
+          () => Promise.resolve(mockServer),
+          mockContext,
+        );
 
         // Send a request with an unsupported protocol version — should fail
         // before reaching the transport handler, so no session is minted.
@@ -541,7 +589,7 @@ describe('HTTP Transport', () => {
 
     test('should handle DELETE in stateful mode and terminate session', async () => {
       await withConfigOverrides({ mcpSessionMode: 'stateful' }, async () => {
-        const { app, sessionStore } = createHttpApp(
+        const { app, sessionStore } = await createHttpApp(
           () => Promise.resolve(mockMcpServer as McpServer),
           mockContext,
         );
