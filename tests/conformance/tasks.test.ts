@@ -28,6 +28,8 @@ import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.j
 import { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
 import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
+import { StorageService } from '@/storage/core/StorageService.js';
+import { createStorageProvider } from '@/storage/core/storageFactory.js';
 import { logger } from '@/utils/internal/logger.js';
 
 // ---------------------------------------------------------------------------
@@ -81,8 +83,12 @@ async function createTaskHarness(): Promise<TaskHarness> {
     },
   );
 
-  const toolRegistry = new ToolRegistry(allToolDefinitions);
-  const resourceRegistry = new ResourceRegistry(allResourceDefinitions);
+  const storageProvider = createStorageProvider(config, {});
+  const storageService = new StorageService(storageProvider);
+  const services = { logger, storage: storageService };
+
+  const toolRegistry = new ToolRegistry(allToolDefinitions, services);
+  const resourceRegistry = new ResourceRegistry(allResourceDefinitions, services);
   const promptRegistry = new PromptRegistry(allPromptDefinitions, logger);
   const rootsRegistry = new RootsRegistry(logger);
 

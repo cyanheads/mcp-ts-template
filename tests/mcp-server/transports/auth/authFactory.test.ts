@@ -10,16 +10,23 @@ import { OauthStrategy } from '@/mcp-server/transports/auth/strategies/oauthStra
 
 describe('createAuthStrategy', () => {
   let originalAuthMode: string;
+  let originalSecretKey: string | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
     originalAuthMode = config.mcpAuthMode;
+    originalSecretKey = config.mcpAuthSecretKey;
   });
 
   afterEach(() => {
-    // Restore original auth mode
+    // Restore original config values
     Object.defineProperty(config, 'mcpAuthMode', {
       value: originalAuthMode,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(config, 'mcpAuthSecretKey', {
+      value: originalSecretKey,
       writable: true,
       configurable: true,
     });
@@ -28,6 +35,11 @@ describe('createAuthStrategy', () => {
   it('should return JwtStrategy when auth mode is "jwt"', () => {
     Object.defineProperty(config, 'mcpAuthMode', {
       value: 'jwt',
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(config, 'mcpAuthSecretKey', {
+      value: 'test-secret-key-that-is-at-least-32-chars-long',
       writable: true,
       configurable: true,
     });
@@ -84,6 +96,11 @@ describe('createAuthStrategy', () => {
   it('should resolve strategies from DI container', () => {
     Object.defineProperty(config, 'mcpAuthMode', {
       value: 'jwt',
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(config, 'mcpAuthSecretKey', {
+      value: 'test-secret-key-that-is-at-least-32-chars-long',
       writable: true,
       configurable: true,
     });
