@@ -47,7 +47,7 @@ function normalizeTool(def: Record<string, unknown>): NormalizedTool {
     typeof def.handler === 'function'
       ? async (input: unknown) => {
           const ctx = createMockContext();
-          return (def.handler as Function)(input, ctx);
+          return (def.handler as (...args: unknown[]) => unknown)(input, ctx);
         }
       : async (input: unknown) => {
           const appCtx = requestContextService.createRequestContext({
@@ -59,7 +59,7 @@ function normalizeTool(def: Record<string, unknown>): NormalizedTool {
             sendNotification: vi.fn(),
             sendRequest: vi.fn(),
           };
-          return (def.logic as Function)(input, appCtx, sdkCtx);
+          return (def.logic as (...args: unknown[]) => unknown)(input, appCtx, sdkCtx);
         };
 
   const formatter = (def.format ?? def.responseFormatter) as ((o: unknown) => unknown) | undefined;

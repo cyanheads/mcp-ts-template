@@ -11,15 +11,14 @@ import type {
   SamplingMessage,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
-
 import type {
+  AuthContext,
   Context,
   ContextLogger,
   ContextProgress,
   ContextState,
   SamplingOpts,
 } from '@/context.js';
-import type { AuthContext } from '@/utils/internal/requestContext.js';
 
 // ---------------------------------------------------------------------------
 // Options
@@ -79,19 +78,21 @@ function createMockState(tenantId?: string): ContextState {
   };
 
   return {
-    async get(key) {
+    get(key) {
       requireTenant();
-      return store.get(key) ?? null;
+      return Promise.resolve(store.get(key) ?? null);
     },
-    async set(key, value) {
+    set(key, value) {
       requireTenant();
       store.set(key, value);
+      return Promise.resolve();
     },
-    async delete(key) {
+    delete(key) {
       requireTenant();
       store.delete(key);
+      return Promise.resolve();
     },
-    async list(prefix) {
+    list(prefix) {
       requireTenant();
       const items: Array<{ key: string; value: string }> = [];
       for (const [key, value] of store) {
@@ -99,7 +100,7 @@ function createMockState(tenantId?: string): ContextState {
           items.push({ key, value });
         }
       }
-      return { items };
+      return Promise.resolve({ items });
     },
   };
 }
@@ -121,15 +122,21 @@ function createMockProgress(): ContextProgress & {
     get _messages() {
       return state._messages;
     },
-    async setTotal(n) {
+    setTotal(n) {
       state._total = n;
       state._completed = 0;
+      return Promise.resolve();
     },
-    async increment(amount = 1) {
-      state._completed += amount;
+    increment(amount = 1) {
+      state._completed = Math.min(
+        state._completed + amount,
+        state._total || state._completed + amount,
+      );
+      return Promise.resolve();
     },
-    async update(message) {
+    update(message) {
       state._messages.push(message);
+      return Promise.resolve();
     },
   };
 }
@@ -167,19 +174,17 @@ export function createMockContext(options: MockContextOptions = {}): Context {
   const state = createMockState(options.tenantId);
   const progress = options.progress ? createMockProgress() : undefined;
 
-  const ctx: Context = {
+  return {
     requestId: options.requestId ?? 'test-request-id',
     timestamp: new Date().toISOString(),
     log,
     state,
     signal: options.signal ?? new AbortController().signal,
-    ...(options.tenantId !== undefined ? { tenantId: options.tenantId } : {}),
-    ...(options.auth ? { auth: options.auth } : {}),
-    ...(options.elicit ? { elicit: options.elicit } : {}),
-    ...(options.sample ? { sample: options.sample } : {}),
-    ...(progress ? { progress } : {}),
-    ...(options.uri ? { uri: options.uri } : {}),
+    tenantId: options.tenantId,
+    auth: options.auth,
+    elicit: options.elicit,
+    sample: options.sample,
+    progress,
+    uri: options.uri,
   };
-
-  return ctx;
 }

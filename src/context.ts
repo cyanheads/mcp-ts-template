@@ -161,23 +161,21 @@ export function createContext(deps: ContextDeps): Context {
     ? createContextProgress(deps.taskCtx.store, deps.taskCtx.taskId)
     : undefined;
 
-  const ctx: Context = {
+  return {
     requestId: appContext.requestId,
     timestamp: appContext.timestamp,
     log,
     state,
     signal,
-    ...(appContext.tenantId !== undefined ? { tenantId: appContext.tenantId } : {}),
-    ...(typeof appContext.traceId === 'string' ? { traceId: appContext.traceId } : {}),
-    ...(typeof appContext.spanId === 'string' ? { spanId: appContext.spanId } : {}),
-    ...(appContext.auth ? { auth: appContext.auth } : {}),
-    ...(deps.elicit ? { elicit: deps.elicit } : {}),
-    ...(deps.sample ? { sample: deps.sample } : {}),
-    ...(progress ? { progress } : {}),
-    ...(deps.uri ? { uri: deps.uri } : {}),
+    tenantId: appContext.tenantId,
+    traceId: appContext.traceId as string | undefined,
+    spanId: appContext.spanId as string | undefined,
+    auth: appContext.auth,
+    elicit: deps.elicit,
+    sample: deps.sample,
+    progress,
+    uri: deps.uri,
   };
-
-  return ctx;
 }
 
 // ---------------------------------------------------------------------------
@@ -281,9 +279,10 @@ function createContextProgress(store: RequestTaskStore, taskId: string): Context
   let completed = 0;
 
   return {
-    async setTotal(n) {
+    setTotal(n) {
       total = n;
       completed = 0;
+      return Promise.resolve();
     },
     async increment(amount = 1) {
       completed = Math.min(completed + amount, total || completed + amount);

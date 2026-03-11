@@ -217,7 +217,7 @@ function generateHtml(reports: SuiteReport[]): string {
       if (r?.testResults) {
         filesHtml = r.testResults
           .map((file) => {
-            const relPath = file.name.replace(ROOT + '/', '').replace(ROOT + '\\', '');
+            const relPath = file.name.replace(`${ROOT}/`, '').replace(`${ROOT}\\`, '');
             const testsHtml = file.assertionResults
               .map((t) => {
                 const fullName = [...t.ancestorTitles, t.title].join(' > ');

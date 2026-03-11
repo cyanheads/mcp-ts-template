@@ -108,7 +108,7 @@ describe('Logging capability conformance', () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // No message with severity below emergency should have been delivered
-    const emergencySeverity = LEVEL_SEVERITY['emergency']!;
+    const emergencySeverity = LEVEL_SEVERITY.emergency!;
     for (const msg of logMessages) {
       const severity = LEVEL_SEVERITY[msg.level];
       expect(
