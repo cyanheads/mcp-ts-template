@@ -781,7 +781,7 @@ Detailed guides, templates, and API references live in `skills/`. Read the relev
 | `devcheck` | `skills/devcheck/SKILL.md` | Run lint, format, typecheck, security checks |
 | `release` | `skills/release/SKILL.md` | Version bump, changelog, publish workflow |
 | `maintenance` | `skills/maintenance/SKILL.md` | Dependency updates, housekeeping tasks |
-| `migrate-imports` | `skills/migrate-imports/SKILL.md` | Migrate import paths after package rename |
+| `migrate-mcp-ts-template` | `skills/migrate-mcp-ts-template/SKILL.md` | Migrate legacy template fork to package dependency |
 | `api-utils` | `skills/api-utils/SKILL.md` | API reference: formatting, parsing, security, network, pagination, runtime, scheduling, types, logger, requestContext, errorHandler, telemetry |
 | `api-services` | `skills/api-services/SKILL.md` | API reference: LLM (OpenRouter), Speech (ElevenLabs TTS, Whisper STT), Graph (CRUD, traversal, pathfinding) |
 

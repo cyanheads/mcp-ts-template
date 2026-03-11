@@ -196,7 +196,7 @@ All skills live in a single `skills/` directory within the core package. Each sk
 | `add-prompt` | external | Scaffold a new MCP prompt template | Creates `.prompt.ts` with `prompt()` builder, `args` schema, `generate` function. Registers in `definitions/index.ts`. |
 | `add-service` | external | Scaffold a new service integration | Creates `services/[name]/` with init/accessor pattern for lazy singletons. Service methods receive `Context` for correlated logging and scoped storage. |
 | `devcheck` | external | Lint, format, typecheck, and audit the project | Runs `bun run devcheck`. Interprets output, fixes issues, re-runs until clean. |
-| `migrate-imports` | internal | Migrate a template fork to use `@cyanheads/mcp-ts-core` | Rewrites `@/` imports to `@cyanheads/mcp-ts-core/` subpaths using the mapping table from [07-migration.md](07-migration.md). Validates no internal paths remain. Only needed for legacy template forks, not new projects created via `init`. |
+| `migrate-mcp-ts-template` | internal | Migrate a template fork to use `@cyanheads/mcp-ts-core` | Rewrites `@/` imports to `@cyanheads/mcp-ts-core/` subpaths using the mapping table from [07-migration.md](07-migration.md). Validates no internal paths remain. Only needed for legacy template forks, not new projects created via `init`. |
 | `maintenance` | external | Sync skills and dependencies after updates | Compares project `skills/` against `node_modules/@cyanheads/mcp-ts-core/skills/` for drift. Syncs agent skill directory with project `skills/`. Updates dependencies. |
 | `add-export` | internal | Add a new subpath export to the core package | Creates the entry point file, adds the subpath to `package.json` `exports`, updates the exports catalog in `CLAUDE.md`, runs the export verification script. |
 | `add-provider` | internal | Add a new storage or service provider to core | Creates provider file in the correct directory, implements the provider interface, adds lazy dep import if Tier 3, updates the serverless whitelist if needed. |
@@ -312,7 +312,7 @@ node_modules/@cyanheads/mcp-ts-core/skills/
   add-prompt/SKILL.md                     # audience: external
   add-service/SKILL.md                    # audience: external
   devcheck/SKILL.md                       # audience: external
-  migrate-imports/SKILL.md                # audience: internal
+  migrate-mcp-ts-template/SKILL.md        # audience: internal
   maintenance/SKILL.md                    # audience: external
   add-export/SKILL.md                     # audience: internal
   add-provider/SKILL.md                   # audience: internal

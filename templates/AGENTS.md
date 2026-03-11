@@ -69,7 +69,7 @@ Available skills:
 | `add-prompt` | Scaffold a new prompt definition |
 | `add-service` | Scaffold a new service integration |
 | `devcheck` | Lint, format, typecheck, audit |
-| `migrate-imports` | Migrate template fork to package imports |
+| `migrate-mcp-ts-template` | Migrate legacy template fork to package dependency |
 | `maintenance` | Sync skills and dependencies after updates |
 
 When you complete a skill's checklist, check the boxes and add a completion timestamp at the end (e.g., `Completed: 2026-03-11`).

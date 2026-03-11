@@ -77,7 +77,7 @@ mcp-ts-template/
 │   │   └── SKILL.md
 │   ├── maintenance/
 │   │   └── SKILL.md
-│   ├── migrate-imports/
+│   ├── migrate-mcp-ts-template/
 │   │   └── SKILL.md
 │   ├── release/
 │   │   └── SKILL.md

@@ -152,7 +152,7 @@ project-root/
     add-prompt/SKILL.md
     add-service/SKILL.md
     devcheck/SKILL.md
-    migrate-imports/SKILL.md
+    migrate-mcp-ts-template/SKILL.md
     maintenance/SKILL.md
   src/
     index.ts                                      # createApp() entry point
