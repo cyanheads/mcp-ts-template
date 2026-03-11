@@ -15,7 +15,7 @@
 | Step | What it does |
 |:-----|:-------------|
 | Copy `audience: external` skills to `skills/` | Full copy of each skill directory (SKILL.md + assets/) |
-| Generate `CLAUDE.md` from template | Copy as-is (agent fills in placeholders) |
+| Generate `CLAUDE.md` and `AGENTS.md` from template | Both contain identical content — agent picks one during `/setup` |
 | Generate `package.json` from template | Copy as-is (name filled in from `[name]` argument if provided) |
 | Generate config files (`tsconfig.json`, `biome.json`, `vitest.config.ts`) | Copy standalone configs from templates |
 | Generate `.env.example` | Copy from template |
@@ -78,7 +78,8 @@ All templates ship in the core package under `templates/`. The init script copie
 
 ```
 templates/
-  CLAUDE.md                                       # Server CLAUDE.md
+  CLAUDE.md                                       # Agent protocol (Claude)
+  AGENTS.md                                       # Agent protocol (all other agents) — identical content
   package.json                                    # Consumer package.json with scripts
   tsconfig.json                                   # Standalone TypeScript config
   biome.template.json                             # Standalone Biome config (copied as biome.json)
@@ -135,7 +136,8 @@ After `init` on a fresh project:
 
 ```
 project-root/
-  CLAUDE.md                                       # from template
+  CLAUDE.md                                       # from template (agent protocol — Claude)
+  AGENTS.md                                       # from template (agent protocol — all others)
   package.json                                    # from template (skip if exists)
   tsconfig.json                                   # from template (skip if exists)
   biome.json                                      # from template (skip if exists)

@@ -10,7 +10,16 @@ metadata:
 
 ## Context
 
-This skill assumes `@cyanheads/mcp-ts-core init` has already run. The CLI created the project's `CLAUDE.md`, copied external skills to `skills/`, and scaffolded the directory structure. This skill orients you to what was created.
+This skill assumes `@cyanheads/mcp-ts-core init` has already run. The CLI created the project's `CLAUDE.md` and `AGENTS.md` (identical content), copied external skills to `skills/`, and scaffolded the directory structure. This skill orients you to what was created.
+
+## Agent Protocol File
+
+The init CLI generates both `CLAUDE.md` and `AGENTS.md` with identical content. Keep the one your agent uses and delete the other:
+
+- **Claude Code** — keep `CLAUDE.md`, delete `AGENTS.md`
+- **All other agents** (Codex, Cursor, Windsurf, etc.) — keep `AGENTS.md`, delete `CLAUDE.md`
+
+Both files serve the same purpose: project-specific agent instructions. Only one should exist in the committed project.
 
 For the full framework API, read:
 
@@ -67,6 +76,7 @@ For detailed sync procedures, see the `/maintenance` skill.
 
 ## Checklist
 
+- [ ] Agent protocol file selected — keep `CLAUDE.md` or `AGENTS.md`, delete the other
 - [ ] Core framework CLAUDE.md read (`node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`)
 - [ ] Agent skill directory in sync with project `skills/`
 - [ ] Project structure understood (definitions directories, barrel files, entry point)
