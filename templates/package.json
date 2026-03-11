@@ -1,0 +1,26 @@
+{
+  "name": "{{PACKAGE_NAME}}",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && tsc-alias",
+    "devcheck": "biome check . && tsc --noEmit",
+    "format": "biome check --fix .",
+    "test": "vitest run",
+    "dev:stdio": "tsx src/index.ts",
+    "dev:http": "MCP_TRANSPORT_TYPE=http tsx src/index.ts",
+    "start:stdio": "node dist/index.js",
+    "start:http": "MCP_TRANSPORT_TYPE=http node dist/index.js"
+  },
+  "dependencies": {
+    "@cyanheads/mcp-ts-core": "^0.1.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "tsc-alias": "^1.8.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
+  }
+}
