@@ -1,171 +1,96 @@
 /**
- * @fileoverview Complete, declarative definition for the 'template_madlibs_elicitation' tool.
- * This tool demonstrates how to use the MCP Elicitation feature to request missing
- * information from the user during a tool's execution.
+ * @fileoverview Template Mad Libs tool — demonstrates MCP Elicitation capability.
+ * Uses elicitation to request missing input from the user during execution.
  * @module src/mcp-server/tools/definitions/template-madlibs-elicitation.tool
  */
-import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
+
 import { z } from 'zod';
 
-import type {
-  SdkContext,
-  ToolAnnotations,
-  ToolDefinition,
-} from '@/mcp-server/tools/utils/toolDefinition.js';
-import { withToolAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
+import type { Context } from '@/context.js';
+import { tool } from '@/mcp-server/tools/utils/newToolDefinition.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { logger } from '@/utils/internal/logger.js';
-import type { RequestContext } from '@/utils/internal/requestContext.js';
 
-const TOOL_NAME = 'template_madlibs_elicitation';
-const TOOL_TITLE = 'Mad Libs Elicitation Game';
-const TOOL_DESCRIPTION =
-  'Plays a game of Mad Libs. If any parts of speech (noun, verb, adjective) are missing, it will use elicitation to ask the user for them.';
+const InputSchema = z.object({
+  noun: z.string().optional().describe('A noun for the story.'),
+  verb: z.string().optional().describe('A verb (past tense) for the story.'),
+  adjective: z.string().optional().describe('An adjective for the story.'),
+});
 
-const TOOL_ANNOTATIONS: ToolAnnotations = {
-  readOnlyHint: true,
-  idempotentHint: false,
-  openWorldHint: false,
-};
+const OutputSchema = z.object({
+  story: z.string().describe('The final, generated Mad Libs story.'),
+  noun: z.string().describe('The noun used in the story.'),
+  verb: z.string().describe('The verb used in the story.'),
+  adjective: z.string().describe('The adjective used in the story.'),
+});
 
-// --- Schemas ---
-const InputSchema = z
-  .object({
-    noun: z.string().optional().describe('A noun for the story.'),
-    verb: z.string().optional().describe('A verb (past tense) for the story.'),
-    adjective: z.string().optional().describe('An adjective for the story.'),
-  })
-  .describe('Inputs for the Mad Libs game. Any missing fields will be elicited.');
-
-const OutputSchema = z
-  .object({
-    story: z.string().describe('The final, generated Mad Libs story.'),
-    noun: z.string().describe('The noun used in the story.'),
-    verb: z.string().describe('The verb used in the story.'),
-    adjective: z.string().describe('The adjective used in the story.'),
-  })
-  .describe('The completed Mad Libs story and the words used.');
-
-type MadlibsToolInput = z.infer<typeof InputSchema>;
-type MadlibsToolResponse = z.infer<typeof OutputSchema>;
-
-// --- Elicitation Logic ---
-// We check against the SdkContext, which is where elicitInput lives.
-type ElicitableSdkContext = SdkContext & {
-  elicitInput: (args: { message: string; schema: unknown }) => Promise<unknown>;
-};
-
-function hasElicitInput(ctx: SdkContext): ctx is ElicitableSdkContext {
-  return typeof (ctx as ElicitableSdkContext)?.elicitInput === 'function';
-}
-
-async function elicitAndValidate(
-  partOfSpeech: 'noun' | 'verb' | 'adjective',
-  sdkContext: SdkContext,
-): Promise<string> {
-  if (!hasElicitInput(sdkContext)) {
+async function elicitWord(partOfSpeech: string, ctx: Context): Promise<string> {
+  if (!ctx.elicit) {
     throw new McpError(
       JsonRpcErrorCode.InvalidRequest,
       'Elicitation is not available in the current context.',
-      { requestId: sdkContext.requestId, operation: 'madlibs.elicit' },
     );
   }
 
-  const elicitedUnknown: unknown = await sdkContext.elicitInput({
-    message: `I need a ${partOfSpeech}. Please provide one below.`,
-    schema: {
-      type: 'object' as const,
-      properties: {
-        value: {
-          type: 'string' as const,
-          description: `A ${partOfSpeech} for the Mad Libs story`,
-        },
-      },
-      required: ['value'],
-    },
-  });
+  const result = await ctx.elicit(
+    `I need a ${partOfSpeech}. Please provide one below.`,
+    z.object({
+      value: z.string().describe(`A ${partOfSpeech} for the Mad Libs story`),
+    }),
+  );
 
-  // Check the elicitation action before parsing the value
-  const result = elicitedUnknown as { action?: string; content?: Record<string, unknown> } | null;
-  if (!result || result.action === 'decline' || result.action === 'cancel') {
+  if (result.action !== 'accept') {
     throw new McpError(
       JsonRpcErrorCode.InvalidRequest,
-      `User ${result?.action ?? 'cancelled'} the ${partOfSpeech} elicitation.`,
+      `User ${result.action} the ${partOfSpeech} elicitation.`,
     );
   }
 
-  // Elicitation returns { action: 'accept', content: { value: '...' } }
-  const validation = z
-    .object({ content: z.object({ value: z.string().min(1) }) })
-    .safeParse(result);
-  if (!validation.success) {
+  const value = (result.content as Record<string, unknown> | undefined)?.value;
+  if (typeof value !== 'string' || value.length === 0) {
     throw new McpError(
       JsonRpcErrorCode.InvalidParams,
       `Invalid ${partOfSpeech} received from user.`,
-      { provided: elicitedUnknown },
     );
   }
-  return validation.data.content.value;
+
+  return value;
 }
 
-// --- Pure business logic ---
-async function madlibsToolLogic(
-  input: MadlibsToolInput,
-  appContext: RequestContext,
-  sdkContext: SdkContext, // This signature now correctly matches the ToolDefinition and withToolAuth expectations.
-): Promise<MadlibsToolResponse> {
-  logger.debug('Processing Mad Libs logic.', {
-    ...appContext,
-    toolInput: input,
-  });
+export const madlibsElicitationTool = tool('template_madlibs_elicitation', {
+  title: 'Mad Libs Elicitation Game',
+  description:
+    'Plays a game of Mad Libs. If any parts of speech (noun, verb, adjective) are missing, it will use elicitation to ask the user for them.',
+  input: InputSchema,
+  output: OutputSchema,
+  auth: ['tool:madlibs:play'],
+  annotations: {
+    readOnlyHint: true,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
 
-  // No cast is needed; sdkContext is already the correct type.
-  const noun = input.noun ?? (await elicitAndValidate('noun', sdkContext));
-  const verb = input.verb ?? (await elicitAndValidate('verb', sdkContext));
-  const adjective = input.adjective ?? (await elicitAndValidate('adjective', sdkContext));
+  async handler(input, ctx) {
+    ctx.log.debug('Processing Mad Libs', { toolInput: input });
 
-  const story = `The ${adjective} ${noun} ${verb} over the lazy dog.`;
+    const noun = input.noun ?? (await elicitWord('noun', ctx));
+    const verb = input.verb ?? (await elicitWord('verb', ctx));
+    const adjective = input.adjective ?? (await elicitWord('adjective', ctx));
 
-  const response: MadlibsToolResponse = {
-    story,
-    noun,
-    verb,
-    adjective,
-  };
+    const story = `The ${adjective} ${noun} ${verb} over the lazy dog.`;
+    return { story, noun, verb, adjective };
+  },
 
-  return response;
-}
-
-// --- Response Formatter ---
-function responseFormatter(result: MadlibsToolResponse): ContentBlock[] {
-  return [
-    {
-      type: 'text',
-      text: result.story,
-    },
-    {
-      type: 'text',
-      text: JSON.stringify(
-        {
-          noun: result.noun,
-          verb: result.verb,
-          adjective: result.adjective,
-        },
-        null,
-        2,
-      ),
-    },
-  ];
-}
-
-// --- Tool Definition ---
-export const madlibsElicitationTool: ToolDefinition<typeof InputSchema, typeof OutputSchema> = {
-  name: TOOL_NAME,
-  title: TOOL_TITLE,
-  description: TOOL_DESCRIPTION,
-  inputSchema: InputSchema,
-  outputSchema: OutputSchema,
-  annotations: TOOL_ANNOTATIONS,
-  logic: withToolAuth(['tool:madlibs:play'], madlibsToolLogic),
-  responseFormatter,
-};
+  format(result) {
+    return [
+      { type: 'text', text: result.story },
+      {
+        type: 'text',
+        text: JSON.stringify(
+          { noun: result.noun, verb: result.verb, adjective: result.adjective },
+          null,
+          2,
+        ),
+      },
+    ];
+  },
+});
