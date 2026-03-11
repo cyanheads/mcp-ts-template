@@ -6,8 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**", "scripts/**", "tests/**", "*.json", "*.js"],
-    "ignores": ["templates/**"]
+    "includes": ["src/**", "scripts/**", "tests/**", "*.json", "*.js"]
   },
   "formatter": {
     "enabled": true,

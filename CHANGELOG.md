@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.3] - 2026-03-11
+
+Adds the `templates/` directory for the `init` CLI, simplifies the init design to a one-time bootstrap (no idempotency), and reclassifies the `migrate-imports` skill as internal.
+
+### Added
+
+- **`templates/` directory**: Complete set of project scaffold templates for the `init` CLI — `CLAUDE.md`, `package.json`, `tsconfig.json`, `biome.json`, `vitest.config.ts`, `.env.example`, `src/index.ts`, and barrel `index.ts` files for tools/resources/prompts definitions.
+- **Standalone config templates**: `tsconfig.json`, `biome.json`, and `vitest.config.ts` templates are self-contained — no `extends` from core, so they work before `bun install`.
+
+### Changed
+
+- **`core-extraction/13-init-cli.md`**: Simplified init CLI from idempotent re-runnable command to one-time bootstrap. Removed `--force` flag, added `[name]` argument for package name substitution. Config templates are now standalone. Skill updates after `bun update` delegated to the `maintenance` skill.
+- **`skills/migrate-imports/SKILL.md`**: Reclassified from `audience: external` to `audience: internal` — this skill is only needed for legacy template forks, not new projects created via `init`.
+- **`skills/release/SKILL.md`**: Minor formatting cleanup.
+- **`skills/setup/SKILL.md`**: Minor formatting cleanup.
+- **`tsconfig.json`**: Added `templates` to `exclude` array to prevent TypeScript from checking template files.
+
+---
+
 ## [0.1.0-beta.2] - 2026-03-11
 
 Adds the `skills/` directory with 12 agent skill definitions following the [Agent Skills specification](https://agentskills.io/specification), and updates the agent DX plan to separate the `init` CLI from the `/setup` skill.

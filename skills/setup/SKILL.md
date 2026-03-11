@@ -16,8 +16,7 @@ For the full framework API, read:
 
     node_modules/@cyanheads/mcp-ts-core/CLAUDE.md
 
-Read that file once per session. It contains the exports catalog, tool/resource/prompt
-contracts, error codes, context API, and common import patterns.
+Read that file once per session. It contains the exports catalog, tool/resource/prompt contracts, error codes, context API, and common import patterns.
 
 ## Project Structure
 

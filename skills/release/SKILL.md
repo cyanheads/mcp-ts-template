@@ -10,9 +10,7 @@ metadata:
 
 ## Context
 
-Publishing is a multi-step process with irreversible actions (npm publish,
-Docker push). This skill handles preparation but stops before destructive
-commands, requiring the user to execute them manually.
+Publishing is a multi-step process with irreversible actions (npm publish, Docker push). This skill handles preparation but stops before destructive commands, requiring the user to execute them manually.
 
 ## Steps
 

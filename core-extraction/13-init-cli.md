@@ -6,38 +6,35 @@
 
 ## Overview
 
-`@cyanheads/mcp-ts-core init` is a CLI command (like `shadcn@latest init`) that bootstraps a consumer project. It copies skills, generates a `CLAUDE.md`, and scaffolds the directory structure. It is **idempotent** — safe to re-run after `bun update @cyanheads/mcp-ts-core` to pick up new or updated skills.
+`@cyanheads/mcp-ts-core init` is a CLI command (like `shadcn@latest init`) that bootstraps a new consumer project from scratch. It copies skills, generates a `CLAUDE.md`, scaffolds the directory structure, and creates config files. Works from an empty directory — no prior install required.
 
 ---
 
 ## What It Does
 
-| Step | First Run | Subsequent Runs |
-|:-----|:----------|:----------------|
-| Copy `audience: external` skills to `skills/` | Full copy (SKILL.md + assets/) | Update if `metadata.version` in package is newer than local |
-| Generate `CLAUDE.md` from template | Copy as-is (agent fills in placeholders) | Skip (file exists) |
-| Generate `package.json` from template | Copy as-is (agent fills in name/version) | Skip (file exists) |
-| Generate config files (`tsconfig.json`, `biome.json`, `vitest.config.ts`) | Copy from templates | Skip (file exists) |
-| Generate `.env.example` | Copy from template | Skip (file exists) |
-| Scaffold `src/index.ts` entry point | Create with `createApp()` boilerplate | Skip (file exists) |
-| Scaffold `src/mcp-server/{tools,resources,prompts}/definitions/` | Create directories + barrel `index.ts` files | Skip (directories exist) |
+| Step | What it does |
+|:-----|:-------------|
+| Copy `audience: external` skills to `skills/` | Full copy of each skill directory (SKILL.md + assets/) |
+| Generate `CLAUDE.md` from template | Copy as-is (agent fills in placeholders) |
+| Generate `package.json` from template | Copy as-is (name filled in from `[name]` argument if provided) |
+| Generate config files (`tsconfig.json`, `biome.json`, `vitest.config.ts`) | Copy standalone configs from templates |
+| Generate `.env.example` | Copy from template |
+| Scaffold `src/index.ts` entry point | Copy `createApp()` boilerplate from template |
+| Scaffold `src/mcp-server/{tools,resources,prompts}/definitions/` | Copy barrel `index.ts` files from template |
 
-### Skill update logic (subsequent runs)
+### Skill selection logic
 
-1. Read each skill's `SKILL.md` frontmatter from `node_modules/@cyanheads/mcp-ts-core/skills/`
+1. Read each skill's `SKILL.md` frontmatter from the package's bundled `skills/` directory
 2. Filter to `metadata.audience: external`
-3. For each external skill, check if `skills/<name>/SKILL.md` exists locally
-   - **Not found locally:** copy full directory (new skill added upstream)
-   - **Found locally:** compare `metadata.version` — if package version is newer, replace the full directory
-   - **Found locally, not in package:** leave it alone (server-specific skill)
+3. Copy each external skill's full directory to the project's `skills/`
 
-Server-specific skills and local overrides (where a consumer has modified a core skill) are preserved. If a consumer wants to pin a skill and prevent updates, they can bump the local `metadata.version` above the package's.
+Skill syncing after package updates is handled separately by the `maintenance` skill (agent-driven) or a future dedicated script — not by re-running `init`.
 
 ### What it does NOT do
 
 - Does not touch `.claude/`, `.codex/`, `.cursor/`, or any agent-specific directories — that's the agent's responsibility (instructed by the CLAUDE.md and `/setup` skill)
 - Does not run `devcheck` or `build` — the agent or user does that after
-- Does not install dependencies — assumes `bun install` / `npm install` has already run
+- Does not install dependencies — user runs `bun install` after init
 - Does not modify existing source files
 
 ---
@@ -45,20 +42,16 @@ Server-specific skills and local overrides (where a consumer has modified a core
 ## CLI Interface
 
 ```bash
-# First-time setup
-bunx @cyanheads/mcp-ts-core init
-
-# After updating the package
-bun update @cyanheads/mcp-ts-core
-bunx @cyanheads/mcp-ts-core init
+npx @cyanheads/mcp-ts-core init my-mcp-server
+bunx @cyanheads/mcp-ts-core init my-mcp-server
 ```
 
 ### Arguments / flags
 
-| Flag | Purpose |
-|:-----|:--------|
-| `--force` | Overwrite all skills regardless of version comparison. Does NOT overwrite other files. |
-| `--dry-run` | Show what would be created/updated without writing files. |
+| Argument / Flag | Purpose |
+|:----------------|:--------|
+| `[name]` | Optional project name — written into `package.json` as the package name. If omitted, placeholder is left as-is. |
+| `--dry-run` | Show what would be created without writing files. |
 
 ---
 
@@ -79,15 +72,17 @@ The CLI entry point lives at `src/cli/init.ts` in the core package. It should be
 
 ## Template Directory
 
-All templates ship in the core package under `templates/`. The init script copies them as-is into the consumer project — no substitution, no template engine. Files contain `{{PLACEHOLDER}}` markers (e.g., `{{SERVER_NAME}}`) as reference points for the agent or developer to fill in after init.
+All templates ship in the core package under `templates/`. The init script copies them as-is into the consumer project — no template engine. The only substitution is `{{PACKAGE_NAME}}` in `package.json` if a `[name]` argument is provided. Other `{{PLACEHOLDER}}` markers (e.g., `{{SERVER_NAME}}`) are left as reference points for the agent or developer to fill in after init.
+
+**Naming convention:** Files that would conflict with the core package's own tooling (e.g., `biome.json` triggers Biome's nested config detection) are stored with a `.template.json` suffix. The init CLI strips the `.template` part when copying to the consumer project.
 
 ```
 templates/
   CLAUDE.md                                       # Server CLAUDE.md
   package.json                                    # Consumer package.json with scripts
-  tsconfig.json                                   # Extends core's tsconfig.base.json
-  biome.json                                      # Extends core's biome.json
-  vitest.config.ts                                # Extends core's vitest config
+  tsconfig.json                                   # Standalone TypeScript config
+  biome.template.json                             # Standalone Biome config (copied as biome.json)
+  vitest.config.ts                                # Standalone Vitest config
   .env.example                                    # Environment variable reference
   src/
     index.ts                                      # createApp() entry point
@@ -101,7 +96,7 @@ The `templates/` directory is included in the package's `files` array alongside 
 
 ### package.json template
 
-Includes scripts and dependencies. The agent or developer fills in name/version after init.
+Includes scripts and dependencies. `{{PACKAGE_NAME}}` is replaced if a `[name]` argument is provided; otherwise the agent or developer fills it in.
 
 ```jsonc
 {
@@ -131,8 +126,6 @@ Includes scripts and dependencies. The agent or developer fills in name/version 
   }
 }
 ```
-
-The init script only writes files that don't already exist. It never overwrites or merges existing files (except skills, by version comparison).
 
 ---
 
@@ -173,9 +166,9 @@ project-root/
 
 | Concern | Who handles it |
 |:--------|:---------------|
-| Copying skills from package to project `skills/` | `init` CLI |
+| Copying skills from package to project `skills/` | `init` CLI (first-time only) |
 | Syncing `skills/` to agent directory (`.claude/skills/`) | The agent, instructed by CLAUDE.md and `/setup` skill |
-| Updating skills after `bun update` | `init` CLI (re-run) |
+| Updating skills after `bun update` | `maintenance` skill (agent-driven) or future script |
 | Agent-specific skill directory detection | The agent itself |
 
 The `init` CLI is agent-agnostic. It writes to a single `skills/` directory. Each agent is responsible for syncing from there into its own directory.
@@ -187,14 +180,11 @@ The `init` CLI is agent-agnostic. It writes to a single `skills/` directory. Eac
 - [ ] `src/cli/init.ts` implemented
 - [ ] `bin` field added to core `package.json`
 - [ ] `templates/` directory created with all template files
-- [ ] `templates/` included in core package `files` array
+- [ ] `skills/` and `templates/` included in core package `files` array (alongside `dist`)
 - [ ] `package.json` template includes correct scripts and dependency versions
-- [ ] Config templates (`tsconfig.json`, `biome.json`, `vitest.config.ts`) extend core's base configs
-- [ ] Skill version comparison logic works correctly
-- [ ] Idempotent: safe to re-run without data loss — existing files never overwritten (except skills by version)
-- [ ] Server-specific skills in `skills/` are not touched
+- [ ] Config templates (`tsconfig.json`, `biome.json`, `vitest.config.ts`) are standalone — no `extends`, work without prior install
+- [ ] Only `audience: external` skills are copied
 - [ ] `--dry-run` flag implemented
-- [ ] Tested: fresh project init (all files created)
-- [ ] Tested: re-run after version bump (only skills updated)
-- [ ] Tested: server-specific skills preserved
-- [ ] Tested: existing package.json/CLAUDE.md/config files not overwritten
+- [ ] `[name]` argument populates `{{PACKAGE_NAME}}` in package.json
+- [ ] Tested: fresh project init from empty directory (all files created)
+- [ ] Tested: works via `npx` / `bunx` without prior install
