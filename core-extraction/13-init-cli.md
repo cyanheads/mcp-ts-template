@@ -181,10 +181,10 @@ The `init` CLI is agent-agnostic. It writes to a single `skills/` directory. Eac
 
 - [ ] `src/cli/init.ts` implemented
 - [ ] `bin` field added to core `package.json`
-- [ ] `templates/` directory created with all template files
+- [x] `templates/` directory created with all template files
 - [ ] `skills/` and `templates/` included in core package `files` array (alongside `dist`)
-- [ ] `package.json` template includes correct scripts and dependency versions
-- [ ] Config templates (`tsconfig.json`, `biome.json`, `vitest.config.ts`) are standalone — no `extends`, work without prior install
+- [x] `package.json` template includes correct scripts and dependency versions
+- [x] Config templates (`tsconfig.json`, `biome.json`, `vitest.config.ts`) are standalone — no `extends`, work without prior install
 - [ ] Only `audience: external` skills are copied
 - [ ] `--dry-run` flag implemented
 - [ ] `[name]` argument populates `{{PACKAGE_NAME}}` in package.json

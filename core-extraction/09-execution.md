@@ -118,16 +118,16 @@ The core of the extraction. Transform the repo in-place.
 - [x] `prompt()` builder implemented in `newPromptDefinition.ts` with `NewPromptDefinition` type and type guard
 - [x] `ResourceDefinition` uses new field names, handler receives `(params, ctx)` with `ctx.uri`
 - [x] `PromptDefinition` uses `args` instead of `argumentsSchema`, `generate` function
-- [ ] `resource()` / `prompt()` builders wired into registries (type guards exist but not used in resource-registration / prompt-registration)
-- [ ] `resource()` / `prompt()` exported from `./resources`, `./prompts`, and `.`
-- [ ] `task: true` tools auto-managed by framework (create task, background run, store result)
-- [ ] `checkScopes(ctx, scopes)` exported from `./auth`; `withToolAuth`/`withResourceAuth` removed
-- [ ] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth
+- [x] `resource()` / `prompt()` builders wired into registries (`ResourceRegistry` and `PromptRegistry` detect new-style definitions via type guards)
+- [ ] `resource()` / `prompt()` exported from `./resources`, `./prompts`, and `.` (packaging — requires `exports` field in `package.json`)
+- [x] `task: true` tools auto-managed by framework (`registerAutoTaskTool` in `ToolRegistry` — create task, background run, store result, cancellation polling)
+- [x] `checkScopes(ctx, scopes)` implemented in `checkScopes.ts`; `withToolAuth`/`withResourceAuth` retained until legacy definitions are migrated to examples
+- [x] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth (in `createContext()`)
 
 #### Packaging & repo transformation
 - [ ] `package.json` renamed to `@cyanheads/mcp-ts-core`
 - [ ] Template definitions moved to `examples/`
-- [ ] `createApp()` implemented as public entry point (returns `ServerHandle` with `shutdown()` and `services`)
+- [ ] `createApp()` updated to return `ServerHandle` with `shutdown()` and `services` (currently returns `AppHandle` with `createServer` + `transportManager`; accepts `CreateAppOptions` with `tools`/`resources`/`prompts`/`setup`/`name`/`version`)
 - [ ] `createWorkerHandler()` implemented as public entry point (includes `ctx.waitUntil()` for telemetry flush)
 - [ ] Current `index.ts` and `worker.ts` converted to example entry points in `examples/`
 - [ ] Build pipeline: `build` script changed to `tsc && tsc-alias`, `tsc-alias` added to devDeps (see [03a-build.md](03a-build.md))
@@ -137,9 +137,10 @@ The core of the extraction. Transform the repo in-place.
 - [ ] `peerDependencies` / `peerDependenciesMeta` configured for tiered deps (`"zod": "^4.3.0"`)
 
 #### Documentation & skills
-- [ ] Consumer-facing `CLAUDE.md` written with exports catalog (no DI/container references)
+- [x] Consumer-facing `CLAUDE.md` written with exports catalog (no DI/container references)
 - [ ] `CONTRIBUTING.md` written (repo-only, excluded from package)
-- [ ] All skill definitions written in `skills/` with `metadata.audience` set (see [05-agent-dx.md](05-agent-dx.md))
+- [x] All skill definitions written in `skills/` with `metadata.audience` set (see [05-agent-dx.md](05-agent-dx.md))
+- [x] `templates/` directory created with all scaffold templates for `init` CLI (see [13-init-cli.md](13-init-cli.md))
 
 #### Final gates
 - [ ] Conformance harness updated to use `createApp()` instead of `composeContainer()`

@@ -717,19 +717,19 @@ This table maps old patterns to new. Relevant for updating [CLAUDE.md](../CLAUDE
 - [x] `ContextState` delegates to `StorageService` with tenant scoping
 - [x] `ContextProgress` wraps `TaskStore` status updates
 - [x] `tool()` builder exported from `./tools` and `.`
-- [ ] `resource()` builder exported from `./resources` and `.`
-- [ ] `prompt()` builder exported from `./prompts` and `.`
+- [ ] `resource()` builder exported from `./resources` and `.` (packaging — requires `exports` field)
+- [ ] `prompt()` builder exported from `./prompts` and `.` (packaging — requires `exports` field)
 - [x] `ToolDefinition` uses new field names (`handler`, `input`, `output`, `format`, `auth`, `task`)
-- [ ] `ResourceDefinition` uses new field names, handler receives `(params, ctx)` not `(uri, params, context)`
-- [ ] `PromptDefinition` uses `args` instead of `argumentsSchema`
-- [ ] `task: true` tools auto-managed by framework (create task, run background, store result)
+- [x] `ResourceDefinition` uses new field names, handler receives `(params, ctx)` with `ctx.uri` (`NewResourceDefinition` + `newResourceHandlerFactory`)
+- [x] `PromptDefinition` uses `args` instead of `argumentsSchema` (`NewPromptDefinition` wired into `PromptRegistry`)
+- [x] `task: true` tools auto-managed by framework (`registerAutoTaskTool` — create task, background run, store result, cancellation polling)
 - [x] `TaskToolDefinition` with manual `taskHandlers` preserved as escape hatch in `./tasks`
 - [x] Inline `auth` property checked by handler factory before calling `handler`
-- [ ] `checkScopes(ctx, scopes)` exported from `./auth` for dynamic auth
-- [ ] `withToolAuth` / `withResourceAuth` removed
+- [x] `checkScopes(ctx, scopes)` implemented in `checkScopes.ts`; export from `./auth` deferred to packaging
+- [ ] `withToolAuth` / `withResourceAuth` removed (retained until legacy definitions migrated to examples)
 - [x] `createMockContext()` exported from `./testing`
-- [ ] `createApp()` accepts flattened `tools`, `resources`, `prompts` (not nested `definitions`)
-- [ ] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth
+- [x] `createApp()` accepts flattened `tools`, `resources`, `prompts` via `CreateAppOptions` (with `setup`, `name`, `version`)
+- [x] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth (in `createContext()`)
 - [x] All existing template tools (`echo`, `cat_fact`, `countdown`, etc.) updated to new API
 - [ ] `bun run devcheck` passes (final gate)
 - [ ] All tests updated and passing (final gate)
