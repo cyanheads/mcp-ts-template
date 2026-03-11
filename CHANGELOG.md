@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.2] - 2026-03-11
+
+Adds the `skills/` directory with 12 agent skill definitions following the [Agent Skills specification](https://agentskills.io/specification), and updates the agent DX plan to separate the `init` CLI from the `/setup` skill.
+
+### Added
+
+- **`skills/` directory**: 12 skill definitions (README + 11 SKILL.md files) covering the full development workflow. Each skill declares `metadata.audience` (`external` or `internal`) and `metadata.version` for update tracking.
+  - **External skills** (copied to consumer projects by `init`): `setup`, `add-tool`, `add-resource`, `add-prompt`, `add-service`, `devcheck`, `migrate-imports`, `maintenance`
+  - **Internal skills** (core package development only): `add-export`, `add-provider`, `release`
+- **`skills/README.md`**: Documents the three-tier skill distribution model (package → project → agent) and versioning strategy.
+- **`maintenance` skill**: New skill for syncing skills and dependencies after package updates — covers Tier 1→2 and Tier 2→3 sync workflows.
+
+### Changed
+
+- **`core-extraction/05-agent-dx.md`**: Separated `init` CLI (executable code that copies files) from `/setup` skill (pure text for agent orientation). Updated skill distribution to three-tier model. Clarified `metadata.version` comparison for skill updates. Updated skill count from 11 to 12. Added `init` CLI checklist items.
+
+---
+
 ## [0.1.0-beta.1] - 2026-03-10
 
 First pre-release on the `@cyanheads/mcp-ts-core` extraction path. Removes the DI container, introduces direct construction via `createApp()`, converts all third-party imports to lazy dynamic loading, adds the new-style definition API (`tool()`, `resource()`, `prompt()` builders with unified `Context`), and adds comprehensive conformance and integration test suites.
