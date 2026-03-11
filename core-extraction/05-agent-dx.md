@@ -8,12 +8,14 @@
 
 Every artifact in this project targets one of two audiences:
 
-| Audience | Who | Where it lives | Examples |
-|:---------|:----|:---------------|:---------|
-| **Internal** | Us — core package developers | Core repo only. NOT shipped in the npm package. | `core-extraction/` docs, `CONTRIBUTING.md`, internal skills (`add-export`, `release`) |
-| **External** | Consumers — developers building MCP servers with `@cyanheads/mcp-ts-core` | Shipped in the published package (`files` array). | `CLAUDE.md`, `skills/` directory, `examples/` |
+| Audience | Who | Examples |
+|:---------|:----|:--------|
+| **Internal** | Us — core package developers | `core-extraction/` docs, `CONTRIBUTING.md`, skills with `audience: internal` (`add-export`, `release`) |
+| **External** | Consumers — developers building MCP servers with `@cyanheads/mcp-ts-core` | `CLAUDE.md`, skills with `audience: external` (`add-tool`, `add-resource`, `setup`) |
 
-This distinction applies to documentation, skills, and build configs. When adding a new artifact, always ask: "Is this for us building the core, or for someone using the core to build their server?"
+Both audiences' artifacts ship in the npm package. The audience distinction controls **what gets copied into consumer projects** during init/setup — only `audience: external` skills are copied. Internal skills remain available in `node_modules` for anyone working on the core package itself.
+
+When adding a new artifact, always ask: "Is this for us building the core, or for someone using the core to build their server?"
 
 ---
 
@@ -58,7 +60,7 @@ A compact, scannable reference of every subpath export — what it provides, key
 | `@cyanheads/mcp-ts-core/utils/runtime` | `runtimeCaps` | Runtime feature detection (Node vs Workers) |
 | `@cyanheads/mcp-ts-core/utils/scheduling` | `scheduler` | Cron scheduling (lazy, Tier 3) |
 | `@cyanheads/mcp-ts-core/utils/types` | `isErrorWithCode`, `isRecord` | Type guard utilities |
-| `@cyanheads/mcp-ts-core/testing` | `createMockSdkContext`, `createMockAppContext` | Test helpers |
+| `@cyanheads/mcp-ts-core/testing` | `createMockContext` | Test helpers |
 
 Initially hand-maintained. Can be auto-generated from TypeScript source (JSDoc + export names from each subpath entry point) once exports stabilize.
 
@@ -142,34 +144,50 @@ Skills complement Discovery (knowing what exists) and CLAUDE.md (knowing the pat
 | Invocation | Passive (agent reads once) | On-demand (`/skill-name`) or auto-triggered |
 | Portability | Agent-specific | Open standard (Claude Code, Copilot, Codex, etc.) |
 
-### External skills (ship in the package)
+### All skills
 
-These are copied to consumer repos by the `/setup` skill. They teach agents how to work on MCP servers built with `@cyanheads/mcp-ts-core`.
+All skills live in a single `skills/` directory within the core package. Each skill declares its audience via `metadata.audience` in the SKILL.md frontmatter:
 
-| Skill | Description (agent-facing trigger) | What it does |
-|:------|:-----------------------------------|:-------------|
-| `setup` | First-time project setup for an MCP server using `@cyanheads/mcp-ts-core` | Detects installed agents, copies/symlinks skills to agent-specific directories (`.claude/skills/`, `.codex/skills/`, etc.). Creates initial `CLAUDE.md` from template. Validates project structure. |
-| `add-tool` | Scaffold a new MCP tool definition | Creates `.tool.ts` with metadata, Zod schemas with `.describe()`, typed logic, auth wrapper, response formatter. Registers in `definitions/index.ts`. |
-| `add-task-tool` | Scaffold an async MCP task tool for long-running operations | Same as `add-tool` but with `.task-tool.ts` suffix, `TaskToolDefinition` type, `taskHandlers` (create/get/getResult), background work pattern. |
-| `add-resource` | Scaffold a new MCP resource definition | Creates `.resource.ts` with URI template, params/output schemas, logic, optional `list()` with pagination. Registers in `definitions/index.ts`. |
-| `add-prompt` | Scaffold a new MCP prompt template | Creates `.prompt.ts` with arguments schema and `generate` function. Registers in `definitions/index.ts`. |
-| `add-service` | Scaffold a new service integration | Creates `services/[name]/` with `core/` (interface), `providers/` (implementation), `types.ts`. Uses init/accessor pattern for lazy singletons. |
-| `devcheck` | Lint, format, typecheck, and audit the project | Runs `bun run devcheck`. Interprets output, fixes issues, re-runs until clean. |
-| `migrate-imports` | Migrate a template fork to use `@cyanheads/mcp-ts-core` | Rewrites `@/` imports to `@cyanheads/mcp-ts-core/` subpaths using the mapping table. Validates no internal paths remain. |
+- **`external`** — For developers building MCP servers with `@cyanheads/mcp-ts-core`. Copied into consumer projects during init/setup.
+- **`internal`** — For developers working on `@cyanheads/mcp-ts-core` itself. Ships in the package but is NOT copied into consumer projects.
 
-### Internal skills (core repo only, NOT shipped)
+| Skill | Audience | Description | What it does |
+|:------|:---------|:------------|:-------------|
+| `setup` | external | First-time project setup for an MCP server using `@cyanheads/mcp-ts-core` | Detects installed agents, copies `audience: external` skills to agent-specific directories (`.claude/skills/`, `.codex/skills/`, etc.). Creates initial `CLAUDE.md` from template. Validates project structure. |
+| `add-tool` | external | Scaffold a new MCP tool definition | Creates `.tool.ts` with `tool()` builder, Zod schemas with `.describe()`, `handler(input, ctx)`, inline `auth`, `format`. Registers in `definitions/index.ts`. For long-running tools, prompts to add `task: true`. |
+| `add-resource` | external | Scaffold a new MCP resource definition | Creates `.resource.ts` with `resource()` builder, URI template, `params` schema, `handler(params, ctx)` with `ctx.uri`, optional `list()` with pagination. Registers in `definitions/index.ts`. |
+| `add-prompt` | external | Scaffold a new MCP prompt template | Creates `.prompt.ts` with `prompt()` builder, `args` schema, `generate` function. Registers in `definitions/index.ts`. |
+| `add-service` | external | Scaffold a new service integration | Creates `services/[name]/` with init/accessor pattern for lazy singletons. Service methods receive `Context` for correlated logging and scoped storage. |
+| `devcheck` | external | Lint, format, typecheck, and audit the project | Runs `bun run devcheck`. Interprets output, fixes issues, re-runs until clean. |
+| `migrate-imports` | external | Migrate a template fork to use `@cyanheads/mcp-ts-core` | Rewrites `@/` imports to `@cyanheads/mcp-ts-core/` subpaths using the mapping table from [07-migration.md](07-migration.md). Validates no internal paths remain. |
+| `add-export` | internal | Add a new subpath export to the core package | Creates the entry point file, adds the subpath to `package.json` `exports`, updates the exports catalog in `CLAUDE.md`, runs the export verification script. |
+| `add-provider` | internal | Add a new storage or service provider to core | Creates provider file in the correct directory, implements the provider interface, adds lazy dep import if Tier 3, updates the serverless whitelist if needed. |
+| `release` | internal | Prepare and publish a core release | Version bump, CHANGELOG entry, `devcheck`. Stops and asks the user to run publish commands (⚠️ user action required for npm publish, Docker push). Enforces the wrapup checklist. |
 
-These live in the core repo and are used when developing `@cyanheads/mcp-ts-core` itself. They are excluded from the `files` array and never reach consumer projects.
-
-| Skill | Description (agent-facing trigger) | What it does |
-|:------|:-----------------------------------|:-------------|
-| `add-export` | Add a new subpath export to the core package | Creates the entry point file, adds the subpath to `package.json` `exports`, updates the exports catalog in `CLAUDE.md`, runs the export verification script. |
-| `add-provider` | Add a new storage or service provider to core | Creates provider file in the correct directory, implements the provider interface, adds lazy dep import if Tier 3, updates the serverless whitelist if needed. |
-| `release` | Prepare and publish a core release | Version bump, CHANGELOG entry, `devcheck`, `bun publish`, Docker image push, `mcp-publisher publish`. Enforces the wrapup checklist. |
+**Design change from earlier plan:** `add-task-tool` merged into `add-tool`. The `task: true` flag is a single-line addition to a normal tool — it doesn't warrant a separate skill. `add-tool` prompts the user about whether the tool is long-running and adds the flag accordingly.
 
 ### SKILL.md format
 
-Each skill follows the [Agent Skills specification](https://agentskills.io/specification). The `name` field must match the parent directory name.
+Each skill follows the [Agent Skills specification](https://agentskills.io/specification).
+
+**Spec-defined frontmatter fields:**
+
+| Field | Required | Type | Purpose |
+|:------|:---------|:-----|:--------|
+| `name` | Yes | string | 1–64 chars, lowercase + hyphens, must match parent directory name |
+| `description` | Yes | string | 1–1024 chars, what the skill does and when to use it |
+| `license` | No | string | License name or reference to bundled file |
+| `compatibility` | No | string | 1–500 chars, environment requirements |
+| `metadata` | No | `Record<string, string>` | Arbitrary key-value pairs for custom properties |
+| `allowed-tools` | No | string | Space-delimited pre-approved tools (experimental) |
+
+**Our custom metadata keys:**
+
+| Key | Values | Purpose |
+|:----|:-------|:--------|
+| `metadata.audience` | `external` / `internal` | Controls whether the skill is copied into consumer projects during init/setup |
+| `metadata.author` | e.g. `cyanheads` | Skill authorship |
+| `metadata.version` | e.g. `"1.0"` | Skill version for tracking updates |
 
 ```markdown
 ---
@@ -180,8 +198,7 @@ description: >
 metadata:
   author: cyanheads
   version: "1.0"
-  audience: external   # external = ships in package, copied to consumer repos
-                       # internal = core repo only, NOT shipped
+  audience: external
 ---
 
 ## Context
@@ -216,7 +233,7 @@ skill is not complete until every item passes.
 
 ### The `/setup` skill
 
-The setup skill is the entry point for a new project. Its instructions tell the agent to self-identify and adapt placement accordingly.
+The setup skill is the entry point for a new project — invoked by `@cyanheads/mcp-ts-core init` or manually via `/setup`. Its instructions tell the agent to self-identify and adapt placement accordingly.
 
 **What the skill's SKILL.md instructs the agent to do:**
 
@@ -225,7 +242,7 @@ The setup skill is the entry point for a new project. Its instructions tell the 
    - OpenAI Codex → `.codex/skills/` or `.agents/skills/`
    - Cursor → `.cursor/skills/`
    - Other → check your own documentation for skill directory conventions
-2. **Copy skills.** Copy all skill directories from `node_modules/@cyanheads/mcp-ts-core/skills/` into the appropriate project-level skill directory identified in step 1
+2. **Copy external skills.** Read each skill's `SKILL.md` frontmatter from `node_modules/@cyanheads/mcp-ts-core/skills/`. Copy only skills where `metadata.audience` is `external` into the appropriate project-level skill directory identified in step 1.
 3. **Generate CLAUDE.md.** Create the server's `CLAUDE.md` from a template, with the core framework pointer and server-specific sections (adapt if the agent uses a different convention, e.g. `AGENTS.md`)
 4. **Validate structure.** Check that `src/mcp-server/tools/definitions/`, `src/mcp-server/resources/definitions/`, and `src/mcp-server/prompts/definitions/` exist with their barrel files
 5. **Run devcheck.** Verify the project builds and passes all checks
@@ -235,46 +252,47 @@ The key insight: the agent knows what it is. The skill doesn't need to enumerate
 **Setup checklist:**
 
 - [ ] Agent's skill directory identified and created
-- [ ] Core skills copied from `node_modules/@cyanheads/mcp-ts-core/skills/`
+- [ ] External skills (where `metadata.audience: external`) copied from `node_modules/@cyanheads/mcp-ts-core/skills/`
 - [ ] `CLAUDE.md` (or equivalent agent instructions file) created with core framework pointer
 - [ ] Project structure validated (definitions directories, barrel files)
 - [ ] `bun run devcheck` passes
 
 ### Distribution
 
-**External skills** ship in the published package:
+All skills live in a single directory within the core package:
 
 ```
 node_modules/@cyanheads/mcp-ts-core/skills/
-  setup/SKILL.md
-  add-tool/SKILL.md
+  setup/SKILL.md                          # audience: external
+  add-tool/SKILL.md                       # audience: external
   add-tool/assets/tool-template.ts
-  add-resource/SKILL.md
+  add-resource/SKILL.md                   # audience: external
   add-resource/assets/resource-template.ts
-  ...
+  add-prompt/SKILL.md                     # audience: external
+  add-service/SKILL.md                    # audience: external
+  devcheck/SKILL.md                       # audience: external
+  migrate-imports/SKILL.md                # audience: external
+  add-export/SKILL.md                     # audience: internal
+  add-provider/SKILL.md                   # audience: internal
+  release/SKILL.md                        # audience: internal
 ```
 
-**Internal skills** live in the core repo only (excluded from `files`):
-
-```
-skills-internal/
-  add-export/SKILL.md
-  add-provider/SKILL.md
-  release/SKILL.md
-```
-
-After setup, in a Claude Code consumer project:
+After setup, in a Claude Code consumer project (only externals copied):
 ```
 .claude/skills/
   setup/SKILL.md
   add-tool/SKILL.md
   add-resource/SKILL.md
+  add-prompt/SKILL.md
+  add-service/SKILL.md
+  devcheck/SKILL.md
+  migrate-imports/SKILL.md
   ...
   query-pubmed/SKILL.md          # server-specific (added later)
   update-citations/SKILL.md      # server-specific (added later)
 ```
 
-Servers can override any core skill by replacing its directory with a local version. Server-specific skills are created directly in the agent's skill directory following the same `SKILL.md` format with mandatory checklist.
+Internal skills (`add-export`, `add-provider`, `release`) remain in `node_modules` — accessible to anyone working on the core package but not copied into consumer projects. Servers can override any core skill by replacing its directory with a local version. Server-specific skills are created directly in the agent's skill directory following the same `SKILL.md` format with mandatory checklist.
 
 ### Progressive disclosure
 
@@ -284,7 +302,7 @@ Servers can override any core skill by replacing its directory with a local vers
 | Activation | Full `SKILL.md` body | On relevance or `/skill-name` | ~500–5,000 tokens |
 | Execution | `scripts/`, `references/`, `assets/` | Skill instructions reference them | ~2,000+ tokens |
 
-With 10 skills: ~500 tokens at startup. The agent knows what it can do without full instructions in context. This is why skills scale better than cramming workflows into CLAUDE.md.
+With 11 skills: ~550 tokens at startup. The agent knows what it can do without full instructions in context. This is why skills scale better than cramming workflows into CLAUDE.md.
 
 ---
 
@@ -293,8 +311,7 @@ With 10 skills: ~500 tokens at startup. The agent knows what it can do without f
 - [ ] Core `CLAUDE.md` written: exports catalog, patterns, contracts, error codes, common imports (no DI/container references)
 - [ ] Core `CONTRIBUTING.md` written (repo-only, not in `files`)
 - [ ] Server `CLAUDE.md` template created with core framework pointer
-- [ ] External skills written as `SKILL.md` with `audience: external` and mandatory checklists
-- [ ] Internal skills written as `SKILL.md` with `audience: internal` in `skills-internal/`
-- [ ] External `skills/` directory included in package `files` array
-- [ ] Internal `skills-internal/` excluded from package `files` array
+- [ ] All skills written in `skills/` with `metadata.audience` set (`external` or `internal`) and mandatory checklists
+- [ ] `skills/` directory included in package `files` array
+- [ ] `/setup` skill correctly filters by `metadata.audience: external` when copying to consumer projects
 - [ ] Progressive disclosure verified (frontmatter-only at startup)

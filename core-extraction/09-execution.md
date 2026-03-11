@@ -139,13 +139,12 @@ The core of the extraction. Transform the repo in-place.
 #### Documentation & skills
 - [ ] Consumer-facing `CLAUDE.md` written with exports catalog (no DI/container references)
 - [ ] `CONTRIBUTING.md` written (repo-only, excluded from package)
-- [ ] External skill definitions written in `skills/` with `audience: external` (see [05-agent-dx.md](05-agent-dx.md))
-- [ ] Internal skill definitions written in `skills-internal/` with `audience: internal`
+- [ ] All skill definitions written in `skills/` with `metadata.audience` set (see [05-agent-dx.md](05-agent-dx.md))
 
 #### Final gates
 - [ ] Conformance harness updated to use `createApp()` instead of `composeContainer()`
 - [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js` (plain JS preset), `biome.json`
-- [ ] `files` array excludes `skills-internal/`, `core-extraction/`, `CONTRIBUTING.md`
+- [ ] `files` array excludes `core-extraction/`, `CONTRIBUTING.md`
 - [ ] `prepublishOnly` script added
 - [ ] Package compiles cleanly (`tsc && tsc-alias`)
 - [ ] `npm pack --dry-run` produces expected file set
