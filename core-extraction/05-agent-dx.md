@@ -64,6 +64,29 @@ A compact, scannable reference of every subpath export — what it provides, key
 
 Initially hand-maintained. Can be auto-generated from TypeScript source (JSDoc + export names from each subpath entry point) once exports stabilize.
 
+### Layer 2b: Utils & Services API Quick Reference
+
+The exports catalog (Layer 2) tells agents *what exists* — subpath names and key export symbols. But for utils and services, knowing a symbol exists isn't enough to use it. An agent needs method signatures, key behaviors, async/sync distinction, required peer deps, and gotchas.
+
+CLAUDE.md includes a **per-subpath quick reference** section for every `utils/*` and `services/*` export. Each entry is a compact table: method name, signature summary, key behavior notes. This bridges the gap between "I know `diffFormatter` exists" and "I can call `diffFormatter.unifiedDiff(old, new)` correctly."
+
+**Format:**
+
+```markdown
+### `@cyanheads/mcp-ts-core/utils/formatting`
+
+| Export | API | Notes |
+|:-------|:----|:------|
+| `markdown()` | `() → MarkdownBuilder` | Fluent: `.text()`, `.heading()`, `.list()`, `.table()`, `.when(cond, fn)`, `.build() → string` |
+| `diffFormatter` | `.unifiedDiff(old, new, opts?)`, `.structuredDiff(old, new)` | **Async** (lazy `diff` dep). Peer: `diff` |
+| `tableFormatter` | `.format(rows, columns?)` | Returns markdown table string |
+| `treeFormatter` | `.format(nodes)` | Returns tree-style string with box-drawing chars |
+```
+
+**Source of truth:** JSDoc on the actual exports. The quick reference summarizes JSDoc — if they diverge, JSDoc wins. Every exported function/class/method must have `@param`, `@returns`, and `@example` in JSDoc (enforced during development via the checklist in [CLAUDE.md](../CLAUDE.md)).
+
+**Maintenance:** Hand-maintained initially. Defer auto-generation (from JSDoc + export analysis) to post-1.0 when the export surface stabilizes. See [10-decisions.md](10-decisions.md) #31.
+
 ### Layer 3: Type signatures on demand
 
 When the agent needs exact API details — "what fields does `CreateAppOptions` have?" — it reads the `.d.ts` file from `node_modules`. The exports catalog tells it which subpath to look at:
@@ -77,10 +100,11 @@ Standard file reading. No special tooling.
 ### Agent workflow on a downstream server
 
 1. Read the server's `CLAUDE.md` → sees pointer to core's reference
-2. Read `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` → gets exports catalog, patterns, contracts
-3. For exact signatures, read specific `.d.ts` files from `node_modules/@cyanheads/mcp-ts-core/dist/`
-4. For common tasks, invoke skills (`/add-tool`, `/add-resource`, `/setup`, etc.) — see Agent Skills below
-5. For server-specific code, use standard Grep/Glob/LSP on `src/`
+2. Read `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` → gets exports catalog (Layer 2), utils/services API quick reference (Layer 2b), patterns, contracts
+3. For utils/services usage, check the quick reference tables first — method signatures, async/sync, peer deps
+4. For exact type signatures, read specific `.d.ts` files from `node_modules/@cyanheads/mcp-ts-core/dist/` (Layer 3)
+5. For common tasks, invoke skills (`/add-tool`, `/add-resource`, `/setup`, etc.) — see Agent Skills below
+6. For server-specific code, use standard Grep/Glob/LSP on `src/`
 
 ---
 
@@ -346,3 +370,6 @@ With 12 skills: ~600 tokens at startup. The agent knows what it can do without f
 - [ ] `init` CLI skips existing `CLAUDE.md` (no overwrite)
 - [x] Server `CLAUDE.md` template instructs agent to sync its skill directory with `skills/`
 - [ ] Progressive disclosure verified (frontmatter-only at startup)
+- [x] JSDoc audit completed on all `utils/` and `services/` exports (decision #31)
+- [ ] "Utils API Quick Reference" section added to core `CLAUDE.md` (Layer 2b)
+- [ ] "Services API Quick Reference" section added to core `CLAUDE.md` (Layer 2b)

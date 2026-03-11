@@ -142,6 +142,13 @@ The core of the extraction. Transform the repo in-place.
 - [x] All skill definitions written in `skills/` with `metadata.audience` set (see [05-agent-dx.md](05-agent-dx.md))
 - [x] `templates/` directory created with all scaffold templates for `init` CLI (see [13-init-cli.md](13-init-cli.md))
 
+#### Utils & Services API reference (decision #31)
+- [x] JSDoc audit completed on all `utils/` exports (`@fileoverview`, `@module`, `@param`, `@returns`, `@example` on every exported symbol)
+- [x] JSDoc audit completed on all `services/` exports (LLM, Speech, Graph)
+- [ ] "Utils API Quick Reference" section added to consumer-facing `CLAUDE.md` — per-subpath method tables
+- [ ] "Services API Quick Reference" section added to consumer-facing `CLAUDE.md` — per-service interface tables
+- [ ] JSDoc accuracy verified against implementation (no stale descriptions, correct param names/types)
+
 #### Final gates
 - [ ] Conformance harness updated to use `createApp()` instead of `composeContainer()`
 - [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js` (plain JS preset), `biome.json`

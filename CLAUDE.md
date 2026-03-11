@@ -765,6 +765,28 @@ Additional formatters: `diffFormatter` (**async** methods), `tableFormatter`, `t
 
 ---
 
+## Agent Skills
+
+Detailed guides, templates, and API references live in `skills/`. Read the relevant skill file before starting a task it covers.
+
+| Skill | Path | Purpose |
+|:------|:-----|:--------|
+| `add-tool` | `skills/add-tool/SKILL.md` | Scaffold a new MCP tool definition |
+| `add-resource` | `skills/add-resource/SKILL.md` | Scaffold a new MCP resource definition |
+| `add-prompt` | `skills/add-prompt/SKILL.md` | Scaffold a new MCP prompt definition |
+| `add-service` | `skills/add-service/SKILL.md` | Scaffold a new domain service (init/accessor pattern) |
+| `add-provider` | `skills/add-provider/SKILL.md` | Add a new provider implementation |
+| `add-export` | `skills/add-export/SKILL.md` | Add a new subpath export to the package |
+| `setup` | `skills/setup/SKILL.md` | Initialize a new consumer server from the template |
+| `devcheck` | `skills/devcheck/SKILL.md` | Run lint, format, typecheck, security checks |
+| `release` | `skills/release/SKILL.md` | Version bump, changelog, publish workflow |
+| `maintenance` | `skills/maintenance/SKILL.md` | Dependency updates, housekeeping tasks |
+| `migrate-imports` | `skills/migrate-imports/SKILL.md` | Migrate import paths after package rename |
+| `api-utils` | `skills/api-utils/SKILL.md` | API reference: formatting, parsing, security, network, pagination, runtime, scheduling, types, logger, requestContext, errorHandler, telemetry |
+| `api-services` | `skills/api-services/SKILL.md` | API reference: LLM (OpenRouter), Speech (ElevenLabs TTS, Whisper STT), Graph (CRUD, traversal, pathfinding) |
+
+---
+
 ## Cloudflare Workers
 
 ### `createWorkerHandler(options)`
