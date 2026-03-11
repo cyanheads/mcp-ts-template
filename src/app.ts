@@ -75,7 +75,10 @@ export async function createApp(): Promise<AppHandle> {
 
   // --- MCP services (was registerMcpServices) ---
 
-  const toolRegistry = new ToolRegistry(allToolDefinitions);
+  const toolRegistry = new ToolRegistry(allToolDefinitions, {
+    logger,
+    storage: storageService,
+  });
   const resourceRegistry = new ResourceRegistry(allResourceDefinitions);
   const promptRegistry = new PromptRegistry(allPromptDefinitions, logger);
   const rootsRegistry = new RootsRegistry(logger);
