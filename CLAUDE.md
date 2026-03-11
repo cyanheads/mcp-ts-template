@@ -224,7 +224,8 @@ package.json
 tsconfig.json                           # extends @cyanheads/mcp-ts-core/tsconfig.base.json
 vitest.config.ts                        # extends core's base config
 biome.json                              # extends core's Biome config
-CLAUDE.md                               # Server-specific agent protocol
+CLAUDE.md                               # Agent protocol (Claude) — from template
+AGENTS.md                               # Agent protocol (all others) — from template
 ```
 
 **File suffix conventions:**
