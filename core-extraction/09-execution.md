@@ -114,10 +114,12 @@ The core of the extraction. Transform the repo in-place.
 - [x] All existing template tools (`echo`, `cat_fact`, `countdown`, etc.) updated to new API
 
 #### Remaining builders & API
-- [ ] `resource()` builder exported from `./resources` and `.`
-- [ ] `prompt()` builder exported from `./prompts` and `.`
-- [ ] `ResourceDefinition` uses new field names, handler receives `(params, ctx)` not `(uri, params, context)`
-- [ ] `PromptDefinition` uses `args` instead of `argumentsSchema`
+- [x] `resource()` builder implemented in `newResourceDefinition.ts` with `NewResourceDefinition` type and type guard
+- [x] `prompt()` builder implemented in `newPromptDefinition.ts` with `NewPromptDefinition` type and type guard
+- [x] `ResourceDefinition` uses new field names, handler receives `(params, ctx)` with `ctx.uri`
+- [x] `PromptDefinition` uses `args` instead of `argumentsSchema`, `generate` function
+- [ ] `resource()` / `prompt()` builders wired into registries (type guards exist but not used in resource-registration / prompt-registration)
+- [ ] `resource()` / `prompt()` exported from `./resources`, `./prompts`, and `.`
 - [ ] `task: true` tools auto-managed by framework (create task, background run, store result)
 - [ ] `checkScopes(ctx, scopes)` exported from `./auth`; `withToolAuth`/`withResourceAuth` removed
 - [ ] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth
@@ -168,6 +170,8 @@ The `examples/` directory acts as an integration test — a thin server consumin
 
 First public release for external iteration.
 
+> **⚠️ USER ACTION REQUIRED — This phase contains public-facing actions that must not be performed autonomously by an agent. The user must explicitly invoke or confirm each action marked with ⚠️.**
+
 ### Pre-publish gate
 - [ ] `@modelcontextprotocol/ext-apps` stability assessed — if still experimental/pre-stable, demote to Tier 3 optional peer before publishing (see [10-decisions.md](10-decisions.md) open question #4)
 
@@ -175,10 +179,10 @@ First public release for external iteration.
 - [ ] Version set to `0.1.0` in `package.json`
 - [ ] `CHANGELOG.md` has `0.1.0` entry
 - [ ] `README.md` updated for core package identity
-- [ ] `bun publish --access public` succeeds
+- [ ] ⚠️ `bun publish --access public` succeeds — **user must run or explicitly approve**
 - [ ] Package installable: `bun add @cyanheads/mcp-ts-core`
 - [ ] Subpath imports resolve correctly from a clean consumer
-- [ ] Docker image published to GHCR (if applicable)
+- [ ] ⚠️ Docker image published to GHCR (if applicable) — **user must run or explicitly approve**
 
 ---
 
@@ -186,12 +190,14 @@ First public release for external iteration.
 
 A new thin `mcp-ts-template` repo that depends on `@cyanheads/mcp-ts-core`.
 
+> **⚠️ USER ACTION REQUIRED — This entire phase involves public GitHub and npm operations. An agent must not perform any of these actions autonomously. The agent may prepare artifacts (code, configs, changelogs) but must stop and ask the user to execute each ⚠️ step.**
+
 **Detail doc:** [01-architecture.md](01-architecture.md) (Repo Strategy)
 
 ### Checklist
-- [ ] Old `mcp-ts-template` npm package gets final major version with deprecation notice pointing to `@cyanheads/mcp-ts-core`
-- [ ] GitHub repo renamed: `cyanheads/mcp-ts-template` → `cyanheads/mcp-ts-core` (automatic redirect created)
-- [ ] New `cyanheads/mcp-ts-template` repo created (name now available after rename)
+- [ ] ⚠️ Old `mcp-ts-template` npm package gets final major version with deprecation notice pointing to `@cyanheads/mcp-ts-core` — **user must publish**
+- [ ] ⚠️ GitHub repo renamed: `cyanheads/mcp-ts-template` → `cyanheads/mcp-ts-core` — **user must rename via GitHub settings**
+- [ ] ⚠️ New `cyanheads/mcp-ts-template` repo created — **user must create via GitHub**
 - [ ] New repo depends on published `@cyanheads/mcp-ts-core`
 - [ ] Demonstrates the scaffold pattern (`createApp()` call, example tool/resource/prompt)
 - [ ] CI runs against the published core package
@@ -240,8 +246,8 @@ Once 2-3 servers are running on core without issues.
 - [ ] Open questions resolved (see [10-decisions.md](10-decisions.md))
 - [ ] Version bumped to `1.0.0`
 - [ ] `CHANGELOG.md` updated
-- [ ] Published to npm
-- [ ] Docker image updated
+- [ ] ⚠️ Published to npm — **user must run or explicitly approve**
+- [ ] ⚠️ Docker image updated — **user must run or explicitly approve**
 
 ---
 

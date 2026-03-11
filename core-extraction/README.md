@@ -35,12 +35,12 @@ This directory contains the living plan for extracting the infrastructure layer 
 | 1a | Fixes & hardening (deps, coupling, tests) | **Complete** |
 | 1b | DI removal & `createApp()` | **Complete** |
 | 2 | Lazy dependency conversion | **Complete** |
-| 3 | Repo transformation (the extraction) | **In progress** |
+| 3 | Repo transformation (the extraction) | **In progress** (foundation + all builders done; registry wiring, packaging, docs remain) |
 | 4 | Validate with examples | Not started |
-| 5 | Publish `@cyanheads/mcp-ts-core@0.1.0` | Not started |
-| 6 | Create thin `mcp-ts-template` reference repo | Not started |
+| 5 | Publish `@cyanheads/mcp-ts-core@0.1.0` | Not started — ⚠️ requires user action |
+| 6 | Create thin `mcp-ts-template` reference repo | Not started — ⚠️ requires user action (GitHub rename, npm deprecation) |
 | 7 | Migrate downstream servers | Not started |
-| 8 | Cut 1.0 | Not started |
+| 8 | Cut 1.0 | Not started — ⚠️ requires user action (npm publish, Docker push) |
 | 9 | Build `create-mcp-server` (deferred) | Not started |
 
 ## Audience

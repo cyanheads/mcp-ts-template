@@ -111,6 +111,8 @@ The current `mcp-ts-template` repo transforms in-place into `@cyanheads/mcp-ts-c
 | `cyanheads/mcp-ts-template` (new, thin) | — (GitHub template, not published to npm) | Reference server, source for `create-mcp-server` |
 | `cyanheads/pubmed-mcp-server` etc. | per-server | Downstream servers, depend on core |
 
+> **⚠️ USER ACTION REQUIRED — The rename, repo creation, and npm deprecation below are public-facing operations. An agent must never perform these autonomously. Prepare artifacts (code, configs, changelogs), then stop and ask the user to execute.**
+
 **The rename:** GitHub supports repo renames with automatic redirects. `cyanheads/mcp-ts-template` → `cyanheads/mcp-ts-core`. The old npm package `mcp-ts-template` gets a final major version with a deprecation notice pointing to `@cyanheads/mcp-ts-core`.
 
 **Template definitions don't disappear.** They move to `examples/` within core. They serve as integration tests — a thin server consuming core through its public exports, validated in CI. The separate `mcp-ts-template` reference repo is created after core is stable.
