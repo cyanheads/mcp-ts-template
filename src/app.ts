@@ -10,13 +10,16 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { config } from '@/config/index.js';
 import { allPromptDefinitions } from '@/mcp-server/prompts/definitions/index.js';
+import type { AnyPromptDef } from '@/mcp-server/prompts/prompt-registration.js';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index.js';
+import type { AnyResourceDef } from '@/mcp-server/resources/resource-registration.js';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
 import { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
 import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
+import type { AnyToolDef } from '@/mcp-server/tools/tool-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
 import { StorageService } from '@/storage/core/StorageService.js';
@@ -24,6 +27,29 @@ import { createStorageProvider } from '@/storage/core/storageFactory.js';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
+
+/** Options for {@link createApp}. All arrays default to the template's built-in definitions. */
+export interface CreateAppOptions {
+  /** Server name — overrides package.json and MCP_SERVER_NAME env var. */
+  name?: string;
+  /** Prompt definitions (legacy or new-style). */
+  prompts?: AnyPromptDef[];
+  /** Resource definitions (legacy or new-style). */
+  resources?: AnyResourceDef[];
+  /** Runs after core services are constructed, before transport starts. */
+  setup?: (core: CoreServices) => void | Promise<void>;
+  /** Tool definitions (legacy, new-style, or task). */
+  tools?: AnyToolDef[];
+  /** Server version — overrides package.json and MCP_SERVER_VERSION env var. */
+  version?: string;
+}
+
+/** Services available in the `setup()` callback. */
+export interface CoreServices {
+  config: typeof config;
+  logger: typeof logger;
+  storage: StorageService;
+}
 
 /** Handle returned by {@link createApp} for controlling the server lifecycle. */
 export interface AppHandle {
@@ -36,15 +62,24 @@ export interface AppHandle {
 /**
  * Composes the application by constructing all services in dependency order.
  *
- * Accessing the `config` proxy inside this function triggers lazy parsing
- * of environment variables. If config is invalid, an `McpError` is thrown
- * and the caller's try/catch handles it (same as the old `composeContainer`).
- *
+ * @param options - Definition arrays, name/version overrides, and setup callback.
+ *                  All arrays default to the template's built-in definitions.
  * @returns An {@link AppHandle} for starting the transport.
  * @throws {McpError} If config parsing or service construction fails.
  */
-export async function createApp(): Promise<AppHandle> {
-  // --- Core services (was registerCoreServices) ---
+export async function createApp(options: CreateAppOptions = {}): Promise<AppHandle> {
+  const {
+    tools = allToolDefinitions,
+    resources = allResourceDefinitions,
+    prompts = allPromptDefinitions,
+    setup,
+  } = options;
+
+  // Apply name/version overrides to env before config is parsed
+  if (options.name) process.env.MCP_SERVER_NAME = options.name;
+  if (options.version) process.env.MCP_SERVER_VERSION = options.version;
+
+  // --- Core services ---
 
   // Supabase client — only when the storage provider requires it
   let supabaseClient: SupabaseClient<Database> | undefined;
@@ -73,14 +108,23 @@ export async function createApp(): Promise<AppHandle> {
 
   logger.info('Core services constructed.');
 
-  // --- MCP services (was registerMcpServices) ---
+  // --- Server-specific setup ---
 
-  const toolRegistry = new ToolRegistry(allToolDefinitions, {
+  if (setup) {
+    await setup({ config, logger, storage: storageService });
+  }
+
+  // --- MCP services ---
+
+  const toolRegistry = new ToolRegistry(tools, {
     logger,
     storage: storageService,
   });
-  const resourceRegistry = new ResourceRegistry(allResourceDefinitions);
-  const promptRegistry = new PromptRegistry(allPromptDefinitions, logger);
+  const resourceRegistry = new ResourceRegistry(resources, {
+    logger,
+    storage: storageService,
+  });
+  const promptRegistry = new PromptRegistry(prompts, logger);
   const rootsRegistry = new RootsRegistry(logger);
   const taskManager = new TaskManager(config, storageService);
 
