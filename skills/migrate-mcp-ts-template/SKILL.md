@@ -1,5 +1,5 @@
 ---
-name: migrate-imports
+name: migrate-mcp-ts-template
 description: >
   Migrate an existing mcp-ts-template fork to use @cyanheads/mcp-ts-core as a package dependency. Use when a project was cloned/forked from github.com/cyanheads/mcp-ts-template and carries framework source code in its own src/ — this skill rewrites those internal imports to package subpath imports and removes the bundled framework files.
 metadata:
