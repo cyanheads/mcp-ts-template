@@ -1,11 +1,18 @@
 /**
  * @fileoverview Type definitions for the Speech service.
- * Provides interfaces for Text-to-Speech (TTS) and Speech-to-Text (STT) operations.
+ * Provides shared interfaces and types for Text-to-Speech (TTS) and Speech-to-Text (STT)
+ * operations across all speech provider implementations.
  * @module src/services/speech/types
  */
 
 /**
  * Supported audio formats for speech operations.
+ * - `mp3` — MPEG Audio Layer III, widely compatible
+ * - `wav` — Waveform Audio, uncompressed PCM
+ * - `ogg` — Ogg Vorbis container
+ * - `flac` — Free Lossless Audio Codec
+ * - `pcm` — Raw pulse-code modulation samples
+ * - `webm` — WebM container (typically Opus codec)
  */
 export type AudioFormat = 'mp3' | 'wav' | 'ogg' | 'flac' | 'pcm' | 'webm';
 
@@ -149,20 +156,26 @@ export interface Voice {
 
 /**
  * Configuration for speech service providers.
+ * Passed to `createSpeechProvider` to instantiate the appropriate provider.
  */
 export interface SpeechProviderConfig {
-  /** API key */
+  /** API key for authenticating with the provider's API */
   apiKey?: string;
-  /** API base URL (optional override) */
+  /** Base URL override; defaults to the provider's public API endpoint */
   baseUrl?: string;
-  /** Default model ID */
+  /** Default model ID to use when none is specified per-request */
   defaultModelId?: string;
-  /** Default voice ID for TTS */
+  /** Default voice ID for TTS when none is specified per-request */
   defaultVoiceId?: string;
-  /** Additional provider-specific options */
+  /** Additional provider-specific options passed through as-is */
   options?: Record<string, unknown>;
-  /** Provider type */
+  /**
+   * Provider implementation to use.
+   * - `'elevenlabs'` — ElevenLabs TTS (no STT)
+   * - `'openai-whisper'` — OpenAI Whisper STT (no TTS)
+   * - `'mock'` — Not yet implemented; throws on instantiation
+   */
   provider: 'elevenlabs' | 'openai-whisper' | 'mock';
-  /** Request timeout in milliseconds */
+  /** Request timeout in milliseconds (provider defaults vary) */
   timeout?: number;
 }

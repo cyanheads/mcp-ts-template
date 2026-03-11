@@ -1,6 +1,10 @@
 /**
  * @fileoverview OpenAI Whisper speech-to-text provider implementation.
- * @module src/services/speech/providers/whisper
+ * Wraps the OpenAI audio transcriptions API (`POST /audio/transcriptions`) to provide
+ * STT transcription in multiple languages. TTS is not supported and will throw `MethodNotFound`.
+ * Audio is submitted as multipart `FormData`; the 25 MB Whisper file-size limit is enforced
+ * before the network call.
+ * @module src/services/speech/providers/whisper.provider
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
@@ -20,7 +24,9 @@ import type {
 } from '../types.js';
 
 /**
- * OpenAI Whisper API response for transcription.
+ * Shape of the JSON body returned by `POST /audio/transcriptions`.
+ * In `verbose_json` mode (when timestamps are requested) the `language`, `duration`,
+ * `task`, and `words` fields are populated.
  */
 interface WhisperTranscriptionResponse {
   duration?: number;
@@ -36,7 +42,13 @@ interface WhisperTranscriptionResponse {
 
 /**
  * OpenAI Whisper STT provider.
- * Supports high-quality speech-to-text transcription in multiple languages.
+ * Implements {@link ISpeechProvider} for speech-to-text only (`supportsSTT = true`,
+ * `supportsTTS = false`). Submits audio to the OpenAI transcriptions endpoint via
+ * multipart form upload using `fetchWithTimeout`.
+ *
+ * Default model: `whisper-1`
+ * Default timeout: 60 000 ms (audio processing is slower than typical API calls)
+ * Maximum audio size: 25 MB (enforced locally before the network call)
  */
 export class WhisperProvider implements ISpeechProvider {
   public readonly name = 'openai-whisper';
@@ -48,6 +60,13 @@ export class WhisperProvider implements ISpeechProvider {
   private readonly defaultModelId: string;
   private readonly timeout: number;
 
+  /**
+   * Construct a WhisperProvider.
+   *
+   * @param config - Provider configuration. `config.apiKey` is required; other fields
+   *   fall back to OpenAI API defaults.
+   * @throws {McpError} With `InvalidParams` if `config.apiKey` is absent.
+   */
   constructor(config: SpeechProviderConfig) {
     if (!config.apiKey) {
       throw new McpError(JsonRpcErrorCode.InvalidParams, 'OpenAI API key is required');
@@ -64,7 +83,10 @@ export class WhisperProvider implements ISpeechProvider {
   }
 
   /**
-   * Text-to-speech is not supported by Whisper.
+   * Not supported — Whisper is an STT-only provider.
+   *
+   * @param _options - Unused.
+   * @throws {McpError} Always, with `MethodNotFound`.
    */
   textToSpeech(_options: TextToSpeechOptions): Promise<TextToSpeechResult> {
     throw new McpError(
@@ -74,7 +96,21 @@ export class WhisperProvider implements ISpeechProvider {
   }
 
   /**
-   * Convert speech audio to text using OpenAI Whisper API.
+   * Transcribe audio to text using the OpenAI Whisper API.
+   * Audio may be provided as a raw `Buffer` or a base64-encoded string. The data is
+   * submitted to `POST /audio/transcriptions` as multipart `FormData`. When
+   * `options.timestamps` is `true`, the request uses `verbose_json` format and requests
+   * word-level granularity, populating `result.words`.
+   *
+   * @param options - Transcription options. `options.audio` is required. Optional fields:
+   *   `format` (determines MIME type/filename), `language` (ISO-639-1 hint),
+   *   `modelId` (overrides provider default), `prompt` (style guide), `temperature`,
+   *   and `timestamps` (enables word-level output).
+   * @returns Resolved {@link SpeechToTextResult} with `text`, optional `language`,
+   *   `duration`, `words` (if timestamps were requested), and `metadata` containing
+   *   `modelId`, `provider`, and `task`.
+   * @throws {McpError} With `InvalidParams` for missing audio, invalid base64, or audio > 25 MB.
+   * @throws {McpError} With `InternalError` if the Whisper API call fails.
    */
   async speechToText(options: SpeechToTextOptions): Promise<SpeechToTextResult> {
     const context = requestContextService.createRequestContext({
@@ -197,7 +233,9 @@ export class WhisperProvider implements ISpeechProvider {
   }
 
   /**
-   * Get voices is not applicable for STT providers.
+   * Not applicable — Whisper is an STT-only provider with no voice concept.
+   *
+   * @throws {McpError} Always, with `MethodNotFound`.
    */
   getVoices(): Promise<Voice[]> {
     throw new McpError(
@@ -207,7 +245,12 @@ export class WhisperProvider implements ISpeechProvider {
   }
 
   /**
-   * Health check for OpenAI Whisper API.
+   * Verify OpenAI API connectivity by fetching the models list (`GET /models`).
+   * Uses a 5-second timeout regardless of the provider's configured `timeout`,
+   * to keep health checks lightweight.
+   *
+   * @returns `true` if the models endpoint responds with HTTP 200, `false` otherwise.
+   *   Never rejects.
    */
   async healthCheck(): Promise<boolean> {
     try {
@@ -237,7 +280,11 @@ export class WhisperProvider implements ISpeechProvider {
   }
 
   /**
-   * Get file extension for audio format.
+   * Map an {@link AudioFormat} string to a file extension for the multipart upload filename.
+   * Defaults to `'mp3'` for unrecognized or absent formats.
+   *
+   * @param format - Audio format string (e.g., `'wav'`, `'ogg'`).
+   * @returns File extension without leading dot (e.g., `'wav'`).
    */
   private getFileExtension(format?: string): string {
     const formatMap: Record<string, string> = {
@@ -253,7 +300,11 @@ export class WhisperProvider implements ISpeechProvider {
   }
 
   /**
-   * Get MIME type for audio format.
+   * Map an {@link AudioFormat} string to the corresponding MIME type for the `Blob`
+   * used in the multipart upload. Defaults to `'audio/mpeg'` for unrecognized formats.
+   *
+   * @param format - Audio format string (e.g., `'wav'`, `'ogg'`).
+   * @returns MIME type string (e.g., `'audio/wav'`).
    */
   private getMimeType(format?: string): string {
     const mimeMap: Record<string, string> = {

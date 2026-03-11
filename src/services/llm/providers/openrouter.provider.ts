@@ -1,6 +1,13 @@
 /**
- * @fileoverview Provides a service class (`OpenRouterProvider`) for interacting with the
- * OpenRouter API, receiving its dependencies via constructor injection.
+ * @fileoverview Implements `OpenRouterProvider`, an `ILlmProvider` that delegates to
+ * the OpenRouter API using the OpenAI-compatible SDK. The `openai` package is loaded
+ * lazily via a dynamic `import()` on first use so that it remains an optional peer
+ * dependency — servers that do not use LLM features avoid the startup cost and the
+ * hard dependency.
+ *
+ * Dependencies are supplied via constructor injection (`RateLimiter`, `config`,
+ * `logger`). The underlying `OpenAI` client is initialized on the first call and
+ * reused across subsequent requests (singleton per provider instance).
  * @module src/services/llm/providers/openrouter.provider
  */
 import type OpenAI from 'openai';
@@ -16,7 +23,20 @@ import { type RequestContext, requestContextService } from '@/utils/internal/req
 import type { RateLimiter } from '@/utils/security/rateLimiter.js';
 import { sanitization } from '@/utils/security/sanitization.js';
 
+/**
+ * Module-level cache for the lazily-imported `openai` package. Undefined until the
+ * first call to `getOpenAI()`. Retained across calls to avoid repeated dynamic imports.
+ */
 let _openai: typeof import('openai') | undefined;
+
+/**
+ * Lazily imports and returns the `OpenAI` default export from the `openai` package.
+ * The import is deferred so that `openai` remains an optional peer dependency —
+ * servers that never call an LLM method pay no startup cost.
+ *
+ * @returns The `OpenAI` constructor (default export of the `openai` package).
+ * @throws {McpError} `ConfigurationError` if the `openai` package is not installed.
+ */
 async function getOpenAI() {
   _openai ??= await import('openai').catch(() => {
     throw new McpError(
@@ -27,16 +47,62 @@ async function getOpenAI() {
   return _openai.default;
 }
 
+/**
+ * Construction options for the underlying `OpenAI` client pointed at OpenRouter.
+ * Passed internally by `initClient()` — not exposed as a public constructor parameter,
+ * but exported so callers can reference the shape if needed.
+ */
 export interface OpenRouterClientOptions {
+  /** OpenRouter API key (value of `OPENROUTER_API_KEY`). */
   apiKey: string;
+  /**
+   * Base URL for the OpenRouter API. Defaults to `https://openrouter.ai/api/v1`
+   * when not provided.
+   */
   baseURL?: string;
+  /**
+   * Human-readable name of the calling application, sent as the `X-Title` request
+   * header for OpenRouter analytics and attribution.
+   */
   siteName?: string;
+  /**
+   * URL of the calling application, sent as the `HTTP-Referer` request header for
+   * OpenRouter analytics and attribution.
+   */
   siteUrl?: string;
 }
 
+/**
+ * LLM provider implementation backed by the OpenRouter API.
+ *
+ * Implements `ILlmProvider` so it can be used anywhere the framework expects a
+ * generic LLM provider. The `openai` SDK is loaded lazily on first use; the
+ * resulting `OpenAI` client is cached for the lifetime of the instance.
+ *
+ * Default generation parameters (`model`, `temperature`, `top_p`, `max_tokens`,
+ * `top_k`, `min_p`) are read from the application config at construction time and
+ * applied to every request unless the caller explicitly overrides them. Passing
+ * `null` for an OpenAI-typed field (e.g. `temperature: null`) clears that default.
+ *
+ * @example
+ * ```ts
+ * const provider = new OpenRouterProvider(rateLimiter, config, logger);
+ * const completion = await provider.chatCompletion(
+ *   { model: 'openai/gpt-4o', messages: [{ role: 'user', content: 'Hello' }] },
+ *   ctx,
+ * );
+ * ```
+ */
 export class OpenRouterProvider implements ILlmProvider {
+  /** Cached `OpenAI` client instance. Undefined until the first request. */
   private client: OpenAI | undefined;
+  /**
+   * In-flight initialization promise. Guards against concurrent calls racing to
+   * create the client simultaneously. Reset to `undefined` if `initClient` throws,
+   * so the next call can retry.
+   */
   private clientInitPromise: Promise<OpenAI> | undefined;
+  /** Default generation parameters sourced from app config at construction time. */
   private readonly defaultParams: {
     model: string;
     temperature: number | undefined;
@@ -46,6 +112,16 @@ export class OpenRouterProvider implements ILlmProvider {
     minP: number | undefined;
   };
 
+  /**
+   * Creates a new `OpenRouterProvider` instance.
+   *
+   * @param rateLimiter - Rate limiter used to throttle outbound API calls per
+   *   client/tenant key.
+   * @param config - Application config object; must have `openrouterApiKey` set,
+   *   and may have `llmDefault*` fields for generation defaults.
+   * @param logger - Application logger for lifecycle and interaction logging.
+   * @throws {McpError} `ConfigurationError` if `openrouterApiKey` is absent in config.
+   */
   constructor(
     private rateLimiter: RateLimiter,
     private config: typeof ConfigType,
@@ -79,12 +155,33 @@ export class OpenRouterProvider implements ILlmProvider {
     this.logger.info('OpenRouter provider instance created and ready.', context);
   }
 
+  /**
+   * Returns the initialized `OpenAI` client, initializing it on first call.
+   * Concurrent callers share a single initialization promise to avoid duplicate
+   * client construction.
+   *
+   * @returns The ready-to-use `OpenAI` client.
+   * @throws {McpError} `ConfigurationError` if client initialization fails.
+   */
   private async ensureClient(): Promise<OpenAI> {
     if (this.client) return this.client;
     this.clientInitPromise ??= this.initClient();
     return await this.clientInitPromise;
   }
 
+  /**
+   * Performs the one-time initialization of the `OpenAI` client configured for
+   * the OpenRouter base URL. Lazily imports the `openai` package, constructs the
+   * client with API key and optional site metadata headers, and stores the result
+   * in `this.client`.
+   *
+   * If initialization fails, `clientInitPromise` is reset so the next call to
+   * `ensureClient()` can attempt again.
+   *
+   * @returns The newly constructed `OpenAI` client.
+   * @throws {McpError} `ConfigurationError` if the `openai` package is missing or
+   *   client construction throws.
+   */
   private async initClient(): Promise<OpenAI> {
     const context = requestContextService.createRequestContext({
       operation: 'OpenRouterProvider.initClient',
@@ -123,6 +220,21 @@ export class OpenRouterProvider implements ILlmProvider {
 
   // --- PRIVATE METHODS ---
 
+  /**
+   * Merges caller-supplied parameters with instance-level defaults. OpenAI-typed
+   * fields (`model`, `temperature`, `top_p`, `max_tokens`) fall back to the
+   * corresponding `defaultParams` value when omitted. Passing `null` explicitly
+   * clears the default (mapped to `undefined` in the result object so the field is
+   * omitted from the API request).
+   *
+   * OpenRouter-specific fields not present in the OpenAI type definitions
+   * (`top_k`, `min_p`) are applied from defaults only when not already present in
+   * the incoming params.
+   *
+   * @param params - Raw parameters from the caller before defaults are applied.
+   * @returns A new parameter object with defaults merged in, ready to send to the
+   *   OpenRouter API.
+   */
   private _prepareApiParameters(params: OpenRouterChatParams) {
     const { model, temperature, top_p: topP, max_tokens: maxTokens, stream, ...rest } = params;
 
@@ -148,6 +260,19 @@ export class OpenRouterProvider implements ILlmProvider {
     return result;
   }
 
+  /**
+   * Dispatches a single chat completion call to the OpenRouter API via the
+   * provided `OpenAI` client. Logs the outbound request via `logInteraction`.
+   * For non-streaming calls, awaits the response and logs it before returning.
+   * For streaming calls, returns the `Stream` immediately; the caller is
+   * responsible for consuming and logging the stream (see `chatCompletionStream`).
+   *
+   * @param client - Initialized `OpenAI` client to use for the request.
+   * @param params - Fully-prepared API parameters (defaults already merged).
+   * @param context - Request context for correlated log entries.
+   * @returns `ChatCompletion` for non-streaming; `Stream<ChatCompletionChunk>` for streaming.
+   * @throws Propagates any error thrown by the OpenAI SDK.
+   */
   private async _openRouterChatCompletionLogic(
     client: OpenAI,
     params: OpenRouterChatParams,
@@ -172,6 +297,32 @@ export class OpenRouterProvider implements ILlmProvider {
 
   // --- PUBLIC METHODS (from ILlmProvider interface) ---
 
+  /**
+   * Sends a chat completion request to OpenRouter. Enforces rate limiting keyed
+   * on `context.auth?.clientId`, `context.tenantId`, or the global fallback key
+   * `'openrouter_global'`. Applies generation defaults via `_prepareApiParameters`
+   * before dispatching.
+   *
+   * Wraps execution in `ErrorHandler.tryCatch` for consistent error formatting and
+   * structured logging. Input params are sanitized before logging.
+   *
+   * @param params - Chat completion parameters (streaming or non-streaming).
+   * @param context - Request context for rate-limit keying, logging, and tracing.
+   * @returns `ChatCompletion` when `params.stream` is falsy; `Stream<ChatCompletionChunk>`
+   *   when `params.stream` is `true`.
+   * @throws {McpError} `RateLimited` if the rate limit is exceeded.
+   * @throws {McpError} `ConfigurationError` if the OpenAI client cannot be initialized.
+   * @throws {McpError} `ServiceUnavailable` if the OpenRouter API call fails.
+   *
+   * @example
+   * ```ts
+   * const result = await provider.chatCompletion(
+   *   { model: 'openai/gpt-4o', messages: [{ role: 'user', content: 'Hello' }] },
+   *   ctx,
+   * ) as ChatCompletion;
+   * console.log(result.choices[0].message.content);
+   * ```
+   */
   public async chatCompletion(
     params: OpenRouterChatParams,
     context: RequestContext,
@@ -191,6 +342,33 @@ export class OpenRouterProvider implements ILlmProvider {
     );
   }
 
+  /**
+   * Sends a streaming chat completion request to OpenRouter and returns an async
+   * generator that yields `ChatCompletionChunk` objects as they arrive.
+   *
+   * Internally delegates to `chatCompletion` with `stream: true` forced, then
+   * wraps the resulting `Stream` in a generator that collects all chunks and logs
+   * the full response (via `logInteraction`) in the generator's `finally` block
+   * once the stream is exhausted or the consumer breaks out early.
+   *
+   * @param params - Chat completion parameters. `stream` is overridden to `true`.
+   * @param context - Request context for rate-limit keying, logging, and tracing.
+   * @returns An async iterable that yields `ChatCompletionChunk` objects.
+   * @throws {McpError} `RateLimited` if the rate limit is exceeded.
+   * @throws {McpError} `ConfigurationError` if the OpenAI client cannot be initialized.
+   * @throws {McpError} `ServiceUnavailable` if the OpenRouter API call fails.
+   *
+   * @example
+   * ```ts
+   * const stream = await provider.chatCompletionStream(
+   *   { model: 'openai/gpt-4o', messages: [{ role: 'user', content: 'Hello' }] },
+   *   ctx,
+   * );
+   * for await (const chunk of stream) {
+   *   process.stdout.write(chunk.choices[0]?.delta?.content ?? '');
+   * }
+   * ```
+   */
   public async chatCompletionStream(
     params: OpenRouterChatParams,
     context: RequestContext,

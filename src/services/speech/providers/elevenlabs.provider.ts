@@ -1,6 +1,8 @@
 /**
  * @fileoverview ElevenLabs text-to-speech provider implementation.
- * @module src/services/speech/providers/elevenlabs
+ * Wraps the ElevenLabs v1 REST API to provide TTS synthesis and voice listing.
+ * STT is not supported by ElevenLabs and will throw `MethodNotFound`.
+ * @module src/services/speech/providers/elevenlabs.provider
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
@@ -19,24 +21,33 @@ import type {
 } from '../types.js';
 
 /**
- * ElevenLabs API response for voice list.
+ * Shape of a single voice entry returned by the ElevenLabs `GET /voices` endpoint.
  */
 interface ElevenLabsVoice {
   category?: string;
   description?: string;
+  /** Key/value labels; the `gender` key maps to {@link Voice.gender} when present */
   labels?: Record<string, string>;
   name: string;
   preview_url?: string;
   voice_id: string;
 }
 
+/**
+ * Top-level response from the ElevenLabs `GET /voices` endpoint.
+ */
 interface ElevenLabsVoicesResponse {
   voices: ElevenLabsVoice[];
 }
 
 /**
  * ElevenLabs TTS provider.
- * Supports high-quality text-to-speech synthesis with customizable voices.
+ * Implements {@link ISpeechProvider} for text-to-speech only (`supportsTTS = true`,
+ * `supportsSTT = false`). Calls the ElevenLabs v1 REST API using `fetchWithTimeout`.
+ *
+ * Default voice: `EXAVITQu4vr4xnSDxMaL` (Bella)
+ * Default model: `eleven_monolingual_v1`
+ * Default timeout: 30 000 ms
  */
 export class ElevenLabsProvider implements ISpeechProvider {
   public readonly name = 'elevenlabs';
@@ -49,6 +60,13 @@ export class ElevenLabsProvider implements ISpeechProvider {
   private readonly defaultModelId: string;
   private readonly timeout: number;
 
+  /**
+   * Construct an ElevenLabsProvider.
+   *
+   * @param config - Provider configuration. `config.apiKey` is required; all other
+   *   fields fall back to ElevenLabs defaults.
+   * @throws {McpError} With `InvalidParams` if `config.apiKey` is absent.
+   */
   constructor(config: SpeechProviderConfig) {
     if (!config.apiKey) {
       throw new McpError(JsonRpcErrorCode.InvalidParams, 'ElevenLabs API key is required');
@@ -66,7 +84,18 @@ export class ElevenLabsProvider implements ISpeechProvider {
   }
 
   /**
-   * Convert text to speech using ElevenLabs API.
+   * Synthesize speech from text using the ElevenLabs text-to-speech API.
+   * Posts to `POST /text-to-speech/{voiceId}` and returns the raw MP3 audio as a Buffer.
+   * Voice settings (stability, similarity_boost, style) are merged from `options.voice`
+   * with provider defaults. Text is validated for non-empty and ≤ 5 000 characters.
+   *
+   * @param options - TTS options. `options.text` is required. `options.voice.voiceId`
+   *   overrides the provider default voice; `options.modelId` overrides the default model.
+   * @returns Resolved {@link TextToSpeechResult} with `audio` as a `Buffer`, `format` of
+   *   `'mp3'`, `characterCount` equal to `options.text.length`, and `metadata` containing
+   *   `voiceId`, `modelId`, and `provider`.
+   * @throws {McpError} With `InvalidParams` for empty text or text > 5 000 chars.
+   * @throws {McpError} With `InternalError` if the ElevenLabs API call fails.
    */
   async textToSpeech(options: TextToSpeechOptions): Promise<TextToSpeechResult> {
     const context = requestContextService.createRequestContext({
@@ -154,7 +183,10 @@ export class ElevenLabsProvider implements ISpeechProvider {
   }
 
   /**
-   * Speech-to-text is not supported by ElevenLabs.
+   * Not supported — ElevenLabs is a TTS-only provider.
+   *
+   * @param _options - Unused.
+   * @throws {McpError} Always, with `MethodNotFound`.
    */
   speechToText(_options: SpeechToTextOptions): Promise<SpeechToTextResult> {
     throw new McpError(
@@ -164,7 +196,13 @@ export class ElevenLabsProvider implements ISpeechProvider {
   }
 
   /**
-   * Get available voices from ElevenLabs.
+   * Fetch all voices available in the authenticated ElevenLabs account.
+   * Calls `GET /voices` and maps the API response to the canonical {@link Voice} shape,
+   * extracting gender from the `labels.gender` field when present.
+   *
+   * @returns Resolved array of {@link Voice} objects. The array may be empty if the
+   *   account has no voices configured.
+   * @throws {McpError} With `InternalError` if the ElevenLabs API call fails.
    */
   async getVoices(): Promise<Voice[]> {
     const context = requestContextService.createRequestContext({
@@ -221,7 +259,12 @@ export class ElevenLabsProvider implements ISpeechProvider {
   }
 
   /**
-   * Health check for ElevenLabs API.
+   * Verify ElevenLabs API connectivity by attempting to fetch the voice list.
+   * A successful `getVoices()` call indicates the API key is valid and the service
+   * is reachable.
+   *
+   * @returns `true` if `getVoices()` resolves without error, `false` otherwise.
+   *   Never rejects.
    */
   async healthCheck(): Promise<boolean> {
     try {

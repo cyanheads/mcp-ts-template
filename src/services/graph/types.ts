@@ -1,5 +1,7 @@
 /**
- * @fileoverview Type definitions for graph database operations.
+ * @fileoverview Type definitions for the graph service layer.
+ * Re-exports core graph primitives from IGraphProvider and defines
+ * service-level configuration, statistics, and pattern-matching types.
  * @module src/services/graph/types
  */
 
@@ -15,61 +17,97 @@ export type {
 } from './core/IGraphProvider.js';
 
 /**
- * Graph provider type identifier.
+ * Discriminated union of supported graph provider backends.
+ * Currently only `'mock'` is available; extend this union when adding real backends.
  */
 export type GraphProviderType = 'mock';
 
 /**
- * Configuration for graph service.
+ * Configuration for instantiating the graph service.
+ *
+ * @example
+ * ```ts
+ * const config: GraphServiceConfig = {
+ *   provider: 'mock',
+ *   config: { seedData: true },
+ * };
+ * ```
  */
 export interface GraphServiceConfig {
-  /** Additional provider-specific configuration */
+  /** Additional provider-specific configuration passed through to the provider constructor */
   config?: Record<string, unknown>;
-  /** Provider type to use */
+  /** Which graph provider backend to instantiate */
   provider: GraphProviderType;
 }
 
 /**
- * Statistics about a graph.
+ * Aggregate statistics describing the current state of a graph.
+ *
+ * @example
+ * ```ts
+ * const stats: GraphStats = await graphService.getStats(context);
+ * console.log(`${stats.vertexCount} vertices, ${stats.edgeCount} edges`);
+ * console.log(`Avg degree: ${stats.avgDegree}`);
+ * ```
  */
 export interface GraphStats {
-  /** Average degree (edges per vertex) */
+  /** Mean number of edges per vertex across the entire graph */
   avgDegree: number;
-  /** Total number of edges */
+  /** Total number of edges (relationships) in the graph */
   edgeCount: number;
-  /** Edge types and their counts */
+  /** Map of edge table name to count of edges of that type */
   edgeTypes: Record<string, number>;
-  /** Total number of vertices */
+  /** Total number of vertices (nodes) in the graph */
   vertexCount: number;
-  /** Vertex types and their counts */
+  /** Map of vertex table name to count of vertices of that type */
   vertexTypes: Record<string, number>;
 }
 
 /**
- * Pattern for graph matching.
+ * A declarative pattern used to query subgraphs by structural shape.
+ *
+ * @example
+ * ```ts
+ * const pattern: GraphPattern = {
+ *   pattern: '(person)-[knows]->(person)',
+ *   params: { minAge: 18 },
+ * };
+ * ```
  */
 export interface GraphPattern {
-  /** Parameters for the pattern */
+  /** Named parameters bound into the pattern at query time */
   params?: Record<string, unknown>;
-  /** Pattern string (e.g., "(person)-[knows]->(person)") */
+  /**
+   * Pattern string describing the structural shape to match.
+   * Uses graph path notation, e.g. `"(person)-[knows]->(person)"`.
+   */
   pattern: string;
 }
 
 /**
- * Result of pattern matching.
+ * Result returned by a graph pattern-matching query.
+ *
+ * @example
+ * ```ts
+ * const result: PatternMatchResult = await provider.matchPattern(pattern, context);
+ * console.log(`Found ${result.count} matching subgraphs`);
+ * for (const match of result.matches) {
+ *   console.log(match.vertices.map(v => v.id).join(' -> '));
+ * }
+ * ```
  */
 export interface PatternMatchResult {
-  /** Total number of matches */
+  /** Total number of subgraph matches found */
   count: number;
-  /** Matched subgraphs */
+  /** Each matched subgraph, containing the vertices and edges that satisfied the pattern */
   matches: Array<{
-    /** Vertices in the matched path */
+    /** Ordered vertices in the matched path */
     vertices: Array<{
       id: string;
       table: string;
       data: Record<string, unknown>;
     }>;
-    /** Edges in the matched path */
+    /** Edges connecting the matched vertices */
     edges: Array<{
       id: string;
       table: string;
@@ -77,7 +115,7 @@ export interface PatternMatchResult {
       to: string;
       data: Record<string, unknown>;
     }>;
-    /** Path weight */
+    /** Cumulative path weight, if edge weights are defined */
     weight?: number;
   }>;
 }
