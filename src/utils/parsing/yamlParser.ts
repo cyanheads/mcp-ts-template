@@ -1,7 +1,10 @@
 /**
  * @fileoverview Provides a utility class for parsing YAML strings.
- * It wraps the 'js-yaml' library and includes functionality to handle
- * optional <think>...</think> blocks often found at the beginning of LLM outputs.
+ * Wraps the `js-yaml` peer dependency (lazy-loaded on first use) and strips
+ * optional `<think>...</think>` blocks that LLMs sometimes prepend to structured
+ * output before parsing.
+ *
+ * Peer dependency: `js-yaml` — install with `bun add js-yaml`.
  * @module src/utils/parsing/yamlParser
  */
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
@@ -22,20 +25,38 @@ async function getYaml() {
 
 /**
  * Utility class for parsing YAML strings.
- * Wraps the 'js-yaml' library for robust YAML parsing and handles
- * optional <think> blocks from LLMs.
+ *
+ * Lazily loads `js-yaml` on first use (peer dependency — install with `bun add js-yaml`).
+ * Handles optional `<think>...</think>` blocks that some LLMs prepend to structured output;
+ * the block's content is logged at debug level and stripped before parsing.
  */
 export class YamlParser {
   /**
-   * Parses a YAML string, which may be prefixed with a <think> block.
-   * If a <think> block is present, its content is logged, and parsing proceeds on the
-   * remainder.
+   * Parses a YAML string into a typed JavaScript object.
    *
-   * @template T The expected type of the parsed YAML object. Defaults to `any`.
-   * @param yamlString - The YAML string to parse.
-   * @param context - Optional `RequestContext` for logging and error correlation.
-   * @returns The parsed JavaScript object.
-   * @throws {McpError} If the string is empty after processing or if parsing fails.
+   * This method is async because `js-yaml` is loaded lazily on first call.
+   * If the input begins with a `<think>...</think>` block, that block is stripped
+   * and its content logged before parsing the remainder. Uses `js-yaml`'s
+   * `DEFAULT_SCHEMA` for parsing.
+   *
+   * @template T - The expected type of the parsed result. Defaults to `unknown`.
+   * @param yamlString - The YAML string to parse. May be prefixed with a `<think>` block.
+   * @param context - Optional request context for correlated logging and error metadata.
+   * @returns A promise resolving to the parsed object cast to `T`.
+   * @throws {McpError} With code `ConfigurationError` if `js-yaml` is not installed.
+   * @throws {McpError} With code `ValidationError` if the string is empty after stripping
+   *   the `<think>` block, or if `js-yaml` fails to parse the content.
+   * @example
+   * ```typescript
+   * import { yamlParser } from '@/utils/parsing/yamlParser.js';
+   *
+   * const result = await yamlParser.parse<{ key: string }>('key: value');
+   * console.log(result.key); // 'value'
+   *
+   * // LLM output with a <think> preamble
+   * const fromLlm = await yamlParser.parse('<think>reasoning</think>\nkey: value');
+   * console.log(fromLlm); // { key: 'value' }
+   * ```
    */
   async parse<T = unknown>(yamlString: string, context?: RequestContext): Promise<T> {
     let stringToParse = yamlString;
@@ -102,20 +123,27 @@ export class YamlParser {
 }
 
 /**
- * Singleton instance of the `YamlParser`.
- * Use this instance to parse YAML strings, with support for <think> blocks.
+ * Singleton instance of {@link YamlParser}.
+ *
+ * Prefer this over constructing a new `YamlParser` directly. Lazily loads `js-yaml`
+ * on first call, so there is no startup cost if YAML parsing is never used.
+ *
  * @example
  * ```typescript
- * import { yamlParser, requestContextService } from './utils';
- * const context = requestContextService.createRequestContext({ operation: 'TestYamlParsing' });
+ * import { yamlParser } from '@/utils/parsing/yamlParser.js';
  *
- * const yml = 'key: value';
- * const parsedYml = yamlParser.parse(yml, context);
- * console.log(parsedYml); // Output: { key: 'value' }
+ * // Basic parse
+ * const result = await yamlParser.parse<{ name: string }>('name: Claude');
+ * console.log(result.name); // 'Claude'
  *
- * const ymlWithThink = '<think>This is a thought.</think>key: value';
- * const parsedWithThink = yamlParser.parse(ymlWithThink, context);
- * console.log(parsedWithThink); // Output: { key: 'value' }
+ * // With request context for correlated logging
+ * import { requestContextService } from '@/utils/internal/requestContext.js';
+ * const ctx = requestContextService.createRequestContext({ operation: 'parseConfig' });
+ * const config = await yamlParser.parse<AppConfig>(rawYaml, ctx);
+ *
+ * // Strips LLM <think> preamble automatically
+ * const fromLlm = await yamlParser.parse('<think>let me think</think>\nkey: value');
+ * console.log(fromLlm); // { key: 'value' }
  * ```
  */
 export const yamlParser = new YamlParser();

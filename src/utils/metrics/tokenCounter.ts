@@ -9,25 +9,51 @@ import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 
-/** Minimal chat message shape to stay provider-agnostic. */
+/**
+ * Minimal chat message shape used for token counting, intentionally provider-agnostic.
+ * Covers the common subset of OpenAI-style chat message fields without depending on
+ * any specific SDK types.
+ */
 export type ChatMessage = {
+  /** The message author role (e.g. `'user'`, `'assistant'`, `'tool'`, `'system'`). */
   role: string;
+  /**
+   * Message body. Either a plain string, a multi-part content array (e.g. for vision
+   * or tool-result messages), or `null` when the assistant emits tool calls with no
+   * accompanying text.
+   */
   content: string | Array<{ type: string; text?: string; [k: string]: unknown }> | null;
+  /** Optional display name; when present, adds `tokensPerName` overhead per model heuristics. */
   name?: string;
+  /**
+   * Tool calls emitted by an `assistant` message. Only `function`-type calls are counted;
+   * the function name and serialized arguments each contribute to the token total.
+   */
   tool_calls?: Array<{
     id?: string;
     type?: string;
     function?: { name?: string; arguments?: string };
   }> | null;
+  /** Tool result correlation ID present on `tool` role messages. Counted as plain text. */
   tool_call_id?: string | null;
 };
 
-/** Heuristic model schema. Extend as needed per model. */
+/**
+ * Heuristic parameters that control how tokens are estimated for a specific model.
+ * Add entries to the internal `HEURISTICS` map to calibrate per-model behavior.
+ */
 export interface ModelHeuristics {
-  charsPerToken: number; // average chars per token; ~4 for English
-  replyPrimer: number; // priming tokens for assistant reply
-  tokensPerMessage: number; // message overhead
-  tokensPerName: number; // extra if name present
+  /** Average number of characters per token. ~4 for English prose on most GPT-family models. */
+  charsPerToken: number;
+  /**
+   * Fixed token overhead added once per call to {@link countChatTokens} to account for the
+   * assistant reply primer (`<|im_start|>assistant`).
+   */
+  replyPrimer: number;
+  /** Fixed token overhead added per message (e.g. role delimiters). Typically 3 for gpt-4o. */
+  tokensPerMessage: number;
+  /** Extra tokens added when a message includes a `name` field. Typically 1 for gpt-4o. */
+  tokensPerName: number;
 }
 
 const DEFAULT_MODEL = 'gpt-4o';
@@ -71,6 +97,20 @@ function approxTokenCount(text: string, charsPerToken: number): number {
   return Math.ceil(normalized.length / Math.max(1, charsPerToken));
 }
 
+/**
+ * Estimates the number of tokens in a plain-text string using model-specific character-per-token
+ * heuristics. Whitespace is normalized before counting. No external dependencies are required.
+ *
+ * @param text - The input string to estimate. Empty or whitespace-only strings return `0`.
+ * @param context - Optional request context forwarded to the error handler for correlated logging.
+ * @param model - Model identifier used to look up heuristics (e.g. `'gpt-4o'`). Falls back to
+ *   `'gpt-4o'` when omitted or unrecognized.
+ * @returns Estimated token count, rounded up to the nearest integer.
+ * @throws {McpError} With `InternalError` code if the heuristic calculation fails unexpectedly.
+ * @example
+ * const tokens = await countTokens('Hello, world!');
+ * // Returns approximately 4 (13 chars / 4 charsPerToken, rounded up)
+ */
 export async function countTokens(
   text: string,
   context?: RequestContext,
@@ -96,6 +136,33 @@ export async function countTokens(
   );
 }
 
+/**
+ * Estimates the total number of tokens for an array of chat messages using the same
+ * heuristics as OpenAI's token-counting cookbook for gpt-4o-family models.
+ *
+ * Per-message overhead (`tokensPerMessage`) and an assistant reply primer (`replyPrimer`)
+ * are added on top of the raw content estimates. Counting logic:
+ * - String `content`: normalized character count divided by `charsPerToken`.
+ * - Array `content`: only `type: 'text'` parts are counted; other part types emit a warning
+ *   and are skipped.
+ * - `name` field: adds `tokensPerName` plus the name's character-count estimate.
+ * - `tool_calls` (assistant role): function name and serialized arguments are counted.
+ * - `tool_call_id` (tool role): counted as plain text.
+ *
+ * @param messages - Ordered array of chat messages to estimate. May be empty (returns
+ *   `replyPrimer` tokens).
+ * @param context - Optional request context forwarded to the error handler for correlated logging.
+ * @param model - Model identifier used to look up heuristics (e.g. `'gpt-4o-mini'`). Falls back
+ *   to `'gpt-4o'` when omitted or unrecognized.
+ * @returns Estimated total token count across all messages, including per-message overhead and
+ *   the reply primer.
+ * @throws {McpError} With `InternalError` code if the heuristic calculation fails unexpectedly.
+ * @example
+ * const tokens = await countChatTokens([
+ *   { role: 'user', content: 'What is 2 + 2?' },
+ *   { role: 'assistant', content: 'It is 4.' },
+ * ]);
+ */
 export async function countChatTokens(
   messages: ReadonlyArray<ChatMessage>,
   context?: RequestContext,

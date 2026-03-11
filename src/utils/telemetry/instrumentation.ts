@@ -11,8 +11,12 @@ import { config } from '@/config/index.js';
 
 import { runtimeCaps } from '@/utils/internal/runtime.js';
 
-// Node-specific imports are lazy-loaded to avoid Worker crashes
-// SDK instance is exported for internal access if needed
+/**
+ * The active OpenTelemetry `NodeSDK` instance, or `null` when telemetry is disabled,
+ * the runtime is not Node/Bun, or the SDK has been shut down.
+ * Node-specific SDK modules are lazy-loaded inside `initializeOpenTelemetry` to prevent
+ * crashes in Worker/Edge environments where those modules are unavailable.
+ */
 export let sdk: NodeSDK | null = null;
 
 // Initialization state management
@@ -72,11 +76,25 @@ function detectCloudResource(): Record<string, string> {
 }
 
 /**
- * Initializes OpenTelemetry SDK with runtime-appropriate configuration.
- * This function is idempotent and safe to call multiple times.
- * Completes successfully even if telemetry is disabled or runtime is incompatible.
+ * Initializes the OpenTelemetry SDK with runtime-appropriate configuration.
+ * Idempotent — safe to call multiple times; subsequent calls return the existing promise or resolve immediately.
+ * No-ops silently when telemetry is disabled (`OTEL_ENABLED=false`) or when running in a
+ * Worker/Edge environment where `NodeSDK` is unavailable.
  *
- * @returns Promise that resolves when initialization is complete
+ * In Node/Bun environments, all SDK modules (`@opentelemetry/sdk-node`, exporters,
+ * auto-instrumentations) are **lazy-loaded** via `Promise.all(import(...))` to prevent
+ * Worker bundle failures.
+ *
+ * Configures:
+ * - OTLP trace exporter + `BatchSpanProcessor` (when `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set)
+ * - OTLP metrics exporter + `PeriodicExportingMetricReader` at 15 s intervals (when `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` is set)
+ * - `TraceIdRatioBasedSampler` using `config.openTelemetry.samplingRatio`
+ * - Node auto-instrumentations (HTTP enabled, FS disabled)
+ * - Pino instrumentation that injects `trace_id`/`span_id` into log records
+ * - Cloud resource attributes via `detectCloudResource()`
+ *
+ * @returns Promise that resolves when initialization is complete (or was already complete)
+ * @throws Error if `NodeSDK.start()` or any lazy import fails; re-thrown after resetting `sdk` to `null`
  *
  * @example
  * ```typescript

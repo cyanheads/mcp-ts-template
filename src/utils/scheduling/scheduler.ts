@@ -1,7 +1,15 @@
 /**
  * @fileoverview Provides a singleton service for scheduling and managing cron jobs.
- * This service wraps the 'node-cron' library to offer a unified interface for
- * defining, starting, stopping, and listing recurring tasks within the application.
+ *
+ * Wraps the `node-cron` library with a unified interface for defining, starting,
+ * stopping, and listing recurring tasks. The `node-cron` module is loaded lazily
+ * on first use — it is not imported at startup. This keeps the module importable
+ * in any environment; runtime errors surface only when scheduling is actually
+ * attempted in an unsupported environment (e.g., Cloudflare Workers).
+ *
+ * **Node.js only.** Calling `schedule()` in a non-Node.js runtime throws
+ * `McpError(ConfigurationError)`.
+ *
  * @module src/utils/scheduling/scheduler
  */
 import type { ScheduledTask } from 'node-cron';
@@ -12,8 +20,11 @@ import { requestContextService } from '@/utils/internal/requestContext.js';
 import { runtimeCaps } from '@/utils/internal/runtime.js';
 
 /**
- * Lazily loads the node-cron module. Cached after first successful import.
- * Throws McpError if called outside a Node.js runtime (e.g., Cloudflare Workers).
+ * Lazily loads the `node-cron` module on first call and caches the resulting
+ * promise so subsequent calls resolve from the same import. Throws
+ * `McpError(ConfigurationError)` immediately if called outside a Node.js runtime.
+ *
+ * @throws {McpError} `ConfigurationError` when not running in Node.js.
  */
 let cronModulePromise: Promise<typeof import('node-cron')> | null = null;
 
@@ -31,23 +42,52 @@ async function loadCron(): Promise<typeof import('node-cron')> {
 }
 
 /**
- * Represents a scheduled job managed by the SchedulerService.
+ * Represents a scheduled job managed by the {@link SchedulerService}.
+ *
+ * @example
+ * const jobs = scheduler.listJobs();
+ * for (const job of jobs) {
+ *   console.log(`${job.id} (${job.schedule}): running=${job.isRunning}`);
+ * }
  */
 export interface Job {
-  /** A description of what the job does. */
+  /** Human-readable description of what the job does. */
   description: string;
-  /** A unique identifier for the job. */
+  /** Unique identifier for the job, supplied at scheduling time. */
   id: string;
-  /** Indicates whether the job is currently running. */
+  /**
+   * Whether the task function is currently executing.
+   * The scheduler skips a tick if `true` to prevent overlapping runs.
+   */
   isRunning: boolean;
-  /** The cron pattern defining the job's schedule. */
+  /** Cron pattern that defines the job's schedule (e.g., `'0 * * * *'`). */
   schedule: string;
-  /** The underlying 'node-cron' task instance. */
+  /** The underlying `node-cron` task instance. Use `start()`/`stop()` via the service rather than directly. */
   task: ScheduledTask;
 }
 
 /**
- * A singleton service for scheduling and managing cron jobs.
+ * Singleton service for scheduling and managing cron jobs.
+ *
+ * Depends on the `node-cron` peer dependency, which is loaded lazily on the
+ * first call to {@link schedule}. Cron jobs skip overlapping executions: if a
+ * task is still running when its next tick fires, that tick is logged and
+ * discarded. Each execution receives a fresh {@link RequestContext} for
+ * correlated logging.
+ *
+ * Use the pre-constructed {@link schedulerService} export rather than
+ * instantiating this class directly.
+ *
+ * @example
+ * import { schedulerService } from '@/utils/scheduling/scheduler.js';
+ *
+ * await schedulerService.schedule(
+ *   'cleanup',
+ *   '0 3 * * *',
+ *   async (ctx) => { await purgeOldRecords(ctx); },
+ *   'Nightly cleanup of expired records',
+ * );
+ * schedulerService.start('cleanup');
  */
 export class SchedulerService {
   private static instance: SchedulerService;
@@ -61,8 +101,12 @@ export class SchedulerService {
   }
 
   /**
-   * Gets the singleton instance of the SchedulerService.
-   * @returns The singleton SchedulerService instance.
+   * Returns the singleton instance of {@link SchedulerService}, creating it on
+   * first call.
+   *
+   * @returns The shared `SchedulerService` instance.
+   * @example
+   * const scheduler = SchedulerService.getInstance();
    */
   public static getInstance(): SchedulerService {
     if (!SchedulerService.instance) {
@@ -72,13 +116,34 @@ export class SchedulerService {
   }
 
   /**
-   * Schedules a new job.
+   * Registers and creates a new cron job. The job is created in a stopped
+   * state — call {@link start} to begin execution.
    *
-   * @param id - A unique identifier for the job.
-   * @param schedule - The cron pattern for the schedule (e.g., '* * * * *').
-   * @param taskFunction - The function to execute on schedule. It receives a RequestContext.
-   * @param description - A description of the job.
-   * @returns The newly created Job object.
+   * Lazily imports `node-cron` on the first call. Validates the cron pattern
+   * before storing the job. Each execution of `taskFunction` receives a fresh
+   * {@link RequestContext} with `operation` set to `scheduler:job:<id>`.
+   * Overlapping runs are skipped: if the previous execution is still in
+   * progress when the next tick fires, that tick is logged and discarded.
+   * Errors thrown by `taskFunction` are caught and logged; they do not
+   * propagate to the scheduler.
+   *
+   * @param id - Unique identifier for the job. Must not already be registered.
+   * @param schedule - Standard cron expression (five or six fields, e.g. `'0 * * * *'`).
+   * @param taskFunction - Async (or sync) function to run on each tick. Receives a
+   *   `RequestContext` scoped to the job execution.
+   * @param description - Human-readable description stored on the {@link Job} object.
+   * @returns The newly created {@link Job} (in stopped state).
+   * @throws {McpError} `Conflict` (-32002) if a job with the same `id` already exists.
+   * @throws {McpError} `InvalidParams` (-32602) if `schedule` is not a valid cron expression.
+   * @throws {McpError} `ConfigurationError` (-32008) if called outside a Node.js runtime.
+   * @example
+   * const job = await schedulerService.schedule(
+   *   'ping',
+   *   '* * * * *',
+   *   async (ctx) => { ctx.logger.info('ping'); },
+   *   'Logs a ping every minute',
+   * );
+   * schedulerService.start('ping');
    */
   public async schedule(
     id: string,
@@ -145,8 +210,13 @@ export class SchedulerService {
   }
 
   /**
-   * Starts a scheduled job.
-   * @param id - The ID of the job to start.
+   * Starts a previously registered job, causing it to execute on its cron schedule.
+   *
+   * @param id - ID of the job to start, as supplied to {@link schedule}.
+   * @returns `void`
+   * @throws {McpError} `NotFound` (-32001) if no job with the given `id` exists.
+   * @example
+   * schedulerService.start('cleanup');
    */
   public start(id: string): void {
     const job = this.resolveJob(id);
@@ -159,8 +229,14 @@ export class SchedulerService {
   }
 
   /**
-   * Stops a scheduled job.
-   * @param id - The ID of the job to stop.
+   * Stops a running job. The job remains registered and can be restarted with
+   * {@link start}. Any in-progress execution completes normally.
+   *
+   * @param id - ID of the job to stop.
+   * @returns `void`
+   * @throws {McpError} `NotFound` (-32001) if no job with the given `id` exists.
+   * @example
+   * schedulerService.stop('cleanup');
    */
   public stop(id: string): void {
     const job = this.resolveJob(id);
@@ -173,8 +249,14 @@ export class SchedulerService {
   }
 
   /**
-   * Removes a job from the scheduler. The job is stopped before being removed.
-   * @param id - The ID of the job to remove.
+   * Stops and permanently removes a job from the scheduler. The job cannot be
+   * restarted after removal; call {@link schedule} to re-register it.
+   *
+   * @param id - ID of the job to remove.
+   * @returns `void`
+   * @throws {McpError} `NotFound` (-32001) if no job with the given `id` exists.
+   * @example
+   * schedulerService.remove('cleanup');
    */
   public remove(id: string): void {
     const job = this.resolveJob(id);
@@ -187,7 +269,13 @@ export class SchedulerService {
     logger.info(`Job '${id}' removed.`, context);
   }
 
-  /** Resolves a job by ID or throws NotFound. */
+  /**
+   * Looks up a job by ID.
+   *
+   * @param id - Job ID to look up.
+   * @returns The {@link Job} record.
+   * @throws {McpError} `NotFound` (-32001) if the job does not exist.
+   */
   private resolveJob(id: string): Job {
     const job = this.jobs.get(id);
     if (!job) {
@@ -197,8 +285,14 @@ export class SchedulerService {
   }
 
   /**
-   * Gets a list of all scheduled jobs.
-   * @returns An array of all Job objects.
+   * Returns a snapshot of all currently registered jobs, regardless of their
+   * running state.
+   *
+   * @returns Array of all {@link Job} objects in insertion order.
+   * @example
+   * for (const job of schedulerService.listJobs()) {
+   *   console.log(job.id, job.isRunning ? 'running' : 'stopped');
+   * }
    */
   public listJobs(): Job[] {
     return Array.from(this.jobs.values());
@@ -206,7 +300,15 @@ export class SchedulerService {
 }
 
 /**
- * The singleton instance of the SchedulerService.
- * Use this instance for all job scheduling operations.
+ * Pre-constructed singleton instance of {@link SchedulerService}.
+ *
+ * Import and use this throughout the application rather than calling
+ * `SchedulerService.getInstance()` directly.
+ *
+ * @example
+ * import { schedulerService } from '@/utils/scheduling/scheduler.js';
+ *
+ * await schedulerService.schedule('heartbeat', '* * * * *', heartbeatFn, 'Heartbeat');
+ * schedulerService.start('heartbeat');
  */
 export const schedulerService = SchedulerService.getInstance();

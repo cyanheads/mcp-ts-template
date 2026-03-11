@@ -293,16 +293,22 @@ export interface ExtractTextResult {
 
 /**
  * Utility class for creating, modifying, and parsing PDF documents.
- * Wraps the 'pdf-lib' library with structured error handling and logging.
- * Uses 'unpdf' for robust text extraction compatible with Cloudflare Workers.
+ *
+ * Wraps the `pdf-lib` library for document creation/editing and `unpdf` for text
+ * extraction (Cloudflare Workers compatible). Most methods are async due to lazy
+ * loading of these peer dependencies. Install both with:
+ * `bun add pdf-lib unpdf`
  */
 export class PdfParser {
   /**
    * Creates a new blank PDF document.
    *
-   * @param context - Optional RequestContext for logging and error correlation.
-   * @returns A new PDFDocument instance.
-   * @throws {McpError} If document creation fails.
+   * Async due to lazy loading of the `pdf-lib` peer dependency (`bun add pdf-lib`).
+   *
+   * @param context - Optional `RequestContext` for correlated logging and error metadata.
+   * @returns A new empty `PDFDocument` instance.
+   * @throws {McpError} With `ConfigurationError` if `pdf-lib` is not installed.
+   * @throws {McpError} With `InternalError` if document creation fails.
    * @example
    * ```typescript
    * const doc = await pdfParser.createDocument();
@@ -340,16 +346,20 @@ export class PdfParser {
   }
 
   /**
-   * Loads an existing PDF document from bytes.
+   * Loads an existing PDF document from raw bytes.
    *
-   * @param pdfBytes - The PDF file as Uint8Array or ArrayBuffer.
-   * @param context - Optional RequestContext for logging and error correlation.
-   * @returns A PDFDocument instance.
-   * @throws {McpError} If document loading fails.
+   * Async due to lazy loading of the `pdf-lib` peer dependency (`bun add pdf-lib`).
+   *
+   * @param pdfBytes - The PDF file contents as `Uint8Array` or `ArrayBuffer`.
+   * @param context - Optional `RequestContext` for correlated logging and error metadata.
+   * @returns The loaded `PDFDocument` instance.
+   * @throws {McpError} With `ConfigurationError` if `pdf-lib` is not installed.
+   * @throws {McpError} With `ValidationError` if the bytes are not a valid PDF.
    * @example
    * ```typescript
-   * const existingPdfBytes = await fs.readFile('input.pdf');
-   * const doc = await pdfParser.loadDocument(existingPdfBytes);
+   * import { readFile } from 'node:fs/promises';
+   * const pdfBytes = await readFile('input.pdf');
+   * const doc = await pdfParser.loadDocument(pdfBytes);
    * ```
    */
   async loadDocument(
@@ -390,11 +400,13 @@ export class PdfParser {
   }
 
   /**
-   * Adds a new page to a PDF document.
+   * Adds a new blank page to a PDF document.
    *
-   * @param doc - The PDFDocument to add a page to.
-   * @param options - Optional page dimensions.
-   * @returns The newly created PDFPage.
+   * Synchronous — does not load any peer dependencies.
+   *
+   * @param doc - The `PDFDocument` to add the page to.
+   * @param options - Optional page dimensions. Defaults to US Letter (612 × 792 points).
+   * @returns The newly added `PDFPage`.
    * @example
    * ```typescript
    * const page = pdfParser.addPage(doc, { width: 600, height: 400 });
@@ -407,13 +419,18 @@ export class PdfParser {
   }
 
   /**
-   * Embeds a standard font into a PDF document.
+   * Embeds a standard PDF font into a document.
    *
-   * @param doc - The PDFDocument to embed the font into.
-   * @param fontName - The standard font name. Defaults to 'Helvetica'.
-   * @param context - Optional RequestContext for logging and error correlation.
-   * @returns The embedded PDFFont.
-   * @throws {McpError} If font embedding fails.
+   * `fontName` must be a key of `pdf-lib`'s `StandardFonts` enum (e.g. `'Helvetica'`,
+   * `'TimesRoman'`, `'Courier'`). Async due to lazy loading of `pdf-lib`
+   * (`bun add pdf-lib`).
+   *
+   * @param doc - The `PDFDocument` to embed the font into.
+   * @param fontName - A `StandardFonts` key. Defaults to `'Helvetica'`.
+   * @param context - Optional `RequestContext` for correlated logging and error metadata.
+   * @returns The embedded `PDFFont` ready to pass to `drawText`.
+   * @throws {McpError} With `ConfigurationError` if `pdf-lib` is not installed.
+   * @throws {McpError} With `InternalError` if the font name is invalid or embedding fails.
    * @example
    * ```typescript
    * const font = await pdfParser.embedFont(doc, 'TimesRoman');
@@ -459,20 +476,23 @@ export class PdfParser {
   }
 
   /**
-   * Embeds an image (PNG or JPG) into a PDF document.
+   * Embeds a PNG or JPEG image into a PDF document for later rendering.
    *
-   * @param doc - The PDFDocument to embed the image into.
-   * @param options - Image data and format.
-   * @param context - Optional RequestContext for logging and error correlation.
-   * @returns The embedded PDFImage.
-   * @throws {McpError} If image embedding fails.
+   * Does not draw the image — call `drawImage` after embedding. Async due to lazy
+   * loading of `pdf-lib` (`bun add pdf-lib`).
+   *
+   * @param doc - The `PDFDocument` to embed the image into.
+   * @param options - Image bytes and format (`'png'` or `'jpg'`).
+   * @param context - Optional `RequestContext` for correlated logging and error metadata.
+   * @returns The embedded `PDFImage`, usable as the `image` option in `drawImage`.
+   * @throws {McpError} With `ConfigurationError` if `pdf-lib` is not installed.
+   * @throws {McpError} With `InternalError` if the image data is invalid or embedding fails.
    * @example
    * ```typescript
-   * const imageBytes = await fs.readFile('logo.png');
-   * const image = await pdfParser.embedImage(doc, {
-   *   imageBytes,
-   *   format: 'png'
-   * });
+   * import { readFile } from 'node:fs/promises';
+   * const imageBytes = await readFile('logo.png');
+   * const image = await pdfParser.embedImage(doc, { imageBytes, format: 'png' });
+   * pdfParser.drawImage(page, { image, x: 50, y: 700, width: 100, height: 50 });
    * ```
    */
   async embedImage(
@@ -518,20 +538,26 @@ export class PdfParser {
   }
 
   /**
-   * Draws text on a PDF page with optional formatting.
+   * Draws text on a PDF page with optional font, size, color, rotation, and word-wrap.
    *
-   * @param page - The PDFPage to draw text on.
-   * @param options - Text content, position, and styling options.
+   * When `maxWidth` is set, the text is split into words and wrapped across multiple
+   * lines; each line is rendered at decreasing Y positions by `size * lineHeight`.
+   * Async due to lazy loading of `pdf-lib` (`bun add pdf-lib`).
+   *
+   * @param page - The `PDFPage` to draw text on.
+   * @param options - Text content, baseline position (`x`, `y`), and styling.
+   * @returns A promise that resolves when drawing is complete.
+   * @throws {McpError} With `ConfigurationError` if `pdf-lib` is not installed.
    * @example
    * ```typescript
    * const font = await pdfParser.embedFont(doc, 'Helvetica');
-   * pdfParser.drawText(page, {
+   * await pdfParser.drawText(page, {
    *   text: 'Hello, World!',
    *   x: 50,
    *   y: 700,
    *   size: 30,
    *   font,
-   *   color: rgb(0, 0.53, 0.71)
+   *   color: rgb(0, 0.53, 0.71),
    * });
    * ```
    */
@@ -593,19 +619,25 @@ export class PdfParser {
   }
 
   /**
-   * Draws an embedded image on a PDF page.
+   * Draws a previously embedded image onto a PDF page.
    *
-   * @param page - The PDFPage to draw the image on.
-   * @param options - Image, position, and sizing options.
+   * The image must first be embedded via `embedImage`. Width and height default to the
+   * image's intrinsic dimensions. Async due to lazy loading of `pdf-lib`
+   * (`bun add pdf-lib`).
+   *
+   * @param page - The `PDFPage` to draw the image on.
+   * @param options - The embedded image, position (`x`, `y`), dimensions, opacity, and rotation.
+   * @returns A promise that resolves when drawing is complete.
+   * @throws {McpError} With `ConfigurationError` if `pdf-lib` is not installed.
    * @example
    * ```typescript
    * const image = await pdfParser.embedImage(doc, { imageBytes, format: 'png' });
-   * pdfParser.drawImage(page, {
+   * await pdfParser.drawImage(page, {
    *   image,
    *   x: 100,
    *   y: 500,
    *   width: 200,
-   *   height: 150
+   *   height: 150,
    * });
    * ```
    */
@@ -632,17 +664,24 @@ export class PdfParser {
   }
 
   /**
-   * Merges multiple PDF documents into a single document.
+   * Merges multiple PDF documents into a single new document.
    *
-   * @param pdfBytesArray - Array of PDF documents as Uint8Array or ArrayBuffer.
-   * @param context - Optional RequestContext for logging and error correlation.
-   * @returns A new merged PDFDocument.
-   * @throws {McpError} If merging fails.
+   * Pages are appended in the order the source buffers appear in the array. Undefined
+   * or falsy entries in the array are silently skipped. Async due to lazy loading of
+   * `pdf-lib` (`bun add pdf-lib`).
+   *
+   * @param pdfBytesArray - Source PDF files as `Uint8Array` or `ArrayBuffer` elements.
+   * @param context - Optional `RequestContext` for correlated logging and error metadata.
+   * @returns A new `PDFDocument` containing all pages from the input documents.
+   * @throws {McpError} With `ConfigurationError` if `pdf-lib` is not installed.
+   * @throws {McpError} With `InternalError` if any source PDF is invalid or merging fails.
    * @example
    * ```typescript
-   * const pdf1 = await fs.readFile('doc1.pdf');
-   * const pdf2 = await fs.readFile('doc2.pdf');
+   * import { readFile } from 'node:fs/promises';
+   * const pdf1 = await readFile('doc1.pdf');
+   * const pdf2 = await readFile('doc2.pdf');
    * const merged = await pdfParser.mergePdfs([pdf1, pdf2]);
+   * const bytes = await pdfParser.saveDocument(merged);
    * ```
    */
   async mergePdfs(
@@ -694,19 +733,25 @@ export class PdfParser {
   }
 
   /**
-   * Splits a PDF document into multiple documents based on page ranges.
+   * Splits a PDF document into multiple new documents based on page ranges.
    *
-   * @param pdfBytes - The source PDF as Uint8Array or ArrayBuffer.
-   * @param ranges - Array of page ranges to extract.
-   * @param context - Optional RequestContext for logging and error correlation.
-   * @returns Array of new PDFDocuments, one per range.
-   * @throws {McpError} If splitting fails.
+   * Each `PageRange` produces one output `PDFDocument` containing the pages from
+   * `start` to `end` (both 0-based, inclusive). Ranges may overlap. Async due to
+   * lazy loading of `pdf-lib` (`bun add pdf-lib`).
+   *
+   * @param pdfBytes - The source PDF as `Uint8Array` or `ArrayBuffer`.
+   * @param ranges - Page ranges to extract; each produces one output document.
+   * @param context - Optional `RequestContext` for correlated logging and error metadata.
+   * @returns An array of new `PDFDocument` instances, one per range, in order.
+   * @throws {McpError} With `ConfigurationError` if `pdf-lib` is not installed.
+   * @throws {McpError} With `InternalError` if the source PDF is invalid or a page index is out of bounds.
    * @example
    * ```typescript
-   * const pdfBytes = await fs.readFile('document.pdf');
+   * import { readFile } from 'node:fs/promises';
+   * const pdfBytes = await readFile('document.pdf');
    * const [part1, part2] = await pdfParser.splitPdf(pdfBytes, [
    *   { start: 0, end: 4 },
-   *   { start: 5, end: 9 }
+   *   { start: 5, end: 9 },
    * ]);
    * ```
    */
@@ -768,19 +813,24 @@ export class PdfParser {
   /**
    * Fills form fields in a PDF document.
    *
-   * @param doc - The PDFDocument containing the form.
-   * @param options - Field values and flatten option.
-   * @param context - Optional RequestContext for logging and error correlation.
-   * @throws {McpError} If form filling fails.
+   * String and number values are set via `setText`; boolean values check/uncheck
+   * checkbox fields. Individual field errors are logged as warnings and skipped
+   * rather than aborting the whole operation. If `flatten` is true, the form is
+   * flattened after filling, making it non-editable. Synchronous.
+   *
+   * @param doc - The `PDFDocument` containing the AcroForm.
+   * @param options - Map of field names to values, plus optional `flatten` flag.
+   * @param context - Optional `RequestContext` for correlated logging and error metadata.
+   * @throws {McpError} With `InternalError` if the overall form operation fails.
    * @example
    * ```typescript
    * pdfParser.fillForm(doc, {
    *   fields: {
-   *     'Name': 'John Doe',
-   *     'Age': 30,
-   *     'Subscribe': true
+   *     Name: 'John Doe',
+   *     Age: 30,
+   *     Subscribe: true,
    *   },
-   *   flatten: true
+   *   flatten: true,
    * });
    * ```
    */
@@ -860,12 +910,16 @@ export class PdfParser {
   /**
    * Extracts metadata from a PDF document.
    *
-   * @param doc - The PDFDocument to extract metadata from.
-   * @returns PDF metadata object.
+   * Reads title, author, subject, keywords, creator, producer, creation date, and
+   * modification date from the document's info dictionary. Optional fields are
+   * omitted from the result if not set. Synchronous — no peer dependency loading.
+   *
+   * @param doc - The `PDFDocument` to extract metadata from.
+   * @returns A `PdfMetadata` object; optional fields are absent if not set in the document.
    * @example
    * ```typescript
    * const metadata = pdfParser.extractMetadata(doc);
-   * console.log(metadata.title, metadata.author);
+   * console.log(`${metadata.title} by ${metadata.author} (${metadata.pageCount} pages)`);
    * ```
    */
   extractMetadata(doc: PDFDocument): PdfMetadata {
@@ -895,16 +949,20 @@ export class PdfParser {
   }
 
   /**
-   * Sets metadata for a PDF document.
+   * Sets metadata fields on a PDF document.
    *
-   * @param doc - The PDFDocument to set metadata on.
-   * @param metadata - Metadata values to set.
+   * Only fields present in `metadata` are written; omitted fields are left unchanged.
+   * Note: `keywords` is passed as a single-element array to `pdf-lib`'s `setKeywords`.
+   * Synchronous — no peer dependency loading.
+   *
+   * @param doc - The `PDFDocument` to update.
+   * @param metadata - Metadata values to set. Omitted fields are left unchanged.
    * @example
    * ```typescript
    * pdfParser.setMetadata(doc, {
    *   title: 'My Document',
    *   author: 'John Doe',
-   *   subject: 'Important Document'
+   *   subject: 'Important Document',
    * });
    * ```
    */
@@ -918,24 +976,30 @@ export class PdfParser {
   }
 
   /**
-   * Extracts text content from all pages of a PDF document using unpdf.
-   * This method uses the 'unpdf' library which is compatible with Cloudflare Workers
-   * and other serverless environments.
+   * Extracts text content from all pages of a PDF document using `unpdf`.
    *
-   * @param doc - The PDFDocument to extract text from.
-   * @param options - Optional extraction options (mergePages).
-   * @param context - Optional RequestContext for logging and error correlation.
-   * @returns Promise resolving to an object with totalPages and text (string or string[]).
-   * @throws {McpError} If text extraction fails.
+   * Serializes the `PDFDocument` to bytes, then delegates to `unpdf`'s `extractText`,
+   * which is compatible with Cloudflare Workers and other serverless environments.
+   * Async due to lazy loading of both `pdf-lib` and `unpdf`
+   * (`bun add pdf-lib unpdf`).
+   *
+   * @param doc - The `PDFDocument` to extract text from.
+   * @param options - Optional extraction options. Set `mergePages: true` to get a
+   *   single concatenated string instead of one string per page.
+   * @param context - Optional `RequestContext` for correlated logging and error metadata.
+   * @returns An `ExtractTextResult` with `totalPages` and `text` — a `string[]` (one
+   *   per page) by default, or a single `string` when `mergePages` is `true`.
+   * @throws {McpError} With `ConfigurationError` if `pdf-lib` or `unpdf` is not installed.
+   * @throws {McpError} With `InternalError` if text extraction fails.
    * @example
    * ```typescript
-   * // Extract text as array (one string per page)
+   * // Per-page array (default)
    * const result = await pdfParser.extractText(doc);
    * console.log(result.text[0]); // Text from first page
    *
-   * // Extract text as single merged string
+   * // All pages concatenated into one string
    * const merged = await pdfParser.extractText(doc, { mergePages: true });
-   * console.log(merged.text); // All text concatenated
+   * console.log(merged.text); // Full document text
    * ```
    */
   async extractText(
@@ -1014,16 +1078,20 @@ export class PdfParser {
   }
 
   /**
-   * Serializes a PDF document to bytes (Uint8Array) for saving to disk or transmission.
+   * Serializes a PDF document to a `Uint8Array` for writing to disk or transmission.
    *
-   * @param doc - The PDFDocument to serialize.
-   * @param context - Optional RequestContext for logging and error correlation.
-   * @returns The PDF as Uint8Array.
-   * @throws {McpError} If serialization fails.
+   * Async due to `pdf-lib`'s async `save()` implementation (cross-origin / Worker
+   * compatible). Does not reload peer dependencies if already cached.
+   *
+   * @param doc - The `PDFDocument` to serialize.
+   * @param context - Optional `RequestContext` for correlated logging and error metadata.
+   * @returns The complete PDF file as a `Uint8Array`.
+   * @throws {McpError} With `InternalError` if serialization fails.
    * @example
    * ```typescript
+   * import { writeFile } from 'node:fs/promises';
    * const pdfBytes = await pdfParser.saveDocument(doc);
-   * await fs.writeFile('output.pdf', pdfBytes);
+   * await writeFile('output.pdf', pdfBytes);
    * ```
    */
   async saveDocument(doc: PDFDocument, context?: RequestContext): Promise<Uint8Array> {
@@ -1061,15 +1129,17 @@ export class PdfParser {
 }
 
 /**
- * Singleton instance of the PdfParser.
- * Use this instance for all PDF operations with support for creating, modifying,
- * and parsing PDF documents using pdf-lib.
+ * Singleton instance of `PdfParser`.
+ *
+ * Provides PDF creation, editing, merging, splitting, form filling, metadata
+ * extraction, and text extraction. Requires `pdf-lib` for document operations
+ * and `unpdf` for text extraction — install both with: `bun add pdf-lib unpdf`
  *
  * @example
  * ```typescript
  * import { pdfParser } from '@/utils/parsing/pdfParser.js';
+ * import { writeFile } from 'node:fs/promises';
  *
- * // Create a new PDF
  * const doc = await pdfParser.createDocument();
  * const page = pdfParser.addPage(doc);
  * const font = await pdfParser.embedFont(doc, 'Helvetica');
@@ -1083,7 +1153,7 @@ export class PdfParser {
  * });
  *
  * const pdfBytes = await pdfParser.saveDocument(doc);
- * await fs.writeFile('output.pdf', pdfBytes);
+ * await writeFile('output.pdf', pdfBytes);
  * ```
  */
 export const pdfParser = new PdfParser();

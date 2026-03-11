@@ -4,15 +4,31 @@
  * @module src/utils/internal/runtime
  */
 
+/**
+ * Snapshot of runtime feature availability detected at module load time.
+ * All fields are booleans computed once via safe feature-detection; they never
+ * throw and never change after the module is first imported.
+ */
 export interface RuntimeCapabilities {
+  /** True when the Node.js `Buffer` global is available. */
   hasBuffer: boolean;
+  /** True when `globalThis.performance.now` is a callable function. */
   hasPerformanceNow: boolean;
+  /** True when the `process` global is defined (Node.js, Bun, or some bundled envs). */
   hasProcess: boolean;
+  /** True when `TextEncoder` is available on `globalThis`. */
   hasTextEncoder: boolean;
+  /** True when running in a browser main thread (has `window`, not a Worker or Node). */
   isBrowserLike: boolean;
-  /** True for both Node.js and Bun (both expose process.versions.node). */
+  /**
+   * True when running under Bun.
+   * Bun sets both `process.versions.node` and `process.versions.bun`,
+   * so `isNode` is also true in Bun environments.
+   */
   isBun: boolean;
+  /** True when `process.versions.node` is a string (Node.js or Bun). */
   isNode: boolean;
+  /** True when running inside a Web Worker or Cloudflare Worker (`WorkerGlobalScope` is present). */
   isWorkerLike: boolean;
 }
 
@@ -82,6 +98,21 @@ const hasWorkerGlobalScope = (): boolean => {
 const isWorkerLike = !isNode && hasWorkerGlobalScope();
 const isBrowserLike = !isNode && !isWorkerLike && safeHas('window');
 
+/**
+ * Singleton snapshot of runtime capabilities for the current environment.
+ * Computed once at module load; safe to read at any time without async.
+ *
+ * @example
+ * ```typescript
+ * import { runtimeCaps } from './runtime.js';
+ *
+ * if (runtimeCaps.hasBuffer) {
+ *   // Node.js / Bun path — use Buffer for encoding
+ * } else {
+ *   // Worker / browser path — use Web APIs
+ * }
+ * ```
+ */
 export const runtimeCaps: RuntimeCapabilities = {
   isNode,
   isBun,

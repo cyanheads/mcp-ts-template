@@ -22,43 +22,91 @@ async function getPartialJson() {
 
 /**
  * Bit flags specifying which partial JSON types are permissible during parsing.
- * Mirrors `partial-json`'s `Allow` constants. Combine with bitwise OR.
+ * Mirrors `partial-json`'s `Allow` constants. Combine flags with bitwise OR
+ * to allow multiple partial types simultaneously.
+ *
+ * @example
+ * ```typescript
+ * // Allow only partial strings and arrays
+ * const result = await jsonParser.parse(str, Allow.STR | Allow.ARR);
+ *
+ * // Allow everything (default)
+ * const result = await jsonParser.parse(str, Allow.ALL);
+ * ```
  */
 export const Allow = {
+  /** Allow partial strings. */
   STR: 0x1,
+  /** Allow partial numbers. */
   NUM: 0x2,
+  /** Allow partial arrays. */
   ARR: 0x4,
+  /** Allow partial objects. */
   OBJ: 0x8,
+  /** Allow partial null values. */
   NULL: 0x10,
+  /** Allow partial booleans. */
   BOOL: 0x20,
+  /** Allow NaN values. */
   NAN: 0x40,
+  /** Allow positive Infinity. */
   INFINITY: 0x80,
+  /** Allow negative Infinity. */
   _INFINITY: 0x100,
+  /** Allow both positive and negative Infinity (`INFINITY | _INFINITY`). */
   INF: 0x80 | 0x100,
+  /** Allow all special values: NULL, BOOL, NAN, INFINITY, _INFINITY. */
   SPECIAL: 0x10 | 0x20 | 0x40 | 0x80 | 0x100,
+  /** Allow all atomic types: STR, NUM, NULL, BOOL, NAN, INFINITY, _INFINITY. */
   ATOM: 0x1 | 0x2 | 0x10 | 0x20 | 0x40 | 0x80 | 0x100,
+  /** Allow partial collections: ARR and OBJ. */
   COLLECTION: 0x4 | 0x8,
+  /** Allow all partial types. */
   ALL: 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x20 | 0x40 | 0x80 | 0x100,
 } as const;
 
 /**
  * Utility class for parsing potentially partial JSON strings.
- * Wraps the 'partial-json' library for robust JSON parsing, handling
- * incomplete structures and optional <think> blocks from LLMs.
+ * Wraps the `partial-json` library for robust JSON parsing, handling
+ * incomplete structures and optional `<think>` blocks from LLM outputs.
+ *
+ * All parse methods are async due to lazy loading of the `partial-json` peer dependency.
+ * Install it with: `bun add partial-json`
  */
 export class JsonParser {
   /**
-   * Parses a JSON string, which may be partial or prefixed with a <think> block.
-   * If a <think> block is present, its content is logged, and parsing proceeds on the
-   * remainder. Uses 'partial-json' to handle incomplete JSON.
+   * Parses a JSON string, which may be partial or prefixed with a `<think>` block.
    *
-   * @template T The expected type of the parsed JSON object. Defaults to `any`.
-   * @param jsonString - The JSON string to parse.
-   * @param allowPartial - Bitwise OR combination of `Allow` constants specifying permissible
-   *   partial JSON types. Defaults to `Allow.ALL`.
-   * @param context - Optional `RequestContext` for logging and error correlation.
-   * @returns The parsed JavaScript value.
-   * @throws {McpError} If the string is empty after processing or if `partial-json` fails.
+   * If a `<think>...</think>` block is present at the start of the string, its content
+   * is logged at debug level and stripped before parsing. The remainder is then parsed
+   * using `partial-json`, which tolerates incomplete JSON structures.
+   *
+   * This method is async due to lazy loading of the `partial-json` peer dependency
+   * (`bun add partial-json`).
+   *
+   * @template T - The expected type of the parsed result. Defaults to `unknown`.
+   * @param jsonString - The raw string to parse. May include a leading `<think>` block
+   *   and/or be a partial (incomplete) JSON value.
+   * @param allowPartial - Bitwise OR combination of `Allow` flags controlling which
+   *   partial JSON types are accepted. Defaults to `Allow.ALL`.
+   * @param context - Optional `RequestContext` for correlated logging and error metadata.
+   * @returns The parsed JavaScript value cast to `T`.
+   * @throws {McpError} With `ValidationError` if the string is empty after stripping the
+   *   `<think>` block and trimming, or if `partial-json` fails to parse the content.
+   * @throws {McpError} With `ConfigurationError` if the `partial-json` package is not installed.
+   * @example
+   * ```typescript
+   * import { jsonParser, Allow } from '@/utils/parsing/jsonParser.js';
+   *
+   * // Parse complete JSON
+   * const obj = await jsonParser.parse<{ key: string }>('{"key": "value"}');
+   * console.log(obj.key); // "value"
+   *
+   * // Parse partial JSON with a <think> prefix
+   * const partial = '<think>reasoning...</think>{"items": [1, 2,';
+   * const result = await jsonParser.parse(partial, Allow.ALL);
+   * console.log(result); // { items: [1, 2] }
+   * ```
    */
   async parse<T = unknown>(
     jsonString: string,
@@ -129,24 +177,26 @@ export class JsonParser {
 }
 
 /**
- * Singleton instance of the `JsonParser`.
- * Use this instance to parse JSON strings, with support for partial JSON and <think> blocks.
+ * Singleton instance of `JsonParser`.
+ *
+ * Provides partial JSON parsing with `<think>` block stripping. Methods are async
+ * due to lazy loading of the `partial-json` peer dependency (`bun add partial-json`).
+ *
  * @example
  * ```typescript
- * import { jsonParser, Allow, requestContextService } from './utils';
- * const context = requestContextService.createRequestContext({ operation: 'TestJsonParsing' });
+ * import { jsonParser, Allow } from '@/utils/parsing/jsonParser.js';
+ * import { requestContextService } from '@/utils/internal/requestContext.js';
  *
- * const fullJson = '{"key": "value"}';
- * const parsedFull = jsonParser.parse(fullJson, Allow.ALL, context);
- * console.log(parsedFull); // Output: { key: 'value' }
+ * const ctx = requestContextService.createRequestContext({ operation: 'myOp' });
  *
- * const partialObject = '<think>This is a thought.</think>{"key": "value", "arr": [1,';
- * try {
- *   const parsedPartial = jsonParser.parse(partialObject, undefined, context);
- *   console.log(parsedPartial);
- * } catch (e) {
- *   console.error("Parsing partial object failed:", e);
- * }
+ * // Full JSON
+ * const obj = await jsonParser.parse<{ key: string }>('{"key": "value"}', Allow.ALL, ctx);
+ * console.log(obj.key); // "value"
+ *
+ * // Partial JSON with think block
+ * const raw = '<think>reasoning...</think>{"key": "value", "arr": [1,';
+ * const partial = await jsonParser.parse(raw, Allow.ALL, ctx);
+ * console.log(partial); // { key: 'value', arr: [1] }
  * ```
  */
 export const jsonParser = new JsonParser();

@@ -9,27 +9,36 @@ import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { runtimeCaps } from '@/utils/internal/runtime.js';
 
 /**
- * Options for the fetchWithTimeout utility.
- * Extends standard RequestInit but omits 'signal' as it's handled internally.
+ * Options for the `fetchWithTimeout` utility.
+ *
+ * Extends the standard `RequestInit` type, omitting `signal` (which is managed
+ * internally via `AbortController`) and adding SSRF protection and caller-supplied
+ * cancellation options.
  */
 export interface FetchWithTimeoutOptions extends Omit<RequestInit, 'signal'> {
   /**
-   * When true, rejects requests to private/reserved IP ranges and localhost.
-   * Use this when fetching user-controlled URLs to prevent SSRF attacks
-   * against internal services (e.g., cloud metadata endpoints, internal APIs).
+   * When `true`, rejects requests to private/reserved IP ranges and localhost.
    *
-   * On Node.js, also resolves DNS and validates all A/AAAA records against
-   * private ranges. On Workers, only string-based checks apply (no DNS API).
+   * Use this when fetching user-controlled URLs to prevent SSRF attacks against
+   * internal services (e.g., cloud metadata endpoints, internal APIs). Covered
+   * ranges include RFC 1918, loopback (127.x, ::1), link-local (169.254.x),
+   * CGNAT (100.64–127.x), and known internal hostnames (e.g., `metadata.google.internal`).
    *
-   * When enabled, redirects are followed manually with SSRF validation on each hop.
+   * On Node.js, DNS is also resolved and all A/AAAA records are validated against
+   * private ranges before the request is sent. On Workers, only string-based
+   * hostname/IP checks apply (no DNS API available).
    *
-   * Default: false (no restriction).
+   * When enabled, redirects are followed manually (up to {@link MAX_SSRF_REDIRECTS}
+   * hops) with SSRF validation applied to each redirect target.
+   *
+   * Default: `false` (no restriction).
    */
   rejectPrivateIPs?: boolean;
   /**
-   * Optional external AbortSignal (e.g., from sdkContext.signal) to combine
-   * with the internal timeout signal. If the external signal aborts, the
-   * fetch is cancelled immediately.
+   * An optional external `AbortSignal` (e.g., `ctx.signal` from the request context)
+   * to combine with the internal timeout signal. If this signal aborts before the
+   * timeout fires, the fetch is cancelled immediately and a `McpError` with code
+   * `InternalError` is thrown.
    */
   signal?: AbortSignal;
 }
@@ -68,7 +77,12 @@ const PRIVATE_HOSTNAMES = new Set(['localhost', 'metadata.google.internal', 'met
 const MAX_SSRF_REDIRECTS = 5;
 
 /**
- * Checks whether a resolved IP address falls within private/reserved ranges.
+ * Checks whether a resolved IP address (v4 or v6) falls within a private or
+ * reserved range as defined by {@link PRIVATE_IP_PATTERNS} and
+ * {@link PRIVATE_IPV6_PREFIXES}.
+ *
+ * @param ip - The IP address string to check (bare, no brackets).
+ * @returns `true` if the address is private or reserved, `false` otherwise.
  */
 function isPrivateIP(ip: string): boolean {
   if (PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(ip))) return true;
@@ -78,9 +92,19 @@ function isPrivateIP(ip: string): boolean {
 }
 
 /**
- * Validates that a URL does not target private/reserved IP space.
- * On Node.js, also resolves DNS and checks all resolved IPs.
- * @throws {McpError} If the hostname resolves to a private IP or is a known internal hostname.
+ * Validates that a URL string does not target private or reserved IP space.
+ *
+ * Performs three checks in order:
+ * 1. Known private hostnames (`localhost`, `metadata.google.internal`, etc.)
+ * 2. Literal IPv4/IPv6 addresses in the URL hostname
+ * 3. DNS resolution (Node.js only) — resolves A and AAAA records and validates each
+ *
+ * DNS resolution failures (ENOTFOUND, etc.) are swallowed and left for the native
+ * `fetch` to handle; only confirmed private IPs cause rejection.
+ *
+ * @param urlString - The fully-qualified URL string to validate.
+ * @throws {McpError} `ValidationError` if the URL is malformed, the hostname is a known
+ *   internal name, the literal IP is private, or DNS resolves to a private address.
  */
 async function assertNotPrivateUrl(urlString: string): Promise<void> {
   let parsed: URL;
@@ -123,8 +147,14 @@ async function assertNotPrivateUrl(urlString: string): Promise<void> {
 }
 
 /**
- * Resolves DNS for a hostname and validates that no resolved IP is private.
- * Swallows DNS resolution failures (ENOTFOUND etc.) — let fetch handle those.
+ * Resolves DNS for a hostname (A and AAAA records in parallel) and confirms
+ * that none of the resolved IP addresses fall within private or reserved ranges.
+ *
+ * DNS resolution errors (e.g., `ENOTFOUND`) are silently swallowed — they are
+ * not an SSRF signal and are better handled by the native `fetch` call.
+ *
+ * @param hostname - The bare hostname to resolve (no brackets, no port).
+ * @throws {McpError} `ValidationError` if any resolved address is private.
  */
 async function assertDnsNotPrivate(hostname: string): Promise<void> {
   try {
@@ -155,16 +185,58 @@ async function assertDnsNotPrivate(hostname: string): Promise<void> {
 }
 
 /**
- * Fetches a resource with a specified timeout and optional SSRF protection.
+ * Fetches a resource with a configurable timeout and optional SSRF protection.
  *
- * @param url - The URL to fetch.
- * @param timeoutMs - The timeout duration in milliseconds.
- * @param context - The request context for logging.
- * @param options - Optional fetch options (RequestInit), excluding 'signal'.
- *   Set `rejectPrivateIPs: true` when fetching user-controlled URLs.
- * @returns A promise that resolves to the Response object.
- * @throws {McpError} If the request times out, targets a private IP (when enabled),
- *   or another fetch-related error occurs.
+ * Internally manages an `AbortController` that fires after `timeoutMs`. An optional
+ * external `signal` (e.g., `ctx.signal`) can be passed via `options` to support
+ * early cancellation by the caller. The two signals are composed — whichever fires
+ * first wins.
+ *
+ * When `options.rejectPrivateIPs` is `true`, the target URL is validated before the
+ * request is sent, and all redirects are followed manually with per-hop SSRF checks
+ * (up to 5 hops). This mode forces `redirect: 'manual'` on the underlying fetch.
+ *
+ * Non-2xx responses are treated as errors: the response body is read, logged, and
+ * wrapped in a `McpError` with code `ServiceUnavailable`.
+ *
+ * @param url - The URL to fetch (string or `URL` instance).
+ * @param timeoutMs - Maximum duration in milliseconds before the request is aborted.
+ * @param context - Request context used for structured logging (requestId, operation, etc.).
+ * @param options - Optional fetch configuration extending `RequestInit`.
+ *   - `rejectPrivateIPs`: Block requests to private/internal IP space (SSRF protection).
+ *   - `signal`: External `AbortSignal` to cancel the request independently of the timeout.
+ *   - All other standard `RequestInit` fields (method, headers, body, etc.) are forwarded.
+ * @returns A promise resolving to the `Response` object on HTTP 2xx.
+ * @throws {McpError} `ValidationError` if the URL targets a private/reserved address
+ *   and `rejectPrivateIPs` is enabled.
+ * @throws {McpError} `Timeout` if the request exceeds `timeoutMs`.
+ * @throws {McpError} `InternalError` if the request is cancelled via the external signal.
+ * @throws {McpError} `ServiceUnavailable` if the server returns a non-2xx status or a
+ *   network-level error occurs.
+ * @example
+ * ```ts
+ * // Basic GET with a 5-second timeout
+ * const response = await fetchWithTimeout(
+ *   'https://api.example.com/data',
+ *   5000,
+ *   ctx,
+ * );
+ * const data = await response.json();
+ *
+ * // POST with SSRF protection and caller-cancellable signal
+ * const response = await fetchWithTimeout(
+ *   userProvidedUrl,
+ *   10_000,
+ *   ctx,
+ *   {
+ *     method: 'POST',
+ *     headers: { 'Content-Type': 'application/json' },
+ *     body: JSON.stringify(payload),
+ *     rejectPrivateIPs: true,
+ *     signal: ctx.signal,
+ *   },
+ * );
+ * ```
  */
 export async function fetchWithTimeout(
   url: string | URL,

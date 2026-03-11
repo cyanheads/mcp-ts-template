@@ -1,7 +1,11 @@
 /**
  * @fileoverview Provides a utility class for parsing XML strings.
- * It wraps the 'fast-xml-parser' library and includes functionality to handle
- * optional <think>...</think> blocks often found at the beginning of LLM outputs.
+ * Wraps the `fast-xml-parser` peer dependency (lazy-loaded on first use) and strips
+ * optional `<think>...</think>` blocks that LLMs sometimes prepend to structured
+ * output before parsing. The underlying `XMLParser` instance is created once with
+ * `processEntities: false` and `htmlEntities: false` and reused for all calls.
+ *
+ * Peer dependency: `fast-xml-parser` — install with `bun add fast-xml-parser`.
  * @module src/utils/parsing/xmlParser
  */
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
@@ -23,20 +27,42 @@ async function getFxp() {
 
 /**
  * Utility class for parsing XML strings.
- * Wraps the 'fast-xml-parser' library for robust XML parsing and handles
- * optional <think> blocks from LLMs.
+ *
+ * Lazily loads `fast-xml-parser` on first use (peer dependency — install with
+ * `bun add fast-xml-parser`). The `XMLParser` instance is constructed once at first
+ * call with `{ processEntities: false, htmlEntities: false }` and cached for subsequent
+ * calls. Handles optional `<think>...</think>` blocks that some LLMs prepend to
+ * structured output; the block's content is logged at debug level and stripped before
+ * parsing.
  */
 export class XmlParser {
   /**
-   * Parses an XML string, which may be prefixed with a <think> block.
-   * If a <think> block is present, its content is logged, and parsing proceeds on the
-   * remainder.
+   * Parses an XML string into a typed JavaScript object.
    *
-   * @template T The expected type of the parsed XML object. Defaults to `any`.
-   * @param xmlString - The XML string to parse.
-   * @param context - Optional `RequestContext` for logging and error correlation.
-   * @returns The parsed JavaScript object.
-   * @throws {McpError} If the string is empty after processing or if parsing fails.
+   * This method is async because `fast-xml-parser` is loaded lazily on first call.
+   * If the input begins with a `<think>...</think>` block, that block is stripped
+   * and its content logged before parsing the remainder. The parser is configured with
+   * `processEntities: false` and `htmlEntities: false` — entity references are passed
+   * through as-is.
+   *
+   * @template T - The expected type of the parsed result. Defaults to `unknown`.
+   * @param xmlString - The XML string to parse. May be prefixed with a `<think>` block.
+   * @param context - Optional request context for correlated logging and error metadata.
+   * @returns A promise resolving to the parsed object cast to `T`.
+   * @throws {McpError} With code `ConfigurationError` if `fast-xml-parser` is not installed.
+   * @throws {McpError} With code `ValidationError` if the string is empty after stripping
+   *   the `<think>` block, or if `fast-xml-parser` throws during parsing.
+   * @example
+   * ```typescript
+   * import { xmlParser } from '@/utils/parsing/xmlParser.js';
+   *
+   * const result = await xmlParser.parse<{ root: { key: string } }>('<root><key>value</key></root>');
+   * console.log(result.root.key); // 'value'
+   *
+   * // LLM output with a <think> preamble
+   * const fromLlm = await xmlParser.parse('<think>reasoning</think>\n<root><key>value</key></root>');
+   * console.log(fromLlm); // { root: { key: 'value' } }
+   * ```
    */
   async parse<T = unknown>(xmlString: string, context?: RequestContext): Promise<T> {
     let stringToParse = xmlString;
@@ -107,20 +133,28 @@ export class XmlParser {
 }
 
 /**
- * Singleton instance of the `XmlParser`.
- * Use this instance to parse XML strings, with support for <think> blocks.
+ * Singleton instance of {@link XmlParser}.
+ *
+ * Prefer this over constructing a new `XmlParser` directly. Lazily loads `fast-xml-parser`
+ * on first call and caches the `XMLParser` instance, so there is no startup cost if XML
+ * parsing is never used.
+ *
  * @example
  * ```typescript
- * import { xmlParser, requestContextService } from './utils';
- * const context = requestContextService.createRequestContext({ operation: 'TestXmlParsing' });
+ * import { xmlParser } from '@/utils/parsing/xmlParser.js';
  *
- * const xml = '<root><key>value</key></root>';
- * const parsedXml = xmlParser.parse(xml, context);
- * console.log(parsedXml); // Output: { root: { key: 'value' } }
+ * // Basic parse
+ * const result = await xmlParser.parse<{ root: { id: string } }>('<root><id>42</id></root>');
+ * console.log(result.root.id); // '42'
  *
- * const xmlWithThink = '<think>This is a thought.</think><root><key>value</key></root>';
- * const parsedWithThink = xmlParser.parse(xmlWithThink, context);
- * console.log(parsedWithThink); // Output: { root: { key: 'value' } }
+ * // With request context for correlated logging
+ * import { requestContextService } from '@/utils/internal/requestContext.js';
+ * const ctx = requestContextService.createRequestContext({ operation: 'parseResponse' });
+ * const data = await xmlParser.parse<ApiResponse>(rawXml, ctx);
+ *
+ * // Strips LLM <think> preamble automatically
+ * const fromLlm = await xmlParser.parse('<think>let me think</think>\n<root><key>value</key></root>');
+ * console.log(fromLlm); // { root: { key: 'value' } }
  * ```
  */
 export const xmlParser = new XmlParser();

@@ -27,11 +27,29 @@ import type { ErrorHandlerOptions, ErrorMapping } from './types.js';
 export class ErrorHandler {
   /**
    * Determines an appropriate `JsonRpcErrorCode` for a given error.
-   * Checks `McpError` instances, `ERROR_TYPE_MAPPINGS`, and pre-compiled error patterns.
-   * Includes provider-specific patterns for better external service error classification.
-   * Defaults to `JsonRpcErrorCode.InternalError`.
+   *
+   * Resolution order:
+   * 1. `McpError` instances — returns `error.code` directly.
+   * 2. Standard JS error constructor names via `ERROR_TYPE_MAPPINGS` (e.g. `TypeError` → `ValidationError`).
+   * 3. Provider-specific patterns (AWS, HTTP status codes, Supabase, OpenRouter) — checked before common patterns for specificity.
+   * 4. Common message/name patterns (auth, not-found, rate-limit, etc.).
+   * 5. `AbortError` name — mapped to `Timeout`.
+   * 6. Falls back to `JsonRpcErrorCode.InternalError`.
+   *
    * @param error - The error instance or value to classify.
-   * @returns The determined error code.
+   * @returns The most specific `JsonRpcErrorCode` that fits the error.
+   *
+   * @example
+   * ```ts
+   * ErrorHandler.determineErrorCode(new McpError(JsonRpcErrorCode.NotFound, 'missing'));
+   * // → JsonRpcErrorCode.NotFound
+   *
+   * ErrorHandler.determineErrorCode(new TypeError('bad input'));
+   * // → JsonRpcErrorCode.ValidationError
+   *
+   * ErrorHandler.determineErrorCode(new Error('status code 429'));
+   * // → JsonRpcErrorCode.RateLimited
+   * ```
    */
   public static determineErrorCode(error: unknown): JsonRpcErrorCode {
     if (error instanceof McpError) {
@@ -73,11 +91,34 @@ export class ErrorHandler {
   }
 
   /**
-   * Handles an error with consistent logging and optional transformation.
-   * Sanitizes input, determines error code, logs details, and can rethrow.
+   * Handles an error with consistent logging, OpenTelemetry integration, and optional transformation.
+   *
+   * Steps performed:
+   * 1. Records the exception on the active OTel span and sets span status to ERROR.
+   * 2. Sanitizes `options.input` via `sanitizeInputForLogging` before including in logs.
+   * 3. Extracts and consolidates error data, original stack, and the full cause chain.
+   * 4. Wraps non-`McpError` errors in a new `McpError` (or delegates to `options.errorMapper`).
+   * 5. Logs the result at `error` level via the global logger with full structured context.
+   * 6. Returns the processed error, or rethrows it if `options.rethrow` is `true`.
+   *
    * @param error - The error instance or value that occurred.
-   * @param options - Configuration for handling the error.
-   * @returns The handled (and potentially transformed) error instance.
+   * @param options - Configuration controlling transformation, logging, and rethrow behavior.
+   * @returns The processed `Error` instance (a `McpError` unless `errorMapper` returns something else).
+   *
+   * @example
+   * ```ts
+   * // Log and return without rethrowing
+   * const handled = ErrorHandler.handleError(err, { operation: 'fetchUser', context: { requestId } });
+   *
+   * // Log and rethrow
+   * ErrorHandler.handleError(err, { operation: 'fetchUser', rethrow: true });
+   *
+   * // Custom error transformation
+   * ErrorHandler.handleError(err, {
+   *   operation: 'fetchUser',
+   *   errorMapper: (e) => new MyDomainError(getErrorMessage(e)),
+   * });
+   * ```
    */
   public static handleError(error: unknown, options: ErrorHandlerOptions): Error {
     // --- OpenTelemetry Integration ---
@@ -211,13 +252,29 @@ export class ErrorHandler {
   }
 
   /**
-   * Maps an error to a specific error type `T` based on `ErrorMapping` rules.
-   * Returns original/default error if no mapping matches.
+   * Maps an error to a specific error type `T` by testing it against an ordered list of `ErrorMapping` rules.
+   *
+   * Each mapping's `pattern` is tested (case-insensitively) against both the error message and error name.
+   * The first matching rule's `factory` is called with the original error and the mapping's `additionalContext`.
+   * If no rule matches and `defaultFactory` is provided, it is called instead.
+   * If neither matches, returns the original `Error` or wraps non-Error values in a plain `Error`.
+   *
    * @template T The target error type, extending `Error`.
    * @param error - The error instance or value to map.
-   * @param mappings - An array of mapping rules to apply.
-   * @param defaultFactory - Optional factory for a default error if no mapping matches.
-   * @returns The mapped error of type `T`, or the original/defaulted error.
+   * @param mappings - An ordered array of mapping rules; first match wins.
+   * @param defaultFactory - Optional factory invoked when no mapping rule matches.
+   * @returns The mapped error of type `T`, or the original/wrapped error if no rule matched.
+   *
+   * @example
+   * ```ts
+   * const mapped = ErrorHandler.mapError(err, [
+   *   {
+   *     pattern: /not found/i,
+   *     errorCode: JsonRpcErrorCode.NotFound,
+   *     factory: (e) => new McpError(JsonRpcErrorCode.NotFound, getErrorMessage(e)),
+   *   },
+   * ]);
+   * ```
    */
   public static mapError<T extends Error>(
     error: unknown,
@@ -242,9 +299,23 @@ export class ErrorHandler {
   }
 
   /**
-   * Formats an error into a consistent object structure for API responses or structured logging.
+   * Formats an error into a consistent `{ code, message, data }` structure for API responses or structured logging.
+   *
+   * - `McpError` → `{ code: error.code, message: error.message, data: error.data ?? {} }`
+   * - `Error` → `{ code: determineErrorCode(error), message: error.message, data: { errorType: error.name } }`
+   * - Other values → `{ code: JsonRpcErrorCode.UnknownError, message: getErrorMessage(value), data: { errorType: getErrorName(value) } }`
+   *
    * @param error - The error instance or value to format.
-   * @returns A structured representation of the error.
+   * @returns A plain object with `code` (numeric `JsonRpcErrorCode`), `message` (string), and `data` (object).
+   *
+   * @example
+   * ```ts
+   * const formatted = ErrorHandler.formatError(new McpError(JsonRpcErrorCode.NotFound, 'Item missing'));
+   * // → { code: -32001, message: 'Item missing', data: {} }
+   *
+   * const formatted2 = ErrorHandler.formatError(new TypeError('bad arg'));
+   * // → { code: -32007, message: 'bad arg', data: { errorType: 'TypeError' } }
+   * ```
    */
   public static formatError(error: unknown): Record<string, unknown> {
     if (error instanceof McpError) {
@@ -271,13 +342,26 @@ export class ErrorHandler {
   }
 
   /**
-   * Safely executes a function (sync or async) and handles errors using `ErrorHandler.handleError`.
-   * The error is always rethrown after logging/transformation.
-   * @template T The expected return type of the function `fn`.
-   * @param fn - The function to execute.
-   * @param options - Error handling options (excluding `rethrow`).
-   * @returns A promise resolving with the result of `fn` if successful.
-   * @throws {McpError | Error} The error processed by `ErrorHandler.handleError`.
+   * Safely executes a synchronous or asynchronous function, logging and rethrowing any error.
+   *
+   * Equivalent to wrapping `fn` in a try/catch that calls `ErrorHandler.handleError` with `rethrow: true`.
+   * The processed `McpError` (or custom-mapped error) is always thrown — this method never swallows errors.
+   * Use this in service code where you want structured logging and OTel integration without duplicating
+   * error-handling boilerplate.
+   *
+   * @template T The expected return type of `fn`.
+   * @param fn - The function to execute. May be synchronous or return a `Promise`.
+   * @param options - Error handling options passed to `handleError` (`rethrow` is always `true` and cannot be overridden).
+   * @returns A promise that resolves with the return value of `fn` on success.
+   * @throws {McpError | Error} The processed error from `ErrorHandler.handleError` on failure.
+   *
+   * @example
+   * ```ts
+   * const user = await ErrorHandler.tryCatch(
+   *   () => db.findUser(id),
+   *   { operation: 'findUser', context: { requestId, userId: id } },
+   * );
+   * ```
    */
   public static async tryCatch<T>(
     fn: () => Promise<T> | T,

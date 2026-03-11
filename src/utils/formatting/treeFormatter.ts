@@ -10,25 +10,55 @@ import { type RequestContext, requestContextService } from '@/utils/internal/req
 
 /**
  * Tree output style options.
+ *
+ * - `unicode`: Box-drawing characters (`├──`, `└──`, `│`) — best for terminal output.
+ * - `ascii`:   ASCII characters (`+--`, `\--`, `|`) — safe for environments without Unicode support.
+ * - `compact`: Simple indented list with no connectors — minimal decoration.
+ *
+ * @example
+ * ```
+ * // unicode
+ * root
+ * ├── child1
+ * └── child2
+ *
+ * // ascii
+ * root
+ * +-- child1
+ * \-- child2
+ *
+ * // compact
+ * root
+ *   child1
+ *   child2
+ * ```
  */
 export type TreeStyle = 'ascii' | 'unicode' | 'compact';
 
 /**
  * Node in a hierarchical tree structure.
+ *
+ * Nodes are recursive: any node can have `children`, forming an arbitrarily deep tree.
+ * Circular references (a node appearing in its own descendant chain) are detected at
+ * render time and replaced with a `[Circular Reference]` marker.
  */
 export interface TreeNode {
   /**
-   * Optional child nodes.
+   * Child nodes nested under this node.
+   * A node with children is treated as a "folder" node; one without is a "leaf" node.
+   * This distinction affects icon selection when `icons` is enabled.
    */
   children?: TreeNode[];
 
   /**
-   * Optional metadata to display alongside the node.
-   * Example: file size, count, type, etc.
+   * Arbitrary key-value metadata to display alongside the node name.
+   * When `showMetadata` is enabled, entries are rendered as `key=value` pairs in
+   * parentheses after the node name — e.g. `file.txt (size=1KB, type=text)`.
    */
   metadata?: Record<string, unknown>;
+
   /**
-   * Display name for this node.
+   * Display name for this node. Must be a non-empty string.
    */
   name: string;
 }
@@ -38,45 +68,49 @@ export interface TreeNode {
  */
 export interface TreeFormatterOptions {
   /**
-   * Icon to use for leaf nodes (files).
-   * Default: '📄'
+   * Icon to use for leaf nodes (nodes without children) when `icons` is enabled.
+   * Default: `'📄'`
    */
   fileIcon?: string;
 
   /**
-   * Icon to use for nodes with children (folders).
-   * Default: '📁'
+   * Icon to use for branch nodes (nodes with children) when `icons` is enabled.
+   * Default: `'📁'`
    */
   folderIcon?: string;
 
   /**
-   * Whether to include icons/emojis for nodes.
-   * Default: false
+   * Whether to prefix each node name with an icon.
+   * Leaf nodes use `fileIcon`; branch nodes use `folderIcon`.
+   * Default: `false`
    */
   icons?: boolean;
 
   /**
-   * Indentation string for each level.
-   * Default: '  ' (two spaces)
+   * String used to indent each level of the tree.
+   * Combined with vertical connector characters for `unicode` and `ascii` styles
+   * to keep the tree visually aligned. Must be at least one character wide.
+   * Default: `'  '` (two spaces)
    */
   indent?: string;
 
   /**
-   * Maximum depth to render. Nodes beyond this depth are omitted.
-   * Default: undefined (no limit)
+   * Maximum depth to render (0-based). Nodes at depth greater than this value are
+   * omitted entirely. `undefined` means no limit.
+   * Default: `undefined`
    */
   maxDepth?: number;
 
   /**
-   * Whether to display metadata alongside nodes.
-   * Default: false
+   * Whether to append node metadata after each node name.
+   * Metadata entries are rendered as `key=value` pairs enclosed in parentheses.
+   * Default: `false`
    */
   showMetadata?: boolean;
+
   /**
-   * Tree rendering style.
-   * - ascii: ASCII characters (+, -, |)
-   * - unicode: Unicode box-drawing characters (├, └, │, ─)
-   * - compact: Simple indentation with minimal decoration
+   * Visual style used to draw branch connectors. See {@link TreeStyle} for details.
+   * Default: `'unicode'`
    */
   style?: TreeStyle;
 }
@@ -91,7 +125,31 @@ type ResolvedTreeOptions = Required<Omit<TreeFormatterOptions, 'maxDepth'>> & {
 
 /**
  * Utility class for formatting hierarchical data as tree structures.
- * Visualizes nested data like directory structures, org charts, or any hierarchical data.
+ *
+ * Renders a {@link TreeNode} graph as a multi-line string using ASCII, Unicode
+ * box-drawing, or compact indented styles. Handles arbitrary depth, optional icons,
+ * inline metadata, and detects circular references at render time.
+ *
+ * Use the exported {@link treeFormatter} singleton rather than constructing directly.
+ *
+ * @example
+ * ```typescript
+ * import { treeFormatter } from '@/utils/formatting/treeFormatter.js';
+ *
+ * const tree: TreeNode = {
+ *   name: 'src',
+ *   children: [
+ *     { name: 'index.ts' },
+ *     { name: 'utils', children: [{ name: 'helper.ts' }] },
+ *   ],
+ * };
+ *
+ * console.log(treeFormatter.format(tree, { style: 'unicode' }));
+ * // src
+ * // ├── index.ts
+ * // └── utils
+ * //     └── helper.ts
+ * ```
  */
 export class TreeFormatter {
   /**
@@ -115,14 +173,20 @@ export class TreeFormatter {
   private seenNodes = new Set<TreeNode>();
 
   /**
-   * Format a single tree structure.
-   * Renders the tree with the specified style and options.
+   * Format a single tree into a multi-line string.
    *
-   * @param root - Root node of the tree
-   * @param options - Tree formatting options
-   * @param context - Optional request context for logging
-   * @returns Formatted tree string
-   * @throws {McpError} If tree is invalid or rendering fails
+   * Merges `options` with defaults, resets circular-reference tracking, then
+   * recursively renders each node with branch connectors, optional icons, and
+   * optional metadata. Lines are joined with `\n`.
+   *
+   * @param root - Root node of the tree. Must have a non-empty `name` string.
+   * @param options - Formatting options. Merged with defaults; all fields are optional.
+   * @param context - Optional request context for correlated log output. A new context
+   *   is created automatically when omitted.
+   * @returns Multi-line tree string. The root node appears on the first line with no
+   *   connector prefix; child nodes are indented and prefixed with branch connectors.
+   * @throws {McpError} With code `ValidationError` if `root` is missing or has no `name`.
+   * @throws {McpError} With code `InternalError` if rendering fails unexpectedly.
    *
    * @example
    * ```typescript
@@ -134,12 +198,18 @@ export class TreeFormatter {
    *       name: 'utils',
    *       children: [
    *         { name: 'helper.ts' },
-   *         { name: 'types.ts' }
-   *       ]
-   *     }
-   *   ]
+   *         { name: 'types.ts' },
+   *       ],
+   *     },
+   *   ],
    * };
-   * const formatted = treeFormatter.format(tree, { style: 'unicode', icons: true });
+   *
+   * console.log(treeFormatter.format(tree, { style: 'unicode', icons: true }));
+   * // 📁 src
+   * // ├── 📄 index.ts
+   * // └── 📁 utils
+   * //     ├── 📄 helper.ts
+   * //     └── 📄 types.ts
    * ```
    */
   format(root: TreeNode, options?: TreeFormatterOptions, context?: RequestContext): string {
@@ -204,23 +274,35 @@ export class TreeFormatter {
   }
 
   /**
-   * Format multiple tree roots (forest visualization).
-   * Useful for displaying multiple top-level structures.
+   * Format multiple independent trees (forest) into a single string.
    *
-   * @param roots - Array of root nodes
-   * @param options - Tree formatting options
-   * @param context - Optional request context for logging
-   * @returns Formatted tree string
-   * @throws {McpError} If trees are invalid or rendering fails
+   * Calls {@link format} on each root in order and joins the results with a blank
+   * line (`\n\n`) between them. Useful for rendering several top-level structures
+   * side-by-side in one output block (e.g. `src/`, `tests/`, `docs/`).
+   *
+   * @param roots - Non-empty array of root nodes. Each must satisfy the same
+   *   constraints as the `root` parameter of {@link format}.
+   * @param options - Formatting options applied uniformly to every tree.
+   * @param context - Optional request context for correlated log output. A new context
+   *   is created automatically when omitted.
+   * @returns Each formatted tree separated by a blank line.
+   * @throws {McpError} With code `ValidationError` if `roots` is empty or not an array.
+   * @throws {McpError} With code `ValidationError` / `InternalError` propagated from
+   *   {@link format} if any individual tree fails to render.
    *
    * @example
    * ```typescript
    * const roots = [
-   *   { name: 'src', children: [...] },
-   *   { name: 'tests', children: [...] },
-   *   { name: 'docs', children: [...] }
+   *   { name: 'src', children: [{ name: 'index.ts' }] },
+   *   { name: 'tests', children: [{ name: 'index.test.ts' }] },
    * ];
-   * const formatted = treeFormatter.formatMultiple(roots);
+   *
+   * console.log(treeFormatter.formatMultiple(roots, { style: 'unicode' }));
+   * // src
+   * // └── index.ts
+   * //
+   * // tests
+   * // └── index.test.ts
    * ```
    */
   formatMultiple(
@@ -267,7 +349,21 @@ export class TreeFormatter {
   }
 
   /**
-   * Recursively render a tree node and its children.
+   * Recursively render a tree node and its children into `lines`.
+   *
+   * Uses a post-order removal strategy for circular-reference detection: the node is
+   * added to `seenNodes` before descending into children and removed afterward, so
+   * the same node can appear in multiple independent branches without false positives —
+   * only true ancestor-descendant cycles are flagged.
+   *
+   * @param node - Current node to render.
+   * @param prefix - String prepended to every line produced by this call and its
+   *   descendants (carries the vertical-connector continuation from parent levels).
+   * @param isRoot - Whether this is the top-level node (suppresses the leading connector).
+   * @param isLast - Whether this node is the last sibling (determines corner vs. tee connector).
+   * @param lines - Accumulator array; rendered lines are pushed here in order.
+   * @param options - Resolved formatting options.
+   * @param depth - Current render depth (0 = root). Used to enforce `maxDepth`.
    * @private
    */
   private renderNode(
@@ -323,7 +419,16 @@ export class TreeFormatter {
   }
 
   /**
-   * Get the appropriate connector character based on style.
+   * Return the branch-connector string that precedes a node's name.
+   *
+   * For `type === 'circular'`, always uses a minimal connector regardless of style
+   * (compact: two spaces; others: corner or tee). For normal nodes, the connector
+   * depends on `style` and whether this is the last sibling.
+   *
+   * @param type - `'node'` for a normal node; `'circular'` for a cycle marker.
+   * @param isLast - Whether this node is the last among its siblings.
+   * @param style - Active tree style.
+   * @returns Connector string (e.g. `'└── '`, `'+-- '`, or `''`).
    * @private
    */
   private getConnector(type: 'node' | 'circular', isLast: boolean, style: TreeStyle): string {
@@ -344,7 +449,16 @@ export class TreeFormatter {
   }
 
   /**
-   * Get the prefix for child nodes based on parent's position.
+   * Return the prefix string to prepend to all lines produced by child nodes.
+   *
+   * When the parent is not the last sibling, a vertical connector (`│` for unicode,
+   * `|` for ascii) is prepended and padded to match `indent`'s width, keeping the
+   * tree visually connected. When the parent is last, a blank indent is used instead.
+   *
+   * @param isLast - Whether the parent node is the last among its siblings.
+   * @param style - Active tree style.
+   * @param indent - Configured indentation string (its length determines padding width).
+   * @returns Prefix string to pass as `prefix` when recursing into children.
    * @private
    */
   private getChildPrefix(isLast: boolean, style: TreeStyle, indent: string): string {
@@ -364,7 +478,15 @@ export class TreeFormatter {
   }
 
   /**
-   * Get icon for a node based on whether it has children.
+   * Return the icon prefix string for a node, or an empty string when icons are disabled.
+   *
+   * A node is treated as a "folder" (uses `folderIcon`) if it has at least one child;
+   * otherwise it uses `fileIcon`. The returned string includes a trailing space so
+   * the icon is separated from the node name.
+   *
+   * @param node - Node to select an icon for.
+   * @param options - Resolved formatting options.
+   * @returns Icon string with trailing space (e.g. `'📁 '`), or `''` if `icons` is false.
    * @private
    */
   private getIcon(
@@ -384,7 +506,16 @@ export class TreeFormatter {
   }
 
   /**
-   * Format metadata for display.
+   * Return the metadata suffix string for a node, or an empty string when metadata display
+   * is disabled or the node has no metadata.
+   *
+   * Entries are formatted as `key=value` pairs joined by `', '` and wrapped in
+   * parentheses: ` (size=1KB, type=text)`. All values are coerced to strings via
+   * `String()`. Returns `''` if the resulting entry list is empty.
+   *
+   * @param node - Node whose `metadata` record to format.
+   * @param options - Resolved formatting options (`showMetadata` must be `true` to emit output).
+   * @returns Metadata suffix string (e.g. `' (size=1KB)'`) or `''`.
    * @private
    */
   private formatMetadata(
@@ -451,9 +582,10 @@ export class TreeFormatter {
  *   ]
  * };
  *
- * console.log(treeFormatter.format(treeWithMeta, {
- *   showMetadata: true
- * }));
+ * console.log(treeFormatter.format(treeWithMeta, { showMetadata: true }));
+ * // files (count=3)
+ * // ├── file1.txt (size=1KB)
+ * // └── file2.txt (size=2KB)
  * ```
  */
 export const treeFormatter = new TreeFormatter();

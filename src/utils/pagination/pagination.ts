@@ -9,7 +9,7 @@
  * - Invalid cursors should result in error code -32602 (Invalid params)
  *
  * @see {@link https://modelcontextprotocol.io/specification/2025-06-18/utils/pagination | MCP Pagination Spec}
- * @module src/utils/pagination
+ * @module src/utils/pagination/pagination
  */
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
@@ -20,36 +20,48 @@ import type { RequestContext } from '@/utils/internal/requestContext.js';
 /**
  * Generic pagination state that can be encoded into a cursor.
  * Implementations can extend this with additional fields as needed.
+ * This is the data structure serialized into the opaque cursor token.
  */
 export interface PaginationState {
-  /** Maximum number of items per page */
+  /** Maximum number of items per page; must be a positive integer */
   limit: number;
-  /** Current page offset or starting position */
+  /** Zero-based index of the first item in the current page */
   offset: number;
-  /** Optional additional state (implementation-specific) */
+  /** Optional additional state preserved across pages (implementation-specific) */
   [key: string]: unknown;
 }
 
 /**
  * Result of a paginated operation.
+ * Returned by {@link paginateArray} and should be the shape returned by MCP list handlers.
+ * Per MCP spec, `nextCursor` must be omitted (not set to `null` or `""`) when no further pages exist.
  */
 export interface PaginatedResult<T> {
-  /** Array of items for the current page */
+  /** Items for the current page */
   items: T[];
-  /** Opaque cursor for the next page, undefined if no more results */
+  /**
+   * Opaque cursor token for the next page.
+   * Omitted entirely when this is the last page — do not set to `null` or `""`.
+   */
   nextCursor?: string;
-  /** Total count if available (optional, some backends may not support this efficiently) */
+  /**
+   * Total item count across all pages, if cheaply available.
+   * Optional — some backends cannot compute this efficiently.
+   */
   totalCount?: number;
 }
 
 /**
- * Encodes pagination state into an opaque cursor string.
- * Uses base64-encoded JSON for transparency during development.
- * Can be optimized to use more compact/opaque formats in production if needed.
+ * Encodes pagination state into an opaque base64url cursor string.
+ * Serializes `state` to JSON, then encodes as base64url (URL-safe, no padding).
+ * The format is an implementation detail — callers must treat the returned string as opaque.
  *
- * @param state - The pagination state to encode
- * @returns Base64-encoded cursor string
- * @throws {McpError} If encoding fails
+ * @param state - Pagination state to encode; must have `offset >= 0` and `limit > 0`
+ * @returns Base64url-encoded cursor string (no `+`, `/`, or `=` characters)
+ * @throws {McpError} With code `InternalError` (-32603) if JSON serialization fails
+ * @example
+ * const cursor = encodeCursor({ offset: 50, limit: 25 });
+ * // cursor is an opaque string like "eyJvZmZzZXQiOjUwLCJsaW1pdCI6MjV9"
  */
 export function encodeCursor(state: PaginationState): string {
   try {
@@ -69,12 +81,18 @@ export function encodeCursor(state: PaginationState): string {
 
 /**
  * Decodes an opaque cursor string back into pagination state.
- * Validates the cursor format and throws McpError for invalid cursors per spec.
+ * Reverses base64url encoding, parses the JSON, and validates the required fields:
+ * `offset` must be a non-negative number and `limit` must be a positive number.
+ * Logs a warning and throws `InvalidParams` on any failure, per MCP spec.
  *
- * @param cursor - The opaque cursor string to decode
- * @param context - Request context for logging
- * @returns Decoded pagination state
- * @throws {McpError} If cursor is invalid (code -32602)
+ * @param cursor - Opaque cursor string previously returned by {@link encodeCursor}
+ * @param context - Request context used to correlate warning log entries
+ * @returns Validated `PaginationState` decoded from the cursor
+ * @throws {McpError} With code `InvalidParams` (-32602) if the cursor is malformed,
+ *   base64-invalid, not valid JSON, or has an invalid `offset`/`limit` structure
+ * @example
+ * const state = decodeCursor(req.params.cursor, ctx);
+ * // state.offset and state.limit are safe to use directly
  */
 export function decodeCursor(cursor: string, context: RequestContext): PaginationState {
   try {
@@ -109,11 +127,23 @@ export function decodeCursor(cursor: string, context: RequestContext): Paginatio
 }
 
 /**
- * Extracts the cursor parameter from MCP request metadata.
- * Handles both params.cursor and _meta.cursor locations per spec.
+ * Extracts the cursor parameter from an MCP request's params object.
+ * Checks `params.cursor` first, then falls back to `params._meta.cursor`,
+ * matching both locations where MCP clients may supply the cursor token.
  *
- * @param params - Request params object
- * @returns Cursor string if present, undefined otherwise
+ * @param params - Optional request params object; may contain `cursor` at the top
+ *   level or nested under `_meta`
+ * @returns The cursor string if found in either location, `undefined` otherwise
+ * @example
+ * // Top-level cursor
+ * extractCursor({ cursor: 'abc123' }); // => 'abc123'
+ *
+ * // Nested under _meta
+ * extractCursor({ _meta: { cursor: 'abc123' } }); // => 'abc123'
+ *
+ * // No cursor present
+ * extractCursor({}); // => undefined
+ * extractCursor(undefined); // => undefined
  */
 export function extractCursor(params?: {
   cursor?: string;
@@ -123,15 +153,36 @@ export function extractCursor(params?: {
 }
 
 /**
- * Helper to paginate an in-memory array.
- * Useful for simple list operations that don't require database pagination.
+ * Paginates an in-memory array using opaque cursor-based pagination.
+ * Decodes the cursor (if provided) to determine offset and limit, slices the array,
+ * and returns a {@link PaginatedResult} with `nextCursor` set only when more items follow.
+ * When `cursorStr` is `undefined`, pagination starts from the beginning using `defaultPageSize`.
+ * When the decoded cursor's offset is beyond the array length, returns an empty items array.
+ * The cursor's `limit` is clamped to `maxPageSize` even if the encoded value is larger.
  *
- * @param items - Full array of items to paginate
- * @param cursorStr - Optional cursor from client request
- * @param defaultPageSize - Default page size if cursor doesn't specify
- * @param maxPageSize - Maximum allowed page size
- * @param context - Request context for logging
- * @returns Paginated result with nextCursor if more items exist
+ * @param items - Complete array of items to paginate; not mutated
+ * @param cursorStr - Opaque cursor token from the client, or `undefined` for the first page
+ * @param defaultPageSize - Page size to use when no cursor is present; must be a positive integer
+ * @param maxPageSize - Upper bound on items per page; cursor limit values are clamped to this
+ * @param context - Request context used for logging when cursor decoding fails
+ * @returns `PaginatedResult<T>` with the current page's items, `totalCount` set to `items.length`,
+ *   and `nextCursor` included only if additional pages remain
+ * @throws {McpError} With code `InvalidParams` (-32602) if `cursorStr` is present but invalid,
+ *   propagated from {@link decodeCursor}
+ * @example
+ * const allItems = ['a', 'b', 'c', 'd', 'e'];
+ *
+ * // First page (no cursor)
+ * const page1 = paginateArray(allItems, undefined, 2, 100, ctx);
+ * // => { items: ['a', 'b'], nextCursor: '<opaque>', totalCount: 5 }
+ *
+ * // Second page (using cursor from page1)
+ * const page2 = paginateArray(allItems, page1.nextCursor, 2, 100, ctx);
+ * // => { items: ['c', 'd'], nextCursor: '<opaque>', totalCount: 5 }
+ *
+ * // Last page
+ * const page3 = paginateArray(allItems, page2.nextCursor, 2, 100, ctx);
+ * // => { items: ['e'], totalCount: 5 }  (no nextCursor)
  */
 export function paginateArray<T>(
   items: T[],
@@ -177,8 +228,19 @@ export function paginateArray<T>(
 }
 
 /**
- * Default pagination configuration values.
- * These can be overridden via environment variables in config module.
+ * Default pagination configuration values used by {@link paginateArray} callers.
+ * These serve as sensible defaults; individual call sites may pass different values
+ * or defer to environment-variable-driven config parsed in the config module.
+ *
+ * @example
+ * import { DEFAULT_PAGINATION_CONFIG, paginateArray } from '@/utils/pagination/pagination.js';
+ * const result = paginateArray(
+ *   items,
+ *   cursorStr,
+ *   DEFAULT_PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
+ *   DEFAULT_PAGINATION_CONFIG.MAX_PAGE_SIZE,
+ *   ctx,
+ * );
  */
 export const DEFAULT_PAGINATION_CONFIG = {
   /** Default number of items per page */

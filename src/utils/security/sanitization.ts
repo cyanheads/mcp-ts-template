@@ -1,8 +1,15 @@
 /**
- * @fileoverview Provides a comprehensive `Sanitization` class for various input cleaning and validation tasks.
- * This module includes utilities for sanitizing HTML, strings, URLs, file paths, JSON, numbers,
- * and for redacting sensitive information from data intended for logging.
- * The path sanitization utilities are only available in a Node.js environment.
+ * @fileoverview Provides a comprehensive `Sanitization` class for various input cleaning and
+ * validation tasks. Includes utilities for sanitizing HTML, strings, URLs, file paths, JSON,
+ * and numbers, as well as redacting sensitive fields from data intended for logging.
+ *
+ * Several methods (`sanitizeHtml`, `sanitizeString`, `sanitizeUrl`, `sanitizeNumber`) are
+ * **async** because they lazy-load optional peer dependencies (`sanitize-html`, `validator`)
+ * on first use. If a required peer dependency is not installed, these methods throw a
+ * `McpError` with `JsonRpcErrorCode.ConfigurationError`.
+ *
+ * Path sanitization (`sanitizePath`) is synchronous but only available in Node.js environments.
+ *
  * @module src/utils/security/sanitization
  */
 import type sanitizeHtml from 'sanitize-html';
@@ -51,62 +58,105 @@ if (runtimeCaps.isNode) {
 }
 
 /**
- * Defines options for path sanitization to control how file paths are processed and validated.
+ * Options controlling how `sanitizePath` processes and validates file paths.
  */
 export interface PathSanitizeOptions {
-  /** If true, absolute paths are permitted (subject to `rootDir`). Default: false. */
+  /** If `true`, absolute paths are permitted (subject to `rootDir` containment). Default: `false`. */
   allowAbsolute?: boolean;
-  /** If provided, restricts sanitized paths to be relative to this directory. */
+  /**
+   * If provided, all paths are resolved relative to this directory and checked for containment.
+   * Any path that escapes the root via traversal (`../`) throws a `McpError`.
+   * The value is resolved with `path.resolve` before use.
+   */
   rootDir?: string;
-  /** If true, normalizes Windows backslashes to POSIX forward slashes. */
+  /** If `true`, normalizes Windows-style backslashes (`\`) to POSIX forward slashes (`/`). */
   toPosix?: boolean;
 }
 
 /**
- * Contains information about a path sanitization operation.
+ * Result returned by `sanitizePath`, describing the outcome of path sanitization.
  */
 export interface SanitizedPathInfo {
-  /** True if an absolute path was converted to relative due to `allowAbsolute: false`. */
+  /**
+   * `true` if the input was absolute but was converted to a relative path because
+   * `allowAbsolute` was `false` and a `rootDir` was provided.
+   */
   convertedToRelative: boolean;
-  /** The effective options used for sanitization, including defaults. */
+  /** The effective options used for sanitization, with defaults applied. */
   optionsUsed: PathSanitizeOptions;
-  /** The original path string before any processing. */
+  /** The original path string as passed to `sanitizePath`, before any processing. */
   originalInput: string;
   /** The final sanitized and normalized path string. */
   sanitizedPath: string;
-  /** True if the input path was absolute after initial normalization. */
+  /** `true` if the input path was absolute after initial `path.normalize`. */
   wasAbsolute: boolean;
 }
 
 /**
- * Defines options for context-specific string sanitization.
+ * Options for context-specific string sanitization passed to `sanitizeString`.
  */
 export interface SanitizeStringOptions {
-  /** Custom allowed HTML attributes if `context` is 'html'. */
+  /**
+   * Custom allowed HTML attributes, keyed by tag name (e.g., `{ a: ['href'] }`).
+   * Only used when `context` is `'html'`.
+   */
   allowedAttributes?: Record<string, string[]>;
-  /** Custom allowed HTML tags if `context` is 'html'. */
+  /**
+   * Custom list of allowed HTML tag names.
+   * Only used when `context` is `'html'`.
+   */
   allowedTags?: string[];
-  /** The context in which the string will be used. 'javascript' is disallowed. */
+  /**
+   * The context in which the sanitized string will be used. Determines how sanitization
+   * is performed. `'javascript'` is explicitly disallowed and will throw.
+   * Defaults to `'text'`.
+   */
   context?: 'text' | 'html' | 'attribute' | 'url' | 'javascript';
 }
 
 /**
- * Configuration options for HTML sanitization, mirroring `sanitize-html` library options.
+ * Configuration options for HTML sanitization, mirroring the `sanitize-html` library's options.
+ * Passed to `sanitizeHtml` to override the default allowlist.
  */
 export interface HtmlSanitizeConfig {
-  /** Specifies allowed attributes, either globally or per tag. */
+  /**
+   * Allowed HTML attributes, keyed by tag name or `'*'` for a global allowlist.
+   * Mirrors `sanitize-html`'s `IOptions['allowedAttributes']`.
+   */
   allowedAttributes?: sanitizeHtml.IOptions['allowedAttributes'];
-  /** An array of allowed HTML tag names. */
+  /**
+   * Allowed HTML tag names. Any tag not in this list is stripped from the output.
+   * Mirrors `sanitize-html`'s `allowedTags`.
+   */
   allowedTags?: string[];
-  /** If true, HTML comments are preserved. */
+  /**
+   * If `true`, HTML comments (`<!-- ... -->`) are preserved in the output.
+   * Internally this is implemented by adding `'!--'` to the `allowedTags` list.
+   */
   preserveComments?: boolean;
-  /** Custom functions to transform tags during sanitization. */
+  /**
+   * Custom tag-transform functions applied during sanitization.
+   * If omitted, `<a>` tags are automatically given `rel="noopener noreferrer"`.
+   * Mirrors `sanitize-html`'s `IOptions['transformTags']`.
+   */
   transformTags?: sanitizeHtml.IOptions['transformTags'];
 }
 
 /**
- * A singleton class providing various methods for input sanitization.
- * Aims to protect against common vulnerabilities like XSS and path traversal.
+ * Singleton class providing input sanitization across multiple categories:
+ * HTML (XSS prevention), URLs, file paths (traversal prevention), JSON, numbers,
+ * and log-safe redaction of sensitive fields.
+ *
+ * Obtain the singleton via `Sanitization.getInstance()` or use the pre-exported
+ * `sanitization` constant.
+ *
+ * @example
+ * ```ts
+ * import { sanitization } from '@/utils/security/sanitization.js';
+ *
+ * const clean = await sanitization.sanitizeHtml('<script>alert(1)</script><b>hi</b>');
+ * // => '<b>hi</b>'
+ * ```
  */
 export class Sanitization {
   /** @private */
@@ -206,8 +256,14 @@ export class Sanitization {
   private wordSensitiveSet!: Set<string>;
 
   /**
-   * Retrieves the singleton instance of the `Sanitization` class.
+   * Returns the singleton instance of `Sanitization`, creating it on first call.
+   *
    * @returns The singleton `Sanitization` instance.
+   * @example
+   * ```ts
+   * const san = Sanitization.getInstance();
+   * const safe = await san.sanitizeHtml(userInput);
+   * ```
    */
   public static getInstance(): Sanitization {
     if (!Sanitization.instance) {
@@ -217,8 +273,18 @@ export class Sanitization {
   }
 
   /**
-   * Sets or extends the list of sensitive field names for log sanitization.
-   * @param fields - An array of field names to add to the sensitive list.
+   * Extends the list of sensitive field names used by `sanitizeForLogging`.
+   * New names are merged with the existing list (deduplication applied, case-insensitive).
+   * Changes take effect immediately on subsequent `sanitizeForLogging` calls.
+   *
+   * @param fields - Field names to add to the sensitive list (e.g., `['myApiKey', 'session_id']`).
+   * @returns `void`
+   * @example
+   * ```ts
+   * sanitization.setSensitiveFields(['myApiKey', 'session_id']);
+   * sanitization.sanitizeForLogging({ myApiKey: 'abc123' });
+   * // => { myApiKey: '[REDACTED]' }
+   * ```
    */
   public setSensitiveFields(fields: string[]): void {
     this.sensitiveFields = [
@@ -235,18 +301,37 @@ export class Sanitization {
   }
 
   /**
-   * Gets a copy of the current list of sensitive field names.
-   * @returns An array of sensitive field names.
+   * Returns a copy of the current sensitive field names list.
+   * All names are lowercased. Mutating the returned array has no effect on internal state.
+   *
+   * @returns Array of lowercase sensitive field name strings.
+   * @example
+   * ```ts
+   * const fields = sanitization.getSensitiveFields();
+   * // => ['password', 'token', 'secret', ...]
+   * ```
    */
   public getSensitiveFields(): string[] {
     return [...this.sensitiveFields];
   }
 
   /**
-   * Gets pino-compliant redact paths covering sensitive field names at multiple nesting depths.
-   * Uses wildcard paths so fields like `auth.token` or `context.auth.secret` are redacted,
-   * not just top-level properties.
-   * @returns An array of fast-redact compatible paths for pino's `redact.paths` option.
+   * Returns pino-compatible redact path patterns covering sensitive field names at three
+   * nesting depths: top-level, one level deep, and two levels deep.
+   *
+   * For example, the field `'token'` generates:
+   * - `'token'` — matches `{ token: '...' }`
+   * - `'*.token'` — matches `{ auth: { token: '...' } }`
+   * - `'*.*.token'` — matches `{ context: { auth: { token: '...' } } }`
+   *
+   * Pass the result directly to pino's `redact.paths` option.
+   *
+   * @returns Array of fast-redact-compatible path strings for use in pino's `redact.paths`.
+   * @example
+   * ```ts
+   * import pino from 'pino';
+   * const log = pino({ redact: { paths: sanitization.getSensitivePinoFields(), censor: '[REDACTED]' } });
+   * ```
    */
   public getSensitivePinoFields(): string[] {
     return this.sensitiveFields.flatMap((field) => [
@@ -257,10 +342,28 @@ export class Sanitization {
   }
 
   /**
-   * Sanitizes an HTML string by removing potentially malicious tags and attributes.
-   * @param input - The HTML string to sanitize.
-   * @param config - Optional custom configuration for `sanitize-html`.
-   * @returns The sanitized HTML string. Returns an empty string if input is falsy.
+   * Sanitizes an HTML string using `sanitize-html`, stripping disallowed tags and attributes.
+   *
+   * This method is **async** because it lazy-loads the `sanitize-html` peer dependency on
+   * first call. By default, `<a>` tags receive `rel="noopener noreferrer"` automatically.
+   * The `style` attribute is intentionally excluded from the default allowlist to prevent
+   * CSS injection attacks.
+   *
+   * @param input - The HTML string to sanitize. Returns `''` immediately if falsy.
+   * @param config - Optional config overriding the default tag/attribute allowlists.
+   *   If omitted, the built-in defaults are used (see `defaultHtmlSanitizeConfig`).
+   * @returns Promise resolving to the sanitized HTML string.
+   * @throws {McpError} With `ConfigurationError` if `sanitize-html` is not installed.
+   * @example
+   * ```ts
+   * const safe = await sanitization.sanitizeHtml('<script>alert(1)</script><b>Hello</b>');
+   * // => '<b>Hello</b>'
+   *
+   * const custom = await sanitization.sanitizeHtml('<div class="x"><b>ok</b></div>', {
+   *   allowedTags: ['b'],
+   * });
+   * // => '<b>ok</b>'
+   * ```
    */
   public async sanitizeHtml(input: string, config?: HtmlSanitizeConfig): Promise<string> {
     if (!input) return '';
@@ -294,13 +397,35 @@ export class Sanitization {
   }
 
   /**
-   * Sanitizes a string based on its intended context (e.g., HTML, URL, text).
-   * **Important:** `context: 'javascript'` is disallowed due to security risks.
+   * Sanitizes a string according to its intended usage context.
    *
-   * @param input - The string to sanitize.
-   * @param options - Options specifying the sanitization context.
-   * @returns The sanitized string. Returns an empty string if input is falsy.
-   * @throws {McpError} If `options.context` is 'javascript', or URL validation fails.
+   * This method is **async** because it lazy-loads `sanitize-html` and/or `validator`
+   * depending on the requested context.
+   *
+   * | `context`      | Behavior |
+   * |----------------|----------|
+   * | `'text'`       | Strips all HTML tags and attributes (default). |
+   * | `'html'`       | Runs full HTML sanitization via `sanitizeHtml` (respects `allowedTags`/`allowedAttributes`). |
+   * | `'attribute'`  | Strips all tags and attributes — safe for use inside an HTML attribute value. |
+   * | `'url'`        | Validates the URL with `validator.isURL` (http/https only); returns `''` if invalid. |
+   * | `'javascript'` | **Disallowed.** Always throws `McpError`. |
+   *
+   * @param input - The string to sanitize. Returns `''` immediately if falsy.
+   * @param options - Context and optional allowlist overrides.
+   * @returns Promise resolving to the sanitized string, or `''` for invalid URLs.
+   * @throws {McpError} With `ValidationError` if `context` is `'javascript'`.
+   * @throws {McpError} With `ConfigurationError` if a required peer dep is not installed.
+   * @example
+   * ```ts
+   * await sanitization.sanitizeString('<b>hello</b>', { context: 'text' });
+   * // => 'hello'
+   *
+   * await sanitization.sanitizeString('https://example.com', { context: 'url' });
+   * // => 'https://example.com'
+   *
+   * await sanitization.sanitizeString('javascript:alert(1)', { context: 'url' });
+   * // => '' (logged as warning, not thrown)
+   * ```
    */
   public async sanitizeString(input: string, options: SanitizeStringOptions = {}): Promise<string> {
     if (!input) return '';
@@ -374,11 +499,30 @@ export class Sanitization {
   }
 
   /**
-   * Sanitizes a URL string by validating its format and protocol.
-   * @param input - The URL string to sanitize.
-   * @param allowedProtocols - Array of allowed URL protocols. Default: `['http', 'https']`.
-   * @returns The sanitized and trimmed URL string.
-   * @throws {McpError} If the URL is invalid or uses a disallowed protocol.
+   * Validates and sanitizes a URL string.
+   *
+   * This method is **async** because it lazy-loads the `validator` peer dependency on first call.
+   *
+   * Validation requires a protocol and host. Even if a protocol appears in `allowedProtocols`,
+   * the pseudo-protocols `javascript:`, `data:`, and `vbscript:` are always rejected.
+   *
+   * @param input - The URL string to sanitize. Leading/trailing whitespace is trimmed.
+   * @param allowedProtocols - URL schemes that are permitted. Defaults to `['http', 'https']`.
+   * @returns Promise resolving to the trimmed, validated URL string.
+   * @throws {McpError} With `ValidationError` if the URL is invalid, uses a disallowed protocol,
+   *   or uses a blocked pseudo-protocol (`javascript:`, `data:`, `vbscript:`).
+   * @throws {McpError} With `ConfigurationError` if `validator` is not installed.
+   * @example
+   * ```ts
+   * await sanitization.sanitizeUrl('https://example.com/path');
+   * // => 'https://example.com/path'
+   *
+   * await sanitization.sanitizeUrl('ftp://files.example.com', ['ftp', 'sftp']);
+   * // => 'ftp://files.example.com'
+   *
+   * await sanitization.sanitizeUrl('javascript:alert(1)');
+   * // throws McpError (ValidationError)
+   * ```
    */
   public async sanitizeUrl(
     input: string,
@@ -415,12 +559,33 @@ export class Sanitization {
   }
 
   /**
-   * Sanitizes a file path to prevent path traversal and normalize format.
-   * This method is only available in a Node.js environment.
+   * Sanitizes a file path, preventing path traversal attacks and normalizing format.
+   *
+   * This method is **synchronous** and only available in Node.js (uses `node:path`).
+   * Calling it in a non-Node.js environment (e.g., Cloudflare Workers) throws immediately.
+   *
+   * Traversal detection:
+   * - With `rootDir`: resolves the full path and asserts it starts within the root.
+   * - Without `rootDir`: resolves the relative path against CWD and asserts containment.
+   * - Null bytes (`\0`) in paths are always rejected.
+   *
    * @param input - The file path string to sanitize.
-   * @param options - Options to control sanitization behavior.
-   * @returns An object with the sanitized path and sanitization metadata.
-   * @throws {McpError} If the path is invalid, unsafe, or method is called in a non-Node.js environment.
+   * @param options - Options controlling absolute path permission, root directory, and POSIX normalization.
+   * @returns A `SanitizedPathInfo` object with the sanitized path and operation metadata.
+   * @throws {McpError} With `InternalError` if called outside a Node.js environment.
+   * @throws {McpError} With `ValidationError` if the path is empty, contains a null byte,
+   *   attempts traversal beyond `rootDir` or CWD, or is absolute when `allowAbsolute` is `false`.
+   * @example
+   * ```ts
+   * const result = sanitization.sanitizePath('../../etc/passwd', { rootDir: '/app/data' });
+   * // throws McpError (path traversal detected)
+   *
+   * const result = sanitization.sanitizePath('uploads/file.txt', { rootDir: '/app/data' });
+   * // => { sanitizedPath: 'uploads/file.txt', wasAbsolute: false, convertedToRelative: false, ... }
+   *
+   * const result = sanitization.sanitizePath('C:\\Users\\foo\\bar', { toPosix: true, allowAbsolute: true });
+   * // => { sanitizedPath: 'C:/Users/foo/bar', wasAbsolute: true, ... }
+   * ```
    */
   public sanitizePath(input: string, options: PathSanitizeOptions = {}): SanitizedPathInfo {
     if (!runtimeCaps.isNode || !pathModule) {
@@ -522,13 +687,30 @@ export class Sanitization {
   }
 
   /**
-   * Sanitizes a JSON string by parsing it to validate its format.
-   * Optionally checks if the JSON string exceeds a maximum allowed size.
-   * @template T The expected type of the parsed JSON object. Defaults to `unknown`.
-   * @param input - The JSON string to sanitize/validate.
-   * @param maxSize - Optional maximum allowed size of the JSON string in bytes.
-   * @returns The parsed JavaScript object.
-   * @throws {McpError} If input is not a string, too large, or invalid JSON.
+   * Validates and parses a JSON string, with an optional maximum byte-size guard.
+   *
+   * This method is **synchronous**. Byte length is computed via `Buffer.byteLength` in
+   * Node.js, `TextEncoder` in environments that support it, or falls back to `string.length`.
+   *
+   * @template T - Expected type of the parsed value. Defaults to `unknown`.
+   * @param input - The JSON string to validate and parse. Must be a `string`.
+   * @param maxSize - Optional maximum allowed UTF-8 byte length. Throws if exceeded.
+   * @returns The parsed JavaScript value cast to `T`.
+   * @throws {McpError} With `ValidationError` if:
+   *   - `input` is not a string
+   *   - `input` exceeds `maxSize` bytes
+   *   - `input` is not valid JSON
+   * @example
+   * ```ts
+   * const obj = sanitization.sanitizeJson<{ id: number }>('{"id":1}');
+   * // => { id: 1 }
+   *
+   * sanitization.sanitizeJson('{"big":"value"}', 5);
+   * // throws McpError (exceeds maxSize)
+   *
+   * sanitization.sanitizeJson('{bad json}');
+   * // throws McpError (invalid JSON)
+   * ```
    */
   public sanitizeJson<T = unknown>(input: string, maxSize?: number): T {
     try {
@@ -567,13 +749,33 @@ export class Sanitization {
   }
 
   /**
-   * Validates and sanitizes a numeric input, converting strings to numbers.
-   * Clamps the number to `min`/`max` if provided.
-   * @param input - The number or string to validate and sanitize.
-   * @param min - Minimum allowed value (inclusive).
-   * @param max - Maximum allowed value (inclusive).
-   * @returns The sanitized (and potentially clamped) number.
-   * @throws {McpError} If input is not a valid number, NaN, or Infinity.
+   * Validates a numeric input and optionally clamps it to a range.
+   *
+   * This method is **async** because string inputs are validated using the `validator` peer
+   * dependency, which is lazy-loaded on first call. Numeric inputs bypass the lazy load.
+   *
+   * - String inputs: trimmed and checked with `validator.isNumeric`, then parsed with `parseFloat`.
+   * - Number inputs: used directly.
+   * - `NaN` and `Infinity` are always rejected.
+   * - If `min` or `max` are provided, the value is silently clamped (a debug log is emitted).
+   *
+   * @param input - The number or numeric string to validate.
+   * @param min - Inclusive lower bound. If the value is below this, it is clamped to `min`.
+   * @param max - Inclusive upper bound. If the value is above this, it is clamped to `max`.
+   * @returns Promise resolving to the validated (and potentially clamped) number.
+   * @throws {McpError} With `ValidationError` if the input is not numeric, is `NaN`, or is `Infinity`.
+   * @throws {McpError} With `ConfigurationError` if `validator` is not installed (string input only).
+   * @example
+   * ```ts
+   * await sanitization.sanitizeNumber('42.5');
+   * // => 42.5
+   *
+   * await sanitization.sanitizeNumber(150, 0, 100);
+   * // => 100  (clamped to max)
+   *
+   * await sanitization.sanitizeNumber('abc');
+   * // throws McpError (ValidationError)
+   * ```
    */
   public async sanitizeNumber(input: number | string, min?: number, max?: number): Promise<number> {
     let value: number;
@@ -635,23 +837,30 @@ export class Sanitization {
   }
 
   /**
-   * Sanitizes input for logging by redacting sensitive fields.
-   * Creates a deep clone and replaces values of fields matching `this.sensitiveFields`
-   * (case-insensitive substring match) with "[REDACTED]".
+   * Produces a log-safe deep clone of `input` with sensitive field values replaced by `'[REDACTED]'`.
    *
-   * It uses `structuredClone` if available for a high-fidelity deep clone.
-   * If `structuredClone` is not available (e.g., in older Node.js environments),
-   * it falls back to `JSON.parse(JSON.stringify(input))`. This fallback has limitations:
-   * - `Date` objects are converted to ISO date strings.
-   * - `undefined` values within objects are removed.
-   * - `Map`, `Set`, `RegExp` objects are converted to empty objects (`{}`).
-   * - Functions are removed.
-   * - `BigInt` values will throw an error during `JSON.stringify` unless a `toJSON` method is provided.
-   * - Circular references will cause `JSON.stringify` to throw an error.
+   * This method is **synchronous**. It uses `structuredClone` for deep cloning. Sensitive field
+   * detection combines two strategies:
+   * - **Exact match**: the normalized key (lowercased, non-alphanumeric stripped) matches a
+   *   sensitive field name.
+   * - **Word match**: splitting the key by camelCase/snake_case/kebab-case tokens and checking
+   *   each token against the sensitive word set.
    *
-   * @param input - The input data to sanitize for logging.
-   * @returns A sanitized (deep cloned) version of the input, safe for logging.
-   *   Returns original input if not object/array, or "[Log Sanitization Failed]" on error.
+   * Non-object/non-array inputs (primitives, `null`) are returned as-is without cloning.
+   * If `structuredClone` itself throws (e.g., circular reference, uncloneable type), the method
+   * returns the string `'[Log Sanitization Failed]'` and emits an error log rather than throwing.
+   *
+   * @param input - The value to sanitize. Non-objects are returned unchanged.
+   * @returns A sanitized deep clone of `input` (with sensitive values redacted),
+   *   the original primitive if not an object, or `'[Log Sanitization Failed]'` on clone error.
+   * @example
+   * ```ts
+   * sanitization.sanitizeForLogging({ user: 'alice', password: 'secret', nested: { token: 'abc' } });
+   * // => { user: 'alice', password: '[REDACTED]', nested: { token: '[REDACTED]' } }
+   *
+   * sanitization.sanitizeForLogging('just a string');
+   * // => 'just a string'  (returned as-is)
+   * ```
    */
   public sanitizeForLogging(input: unknown): unknown {
     try {
@@ -714,6 +923,13 @@ export class Sanitization {
     }
   }
 
+  /**
+   * Normalizes a field name for sensitive-key lookup by lowercasing and stripping
+   * all non-alphanumeric characters. Used for exact-match detection in `redactSensitiveFields`.
+   * @param str - The raw field name string.
+   * @returns Lowercased alphanumeric-only version of `str`.
+   * @private
+   */
   private static normalizeName(str: string): string {
     return str.toLowerCase().replace(/[^a-z0-9]/g, '');
   }
@@ -729,15 +945,30 @@ export class Sanitization {
 }
 
 /**
- * Singleton instance of the `Sanitization` class.
- * Use this for all input sanitization tasks.
+ * Pre-constructed singleton instance of `Sanitization`.
+ * Use this for all input sanitization tasks rather than calling `Sanitization.getInstance()` directly.
+ *
+ * @example
+ * ```ts
+ * import { sanitization } from '@/utils/security/sanitization.js';
+ * const safe = await sanitization.sanitizeHtml(userHtml);
+ * ```
  */
 export const sanitization = Sanitization.getInstance();
 
 /**
- * Convenience function calling `sanitization.sanitizeForLogging`.
- * @param input - The input data to sanitize.
- * @returns A sanitized version of the input, safe for logging.
+ * Convenience wrapper around `sanitization.sanitizeForLogging`.
+ * Produces a log-safe deep clone of `input` with sensitive field values replaced by `'[REDACTED]'`.
+ *
+ * @param input - The value to sanitize. Non-objects are returned unchanged.
+ * @returns A sanitized deep clone of `input`, the original primitive if not an object,
+ *   or `'[Log Sanitization Failed]'` on clone error.
+ * @example
+ * ```ts
+ * import { sanitizeInputForLogging } from '@/utils/security/sanitization.js';
+ * logger.info('Request', sanitizeInputForLogging({ user: 'alice', token: 'secret' }));
+ * // logs: { user: 'alice', token: '[REDACTED]' }
+ * ```
  */
 export const sanitizeInputForLogging = (input: unknown): unknown =>
   sanitization.sanitizeForLogging(input);

@@ -65,12 +65,12 @@ export function createCounter(name: string, description: string, unit = '1'): Co
 
 /**
  * Creates an up-down counter metric (can increase or decrease).
- * Suitable for tracking values that can go up and down, like active connections.
+ * Suitable for tracking values that fluctuate, like active connections or queue depth.
  *
- * @param name - Metric name (should use dot notation)
- * @param description - Human-readable description
- * @param unit - Optional unit of measurement
- * @returns UpDownCounter instance
+ * @param name - Metric name (should use dot notation, e.g., 'connections.active')
+ * @param description - Human-readable description of what the metric measures
+ * @param unit - Optional unit of measurement (default: '1')
+ * @returns UpDownCounter instance for recording positive and negative deltas
  *
  * @example
  * ```typescript
@@ -80,7 +80,7 @@ export function createCounter(name: string, description: string, unit = '1'): Co
  *   '{connections}'
  * );
  *
- * activeConnections.add(1); // New connection
+ * activeConnections.add(1);  // New connection
  * activeConnections.add(-1); // Connection closed
  * ```
  */
@@ -165,11 +165,12 @@ export function createObservableGauge(
 /**
  * Creates an observable counter for async/callback-based cumulative measurements.
  * Similar to ObservableGauge but for monotonically increasing values.
+ * The callback is registered via `addCallback` and polled by the metrics SDK on each collection cycle.
  *
- * @param name - Metric name
+ * @param name - Metric name (should use dot notation, e.g., 'jobs.processed')
  * @param description - Human-readable description
- * @param _callback - Async function returning the cumulative count (unused in current implementation)
- * @param unit - Optional unit of measurement
+ * @param callback - Async function returning the current cumulative count
+ * @param unit - Optional unit of measurement (default: '1')
  * @returns ObservableCounter instance
  *
  * @example
@@ -201,11 +202,12 @@ export function createObservableCounter(
 /**
  * Creates an observable up-down counter for async/callback-based measurements
  * that can increase or decrease.
+ * The callback is registered via `addCallback` and polled by the metrics SDK on each collection cycle.
  *
- * @param name - Metric name
- * @param description - Human-readable description
- * @param callback - Async function returning the current value
- * @param unit - Optional unit of measurement
+ * @param name - Metric name (should use dot notation, e.g., 'queue.size')
+ * @param description - Human-readable description of what the metric measures
+ * @param callback - Async function returning the current value (can be positive or negative)
+ * @param unit - Optional unit of measurement (default: '1')
  * @returns ObservableUpDownCounter instance
  *
  * @example

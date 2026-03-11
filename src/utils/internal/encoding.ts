@@ -7,10 +7,15 @@ import { runtimeCaps } from './runtime.js';
 /**
  * Encodes an ArrayBuffer into a base64 string in a cross-platform manner.
  * Prefers Node.js Buffer for performance if available, otherwise uses a
- * standard web API fallback.
+ * chunked `btoa` fallback to avoid stack overflow on large buffers.
  *
  * @param buffer - The ArrayBuffer to encode.
  * @returns The base64-encoded string.
+ * @example
+ * ```typescript
+ * const buf = new TextEncoder().encode('hello').buffer;
+ * arrayBufferToBase64(buf); // 'aGVsbG8='
+ * ```
  */
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   if (runtimeCaps.hasBuffer) {
@@ -31,12 +36,16 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 /**
- * Encodes a string to base64 in a cross-platform manner.
+ * Encodes a UTF-8 string to base64 in a cross-platform manner.
  * Prefers Node.js Buffer for performance if available, otherwise uses
- * TextEncoder with Web APIs for compatibility with Cloudflare Workers.
+ * TextEncoder + {@link arrayBufferToBase64} for Cloudflare Workers compatibility.
  *
- * @param str - The string to encode.
+ * @param str - The UTF-8 string to encode.
  * @returns The base64-encoded string.
+ * @example
+ * ```typescript
+ * stringToBase64('hello'); // 'aGVsbG8='
+ * ```
  */
 export function stringToBase64(str: string): string {
   if (runtimeCaps.hasBuffer) {
@@ -51,13 +60,17 @@ export function stringToBase64(str: string): string {
 }
 
 /**
- * Decodes a base64 string to UTF-8 in a cross-platform manner.
+ * Decodes a base64-encoded string to UTF-8 in a cross-platform manner.
  * Prefers Node.js Buffer for performance if available, otherwise uses
- * Web APIs (atob + TextDecoder) for compatibility with Cloudflare Workers.
+ * `atob` + TextDecoder for Cloudflare Workers compatibility.
  *
- * @param base64 - The base64 string to decode.
+ * @param base64 - The base64-encoded string to decode.
  * @returns The decoded UTF-8 string.
- * @throws {Error} If the input is not valid base64.
+ * @throws {Error} If the input is not valid base64 (thrown by `Buffer` or `atob`).
+ * @example
+ * ```typescript
+ * base64ToString('aGVsbG8='); // 'hello'
+ * ```
  */
 export function base64ToString(base64: string): string {
   if (runtimeCaps.hasBuffer) {

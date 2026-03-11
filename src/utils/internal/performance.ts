@@ -47,15 +47,11 @@ function getToolMetrics() {
 let performanceNow: () => number = () => Date.now(); // Fallback
 
 /**
- * Initializes the high-resolution timer based on the environment.
- * In a browser-like environment, it uses `globalThis.performance`.
- * In Node.js, it dynamically imports `perf_hooks`.
- */
-/**
- * Dynamically loads Node's perf_hooks module. Exposed for testing to allow
- * mocking the dynamic import path.
+ * Dynamically loads Node's `perf_hooks` module.
+ * Exposed as a named export so tests can inject a mock loader into
+ * {@link initHighResTimer} without patching the dynamic import machinery.
  *
- * @returns The Node.js perf_hooks performance interface promise.
+ * @returns A promise resolving to the `perf_hooks` module shape (just the `performance` export).
  */
 export async function loadPerfHooks(): Promise<{
   performance: typeof PerfHooksPerformance;
@@ -65,6 +61,22 @@ export async function loadPerfHooks(): Promise<{
   }>);
 }
 
+/**
+ * Initializes the module-level high-resolution timer used by {@link nowMs}.
+ *
+ * Resolution priority:
+ * 1. `globalThis.performance.now` — available in Cloudflare Workers and modern browsers.
+ * 2. `node:perf_hooks` `performance.now` — loaded dynamically to stay Workers-compatible.
+ * 3. `Date.now()` — millisecond-precision fallback; a warning is logged when this path is taken.
+ *
+ * Must be called once during server startup (before any tool executions) to ensure
+ * sub-millisecond timing accuracy. Subsequent calls are safe but no-ops in practice
+ * because the module-level `performanceNow` closure is overwritten each time.
+ *
+ * @param perfLoader - Optional override for the `perf_hooks` import; defaults to
+ *   {@link loadPerfHooks}. Inject a mock here in unit tests.
+ * @returns A promise that resolves once the timer is ready.
+ */
 export async function initHighResTimer(
   perfLoader: typeof loadPerfHooks = loadPerfHooks,
 ): Promise<void> {
@@ -91,6 +103,17 @@ export async function initHighResTimer(
   }
 }
 
+/**
+ * Returns the current time in milliseconds using the highest-resolution timer
+ * available in this environment.
+ *
+ * The precision depends on which timer was selected by {@link initHighResTimer}:
+ * sub-millisecond after a successful init, millisecond-granular otherwise.
+ * The returned value is suitable for computing durations but its epoch origin
+ * is implementation-defined — do not treat it as a wall-clock timestamp.
+ *
+ * @returns Current time in milliseconds.
+ */
 export const nowMs = (): number => performanceNow();
 
 const toBytes = (payload: unknown): number => {
@@ -123,6 +146,32 @@ const getMemoryUsage = (): NodeJS.MemoryUsage =>
     ? process.memoryUsage()
     : zeroMemory;
 
+/**
+ * Wraps a tool's logic function with full observability: an OpenTelemetry span,
+ * OTel metric counters/histogram, structured log, and memory/payload size capture.
+ *
+ * The caller supplies the raw tool logic as `toolLogicFn`; this function handles
+ * all instrumentation so tool handlers stay free of telemetry boilerplate.
+ *
+ * On success the resolved value is passed through transparently.
+ * On failure the error is re-thrown after being recorded on the span and metrics;
+ * `McpError` instances surface their numeric `code` as the error code attribute.
+ *
+ * @template T - The resolved type of the tool's return value.
+ * @param toolLogicFn - Zero-argument async function containing the tool's business logic.
+ * @param context - Request context extended with `toolName`; used for span/log correlation.
+ * @param inputPayload - The raw input object passed to the tool, serialized to compute byte size.
+ * @returns A promise that resolves with the tool's return value or rejects with the original error.
+ *
+ * @example
+ * ```typescript
+ * const result = await measureToolExecution(
+ *   () => myToolHandler(parsedInput),
+ *   { ...requestContext, toolName: 'my_tool' },
+ *   parsedInput,
+ * );
+ * ```
+ */
 export async function measureToolExecution<T>(
   toolLogicFn: () => Promise<T>,
   context: RequestContext & { toolName: string },
