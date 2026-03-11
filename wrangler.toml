@@ -1,5 +1,5 @@
 # The name of your worker.
-name = "mcp-ts-template-worker"
+name = "mcp-ts-core-worker"
 
 # The main entry point for your worker. Wrangler will build this file.
 main = "src/worker.ts"

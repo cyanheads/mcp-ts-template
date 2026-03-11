@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-03-09 21:42:27
+Generated on: 2026-03-11 13:06:38
 
 ```
 mcp-ts-template/
@@ -25,6 +25,7 @@ mcp-ts-template/
 │   ├── 10-decisions.md
 │   ├── 11-consumer-workflow.md
 │   ├── 12-developer-api.md
+│   ├── 13-init-cli.md
 │   └── README.md
 ├── docs/
 │   ├── mcp-specification/
@@ -47,6 +48,7 @@ mcp-ts-template/
 │   ├── mcp-apps.md
 │   ├── mcp-elicitation-summary.md
 │   └── publishing-mcp-server-registry.md
+├── reports/
 ├── schemas/
 │   └── cloudflare-d1-schema.sql
 ├── scripts/
@@ -55,18 +57,43 @@ mcp-ts-template/
 │   ├── devdocs.ts
 │   ├── fetch-openapi-spec.ts
 │   ├── make-executable.ts
+│   ├── test-report.ts
 │   ├── tree.ts
 │   └── update-coverage.ts
+├── skills/
+│   ├── add-export/
+│   │   └── SKILL.md
+│   ├── add-prompt/
+│   │   └── SKILL.md
+│   ├── add-provider/
+│   │   └── SKILL.md
+│   ├── add-resource/
+│   │   └── SKILL.md
+│   ├── add-service/
+│   │   └── SKILL.md
+│   ├── add-tool/
+│   │   └── SKILL.md
+│   ├── devcheck/
+│   │   └── SKILL.md
+│   ├── maintenance/
+│   │   └── SKILL.md
+│   ├── migrate-imports/
+│   │   └── SKILL.md
+│   ├── release/
+│   │   └── SKILL.md
+│   ├── setup/
+│   │   └── SKILL.md
+│   └── README.md
 ├── src/
 │   ├── config/
 │   │   └── index.ts
-│   ├── app.ts
 │   ├── mcp-server/
 │   │   ├── prompts/
 │   │   │   ├── definitions/
 │   │   │   │   ├── code-review.prompt.ts
 │   │   │   │   └── index.ts
 │   │   │   ├── utils/
+│   │   │   │   ├── newPromptDefinition.ts
 │   │   │   │   └── promptDefinition.ts
 │   │   │   └── prompt-registration.ts
 │   │   ├── resources/
@@ -75,6 +102,8 @@ mcp-ts-template/
 │   │   │   │   ├── echo.resource.ts
 │   │   │   │   └── index.ts
 │   │   │   ├── utils/
+│   │   │   │   ├── newResourceDefinition.ts
+│   │   │   │   ├── newResourceHandlerFactory.ts
 │   │   │   │   ├── resourceDefinition.ts
 │   │   │   │   └── resourceHandlerFactory.ts
 │   │   │   └── resource-registration.ts
@@ -99,6 +128,8 @@ mcp-ts-template/
 │   │   │   │   ├── template-image-test.tool.ts
 │   │   │   │   └── template-madlibs-elicitation.tool.ts
 │   │   │   ├── utils/
+│   │   │   │   ├── newToolDefinition.ts
+│   │   │   │   ├── newToolHandlerFactory.ts
 │   │   │   │   ├── toolDefinition.ts
 │   │   │   │   └── toolHandlerFactory.ts
 │   │   │   └── tool-registration.ts
@@ -108,6 +139,7 @@ mcp-ts-template/
 │   │   │   │   │   ├── authContext.ts
 │   │   │   │   │   ├── authTypes.ts
 │   │   │   │   │   ├── authUtils.ts
+│   │   │   │   │   ├── checkScopes.ts
 │   │   │   │   │   ├── claimParser.ts
 │   │   │   │   │   └── withAuth.ts
 │   │   │   │   ├── strategies/
@@ -170,6 +202,8 @@ mcp-ts-template/
 │   │   │       ├── supabase.types.ts
 │   │   │       └── supabaseProvider.ts
 │   │   └── README.md
+│   ├── testing/
+│   │   └── index.ts
 │   ├── types-global/
 │   │   └── errors.ts
 │   ├── utils/
@@ -203,6 +237,7 @@ mcp-ts-template/
 │   │   │   ├── frontmatterParser.ts
 │   │   │   ├── jsonParser.ts
 │   │   │   ├── pdfParser.ts
+│   │   │   ├── thinkBlock.ts
 │   │   │   ├── xmlParser.ts
 │   │   │   └── yamlParser.ts
 │   │   ├── scheduling/
@@ -219,8 +254,30 @@ mcp-ts-template/
 │   │   │   └── trace.ts
 │   │   └── types/
 │   │       └── guards.ts
+│   ├── app.ts
+│   ├── context.ts
 │   ├── index.ts
 │   └── worker.ts
+├── templates/
+│   ├── src/
+│   │   ├── mcp-server/
+│   │   │   ├── prompts/
+│   │   │   │   └── definitions/
+│   │   │   │       └── index.ts
+│   │   │   ├── resources/
+│   │   │   │   └── definitions/
+│   │   │   │       └── index.ts
+│   │   │   └── tools/
+│   │   │       └── definitions/
+│   │   │           └── index.ts
+│   │   └── index.ts
+│   ├── .env.example
+│   ├── AGENTS.md
+│   ├── biome.template.json
+│   ├── CLAUDE.md
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── vitest.config.ts
 ├── tests/
 │   ├── config/
 │   │   ├── index.int.test.ts
@@ -228,14 +285,38 @@ mcp-ts-template/
 │   ├── conformance/
 │   │   ├── helpers/
 │   │   │   ├── assertions.ts
+│   │   │   ├── low-level-helpers.ts
+│   │   │   ├── recording-transport.ts
 │   │   │   └── server-harness.ts
+│   │   ├── cancellation.test.ts
+│   │   ├── completions.test.ts
+│   │   ├── elicitation.test.ts
+│   │   ├── jsonrpc-edge-cases.test.ts
 │   │   ├── lifecycle.test.ts
+│   │   ├── list-changed.test.ts
+│   │   ├── logging.test.ts
+│   │   ├── pagination.test.ts
+│   │   ├── progress.test.ts
 │   │   ├── prompts.test.ts
 │   │   ├── protocol-init.test.ts
+│   │   ├── protocol-ordering.test.ts
 │   │   ├── resources.test.ts
-│   │   └── tools.test.ts
+│   │   ├── roots.test.ts
+│   │   ├── sampling.test.ts
+│   │   ├── subscriptions.test.ts
+│   │   ├── tasks.test.ts
+│   │   ├── tools.test.ts
+│   │   └── version-negotiation.test.ts
 │   ├── fixtures/
 │   │   └── index.ts
+│   ├── integration/
+│   │   ├── helpers/
+│   │   │   ├── http-helpers.ts
+│   │   │   └── server-process.ts
+│   │   ├── http-auth.test.ts
+│   │   ├── http-sessions.test.ts
+│   │   ├── http.test.ts
+│   │   └── stdio.test.ts
 │   ├── mcp-server/
 │   │   ├── prompts/
 │   │   │   ├── definitions/
@@ -287,7 +368,8 @@ mcp-ts-template/
 │   │   │   ├── utils/
 │   │   │   │   ├── toolDefinition.test.ts
 │   │   │   │   └── toolHandlerFactory.test.ts
-│   │   │   └── tool-registration.test.ts
+│   │   │   ├── tool-registration.test.ts
+│   │   │   └── toolHandlerFactory.test.ts
 │   │   ├── transports/
 │   │   │   ├── auth/
 │   │   │   │   ├── lib/
@@ -322,12 +404,10 @@ mcp-ts-template/
 │   ├── services/
 │   │   ├── graph/
 │   │   │   ├── core/
-│   │   │   │   ├── GraphService.test.ts
-│   │   │   │   └── IGraphProvider.test.ts
+│   │   │   │   └── GraphService.test.ts
 │   │   │   └── types.test.ts
 │   │   ├── llm/
 │   │   │   ├── core/
-│   │   │   │   └── ILlmProvider.test.ts
 │   │   │   ├── providers/
 │   │   │   │   ├── openrouter.provider.test.ts
 │   │   │   │   └── openrouter.provider.test.ts.disabled
@@ -413,7 +493,6 @@ mcp-ts-template/
 │   │   │   └── trace.test.ts
 │   │   └── types/
 │   │       └── guards.test.ts
-│   ├── index.test.ts
 │   ├── setup.ts
 │   └── worker.test.ts
 ├── .dockerignore
@@ -440,6 +519,7 @@ mcp-ts-template/
 ├── typedoc.json
 ├── vitest.config.ts
 ├── vitest.conformance.ts
+├── vitest.integration.ts
 └── wrangler.toml
 ```
 

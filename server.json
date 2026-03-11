@@ -1,19 +1,19 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.cyanheads/mcp-ts-template",
-  "description": "TypeScript template for building MCP servers with declarative tooling, observability, and auth.",
+  "name": "io.github.cyanheads/mcp-ts-core",
+  "description": "TypeScript framework for building MCP servers with declarative definitions, pluggable auth, multi-backend storage, and OpenTelemetry observability.",
   "repository": {
     "url": "https://github.com/cyanheads/mcp-ts-template",
     "source": "github"
   },
-  "version": "3.0.9",
+  "version": "0.1.0-beta.4",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "mcp-ts-template",
+      "identifier": "@cyanheads/mcp-ts-core",
       "runtimeHint": "bun",
-      "version": "3.0.9",
+      "version": "0.1.0-beta.4",
       "packageArguments": [
         {
           "type": "positional",
@@ -40,9 +40,9 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "mcp-ts-template",
+      "identifier": "@cyanheads/mcp-ts-core",
       "runtimeHint": "bun",
-      "version": "3.0.9",
+      "version": "0.1.0-beta.4",
       "packageArguments": [
         {
           "type": "positional",

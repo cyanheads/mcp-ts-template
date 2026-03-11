@@ -284,7 +284,7 @@ function generateHtml(reports: SuiteReport[]): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Test Report &mdash; mcp-ts-template</title>
+<title>Test Report &mdash; @cyanheads/mcp-ts-core</title>
 <style>
   :root {
     --bg: #0a0a0f;
@@ -542,7 +542,7 @@ function generateHtml(reports: SuiteReport[]): string {
   </nav>
   <main class="main">
     <div class="report-header">
-      <h1>mcp-ts-template</h1>
+      <h1>@cyanheads/mcp-ts-core</h1>
       <p class="meta">Generated ${timestamp}</p>
     </div>
     <div class="summary">

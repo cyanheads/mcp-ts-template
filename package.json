@@ -1,13 +1,13 @@
 {
-  "name": "mcp-ts-template",
+  "name": "@cyanheads/mcp-ts-core",
   "version": "0.1.0-beta.4",
-  "mcpName": "io.github.cyanheads/mcp-ts-template",
-  "description": "TypeScript template for MCP servers with declarative tools/resources, pluggable auth, multi-backend storage, OpenTelemetry observability, and Cloudflare Workers support.",
+  "mcpName": "io.github.cyanheads/mcp-ts-core",
+  "description": "TypeScript framework for building Model Context Protocol (MCP) servers. Declarative tool/resource/prompt definitions, pluggable auth, multi-backend storage, OpenTelemetry observability, and support for both local (stdio/HTTP) and edge (Cloudflare Workers) runtimes.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": ["dist"],
   "bin": {
-    "mcp-ts-template": "dist/index.js"
+    "mcp-ts-core": "dist/index.js"
   },
   "exports": {
     ".": {
@@ -49,7 +49,7 @@
     "tree": "bun run scripts/tree.ts",
     "fetch-spec": "bun run scripts/fetch-openapi-spec.ts",
     "prepare": "bunx husky",
-    "inspector": "bunx mcp-inspector --config mcp.json --server mcp-ts-template",
+    "inspector": "bunx mcp-inspector --config mcp.json --server mcp-ts-core",
     "test": "bunx vitest run",
     "test:all": "bun run test && bun run test:conformance && bun run test:integration && bun run test:fuzz",
     "test:conformance": "bunx vitest run --config vitest.conformance.ts",
@@ -120,7 +120,7 @@
     "authentication",
     "cloudflare-workers",
     "declarative-tools",
-    "dependency-injection",
+    "core",
     "error-handling",
     "hono",
     "llm-integration",
@@ -131,8 +131,7 @@
     "observability",
     "opentelemetry",
     "otel",
-    "server-template",
-    "template",
+    "framework",
     "typescript",
     "zod"
   ],
@@ -154,7 +153,7 @@
     "node": ">=22.0.0"
   },
   "depcheck": {
-    "ignores": ["bun", "repomix", "mcp-ts-template"]
+    "ignores": ["bun", "repomix", "@cyanheads/mcp-ts-core"]
   },
   "publishConfig": {
     "access": "public"

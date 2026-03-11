@@ -54,7 +54,7 @@ describe('config parsing', () => {
     expect(parsed.openTelemetry.logLevel).toBe('WARN');
     expect(parsed.openTelemetry.samplingRatio).toBe(0.5);
     expect(parsed.openrouterAppUrl).toBe('https://app.example.com');
-    expect(parsed.openrouterAppName).toBe('mcp-ts-template');
+    expect(parsed.openrouterAppName).toBe('@cyanheads/mcp-ts-core');
     expect(parsed.llmDefaultTemperature).toBeCloseTo(0.7);
   });
 
