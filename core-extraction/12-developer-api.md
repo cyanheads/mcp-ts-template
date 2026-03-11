@@ -711,25 +711,25 @@ This table maps old patterns to new. Relevant for updating [CLAUDE.md](../CLAUDE
 
 ## Checklist
 
-- [ ] `Context` interface defined in `src/context.ts` (or `src/mcp-server/context.ts`)
-- [ ] `createContext()` factory constructs `Context` from `RequestContext` + `SdkContext` + services
-- [ ] `ContextLogger` delegates to Pino with auto-correlated request metadata
-- [ ] `ContextState` delegates to `StorageService` with tenant scoping
-- [ ] `ContextProgress` wraps `TaskStore` status updates
-- [ ] `tool()` builder exported from `./tools` and `.`
+- [x] `Context` interface defined in `src/context.ts`
+- [x] `createContext()` factory constructs `Context` from `RequestContext` + `SdkContext` + services
+- [x] `ContextLogger` delegates to Logger (Pino wrapper) with auto-correlated request metadata
+- [x] `ContextState` delegates to `StorageService` with tenant scoping
+- [x] `ContextProgress` wraps `TaskStore` status updates
+- [x] `tool()` builder exported from `./tools` and `.`
 - [ ] `resource()` builder exported from `./resources` and `.`
 - [ ] `prompt()` builder exported from `./prompts` and `.`
-- [ ] `ToolDefinition` uses new field names (`handler`, `input`, `output`, `format`, `auth`, `task`)
+- [x] `ToolDefinition` uses new field names (`handler`, `input`, `output`, `format`, `auth`, `task`)
 - [ ] `ResourceDefinition` uses new field names, handler receives `(params, ctx)` not `(uri, params, context)`
 - [ ] `PromptDefinition` uses `args` instead of `argumentsSchema`
 - [ ] `task: true` tools auto-managed by framework (create task, run background, store result)
-- [ ] `TaskToolDefinition` with manual `taskHandlers` preserved as escape hatch in `./tasks`
-- [ ] Inline `auth` property checked by handler factory before calling `handler`
+- [x] `TaskToolDefinition` with manual `taskHandlers` preserved as escape hatch in `./tasks`
+- [x] Inline `auth` property checked by handler factory before calling `handler`
 - [ ] `checkScopes(ctx, scopes)` exported from `./auth` for dynamic auth
 - [ ] `withToolAuth` / `withResourceAuth` removed
-- [ ] `createMockContext()` exported from `./testing`
+- [x] `createMockContext()` exported from `./testing`
 - [ ] `createApp()` accepts flattened `tools`, `resources`, `prompts` (not nested `definitions`)
 - [ ] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth
-- [ ] All existing template tools (`echo`, `cat_fact`, `countdown`, etc.) updated to new API
-- [ ] `bun run devcheck` passes
-- [ ] All tests updated and passing
+- [x] All existing template tools (`echo`, `cat_fact`, `countdown`, etc.) updated to new API
+- [ ] `bun run devcheck` passes (final gate)
+- [ ] All tests updated and passing (final gate)

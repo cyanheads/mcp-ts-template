@@ -11,7 +11,7 @@
 | 1a | Fixes & hardening (deps, coupling, tests) | — | Low (additive, non-breaking) | **Complete** (`3cd85b1` on main) |
 | 1b | DI removal & `createApp()` | Phase 1a | Medium (central wiring) | **Complete** (`708bd16` on feat/core-extraction) |
 | 2 | Lazy dependency conversion | Phase 1b | Low (backwards-compatible) | **Complete** |
-| 3 | Repo transformation (the extraction) | Phase 2 | Medium (breaking rename) | Not started |
+| 3 | Repo transformation (the extraction) | Phase 2 | Medium (breaking rename) | **In progress** |
 | 4 | Validate with examples | Phase 3 | Low | Not started |
 | 5 | Publish `@cyanheads/mcp-ts-core@0.1.0` | Phase 4 | Medium (public API) | Not started |
 | 6 | Create thin `mcp-ts-template` reference repo | Phase 5 | Low | Not started |
@@ -99,6 +99,30 @@ The core of the extraction. Transform the repo in-place.
 **Detail docs:** [01-architecture.md](01-architecture.md), [02-public-api.md](02-public-api.md), [03-config-container.md](03-config-container.md), [03a-build.md](03a-build.md), [12-developer-api.md](12-developer-api.md)
 
 ### Checklist
+
+#### Foundation (Context, builders, testing)
+- [x] `Context` interface defined and exported from `./context`
+- [x] `createContext()` factory constructs `Context` from `RequestContext` + `SdkContext` + services
+- [x] `ContextLogger` delegates to Logger (Pino wrapper) with auto-correlated request metadata
+- [x] `ContextState` delegates to `StorageService` with tenant scoping
+- [x] `ContextProgress` wraps `TaskStore` status updates
+- [x] Test helpers implemented in `src/testing/index.ts` (`createMockContext`)
+- [x] `tool()` builder exported from `./tools` and `.`
+- [x] `ToolDefinition` uses new field names (`handler`, `input`, `output`, `format`, `auth`, `task`)
+- [x] `TaskToolDefinition` with manual `taskHandlers` preserved as escape hatch in `./tasks`
+- [x] Inline `auth` property checked by handler factory before calling `handler`
+- [x] All existing template tools (`echo`, `cat_fact`, `countdown`, etc.) updated to new API
+
+#### Remaining builders & API
+- [ ] `resource()` builder exported from `./resources` and `.`
+- [ ] `prompt()` builder exported from `./prompts` and `.`
+- [ ] `ResourceDefinition` uses new field names, handler receives `(params, ctx)` not `(uri, params, context)`
+- [ ] `PromptDefinition` uses `args` instead of `argumentsSchema`
+- [ ] `task: true` tools auto-managed by framework (create task, background run, store result)
+- [ ] `checkScopes(ctx, scopes)` exported from `./auth`; `withToolAuth`/`withResourceAuth` removed
+- [ ] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth
+
+#### Packaging & repo transformation
 - [ ] `package.json` renamed to `@cyanheads/mcp-ts-core`
 - [ ] Template definitions moved to `examples/`
 - [ ] `createApp()` implemented as public entry point (returns `ServerHandle` with `shutdown()` and `services`)
@@ -109,30 +133,16 @@ The core of the extraction. Transform the repo in-place.
 - [ ] `exports` field added with all subpath exports, each with `types` + `import` conditions, plus `./package.json` (see [02-public-api.md](02-public-api.md))
 - [ ] Export verification script added to CI
 - [ ] `peerDependencies` / `peerDependenciesMeta` configured for tiered deps (`"zod": "^4.3.0"`)
+
+#### Documentation & skills
 - [ ] Consumer-facing `CLAUDE.md` written with exports catalog (no DI/container references)
 - [ ] `CONTRIBUTING.md` written (repo-only, excluded from package)
 - [ ] External skill definitions written in `skills/` with `audience: external` (see [05-agent-dx.md](05-agent-dx.md))
 - [ ] Internal skill definitions written in `skills-internal/` with `audience: internal`
-- [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js` (plain JS preset), `biome.json`
-- [ ] Test helpers implemented in `src/testing/index.ts` (`createMockContext`)
-- [ ] `Context` interface defined and exported from `./context`
-- [ ] `createContext()` factory constructs `Context` from `RequestContext` + `SdkContext` + services
-- [ ] `ContextLogger` delegates to Pino with auto-correlated request metadata
-- [ ] `ContextState` delegates to `StorageService` with tenant scoping
-- [ ] `ContextProgress` wraps `TaskStore` status updates
-- [ ] `tool()` builder exported from `./tools` and `.`
-- [ ] `resource()` builder exported from `./resources` and `.`
-- [ ] `prompt()` builder exported from `./prompts` and `.`
-- [ ] `ToolDefinition` uses new field names (`handler`, `input`, `output`, `format`, `auth`, `task`)
-- [ ] `ResourceDefinition` uses new field names, handler receives `(params, ctx)` not `(uri, params, context)`
-- [ ] `PromptDefinition` uses `args` instead of `argumentsSchema`
-- [ ] `task: true` tools auto-managed by framework (create task, background run, store result)
-- [ ] `TaskToolDefinition` with manual `taskHandlers` preserved as escape hatch in `./tasks`
-- [ ] Inline `auth` property checked by handler factory before calling `handler`
-- [ ] `checkScopes(ctx, scopes)` exported from `./auth`; `withToolAuth`/`withResourceAuth` removed
-- [ ] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth
-- [ ] All existing template tools (`echo`, `cat_fact`, `countdown`, etc.) updated to new API
+
+#### Final gates
 - [ ] Conformance harness updated to use `createApp()` instead of `composeContainer()`
+- [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js` (plain JS preset), `biome.json`
 - [ ] `files` array excludes `skills-internal/`, `core-extraction/`, `CONTRIBUTING.md`
 - [ ] `prepublishOnly` script added
 - [ ] Package compiles cleanly (`tsc && tsc-alias`)

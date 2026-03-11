@@ -1,8 +1,8 @@
 # Core Extraction Plan
 
 **Project:** Extract `mcp-ts-template` infrastructure into `@cyanheads/mcp-ts-core`
-**Status:** In progress (Phase 3 next)
-**Date:** 2026-03-09
+**Status:** In progress (Phase 3 active — foundation + tool migration done)
+**Date:** 2026-03-10
 
 ---
 
@@ -35,7 +35,7 @@ This directory contains the living plan for extracting the infrastructure layer 
 | 1a | Fixes & hardening (deps, coupling, tests) | **Complete** |
 | 1b | DI removal & `createApp()` | **Complete** |
 | 2 | Lazy dependency conversion | **Complete** |
-| 3 | Repo transformation (the extraction) | Not started |
+| 3 | Repo transformation (the extraction) | **In progress** |
 | 4 | Validate with examples | Not started |
 | 5 | Publish `@cyanheads/mcp-ts-core@0.1.0` | Not started |
 | 6 | Create thin `mcp-ts-template` reference repo | Not started |

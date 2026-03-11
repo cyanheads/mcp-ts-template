@@ -1,303 +1,282 @@
 <div align="center">
-  <h1>mcp-ts-template</h1>
-  <p><b>TypeScript template for building Model Context Protocol (MCP) servers. Ships with declarative tools/resources, pluggable auth, multi-backend storage, OpenTelemetry observability, and support for both local and edge (Cloudflare Workers) runtimes.</b>
-  <div>7 Tools • 2 Resources • 1 Prompt</div>
-  </p>
+  <h1>@cyanheads/mcp-ts-core</h1>
+  <p><b>TypeScript framework for building Model Context Protocol (MCP) servers. Declarative tool/resource/prompt definitions, pluggable auth, multi-backend storage, OpenTelemetry observability, and support for both local (stdio/HTTP) and edge (Cloudflare Workers) runtimes.</b></p>
 </div>
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.1.0--beta.1-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.27.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) 
+[![Version](https://img.shields.io/badge/Version-0.1.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.27.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
 
-[![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg?style=flat-square)](https://github.com/cyanheads/mcp-ts-template/issues) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.2-blueviolet.svg?style=flat-square)](https://bun.sh/) [![Code Coverage](https://img.shields.io/badge/Coverage-86.30%25-brightgreen.svg?style=flat-square)](./coverage/index.html)
+[![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.2-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
 </div>
 
 ---
 
-> **Try it live** — A public demo instance is running at `https://mcp-ts-template.caseyjhand.com/mcp`. Connect any MCP client to test the template's tools and resources without installing anything.
+## What is this?
+
+`@cyanheads/mcp-ts-core` is the infrastructure layer for TypeScript MCP servers. Install it as a dependency — don't fork it. You write tools, resources, and prompts; the framework handles transports, auth, storage, config, logging, telemetry, and lifecycle.
+
+```ts
+import { createApp, tool } from '@cyanheads/mcp-ts-core';
+import { z } from 'zod';
+
+const greet = tool('greet', {
+  description: 'Greet someone by name.',
+  input: z.object({ name: z.string().describe('Name to greet') }),
+  handler: async (input, ctx) => {
+    ctx.log.info('Greeting', { name: input.name });
+    return { message: `Hello, ${input.name}!` };
+  },
+});
+
+await createApp({ tools: [greet] });
+```
+
+That's a complete MCP server. `createApp()` handles config parsing, logger init, transport startup, signal handlers, and graceful shutdown.
 
 ## Features
 
-- Define tools and resources in single, self-contained files. The framework handles registration.
-- Tools can prompt users for missing parameters mid-execution via elicitation.
-- Unified `McpError` system for consistent, structured error responses.
-- Auth modes: `none`, `jwt`, or `oauth`. Wrap logic with `withToolAuth`/`withResourceAuth`.
-- Swap storage backends (`in-memory`, `filesystem`, `Supabase`, `Cloudflare D1/KV/R2`) without changing tool logic. Includes cursor pagination, batch ops, and input validation.
-- Structured logging (Pino) with optional OpenTelemetry for tracing and metrics.
-- Direct construction via `createApp()` composition root. No DI framework.
-- Pluggable service integrations: LLM (OpenRouter), TTS (ElevenLabs).
-- Parsing helpers (PDF, YAML, CSV, frontmatter), formatting (diffs, tables, trees, markdown), scheduling, security.
-- Runs on local (stdio/HTTP) and edge (Cloudflare Workers) with the same code.
+- **Declarative definitions** — `tool()`, `resource()`, `prompt()` builders with Zod schemas. Framework handles registration, validation, and response formatting.
+- **Unified Context** — handlers receive a single `ctx` object with `ctx.log` (request-scoped logging), `ctx.state` (tenant-scoped storage), `ctx.elicit` (user prompting), `ctx.sample` (LLM completion), and `ctx.signal` (cancellation).
+- **Inline auth** — `auth: ['scope']` on definitions. No wrapper functions. Framework checks scopes before calling your handler.
+- **Task tools** — `task: true` flag for long-running operations. Framework manages the full lifecycle (create, poll, progress, complete/fail/cancel).
+- **Multi-backend storage** — `in-memory`, `filesystem`, `Supabase`, `Cloudflare D1/KV/R2`. Swap providers via env var without changing tool logic. Cursor pagination, batch ops, TTL, tenant isolation.
+- **Pluggable auth** — `none`, `jwt`, or `oauth` modes. JWT with local secret or OAuth with JWKS verification.
+- **Observability** — Pino structured logging with optional OpenTelemetry tracing and metrics. Request IDs, trace correlation, tool execution metrics — all automatic.
+- **Local + edge** — Same code runs on stdio, HTTP (Hono), and Cloudflare Workers. `createApp()` for Node, `createWorkerHandler()` for Workers.
+- **Tiered dependencies** — Core deps always installed. Parsers, sanitization, scheduling, OTEL SDK, Supabase, OpenAI — optional peers. Install what you use.
+- **Agent-first DX** — Ships `CLAUDE.md` with full exports catalog, patterns, and contracts. AI coding agents can build on the framework with zero ramp-up.
 
-## Architecture
+## Quick start
 
-Modular, domain-driven layout with clear separation of concerns:
+### Install
 
-```
-┌─────────────────────────────────────────────────────────┐
-│              MCP Client (Claude Code, ChatGPT, etc.)    │
-└────────────────────┬────────────────────────────────────┘
-                     │ JSON-RPC 2.0
-                     ▼
-┌─────────────────────────────────────────────────────────┐
-│           MCP Server (Tools, Resources)                 │
-│              [MCP Server Guide](src/mcp-server/)         │
-└────────────────────┬────────────────────────────────────┘
-                     │ createApp() composition root
-                     ▼
-        ┌────────────┼────────────┐
-        ▼            ▼            ▼
- ┌──────────┐   ┌──────────┐   ┌──────────┐
- │ Services │   │ Storage  │   │ Utilities│
- │    [→]   │   │    [→]   │   │    [→]   │
- └──────────┘   └──────────┘   └──────────┘
-
-[→]: src/services/    [→]: src/storage/    [→]: src/utils/
+```bash
+bun add @cyanheads/mcp-ts-core zod
 ```
 
-Key modules:
+### Minimal server
 
-- [MCP Server](src/mcp-server/) — Tools, resources, prompts, and transport layer
-- [Services](src/services/) — External integrations (LLM, Speech, Graph) with pluggable providers
-- [Storage](src/storage/) — Persistence layer with multiple backend support
-- [Utilities](src/utils/) — Logging, security, parsing, telemetry
+```ts
+// src/index.ts
+#!/usr/bin/env node
+import { createApp } from '@cyanheads/mcp-ts-core';
+import { allToolDefinitions } from './mcp-server/tools/index.js';
 
-## Included capabilities
+await createApp({
+  name: 'my-mcp-server',
+  version: '0.1.0',
+  tools: allToolDefinitions,
+});
+```
 
-This template includes working examples to get you started.
+### Define a tool
 
-### Tools
+```ts
+// src/mcp-server/tools/definitions/search.tool.ts
+import { z } from 'zod';
+import { tool } from '@cyanheads/mcp-ts-core';
+import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
-| Tool                                | Description                                                              |
-| :---------------------------------- | :----------------------------------------------------------------------- |
-| **`template_echo_message`**         | Echoes a message back with optional formatting and repetition.           |
-| **`template_cat_fact`**             | Fetches a random cat fact from an external API.                          |
-| **`template_madlibs_elicitation`**  | Demonstrates elicitation by asking for words to complete a story.        |
-| **`template_code_review_sampling`** | Uses the LLM service to perform a simulated code review.                 |
-| **`template_image_test`**           | Returns a test image as a base64-encoded data URI.                       |
-| **`template_async_countdown`**      | Demonstrates MCP Tasks API with an async countdown timer (experimental). |
-| **`template_data_explorer`**        | Generates sample sales data with an interactive explorer UI (MCP Apps).  |
+export const search = tool('search', {
+  description: 'Search for items by query.',
+  input: z.object({
+    query: z.string().describe('Search query'),
+    limit: z.number().default(10).describe('Max results'),
+  }),
+  output: z.object({
+    items: z.array(z.object({
+      id: z.string().describe('Item ID'),
+      title: z.string().describe('Item title'),
+    })).describe('Search results'),
+  }),
+  auth: ['search:read'],
 
-### Resources
-
-| Resource               | URI                                    | Description                                                 |
-| :--------------------- | :------------------------------------- | :---------------------------------------------------------- |
-| **`echo`**             | `echo://{message}`                     | A simple resource that echoes back a message.               |
-| **`data-explorer-ui`** | `ui://template-data-explorer/app.html` | Interactive HTML app for the data explorer tool (MCP Apps). |
-
-### Prompts
-
-| Prompt            | Description                                                      |
-| :---------------- | :--------------------------------------------------------------- |
-| **`code-review`** | A structured prompt for guiding an LLM to perform a code review. |
-
-## Getting started
-
-### MCP client configuration
-
-Add the following to your MCP client configuration file.
-
-```json
-{
-  "mcpServers": {
-    "mcp-ts-template": {
-      "type": "stdio",
-      "command": "bunx",
-      "args": ["mcp-ts-template@latest"],
-      "env": {
-        "MCP_TRANSPORT_TYPE": "stdio",
-        "MCP_LOG_LEVEL": "info",
-        "STORAGE_PROVIDER_TYPE": "filesystem",
-        "STORAGE_FILESYSTEM_PATH": "/path/to/your/storage"
-      }
+  async handler(input, ctx) {
+    ctx.log.info('Searching', { query: input.query });
+    const results = await doSearch(input.query, input.limit);
+    if (!results.length) {
+      throw new McpError(JsonRpcErrorCode.NotFound, 'No results found');
     }
-  }
-}
+    return { items: results };
+  },
+
+  format: (result) => [{
+    type: 'text',
+    text: result.items.map(i => `- **${i.title}** (${i.id})`).join('\n'),
+  }],
+});
 ```
 
-Or connect to the public demo server over HTTP — no installation required:
+### Define a resource
 
-```json
-{
-  "mcpServers": {
-    "mcp-ts-template": {
-      "type": "streamable-http",
-      "url": "https://mcp-ts-template.caseyjhand.com/mcp"
-    }
-  }
-}
+```ts
+import { z } from 'zod';
+import { resource } from '@cyanheads/mcp-ts-core';
+
+export const itemData = resource('items://{itemId}', {
+  description: 'Retrieve item data by ID.',
+  params: z.object({ itemId: z.string().describe('Item ID') }),
+  async handler(params, ctx) {
+    return await getItem(params.itemId);
+  },
+});
 ```
 
-### Prerequisites
+### Cloudflare Workers
 
-- [Bun v1.2.0](https://bun.sh/) or higher.
+```ts
+// src/worker.ts
+import { createWorkerHandler } from '@cyanheads/mcp-ts-core/worker';
+import { allToolDefinitions } from './mcp-server/tools/index.js';
 
-### Installation
-
-1.  **Clone the repository:**
-
-```sh
-git clone https://github.com/cyanheads/mcp-ts-template.git
+export default createWorkerHandler({
+  tools: allToolDefinitions,
+  extraEnvBindings: [['MY_API_KEY', 'MY_API_KEY']],
+});
 ```
 
-2.  **Navigate into the directory:**
+## Server structure
 
-```sh
-cd mcp-ts-template
+```
+my-mcp-server/
+  src/
+    index.ts                              # createApp() entry point
+    worker.ts                             # createWorkerHandler() (optional)
+    config/
+      server-config.ts                    # Server-specific env vars
+    services/
+      [domain]/                           # Domain services (init/accessor pattern)
+    mcp-server/
+      tools/definitions/                  # Tool definitions (.tool.ts)
+      resources/definitions/              # Resource definitions (.resource.ts)
+      prompts/definitions/                # Prompt definitions (.prompt.ts)
+  package.json
+  tsconfig.json                           # extends @cyanheads/mcp-ts-core/tsconfig.base.json
+  CLAUDE.md                               # Points to core's CLAUDE.md for framework docs
 ```
 
-3.  **Install dependencies:**
-
-```sh
-bun install
-```
+No `src/utils/`, no `src/storage/`, no `src/types-global/`, no `src/mcp-server/transports/` — infrastructure lives in `node_modules`.
 
 ## Configuration
 
-All configuration is centralized and validated at startup in `src/config/index.ts`. Key environment variables in your `.env` file include:
+All core config is Zod-validated from environment variables. Server-specific config uses a separate Zod schema with lazy parsing.
 
-| Variable                  | Description                                                                                                | Default      |
-| :------------------------ | :--------------------------------------------------------------------------------------------------------- | :----------- |
-| `MCP_TRANSPORT_TYPE`      | The transport to use: `stdio` or `http`.                                                                   | `stdio`      |
-| `MCP_HTTP_PORT`           | The port for the HTTP server.                                                                              | `3010`       |
-| `MCP_HTTP_HOST`           | The hostname for the HTTP server.                                                                          | `127.0.0.1`  |
-| `MCP_LOG_LEVEL`           | Logging level (`debug`, `info`, `notice`, `warning`, `error`, `crit`, `alert`, `emerg`).                   | `debug`      |
-| `MCP_AUTH_MODE`           | Authentication mode: `none`, `jwt`, or `oauth`.                                                            | `none`       |
-| `MCP_AUTH_SECRET_KEY`     | **Required for `jwt` auth mode.** A 32+ character secret.                                                  | `(none)`     |
-| `DEV_MCP_AUTH_BYPASS`     | Set to `true` to bypass JWT auth in development (requires no secret key).                                  | `false`      |
-| `OAUTH_ISSUER_URL`        | **Required for `oauth` auth mode.** URL of the OIDC provider.                                              | `(none)`     |
-| `OAUTH_AUDIENCE`          | **Required for `oauth` auth mode.** Expected audience claim in the JWT.                                    | `(none)`     |
-| `STORAGE_PROVIDER_TYPE`   | Storage backend: `in-memory`, `filesystem`, `supabase`, `cloudflare-d1`, `cloudflare-kv`, `cloudflare-r2`. | `in-memory`  |
-| `STORAGE_FILESYSTEM_PATH` | Path to the storage directory (for `filesystem` provider).                                                 | `./.storage` |
-| `SUPABASE_URL`            | **Required for `supabase` storage.** Your Supabase project URL.                                            | `(none)`     |
-| `SUPABASE_ANON_KEY`       | **Required for `supabase` storage.** Your Supabase anon key.                                               | `(none)`     |
-| `OTEL_ENABLED`            | Set to `true` to enable OpenTelemetry.                                                                     | `false`      |
-| `OPENROUTER_API_KEY`      | API key for OpenRouter LLM service.                                                                        | `(none)`     |
+| Variable | Description | Default |
+|:---------|:------------|:--------|
+| `MCP_TRANSPORT_TYPE` | `stdio` or `http` | `stdio` |
+| `MCP_HTTP_PORT` | HTTP server port | `3010` |
+| `MCP_HTTP_HOST` | HTTP server hostname | `127.0.0.1` |
+| `MCP_AUTH_MODE` | `none`, `jwt`, or `oauth` | `none` |
+| `MCP_AUTH_SECRET_KEY` | JWT signing secret (required for `jwt` mode) | — |
+| `STORAGE_PROVIDER_TYPE` | `in-memory`, `filesystem`, `supabase`, `cloudflare-d1`/`kv`/`r2` | `in-memory` |
+| `OTEL_ENABLED` | Enable OpenTelemetry | `false` |
+| `OPENROUTER_API_KEY` | OpenRouter LLM API key | — |
 
-### Authentication and authorization
+See [CLAUDE.md](CLAUDE.md) for the full configuration reference.
 
-- Modes: `none` (default), `jwt` (requires `MCP_AUTH_SECRET_KEY`), or `oauth` (requires `OAUTH_ISSUER_URL` and `OAUTH_AUDIENCE`).
-- In development, set `DEV_MCP_AUTH_BYPASS=true` to skip JWT validation without a secret key. Rejected in production.
-- Wrap tool/resource `logic` with `withToolAuth([...])` or `withResourceAuth([...])` for scope checks. Checks are bypassed when auth mode is `none`.
+## API overview
 
-### Storage
+### Entry points
 
-- `StorageService` provides a consistent API for persistence. Never access `fs` or storage SDKs directly from tool logic.
-- Default provider is `in-memory`. Node-only: `filesystem`. Edge-compatible: `supabase`, `cloudflare-kv`, `cloudflare-r2`.
-- `StorageService` requires `context.tenantId`, auto-propagated from the JWT `tid` claim when auth is enabled.
-- Opaque cursor pagination with tenant binding, parallel batch ops (`getMany`/`setMany`/`deleteMany`), TTL support, centralized input validation.
+| Function | Purpose |
+|:---------|:--------|
+| `createApp(options)` | Node.js server — handles full lifecycle |
+| `createWorkerHandler(options)` | Cloudflare Workers — returns `{ fetch, scheduled }` |
 
-### Observability
+### Builders
 
-- Pino for structured JSON logging. All logs include `RequestContext`.
-- OpenTelemetry disabled by default. Enable with `OTEL_ENABLED=true`. HTTP spans via `@hono/otel` (works on Bun). Tool-call metrics (duration, payload sizes, errors) captured automatically. Pino logs correlate to traces via `trace_id`/`span_id`.
+| Builder | Usage |
+|:--------|:------|
+| `tool(name, options)` | Define a tool with `handler(input, ctx)` |
+| `resource(uriTemplate, options)` | Define a resource with `handler(params, ctx)` |
+| `prompt(name, options)` | Define a prompt with `generate(args)` |
 
-## Running the server
+### Context
 
-### Local development
+Handlers receive a unified `Context` object:
 
-- **Build and run the production version**:
+| Property | Type | Description |
+|:---------|:-----|:------------|
+| `ctx.log` | `ContextLogger` | Request-scoped logger (auto-correlates requestId, traceId, tenantId) |
+| `ctx.state` | `ContextState` | Tenant-scoped key-value storage |
+| `ctx.elicit` | `Function?` | Ask the user for input (when client supports it) |
+| `ctx.sample` | `Function?` | Request LLM completion from the client |
+| `ctx.signal` | `AbortSignal` | Cancellation signal |
+| `ctx.progress` | `ContextProgress?` | Task progress reporting (when `task: true`) |
+| `ctx.requestId` | `string` | Unique request ID |
+| `ctx.tenantId` | `string?` | Tenant ID (from JWT or `'default'` for stdio) |
 
-  ```sh
-  # One-time build
-  bun run rebuild
+### Subpath exports
 
-  # Run the built server
-  bun run start:http
-  # or
-  bun run start:stdio
-  ```
-
-- **Run checks and tests**:
-  ```sh
-  bun run devcheck # Lints, formats, type-checks, and more
-  bun run test # Runs the test suite (Do not use 'bun test' directly as it may not work correctly)
-  ```
-
-### Cloudflare workers
-
-1.  **Build the Worker bundle**:
-
-```sh
-bun run build:worker
+```ts
+import { createApp, tool, resource, prompt } from '@cyanheads/mcp-ts-core';
+import { createWorkerHandler } from '@cyanheads/mcp-ts-core/worker';
+import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { checkScopes } from '@cyanheads/mcp-ts-core/auth';
+import { markdown } from '@cyanheads/mcp-ts-core/utils/formatting';
+import { fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils/network';
+import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 ```
 
-2.  **Run locally with Wrangler**:
+See [CLAUDE.md](CLAUDE.md) for the complete exports reference.
 
-```sh
-bun run deploy:dev
+## Examples
+
+The `examples/` directory contains a reference server consuming core through public exports, demonstrating all patterns:
+
+| Tool | Pattern |
+|:-----|:--------|
+| `template_echo_message` | Basic tool with `format`, `auth` |
+| `template_cat_fact` | External API call with `fetchWithTimeout` |
+| `template_madlibs_elicitation` | `ctx.elicit` for interactive input |
+| `template_code_review_sampling` | `ctx.sample` for LLM completion |
+| `template_image_test` | Image content blocks |
+| `template_async_countdown` | `task: true` with `ctx.progress` |
+| `template_data_explorer` | MCP Apps with linked UI resource |
+
+## Testing
+
+```ts
+import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { myTool } from '@/mcp-server/tools/definitions/my-tool.tool.js';
+
+const ctx = createMockContext({ tenantId: 'test-tenant' });
+const input = myTool.input.parse({ query: 'test' });
+const result = await myTool.handler(input, ctx);
 ```
 
-3.  **Deploy to Cloudflare**:
-
-```sh
-bun run deploy:prod
-```
-
-> **Note**: The `wrangler.toml` file is pre-configured to enable `nodejs_compat` for best results.
-
-## Project structure
-
-| Directory                               | Purpose & Contents                                                                   | Guide                                |
-| :-------------------------------------- | :----------------------------------------------------------------------------------- | :----------------------------------- |
-| `src/mcp-server/tools/definitions`      | Tool definitions (`*.tool.ts`). Add new capabilities here.                           | [MCP Guide](src/mcp-server/)      |
-| `src/mcp-server/resources/definitions`  | Resource definitions (`*.resource.ts`). Add new data sources here.                   | [MCP Guide](src/mcp-server/)      |
-| `src/mcp-server/prompts/definitions`    | Prompt definitions (`*.prompt.ts`). Add new prompt templates here.                   | [MCP Guide](src/mcp-server/)      |
-| `src/mcp-server/tasks`                  | Async task infrastructure (MCP Tasks API, experimental).                             | [MCP Guide](src/mcp-server/)      |
-| `src/mcp-server/transports`             | HTTP and STDIO transports, including auth middleware.                                 | [MCP Guide](src/mcp-server/)      |
-| `src/storage`                           | `StorageService` abstraction and provider implementations.                           | [Storage Guide](src/storage/)     |
-| `src/services`                          | External service integrations (LLM, Speech, Graph) with pluggable providers.         | [Services Guide](src/services/)   |
-| `src/app.ts`                            | Composition root — `createApp()` constructs all services in dependency order.         |                                      |
-| `src/utils`                             | Core utilities for logging, error handling, performance, security, and telemetry.    |                                      |
-| `src/config`                            | Environment variable parsing and validation with Zod.                                |                                      |
-| `tests/`                                | Unit and integration tests, mirroring the `src/` directory structure.                |                                      |
+`createMockContext()` provides stubbed `log`, `state`, and `signal`. Pass `{ tenantId }` for state operations, `{ sample }` for LLM mocking, `{ elicit }` for elicitation mocking, `{ progress: true }` for task tools.
 
 ## Documentation
 
-Each module directory has its own README with architecture details and examples.
+- **[CLAUDE.md](CLAUDE.md)** — Complete API reference: exports catalog, patterns, Context interface, error codes, auth, config, testing. Ships in the npm package.
+- **[CHANGELOG.md](CHANGELOG.md)** — Version history
 
-### Core modules
+## Development
 
-- [MCP Server Guide](src/mcp-server/) — Building tools, resources, auth, transports, SDK context, response formatting
-- [Services Guide](src/services/) — LLM (OpenRouter), Speech (ElevenLabs, Whisper), Graph, custom providers
-- [Storage Guide](src/storage/) — Provider implementations, multi-tenancy, pagination, batch ops, TTL
-
-### Other references
-
-- [AGENTS.md](AGENTS.md) — Development rules for AI agents
-- [CHANGELOG.md](CHANGELOG.md) — Version history and breaking changes
-- [docs/tree.md](docs/tree.md) — Visual directory structure
-- [docs/publishing-mcp-server-registry.md](docs/publishing-mcp-server-registry.md) — Publishing to MCP Registry
-
-## Agent development guide
-
-See `AGENTS.md` for the full rules when using this template with an AI agent. Key principles:
-
-- Never use `try/catch` in tool/resource `logic`. Throw `McpError` instead — handlers catch.
-- Use `elicitInput` from `SdkContext` to ask for missing user input.
-- Pass `RequestContext` through the call stack.
-- Import from the defining file, not barrel `index.ts`. Register new tools/resources in `definitions/index.ts`.
-
-## FAQ
-
-- **Does this work with both STDIO and Streamable HTTP?** Yes. Use `bun run dev:stdio` or `bun run dev:http`.
-- **Can I deploy this to the edge?** Yes. Run `bun run build:worker` and deploy with Wrangler.
-- **Do I have to use OpenTelemetry?** No, disabled by default. Set `OTEL_ENABLED=true` to enable.
-- **How do I publish my server to the MCP Registry?** See `docs/publishing-mcp-server-registry.md`.
+```bash
+bun run build          # tsc && tsc-alias
+bun run devcheck       # lint, format, typecheck, security
+bun run test           # vitest
+bun run dev:stdio      # dev mode (stdio)
+bun run dev:http       # dev mode (HTTP)
+bun run build:worker   # Cloudflare Worker bundle
+```
 
 ## Contributing
 
-Issues and pull requests are welcome. Run checks and tests before submitting:
+Issues and pull requests welcome. Run checks before submitting:
 
-```sh
+```bash
 bun run devcheck
 bun run test
 ```
 
 ## License
 
-This project is licensed under the Apache 2.0 License. See the [LICENSE](./LICENSE) file for details.
+Apache 2.0 — see [LICENSE](./LICENSE).
 
 ---
 
