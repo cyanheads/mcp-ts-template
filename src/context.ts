@@ -155,19 +155,25 @@ export interface ContextDeps {
 export function createContext(deps: ContextDeps): Context {
   const { appContext, logger: pinoLogger, storage, signal } = deps;
 
-  const log = createContextLogger(pinoLogger, appContext);
-  const state = createContextState(storage, appContext);
+  // Default tenantId to 'default' when not set (stdio mode, no auth).
+  // This allows ctx.state to work without requiring JWT auth.
+  const effectiveContext = appContext.tenantId
+    ? appContext
+    : { ...appContext, tenantId: 'default' };
+
+  const log = createContextLogger(pinoLogger, effectiveContext);
+  const state = createContextState(storage, effectiveContext);
   const progress = deps.taskCtx
     ? createContextProgress(deps.taskCtx.store, deps.taskCtx.taskId)
     : undefined;
 
   return {
-    requestId: appContext.requestId,
-    timestamp: appContext.timestamp,
+    requestId: effectiveContext.requestId,
+    timestamp: effectiveContext.timestamp,
     log,
     state,
     signal,
-    tenantId: appContext.tenantId,
+    tenantId: effectiveContext.tenantId,
     traceId: appContext.traceId as string | undefined,
     spanId: appContext.spanId as string | undefined,
     auth: appContext.auth,
