@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ## [0.1.0-beta.4] - 2026-03-11
 
-Wires new-style `resource()` and `prompt()` builders into their registries, adds `task: true` auto-task support for new-style tools, implements `checkScopes()` for dynamic auth, and defaults `tenantId` to `'default'` in stdio mode so `ctx.state` works without auth.
+Renames package identity to `@cyanheads/mcp-ts-core`. Wires new-style `resource()` and `prompt()` builders into their registries, adds `task: true` auto-task support for new-style tools, implements `checkScopes()` for dynamic auth, and defaults `tenantId` to `'default'` in stdio mode so `ctx.state` works without auth.
 
 ### Added
 
@@ -17,6 +17,7 @@ Wires new-style `resource()` and `prompt()` builders into their registries, adds
 
 ### Changed
 
+- **Package identity**: Renamed from `mcp-ts-template` to `@cyanheads/mcp-ts-core` across `package.json`, `server.json`, `wrangler.toml`, `typedoc.json`, test report, and config test. Repository URLs unchanged (Phase 6).
 - **`ResourceRegistry`**: Now accepts optional `ResourceHandlerFactoryServices` (logger + storage). Detects new-style definitions via `isNewResourceDefinition()` type guard and routes to `registerNewResource()` which uses `ResourceTemplate` and `createNewResourceHandler()`.
 - **`PromptRegistry`**: Detects new-style definitions via `isNewPromptDefinition()` type guard and routes to `registerNewPrompt()` which reads `args` instead of `argumentsSchema`.
 - **`ToolRegistry`**: New-style tools with `task: true` routed to `registerAutoTaskTool()` instead of `registerNewTool()`.
