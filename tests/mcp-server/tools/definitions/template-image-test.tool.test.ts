@@ -1,12 +1,12 @@
 /**
- * @fileoverview Tests for the template-image-test tool.
+ * @fileoverview Tests for the template-image-test tool (new-style API).
  * @module tests/mcp-server/tools/definitions/template-image-test.tool.test
  */
 
 import { HttpResponse, http } from 'msw';
 import { setupServer } from 'msw/node';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { requestContextService } from '@/utils/internal/requestContext.js';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { createMockContext } from '@/testing/index.js';
 import { imageTestTool } from '../../../../src/mcp-server/tools/definitions/template-image-test.tool.js';
 import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
 
@@ -28,19 +28,12 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 describe('imageTestTool', () => {
-  const mockSdkContext = {
-    signal: new AbortController().signal,
-    requestId: 'test-request-id',
-    sendNotification: vi.fn(),
-    sendRequest: vi.fn(),
-  };
-
   it.skip('should fetch an image and return it as base64', async () => {
-    const context = requestContextService.createRequestContext();
-    const result = await imageTestTool.logic({ trigger: true }, context, mockSdkContext);
+    const ctx = createMockContext();
+    const input = imageTestTool.input.parse({ trigger: true });
+    const result = await imageTestTool.handler(input, ctx);
 
     expect(result.mimeType).toBe('image/gif');
-    // The actual image data should match our fake GIF
     const expected = fakeImageBuffer.toString('base64');
     expect(result.data).toBe(expected);
   });
@@ -50,17 +43,15 @@ describe('imageTestTool', () => {
       http.get('https://cataas.com/cat', () => HttpResponse.text('nope', { status: 502 })),
     );
 
-    const context = requestContextService.createRequestContext();
-    const promise = imageTestTool.logic({ trigger: true }, context, mockSdkContext);
+    const ctx = createMockContext();
+    const input = imageTestTool.input.parse({ trigger: true });
 
-    await expect(promise).rejects.toBeInstanceOf(McpError);
-    await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.ServiceUnavailable);
+    await expect(imageTestTool.handler(input, ctx)).rejects.toBeInstanceOf(McpError);
 
     try {
-      await imageTestTool.logic({ trigger: true }, context, mockSdkContext);
+      await imageTestTool.handler(input, ctx);
     } catch (error) {
       const mcpError = error as McpError;
-      // fetchWithTimeout throws the McpError, which is what we expect
       expect(mcpError.message).toContain('Fetch failed');
       expect(mcpError.message).toContain('502');
     }
@@ -70,16 +61,13 @@ describe('imageTestTool', () => {
     server.use(
       http.get(
         'https://cataas.com/cat',
-        () =>
-          new HttpResponse(null, {
-            status: 500,
-            statusText: 'Internal Server Error',
-          }),
+        () => new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' }),
       ),
     );
 
-    const context = requestContextService.createRequestContext();
-    const promise = imageTestTool.logic({ trigger: true }, context, mockSdkContext);
+    const ctx = createMockContext();
+    const input = imageTestTool.input.parse({ trigger: true });
+    const promise = imageTestTool.handler(input, ctx);
 
     await expect(promise).rejects.toBeInstanceOf(McpError);
     await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.ServiceUnavailable);
@@ -96,18 +84,16 @@ describe('imageTestTool', () => {
       ),
     );
 
-    const context = requestContextService.createRequestContext();
-    const promise = imageTestTool.logic({ trigger: true }, context, mockSdkContext);
+    const ctx = createMockContext();
+    const input = imageTestTool.input.parse({ trigger: true });
+    const promise = imageTestTool.handler(input, ctx);
 
     await expect(promise).rejects.toBeInstanceOf(McpError);
     await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.ServiceUnavailable);
   });
 
   it('should format image responses into an image content block', () => {
-    const formatter = imageTestTool.responseFormatter;
-    expect(formatter).toBeDefined();
-
-    const blocks = formatter?.({
+    const blocks = imageTestTool.format?.({
       data: fakeImageBuffer.toString('base64'),
       mimeType: 'image/gif',
     });
@@ -124,8 +110,9 @@ describe('imageTestTool', () => {
   it('should default mime type when response header is missing', async () => {
     server.use(http.get('https://cataas.com/cat', () => new HttpResponse(fakeImageBuffer.buffer)));
 
-    const context = requestContextService.createRequestContext();
-    const result = await imageTestTool.logic({ trigger: true }, context, mockSdkContext);
+    const ctx = createMockContext();
+    const input = imageTestTool.input.parse({ trigger: true });
+    const result = await imageTestTool.handler(input, ctx);
 
     expect(result.mimeType).toBe('image/jpeg');
   });

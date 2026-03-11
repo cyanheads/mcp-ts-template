@@ -1,38 +1,17 @@
 /**
- * @fileoverview Test suite for the data explorer app tool — data generation,
- * aggregation, response formatting, schema validation, and metadata.
+ * @fileoverview Test suite for the data explorer app tool (new-style API).
  * @module tests/mcp-server/tools/definitions/template-data-explorer.app-tool.test
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { dataExplorerAppTool } from '@/mcp-server/tools/definitions/template-data-explorer.app-tool.js';
-import type { RequestContext } from '@/utils/internal/requestContext.js';
-
-// Suppress logger output
-vi.mock('@/utils/internal/logger.js', async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>;
-  return {
-    ...actual,
-    logger: {
-      info: vi.fn(),
-      debug: vi.fn(),
-      warning: vi.fn(),
-      error: vi.fn(),
-    },
-  };
-});
+import { createMockContext } from '@/testing/index.js';
 
 describe('Data Explorer App Tool', () => {
-  const mockContext: RequestContext = {
-    requestId: 'test-req',
-    timestamp: new Date().toISOString(),
-    operation: 'test',
-  };
-  const mockSdkContext = {} as never;
-
-  // Helper to invoke the wrapped logic (withToolAuth makes it async)
-  async function invokeLogic(rowCount: number) {
-    return dataExplorerAppTool.logic({ rowCount }, mockContext, mockSdkContext);
+  async function invokeHandler(rowCount: number) {
+    const ctx = createMockContext();
+    const input = dataExplorerAppTool.input.parse({ rowCount });
+    return await dataExplorerAppTool.handler(input, ctx);
   }
 
   // ─── Metadata ────────────────────────────────────────────────────────────────
@@ -64,7 +43,7 @@ describe('Data Explorer App Tool', () => {
   // ─── Schema ──────────────────────────────────────────────────────────────────
 
   describe('Input Schema', () => {
-    const schema = dataExplorerAppTool.inputSchema;
+    const schema = dataExplorerAppTool.input;
 
     it('should accept valid rowCount', () => {
       expect(schema.parse({ rowCount: 20 })).toEqual({ rowCount: 20 });
@@ -91,12 +70,12 @@ describe('Data Explorer App Tool', () => {
 
   describe('Logic', () => {
     it('should generate requested number of rows', async () => {
-      const result = await invokeLogic(10);
+      const result = await invokeHandler(10);
       expect(result.rows).toHaveLength(10);
     });
 
     it('should generate rows with correct structure', async () => {
-      const result = await invokeLogic(5);
+      const result = await invokeHandler(5);
 
       const row = result.rows[0]!;
       expect(row).toHaveProperty('id');
@@ -108,45 +87,45 @@ describe('Data Explorer App Tool', () => {
     });
 
     it('should generate sequential IDs starting at 1', async () => {
-      const result = await invokeLogic(5);
+      const result = await invokeHandler(5);
       expect(result.rows[0]?.id).toBe(1);
       expect(result.rows[4]?.id).toBe(5);
     });
 
     it('should generate valid date format (YYYY-MM-DD)', async () => {
-      const result = await invokeLogic(5);
+      const result = await invokeHandler(5);
       for (const row of result.rows) {
         expect(row.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       }
     });
 
     it('should compute correct summary totalRows', async () => {
-      const result = await invokeLogic(15);
+      const result = await invokeHandler(15);
       expect(result.summary.totalRows).toBe(15);
     });
 
     it('should compute correct summary totalRevenue', async () => {
-      const result = await invokeLogic(10);
-      const expectedRevenue = result.rows.reduce((sum, r) => sum + r.revenue, 0);
+      const result = await invokeHandler(10);
+      const expectedRevenue = result.rows.reduce((sum: number, r) => sum + r.revenue, 0);
       expect(result.summary.totalRevenue).toBe(expectedRevenue);
     });
 
     it('should compute correct summary totalUnits', async () => {
-      const result = await invokeLogic(10);
-      const expectedUnits = result.rows.reduce((sum, r) => sum + r.units, 0);
+      const result = await invokeHandler(10);
+      const expectedUnits = result.rows.reduce((sum: number, r) => sum + r.units, 0);
       expect(result.summary.totalUnits).toBe(expectedUnits);
     });
 
     it('should include generatedAt ISO timestamp', async () => {
-      const result = await invokeLogic(5);
+      const result = await invokeHandler(5);
       expect(result.generatedAt).toBeTruthy();
       expect(new Date(result.generatedAt).toISOString()).toBe(result.generatedAt);
     });
 
     it('should validate output against OutputSchema', async () => {
-      const result = await invokeLogic(5);
-      const parsed = dataExplorerAppTool.outputSchema?.safeParse(result);
-      expect(parsed.success).toBe(true);
+      const result = await invokeHandler(5);
+      const parsed = dataExplorerAppTool.output?.safeParse(result);
+      expect(parsed?.success).toBe(true);
     });
   });
 
@@ -154,16 +133,16 @@ describe('Data Explorer App Tool', () => {
 
   describe('Response Formatter', () => {
     it('should return two ContentBlock text entries (JSON + table)', async () => {
-      const result = await invokeLogic(5);
-      const blocks = dataExplorerAppTool.responseFormatter?.(result);
+      const result = await invokeHandler(5);
+      const blocks = dataExplorerAppTool.format?.(result);
       expect(blocks).toHaveLength(2);
       expect(blocks![0]?.type).toBe('text');
       expect(blocks![1]?.type).toBe('text');
     });
 
     it('should emit valid JSON in the first block (for MCP Apps UI)', async () => {
-      const result = await invokeLogic(5);
-      const blocks = dataExplorerAppTool.responseFormatter?.(result);
+      const result = await invokeHandler(5);
+      const blocks = dataExplorerAppTool.format?.(result);
       const jsonText = (blocks![0] as { type: 'text'; text: string }).text;
       const parsed = JSON.parse(jsonText);
       expect(parsed.rows).toHaveLength(5);
@@ -171,8 +150,8 @@ describe('Data Explorer App Tool', () => {
     });
 
     it('should include table header and separator in the second block', async () => {
-      const result = await invokeLogic(5);
-      const blocks = dataExplorerAppTool.responseFormatter?.(result);
+      const result = await invokeHandler(5);
+      const blocks = dataExplorerAppTool.format?.(result);
       const text = (blocks![1] as { type: 'text'; text: string }).text;
       expect(text).toContain('ID');
       expect(text).toContain('Region');
@@ -181,8 +160,8 @@ describe('Data Explorer App Tool', () => {
     });
 
     it('should include summary line with totals in the second block', async () => {
-      const result = await invokeLogic(5);
-      const blocks = dataExplorerAppTool.responseFormatter?.(result);
+      const result = await invokeHandler(5);
+      const blocks = dataExplorerAppTool.format?.(result);
       const text = (blocks![1] as { type: 'text'; text: string }).text;
       expect(text).toContain('Total:');
       expect(text).toContain('5 rows');

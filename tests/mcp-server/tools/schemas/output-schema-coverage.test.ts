@@ -44,7 +44,7 @@ describe('Output Schema Coverage', () => {
         repeatCount: 1,
       };
 
-      expect(() => echoTool.outputSchema.strict().parse(result)).not.toThrow();
+      expect(() => echoTool.output!.strict().parse(result)).not.toThrow();
     });
 
     it('should accept logic output (uppercase mode, with timestamp)', () => {
@@ -57,7 +57,7 @@ describe('Output Schema Coverage', () => {
         timestamp: new Date().toISOString(),
       };
 
-      expect(() => echoTool.outputSchema.strict().parse(result)).not.toThrow();
+      expect(() => echoTool.output!.strict().parse(result)).not.toThrow();
     });
 
     it('should reject output with undeclared fields', () => {
@@ -70,7 +70,7 @@ describe('Output Schema Coverage', () => {
         extraField: 'should not be here',
       };
 
-      expect(() => echoTool.outputSchema.strict().parse(result)).toThrow();
+      expect(() => echoTool.output!.strict().parse(result)).toThrow();
     });
   });
 
@@ -93,7 +93,7 @@ describe('Output Schema Coverage', () => {
         summary: { totalRows: 1, totalRevenue: 5000, totalUnits: 100 },
       };
 
-      expect(() => dataExplorerAppTool.outputSchema.strict().parse(result)).not.toThrow();
+      expect(() => dataExplorerAppTool.output!.strict().parse(result)).not.toThrow();
     });
 
     it('should reject top-level undeclared fields', () => {
@@ -104,7 +104,7 @@ describe('Output Schema Coverage', () => {
         extraField: 'should not be here',
       };
 
-      expect(() => dataExplorerAppTool.outputSchema.strict().parse(result)).toThrow();
+      expect(() => dataExplorerAppTool.output!.strict().parse(result)).toThrow();
     });
   });
 });

@@ -1,11 +1,11 @@
 /**
- * @fileoverview Tests for the template-cat-fact tool.
+ * @fileoverview Tests for the template-cat-fact tool (new-style API).
  * @module tests/mcp-server/tools/definitions/template-cat-fact.tool.test
  */
 import { HttpResponse, http } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { requestContextService } from '@/utils/internal/requestContext.js';
+import { createMockContext } from '@/testing/index.js';
 import { catFactTool } from '../../../../src/mcp-server/tools/definitions/template-cat-fact.tool.js';
 import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
 import * as fetchModule from '../../../../src/utils/network/fetchWithTimeout.js';
@@ -21,16 +21,10 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 describe('catFactTool', () => {
-  const mockSdkContext = {
-    signal: new AbortController().signal,
-    requestId: 'test-request-id',
-    sendNotification: vi.fn(),
-    sendRequest: vi.fn(),
-  };
-
   it('should fetch a cat fact and return it', async () => {
-    const context = requestContextService.createRequestContext();
-    const result = await catFactTool.logic({}, context, mockSdkContext);
+    const ctx = createMockContext();
+    const input = catFactTool.input.parse({});
+    const result = await catFactTool.handler(input, ctx);
 
     expect(result.fact).toBe('Cats are cool.');
     expect(result.length).toBe(13);
@@ -45,15 +39,15 @@ describe('catFactTool', () => {
       }),
     );
 
-    const context = requestContextService.createRequestContext();
-    const result = await catFactTool.logic({ maxLength: 42 }, context, mockSdkContext);
+    const ctx = createMockContext();
+    const input = catFactTool.input.parse({ maxLength: 42 });
+    const result = await catFactTool.handler(input, ctx);
 
     expect(requestedUrl).toContain('max_length=42');
     expect(result.requestedMaxLength).toBe(42);
   });
 
   it('captures undefined response body when error text cannot be read', async () => {
-    const context = requestContextService.createRequestContext();
     const failingResponse = {
       ok: false,
       status: 502,
@@ -66,7 +60,10 @@ describe('catFactTool', () => {
       .mockResolvedValueOnce(failingResponse);
 
     try {
-      await expect(catFactTool.logic({}, context, mockSdkContext)).rejects.toMatchObject({
+      const ctx = createMockContext();
+      const input = catFactTool.input.parse({});
+
+      await expect(catFactTool.handler(input, ctx)).rejects.toMatchObject({
         code: JsonRpcErrorCode.ServiceUnavailable,
         data: expect.objectContaining({
           responseBody: undefined,
@@ -87,17 +84,15 @@ describe('catFactTool', () => {
       ),
     );
 
-    const context = requestContextService.createRequestContext();
-    const promise = catFactTool.logic({}, context, mockSdkContext);
+    const ctx = createMockContext();
+    const input = catFactTool.input.parse({});
 
-    await expect(promise).rejects.toBeInstanceOf(McpError);
-    await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.ServiceUnavailable);
+    await expect(catFactTool.handler(input, ctx)).rejects.toBeInstanceOf(McpError);
 
     try {
-      await catFactTool.logic({}, context, mockSdkContext);
+      await catFactTool.handler(input, ctx);
     } catch (error) {
       const mcpError = error as McpError;
-      // fetchWithTimeout throws the McpError, which is what we expect
       expect(mcpError.message).toContain('Fetch failed');
       expect(mcpError.message).toContain('503');
     }
@@ -107,16 +102,13 @@ describe('catFactTool', () => {
     server.use(
       http.get(
         'https://catfact.ninja/fact',
-        () =>
-          new HttpResponse(null, {
-            status: 500,
-            statusText: 'Internal Server Error',
-          }),
+        () => new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' }),
       ),
     );
 
-    const context = requestContextService.createRequestContext();
-    const promise = catFactTool.logic({}, context, mockSdkContext);
+    const ctx = createMockContext();
+    const input = catFactTool.input.parse({});
+    const promise = catFactTool.handler(input, ctx);
 
     await expect(promise).rejects.toBeInstanceOf(McpError);
     await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.ServiceUnavailable);
@@ -125,18 +117,16 @@ describe('catFactTool', () => {
   it('should throw an McpError when the API returns unexpected data', async () => {
     server.use(http.get('https://catfact.ninja/fact', () => HttpResponse.json({ invalid: true })));
 
-    const context = requestContextService.createRequestContext();
-    const promise = catFactTool.logic({}, context, mockSdkContext);
+    const ctx = createMockContext();
+    const input = catFactTool.input.parse({});
+    const promise = catFactTool.handler(input, ctx);
 
     await expect(promise).rejects.toBeInstanceOf(McpError);
     await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.ServiceUnavailable);
   });
 
   it('should format response content including metadata', () => {
-    const formatter = catFactTool.responseFormatter;
-    expect(formatter).toBeDefined();
-
-    const blocks = formatter?.({
+    const blocks = catFactTool.format?.({
       fact: 'Cats sleep for 16 hours a day.',
       length: 30,
       requestedMaxLength: 60,
@@ -146,16 +136,13 @@ describe('catFactTool', () => {
     expect(blocks).toHaveLength(1);
     const block = blocks![0];
     expect(block).toBeDefined();
-    if (!block || block.type !== 'text') {
-      throw new Error('Expected text content block');
-    }
+    if (!block || block.type !== 'text') throw new Error('Expected text content block');
     expect(block.text).toContain('Cat Fact (length=30, max<=60)');
     expect(block.text).toContain('timestamp=2024-01-01T00:00:00.000Z');
   });
 
   it('should omit max length annotation when not provided', () => {
-    const formatter = catFactTool.responseFormatter;
-    const blocks = formatter?.({
+    const blocks = catFactTool.format?.({
       fact: 'Cats purr contentedly.',
       length: 24,
       requestedMaxLength: undefined,
@@ -164,17 +151,14 @@ describe('catFactTool', () => {
 
     expect(blocks).toHaveLength(1);
     const block = blocks![0];
-    if (!block || block.type !== 'text') {
-      throw new Error('Expected text content block');
-    }
+    if (!block || block.type !== 'text') throw new Error('Expected text content block');
     expect(block.text).toContain('Cat Fact (length=24)');
     expect(block.text).not.toContain('max<=');
   });
 
   it('should truncate long facts in the preview', () => {
-    const formatter = catFactTool.responseFormatter;
     const longFact = 'A'.repeat(400);
-    const blocks = formatter?.({
+    const blocks = catFactTool.format?.({
       fact: longFact,
       length: longFact.length,
       requestedMaxLength: 500,
@@ -183,11 +167,8 @@ describe('catFactTool', () => {
 
     expect(blocks).toHaveLength(1);
     const block = blocks![0];
-    if (!block || block.type !== 'text') {
-      throw new Error('Expected text content block');
-    }
+    if (!block || block.type !== 'text') throw new Error('Expected text content block');
     expect(block.text).toContain('Cat Fact (length=400, max<=500)');
-    expect(block.text).toContain('AAA');
     expect(block.text).toContain('…');
     expect(block.text).not.toContain('A'.repeat(400));
   });

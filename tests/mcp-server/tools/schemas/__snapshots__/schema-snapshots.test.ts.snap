@@ -82,7 +82,6 @@ exports[`Tool Schema Snapshots > Tool: template_cat_fact > inputSchema JSON outp
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Parameters for fetching a random cat fact.",
   "properties": {
     "maxLength": {
       "description": "Optional: The maximum character length of the cat fact to retrieve.",
@@ -99,7 +98,6 @@ exports[`Tool Schema Snapshots > Tool: template_cat_fact > outputSchema JSON out
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Cat fact tool response payload.",
   "properties": {
     "fact": {
       "description": "The retrieved cat fact.",
@@ -137,7 +135,6 @@ exports[`Tool Schema Snapshots > Tool: template_code_review_sampling > inputSche
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Request an LLM-powered code review via sampling.",
   "properties": {
     "code": {
       "description": "The code snippet to review.",
@@ -181,7 +178,6 @@ exports[`Tool Schema Snapshots > Tool: template_code_review_sampling > outputSch
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Code review tool response payload.",
   "properties": {
     "code": {
       "description": "The original code snippet.",
@@ -231,11 +227,10 @@ exports[`Tool Schema Snapshots > Tool: template_data_explorer > inputSchema JSON
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Parameters for generating sample sales data.",
   "properties": {
     "rowCount": {
       "default": 20,
-      "description": "Number of sample rows to generate (5–100).",
+      "description": "Number of sample rows to generate (5-100).",
       "maximum": 100,
       "minimum": 5,
       "type": "integer",
@@ -252,7 +247,6 @@ exports[`Tool Schema Snapshots > Tool: template_data_explorer > outputSchema JSO
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Sales data explorer response payload.",
   "properties": {
     "generatedAt": {
       "description": "ISO 8601 timestamp when data was generated.",
@@ -348,7 +342,6 @@ exports[`Tool Schema Snapshots > Tool: template_echo_message > inputSchema JSON 
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Echo a message with optional formatting and repetition.",
   "properties": {
     "includeTimestamp": {
       "default": false,
@@ -393,7 +386,6 @@ exports[`Tool Schema Snapshots > Tool: template_echo_message > outputSchema JSON
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Echo tool response payload.",
   "properties": {
     "formattedMessage": {
       "description": "The message after applying the specified formatting.",
@@ -444,7 +436,6 @@ exports[`Tool Schema Snapshots > Tool: template_image_test > inputSchema JSON ou
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Parameters for fetching a random image.",
   "properties": {
     "trigger": {
       "default": true,
@@ -463,7 +454,6 @@ exports[`Tool Schema Snapshots > Tool: template_image_test > outputSchema JSON o
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Image tool response payload.",
   "properties": {
     "data": {
       "description": "Base64 encoded image data.",
@@ -486,7 +476,6 @@ exports[`Tool Schema Snapshots > Tool: template_madlibs_elicitation > inputSchem
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "Inputs for the Mad Libs game. Any missing fields will be elicited.",
   "properties": {
     "adjective": {
       "description": "An adjective for the story.",
@@ -509,7 +498,6 @@ exports[`Tool Schema Snapshots > Tool: template_madlibs_elicitation > outputSche
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
-  "description": "The completed Mad Libs story and the words used.",
   "properties": {
     "adjective": {
       "description": "The adjective used in the story.",

@@ -1,9 +1,9 @@
 /**
- * @fileoverview Tests for the template-echo-message tool.
+ * @fileoverview Tests for the template-echo-message tool (new-style API).
  * @module tests/mcp-server/tools/definitions/template-echo-message.tool.test
  */
-import { describe, expect, it, vi } from 'vitest';
-import { requestContextService } from '@/utils/internal/requestContext.js';
+import { describe, expect, it } from 'vitest';
+import { createMockContext } from '@/testing/index.js';
 import {
   echoTool,
   TEST_ERROR_TRIGGER_MESSAGE,
@@ -11,18 +11,11 @@ import {
 import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
 
 describe('echoTool', () => {
-  const mockSdkContext = {
-    signal: new AbortController().signal,
-    requestId: 'test-request-id',
-    sendNotification: vi.fn(),
-    sendRequest: vi.fn(),
-  };
-
   it('should echo a message with default settings', async () => {
-    const context = requestContextService.createRequestContext();
+    const ctx = createMockContext();
     const rawInput = { message: 'hello' };
-    const parsedInput = echoTool.inputSchema.parse(rawInput);
-    const result = await echoTool.logic(parsedInput, context, mockSdkContext);
+    const parsedInput = echoTool.input.parse(rawInput);
+    const result = await echoTool.handler(parsedInput, ctx);
 
     expect(result.originalMessage).toBe('hello');
     expect(result.formattedMessage).toBe('hello');
@@ -33,15 +26,15 @@ describe('echoTool', () => {
   });
 
   it('should echo an uppercase message and repeat it', async () => {
-    const context = requestContextService.createRequestContext();
+    const ctx = createMockContext();
     const rawInput = {
       message: 'hello',
       mode: 'uppercase',
       repeat: 2,
       includeTimestamp: true,
     };
-    const parsedInput = echoTool.inputSchema.parse(rawInput);
-    const result = await echoTool.logic(parsedInput, context, mockSdkContext);
+    const parsedInput = echoTool.input.parse(rawInput);
+    const result = await echoTool.handler(parsedInput, ctx);
 
     expect(result.formattedMessage).toBe('HELLO');
     expect(result.repeatedMessage).toBe('HELLO HELLO');
@@ -50,25 +43,27 @@ describe('echoTool', () => {
   });
 
   it('should throw an McpError when the trigger message is used', async () => {
-    const context = requestContextService.createRequestContext();
+    const ctx = createMockContext();
     const rawInput = { message: TEST_ERROR_TRIGGER_MESSAGE };
-    const parsedInput = echoTool.inputSchema.parse(rawInput);
-    const promise = echoTool.logic(parsedInput, context, mockSdkContext);
+    const parsedInput = echoTool.input.parse(rawInput);
 
-    await expect(promise).rejects.toThrow(McpError);
-    await expect(promise).rejects.toHaveProperty('code', JsonRpcErrorCode.ValidationError);
+    expect(() => echoTool.handler(parsedInput, ctx)).toThrow(McpError);
+    expect(() => echoTool.handler(parsedInput, ctx)).toThrow(
+      expect.objectContaining({ code: JsonRpcErrorCode.ValidationError }),
+    );
   });
 
-  it('should include traceId metadata when provided in the request context', async () => {
-    const context = requestContextService.createRequestContext({
-      traceId: 'trace-echo-123',
-    });
+  it('should include traceId metadata when provided in context', async () => {
+    const ctx = createMockContext({ requestId: 'req-123' });
+    // Manually set traceId on the context (it's readonly but we're testing)
+    const ctxWithTrace = { ...ctx, traceId: 'trace-echo-123' };
+
     const rawInput = { message: TEST_ERROR_TRIGGER_MESSAGE };
-    const parsedInput = echoTool.inputSchema.parse(rawInput);
+    const parsedInput = echoTool.input.parse(rawInput);
 
     let thrown: unknown;
     try {
-      await echoTool.logic(parsedInput, context, mockSdkContext);
+      await echoTool.handler(parsedInput, ctxWithTrace);
     } catch (error) {
       thrown = error;
     }
@@ -76,16 +71,15 @@ describe('echoTool', () => {
     expect(thrown).toBeInstanceOf(McpError);
     const mcpError = thrown as McpError;
     expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
-    expect(context.traceId).toBe('trace-echo-123');
     expect(mcpError.data).toMatchObject({
-      requestId: context.requestId,
+      requestId: 'req-123',
       traceId: 'trace-echo-123',
     });
   });
 
   it('should format response content with truncation and timestamp', () => {
     const longMessage = 'loremipsum'.repeat(25);
-    const formatter = echoTool.responseFormatter;
+    const formatter = echoTool.format;
     expect(formatter).toBeDefined();
 
     const result = formatter?.({
@@ -110,7 +104,7 @@ describe('echoTool', () => {
   });
 
   it('should format response content without timestamp when not provided', () => {
-    const formatter = echoTool.responseFormatter;
+    const formatter = echoTool.format;
     expect(formatter).toBeDefined();
 
     const result = formatter?.({

@@ -17,6 +17,16 @@ import { z } from 'zod';
 
 import { allToolDefinitions } from '@/mcp-server/tools/definitions/index.js';
 
+/** Extract the input schema from either old or new-style definition. */
+function getInputSchema(tool: Record<string, unknown>) {
+  return (tool.inputSchema ?? tool.input) as z.ZodTypeAny;
+}
+
+/** Extract the output schema from either old or new-style definition. */
+function getOutputSchema(tool: Record<string, unknown>) {
+  return (tool.outputSchema ?? tool.output) as z.ZodTypeAny | undefined;
+}
+
 type JsonSchemaProperty = {
   type?: string;
   minimum?: number;
@@ -81,7 +91,8 @@ describe('JSON Schema Draft 4 Compatibility', () => {
       const allIssues: string[] = [];
 
       for (const tool of allToolDefinitions) {
-        const inputSchema = toJsonSchema(tool.inputSchema);
+        const rawDef = tool as unknown as Record<string, unknown>;
+        const inputSchema = toJsonSchema(getInputSchema(rawDef));
 
         const inputIssues = findDraft7Incompatibilities(inputSchema as JsonSchemaProperty);
 
@@ -90,8 +101,9 @@ describe('JSON Schema Draft 4 Compatibility', () => {
         }
 
         // outputSchema is optional (e.g., for task tools)
-        if (tool.outputSchema) {
-          const outputSchema = toJsonSchema(tool.outputSchema);
+        const outSchema = getOutputSchema(rawDef);
+        if (outSchema) {
+          const outputSchema = toJsonSchema(outSchema);
           const outputIssues = findDraft7Incompatibilities(outputSchema as JsonSchemaProperty);
 
           if (outputIssues.length > 0) {
@@ -215,9 +227,10 @@ describe('Individual Tool Schema Validation', () => {
    * Test each tool's schema individually for better error reporting
    */
   for (const tool of allToolDefinitions) {
+    const rawDef = tool as unknown as Record<string, unknown>;
     describe(`Tool: ${tool.name}`, () => {
       it('inputSchema should be Draft 4 compatible', () => {
-        const jsonSchema = toJsonSchema(tool.inputSchema);
+        const jsonSchema = toJsonSchema(getInputSchema(rawDef));
         const issues = findDraft7Incompatibilities(jsonSchema as JsonSchemaProperty);
 
         expect(issues, `inputSchema contains Draft 7-only features:\n${issues.join('\n')}`).toEqual(
@@ -226,9 +239,10 @@ describe('Individual Tool Schema Validation', () => {
       });
 
       // outputSchema is optional (e.g., for task tools)
-      if (tool.outputSchema) {
+      const outSchema = getOutputSchema(rawDef);
+      if (outSchema) {
         it('outputSchema should be Draft 4 compatible', () => {
-          const jsonSchema = toJsonSchema(tool.outputSchema!);
+          const jsonSchema = toJsonSchema(outSchema);
           const issues = findDraft7Incompatibilities(jsonSchema as JsonSchemaProperty);
 
           expect(
