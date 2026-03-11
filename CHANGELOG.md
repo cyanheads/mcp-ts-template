@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.5] - 2026-03-11
+
+Comprehensive documentation pass: enhanced JSDoc across all service and utility modules, added 8 new API reference skill files, and updated CLAUDE.md with the Agent Skills section.
+
+### Added
+
+- **API reference skills**: 8 new skill files in `skills/` covering auth (`api-auth`), config (`api-config`), context (`api-context`), errors (`api-errors`), services (`api-services`), testing (`api-testing`), utils (`api-utils`), and workers (`api-workers`). Each provides detailed API documentation and usage examples for its domain.
+- **Agent Skills section in CLAUDE.md**: Added skills reference table linking all 13 skills with paths and descriptions.
+
+### Changed
+
+- **JSDoc: services** (`src/services/`): Enhanced documentation across graph (`GraphService`, `IGraphProvider`, types), LLM (`ILlmProvider`, `openrouter.provider`, types), and speech (`ISpeechProvider`, `SpeechService`, `elevenlabs.provider`, `whisper.provider`, types) with expanded `@remarks`, `@param`, `@returns`, `@throws`, and `@example` tags.
+- **JSDoc: formatting utilities** (`src/utils/formatting/`): Enhanced `diffFormatter`, `markdownBuilder`, `tableFormatter`, and `treeFormatter` with detailed method documentation, usage examples, and clearer type descriptions.
+- **JSDoc: internal utilities** (`src/utils/internal/`): Enhanced `encoding`, `errorHandler` (handler, helpers, mappings, types), `health`, `logger`, `performance`, `requestContext`, and `runtime` modules.
+- **JSDoc: parsing utilities** (`src/utils/parsing/`): Enhanced `csvParser`, `dateParser`, `frontmatterParser`, `jsonParser`, `pdfParser`, `thinkBlock`, `xmlParser`, and `yamlParser`.
+- **JSDoc: remaining utilities**: Enhanced `tokenCounter` (metrics), `fetchWithTimeout` (network), `pagination` (pagination), `scheduler` (scheduling), `idGenerator`/`rateLimiter`/`sanitization` (security), `instrumentation`/`metrics`/`semconv`/`trace` (telemetry), and `guards` (types).
+- **Core extraction docs**: Updated `05-agent-dx.md`, `09-execution.md`, and `10-decisions.md` with current status.
+
+---
+
 ## [0.1.0-beta.4] - 2026-03-11
 
 Renames package identity to `@cyanheads/mcp-ts-core`. Wires new-style `resource()` and `prompt()` builders into their registries, adds `task: true` auto-task support for new-style tools, implements `checkScopes()` for dynamic auth, and defaults `tenantId` to `'default'` in stdio mode so `ctx.state` works without auth.
