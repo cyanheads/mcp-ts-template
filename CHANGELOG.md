@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.4] - 2026-03-11
+
+Wires new-style `resource()` and `prompt()` builders into their registries, adds `task: true` auto-task support for new-style tools, implements `checkScopes()` for dynamic auth, and defaults `tenantId` to `'default'` in stdio mode so `ctx.state` works without auth.
+
+### Added
+
+- **`createApp()` options**: `CreateAppOptions` and `CoreServices` interfaces exported from `src/app.ts`. Accepts `tools`, `resources`, `prompts`, `setup`, `name`, and `version` — consumers can override definition arrays and hook into server lifecycle.
+- **Auto-task tool registration**: New-style tools with `task: true` are automatically registered via the experimental Tasks API. The framework manages the full lifecycle — create task, background handler execution, progress reporting, cancellation polling, and result/error storage.
+- **`checkScopes()` public API** (`src/mcp-server/transports/auth/lib/checkScopes.ts`): Dynamic scope checking for new-style handlers. Wraps `withRequiredScopes` with `Context`-based interface for runtime-dependent scopes (e.g., `team:${input.teamId}:write`).
+- **`newResourceHandlerFactory.ts`**: Handler factory for new-style resource definitions — creates `Context` with `ctx.uri`, checks inline auth, validates params via Zod, formats response, catches errors.
+
+### Changed
+
+- **`ResourceRegistry`**: Now accepts optional `ResourceHandlerFactoryServices` (logger + storage). Detects new-style definitions via `isNewResourceDefinition()` type guard and routes to `registerNewResource()` which uses `ResourceTemplate` and `createNewResourceHandler()`.
+- **`PromptRegistry`**: Detects new-style definitions via `isNewPromptDefinition()` type guard and routes to `registerNewPrompt()` which reads `args` instead of `argumentsSchema`.
+- **`ToolRegistry`**: New-style tools with `task: true` routed to `registerAutoTaskTool()` instead of `registerNewTool()`.
+- **`createContext()`**: Defaults `tenantId` to `'default'` when not set, so `ctx.state` works in stdio mode without JWT auth.
+- **`createApp()`**: Passes `{ logger, storage }` to both `ToolRegistry` and `ResourceRegistry` constructors. Runs `setup()` callback after core services, before registry construction.
+- **Task conformance test**: Updated `createTaskHarness()` to pass `{ logger, storage }` services to `ToolRegistry` and `ResourceRegistry`.
+- **Auth factory test**: Fixed JWT strategy tests to provide `mcpAuthSecretKey` config value, preventing runtime errors.
+
+### Updated
+
+- **`core-extraction/` docs**: Updated Phase 3 checklists in `05-agent-dx.md`, `09-execution.md`, `12-developer-api.md`, `13-init-cli.md`, and `README.md` to reflect completed registry wiring, auto-task support, `checkScopes`, stdio tenantId default, templates, and skills.
+
+---
+
 ## [0.1.0-beta.3] - 2026-03-11
 
 Adds the `templates/` directory for the `init` CLI, simplifies the init design to a one-time bootstrap (no idempotency), and reclassifies the `migrate-imports` skill as internal.
