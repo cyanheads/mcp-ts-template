@@ -4,7 +4,11 @@
  * @module src/mcp-server/tools/tool-registration
  */
 import type { McpServer, ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { RequestTaskStore } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import type { CallToolResult, ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape } from 'zod';
+
+import { createContext } from '@/context.js';
 import {
   isTaskToolDefinition,
   type TaskToolDefinition,
@@ -19,6 +23,7 @@ import {
 } from '@/mcp-server/tools/utils/newToolHandlerFactory.js';
 import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
 import { createMcpToolHandler } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
+import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
@@ -64,9 +69,13 @@ export class ToolRegistry {
       context,
     );
 
-    // Register new-style tools
+    // Register new-style tools (regular and auto-task)
     for (const toolDef of newTools) {
-      await this.registerNewTool(server, toolDef);
+      if (toolDef.task) {
+        await this.registerAutoTaskTool(server, toolDef);
+      } else {
+        await this.registerNewTool(server, toolDef);
+      }
     }
 
     // Register legacy tools
@@ -130,6 +139,161 @@ export class ToolRegistry {
         critical: true,
       },
     );
+  }
+
+  /**
+   * Registers a new-style tool with `task: true` via the experimental Tasks API.
+   * Auto-generates task handlers from the definition's `handler` function.
+   * The framework manages the full task lifecycle: create, background run, store result.
+   */
+  private async registerAutoTaskTool(server: McpServer, tool: AnyNewToolDefinition): Promise<void> {
+    const registrationContext = requestContextService.createRequestContext({
+      operation: 'ToolRegistry.registerAutoTaskTool',
+      toolName: tool.name,
+    });
+
+    logger.debug(
+      `Registering auto-task tool (new-style, task: true): '${tool.name}'`,
+      registrationContext,
+    );
+
+    await ErrorHandler.tryCatch(
+      () => {
+        if (!this.services) {
+          throw new Error(
+            `Cannot register auto-task tool '${tool.name}': HandlerFactoryServices not provided to ToolRegistry`,
+          );
+        }
+
+        const services = this.services;
+        const title = tool.title ?? tool.annotations?.title ?? this.deriveTitleFromName(tool.name);
+        const formatter = (result: unknown): ContentBlock[] =>
+          tool.format
+            ? tool.format(result as Record<string, unknown>)
+            : [{ type: 'text', text: JSON.stringify(result, null, 2) }];
+
+        server.experimental.tasks.registerToolTask(
+          tool.name,
+          {
+            title,
+            description: tool.description,
+            inputSchema: tool.input,
+            ...(tool.output && { outputSchema: tool.output }),
+            ...(tool.annotations && { annotations: tool.annotations }),
+            execution: { taskSupport: 'optional' },
+          },
+          {
+            createTask: async (args, extra) => {
+              const validatedInput = tool.input.parse(args);
+
+              const task = await extra.taskStore.createTask({
+                ttl: 120_000,
+                pollInterval: 1000,
+              });
+
+              // Fire-and-forget: run handler in background
+              void this.runAutoTaskHandler(
+                tool,
+                validatedInput,
+                task.taskId,
+                extra.taskStore,
+                services,
+                formatter,
+              );
+
+              return { task };
+            },
+            getTask: async (_args, extra) => extra.taskStore.getTask(extra.taskId),
+            getTaskResult: async (_args, extra) =>
+              (await extra.taskStore.getTaskResult(extra.taskId)) as CallToolResult,
+          },
+        );
+
+        logger.notice(
+          `Auto-task tool '${tool.name}' registered successfully (experimental).`,
+          registrationContext,
+        );
+      },
+      {
+        operation: `RegisteringAutoTaskTool_${tool.name}`,
+        context: registrationContext,
+        errorCode: JsonRpcErrorCode.InitializationFailed,
+        critical: true,
+      },
+    );
+  }
+
+  /**
+   * Runs a new-style tool handler as a background task.
+   * Creates Context with `progress` and `signal`, stores result/error on completion.
+   */
+  private async runAutoTaskHandler(
+    tool: AnyNewToolDefinition,
+    input: unknown,
+    taskId: string,
+    taskStore: RequestTaskStore,
+    services: HandlerFactoryServices,
+    formatter: (result: unknown) => ContentBlock[],
+  ): Promise<void> {
+    const abortController = new AbortController();
+
+    // Poll for cancellation every 2 seconds
+    const cancelInterval = setInterval(async () => {
+      try {
+        const task = await taskStore.getTask(taskId);
+        if (task.status === 'cancelled') {
+          abortController.abort();
+          clearInterval(cancelInterval);
+        }
+      } catch {
+        // Task may have been cleaned up — stop polling
+        clearInterval(cancelInterval);
+      }
+    }, 2000);
+
+    try {
+      const appContext = requestContextService.createRequestContext({
+        operation: 'AutoTaskHandler',
+        additionalContext: { toolName: tool.name, taskId },
+      });
+
+      // Check inline auth scopes
+      if (tool.auth && tool.auth.length > 0) {
+        withRequiredScopes(tool.auth, appContext);
+      }
+
+      const ctx = createContext({
+        appContext,
+        logger: services.logger,
+        storage: services.storage,
+        signal: abortController.signal,
+        taskCtx: { store: taskStore, taskId },
+      });
+
+      const result = await Promise.resolve(tool.handler(input as Record<string, unknown>, ctx));
+
+      clearInterval(cancelInterval);
+
+      await taskStore.storeTaskResult(taskId, 'completed', {
+        content: formatter(result),
+        structuredContent: result,
+      });
+    } catch (error: unknown) {
+      clearInterval(cancelInterval);
+
+      // If cancelled, the SDK already set the terminal state — don't overwrite
+      if (abortController.signal.aborted) return;
+
+      try {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        await taskStore.storeTaskResult(taskId, 'failed', {
+          content: [{ type: 'text', text: `Error: ${errorMessage}` }],
+          isError: true,
+        });
+      } catch {
+        // Task may already be in terminal state
+      }
+    }
   }
 
   private async registerTool<
