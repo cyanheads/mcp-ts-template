@@ -12,6 +12,7 @@ import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.j
  * Checks that the current request has the required auth scopes.
  * Throws `McpError(Forbidden)` if scopes are insufficient.
  * No-ops when auth is disabled (`MCP_AUTH_MODE=none`).
+ * Throws `Unauthorized` when auth is enabled but no auth context exists.
  *
  * @example
  * ```ts
