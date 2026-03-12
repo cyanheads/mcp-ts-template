@@ -55,7 +55,7 @@ export function stringToBase64(str: string): string {
     // Worker/Browser environment - use Web APIs
     const encoder = new TextEncoder();
     const bytes = encoder.encode(str);
-    return arrayBufferToBase64(bytes.buffer);
+    return arrayBufferToBase64(bytes.buffer as ArrayBuffer);
   }
 }
 

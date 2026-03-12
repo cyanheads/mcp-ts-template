@@ -65,11 +65,8 @@ const hasNodeVersion = (): boolean => {
  */
 const hasPerformanceNowFunction = (): boolean => {
   try {
-    return (
-      typeof globalThis.performance === 'object' &&
-      globalThis.performance !== null &&
-      typeof globalThis.performance.now === 'function'
-    );
+    const perf = (globalThis as { performance?: { now?: unknown } }).performance;
+    return typeof perf === 'object' && perf !== null && typeof perf.now === 'function';
   } catch {
     return false;
   }
