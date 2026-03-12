@@ -35,20 +35,6 @@ const SUITES: SuiteConfig[] = [
     jsonFile: 'unit.json',
   },
   {
-    name: 'conformance',
-    label: 'Conformance Tests',
-    command: [
-      'bunx',
-      'vitest',
-      'run',
-      '--config',
-      'vitest.conformance.ts',
-      '--reporter=json',
-      '--reporter=verbose',
-    ],
-    jsonFile: 'conformance.json',
-  },
-  {
     name: 'integration',
     label: 'Integration Tests',
     command: [

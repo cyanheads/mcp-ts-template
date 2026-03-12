@@ -86,9 +86,11 @@ function formatBytes(bytes: number): string {
 async function main() {
   // Read package info
   const pkg = await Bun.file(join(ROOT_DIR, 'package.json')).json();
-  const project = process.argv.includes('--project')
-    ? process.argv[process.argv.indexOf('--project') + 1]!
-    : 'tsconfig.build.json';
+  const projectIdx = process.argv.indexOf('--project');
+  const project =
+    projectIdx !== -1
+      ? (process.argv[projectIdx + 1] ?? 'tsconfig.build.json')
+      : 'tsconfig.build.json';
 
   console.log(`\x1b[1mBuilding ${pkg.name}@${pkg.version}\x1b[0m`);
   console.log(`\x1b[2m  tsconfig: ${project}\x1b[0m`);

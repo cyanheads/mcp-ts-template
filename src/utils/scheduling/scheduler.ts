@@ -140,7 +140,7 @@ export class SchedulerService {
    * const job = await schedulerService.schedule(
    *   'ping',
    *   '* * * * *',
-   *   async (ctx) => { ctx.logger.info('ping'); },
+   *   async (ctx) => { logger.info('ping', ctx); },
    *   'Logs a ping every minute',
    * );
    * schedulerService.start('ping');

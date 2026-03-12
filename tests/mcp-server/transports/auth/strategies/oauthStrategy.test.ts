@@ -115,8 +115,8 @@ describe('OAuth Strategy', () => {
     });
 
     it('should pass cooldown and timeout options to createRemoteJWKSet', () => {
-      mockConfig['oauthJwksCooldownMs'] = 5000;
-      mockConfig['oauthJwksTimeoutMs'] = 10000;
+      mockConfig.oauthJwksCooldownMs = 5000;
+      mockConfig.oauthJwksTimeoutMs = 10000;
 
       strategy = new OauthStrategy(mockConfig as any, logger);
 
@@ -249,7 +249,7 @@ describe('OAuth Strategy', () => {
     });
 
     it('should validate resource indicator when configured', async () => {
-      mockConfig['mcpServerResourceIdentifier'] = 'https://mcp.example.com';
+      mockConfig.mcpServerResourceIdentifier = 'https://mcp.example.com';
 
       mockJwtVerify.mockResolvedValue({
         payload: {
@@ -267,7 +267,7 @@ describe('OAuth Strategy', () => {
     });
 
     it('should allow token when resource matches in array', async () => {
-      mockConfig['mcpServerResourceIdentifier'] = 'https://mcp.example.com';
+      mockConfig.mcpServerResourceIdentifier = 'https://mcp.example.com';
 
       mockJwtVerify.mockResolvedValue({
         payload: {
@@ -285,7 +285,7 @@ describe('OAuth Strategy', () => {
     });
 
     it('should reject token with resource mismatch', async () => {
-      mockConfig['mcpServerResourceIdentifier'] = 'https://mcp.example.com';
+      mockConfig.mcpServerResourceIdentifier = 'https://mcp.example.com';
 
       mockJwtVerify.mockResolvedValue({
         payload: {
@@ -308,7 +308,7 @@ describe('OAuth Strategy', () => {
     });
 
     it('should skip resource validation when not configured', async () => {
-      mockConfig['mcpServerResourceIdentifier'] = undefined;
+      mockConfig.mcpServerResourceIdentifier = undefined;
 
       mockJwtVerify.mockResolvedValue({
         payload: {
