@@ -20,6 +20,10 @@ import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import type { AnyToolDef } from '@/mcp-server/tools/tool-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
+import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
+import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
+import { SpeechService } from '@/services/speech/core/SpeechService.js';
+import type { SpeechProviderConfig } from '@/services/speech/types.js';
 import { StorageService } from '@/storage/core/StorageService.js';
 import { createStorageProvider } from '@/storage/core/storageFactory.js';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
@@ -27,6 +31,7 @@ import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger, type McpLogLevel } from '@/utils/internal/logger.js';
 import { initHighResTimer } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
+import { RateLimiter } from '@/utils/security/rateLimiter.js';
 import {
   initializeOpenTelemetry,
   shutdownOpenTelemetry,
@@ -51,8 +56,12 @@ export interface CreateAppOptions {
 /** Services available in the `setup()` callback and on ServerHandle. */
 export interface CoreServices {
   config: typeof config;
+  llmProvider?: ILlmProvider;
   logger: typeof logger;
+  rateLimiter: RateLimiter;
+  speechService?: SpeechService;
   storage: StorageService;
+  supabase?: SupabaseClient<Database>;
 }
 
 /** Handle returned by {@link createApp} for controlling the server lifecycle. */
@@ -117,7 +126,37 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
     ...(supabaseClient && { supabaseClient }),
   });
   const storageService = new StorageService(storageProvider);
-  const coreServices: CoreServices = { config, logger, storage: storageService };
+  const rateLimiter = new RateLimiter(config, logger);
+
+  // --- Optional services (constructed when config is present) ---
+
+  let llmProvider: ILlmProvider | undefined;
+  if (config.openrouterApiKey) {
+    llmProvider = new OpenRouterProvider(rateLimiter, config, logger);
+  }
+
+  let speechService: SpeechService | undefined;
+  if (config.speech) {
+    const ttsConfig: SpeechProviderConfig | undefined = config.speech.tts?.enabled
+      ? (config.speech.tts as SpeechProviderConfig)
+      : undefined;
+    const sttConfig: SpeechProviderConfig | undefined = config.speech.stt?.enabled
+      ? (config.speech.stt as SpeechProviderConfig)
+      : undefined;
+    if (ttsConfig || sttConfig) {
+      speechService = new SpeechService(ttsConfig, sttConfig);
+    }
+  }
+
+  const coreServices: CoreServices = {
+    config,
+    logger,
+    rateLimiter,
+    storage: storageService,
+    ...(llmProvider && { llmProvider }),
+    ...(speechService && { speechService }),
+    ...(supabaseClient && { supabase: supabaseClient }),
+  };
 
   // --- Server-specific setup ---
   if (setup) {
