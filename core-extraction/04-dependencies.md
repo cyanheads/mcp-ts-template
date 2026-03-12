@@ -203,9 +203,9 @@ export async function parseYaml(input: string) {
 - [x] `@hono/mcp` in `dependencies`
 - [x] `diff` moved to optional `peerDependencies`
 - [x] `package.json` reorganized: Tier 1 in `dependencies`, Tier 2 in `peerDependencies` (`"zod": "^4.3.6"`), Tier 3 in `peerDependencies` + `peerDependenciesMeta` optional
-- [ ] All Tier 3 static imports converted to lazy dynamic `import()` with cached module ref
-- [ ] Each lazy import throws `McpError(ConfigurationError)` with install instruction on missing dep
-- [ ] `pino-pretty` moved from `dependencies` to `devDependencies` (already dynamically resolved with fallback)
-- [ ] `@opentelemetry/api` stays in Tier 1 (lightweight API surface)
-- [ ] Full OTEL SDK stays in Tier 3 (already dynamically imported)
-- [ ] `@hono/otel` lazy conversion uses dynamic `import()` inside the OTEL-enabled guard, not just a top-level swap
+- [x] All Tier 3 static imports converted to lazy dynamic `import()` with cached module ref (Phase 2)
+- [x] Each lazy import throws `McpError(ConfigurationError)` with install instruction on missing dep (Phase 2)
+- [x] `pino-pretty` moved from `dependencies` to `devDependencies` (Phase 1a)
+- [x] `@opentelemetry/api` stays in Tier 1 (lightweight API surface)
+- [x] Full OTEL SDK stays in Tier 3 (already dynamically imported)
+- [x] `@hono/otel` lazy conversion uses dynamic `import()` inside the OTEL-enabled guard (Phase 2)

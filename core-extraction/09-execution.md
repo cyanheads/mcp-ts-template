@@ -121,7 +121,7 @@ The core of the extraction. Transform the repo in-place.
 - [x] `resource()` / `prompt()` builders wired into registries (`ResourceRegistry` and `PromptRegistry` detect new-style definitions via type guards)
 - [x] `resource()` / `prompt()` exported from `./resources`, `./prompts`, and `.` (packaging — requires `exports` field in `package.json`)
 - [x] `task: true` tools auto-managed by framework (`registerAutoTaskTool` in `ToolRegistry` — create task, background run, store result, cancellation polling)
-- [x] `checkScopes(ctx, scopes)` implemented in `checkScopes.ts`; `withToolAuth`/`withResourceAuth` retained until legacy definitions are migrated to examples
+- [x] `checkScopes(ctx, scopes)` implemented in `checkScopes.ts`; `withToolAuth`/`withResourceAuth` retained as legacy compat (`echo.resource` and `data-explorer-ui.app-resource` migrated to `resource()` builder with inline `auth`)
 - [x] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth (in `createContext()`)
 
 #### Packaging & repo transformation

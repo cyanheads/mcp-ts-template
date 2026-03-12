@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.7] - 2026-03-12
+
+Migrates template resources and tools to new-style builders, expands `CoreServices` with optional providers, adds shareable Vitest base config and a build script with progress reporting.
+
+### Added
+
+- **`vitest.config.base.ts`**: Shareable Vitest base configuration for consumer servers. Exported via `@cyanheads/mcp-ts-core/vitest.config` subpath.
+- **`scripts/build.ts`**: Build script wrapping `tsc` + `tsc-alias` with timing, file counts, and size reporting.
+- **`CoreServices` expansion** (`src/app.ts`): `composeServices()` now constructs and exposes `rateLimiter`, optional `llmProvider` (OpenRouter), optional `speechService` (ElevenLabs/Whisper), and optional `supabase` client.
+
+### Changed
+
+- **`echo.resource.ts`**: Migrated from legacy `ResourceDefinition` with `withResourceAuth()` wrapper to new-style `resource()` builder with inline `auth`, `handler(params, ctx)`, and `format`.
+- **`data-explorer-ui.app-resource.ts`**: Migrated from legacy `ResourceDefinition` to `resource()` builder with inline `auth` and `handler`.
+- **`template-async-countdown`**: Rewritten from `TaskToolDefinition` (`.task-tool.ts`) to `tool()` builder with `task: true` (`.tool.ts`). Same behavior, simpler API.
+- **`scripts/clean.ts`**: Added `.tsbuildinfo` to default clean targets.
+- **`package.json`**: Build script changed to `bun run scripts/build.ts`. Added `vitest.config.base.ts` to `files` and `exports` map.
+- **Tests**: All resource and tool tests updated to use `createMockContext()` instead of `requestContextService`. Field name references updated (`paramsSchema` -> `params`, `outputSchema` -> `output`, `logic` -> `handler`, `responseFormatter` -> `format`). Fuzz tests pass `progress: true` for task tools.
+
+### Removed
+
+- **`template-async-countdown.task-tool.ts`**: Replaced by `template-async-countdown.tool.ts` using `task: true` flag.
+- **Legacy `withResourceAuth()` usage**: Both template resources now use inline `auth` on the `resource()` builder.
+
+---
+
 ## [0.1.0-beta.6] - 2026-03-11
 
 Restructures the package for npm consumption: explicit subpath exports, `tsc` + `tsc-alias` build, heavy deps moved to optional peers, `createApp()` owns the full server lifecycle, and `createWorkerHandler()` replaces the default Worker export.
