@@ -6,6 +6,7 @@ metadata:
   author: cyanheads
   version: "2.0"
   audience: external
+  type: reference
 ---
 
 ## Overview

@@ -6,6 +6,7 @@ metadata:
   author: cyanheads
   version: "1.0"
   audience: internal
+  type: workflow
 ---
 
 ## Context

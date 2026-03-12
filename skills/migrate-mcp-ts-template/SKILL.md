@@ -5,7 +5,8 @@ description: >
 metadata:
   author: cyanheads
   version: "2.0"
-  audience: internal
+  audience: external
+  type: workflow
 ---
 
 ## Context
