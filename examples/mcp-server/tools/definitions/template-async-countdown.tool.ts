@@ -1,21 +1,19 @@
 /**
  * @fileoverview Template task tool demonstrating the MCP Tasks API using
- * the new-style `tool()` builder with `task: true`.
+ * the `tool()` builder with `task: true`.
  *
- * This tool showcases key task patterns:
+ * Showcases key task patterns:
  * - Progress percentage and status message updates via `ctx.progress`
  * - Cancellation detection via `ctx.signal`
  * - Simulated failure for testing error paths
  *
- * Use this as a reference for implementing long-running async operations.
- *
  * @experimental Tasks API is experimental and may change without notice.
- * @module src/mcp-server/tools/definitions/template-async-countdown.tool
+ * @module examples/mcp-server/tools/definitions/template-async-countdown.tool
  */
 
 import { z } from 'zod';
 
-import { tool } from '@/mcp-server/tools/utils/newToolDefinition.js';
+import { tool } from '@cyanheads/mcp-ts-core';
 
 const InputSchema = z
   .object({

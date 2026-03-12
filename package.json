@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/mcp-ts-core",
-  "version": "0.1.0-beta.7",
+  "version": "0.1.0-beta.8",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "TypeScript framework for building Model Context Protocol (MCP) servers. Declarative tool/resource/prompt definitions, pluggable auth, multi-backend storage, OpenTelemetry observability, and support for both local (stdio/HTTP) and edge (Cloudflare Workers) runtimes.",
   "main": "dist/app.js",
@@ -186,9 +186,6 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.6",
     "@cloudflare/workers-types": "^4.20260312.1",
-    "@traversable/registry": "^0.0.49",
-    "@traversable/zod-test": "^0.0.28",
-    "@traversable/zod-types": "^0.0.30",
     "@types/bun": "^1.3.10",
     "@types/diff": "^8.0.0",
     "@types/js-yaml": "^4.0.9",
@@ -256,7 +253,14 @@
     "node": ">=22.0.0"
   },
   "depcheck": {
-    "ignores": ["bun", "repomix", "tsc-alias", "@cyanheads/mcp-ts-core"]
+    "ignores": [
+      "bun",
+      "repomix",
+      "tsc-alias",
+      "@cyanheads/mcp-ts-core",
+      "@modelcontextprotocol/ext-apps"
+    ],
+    "ignorePatterns": ["examples"]
   },
   "publishConfig": {
     "access": "public"

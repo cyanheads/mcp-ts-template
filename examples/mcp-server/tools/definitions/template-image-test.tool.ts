@@ -1,18 +1,27 @@
 /**
  * @fileoverview Template image test tool — demonstrates binary response handling.
  * Fetches a random cat image and returns it base64-encoded with the MIME type.
- * @module src/mcp-server/tools/definitions/template-image-test.tool
+ * @module examples/mcp-server/tools/definitions/template-image-test.tool
  */
 
 import { z } from 'zod';
 
-import { tool } from '@/mcp-server/tools/utils/newToolDefinition.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { arrayBufferToBase64 } from '@/utils/internal/encoding.js';
-import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
+import { tool } from '@cyanheads/mcp-ts-core';
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
+import { fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils/network';
 
 const CAT_API_URL = 'https://cataas.com/cat';
 const API_TIMEOUT_MS = 5000;
+
+/** Convert an ArrayBuffer to a base64 string. */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
 
 const InputSchema = z.object({
   trigger: z

@@ -1,14 +1,14 @@
 /**
- * @fileoverview Template echo tool — demonstrates the new-style `tool()` builder API.
+ * @fileoverview Template echo tool — demonstrates the `tool()` builder API.
  * Echoes a message back with optional formatting and repetition.
- * @module src/mcp-server/tools/definitions/template-echo-message.tool
+ * @module examples/mcp-server/tools/definitions/template-echo-message.tool
  */
 
 import { z } from 'zod';
 
-import { tool } from '@/mcp-server/tools/utils/newToolDefinition.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { markdown } from '@/utils/formatting/markdownBuilder.js';
+import { tool } from '@cyanheads/mcp-ts-core';
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
+import { markdown } from '@cyanheads/mcp-ts-core/utils/formatting';
 
 /** Special input which deliberately triggers a failure for testing. */
 export const TEST_ERROR_TRIGGER_MESSAGE = 'TRIGGER_ERROR';

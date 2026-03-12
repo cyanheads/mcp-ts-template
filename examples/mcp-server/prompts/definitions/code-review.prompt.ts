@@ -1,31 +1,25 @@
 /**
  * @fileoverview Code review prompt template demonstrating MCP prompts capability.
- * @module src/mcp-server/prompts/definitions/code-review.prompt
+ * @module examples/mcp-server/prompts/definitions/code-review.prompt
  */
 import { z } from 'zod';
 
-import type { PromptDefinition } from '../utils/promptDefinition.js';
+import { prompt } from '@cyanheads/mcp-ts-core';
 
-const PROMPT_NAME = 'code_review';
-const PROMPT_DESCRIPTION =
-  'Generates a structured code review prompt for analyzing code quality, security, and performance.';
-
-const ArgumentsSchema = z.object({
-  language: z.string().optional().describe('Programming language of the code to review.'),
-  focus: z
-    .enum(['security', 'performance', 'style', 'general'])
-    .optional()
-    .describe("The primary focus area for the code review. Defaults to 'general'."),
-  includeExamples: z
-    .enum(['true', 'false'])
-    .optional()
-    .describe("Whether to include example improvements in the review. Defaults to 'false'."),
-});
-
-export const codeReviewPrompt: PromptDefinition<typeof ArgumentsSchema> = {
-  name: PROMPT_NAME,
-  description: PROMPT_DESCRIPTION,
-  argumentsSchema: ArgumentsSchema,
+export const codeReviewPrompt = prompt('code_review', {
+  description:
+    'Generates a structured code review prompt for analyzing code quality, security, and performance.',
+  args: z.object({
+    language: z.string().optional().describe('Programming language of the code to review.'),
+    focus: z
+      .enum(['security', 'performance', 'style', 'general'])
+      .optional()
+      .describe("The primary focus area for the code review. Defaults to 'general'."),
+    includeExamples: z
+      .enum(['true', 'false'])
+      .optional()
+      .describe("Whether to include example improvements in the review. Defaults to 'false'."),
+  }),
   generate: (args) => {
     const focus = args.focus ?? 'general';
     const includeExamples = args.includeExamples === 'true';
@@ -47,9 +41,9 @@ export const codeReviewPrompt: PromptDefinition<typeof ArgumentsSchema> = {
 
     return [
       {
-        role: 'user',
+        role: 'user' as const,
         content: {
-          type: 'text',
+          type: 'text' as const,
           text: `You are an expert code reviewer${args.language ? ` specializing in ${args.language}` : ''}. Please conduct a thorough code review with a focus on ${focus}.
 
 Review the code for:
@@ -66,4 +60,4 @@ Be constructive, specific, and actionable in your feedback.`,
       },
     ];
   },
-};
+});

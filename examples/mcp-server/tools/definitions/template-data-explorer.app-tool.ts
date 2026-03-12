@@ -7,14 +7,13 @@
  *
  * Hosts without MCP Apps support receive a formatted text table as fallback.
  *
- * @module src/mcp-server/tools/definitions/template-data-explorer.app-tool
- * @see {@link ../../../docs/mcp-apps.md} for full MCP Apps overview
+ * @module examples/mcp-server/tools/definitions/template-data-explorer.app-tool
  */
 
 import { RESOURCE_URI_META_KEY } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
 
-import { tool } from '@/mcp-server/tools/utils/newToolDefinition.js';
+import { tool } from '@cyanheads/mcp-ts-core';
 
 /** The UI Resource URI that hosts will fetch and render as a sandboxed iframe. */
 const UI_RESOURCE_URI = 'ui://template-data-explorer/app.html';

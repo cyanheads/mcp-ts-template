@@ -3,22 +3,56 @@
  * @module tests/mcp-server/prompts/prompt-registration.test.ts
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { allPromptDefinitions } from '@/mcp-server/prompts/definitions/index.js';
+import { z } from 'zod';
+
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
+import { prompt } from '@/mcp-server/prompts/utils/newPromptDefinition.js';
+import type { PromptDefinition } from '@/mcp-server/prompts/utils/promptDefinition.js';
 import { logger } from '@/utils/internal/logger.js';
+
+/** Inline test prompt using new-style builder. */
+const testPrompt = prompt('test_prompt', {
+  description: 'A test prompt for unit tests.',
+  args: z.object({
+    topic: z.string().optional().describe('Topic to discuss.'),
+  }),
+  generate: (args) => [
+    {
+      role: 'user' as const,
+      content: {
+        type: 'text' as const,
+        text: `Discuss: ${args.topic ?? 'anything'}`,
+      },
+    },
+  ],
+});
+
+/** Inline test prompt using legacy shape. */
+const legacyPrompt: PromptDefinition<z.ZodObject<{ code: z.ZodOptional<z.ZodString> }>> = {
+  name: 'legacy_prompt',
+  description: 'A legacy-style prompt for testing.',
+  argumentsSchema: z.object({
+    code: z.string().optional().describe('Code to review.'),
+  }),
+  generate: (args) => [
+    {
+      role: 'user',
+      content: { type: 'text', text: `Review: ${args.code ?? 'nothing'}` },
+    },
+  ],
+};
+
+const testDefinitions = [testPrompt, legacyPrompt];
 
 describe('PromptRegistry', () => {
   let mockServer: any;
   let registry: PromptRegistry;
 
   beforeEach(() => {
-    // Create a mock MCP server
     mockServer = {
       registerPrompt: vi.fn(() => {}),
     };
-
-    // Create registry with logger
-    registry = new PromptRegistry(allPromptDefinitions, logger);
+    registry = new PromptRegistry(testDefinitions, logger);
   });
 
   describe('Prompt Registration', () => {
@@ -28,59 +62,39 @@ describe('PromptRegistry', () => {
 
     it('should call server.registerPrompt for each prompt', async () => {
       await registry.registerAll(mockServer);
-
-      // The actual allPromptDefinitions array will determine how many times this is called
-      // We just verify the mock was called
-      expect(mockServer.registerPrompt.mock.calls.length).toBeGreaterThanOrEqual(0);
+      expect(mockServer.registerPrompt).toHaveBeenCalledTimes(2);
     });
 
     it('should register prompts with correct structure', async () => {
       await registry.registerAll(mockServer);
 
-      if (mockServer.registerPrompt.mock.calls.length > 0) {
-        const firstCall = mockServer.registerPrompt.mock.calls[0];
-
-        // First argument should be the prompt name (string)
-        expect(typeof firstCall[0]).toBe('string');
-
-        // Second argument should be options object
-        expect(typeof firstCall[1]).toBe('object');
-        expect(firstCall[1]).toHaveProperty('description');
-
-        // Third argument should be the handler function
-        expect(typeof firstCall[2]).toBe('function');
-      }
+      const firstCall = mockServer.registerPrompt.mock.calls[0];
+      expect(typeof firstCall[0]).toBe('string');
+      expect(typeof firstCall[1]).toBe('object');
+      expect(firstCall[1]).toHaveProperty('description');
+      expect(typeof firstCall[2]).toBe('function');
     });
 
     it('should pass prompt options correctly', async () => {
       await registry.registerAll(mockServer);
 
-      if (mockServer.registerPrompt.mock.calls.length > 0) {
-        for (const call of mockServer.registerPrompt.mock.calls) {
-          const options = call[1];
-
-          // Description is required
-          expect(options.description).toBeDefined();
-          expect(typeof options.description).toBe('string');
-        }
+      for (const call of mockServer.registerPrompt.mock.calls) {
+        const options = call[1];
+        expect(options.description).toBeDefined();
+        expect(typeof options.description).toBe('string');
       }
     });
 
     it('should create async handler function', async () => {
       await registry.registerAll(mockServer);
 
-      if (mockServer.registerPrompt.mock.calls.length > 0) {
-        const handler = mockServer.registerPrompt.mock.calls[0][2];
+      const handler = mockServer.registerPrompt.mock.calls[0][2];
+      const result = handler({});
+      expect(result).toBeInstanceOf(Promise);
 
-        // Handler should be async (returns a Promise)
-        const result = handler({});
-        expect(result).toBeInstanceOf(Promise);
-
-        // Should resolve to object with messages property
-        const resolved = await result;
-        expect(resolved).toHaveProperty('messages');
-        expect(Array.isArray(resolved.messages)).toBe(true);
-      }
+      const resolved = await result;
+      expect(resolved).toHaveProperty('messages');
+      expect(Array.isArray(resolved.messages)).toBe(true);
     });
   });
 
@@ -90,8 +104,8 @@ describe('PromptRegistry', () => {
     });
 
     it('should handle empty prompts list', async () => {
-      // Even with no prompts, should not throw
-      await expect(registry.registerAll(mockServer)).resolves.toBeUndefined();
+      const emptyRegistry = new PromptRegistry([], logger);
+      await expect(emptyRegistry.registerAll(mockServer)).resolves.toBeUndefined();
     });
   });
 
@@ -100,12 +114,10 @@ describe('PromptRegistry', () => {
       await registry.registerAll(mockServer);
       const firstRun = mockServer.registerPrompt.mock.calls.map((call: any[]) => call[0]);
 
-      // Clear and re-register
       mockServer.registerPrompt.mockClear();
       await registry.registerAll(mockServer);
       const secondRun = mockServer.registerPrompt.mock.calls.map((call: any[]) => call[0]);
 
-      // Should be the same order
       expect(firstRun).toEqual(secondRun);
     });
   });
@@ -114,34 +126,22 @@ describe('PromptRegistry', () => {
     it('should execute handlers and return messages', async () => {
       await registry.registerAll(mockServer);
 
-      if (mockServer.registerPrompt.mock.calls.length > 0) {
-        // Get the first registered prompt's handler
-        const handler = mockServer.registerPrompt.mock.calls[0][2];
+      const handler = mockServer.registerPrompt.mock.calls[0][2];
+      const result = await handler({});
 
-        // Execute it with empty args
-        const result = await handler({});
-
-        // Should return object with messages array
-        expect(result).toBeDefined();
-        expect(result.messages).toBeDefined();
-        expect(Array.isArray(result.messages)).toBe(true);
-      }
+      expect(result).toBeDefined();
+      expect(result.messages).toBeDefined();
+      expect(Array.isArray(result.messages)).toBe(true);
     });
 
     it('should pass arguments to prompt generator', async () => {
       await registry.registerAll(mockServer);
 
-      if (mockServer.registerPrompt.mock.calls.length > 0) {
-        const handler = mockServer.registerPrompt.mock.calls[0][2];
+      const handler = mockServer.registerPrompt.mock.calls[0][2];
+      const result = await handler({ topic: 'testing' });
 
-        // Execute with some test arguments
-        const testArgs = { code: 'function test() { return true; }' };
-        const result = await handler(testArgs);
-
-        // Should successfully process args and return messages
-        expect(result.messages).toBeDefined();
-        expect(Array.isArray(result.messages)).toBe(true);
-      }
+      expect(result.messages).toBeDefined();
+      expect(Array.isArray(result.messages)).toBe(true);
     });
   });
 
@@ -154,50 +154,6 @@ describe('PromptRegistry', () => {
         expect(metadata.description).toBeDefined();
         expect(metadata.description.length).toBeGreaterThan(0);
       });
-    });
-
-    it('should include argsSchema when prompts have arguments', async () => {
-      await registry.registerAll(mockServer);
-
-      // Some prompts may have schemas, some may not
-      mockServer.registerPrompt.mock.calls.forEach((call: any[]) => {
-        const metadata = call[1];
-
-        // If argsSchema is present, it should be an object
-        if ('argsSchema' in metadata) {
-          expect(typeof metadata.argsSchema).toBe('object');
-        }
-      });
-    });
-  });
-
-  describe('Integration', () => {
-    it('should successfully register all available prompts', async () => {
-      const initialCallCount = mockServer.registerPrompt.mock.calls.length;
-
-      await registry.registerAll(mockServer);
-
-      const finalCallCount = mockServer.registerPrompt.mock.calls.length;
-
-      // Should have registered some number of prompts (may be 0 if no prompts defined)
-      expect(finalCallCount).toBeGreaterThanOrEqual(initialCallCount);
-    });
-
-    it('should not duplicate prompt registrations on multiple calls', async () => {
-      await registry.registerAll(mockServer);
-      const firstCount = mockServer.registerPrompt.mock.calls.length;
-
-      // Create new server and registry
-      const newMockServer: any = {
-        registerPrompt: vi.fn(() => {}),
-      };
-      const newRegistry = new PromptRegistry(allPromptDefinitions, logger);
-
-      await newRegistry.registerAll(newMockServer);
-      const secondCount = newMockServer.registerPrompt.mock.calls.length;
-
-      // Should register same number of prompts
-      expect(secondCount).toBe(firstCount);
     });
   });
 });

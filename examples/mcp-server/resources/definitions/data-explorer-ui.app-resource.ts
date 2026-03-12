@@ -2,24 +2,15 @@
  * @fileoverview UI Resource for the data explorer MCP App.
  *
  * Serves a self-contained HTML application that renders sales data as an
- * interactive table. Demonstrates all four key MCP Apps client-side capabilities:
+ * interactive table. Demonstrates MCP Apps client-side capabilities:
+ * `app.ontoolresult`, `app.callServerTool()`, `app.sendMessage()`, `app.connect()`.
  *
- * 1. **`app.ontoolresult`** — Receive tool results pushed by the host
- * 2. **`app.callServerTool()`** — Invoke a server tool from the UI (refresh data)
- * 3. **`app.sendMessage()`** — Send context updates back to the model (row selection)
- * 4. **`app.connect()`** — Establish the postMessage channel with the host
- *
- * The HTML is entirely self-contained with inline CSS and JS. The App class is
- * loaded from unpkg CDN (it runs in a browser iframe, not Node). CSP metadata
- * on the resource response whitelists the CDN domain for MCP Apps-capable hosts.
- *
- * @module src/mcp-server/resources/definitions/data-explorer-ui.app-resource
- * @see {@link ../../tools/definitions/template-data-explorer.app-tool.ts} linked tool
+ * @module examples/mcp-server/resources/definitions/data-explorer-ui.app-resource
  */
 import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
 
-import { resource } from '@/mcp-server/resources/utils/newResourceDefinition.js';
+import { resource } from '@cyanheads/mcp-ts-core';
 
 const ParamsSchema = z.object({}).describe('No parameters. Returns the static HTML app.');
 

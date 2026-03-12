@@ -1,11 +1,11 @@
 /**
- * @fileoverview Echo resource definition using the new-style `resource()` builder.
+ * @fileoverview Echo resource definition using the `resource()` builder.
  * Returns a simple echo of the message from the URI template parameter.
- * @module src/mcp-server/resources/definitions/echo.resource
+ * @module examples/mcp-server/resources/definitions/echo.resource
  */
 import { z } from 'zod';
 
-import { resource } from '@/mcp-server/resources/utils/newResourceDefinition.js';
+import { resource } from '@cyanheads/mcp-ts-core';
 
 const ParamsSchema = z
   .object({

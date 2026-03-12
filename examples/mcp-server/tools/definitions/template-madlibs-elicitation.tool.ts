@@ -1,14 +1,14 @@
 /**
  * @fileoverview Template Mad Libs tool — demonstrates MCP Elicitation capability.
  * Uses elicitation to request missing input from the user during execution.
- * @module src/mcp-server/tools/definitions/template-madlibs-elicitation.tool
+ * @module examples/mcp-server/tools/definitions/template-madlibs-elicitation.tool
  */
 
 import { z } from 'zod';
 
-import type { Context } from '@/context.js';
-import { tool } from '@/mcp-server/tools/utils/newToolDefinition.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import type { Context } from '@cyanheads/mcp-ts-core/context';
+import { tool } from '@cyanheads/mcp-ts-core';
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 
 const InputSchema = z.object({
   noun: z.string().optional().describe('A noun for the story.'),

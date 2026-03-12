@@ -1,16 +1,13 @@
 /**
  * @fileoverview Template code review tool — demonstrates MCP Sampling capability.
  * Requests an LLM completion from the client to review code snippets.
- *
- * MCP Sampling Specification:
- * @see {@link https://modelcontextprotocol.io/specification/2025-06-18/basic/sampling | MCP Sampling}
- * @module src/mcp-server/tools/definitions/template-code-review-sampling.tool
+ * @module examples/mcp-server/tools/definitions/template-code-review-sampling.tool
  */
 
 import { z } from 'zod';
 
-import { tool } from '@/mcp-server/tools/utils/newToolDefinition.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { tool } from '@cyanheads/mcp-ts-core';
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 
 const InputSchema = z.object({
   code: z

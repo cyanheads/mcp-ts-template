@@ -1,14 +1,14 @@
 /**
  * @fileoverview Template cat fact tool — demonstrates external API calls with the `tool()` builder.
  * Fetches a random cat fact from a public API with optional maximum length.
- * @module src/mcp-server/tools/definitions/template-cat-fact.tool
+ * @module examples/mcp-server/tools/definitions/template-cat-fact.tool
  */
 
 import { z } from 'zod';
 
-import { tool } from '@/mcp-server/tools/utils/newToolDefinition.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
+import { tool } from '@cyanheads/mcp-ts-core';
+import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
+import { fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils/network';
 
 const CAT_FACT_API_URL = 'https://catfact.ninja/fact';
 const CAT_FACT_API_TIMEOUT_MS = 5000;
