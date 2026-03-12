@@ -154,9 +154,9 @@ The core of the extraction. Transform the repo in-place.
 - [x] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `biome.json`
 - [x] `files` array excludes `core-extraction/` (by omission — not listed in `files`)
 - [x] `prepublishOnly` script added
-- [ ] Package compiles cleanly (`tsc && tsc-alias`)
-- [ ] `npm pack --dry-run` produces expected file set
-- [ ] Examples build against the exports
+- [x] Package compiles cleanly (`tsc && tsc-alias`) — clean rebuild verified, 436 files, 1.5 MB
+- [x] `npm pack --dry-run` produces expected file set — 463 files, 1.77 MB (stale dist/ definitions cleaned)
+- [x] Examples build against the exports — self-referential `@cyanheads/mcp-ts-core` subpath imports verified at runtime
 
 ---
 
