@@ -15,12 +15,17 @@ Extracts all template definitions from `src/` to `examples/`, completing the cor
   - `examples/worker.ts` — Cloudflare Workers entry point using `createWorkerHandler()`.
   - 7 tool definitions, 2 resource definitions, 1 prompt definition — all importing from `@cyanheads/mcp-ts-core` public subpath exports.
 - **CLAUDE.md**: Added "Utils API Quick Reference" and "Services API Quick Reference" sections with per-subpath method tables for all utility and service exports.
+- **Example tests** (`tests/examples/`): 7 test files with 39 tests covering all example definitions — echo tool, async countdown task tool, code review sampling tool, Mad Libs elicitation tool, data explorer app tool, echo resource, and code review prompt.
 
 ### Changed
 
 - **`src/index.ts`**: Stripped to minimal core entry point — calls `createApp()` with no definitions. Consumer servers provide their own.
 - **`scripts/build.ts`**: Safer `--project` arg parsing (handles undefined index gracefully).
 - **`scripts/test-report.ts`**: Removed conformance suite config (conformance tests were deleted in beta.6).
+- **Integration tests** (`tests/integration/`): Replaced `template_echo_message` tool invocations with `client.ping()` — core server ships with no built-in tools; tests now verify transport functionality only.
+- **`package.json`**: Removed `test:fuzz` from `test:all` script (fuzz tests deleted in this release).
+- **`core-extraction/09-execution.md`**: Phase 4 checklist items marked complete — examples verified with subpath exports, build, tests, and devcheck.
+- **`core-extraction/README.md`**: Phase 3 marked complete (JSDoc accuracy deferred to post-publish); Phase 4 marked complete with test counts.
 - **`src/utils/scheduling/scheduler.ts`**: Fixed JSDoc example code.
 - **`tests/mcp-server/prompts/prompt-registration.test.ts`**: Rewritten with inline test fixtures (new-style + legacy prompt definitions) instead of importing from deleted template definitions.
 - **`tests/mcp-server/transports/auth/strategies/oauthStrategy.test.ts`**: Replaced bracket notation with dot notation for config property access.

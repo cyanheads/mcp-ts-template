@@ -165,11 +165,11 @@ The core of the extraction. Transform the repo in-place.
 The `examples/` directory acts as an integration test — a thin server consuming core through public exports, not internal paths.
 
 ### Checklist
-- [ ] Examples use only subpath exports (no `@/` or `dist/` internal paths)
-- [ ] Examples build successfully
-- [ ] Examples' tests pass
-- [ ] `devcheck` passes on examples
-- [ ] If examples can't cleanly use the API, the boundary is wrong — go back to Phase 3
+- [x] Examples use only subpath exports (no `@/` or `dist/` internal paths) — all imports verified as `@cyanheads/mcp-ts-core/*`
+- [x] Examples build successfully — `tsc -p examples/tsconfig.json --noEmit` clean
+- [x] Examples' tests pass — 7 test files, 39 tests (tools, resources, prompts), `bun run test:examples`
+- [x] `devcheck` passes on examples — all checks green (except transitive dep audit, upstream)
+- [x] If examples can't cleanly use the API, the boundary is wrong — API boundary is clean; no issues found
 
 ---
 
