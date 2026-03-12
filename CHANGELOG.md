@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.12] - 2026-03-12
+
+Enhances `devcheck` audit to classify vulnerabilities as direct (fixable) vs transitive/upstream (not directly fixable), warning instead of failing for upstream-only issues.
+
+### Changed
+
+- **`scripts/devcheck.ts`**: Added `classifyAuditVulns()` parser that reads `bun audit` output and separates high/critical vulnerabilities into direct dependencies (fail the check) vs transitive/upstream dependencies (warn but pass). Added `warning` field to `CommandResult` and `WARNING` status in UI output. `isSuccess` callbacks can now return `{ success, warning }` objects.
+- **`package.json`**: Version bump to `0.1.0-beta.12`.
+- **`server.json`**: Version bump to `0.1.0-beta.12`.
+
+---
+
 ## [0.1.0-beta.11] - 2026-03-12
 
 Modernizes Zod schemas to use new top-level validators (`z.url()`, `z.email()`, `z.iso.datetime()`), replaces empty template barrel files with functional echo definitions as starting points, and updates the CLI init to handle underscore-prefixed template files.
