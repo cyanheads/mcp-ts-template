@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * @fileoverview {{SERVER_NAME}} MCP server entry point.
+ * @fileoverview {{PACKAGE_NAME}} MCP server entry point.
  * @module index
  */
 

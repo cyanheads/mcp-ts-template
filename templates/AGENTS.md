@@ -32,13 +32,10 @@ src/
   mcp-server/
     tools/definitions/
       [tool-name].tool.ts               # Tool definitions
-      index.ts                          # allToolDefinitions barrel
     resources/definitions/
       [resource-name].resource.ts       # Resource definitions
-      index.ts                          # allResourceDefinitions barrel
     prompts/definitions/
       [prompt-name].prompt.ts           # Prompt definitions
-      index.ts                          # allPromptDefinitions barrel
 ```
 
 ---
@@ -69,8 +66,16 @@ Available skills:
 | `add-prompt` | Scaffold a new prompt definition |
 | `add-service` | Scaffold a new service integration |
 | `devcheck` | Lint, format, typecheck, audit |
-| `migrate-mcp-ts-template` | Migrate legacy template fork to package dependency |
 | `maintenance` | Sync skills and dependencies after updates |
+| `migrate-mcp-ts-template` | Migrate legacy template fork to package dependency |
+| `api-auth` | Auth modes, scopes, JWT/OAuth |
+| `api-config` | AppConfig, parseConfig, env vars |
+| `api-context` | Context interface, logger, state, progress |
+| `api-errors` | McpError, JsonRpcErrorCode, error patterns |
+| `api-services` | LLM, Speech, Graph services |
+| `api-testing` | createMockContext, test patterns |
+| `api-utils` | Formatting, parsing, security, pagination, scheduling |
+| `api-workers` | Cloudflare Workers runtime |
 
 When you complete a skill's checklist, check the boxes and add a completion timestamp at the end (e.g., `Completed: 2026-03-11`).
 
@@ -108,6 +113,6 @@ import { getMyService } from '@/services/my-domain/my-service.js';
 - [ ] JSDoc `@fileoverview` + `@module` on every file
 - [ ] `ctx.log` for logging, `ctx.state` for storage
 - [ ] Handlers throw `McpError`, no try/catch
-- [ ] Registered in `definitions/index.ts` barrel
+- [ ] Registered in `src/index.ts` arrays
 - [ ] Tests use `createMockContext()` from `@cyanheads/mcp-ts-core/testing`
 - [ ] `bun run devcheck` passes
