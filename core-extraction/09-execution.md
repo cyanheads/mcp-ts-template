@@ -119,7 +119,7 @@ The core of the extraction. Transform the repo in-place.
 - [x] `ResourceDefinition` uses new field names, handler receives `(params, ctx)` with `ctx.uri`
 - [x] `PromptDefinition` uses `args` instead of `argumentsSchema`, `generate` function
 - [x] `resource()` / `prompt()` builders wired into registries (`ResourceRegistry` and `PromptRegistry` detect new-style definitions via type guards)
-- [ ] `resource()` / `prompt()` exported from `./resources`, `./prompts`, and `.` (packaging — requires `exports` field in `package.json`)
+- [x] `resource()` / `prompt()` exported from `./resources`, `./prompts`, and `.` (packaging — requires `exports` field in `package.json`)
 - [x] `task: true` tools auto-managed by framework (`registerAutoTaskTool` in `ToolRegistry` — create task, background run, store result, cancellation polling)
 - [x] `checkScopes(ctx, scopes)` implemented in `checkScopes.ts`; `withToolAuth`/`withResourceAuth` retained until legacy definitions are migrated to examples
 - [x] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth (in `createContext()`)
@@ -127,14 +127,14 @@ The core of the extraction. Transform the repo in-place.
 #### Packaging & repo transformation
 - [ ] `package.json` renamed to `@cyanheads/mcp-ts-core`
 - [ ] Template definitions moved to `examples/`
-- [ ] `createApp()` updated to return `ServerHandle` with `shutdown()` and `services` (currently returns `AppHandle` with `createServer` + `transportManager`; accepts `CreateAppOptions` with `tools`/`resources`/`prompts`/`setup`/`name`/`version`)
-- [ ] `createWorkerHandler()` implemented as public entry point (includes `ctx.waitUntil()` for telemetry flush)
+- [x] `createApp()` updated to return `ServerHandle` with `shutdown()` and `services` (was `AppHandle` with `createServer` + `transportManager`)
+- [x] `createWorkerHandler()` implemented as public entry point (extraEnvBindings, extraObjectBindings, onScheduled)
 - [ ] Current `index.ts` and `worker.ts` converted to example entry points in `examples/`
-- [ ] Build pipeline: `build` script changed to `tsc && tsc-alias`, `tsc-alias` added to devDeps (see [03a-build.md](03a-build.md))
-- [ ] `tsconfig.base.json` created for downstream server extension
-- [ ] `exports` field added with all subpath exports, each with `types` + `import` conditions, plus `./package.json` (see [02-public-api.md](02-public-api.md))
-- [ ] Export verification script added to CI
-- [ ] `peerDependencies` / `peerDependenciesMeta` configured for tiered deps (`"zod": "^4.3.0"`)
+- [x] Build pipeline: `build` script changed to `tsc && tsc-alias`, `tsc-alias` added to devDeps (see [03a-build.md](03a-build.md))
+- [x] `tsconfig.base.json` created for downstream server extension
+- [x] `exports` field added with all subpath exports, each with `types` + `import` conditions, plus `./package.json` (see [02-public-api.md](02-public-api.md))
+- [x] Export verification script added (`scripts/verify-exports.ts`)
+- [x] `peerDependencies` / `peerDependenciesMeta` configured for tiered deps (`"zod": "^4.3.6"`)
 
 #### Documentation & skills
 - [x] Consumer-facing `CLAUDE.md` written with exports catalog (no DI/container references)
@@ -150,10 +150,10 @@ The core of the extraction. Transform the repo in-place.
 - [ ] JSDoc accuracy verified against implementation (no stale descriptions, correct param names/types)
 
 #### Final gates
-- [ ] Conformance harness updated to use `createApp()` instead of `composeContainer()`
-- [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js` (plain JS preset), `biome.json`
+- [ ] Conformance harness rewritten against stable `composeServices()` API (post-extraction)
+- [x] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `biome.json`
 - [ ] `files` array excludes `core-extraction/`, `CONTRIBUTING.md`
-- [ ] `prepublishOnly` script added
+- [x] `prepublishOnly` script added
 - [ ] Package compiles cleanly (`tsc && tsc-alias`)
 - [ ] `npm pack --dry-run` produces expected file set
 - [ ] Examples build against the exports

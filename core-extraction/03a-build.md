@@ -212,15 +212,15 @@ console.log(`All ${Object.keys(exports).length} export paths verified.`);
 
 ## Checklist
 
-- [ ] `build` script changed to `tsc && tsc-alias`
-- [ ] `tsc-alias` added to `devDependencies`
-- [ ] `tsconfig.json` updated: `types` without `bun-types`, `include` excludes tests/examples
-- [ ] `tsconfig.base.json` created for downstream server extension
-- [ ] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `vitest.config.js`, `biome.json`
+- [x] `build` script changed to `tsc && tsc-alias`
+- [x] `tsc-alias` added to `devDependencies`
+- [x] `tsconfig.json` updated: `types` without `bun-types`, `include` excludes tests/examples
+- [x] `tsconfig.base.json` created for downstream server extension
+- [x] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `biome.json`
 - [ ] `vitest.config.js` authored as plain JS (not compiled from `.ts`)
-- [ ] Every subpath in `exports` has both `types` and `import` conditions (`types` first)
-- [ ] `"./package.json": "./package.json"` included in `exports` (toolchain compatibility)
-- [ ] `prepublishOnly` script added
-- [ ] Export verification script added to CI
-- [ ] `build:worker` removed from core scripts (server-level concern post-extraction)
+- [x] Every subpath in `exports` has both `types` and `import` conditions (`types` first)
+- [x] `"./package.json": "./package.json"` included in `exports` (toolchain compatibility)
+- [x] `prepublishOnly` script added
+- [x] Export verification script added (`scripts/verify-exports.ts`)
+- [x] `build:worker` removed from core scripts (server-level concern post-extraction)
 - [ ] `npm pack --dry-run` produces expected file set

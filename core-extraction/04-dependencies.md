@@ -200,9 +200,9 @@ export async function parseYaml(input: string) {
 
 ## Checklist
 
-- [ ] `@hono/mcp` moved from `devDependencies` to `dependencies` (pre-extraction fix)
-- [ ] `diff` moved from `devDependencies` to `dependencies` (becomes optional peer during extraction)
-- [ ] `package.json` reorganized: Tier 1 in `dependencies`, Tier 2 in `peerDependencies` (`"zod": "^4.3.0"`), Tier 3 in `peerDependencies` + `peerDependenciesMeta` optional
+- [x] `@hono/mcp` in `dependencies`
+- [x] `diff` moved to optional `peerDependencies`
+- [x] `package.json` reorganized: Tier 1 in `dependencies`, Tier 2 in `peerDependencies` (`"zod": "^4.3.6"`), Tier 3 in `peerDependencies` + `peerDependenciesMeta` optional
 - [ ] All Tier 3 static imports converted to lazy dynamic `import()` with cached module ref
 - [ ] Each lazy import throws `McpError(ConfigurationError)` with install instruction on missing dep
 - [ ] `pino-pretty` moved from `dependencies` to `devDependencies` (already dynamically resolved with fallback)

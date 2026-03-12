@@ -174,11 +174,11 @@ This is the same lazy singleton pattern tools already use for config. No tokens,
 
 ## Checklist
 
-- [ ] `src/container/` deleted entirely (container, tokens, registrations, barrel)
-- [ ] `createApp()` constructs core services directly in dependency order
-- [ ] `createApp()` applies name/version overrides before config parsing
-- [ ] `setup()` callback runs after core services, supports async
-- [ ] `createMcpServerInstance` receives registries as parameters (not via container)
-- [ ] `TransportManager` receives dependencies as constructor params (not via container)
-- [ ] Server config uses lazy accessor pattern (no top-level `process.env` parsing)
-- [ ] Core config exposes `overrides` parameter on `parseConfig` for name/version
+- [x] `src/container/` deleted entirely (container, tokens, registrations, barrel)
+- [x] `createApp()` constructs core services directly in dependency order (via `composeServices()`)
+- [x] `createApp()` applies name/version overrides before config parsing (via `resetConfig()`)
+- [x] `setup()` callback runs after core services, supports async
+- [x] `createMcpServerInstance` receives registries as parameters (not via container)
+- [x] `TransportManager` receives dependencies as constructor params (not via container)
+- [x] Server config uses lazy accessor pattern (no top-level `process.env` parsing)
+- [x] Core config exposes `resetConfig()` for name/version override invalidation

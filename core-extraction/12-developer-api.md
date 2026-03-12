@@ -717,8 +717,8 @@ This table maps old patterns to new. Relevant for updating [CLAUDE.md](../CLAUDE
 - [x] `ContextState` delegates to `StorageService` with tenant scoping
 - [x] `ContextProgress` wraps `TaskStore` status updates
 - [x] `tool()` builder exported from `./tools` and `.`
-- [ ] `resource()` builder exported from `./resources` and `.` (packaging — requires `exports` field)
-- [ ] `prompt()` builder exported from `./prompts` and `.` (packaging — requires `exports` field)
+- [x] `resource()` builder exported from `./resources` and `.` (via explicit subpath exports)
+- [x] `prompt()` builder exported from `./prompts` and `.` (via explicit subpath exports)
 - [x] `ToolDefinition` uses new field names (`handler`, `input`, `output`, `format`, `auth`, `task`)
 - [x] `ResourceDefinition` uses new field names, handler receives `(params, ctx)` with `ctx.uri` (`NewResourceDefinition` + `newResourceHandlerFactory`)
 - [x] `PromptDefinition` uses `args` instead of `argumentsSchema` (`NewPromptDefinition` wired into `PromptRegistry`)
