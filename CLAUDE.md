@@ -36,7 +36,7 @@
 | `@cyanheads/mcp-ts-core/tools` | `ToolDefinition`, `AnyToolDefinition`, `ToolAnnotations` | Tool definition types |
 | `@cyanheads/mcp-ts-core/resources` | `ResourceDefinition`, `AnyResourceDefinition` | Resource definition types |
 | `@cyanheads/mcp-ts-core/prompts` | `PromptDefinition` | Prompt definition type |
-| `@cyanheads/mcp-ts-core/tasks` | `TaskToolDefinition`, `RequestTaskStore` | Task tool escape hatch |
+| `@cyanheads/mcp-ts-core/tasks` | `TaskToolDefinition`, `isTaskToolDefinition` | Task tool escape hatch |
 | `@cyanheads/mcp-ts-core/context` | `Context`, `ContextLogger`, `ContextState`, `ContextProgress` | Context types |
 | `@cyanheads/mcp-ts-core/errors` | `McpError`, `JsonRpcErrorCode` | Error types and codes |
 | `@cyanheads/mcp-ts-core/config` | `AppConfig`, `parseConfig` | Zod-validated config |
@@ -472,7 +472,7 @@ interface Context {
 
   // Optional protocol capabilities (undefined when client doesn't support them)
   readonly elicit?: (message: string, schema: z.ZodObject<any>) => Promise<ElicitResult>;
-  readonly sample?: (messages: SamplingMessage[], opts?: SamplingOpts) => Promise<SamplingResult>;
+  readonly sample?: (messages: SamplingMessage[], opts?: SamplingOpts) => Promise<CreateMessageResult>;
 
   // Cancellation
   readonly signal: AbortSignal;
@@ -888,8 +888,14 @@ Detailed guides, templates, and API references live in `skills/`. Read the relev
 | `release` | `skills/release/SKILL.md` | Version bump, changelog, publish workflow |
 | `maintenance` | `skills/maintenance/SKILL.md` | Dependency updates, housekeeping tasks |
 | `migrate-mcp-ts-template` | `skills/migrate-mcp-ts-template/SKILL.md` | Migrate legacy template fork to package dependency |
-| `api-utils` | `skills/api-utils/SKILL.md` | API reference: formatting, parsing, security, network, pagination, runtime, scheduling, types, logger, requestContext, errorHandler, telemetry |
+| `api-auth` | `skills/api-auth/SKILL.md` | API reference: auth modes, scopes, JWT/OAuth strategies |
+| `api-config` | `skills/api-config/SKILL.md` | API reference: AppConfig, parseConfig, env vars |
+| `api-context` | `skills/api-context/SKILL.md` | API reference: Context interface, createContext, ContextLogger/State/Progress |
+| `api-errors` | `skills/api-errors/SKILL.md` | API reference: McpError, JsonRpcErrorCode, error handling patterns |
 | `api-services` | `skills/api-services/SKILL.md` | API reference: LLM (OpenRouter), Speech (ElevenLabs TTS, Whisper STT), Graph (CRUD, traversal, pathfinding) |
+| `api-testing` | `skills/api-testing/SKILL.md` | API reference: createMockContext, test patterns, MockContextOptions |
+| `api-utils` | `skills/api-utils/SKILL.md` | API reference: formatting, parsing, security, network, pagination, runtime, scheduling, types, logger, requestContext, errorHandler, telemetry |
+| `api-workers` | `skills/api-workers/SKILL.md` | API reference: createWorkerHandler, CloudflareBindings, Worker runtime |
 
 ---
 
