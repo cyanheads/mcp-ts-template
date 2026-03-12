@@ -15,6 +15,7 @@ import { z } from 'zod';
 
 import packageJson from '../../package.json' with { type: 'json' };
 import { JsonRpcErrorCode, McpError } from '../types-global/errors.js';
+import { runtimeCaps } from '../utils/internal/runtime.js';
 
 type PackageManifest = {
   name?: string;
@@ -23,11 +24,6 @@ type PackageManifest = {
 };
 
 const packageManifest = packageJson as PackageManifest;
-const hasFileSystemAccess =
-  typeof process !== 'undefined' &&
-  typeof process.versions === 'object' &&
-  process.versions !== null &&
-  typeof process.versions.node === 'string';
 
 // Suppress dotenv's noisy initial log message as suggested by its output.
 dotenv.config({ quiet: true });
@@ -435,7 +431,7 @@ const parseConfig = () => {
   const finalRawConfig = {
     ...rawConfig,
     pkg: parsedPkg,
-    logsPath: hasFileSystemAccess
+    logsPath: runtimeCaps.isNode
       ? (() => {
           // Bundled (dist/index.js) is one level deep; source (src/config/index.ts) is two.
           // Detect bundle path to avoid overshooting the project root.
@@ -500,15 +496,11 @@ const config = new Proxy({} as AppConfig, {
     _config ??= parseConfig();
     return (_config as Record<string | symbol, unknown>)[prop];
   },
-  set(_target, prop, value) {
-    _config ??= parseConfig();
-    (_config as Record<string | symbol, unknown>)[prop] = value;
-    return true;
+  set() {
+    return false;
   },
-  defineProperty(_target, prop, descriptor) {
-    _config ??= parseConfig();
-    Object.defineProperty(_config, prop, descriptor);
-    return true;
+  defineProperty() {
+    return false;
   },
   has(_target, prop) {
     _config ??= parseConfig();
