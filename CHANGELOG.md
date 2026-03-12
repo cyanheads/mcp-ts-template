@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.16] - 2026-03-12
+
+Improves scaffolding DX: auto-generates `.gitignore`, streamlines post-init guidance, and updates template agent protocol files to reflect current project structure.
+
+### Added
+
+- **`templates/_.gitignore`**: New `.gitignore` template scaffolded automatically on init (`node_modules/`, `dist/`, `.env`, `.tsbuildinfo`).
+
+### Changed
+
+- **`src/cli/init.ts`**: Redesigned post-scaffold "Next steps" output — clearer numbered steps, includes `cd` step when name is provided, lists supported coding agents (claude, codex, cursor).
+- **`templates/CLAUDE.md`**, **`templates/AGENTS.md`**: Removed `index.ts` barrel file references from structure diagram (definitions register directly in `src/index.ts`). Added API reference skills to skills table. Updated checklist to reference `src/index.ts` arrays instead of barrel files.
+- **`templates/src/index.ts`**: Fixed stale `{{SERVER_NAME}}` placeholder to `{{PACKAGE_NAME}}` in fileoverview JSDoc.
+- **`skills/setup/SKILL.md`**: Removed manual `.gitignore` creation step and checklist item (now handled by template scaffolding).
+
+---
+
 ## [0.1.0-beta.15] - 2026-03-12
 
 Adds missing `@types/node` to template devDependencies.
