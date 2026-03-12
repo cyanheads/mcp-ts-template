@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.6] - 2026-03-11
+
+Restructures the package for npm consumption: explicit subpath exports, `tsc` + `tsc-alias` build, heavy deps moved to optional peers, `createApp()` owns the full server lifecycle, and `createWorkerHandler()` replaces the default Worker export.
+
+### Added
+
+- **Explicit subpath exports**: 25+ entries in `package.json` `exports` map replacing the wildcard `"./*"` pattern. Every public API surface (`./tools`, `./resources`, `./prompts`, `./tasks`, `./context`, `./errors`, `./config`, `./auth`, `./storage`, `./storage/types`, `./utils/*`, `./testing`, `./worker`) has dedicated `types` + `import` conditions.
+- **Utility barrel files**: New `src/utils/formatting/index.ts`, `src/utils/parsing/index.ts`, `src/utils/security/index.ts`, `src/utils/types/index.ts` — barrel exports for subpath resolution.
+- **`tsconfig.base.json`**: Shareable TypeScript config for consumer repos (`extends "@cyanheads/mcp-ts-core/tsconfig.base.json"`).
+- **`tsconfig.build.json`**: Build-specific config (src-only, excludes tests/examples).
+- **`scripts/verify-exports.ts`**: Post-build script that verifies all subpath exports resolve to existing files in `dist/`.
+- **`composeServices()`** (`src/app.ts`): Extracted shared service composition used by both `createApp()` and `createWorkerHandler()`. Handles name/version overrides, `resetConfig()`, core service construction, registry wiring, and server factory.
+- **`ServerHandle` interface**: Returned by `createApp()` — provides `shutdown()` for graceful teardown and `services` for read-only access to core services.
+- **`WorkerHandlerOptions`**: `createWorkerHandler()` accepts `extraEnvBindings`, `extraObjectBindings`, and `onScheduled` for server-specific extensibility.
+- **`resetConfig()` export** (`src/config/index.ts`): Invalidates the cached config parse so name/version overrides take effect.
+- **`prepublishOnly` script**: Runs build before `bun publish`.
+
+### Changed
+
+- **Build system**: Switched from `bun build` to `tsc -p tsconfig.build.json && tsc-alias` for proper `.d.ts` generation and path alias resolution.
+- **Main entry point**: `package.json` `main`/`types` now point to `dist/app.js`/`dist/app.d.ts` (was `dist/index.js`).
+- **`createApp()` lifecycle** (`src/app.ts`): Now handles the complete server lifecycle — OTEL init, high-res timer, logger initialization, transport startup, signal/error handler registration, and graceful shutdown. Returns `ServerHandle` instead of `AppHandle`.
+- **`src/index.ts`**: Simplified from ~160 lines to ~17 lines. Now just imports built-in definitions and calls `createApp()`. All startup/shutdown logic moved into `createApp()`.
+- **`createWorkerHandler()` factory** (`src/worker.ts`): Replaces the default export object. Returns `{ fetch, scheduled }` with closure over singleton app promise. Supports `extraEnvBindings`/`extraObjectBindings`/`onScheduled` options. Uses `composeServices()` instead of `createApp()`.
+- **Config proxy immutability** (`src/config/index.ts`): `set()` and `defineProperty()` traps now return `false` — config is read-only after parse. Replaced manual `hasFileSystemAccess` check with `runtimeCaps.isNode`.
+- **Auth fail-closed** (`src/mcp-server/transports/auth/lib/authUtils.ts`): `withRequiredScopes()` now explicitly checks `MCP_AUTH_MODE`. When auth is disabled (`none`), skips scope check. When auth is enabled but no auth context exists, throws `Unauthorized` instead of defaulting to allowed. Error data no longer leaks `grantedScopes`, `clientId`, or `subject` to the client.
+- **Dependencies restructured**: Most dependencies (OTEL, Supabase, OpenAI, parsers, sanitization, scheduling) moved to optional `peerDependencies`. Core deps reduced to `hono`, `pino`, `dotenv`, `jose`, `@hono/mcp`, `@hono/node-server`, `@modelcontextprotocol/sdk`, `@modelcontextprotocol/ext-apps`, `@opentelemetry/api`. `zod` moved to required peer dependency.
+- **`package.json` `files`**: Now includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `biome.json`.
+- **`tsconfig.json`**: Removed `bun-types` from `types`, updated `exclude` to include `examples`.
+- **`vitest.config.ts`**: Removed conformance test exclusion.
+- **Test modernization**: All auth, transport, logger, and worker tests refactored to use `vi.mock`/`vi.hoisted` for config mocking instead of `Object.defineProperty` on the live config proxy. Transport manager tests construct `TransportManager` per test with appropriate config.
+
+### Fixed
+
+- **`src/utils/internal/encoding.ts`**: Cast `bytes.buffer` to `ArrayBuffer` for TypeScript strict mode compatibility.
+- **`src/utils/internal/runtime.ts`**: Type-safe `performance.now` check avoids accessing `globalThis.performance` directly (Workers type mismatch).
+
+### Removed
+
+- **Conformance test suite**: Deleted 20 test files, 4 helpers, and `vitest.conformance.ts`. Conformance tests will be rewritten against the stable `composeServices()` API post-extraction.
+- **`test:conformance` script**: Removed from `package.json`.
+- **`bun build` scripts**: Removed `build` (bun build) and `build:worker` scripts, replaced with `tsc` build.
+
+---
+
 ## [0.1.0-beta.5] - 2026-03-11
 
 Comprehensive documentation pass: enhanced JSDoc across all service and utility modules, added 8 new API reference skill files, and updated CLAUDE.md with the Agent Skills section.

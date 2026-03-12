@@ -28,7 +28,7 @@ The current suite (125 files, 2135 tests, ~10s) is solid but has dead weight and
 
 ### Add handler factory execution tests
 
-The handler factory (the "logic throws, handlers catch" contract) is the core framework mechanism, but no test calls the produced handler function end-to-end. [tool-registration.test.ts:237](../tests/mcp-server/tools/tool-registration.test.ts#L237) checks `typeof handler === 'function'` but never invokes it. Only the conformance suite exercises it, and that's coarse.
+The handler factory (the "logic throws, handlers catch" contract) is the core framework mechanism, but no test calls the produced handler function end-to-end. [tool-registration.test.ts:237](../tests/mcp-server/tools/tool-registration.test.ts#L237) checks `typeof handler === 'function'` but never invokes it.
 
 **Fix:** Add a dedicated test suite for handler factory behavior:
 - Valid input → handler returns formatted output
@@ -39,17 +39,13 @@ The handler factory (the "logic throws, handlers catch" contract) is the core fr
 
 ### Add HTTP transport integration test
 
-The conformance suite only uses `InMemoryTransport`. No test sends real HTTP to the Hono server. HTTP-specific behavior (CORS, auth middleware pipeline, `/healthz`, session lifecycle) is only unit-tested in isolation.
+No test sends real HTTP to the Hono server. HTTP-specific behavior (CORS, auth middleware pipeline, `/healthz`, session lifecycle) is only unit-tested in isolation.
 
 **Fix:** Add at least one integration test that:
 - Boots the Hono server on a random port
 - Verifies `/healthz` returns 200
 - Sends a tool call via HTTP and verifies the response
 - Verifies auth rejection when auth is enabled
-
-### Update conformance harness for `createApp()`
-
-The current harness ([server-harness.ts](../tests/conformance/helpers/server-harness.ts)) calls `composeContainer()` + `createMcpServerInstance()` directly. After extraction, it should use `createApp()` or the underlying building blocks.
 
 ---
 
@@ -220,8 +216,8 @@ The published reference template repo (`mcp-ts-template`) uses the real npm vers
 - [ ] `createMockContext()` exported from `@cyanheads/mcp-ts-core/testing`
 - [ ] `createMockContext` supports optional capability injection (`sample`, `elicit`, `progress`)
 - [ ] `createMockContext({ tenantId })` produces context with working `ctx.state`
-- [ ] Conformance harness updated to use `createApp()` instead of `composeContainer()`
 - [ ] Core test suite covers app wiring, handler factory, storage, config, transports, HTTP integration, auth, utils, worker
+- [ ] Conformance test suite rewritten against stable `composeServices()` API (post-extraction)
 - [ ] `examples/` in core CI validates public export contract (type-check + tests + Worker bundle)
 - [ ] Worker bundle build validates bundler resolution of subpath exports from `node_modules`
 - [ ] Server vitest config extends core's base config

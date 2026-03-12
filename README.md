@@ -262,7 +262,6 @@ bun run devcheck       # lint, format, typecheck, security
 bun run test           # vitest
 bun run dev:stdio      # dev mode (stdio)
 bun run dev:http       # dev mode (HTTP)
-bun run build:worker   # Cloudflare Worker bundle
 ```
 
 ## Contributing
