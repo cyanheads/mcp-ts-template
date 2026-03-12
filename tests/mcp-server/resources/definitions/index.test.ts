@@ -31,13 +31,8 @@ describe('Resource Definitions Barrel Export', () => {
         expect(typeof resource.uriTemplate).toBe('string');
       });
 
-      it('should have valid paramsSchema', () => {
-        expect(resource.paramsSchema).toBeDefined();
-        expect(typeof resource.paramsSchema.parse).toBe('function');
-      });
-
-      it('should have a logic function', () => {
-        expect(typeof resource.logic).toBe('function');
+      it('should have a handler function', () => {
+        expect(typeof resource.handler).toBe('function');
       });
     });
   }

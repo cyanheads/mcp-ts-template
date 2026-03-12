@@ -11,16 +11,18 @@ import { allResourceDefinitions } from '@/mcp-server/resources/definitions/index
 describe('Resource Schema Snapshots', () => {
   for (const resource of allResourceDefinitions) {
     describe(`Resource: ${resource.name}`, () => {
-      it('paramsSchema JSON output should be stable', () => {
-        const jsonSchema = z.toJSONSchema(resource.paramsSchema, {
-          target: 'draft-7',
+      if (resource.params) {
+        it('params JSON output should be stable', () => {
+          const jsonSchema = z.toJSONSchema(resource.params!, {
+            target: 'draft-7',
+          });
+          expect(jsonSchema).toMatchSnapshot();
         });
-        expect(jsonSchema).toMatchSnapshot();
-      });
+      }
 
-      if (resource.outputSchema) {
-        it('outputSchema JSON output should be stable', () => {
-          const jsonSchema = z.toJSONSchema(resource.outputSchema!, {
+      if (resource.output) {
+        it('output JSON output should be stable', () => {
+          const jsonSchema = z.toJSONSchema(resource.output!, {
             target: 'draft-7',
           });
           expect(jsonSchema).toMatchSnapshot();

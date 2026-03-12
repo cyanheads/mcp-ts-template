@@ -46,7 +46,7 @@ function normalizeTool(def: Record<string, unknown>): NormalizedTool {
   const call =
     typeof def.handler === 'function'
       ? async (input: unknown) => {
-          const ctx = createMockContext();
+          const ctx = createMockContext({ progress: !!def.task });
           return (def.handler as (...args: unknown[]) => unknown)(input, ctx);
         }
       : async (input: unknown) => {
@@ -74,6 +74,7 @@ function normalizeTool(def: Record<string, unknown>): NormalizedTool {
 const NUM_RUNS = 200;
 
 const LOGIC_SKIP = new Set([
+  'template_async_countdown', // task tool with real delays
   'template_cat_fact',
   'template_image_test',
   'template_code_review_sampling',

@@ -68,23 +68,24 @@ describe('Resource JSON Schema Draft 4 Compatibility', () => {
       const allIssues: string[] = [];
 
       for (const resource of allResourceDefinitions) {
-        const paramsSchema = toJsonSchema(resource.paramsSchema);
-        const paramsIssues = findDraft7Incompatibilities(paramsSchema as JsonSchemaProperty);
+        if (resource.params) {
+          const paramsSchema = toJsonSchema(resource.params);
+          const paramsIssues = findDraft7Incompatibilities(paramsSchema as JsonSchemaProperty);
 
-        if (paramsIssues.length > 0) {
-          allIssues.push(
-            `Resource "${resource.name}" paramsSchema:\n  - ${paramsIssues.join('\n  - ')}`,
-          );
+          if (paramsIssues.length > 0) {
+            allIssues.push(
+              `Resource "${resource.name}" params:\n  - ${paramsIssues.join('\n  - ')}`,
+            );
+          }
         }
 
-        // Test output schema if defined
-        if (resource.outputSchema) {
-          const outputSchema = toJsonSchema(resource.outputSchema);
+        if (resource.output) {
+          const outputSchema = toJsonSchema(resource.output);
           const outputIssues = findDraft7Incompatibilities(outputSchema as JsonSchemaProperty);
 
           if (outputIssues.length > 0) {
             allIssues.push(
-              `Resource "${resource.name}" outputSchema:\n  - ${outputIssues.join('\n  - ')}`,
+              `Resource "${resource.name}" output:\n  - ${outputIssues.join('\n  - ')}`,
             );
           }
         }
@@ -102,25 +103,25 @@ describe('Resource JSON Schema Draft 4 Compatibility', () => {
 describe('Individual Resource Schema Validation', () => {
   for (const resource of allResourceDefinitions) {
     describe(`Resource: ${resource.name}`, () => {
-      it('paramsSchema should be Draft 4 compatible', () => {
-        const jsonSchema = toJsonSchema(resource.paramsSchema);
-        const issues = findDraft7Incompatibilities(jsonSchema as JsonSchemaProperty);
-
-        expect(
-          issues,
-          `paramsSchema contains Draft 7-only features:\n${issues.join('\n')}`,
-        ).toEqual([]);
-      });
-
-      if (resource.outputSchema) {
-        it('outputSchema should be Draft 4 compatible', () => {
-          const jsonSchema = toJsonSchema(resource.outputSchema!);
+      if (resource.params) {
+        it('params should be Draft 4 compatible', () => {
+          const jsonSchema = toJsonSchema(resource.params!);
           const issues = findDraft7Incompatibilities(jsonSchema as JsonSchemaProperty);
 
-          expect(
-            issues,
-            `outputSchema contains Draft 7-only features:\n${issues.join('\n')}`,
-          ).toEqual([]);
+          expect(issues, `params contains Draft 7-only features:\n${issues.join('\n')}`).toEqual(
+            [],
+          );
+        });
+      }
+
+      if (resource.output) {
+        it('output should be Draft 4 compatible', () => {
+          const jsonSchema = toJsonSchema(resource.output!);
+          const issues = findDraft7Incompatibilities(jsonSchema as JsonSchemaProperty);
+
+          expect(issues, `output contains Draft 7-only features:\n${issues.join('\n')}`).toEqual(
+            [],
+          );
         });
       }
     });

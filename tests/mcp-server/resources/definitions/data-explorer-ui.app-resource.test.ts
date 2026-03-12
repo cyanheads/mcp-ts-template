@@ -1,11 +1,11 @@
 /**
- * @fileoverview Tests for the data explorer UI app resource definition.
+ * @fileoverview Tests for the data explorer UI app resource definition (new-style resource() builder).
  * @module tests/mcp-server/resources/definitions/data-explorer-ui.app-resource.test
  */
 
 import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { describe, expect, it } from 'vitest';
-import { requestContextService } from '@/utils/internal/requestContext.js';
+import { createMockContext } from '@/testing/index.js';
 import { dataExplorerUiResource } from '../../../../src/mcp-server/resources/definitions/data-explorer-ui.app-resource.js';
 
 describe('dataExplorerUiResource', () => {
@@ -27,13 +27,11 @@ describe('dataExplorerUiResource', () => {
     expect(dataExplorerUiResource.uriTemplate).toBe('ui://template-data-explorer/app.html');
   });
 
-  describe('logic', () => {
+  describe('handler', () => {
     it('returns HTML content containing the Data Explorer markup', async () => {
       const uri = new URL('ui://template-data-explorer/app.html');
-      const params = {};
-      const context = requestContextService.createRequestContext();
-      // logic is wrapped with withResourceAuth → returns Promise<string>
-      const result = (await dataExplorerUiResource.logic(uri, params, context)) as string;
+      const ctx = createMockContext({ uri });
+      const result = (await dataExplorerUiResource.handler({}, ctx)) as string;
 
       expect(typeof result).toBe('string');
       expect(result).toContain('<!DOCTYPE html>');
@@ -49,7 +47,6 @@ describe('dataExplorerUiResource', () => {
         _meta: {},
       } as any;
 
-      // list() may return a Promise per ResourceDefinition type
       const result = await dataExplorerUiResource.list?.(mockExtra);
       expect(result!.resources).toHaveLength(1);
       expect(result!.resources[0]).toMatchObject({
@@ -60,14 +57,14 @@ describe('dataExplorerUiResource', () => {
     });
   });
 
-  describe('responseFormatter', () => {
+  describe('format', () => {
     it('formats HTML result into a resource content block', () => {
       const html = '<html>test</html>';
       const meta = {
         uri: new URL('ui://template-data-explorer/app.html'),
         mimeType: RESOURCE_MIME_TYPE,
       };
-      const blocks = dataExplorerUiResource.responseFormatter?.(html, meta);
+      const blocks = dataExplorerUiResource.format?.(html, meta);
 
       expect(blocks).toHaveLength(1);
       expect(blocks![0]).toMatchObject({

@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Resource Schema Snapshots > Resource: data-explorer-ui > paramsSchema JSON output should be stable 1`] = `
+exports[`Resource Schema Snapshots > Resource: data-explorer-ui > params JSON output should be stable 1`] = `
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
@@ -10,7 +10,7 @@ exports[`Resource Schema Snapshots > Resource: data-explorer-ui > paramsSchema J
 }
 `;
 
-exports[`Resource Schema Snapshots > Resource: echo-resource > outputSchema JSON output should be stable 1`] = `
+exports[`Resource Schema Snapshots > Resource: echo-resource > output JSON output should be stable 1`] = `
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
@@ -41,7 +41,7 @@ exports[`Resource Schema Snapshots > Resource: echo-resource > outputSchema JSON
 }
 `;
 
-exports[`Resource Schema Snapshots > Resource: echo-resource > paramsSchema JSON output should be stable 1`] = `
+exports[`Resource Schema Snapshots > Resource: echo-resource > params JSON output should be stable 1`] = `
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
