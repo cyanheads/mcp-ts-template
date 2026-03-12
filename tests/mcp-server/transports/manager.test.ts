@@ -5,6 +5,7 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AppConfig } from '@/config/index.js';
 import { config } from '@/config/index.js';
 import type { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
@@ -23,8 +24,12 @@ vi.mock('@/mcp-server/transports/stdio/stdioTransport.js', () => ({
   stopStdioTransport: vi.fn().mockResolvedValue(undefined),
 }));
 
+/** Creates a config-like object with the given transport type. */
+function fakeConfig(transportType: string): AppConfig {
+  return { ...config, mcpTransportType: transportType } as AppConfig;
+}
+
 describe('TransportManager', () => {
-  let manager: TransportManager;
   let mockCreateMcpServer: () => Promise<McpServer>;
   let mockMcpServer: McpServer;
   let mockTaskManager: TaskManager;
@@ -32,7 +37,6 @@ describe('TransportManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Create a minimal mock MCP server
     mockMcpServer = {
       registerTool: vi.fn(),
       registerResource: vi.fn(),
@@ -41,42 +45,31 @@ describe('TransportManager', () => {
 
     mockCreateMcpServer = vi.fn().mockResolvedValue(mockMcpServer);
     mockTaskManager = { cleanup: vi.fn() } as unknown as TaskManager;
-
-    manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
   });
 
   describe('start', () => {
     it('should start HTTP transport when configured', async () => {
-      const originalTransportType = config.mcpTransportType;
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: 'http',
-        writable: true,
-        configurable: true,
-      });
+      const manager = new TransportManager(
+        fakeConfig('http'),
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+      );
 
       await manager.start();
 
       const { startHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
       expect(startHttpTransport).toHaveBeenCalledTimes(1);
-      // HTTP transport receives the factory function, not a server instance
-      // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
       expect(startHttpTransport).toHaveBeenCalledWith(mockCreateMcpServer, expect.any(Object));
-
-      // Restore original value
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: originalTransportType,
-        writable: true,
-        configurable: true,
-      });
     });
 
     it('should start stdio transport when configured', async () => {
-      const originalTransportType = config.mcpTransportType;
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: 'stdio',
-        writable: true,
-        configurable: true,
-      });
+      const manager = new TransportManager(
+        fakeConfig('stdio'),
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+      );
 
       await manager.start();
 
@@ -85,78 +78,48 @@ describe('TransportManager', () => {
       );
       expect(startStdioTransport).toHaveBeenCalledTimes(1);
       expect(startStdioTransport).toHaveBeenCalledWith(mockMcpServer, expect.any(Object));
-
-      // Restore original value
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: originalTransportType,
-        writable: true,
-        configurable: true,
-      });
     });
 
     it('should throw error for unsupported transport type', async () => {
-      const originalTransportType = config.mcpTransportType;
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: 'invalid-transport',
-        writable: true,
-        configurable: true,
-      });
+      const manager = new TransportManager(
+        fakeConfig('invalid-transport'),
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+      );
 
       await expect(manager.start()).rejects.toThrow(
         'Unsupported transport type: invalid-transport',
       );
-
-      // Restore original value
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: originalTransportType,
-        writable: true,
-        configurable: true,
-      });
     });
 
     it('should create MCP server instance for stdio transport', async () => {
-      const originalTransportType = config.mcpTransportType;
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: 'stdio',
-        writable: true,
-        configurable: true,
-      });
+      const manager = new TransportManager(
+        fakeConfig('stdio'),
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+      );
 
       await manager.start();
-
-      // Stdio creates a single server instance up front
       expect(mockCreateMcpServer).toHaveBeenCalledTimes(1);
-
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: originalTransportType,
-        writable: true,
-        configurable: true,
-      });
     });
 
     it('should pass factory (not instance) for HTTP transport', async () => {
-      const originalTransportType = config.mcpTransportType;
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: 'http',
-        writable: true,
-        configurable: true,
-      });
+      const manager = new TransportManager(
+        fakeConfig('http'),
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+      );
 
-      // Re-create manager to avoid leftover state from beforeEach start
-      manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
       await manager.start();
-
       // HTTP transport receives factory — does NOT eagerly create an instance
       expect(mockCreateMcpServer).not.toHaveBeenCalled();
-
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: originalTransportType,
-        writable: true,
-        configurable: true,
-      });
     });
 
     it('should store server instance after successful start', async () => {
+      const manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
       await manager.start();
 
       const server = manager.getServer();
@@ -166,50 +129,30 @@ describe('TransportManager', () => {
   });
 
   describe('stop', () => {
-    beforeEach(async () => {
-      // Start a transport first
-      await manager.start();
-    });
-
     it('should stop HTTP transport when active', async () => {
-      const originalTransportType = config.mcpTransportType;
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: 'http',
-        writable: true,
-        configurable: true,
-      });
-
-      // Re-create manager with HTTP transport
-      manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
+      const manager = new TransportManager(
+        fakeConfig('http'),
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+      );
       await manager.start();
 
-      // Grab the handle's stop mock before calling manager.stop()
       const { startHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
       const handle = await (startHttpTransport as ReturnType<typeof vi.fn>).mock.results.at(-1)
         ?.value;
 
       await manager.stop('SIGTERM');
-
       expect(handle.stop).toHaveBeenCalledTimes(1);
-
-      // Restore original value
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: originalTransportType,
-        writable: true,
-        configurable: true,
-      });
     });
 
     it('should stop stdio transport when active', async () => {
-      const originalTransportType = config.mcpTransportType;
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: 'stdio',
-        writable: true,
-        configurable: true,
-      });
-
-      // Re-create manager with stdio transport
-      manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
+      const manager = new TransportManager(
+        fakeConfig('stdio'),
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+      );
       await manager.start();
 
       await manager.stop('SIGTERM');
@@ -218,13 +161,6 @@ describe('TransportManager', () => {
         '@/mcp-server/transports/stdio/stdioTransport.js'
       );
       expect(stopStdioTransport).toHaveBeenCalledTimes(1);
-
-      // Restore original value
-      Object.defineProperty(config, 'mcpTransportType', {
-        value: originalTransportType,
-        writable: true,
-        configurable: true,
-      });
     });
 
     it('should handle stop when no server instance is active', async () => {
@@ -235,16 +171,16 @@ describe('TransportManager', () => {
         mockTaskManager,
       );
 
-      // Should not throw
       await expect(freshManager.stop('SIGTERM')).resolves.toBeUndefined();
     });
 
     it('should pass signal to stop functions', async () => {
+      const manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
+      await manager.start();
       await manager.stop('SIGINT');
 
-      // Verify context contains signal information
-      // (The actual signal value is passed via context, not directly to stop functions)
-      expect(true).toBe(true); // Signal is logged in context
+      // Signal is logged in context
+      expect(true).toBe(true);
     });
   });
 
@@ -261,6 +197,7 @@ describe('TransportManager', () => {
     });
 
     it('should return server instance after start', async () => {
+      const manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
       await manager.start();
 
       const server = manager.getServer();

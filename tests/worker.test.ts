@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { CloudflareBindings } from '@/worker.js';
+import { type CloudflareBindings, createWorkerHandler } from '@/worker.js';
 
 describe('Cloudflare Worker Entry Point', () => {
   describe('CloudflareBindings Interface', () => {
@@ -90,10 +90,10 @@ describe('Cloudflare Worker Entry Point', () => {
   });
 
   describe('Worker Exports', () => {
-    it('should export default handler object', async () => {
+    it('should export createWorkerHandler factory', async () => {
       const worker = await import('@/worker.js');
-      expect(worker.default).toBeDefined();
-      expect(typeof worker.default).toBe('object');
+      expect(worker.createWorkerHandler).toBeDefined();
+      expect(typeof worker.createWorkerHandler).toBe('function');
     });
 
     it('should export CloudflareBindings interface', () => {
@@ -104,16 +104,10 @@ describe('Cloudflare Worker Entry Point', () => {
       expect(bindings).toBeDefined();
     });
 
-    it('should have fetch handler', async () => {
-      const worker = await import('@/worker.js');
-      expect(worker.default.fetch).toBeDefined();
-      expect(typeof worker.default.fetch).toBe('function');
-    });
-
-    it('should have scheduled handler', async () => {
-      const worker = await import('@/worker.js');
-      expect(worker.default.scheduled).toBeDefined();
-      expect(typeof worker.default.scheduled).toBe('function');
+    it('should return handler with fetch and scheduled', () => {
+      const handler = createWorkerHandler();
+      expect(typeof handler.fetch).toBe('function');
+      expect(typeof handler.scheduled).toBe('function');
     });
   });
 

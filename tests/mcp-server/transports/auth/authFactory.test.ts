@@ -2,47 +2,36 @@
  * @fileoverview Unit tests for authentication strategy factory.
  * @module tests/mcp-server/transports/auth/authFactory
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { config } from '@/config/index.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAuthStrategy } from '@/mcp-server/transports/auth/authFactory.js';
 import { JwtStrategy } from '@/mcp-server/transports/auth/strategies/jwtStrategy.js';
 import { OauthStrategy } from '@/mcp-server/transports/auth/strategies/oauthStrategy.js';
 
-describe('createAuthStrategy', () => {
-  let originalAuthMode: string;
-  let originalSecretKey: string | undefined;
+const { mockConfig } = vi.hoisted(() => ({
+  mockConfig: {
+    mcpAuthMode: 'none',
+    mcpAuthSecretKey: undefined as string | undefined,
+    oauthIssuerUrl: undefined as string | undefined,
+    oauthAudience: undefined as string | undefined,
+  },
+}));
 
+vi.mock('@/config/index.js', () => ({
+  config: mockConfig,
+}));
+
+describe('createAuthStrategy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    originalAuthMode = config.mcpAuthMode;
-    originalSecretKey = config.mcpAuthSecretKey;
-  });
-
-  afterEach(() => {
-    // Restore original config values
-    Object.defineProperty(config, 'mcpAuthMode', {
-      value: originalAuthMode,
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'mcpAuthSecretKey', {
-      value: originalSecretKey,
-      writable: true,
-      configurable: true,
-    });
+    mockConfig.mcpAuthMode = 'none';
+    mockConfig.mcpAuthSecretKey = undefined;
+    mockConfig.oauthIssuerUrl = undefined;
+    mockConfig.oauthAudience = undefined;
   });
 
   it('should return JwtStrategy when auth mode is "jwt"', () => {
-    Object.defineProperty(config, 'mcpAuthMode', {
-      value: 'jwt',
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'mcpAuthSecretKey', {
-      value: 'test-secret-key-that-is-at-least-32-chars-long',
-      writable: true,
-      configurable: true,
-    });
+    mockConfig.mcpAuthMode = 'jwt';
+    mockConfig.mcpAuthSecretKey = 'test-secret-key-that-is-at-least-32-chars-long';
 
     const strategy = createAuthStrategy();
 
@@ -50,21 +39,9 @@ describe('createAuthStrategy', () => {
   });
 
   it('should return OauthStrategy when auth mode is "oauth"', () => {
-    Object.defineProperty(config, 'mcpAuthMode', {
-      value: 'oauth',
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'oauthIssuerUrl', {
-      value: 'https://example.com',
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'oauthAudience', {
-      value: 'test-audience',
-      writable: true,
-      configurable: true,
-    });
+    mockConfig.mcpAuthMode = 'oauth';
+    mockConfig.oauthIssuerUrl = 'https://example.com';
+    mockConfig.oauthAudience = 'test-audience';
 
     const strategy = createAuthStrategy();
 
@@ -72,11 +49,7 @@ describe('createAuthStrategy', () => {
   });
 
   it('should return null when auth mode is "none"', () => {
-    Object.defineProperty(config, 'mcpAuthMode', {
-      value: 'none',
-      writable: true,
-      configurable: true,
-    });
+    mockConfig.mcpAuthMode = 'none';
 
     const strategy = createAuthStrategy();
 
@@ -84,26 +57,14 @@ describe('createAuthStrategy', () => {
   });
 
   it('should throw error for unknown auth mode', () => {
-    Object.defineProperty(config, 'mcpAuthMode', {
-      value: 'unknown-auth-mode',
-      writable: true,
-      configurable: true,
-    });
+    mockConfig.mcpAuthMode = 'unknown-auth-mode';
 
     expect(() => createAuthStrategy()).toThrow('Unknown authentication mode: unknown-auth-mode');
   });
 
   it('should resolve strategies from DI container', () => {
-    Object.defineProperty(config, 'mcpAuthMode', {
-      value: 'jwt',
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'mcpAuthSecretKey', {
-      value: 'test-secret-key-that-is-at-least-32-chars-long',
-      writable: true,
-      configurable: true,
-    });
+    mockConfig.mcpAuthMode = 'jwt';
+    mockConfig.mcpAuthSecretKey = 'test-secret-key-that-is-at-least-32-chars-long';
 
     const strategy1 = createAuthStrategy();
     const strategy2 = createAuthStrategy();

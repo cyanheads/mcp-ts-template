@@ -4,99 +4,62 @@
  */
 
 import { SignJWT } from 'jose';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { config } from '@/config/index.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { JwtStrategy } from '@/mcp-server/transports/auth/strategies/jwtStrategy.js';
 import { McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 
+const { mockConfig } = vi.hoisted(() => ({
+  mockConfig: {
+    environment: 'production',
+    mcpAuthSecretKey: 'test-secret-key-min-32-chars-long-for-hs256',
+    devMcpAuthBypass: false,
+    devMcpClientId: undefined as string | undefined,
+    devMcpScopes: undefined as string[] | undefined,
+  } as Record<string, unknown>,
+}));
+
+vi.mock('@/config/index.js', () => ({
+  config: mockConfig,
+}));
+
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
-  let originalEnv: string;
-  let originalSecretKey: string | undefined;
-  let originalClientId: string | undefined;
-  let originalScopes: string[] | undefined;
   const testSecret = 'test-secret-key-min-32-chars-long-for-hs256';
   const testSecretBytes = new TextEncoder().encode(testSecret);
 
   beforeEach(() => {
     vi.clearAllMocks();
-    originalEnv = config.environment;
-    originalSecretKey = config.mcpAuthSecretKey;
-    originalClientId = config.devMcpClientId;
-    originalScopes = config.devMcpScopes;
-  });
-
-  afterEach(() => {
-    // Restore original config
-    Object.defineProperty(config, 'environment', {
-      value: originalEnv,
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'mcpAuthSecretKey', {
-      value: originalSecretKey,
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'devMcpClientId', {
-      value: originalClientId,
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'devMcpScopes', {
-      value: originalScopes,
-      writable: true,
-      configurable: true,
-    });
+    // Reset to safe production defaults before each test
+    mockConfig.environment = 'production';
+    mockConfig.mcpAuthSecretKey = testSecret;
+    mockConfig.devMcpAuthBypass = false;
+    mockConfig.devMcpClientId = undefined;
+    mockConfig.devMcpScopes = undefined;
   });
 
   describe('constructor', () => {
     it('should initialize successfully with valid secret key', () => {
-      Object.defineProperty(config, 'mcpAuthSecretKey', {
-        value: testSecret,
-        writable: true,
-        configurable: true,
-      });
+      mockConfig.mcpAuthSecretKey = testSecret;
 
-      strategy = new JwtStrategy(config, logger);
+      strategy = new JwtStrategy(mockConfig as never, logger);
 
       expect(strategy).toBeInstanceOf(JwtStrategy);
     });
 
     it('should throw error in production without secret key', () => {
-      Object.defineProperty(config, 'environment', {
-        value: 'production',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'mcpAuthSecretKey', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
+      mockConfig.environment = 'production';
+      mockConfig.mcpAuthSecretKey = undefined;
 
-      expect(() => new JwtStrategy(config, logger)).toThrow(McpError);
+      expect(() => new JwtStrategy(mockConfig as never, logger)).toThrow(McpError);
     });
 
     it('should allow missing secret key when devMcpAuthBypass is true', () => {
-      Object.defineProperty(config, 'environment', {
-        value: 'development',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'mcpAuthSecretKey', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'devMcpAuthBypass', {
-        value: true,
-        writable: true,
-        configurable: true,
-      });
+      mockConfig.environment = 'development';
+      mockConfig.mcpAuthSecretKey = undefined;
+      mockConfig.devMcpAuthBypass = true;
 
-      strategy = new JwtStrategy(config, logger);
+      strategy = new JwtStrategy(mockConfig as never, logger);
 
       expect(strategy).toBeInstanceOf(JwtStrategy);
     });
@@ -104,12 +67,8 @@ describe('JwtStrategy', () => {
 
   describe('verify', () => {
     beforeEach(() => {
-      Object.defineProperty(config, 'mcpAuthSecretKey', {
-        value: testSecret,
-        writable: true,
-        configurable: true,
-      });
-      strategy = new JwtStrategy(config, logger);
+      mockConfig.mcpAuthSecretKey = testSecret;
+      strategy = new JwtStrategy(mockConfig as never, logger);
     });
 
     it('should verify valid JWT token with cid claim', async () => {
@@ -226,33 +185,13 @@ describe('JwtStrategy', () => {
     });
 
     it('should bypass verification when devMcpAuthBypass is true', async () => {
-      Object.defineProperty(config, 'environment', {
-        value: 'development',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'mcpAuthSecretKey', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'devMcpAuthBypass', {
-        value: true,
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'devMcpClientId', {
-        value: 'dev-client',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'devMcpScopes', {
-        value: ['dev:read', 'dev:write'],
-        writable: true,
-        configurable: true,
-      });
+      mockConfig.environment = 'development';
+      mockConfig.mcpAuthSecretKey = undefined;
+      mockConfig.devMcpAuthBypass = true;
+      mockConfig.devMcpClientId = 'dev-client';
+      mockConfig.devMcpScopes = ['dev:read', 'dev:write'];
 
-      const devStrategy = new JwtStrategy(config, logger);
+      const devStrategy = new JwtStrategy(mockConfig as never, logger);
 
       const authInfo = await devStrategy.verify('any-token');
 

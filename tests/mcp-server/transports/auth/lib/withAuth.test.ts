@@ -11,12 +11,19 @@ import { withResourceAuth, withToolAuth } from '@/mcp-server/transports/auth/lib
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 
+const mockConfig = vi.hoisted(() => ({
+  mcpAuthMode: 'none' as string,
+}));
+
+vi.mock('@/config/index.js', () => ({ config: mockConfig }));
+
 describe('withAuth Utilities', () => {
   let mockRequestContext: RequestContext;
   let mockSdkContext: SdkContext;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConfig.mcpAuthMode = 'none';
 
     mockRequestContext = {
       requestId: 'test-request-id',
@@ -60,6 +67,7 @@ describe('withAuth Utilities', () => {
       const mockLogic = vi.fn(async (input: string) => `processed: ${input}`);
       const wrappedLogic = withToolAuth(['tool:read'], mockLogic);
 
+      mockConfig.mcpAuthMode = 'jwt';
       await authContext.run({ authInfo }, async () => {
         const result = await wrappedLogic('authorized-input', mockRequestContext, mockSdkContext);
 
@@ -82,6 +90,7 @@ describe('withAuth Utilities', () => {
       const mockLogic = vi.fn(async (input: string) => `processed: ${input}`);
       const wrappedLogic = withToolAuth(['tool:write'], mockLogic);
 
+      mockConfig.mcpAuthMode = 'jwt';
       await authContext.run({ authInfo }, async () => {
         await expect(
           wrappedLogic('unauthorized-input', mockRequestContext, mockSdkContext),
@@ -105,6 +114,7 @@ describe('withAuth Utilities', () => {
       const mockLogic = vi.fn();
       const wrappedLogic = withToolAuth(['tool:admin'], mockLogic);
 
+      mockConfig.mcpAuthMode = 'jwt';
       await authContext.run({ authInfo }, async () => {
         try {
           await wrappedLogic('test', mockRequestContext, mockSdkContext);
@@ -125,6 +135,7 @@ describe('withAuth Utilities', () => {
       const mockLogic = vi.fn((input: string) => `sync: ${input}`);
       const wrappedLogic = withToolAuth(['tool:read'], mockLogic);
 
+      mockConfig.mcpAuthMode = 'jwt';
       await authContext.run({ authInfo }, async () => {
         const result = await wrappedLogic('sync-input', mockRequestContext, mockSdkContext);
 
@@ -164,6 +175,7 @@ describe('withAuth Utilities', () => {
       const mockLogic = vi.fn(async (_uri: URL, _params: unknown) => 'authorized-resource');
       const wrappedLogic = withResourceAuth(['resource:read'], mockLogic);
 
+      mockConfig.mcpAuthMode = 'jwt';
       await authContext.run({ authInfo }, async () => {
         const testUri = new URL('resource://authorized');
         const result = await wrappedLogic(testUri, { filter: 'active' }, mockRequestContext);
@@ -183,6 +195,7 @@ describe('withAuth Utilities', () => {
       const mockLogic = vi.fn(async (_uri: URL, _params: unknown) => 'data');
       const wrappedLogic = withResourceAuth(['resource:write'], mockLogic);
 
+      mockConfig.mcpAuthMode = 'jwt';
       await authContext.run({ authInfo }, async () => {
         const testUri = new URL('resource://unauthorized');
         await expect(wrappedLogic(testUri, {}, mockRequestContext)).rejects.toThrow(McpError);
@@ -201,6 +214,7 @@ describe('withAuth Utilities', () => {
       const mockLogic = vi.fn();
       const wrappedLogic = withResourceAuth(['resource:admin'], mockLogic);
 
+      mockConfig.mcpAuthMode = 'jwt';
       await authContext.run({ authInfo }, async () => {
         try {
           await wrappedLogic(new URL('resource://test'), {}, mockRequestContext);

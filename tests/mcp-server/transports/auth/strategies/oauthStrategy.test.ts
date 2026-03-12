@@ -3,11 +3,27 @@
  * @module tests/mcp-server/transports/auth/strategies/oauthStrategy.test
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { config } from '@/config/index.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OauthStrategy } from '@/mcp-server/transports/auth/strategies/oauthStrategy.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
+
+// Hoist the mock config object so it can be referenced in vi.mock factories
+const { mockConfig } = vi.hoisted(() => ({
+  mockConfig: {
+    mcpAuthMode: 'oauth' as string,
+    oauthIssuerUrl: 'https://example.auth0.com/' as string | undefined,
+    oauthAudience: 'https://api.example.com' as string | undefined,
+    oauthJwksUri: undefined as string | undefined,
+    mcpServerResourceIdentifier: undefined as string | undefined,
+    oauthJwksCooldownMs: 300000 as number,
+    oauthJwksTimeoutMs: 5000 as number,
+  },
+}));
+
+vi.mock('@/config/index.js', () => ({
+  config: mockConfig,
+}));
 
 // Mock the jose module with factory function for Bun compatibility
 // Vitest auto-mocks with vi.mock('jose') but Bun requires explicit factory
@@ -21,13 +37,6 @@ import * as jose from 'jose';
 
 describe('OAuth Strategy', () => {
   let strategy: OauthStrategy;
-  let originalAuthMode: string;
-  let originalIssuerUrl: string | undefined;
-  let originalAudience: string | undefined;
-  let originalJwksUri: string | undefined;
-  let originalResourceId: string | undefined;
-  let originalJwksCooldown: number;
-  let originalJwksTimeout: number;
 
   const mockJWKS = vi.fn();
   const mockCreateRemoteJWKSet = vi.mocked(jose.createRemoteJWKSet);
@@ -36,163 +45,57 @@ describe('OAuth Strategy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Save original config
-    originalAuthMode = config.mcpAuthMode;
-    originalIssuerUrl = config.oauthIssuerUrl;
-    originalAudience = config.oauthAudience;
-    originalJwksUri = config.oauthJwksUri;
-    originalResourceId = config.mcpServerResourceIdentifier;
-    originalJwksCooldown = config.oauthJwksCooldownMs;
-    originalJwksTimeout = config.oauthJwksTimeoutMs;
+    // Reset mock config to defaults before each test
+    mockConfig.mcpAuthMode = 'oauth';
+    mockConfig.oauthIssuerUrl = 'https://example.auth0.com/';
+    mockConfig.oauthAudience = 'https://api.example.com';
+    mockConfig.oauthJwksUri = undefined;
+    mockConfig.mcpServerResourceIdentifier = undefined;
+    mockConfig.oauthJwksCooldownMs = 300000;
+    mockConfig.oauthJwksTimeoutMs = 5000;
 
     // Mock createRemoteJWKSet to return mock JWKS function
     mockCreateRemoteJWKSet.mockReturnValue(mockJWKS as any);
   });
 
-  afterEach(() => {
-    // Restore original config
-    Object.defineProperty(config, 'mcpAuthMode', {
-      value: originalAuthMode,
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'oauthIssuerUrl', {
-      value: originalIssuerUrl,
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'oauthAudience', {
-      value: originalAudience,
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'oauthJwksUri', {
-      value: originalJwksUri,
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'mcpServerResourceIdentifier', {
-      value: originalResourceId,
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'oauthJwksCooldownMs', {
-      value: originalJwksCooldown,
-      writable: true,
-      configurable: true,
-    });
-    Object.defineProperty(config, 'oauthJwksTimeoutMs', {
-      value: originalJwksTimeout,
-      writable: true,
-      configurable: true,
-    });
-  });
-
   describe('constructor', () => {
     it('should initialize successfully with valid OAuth config', () => {
-      Object.defineProperty(config, 'mcpAuthMode', {
-        value: 'oauth',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthIssuerUrl', {
-        value: 'https://example.auth0.com/',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthAudience', {
-        value: 'https://api.example.com',
-        writable: true,
-        configurable: true,
-      });
-
-      strategy = new OauthStrategy(config, logger);
+      strategy = new OauthStrategy(mockConfig as any, logger);
 
       expect(strategy).toBeInstanceOf(OauthStrategy);
       expect(mockCreateRemoteJWKSet).toHaveBeenCalled();
     });
 
     it('should throw error when auth mode is not oauth', () => {
-      Object.defineProperty(config, 'mcpAuthMode', {
-        value: 'jwt',
-        writable: true,
-        configurable: true,
-      });
+      mockConfig.mcpAuthMode = 'jwt';
 
-      expect(() => new OauthStrategy(config, logger)).toThrow(
+      expect(() => new OauthStrategy(mockConfig as any, logger)).toThrow(
         'OauthStrategy instantiated for non-oauth auth mode',
       );
     });
 
     it('should throw McpError when OAUTH_ISSUER_URL is missing', () => {
-      Object.defineProperty(config, 'mcpAuthMode', {
-        value: 'oauth',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthIssuerUrl', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthAudience', {
-        value: 'https://api.example.com',
-        writable: true,
-        configurable: true,
-      });
+      mockConfig.oauthIssuerUrl = undefined;
 
-      expect(() => new OauthStrategy(config, logger)).toThrow(McpError);
-      expect(() => new OauthStrategy(config, logger)).toThrow(
+      expect(() => new OauthStrategy(mockConfig as any, logger)).toThrow(McpError);
+      expect(() => new OauthStrategy(mockConfig as any, logger)).toThrow(
         /OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set/,
       );
     });
 
     it('should throw McpError when OAUTH_AUDIENCE is missing', () => {
-      Object.defineProperty(config, 'mcpAuthMode', {
-        value: 'oauth',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthIssuerUrl', {
-        value: 'https://example.auth0.com/',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthAudience', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
+      mockConfig.oauthAudience = undefined;
 
-      expect(() => new OauthStrategy(config, logger)).toThrow(McpError);
-      expect(() => new OauthStrategy(config, logger)).toThrow(
+      expect(() => new OauthStrategy(mockConfig as any, logger)).toThrow(McpError);
+      expect(() => new OauthStrategy(mockConfig as any, logger)).toThrow(
         /OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set/,
       );
     });
 
     it('should initialize JWKS client with custom JWKS URI', () => {
-      Object.defineProperty(config, 'mcpAuthMode', {
-        value: 'oauth',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthIssuerUrl', {
-        value: 'https://example.auth0.com/',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthAudience', {
-        value: 'https://api.example.com',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthJwksUri', {
-        value: 'https://custom.example.com/jwks',
-        writable: true,
-        configurable: true,
-      });
+      mockConfig.oauthJwksUri = 'https://custom.example.com/jwks';
 
-      strategy = new OauthStrategy(config, logger);
+      strategy = new OauthStrategy(mockConfig as any, logger);
 
       expect(mockCreateRemoteJWKSet).toHaveBeenCalledWith(
         new URL('https://custom.example.com/jwks'),
@@ -201,28 +104,9 @@ describe('OAuth Strategy', () => {
     });
 
     it('should initialize JWKS client with default well-known path', () => {
-      Object.defineProperty(config, 'mcpAuthMode', {
-        value: 'oauth',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthIssuerUrl', {
-        value: 'https://example.auth0.com/',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthAudience', {
-        value: 'https://api.example.com',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthJwksUri', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
+      mockConfig.oauthJwksUri = undefined;
 
-      strategy = new OauthStrategy(config, logger);
+      strategy = new OauthStrategy(mockConfig as any, logger);
 
       expect(mockCreateRemoteJWKSet).toHaveBeenCalledWith(
         new URL('https://example.auth0.com/.well-known/jwks.json'),
@@ -231,33 +115,10 @@ describe('OAuth Strategy', () => {
     });
 
     it('should pass cooldown and timeout options to createRemoteJWKSet', () => {
-      Object.defineProperty(config, 'mcpAuthMode', {
-        value: 'oauth',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthIssuerUrl', {
-        value: 'https://example.auth0.com/',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthAudience', {
-        value: 'https://api.example.com',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthJwksCooldownMs', {
-        value: 5000,
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthJwksTimeoutMs', {
-        value: 10000,
-        writable: true,
-        configurable: true,
-      });
+      mockConfig['oauthJwksCooldownMs'] = 5000;
+      mockConfig['oauthJwksTimeoutMs'] = 10000;
 
-      strategy = new OauthStrategy(config, logger);
+      strategy = new OauthStrategy(mockConfig as any, logger);
 
       expect(mockCreateRemoteJWKSet).toHaveBeenCalledWith(
         expect.any(URL),
@@ -271,24 +132,7 @@ describe('OAuth Strategy', () => {
 
   describe('verify', () => {
     beforeEach(() => {
-      // Set up valid OAuth config for verify tests
-      Object.defineProperty(config, 'mcpAuthMode', {
-        value: 'oauth',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthIssuerUrl', {
-        value: 'https://example.auth0.com/',
-        writable: true,
-        configurable: true,
-      });
-      Object.defineProperty(config, 'oauthAudience', {
-        value: 'https://api.example.com',
-        writable: true,
-        configurable: true,
-      });
-
-      strategy = new OauthStrategy(config, logger);
+      strategy = new OauthStrategy(mockConfig as any, logger);
     });
 
     it('should verify valid OAuth token with all claims', async () => {
@@ -405,11 +249,7 @@ describe('OAuth Strategy', () => {
     });
 
     it('should validate resource indicator when configured', async () => {
-      Object.defineProperty(config, 'mcpServerResourceIdentifier', {
-        value: 'https://mcp.example.com',
-        writable: true,
-        configurable: true,
-      });
+      mockConfig['mcpServerResourceIdentifier'] = 'https://mcp.example.com';
 
       mockJwtVerify.mockResolvedValue({
         payload: {
@@ -427,11 +267,7 @@ describe('OAuth Strategy', () => {
     });
 
     it('should allow token when resource matches in array', async () => {
-      Object.defineProperty(config, 'mcpServerResourceIdentifier', {
-        value: 'https://mcp.example.com',
-        writable: true,
-        configurable: true,
-      });
+      mockConfig['mcpServerResourceIdentifier'] = 'https://mcp.example.com';
 
       mockJwtVerify.mockResolvedValue({
         payload: {
@@ -449,11 +285,7 @@ describe('OAuth Strategy', () => {
     });
 
     it('should reject token with resource mismatch', async () => {
-      Object.defineProperty(config, 'mcpServerResourceIdentifier', {
-        value: 'https://mcp.example.com',
-        writable: true,
-        configurable: true,
-      });
+      mockConfig['mcpServerResourceIdentifier'] = 'https://mcp.example.com';
 
       mockJwtVerify.mockResolvedValue({
         payload: {
@@ -476,11 +308,7 @@ describe('OAuth Strategy', () => {
     });
 
     it('should skip resource validation when not configured', async () => {
-      Object.defineProperty(config, 'mcpServerResourceIdentifier', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
+      mockConfig['mcpServerResourceIdentifier'] = undefined;
 
       mockJwtVerify.mockResolvedValue({
         payload: {

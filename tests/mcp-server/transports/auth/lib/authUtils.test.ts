@@ -2,12 +2,18 @@
  * @fileoverview Unit tests for authorization utilities.
  * @module tests/mcp-server/transports/auth/lib/authUtils.test
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
-import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+
+// Mutable config mock — tests override mcpAuthMode per scenario.
+const mockConfig = { mcpAuthMode: 'none' as string };
+vi.mock('@/config/index.js', () => ({ config: mockConfig }));
+
+// Must import after vi.mock so the mock is in place.
+const { withRequiredScopes } = await import('@/mcp-server/transports/auth/lib/authUtils.js');
 
 describe('withRequiredScopes', () => {
   const createAuthInfo = (scopes: string[]): AuthInfo => ({
@@ -17,29 +23,57 @@ describe('withRequiredScopes', () => {
     subject: 'user-123',
   });
 
-  it('allows execution when no auth context is present', () => {
-    expect(() => withRequiredScopes(['scope:read'])).not.toThrow();
-  });
-
-  it('passes when the auth context satisfies all required scopes', () => {
-    authContext.run({ authInfo: createAuthInfo(['scope:read', 'scope:write']) }, () => {
+  describe('when auth is disabled (MCP_AUTH_MODE=none)', () => {
+    it('allows execution when no auth context is present', () => {
+      mockConfig.mcpAuthMode = 'none';
       expect(() => withRequiredScopes(['scope:read'])).not.toThrow();
-      expect(() => withRequiredScopes(['scope:read', 'scope:write'])).not.toThrow();
     });
   });
 
-  it('throws a forbidden error when a required scope is missing', () => {
-    authContext.run({ authInfo: createAuthInfo(['scope:read']) }, () => {
+  describe('when auth is enabled (MCP_AUTH_MODE=jwt)', () => {
+    it('throws Unauthorized when no auth context is present', () => {
+      mockConfig.mcpAuthMode = 'jwt';
       try {
-        withRequiredScopes(['scope:read', 'scope:write']);
+        withRequiredScopes(['scope:read']);
         throw new Error('Expected withRequiredScopes to throw');
       } catch (error) {
         expect(error).toBeInstanceOf(McpError);
         const mcpError = error as McpError;
-        expect(mcpError.code).toBe(JsonRpcErrorCode.Forbidden);
-        expect(mcpError.message).toContain('Missing required scopes');
-        expect(mcpError.data).toMatchObject({ missingScopes: ['scope:write'] });
+        expect(mcpError.code).toBe(JsonRpcErrorCode.Unauthorized);
+        expect(mcpError.message).toContain('Authentication required');
       }
+    });
+
+    it('passes when the auth context satisfies all required scopes', () => {
+      mockConfig.mcpAuthMode = 'jwt';
+      authContext.run({ authInfo: createAuthInfo(['scope:read', 'scope:write']) }, () => {
+        expect(() => withRequiredScopes(['scope:read'])).not.toThrow();
+        expect(() => withRequiredScopes(['scope:read', 'scope:write'])).not.toThrow();
+      });
+    });
+
+    it('throws Forbidden when a required scope is missing', () => {
+      mockConfig.mcpAuthMode = 'jwt';
+      authContext.run({ authInfo: createAuthInfo(['scope:read']) }, () => {
+        try {
+          withRequiredScopes(['scope:read', 'scope:write']);
+          throw new Error('Expected withRequiredScopes to throw');
+        } catch (error) {
+          expect(error).toBeInstanceOf(McpError);
+          const mcpError = error as McpError;
+          expect(mcpError.code).toBe(JsonRpcErrorCode.Forbidden);
+          expect(mcpError.message).toContain('Missing required scopes');
+          expect(mcpError.data).toMatchObject({
+            requiredScopes: ['scope:read', 'scope:write'],
+            missingScopes: ['scope:write'],
+          });
+          // Sensitive auth details must not leak to client-facing errors
+          const data = mcpError.data as Record<string, unknown>;
+          expect(data).not.toHaveProperty('grantedScopes');
+          expect(data).not.toHaveProperty('clientId');
+          expect(data).not.toHaveProperty('subject');
+        }
+      });
     });
   });
 });
