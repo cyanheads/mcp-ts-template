@@ -13,8 +13,8 @@
     "start:http": "MCP_TRANSPORT_TYPE=http node dist/index.js"
   },
   "dependencies": {
-    "@cyanheads/mcp-ts-core": "^0.1.0",
-    "zod": "^3.25.0"
+    "@cyanheads/mcp-ts-core": "beta",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
