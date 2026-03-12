@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.9] - 2026-03-12
+
+Documentation refactoring: condenses CLAUDE.md, extracts detailed API references from skill files into dedicated reference subdirectories, updates skill docs to reflect current API surfaces, and refreshes the project tree.
+
+### Added
+
+- **`skills/api-services/references/`**: Extracted LLM, Speech, and Graph service documentation into dedicated reference files (`llm.md`, `speech.md`, `graph.md`) — previously inline in `SKILL.md`.
+- **`skills/api-utils/references/`**: Extracted Formatting, Parsing, and Security utility documentation into dedicated reference files (`formatting.md`, `parsing.md`, `security.md`) — previously inline in `SKILL.md`.
+
+### Changed
+
+- **`CLAUDE.md`**: Major condensation — compressed verbose paragraphs into terse bullet-point rules, merged header lines, reduced net ~545 lines while preserving all API surface documentation.
+- **`docs/tree.md`**: Regenerated to reflect current project structure (examples/, new scripts, skill reference dirs, barrel files, removed conformance tests).
+- **`skills/api-services/SKILL.md`** (v1.2): Replaced inline service docs with references table pointing to new reference files.
+- **`skills/api-utils/SKILL.md`** (v2.0): Replaced inline formatting/parsing/security docs with references table; updated method signatures for `fetchWithTimeout`, `paginateArray`, `extractCursor`, `decodeCursor`, `schedulerService`, `ErrorHandler`, and `utils/types` guards.
+- **`skills/api-errors/SKILL.md`**: Expanded error code table with standard JSON-RPC 2.0 codes (`ParseError`, `MethodNotFound`) and new implementation-defined codes (`SerializationError`, `UnknownError`); added `McpError` `options` parameter; expanded `ErrorHandler.tryCatch` options documentation.
+- **`skills/api-testing/SKILL.md`**: Expanded `MockContextOptions` interface docs (`auth`, `requestId`, `signal`, `uri`); added mock progress state-tracking and mock logger inspection examples; replaced vitest config with standalone example using `tsconfigPaths()`.
+- **`skills/migrate-mcp-ts-template/SKILL.md`** (v2.0): Comprehensive rewrite — categorized import mapping tables (core, definition types, internal utils, public utils), added files-to-remove checklist, added entry point rewrite example, expanded verification checklist.
+- **`skills/api-auth/SKILL.md`**: Minor signature and description corrections.
+- **`skills/api-context/SKILL.md`**: Minor corrections.
+- **`skills/api-workers/SKILL.md`**: Minor corrections.
+- **`skills/add-provider/SKILL.md`**: Minor corrections.
+- **`skills/add-resource/SKILL.md`**: Minor corrections.
+
+---
+
 ## [0.1.0-beta.8] - 2026-03-12
 
 Extracts all template definitions from `src/` to `examples/`, completing the core/consumer separation. The core library now ships as a clean framework with no built-in tools, resources, or prompts. Template definitions live in `examples/` as a reference consumer server.

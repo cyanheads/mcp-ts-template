@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-03-11 13:06:38
+Generated on: 2026-03-12 11:08:17
 
 ```
 mcp-ts-template/
@@ -48,10 +48,30 @@ mcp-ts-template/
 │   ├── mcp-apps.md
 │   ├── mcp-elicitation-summary.md
 │   └── publishing-mcp-server-registry.md
-├── reports/
+├── examples/
+│   ├── mcp-server/
+│   │   ├── prompts/
+│   │   │   └── definitions/
+│   │   │       └── code-review.prompt.ts
+│   │   ├── resources/
+│   │   │   └── definitions/
+│   │   │       ├── data-explorer-ui.app-resource.ts
+│   │   │       └── echo.resource.ts
+│   │   └── tools/
+│   │       └── definitions/
+│   │           ├── template-async-countdown.tool.ts
+│   │           ├── template-cat-fact.tool.ts
+│   │           ├── template-code-review-sampling.tool.ts
+│   │           ├── template-data-explorer.app-tool.ts
+│   │           ├── template-echo-message.tool.ts
+│   │           ├── template-image-test.tool.ts
+│   │           └── template-madlibs-elicitation.tool.ts
+│   ├── index.ts
+│   └── worker.ts
 ├── schemas/
 │   └── cloudflare-d1-schema.sql
 ├── scripts/
+│   ├── build.ts
 │   ├── clean.ts
 │   ├── devcheck.ts
 │   ├── devdocs.ts
@@ -59,7 +79,8 @@ mcp-ts-template/
 │   ├── make-executable.ts
 │   ├── test-report.ts
 │   ├── tree.ts
-│   └── update-coverage.ts
+│   ├── update-coverage.ts
+│   └── verify-exports.ts
 ├── skills/
 │   ├── add-export/
 │   │   └── SKILL.md
@@ -72,6 +93,30 @@ mcp-ts-template/
 │   ├── add-service/
 │   │   └── SKILL.md
 │   ├── add-tool/
+│   │   └── SKILL.md
+│   ├── api-auth/
+│   │   └── SKILL.md
+│   ├── api-config/
+│   │   └── SKILL.md
+│   ├── api-context/
+│   │   └── SKILL.md
+│   ├── api-errors/
+│   │   └── SKILL.md
+│   ├── api-services/
+│   │   ├── references/
+│   │   │   ├── graph.md
+│   │   │   ├── llm.md
+│   │   │   └── speech.md
+│   │   └── SKILL.md
+│   ├── api-testing/
+│   │   └── SKILL.md
+│   ├── api-utils/
+│   │   ├── references/
+│   │   │   ├── formatting.md
+│   │   │   ├── parsing.md
+│   │   │   └── security.md
+│   │   └── SKILL.md
+│   ├── api-workers/
 │   │   └── SKILL.md
 │   ├── devcheck/
 │   │   └── SKILL.md
@@ -89,18 +134,11 @@ mcp-ts-template/
 │   │   └── index.ts
 │   ├── mcp-server/
 │   │   ├── prompts/
-│   │   │   ├── definitions/
-│   │   │   │   ├── code-review.prompt.ts
-│   │   │   │   └── index.ts
 │   │   │   ├── utils/
 │   │   │   │   ├── newPromptDefinition.ts
 │   │   │   │   └── promptDefinition.ts
 │   │   │   └── prompt-registration.ts
 │   │   ├── resources/
-│   │   │   ├── definitions/
-│   │   │   │   ├── data-explorer-ui.app-resource.ts
-│   │   │   │   ├── echo.resource.ts
-│   │   │   │   └── index.ts
 │   │   │   ├── utils/
 │   │   │   │   ├── newResourceDefinition.ts
 │   │   │   │   ├── newResourceHandlerFactory.ts
@@ -118,15 +156,6 @@ mcp-ts-template/
 │   │   │   └── utils/
 │   │   │       └── taskToolDefinition.ts
 │   │   ├── tools/
-│   │   │   ├── definitions/
-│   │   │   │   ├── index.ts
-│   │   │   │   ├── template-async-countdown.task-tool.ts
-│   │   │   │   ├── template-cat-fact.tool.ts
-│   │   │   │   ├── template-code-review-sampling.tool.ts
-│   │   │   │   ├── template-data-explorer.app-tool.ts
-│   │   │   │   ├── template-echo-message.tool.ts
-│   │   │   │   ├── template-image-test.tool.ts
-│   │   │   │   └── template-madlibs-elicitation.tool.ts
 │   │   │   ├── utils/
 │   │   │   │   ├── newToolDefinition.ts
 │   │   │   │   ├── newToolHandlerFactory.ts
@@ -209,6 +238,7 @@ mcp-ts-template/
 │   ├── utils/
 │   │   ├── formatting/
 │   │   │   ├── diffFormatter.ts
+│   │   │   ├── index.ts
 │   │   │   ├── markdownBuilder.ts
 │   │   │   ├── tableFormatter.ts
 │   │   │   └── treeFormatter.ts
@@ -235,6 +265,7 @@ mcp-ts-template/
 │   │   │   ├── csvParser.ts
 │   │   │   ├── dateParser.ts
 │   │   │   ├── frontmatterParser.ts
+│   │   │   ├── index.ts
 │   │   │   ├── jsonParser.ts
 │   │   │   ├── pdfParser.ts
 │   │   │   ├── thinkBlock.ts
@@ -244,6 +275,7 @@ mcp-ts-template/
 │   │   │   └── scheduler.ts
 │   │   ├── security/
 │   │   │   ├── idGenerator.ts
+│   │   │   ├── index.ts
 │   │   │   ├── rateLimiter.ts
 │   │   │   └── sanitization.ts
 │   │   ├── telemetry/
@@ -253,7 +285,8 @@ mcp-ts-template/
 │   │   │   ├── semconv.ts
 │   │   │   └── trace.ts
 │   │   └── types/
-│   │       └── guards.ts
+│   │       ├── guards.ts
+│   │       └── index.ts
 │   ├── app.ts
 │   ├── context.ts
 │   ├── index.ts
@@ -282,31 +315,17 @@ mcp-ts-template/
 │   ├── config/
 │   │   ├── index.int.test.ts
 │   │   └── index.test.ts
-│   ├── conformance/
-│   │   ├── helpers/
-│   │   │   ├── assertions.ts
-│   │   │   ├── low-level-helpers.ts
-│   │   │   ├── recording-transport.ts
-│   │   │   └── server-harness.ts
-│   │   ├── cancellation.test.ts
-│   │   ├── completions.test.ts
-│   │   ├── elicitation.test.ts
-│   │   ├── jsonrpc-edge-cases.test.ts
-│   │   ├── lifecycle.test.ts
-│   │   ├── list-changed.test.ts
-│   │   ├── logging.test.ts
-│   │   ├── pagination.test.ts
-│   │   ├── progress.test.ts
-│   │   ├── prompts.test.ts
-│   │   ├── protocol-init.test.ts
-│   │   ├── protocol-ordering.test.ts
-│   │   ├── resources.test.ts
-│   │   ├── roots.test.ts
-│   │   ├── sampling.test.ts
-│   │   ├── subscriptions.test.ts
-│   │   ├── tasks.test.ts
-│   │   ├── tools.test.ts
-│   │   └── version-negotiation.test.ts
+│   ├── examples/
+│   │   ├── prompts/
+│   │   │   └── code-review.prompt.test.ts
+│   │   ├── resources/
+│   │   │   └── echo.resource.test.ts
+│   │   └── tools/
+│   │       ├── template-async-countdown.tool.test.ts
+│   │       ├── template-code-review-sampling.tool.test.ts
+│   │       ├── template-data-explorer.app-tool.test.ts
+│   │       ├── template-echo-message.tool.test.ts
+│   │       └── template-madlibs-elicitation.tool.test.ts
 │   ├── fixtures/
 │   │   └── index.ts
 │   ├── integration/
@@ -319,21 +338,10 @@ mcp-ts-template/
 │   │   └── stdio.test.ts
 │   ├── mcp-server/
 │   │   ├── prompts/
-│   │   │   ├── definitions/
-│   │   │   │   └── code-review.prompt.test.ts
 │   │   │   ├── utils/
 │   │   │   │   └── promptDefinition.test.ts
 │   │   │   └── prompt-registration.test.ts
 │   │   ├── resources/
-│   │   │   ├── definitions/
-│   │   │   │   ├── data-explorer-ui.app-resource.test.ts
-│   │   │   │   ├── echo.resource.test.ts
-│   │   │   │   └── index.test.ts
-│   │   │   ├── schemas/
-│   │   │   │   ├── __snapshots__/
-│   │   │   │   │   └── schema-snapshots.test.ts.snap
-│   │   │   │   ├── json-schema-compatibility.test.ts
-│   │   │   │   └── schema-snapshots.test.ts
 │   │   │   ├── utils/
 │   │   │   │   ├── resourceDefinition.test.ts
 │   │   │   │   └── resourceHandlerFactory.test.ts
@@ -347,24 +355,6 @@ mcp-ts-template/
 │   │   │   └── utils/
 │   │   │       └── taskToolDefinition.test.ts
 │   │   ├── tools/
-│   │   │   ├── definitions/
-│   │   │   │   ├── index.test.ts
-│   │   │   │   ├── template-async-countdown.task-tool.test.ts
-│   │   │   │   ├── template-cat-fact.tool.test.ts
-│   │   │   │   ├── template-code-review-sampling.tool.test.ts
-│   │   │   │   ├── template-data-explorer.app-tool.test.ts
-│   │   │   │   ├── template-echo-message.tool.test.ts
-│   │   │   │   ├── template-image-test.tool.test.ts
-│   │   │   │   └── template-madlibs-elicitation.tool.test.ts
-│   │   │   ├── fuzz/
-│   │   │   │   └── tool-input-fuzz.test.ts
-│   │   │   ├── schemas/
-│   │   │   │   ├── __snapshots__/
-│   │   │   │   │   └── schema-snapshots.test.ts.snap
-│   │   │   │   ├── json-schema-compatibility.test.ts
-│   │   │   │   ├── output-schema-coverage.test.ts
-│   │   │   │   ├── schema-snapshots.test.ts
-│   │   │   │   └── zod4-compatibility.test.ts
 │   │   │   ├── utils/
 │   │   │   │   ├── toolDefinition.test.ts
 │   │   │   │   └── toolHandlerFactory.test.ts
@@ -512,13 +502,15 @@ mcp-ts-template/
 ├── repomix.config.json
 ├── server.json
 ├── smithery.yaml
+├── tsconfig.base.json
+├── tsconfig.build.json
 ├── tsconfig.json
 ├── tsconfig.scripts.json
 ├── tsconfig.test.json
 ├── tsdoc.json
 ├── typedoc.json
+├── vitest.config.base.ts
 ├── vitest.config.ts
-├── vitest.conformance.ts
 ├── vitest.integration.ts
 └── wrangler.toml
 ```
