@@ -47,7 +47,9 @@ function init(): void {
   const args = process.argv.slice(3);
   const dryRun = args.includes('--dry-run');
   const name = args.find((a) => !a.startsWith('--'));
-  const dest = process.cwd();
+  const dest = name ? join(process.cwd(), name) : process.cwd();
+
+  if (name) mkdirSync(dest, { recursive: true });
 
   console.log(`\n  Scaffolding${name ? ` ${name}` : ''} in ${dest}\n`);
 
