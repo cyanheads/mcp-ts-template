@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.13] - 2026-03-12
+
+Improves the `init` CLI to scaffold into a named subdirectory and updates template dependencies to current versions.
+
+### Changed
+
+- **`src/cli/init.ts`**: When a project name is provided, the CLI now creates a subdirectory and scaffolds into it (`join(cwd(), name)`) instead of always using `cwd()`. Running `mcp-ts-core init my-server` now creates `./my-server/` with the scaffolded project inside.
+- **`templates/package.json`**: Updated `@cyanheads/mcp-ts-core` dependency from `^0.1.0` to `beta` tag for automatic pre-release tracking. Bumped `zod` from `^3.25.0` to `^4.3.6`.
+- **`package.json`**: Version bump to `0.1.0-beta.13`.
+- **`server.json`**: Version bump to `0.1.0-beta.13`.
+
+---
+
 ## [0.1.0-beta.12] - 2026-03-12
 
 Enhances `devcheck` audit to classify vulnerabilities as direct (fixable) vs transitive/upstream (not directly fixable), warning instead of failing for upstream-only issues.
