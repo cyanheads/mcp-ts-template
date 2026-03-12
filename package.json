@@ -3,18 +3,112 @@
   "version": "0.1.0-beta.4",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "TypeScript framework for building Model Context Protocol (MCP) servers. Declarative tool/resource/prompt definitions, pluggable auth, multi-backend storage, OpenTelemetry observability, and support for both local (stdio/HTTP) and edge (Cloudflare Workers) runtimes.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "main": "dist/app.js",
+  "types": "dist/app.d.ts",
+  "files": ["dist/", "skills/", "CLAUDE.md", "tsconfig.base.json", "biome.json"],
   "bin": {
     "mcp-ts-core": "dist/index.js"
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/app.d.ts",
+      "import": "./dist/app.js"
     },
-    "./*": "./dist/*"
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
+    },
+    "./tools": {
+      "types": "./dist/mcp-server/tools/utils/newToolDefinition.d.ts",
+      "import": "./dist/mcp-server/tools/utils/newToolDefinition.js"
+    },
+    "./resources": {
+      "types": "./dist/mcp-server/resources/utils/newResourceDefinition.d.ts",
+      "import": "./dist/mcp-server/resources/utils/newResourceDefinition.js"
+    },
+    "./prompts": {
+      "types": "./dist/mcp-server/prompts/utils/newPromptDefinition.d.ts",
+      "import": "./dist/mcp-server/prompts/utils/newPromptDefinition.js"
+    },
+    "./tasks": {
+      "types": "./dist/mcp-server/tasks/utils/taskToolDefinition.d.ts",
+      "import": "./dist/mcp-server/tasks/utils/taskToolDefinition.js"
+    },
+    "./context": {
+      "types": "./dist/context.d.ts",
+      "import": "./dist/context.js"
+    },
+    "./errors": {
+      "types": "./dist/types-global/errors.d.ts",
+      "import": "./dist/types-global/errors.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "import": "./dist/config/index.js"
+    },
+    "./auth": {
+      "types": "./dist/mcp-server/transports/auth/lib/checkScopes.d.ts",
+      "import": "./dist/mcp-server/transports/auth/lib/checkScopes.js"
+    },
+    "./storage": {
+      "types": "./dist/storage/core/StorageService.d.ts",
+      "import": "./dist/storage/core/StorageService.js"
+    },
+    "./storage/types": {
+      "types": "./dist/storage/core/IStorageProvider.d.ts",
+      "import": "./dist/storage/core/IStorageProvider.js"
+    },
+    "./utils/logger": {
+      "types": "./dist/utils/internal/logger.d.ts",
+      "import": "./dist/utils/internal/logger.js"
+    },
+    "./utils/requestContext": {
+      "types": "./dist/utils/internal/requestContext.d.ts",
+      "import": "./dist/utils/internal/requestContext.js"
+    },
+    "./utils/errorHandler": {
+      "types": "./dist/utils/internal/error-handler/errorHandler.d.ts",
+      "import": "./dist/utils/internal/error-handler/errorHandler.js"
+    },
+    "./utils/formatting": {
+      "types": "./dist/utils/formatting/index.d.ts",
+      "import": "./dist/utils/formatting/index.js"
+    },
+    "./utils/parsing": {
+      "types": "./dist/utils/parsing/index.d.ts",
+      "import": "./dist/utils/parsing/index.js"
+    },
+    "./utils/security": {
+      "types": "./dist/utils/security/index.d.ts",
+      "import": "./dist/utils/security/index.js"
+    },
+    "./utils/network": {
+      "types": "./dist/utils/network/fetchWithTimeout.d.ts",
+      "import": "./dist/utils/network/fetchWithTimeout.js"
+    },
+    "./utils/pagination": {
+      "types": "./dist/utils/pagination/pagination.d.ts",
+      "import": "./dist/utils/pagination/pagination.js"
+    },
+    "./utils/runtime": {
+      "types": "./dist/utils/internal/runtime.d.ts",
+      "import": "./dist/utils/internal/runtime.js"
+    },
+    "./utils/scheduling": {
+      "types": "./dist/utils/scheduling/scheduler.d.ts",
+      "import": "./dist/utils/scheduling/scheduler.js"
+    },
+    "./utils/types": {
+      "types": "./dist/utils/types/index.d.ts",
+      "import": "./dist/utils/types/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
+    },
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./biome.json": "./biome.json",
+    "./package.json": "./package.json"
   },
   "type": "module",
   "sideEffects": false,
@@ -27,8 +121,7 @@
   },
   "homepage": "https://github.com/cyanheads/mcp-ts-template#readme",
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target node --external pino --external pino-pretty",
-    "build:worker": "bun build ./src/worker.ts --outdir ./dist --target bun --no-external",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "deploy:dev": "MCP_TRANSPORT_TYPE=http bunx wrangler dev",
     "deploy:prod": "MCP_TRANSPORT_TYPE=http bunx wrangler deploy",
     "start": "bun ./dist/index.js",
@@ -40,6 +133,7 @@
     "devdocs": "bun run scripts/devdocs.ts",
     "devcheck": "bun run scripts/devcheck.ts",
     "rebuild": "bun run scripts/clean.ts && bun run build",
+    "prepublishOnly": "bun run build",
     "docs:generate": "bunx typedoc",
     "depcheck": "bunx depcheck",
     "lint": "biome check",
@@ -51,13 +145,12 @@
     "prepare": "bunx husky",
     "inspector": "bunx mcp-inspector --config mcp.json --server mcp-ts-core",
     "test": "bunx vitest run",
-    "test:all": "bun run test && bun run test:conformance && bun run test:integration && bun run test:fuzz",
-    "test:conformance": "bunx vitest run --config vitest.conformance.ts",
+    "test:all": "bun run test && bun run test:integration && bun run test:fuzz",
     "test:integration": "bunx vitest run --config vitest.integration.ts",
     "test:fuzz": "bunx vitest run fuzz",
     "test:report": "bun run scripts/test-report.ts",
     "test:report:open": "bun run scripts/test-report.ts --open",
-    "test:ui": "bunx vitest --ui --config vitest.conformance.ts",
+    "test:ui": "bunx vitest --ui",
     "test:coverage": "bunx vitest run --coverage",
     "coverage:update": "bun run scripts/update-coverage.ts",
     "coverage:commit": "bun run scripts/update-coverage.ts --commit",
@@ -66,6 +159,7 @@
     "publish-mcp": "bunx mcp-publisher publish"
   },
   "resolutions": {
+    "escape-string-regexp": "4.0.0",
     "@hono/node-server": "1.19.11",
     "@isaacs/brace-expansion": "5.0.1",
     "chrono-node": "2.9.0",
@@ -83,7 +177,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.6",
-    "@cloudflare/workers-types": "^4.20260310.1",
+    "@cloudflare/workers-types": "^4.20260312.1",
     "@traversable/registry": "^0.0.49",
     "@traversable/zod-test": "^0.0.28",
     "@traversable/zod-types": "^0.0.30",
@@ -107,6 +201,7 @@
     "msw": "^2.12.10",
     "pino-pretty": "^13.1.3",
     "repomix": "^1.12.0",
+    "tsc-alias": "^1.8.16",
     "typedoc": "^0.28.17",
     "typescript": "^5.9.3",
     "vite": "7.3.1",
@@ -161,36 +256,109 @@
   "dependencies": {
     "@hono/mcp": "^0.2.4",
     "@hono/node-server": "^1.19.11",
-    "@hono/otel": "^1.1.1",
     "@modelcontextprotocol/ext-apps": "^1.2.2",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/auto-instrumentations-node": "^0.71.0",
-    "@opentelemetry/exporter-metrics-otlp-http": "^0.213.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.213.0",
-    "@opentelemetry/instrumentation-pino": "^0.59.0",
-    "@opentelemetry/resources": "^2.6.0",
-    "@opentelemetry/sdk-metrics": "^2.6.0",
-    "@opentelemetry/sdk-node": "^0.213.0",
-    "@opentelemetry/sdk-trace-node": "^2.6.0",
-    "@opentelemetry/semantic-conventions": "^1.40.0",
-    "@supabase/supabase-js": "^2.99.0",
-    "chrono-node": "^2.9.0",
-    "diff": "^8.0.3",
     "dotenv": "^17.3.1",
-    "fast-xml-parser": "^5.5.1",
     "hono": "^4.12.5",
     "jose": "^6.2.1",
-    "js-yaml": "^4.1.1",
-    "node-cron": "^4.2.1",
-    "openai": "^6.27.0",
-    "papaparse": "^5.5.3",
-    "partial-json": "^0.1.7",
-    "pdf-lib": "^1.17.1",
-    "pino": "^10.3.1",
-    "sanitize-html": "^2.17.1",
-    "unpdf": "^1.4.0",
-    "validator": "13.15.26",
-    "zod": "^4.3.6"
+    "pino": "^10.3.1"
+  },
+  "peerDependencies": {
+    "zod": "^4.3.6",
+    "@hono/otel": "latest",
+    "@opentelemetry/auto-instrumentations-node": "latest",
+    "@opentelemetry/exporter-metrics-otlp-http": "latest",
+    "@opentelemetry/exporter-trace-otlp-http": "latest",
+    "@opentelemetry/instrumentation-pino": "latest",
+    "@opentelemetry/resources": "latest",
+    "@opentelemetry/sdk-metrics": "latest",
+    "@opentelemetry/sdk-node": "latest",
+    "@opentelemetry/sdk-trace-node": "latest",
+    "@opentelemetry/semantic-conventions": "latest",
+    "@supabase/supabase-js": "latest",
+    "chrono-node": "latest",
+    "diff": "^8.0.3",
+    "fast-xml-parser": "^5.4.1",
+    "js-yaml": "^3.14.2",
+    "node-cron": "latest",
+    "openai": "latest",
+    "papaparse": "latest",
+    "partial-json": "latest",
+    "pdf-lib": "latest",
+    "sanitize-html": "latest",
+    "unpdf": "latest",
+    "validator": "latest"
+  },
+  "peerDependenciesMeta": {
+    "@hono/otel": {
+      "optional": true
+    },
+    "@opentelemetry/auto-instrumentations-node": {
+      "optional": true
+    },
+    "@opentelemetry/exporter-metrics-otlp-http": {
+      "optional": true
+    },
+    "@opentelemetry/exporter-trace-otlp-http": {
+      "optional": true
+    },
+    "@opentelemetry/instrumentation-pino": {
+      "optional": true
+    },
+    "@opentelemetry/resources": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-metrics": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-node": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-trace-node": {
+      "optional": true
+    },
+    "@opentelemetry/semantic-conventions": {
+      "optional": true
+    },
+    "@supabase/supabase-js": {
+      "optional": true
+    },
+    "chrono-node": {
+      "optional": true
+    },
+    "diff": {
+      "optional": true
+    },
+    "fast-xml-parser": {
+      "optional": true
+    },
+    "js-yaml": {
+      "optional": true
+    },
+    "node-cron": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    },
+    "papaparse": {
+      "optional": true
+    },
+    "partial-json": {
+      "optional": true
+    },
+    "pdf-lib": {
+      "optional": true
+    },
+    "sanitize-html": {
+      "optional": true
+    },
+    "unpdf": {
+      "optional": true
+    },
+    "validator": {
+      "optional": true
+    }
   }
 }
