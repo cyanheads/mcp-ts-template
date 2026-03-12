@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.15] - 2026-03-12
+
+Adds missing `@types/node` to template devDependencies.
+
+### Fixed
+
+- **`templates/package.json`**: Added `@types/node@^25.0.0` to `devDependencies` — was missing from scaffolded projects.
+
+---
+
 ## [0.1.0-beta.14] - 2026-03-12
 
 Unifies the template placeholder to `{{PACKAGE_NAME}}` and expands init CLI substitution to all text files. Adds post-scaffold checklist items to the setup skill.
