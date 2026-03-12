@@ -35,7 +35,7 @@ This directory contains the living plan for extracting the infrastructure layer 
 | 1a | Fixes & hardening (deps, coupling, tests) | **Complete** |
 | 1b | DI removal & `createApp()` | **Complete** |
 | 2 | Lazy dependency conversion | **Complete** |
-| 3 | Repo transformation (the extraction) | **In progress** (foundation, builders, skills, templates, registry wiring done; packaging remains) |
+| 3 | Repo transformation (the extraction) | **In progress** (examples extracted, CLAUDE.md API refs added; clean build verification + conformance harness remain) |
 | 4 | Validate with examples | Not started |
 | 5 | Publish `@cyanheads/mcp-ts-core@0.1.0` | Not started — ⚠️ requires user action |
 | 6 | Create thin `mcp-ts-template` reference repo | Not started — ⚠️ requires user action (GitHub rename, npm deprecation) |

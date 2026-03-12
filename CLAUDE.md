@@ -765,6 +765,112 @@ Additional formatters: `diffFormatter` (**async** methods), `tableFormatter`, `t
 
 ---
 
+## Utils API Quick Reference
+
+Method tables for each `utils/` subpath export. All Tier 3 methods are **async** (lazy-load deps on first call). See `skills/api-utils/SKILL.md` for full docs.
+
+### `utils/formatting`
+
+| Export | Methods / API |
+|:-------|:-------------|
+| `markdown()` | Returns `MarkdownBuilder`. Chain: `.text(s)`, `.heading(s, level)`, `.list(items)`, `.table(headers, rows)`, `.code(s, lang?)`, `.blockquote(s)`, `.hr()`, `.when(cond, fn)`, `.build()` |
+| `diffFormatter` | `.formatUnified(a, b, opts?)`, `.formatSideBySide(a, b, opts?)`, `.formatInline(a, b, opts?)` — all **async** (Tier 3: `diff`) |
+| `tableFormatter` | `.format(headers, rows, opts?)` — alignment, styles (`plain`/`compact`/`rounded`) |
+| `treeFormatter` | `.format(nodes, opts?)` — `TreeNode { name, children?, meta? }`, styles (`ascii`/`unicode`/`rounded`) |
+
+### `utils/parsing`
+
+| Export | Methods / API |
+|:-------|:-------------|
+| `yamlParser` | `.parse(input)`, `.stringify(data, opts?)` — **async** (Tier 3: `js-yaml`) |
+| `csvParser` | `.parse(input, opts?)`, `.stringify(data, opts?)` — **async** (Tier 3: `papaparse`) |
+| `xmlParser` | `.parse(input, opts?)`, `.stringify(data, opts?)` — **async** (Tier 3: `fast-xml-parser`) |
+| `jsonParser` | `.parse(input, opts?)`, `.parsePartial(input, allow?)` — **async** (Tier 3: `partial-json`) |
+| `pdfParser` | `.extractText(source, opts?)`, `.getMetadata(source)`, `.createDocument(opts?)` — **async** (Tier 3: `pdf-lib`/`unpdf`) |
+| `dateParser` | `parseDateString(input)`, `parseDateStringDetailed(input)` — **async** (Tier 3: `chrono-node`) |
+| `frontmatterParser` | `.parse(input)` → `{ frontmatter, content }` — **async** (Tier 3: `js-yaml`) |
+
+### `utils/security`
+
+| Export | Methods / API |
+|:-------|:-------------|
+| `sanitization` | `.sanitizeHtml(input, config?)`, `.sanitizePath(input, opts?)`, `.sanitizeString(input, opts?)`, `.validateInput(input, schema)` — **async** (Tier 3: `sanitize-html`, `validator`) |
+| `rateLimiter` | `new RateLimiter(config?)` — `.check(key)`, `.reset(key)`, `.getStatus(key)` |
+| `idGenerator` | `.generateUUID()`, `.generateRequestContextId(prefix?)` — sync |
+
+### `utils/network`
+
+| Export | Signature |
+|:-------|:----------|
+| `fetchWithTimeout` | `(url, timeoutMs, context, opts?) → Promise<Response>` — SSRF protection via `rejectPrivateIPs`, combines with `AbortSignal` |
+
+### `utils/pagination`
+
+| Export | Signature |
+|:-------|:----------|
+| `extractCursor` | `(params?) → PaginationState` — decode opaque cursor from request params |
+| `paginateArray` | `<T>(items, state) → PaginatedResult<T>` — slice array, encode next cursor |
+
+### `utils/runtime`
+
+| Export | Fields |
+|:-------|:-------|
+| `runtimeCaps` | `isNode`, `isBun`, `isWorkerLike`, `isBrowserLike`, `hasBuffer`, `hasProcess`, `hasTextEncoder`, `hasPerformanceNow` |
+
+### `utils/scheduling`
+
+| Export | Methods / API |
+|:-------|:-------------|
+| `scheduler` | `.schedule(name, cron, fn, opts?)`, `.stop(name)`, `.stopAll()`, `.list()`, `.isRunning(name)` — **Node.js only**, **async** (Tier 3: `node-cron`) |
+
+### `utils/types`
+
+| Export | Signature |
+|:-------|:----------|
+| `isErrorWithCode` | `(err) → err is { code: string }` |
+| `isRecord` | `(val) → val is Record<string, unknown>` |
+
+---
+
+## Services API Quick Reference
+
+Optional services available via `CoreServices`. Constructed automatically when relevant env vars are set. See `skills/api-services/SKILL.md` for full docs.
+
+### LLM (`ILlmProvider` via OpenRouter)
+
+Available as `core.llmProvider` when `OPENROUTER_API_KEY` is set.
+
+| Method | Signature |
+|:-------|:----------|
+| `chat` | `(params: OpenRouterChatParams, context) → Promise<ChatCompletion \| Stream<ChatCompletionChunk>>` |
+
+`params.stream = true` for streaming. Uses OpenAI SDK types (OpenRouter is OpenAI-compatible).
+
+### Speech (`SpeechService`)
+
+Available as `core.speechService` when `SPEECH_TTS_ENABLED=true` or `SPEECH_STT_ENABLED=true`.
+
+| Capability | Provider | Methods |
+|:-----------|:---------|:--------|
+| TTS | ElevenLabs | `.synthesize(text, opts?)` → audio buffer |
+| STT | Whisper | `.transcribe(audio, opts?)` → transcript |
+
+### Graph (`GraphService`)
+
+Not auto-constructed — initialize in `setup()` with a provider.
+
+| Method | Signature |
+|:-------|:----------|
+| `relate` | `(from, edgeTable, to, context, opts?) → Promise<Edge>` |
+| `unrelate` | `(from, edgeTable, to, context) → Promise<void>` |
+| `traverse` | `(startId, context, opts?) → Promise<TraversalResult>` |
+| `findPaths` | `(fromId, toId, context, opts?) → Promise<GraphPath[]>` |
+| `getEdges` | `(nodeId, context, opts?) → Promise<Edge[]>` |
+| `getStats` | `(context) → Promise<GraphStats>` |
+| `healthCheck` | `(context) → Promise<boolean>` |
+
+---
+
 ## Agent Skills
 
 Detailed guides, templates, and API references live in `skills/`. Read the relevant skill file before starting a task it covers.

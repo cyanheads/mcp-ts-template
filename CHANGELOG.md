@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.8] - 2026-03-12
+
+Extracts all template definitions from `src/` to `examples/`, completing the core/consumer separation. The core library now ships as a clean framework with no built-in tools, resources, or prompts. Template definitions live in `examples/` as a reference consumer server.
+
+### Added
+
+- **`examples/` directory**: Complete example consumer server demonstrating the `@cyanheads/mcp-ts-core` API.
+  - `examples/index.ts` — Node.js entry point using `createApp()` with all template definitions.
+  - `examples/worker.ts` — Cloudflare Workers entry point using `createWorkerHandler()`.
+  - 7 tool definitions, 2 resource definitions, 1 prompt definition — all importing from `@cyanheads/mcp-ts-core` public subpath exports.
+- **CLAUDE.md**: Added "Utils API Quick Reference" and "Services API Quick Reference" sections with per-subpath method tables for all utility and service exports.
+
+### Changed
+
+- **`src/index.ts`**: Stripped to minimal core entry point — calls `createApp()` with no definitions. Consumer servers provide their own.
+- **`scripts/build.ts`**: Safer `--project` arg parsing (handles undefined index gracefully).
+- **`scripts/test-report.ts`**: Removed conformance suite config (conformance tests were deleted in beta.6).
+- **`src/utils/scheduling/scheduler.ts`**: Fixed JSDoc example code.
+- **`tests/mcp-server/prompts/prompt-registration.test.ts`**: Rewritten with inline test fixtures (new-style + legacy prompt definitions) instead of importing from deleted template definitions.
+- **`tests/mcp-server/transports/auth/strategies/oauthStrategy.test.ts`**: Replaced bracket notation with dot notation for config property access.
+- **`core-extraction/09-execution.md`**: Updated Phase 3 checklist — template definitions moved, CLAUDE.md API refs added.
+- **`core-extraction/README.md`**: Updated Phase 3 status description.
+
+### Removed
+
+- **Template definitions from `src/`**: All tool, resource, and prompt definitions moved to `examples/`. Deleted `src/mcp-server/tools/definitions/`, `src/mcp-server/resources/definitions/`, `src/mcp-server/prompts/definitions/` (10 source files + 3 barrel indexes).
+- **Template definition tests**: All unit tests, schema snapshot tests, fuzz tests, and JSON schema compatibility tests for the moved definitions (20 test files + 2 snapshot files).
+- **`@traversable/*` devDependencies**: Removed `@traversable/registry`, `@traversable/zod-test`, `@traversable/zod-types` — no longer needed after removing Zod schema compatibility tests.
+
+---
+
 ## [0.1.0-beta.7] - 2026-03-12
 
 Migrates template resources and tools to new-style builders, expands `CoreServices` with optional providers, adds shareable Vitest base config and a build script with progress reporting.

@@ -125,11 +125,11 @@ The core of the extraction. Transform the repo in-place.
 - [x] Stdio mode defaults `tenantId` to `'default'` so `ctx.state` works without auth (in `createContext()`)
 
 #### Packaging & repo transformation
-- [ ] `package.json` renamed to `@cyanheads/mcp-ts-core`
-- [ ] Template definitions moved to `examples/`
+- [x] `package.json` renamed to `@cyanheads/mcp-ts-core`
+- [x] Template definitions moved to `examples/` (imports rewritten to `@cyanheads/mcp-ts-core` public subpath exports)
 - [x] `createApp()` updated to return `ServerHandle` with `shutdown()` and `services` (was `AppHandle` with `createServer` + `transportManager`)
 - [x] `createWorkerHandler()` implemented as public entry point (extraEnvBindings, extraObjectBindings, onScheduled)
-- [ ] Current `index.ts` and `worker.ts` converted to example entry points in `examples/`
+- [x] Current `index.ts` and `worker.ts` converted to example entry points in `examples/`
 - [x] Build pipeline: `build` script changed to `tsc && tsc-alias`, `tsc-alias` added to devDeps (see [03a-build.md](03a-build.md))
 - [x] `tsconfig.base.json` created for downstream server extension
 - [x] `exports` field added with all subpath exports, each with `types` + `import` conditions, plus `./package.json` (see [02-public-api.md](02-public-api.md))
@@ -138,21 +138,21 @@ The core of the extraction. Transform the repo in-place.
 
 #### Documentation & skills
 - [x] Consumer-facing `CLAUDE.md` written with exports catalog (no DI/container references)
-- [ ] `CONTRIBUTING.md` written (repo-only, excluded from package)
+- [~] `CONTRIBUTING.md` — skipped (not adding a contributing file)
 - [x] All skill definitions written in `skills/` with `metadata.audience` set (see [05-agent-dx.md](05-agent-dx.md))
 - [x] `templates/` directory created with all scaffold templates for `init` CLI (see [13-init-cli.md](13-init-cli.md))
 
 #### Utils & Services API reference (decision #31)
 - [x] JSDoc audit completed on all `utils/` exports (`@fileoverview`, `@module`, `@param`, `@returns`, `@example` on every exported symbol)
 - [x] JSDoc audit completed on all `services/` exports (LLM, Speech, Graph)
-- [ ] "Utils API Quick Reference" section added to consumer-facing `CLAUDE.md` — per-subpath method tables
-- [ ] "Services API Quick Reference" section added to consumer-facing `CLAUDE.md` — per-service interface tables
-- [ ] JSDoc accuracy verified against implementation (no stale descriptions, correct param names/types)
+- [x] "Utils API Quick Reference" section added to consumer-facing `CLAUDE.md` — per-subpath method tables
+- [x] "Services API Quick Reference" section added to consumer-facing `CLAUDE.md` — per-service interface tables
+- [ ] JSDoc accuracy verified against implementation (no stale descriptions, correct param names/types) — agents running
 
 #### Final gates
 - [ ] Conformance harness rewritten against stable `composeServices()` API (post-extraction)
 - [x] `files` array includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `biome.json`
-- [ ] `files` array excludes `core-extraction/`, `CONTRIBUTING.md`
+- [x] `files` array excludes `core-extraction/` (by omission — not listed in `files`)
 - [x] `prepublishOnly` script added
 - [ ] Package compiles cleanly (`tsc && tsc-alias`)
 - [ ] `npm pack --dry-run` produces expected file set
