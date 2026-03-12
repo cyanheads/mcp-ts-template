@@ -12,7 +12,17 @@ import { fileURLToPath } from 'node:url';
 const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TEMPLATES_DIR = join(PACKAGE_ROOT, 'templates');
 const SKILLS_DIR = join(PACKAGE_ROOT, 'skills');
-const TEXT_EXTENSIONS = new Set(['.md', '.ts', '.js', '.json', '.yaml', '.yml', '.toml', '.txt', '']);
+const TEXT_EXTENSIONS = new Set([
+  '.md',
+  '.ts',
+  '.js',
+  '.json',
+  '.yaml',
+  '.yml',
+  '.toml',
+  '.txt',
+  '',
+]);
 
 // ── CLI dispatch ──────────────────────────────────────────────────────
 
