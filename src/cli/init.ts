@@ -218,10 +218,17 @@ function printSummary(
   console.log(`\n  ${created.length} created, ${skipped.length} skipped`);
 
   if (!dryRun && created.length > 0) {
-    console.log(`
-  Next steps:
-    ${name ? '' : '1. Update package.json name\n    '}${name ? '1' : '2'}. bun install
-    ${name ? '2' : '3'}. Open the project in your editor — your agent will read CLAUDE.md
-`);
+    console.log('\n  Next steps:');
+    let step = 1;
+    if (name) {
+      console.log(`    ${step++}. cd ${name}`);
+    }
+    console.log(`    ${step++}. bun install`);
+    console.log(`    ${step}. Run your coding agent and ask it to get started:\n`);
+    console.log('       claude');
+    console.log('       codex');
+    console.log('       cursor\n');
+    console.log('       Your agent will read CLAUDE.md/AGENTS.md and orient itself.');
+    console.log();
   }
 }
