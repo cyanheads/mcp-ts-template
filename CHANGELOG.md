@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.14] - 2026-03-12
+
+Unifies the template placeholder to `{{PACKAGE_NAME}}` and expands init CLI substitution to all text files. Adds post-scaffold checklist items to the setup skill.
+
+### Changed
+
+- **`src/cli/init.ts`**: `{{PACKAGE_NAME}}` substitution now applies to all text files (`.md`, `.ts`, `.js`, `.json`, `.yaml`, `.yml`, `.toml`, `.txt`) instead of only `package.json`. Added `isTextFile()` helper and `TEXT_EXTENSIONS` set.
+- **`templates/CLAUDE.md`**, **`templates/AGENTS.md`**: Replaced `{{SERVER_NAME}}` placeholder with `{{PACKAGE_NAME}}` for consistency with the unified substitution.
+- **`templates/package.json`**: Bumped `@biomejs/biome` to `^2.4.0`, `typescript` to `^5.9.0`, `vitest` to `^4.0.0`.
+- **`skills/setup/SKILL.md`**: Added "Project Scaffolding" section with post-init steps (git init, `.gitignore`, placeholder verification). Added checklist items for `{{PACKAGE_NAME}}` replacement and `.gitignore` creation.
+
+---
+
 ## [0.1.0-beta.13] - 2026-03-12
 
 Improves the `init` CLI to scaffold into a named subdirectory and updates template dependencies to current versions.
