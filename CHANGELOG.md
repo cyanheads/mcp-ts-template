@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.11] - 2026-03-12
+
+Modernizes Zod schemas to use new top-level validators (`z.url()`, `z.email()`, `z.iso.datetime()`), replaces empty template barrel files with functional echo definitions as starting points, and updates the CLI init to handle underscore-prefixed template files.
+
+### Added
+
+- **`templates/src/mcp-server/tools/definitions/echo.tool.ts`**: Functional echo tool definition as a starter for new projects — replaces empty barrel file.
+- **`templates/src/mcp-server/resources/definitions/echo.resource.ts`**: Functional echo resource definition as a starter for new projects.
+- **`templates/src/mcp-server/prompts/definitions/echo.prompt.ts`**: Functional echo prompt definition as a starter for new projects.
+- **`templates/_tsconfig.json`**: Renamed from `tsconfig.json` with underscore prefix to prevent IDE auto-discovery in the core package; init CLI strips the prefix on copy.
+
+### Changed
+
+- **Zod schema modernization**: Migrated `z.string().url()` → `z.url()`, `z.string().email()` → `z.email()`, `z.string().datetime()` → `z.iso.datetime()` across `src/config/index.ts`, examples, docs (`src/mcp-server/README.md`, `src/storage/README.md`, `core-extraction/11-consumer-workflow.md`, `core-extraction/12-developer-api.md`), and tests.
+- **`templates/src/index.ts`**: Imports echo definitions directly instead of barrel files; registers them inline in `createApp()`.
+- **`src/cli/init.ts`**: Added `_` prefix stripping for template files (e.g., `_tsconfig.json` → `tsconfig.json`) alongside existing `.template.json` suffix stripping.
+- **`skills/setup/SKILL.md`** (v1.1): Updated to reflect echo scaffold definitions, removed barrel file references, added server-name prefix naming convention, added checklist item for deleting unused echo definitions.
+
+### Removed
+
+- **`templates/src/mcp-server/tools/definitions/index.ts`**: Empty barrel file replaced by echo definition.
+- **`templates/src/mcp-server/resources/definitions/index.ts`**: Empty barrel file replaced by echo definition.
+- **`templates/src/mcp-server/prompts/definitions/index.ts`**: Empty barrel file replaced by echo definition.
+- **`templates/tsconfig.json`**: Replaced by `_tsconfig.json` (underscore prefix convention).
+
+---
+
 ## [0.1.0-beta.10] - 2026-03-12
 
 Implements the `init` CLI subcommand for scaffolding new consumer projects, adds `type` metadata to all skill frontmatter for classification, and adds a debug skill for tracing agent onboarding.
