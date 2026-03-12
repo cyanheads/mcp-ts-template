@@ -153,7 +153,7 @@
     "prepare": "bunx husky",
     "inspector": "bunx mcp-inspector --config mcp.json --server mcp-ts-core",
     "test": "bunx vitest run",
-    "test:all": "bun run test && bun run test:integration && bun run test:fuzz",
+    "test:all": "bun run test && bun run test:integration",
     "test:integration": "bunx vitest run --config vitest.integration.ts",
     "test:fuzz": "bunx vitest run fuzz",
     "test:report": "bun run scripts/test-report.ts",

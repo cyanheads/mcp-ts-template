@@ -21,6 +21,7 @@
     "allowSyntheticDefaultImports": true,
 
     // Output configuration
+    "rootDir": ".",
     "outDir": "./dist",
     "declaration": true,
     "declarationMap": true,
