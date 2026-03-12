@@ -54,7 +54,7 @@ export default createWorkerHandler({
 
 - **Per-request `McpServer` factory** — a new server instance is created for each request. Required by SDK security advisory GHSA-345p-7cg4-v4c7.
 - **Env bindings refreshed per-request** — Cloudflare may rotate binding object references between requests; the handler re-injects them on every call.
-- **`ctx.waitUntil()` for telemetry flush** — OTEL spans and log drain are flushed via `waitUntil` so they complete after the response is sent.
+- **`ctx.waitUntil()` is documented but not yet called by the framework** — the `ExecutionContext` is received and passed through to `app.fetch` and `onScheduled`, but the framework itself does not currently call `ctx.waitUntil()` for telemetry flush. Spans complete synchronously within the request lifecycle.
 - **Singleton app promise with retry-on-failure** — the framework init runs once; if it fails, the next request retries rather than leaving the Worker in a permanently broken state.
 
 ---
@@ -122,7 +122,7 @@ In Workers, only these storage providers are allowed:
 | `cloudflare-r2` | R2 bucket binding — object storage |
 | `cloudflare-d1` | D1 database binding — SQLite-compatible |
 
-`filesystem` and `supabase` providers throw `ConfigurationError` in Workers. Set `STORAGE_PROVIDER_TYPE` accordingly.
+`filesystem` and `supabase` providers are not on the whitelist. In a serverless environment, any non-whitelisted provider type is **silently forced to `in-memory`** (a warning is logged) rather than throwing. Set `STORAGE_PROVIDER_TYPE` to one of the whitelisted values to avoid the fallback.
 
 ---
 

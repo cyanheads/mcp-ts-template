@@ -73,7 +73,7 @@ import { extractCursor, paginateArray } from '@cyanheads/mcp-ts-core/utils/pagin
 async handler(params, ctx) {
   const allItems = await fetchAllItems(params);
   const cursor = extractCursor(params);
-  const page = paginateArray(allItems, { cursor, limit: 20 });
+  const page = paginateArray(allItems, cursor, 20, 100, ctx);
   return {
     items: page.items,
     nextCursor: page.nextCursor,

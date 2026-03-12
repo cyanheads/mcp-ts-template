@@ -42,9 +42,16 @@ import { checkScopes } from '@cyanheads/mcp-ts-core/auth';
 
 handler: async (input, ctx) => {
   checkScopes(ctx, [`team:${input.teamId}:write`]);
-  // Continues only if scope is satisfied; throws McpError(Forbidden) otherwise
+  // Continues only if scope is satisfied
 },
 ```
+
+**Signature:** `checkScopes(ctx: Context, requiredScopes: string[]): void`
+
+**Throws:**
+- `McpError(Forbidden)` — auth is active and one or more required scopes are missing
+- `McpError(Unauthorized)` — auth is enabled but no auth context exists on the request
+- No-ops when `MCP_AUTH_MODE=none`
 
 ---
 
@@ -55,14 +62,19 @@ Set via `MCP_AUTH_MODE` environment variable.
 | Mode | Value | Behavior |
 |:-----|:------|:---------|
 | Disabled | `none` | No auth enforcement. All requests allowed. |
-| JWT | `jwt` | Local secret verification via `MCP_AUTH_SECRET_KEY`. Dev bypass if key is missing. |
+| JWT | `jwt` | Local secret verification via `MCP_AUTH_SECRET_KEY`. Requires explicit `DEV_MCP_AUTH_BYPASS=true` to bypass in development. |
 | OAuth | `oauth` | JWKS verification against an external issuer. |
 
 ### JWT Config
 
-| Variable | Purpose |
-|:---------|:--------|
-| `MCP_AUTH_SECRET_KEY` | Signing secret for HS256 JWT verification |
+| Variable | Required | Purpose |
+|:---------|:---------|:--------|
+| `MCP_AUTH_SECRET_KEY` | Yes (unless bypass) | Signing secret for HS256 JWT verification. Must be ≥ 32 characters. |
+| `DEV_MCP_AUTH_BYPASS` | No | Set to `true` to skip JWT verification in development. Blocked in `NODE_ENV=production`. |
+| `DEV_MCP_CLIENT_ID` | No | Client ID injected when bypass is active (default: `'dev-client-id'`). |
+| `DEV_MCP_SCOPES` | No | Comma-separated scopes injected when bypass is active (default: `['dev-scope']`). |
+
+**Important:** With `MCP_AUTH_MODE=jwt`, a missing `MCP_AUTH_SECRET_KEY` is a **fatal startup error** unless `DEV_MCP_AUTH_BYPASS=true` is explicitly set. Setting `DEV_MCP_AUTH_BYPASS` in production (`NODE_ENV=production`) is rejected at config parse time.
 
 ### OAuth Config
 
@@ -141,10 +153,12 @@ Available on `ctx.auth` inside handlers (when auth is enabled):
 
 ```ts
 interface AuthContext {
-  clientId?: string;
-  scopes: string[];
-  sub?: string;
-  tenantId?: string;
+  clientId: string;        // Required — 'cid' or 'client_id' JWT claim
+  scopes: string[];        // Required — derived from 'scp' or 'scope' claim
+  sub: string;             // Required — 'sub' claim; falls back to clientId when absent
+  token: string;           // Required — raw JWT or OAuth bearer token string
+  tenantId?: string;       // Optional — 'tid' claim; present only for multi-tenant tokens
+  [key: string]: unknown;  // Additional token payload properties
 }
 ```
 

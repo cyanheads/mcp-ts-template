@@ -38,7 +38,7 @@ interface Context {
 
   // Optional protocol capabilities (undefined when client doesn't support them)
   readonly elicit?: (message: string, schema: z.ZodObject<any>) => Promise<ElicitResult>;
-  readonly sample?: (messages: SamplingMessage[], opts?: SamplingOpts) => Promise<SamplingResult>;
+  readonly sample?: (messages: SamplingMessage[], opts?: SamplingOpts) => Promise<CreateMessageResult>;
 
   // Cancellation
   readonly signal: AbortSignal;
@@ -206,10 +206,11 @@ if (ctx.sample) {
 
 ```ts
 interface SamplingOpts {
+  includeContext?: 'none' | 'thisServer' | 'allServers';
   maxTokens?: number;
-  temperature?: number;
+  modelPreferences?: Record<string, unknown>;
   stopSequences?: string[];
-  modelPreferences?: ModelPreferences;
+  temperature?: number;
 }
 ```
 

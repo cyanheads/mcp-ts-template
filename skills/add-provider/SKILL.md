@@ -19,9 +19,9 @@ Tier 3 providers lazy-load their dependencies to keep the core bundle small.
 ## Steps
 
 1. **Identify the provider interface** — check the existing interface in the
-   relevant types file (e.g., `src/services/storage/types.ts`)
+   relevant types file (e.g., `src/storage/core/IStorageProvider.ts`)
 2. **Create the provider file** in the appropriate directory
-   (e.g., `src/services/storage/providers/{{provider-name}}-provider.ts`)
+   (e.g., `src/storage/providers/{{provider-name}}/{{provider-name}}Provider.ts`)
 3. **Implement the interface** — all methods must be implemented
 4. **Lazy-load dependencies** if Tier 3:
    ```typescript
