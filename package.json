@@ -8,13 +8,14 @@
   "files": [
     "dist/",
     "skills/",
+    "templates/",
     "CLAUDE.md",
     "tsconfig.base.json",
     "vitest.config.base.ts",
     "biome.json"
   ],
   "bin": {
-    "mcp-ts-core": "dist/index.js"
+    "mcp-ts-core": "dist/cli/init.js"
   },
   "exports": {
     ".": {

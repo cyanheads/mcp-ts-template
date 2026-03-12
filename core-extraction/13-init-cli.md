@@ -146,14 +146,13 @@ project-root/
   skills/
     setup/SKILL.md                                # audience: external
     add-tool/SKILL.md
-    add-tool/assets/tool-template.ts
     add-resource/SKILL.md
-    add-resource/assets/resource-template.ts
     add-prompt/SKILL.md
     add-service/SKILL.md
     devcheck/SKILL.md
     migrate-mcp-ts-template/SKILL.md
     maintenance/SKILL.md
+    api-*/SKILL.md                                # api reference skills
   src/
     index.ts                                      # createApp() entry point
     mcp-server/
@@ -179,14 +178,14 @@ The `init` CLI is agent-agnostic. It writes to a single `skills/` directory. Eac
 
 ## Checklist
 
-- [ ] `src/cli/init.ts` implemented
-- [ ] `bin` field added to core `package.json`
+- [x] `src/cli/init.ts` implemented
+- [x] `bin` field updated in core `package.json`
 - [x] `templates/` directory created with all template files
-- [ ] `skills/` and `templates/` included in core package `files` array (alongside `dist`)
+- [x] `skills/` and `templates/` included in core package `files` array (alongside `dist`)
 - [x] `package.json` template includes correct scripts and dependency versions
 - [x] Config templates (`tsconfig.json`, `biome.json`, `vitest.config.ts`) are standalone — no `extends`, work without prior install
-- [ ] Only `audience: external` skills are copied
-- [ ] `--dry-run` flag implemented
-- [ ] `[name]` argument populates `{{PACKAGE_NAME}}` in package.json
+- [x] Only `audience: external` skills are copied
+- [x] `--dry-run` flag implemented
+- [x] `[name]` argument populates `{{PACKAGE_NAME}}` in package.json
 - [ ] Tested: fresh project init from empty directory (all files created)
 - [ ] Tested: works via `npx` / `bunx` without prior install
