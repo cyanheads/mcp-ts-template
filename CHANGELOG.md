@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.10] - 2026-03-12
+
+Implements the `init` CLI subcommand for scaffolding new consumer projects, adds `type` metadata to all skill frontmatter for classification, and adds a debug skill for tracing agent onboarding.
+
+### Added
+
+- **`src/cli/init.ts`**: CLI entry point implementing `mcp-ts-core init [name] [--dry-run]`. Copies templates, filters skills by `audience: external`, substitutes `{{PACKAGE_NAME}}` in `package.json`, and prints a summary with next steps.
+- **`skills/walkthrough-init/SKILL.md`**: New internal debug skill for tracing the agent onboarding flow after `init` scaffolds a project — follows every instruction chain through CLAUDE.md, skills, and framework docs to find broken links and dead ends.
+
+### Changed
+
+- **`package.json`**: Added `templates/` to `files` array; changed `bin` entry from `dist/index.js` to `dist/cli/init.js`.
+- **All SKILL.md files**: Added `metadata.type` field (`reference`, `workflow`, or `debug`) to frontmatter for skill classification.
+- **`skills/migrate-mcp-ts-template/SKILL.md`**: Changed `audience` from `internal` to `external` — migration skill is needed by consumer projects upgrading from legacy template forks.
+- **`core-extraction/13-init-cli.md`**: Updated checklist — marked `init.ts`, `bin` field, `files` array, audience filtering, `--dry-run`, and `[name]` argument as complete.
+
+---
+
 ## [0.1.0-beta.9] - 2026-03-12
 
 Documentation refactoring: condenses CLAUDE.md, extracts detailed API references from skill files into dedicated reference subdirectories, updates skill docs to reflect current API surfaces, and refreshes the project tree.
