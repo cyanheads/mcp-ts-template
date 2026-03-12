@@ -84,14 +84,12 @@ For detailed sync procedures, see the `/maintenance` skill.
 After `bun install`, complete these one-time setup tasks:
 
 1. **Initialize git** — `git init && git add -A && git commit -m "chore: scaffold from @cyanheads/mcp-ts-core"`
-2. **Create `.gitignore`** — add `node_modules/`, `dist/`, `.env`, `.tsbuildinfo`, and any other environment-appropriate entries.
-3. **Verify agent protocol placeholders** — if the `init` CLI was run without a `[name]` argument, `{{PACKAGE_NAME}}` may remain as a literal in `CLAUDE.md`/`AGENTS.md` and `package.json`. Replace it with the actual server name.
+2. **Verify agent protocol placeholders** — if the `init` CLI was run without a `[name]` argument, `{{PACKAGE_NAME}}` may remain as a literal in `CLAUDE.md`/`AGENTS.md` and `package.json`. Replace it with the actual server name.
 
 ## Checklist
 
 - [ ] Agent protocol file selected — keep `CLAUDE.md` or `AGENTS.md`, delete the other
 - [ ] `{{PACKAGE_NAME}}` placeholders replaced in agent protocol file (if not auto-substituted by init)
-- [ ] `.gitignore` created with appropriate entries (`node_modules/`, `dist/`, `.env`, `.tsbuildinfo`)
 - [ ] Core framework CLAUDE.md read (`node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`)
 - [ ] Unused echo definitions deleted (and unregistered from `src/index.ts`)
 - [ ] Agent skill directory in sync with project `skills/`
