@@ -6,12 +6,13 @@
  */
 
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join, relative } from 'node:path';
+import { dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TEMPLATES_DIR = join(PACKAGE_ROOT, 'templates');
 const SKILLS_DIR = join(PACKAGE_ROOT, 'skills');
+const TEXT_EXTENSIONS = new Set(['.md', '.ts', '.js', '.json', '.yaml', '.yml', '.toml', '.txt', '']);
 
 // ── CLI dispatch ──────────────────────────────────────────────────────
 
@@ -96,7 +97,7 @@ function copyTemplates(
     if (!dryRun) {
       mkdirSync(dirname(destPath), { recursive: true });
 
-      if (basename(srcPath) === 'package.json' && name) {
+      if (name && isTextFile(srcPath)) {
         const content = readFileSync(srcPath, 'utf-8').replace(/\{\{PACKAGE_NAME\}\}/g, name);
         writeFileSync(destPath, content);
       } else {
@@ -176,6 +177,10 @@ function walkDir(dir: string): string[] {
     }
   }
   return results;
+}
+
+function isTextFile(filePath: string): boolean {
+  return TEXT_EXTENSIONS.has(extname(filePath).toLowerCase());
 }
 
 function printSummary(

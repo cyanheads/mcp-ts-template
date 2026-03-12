@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Server:** {{SERVER_NAME}}
+**Server:** {{PACKAGE_NAME}}
 **Version:** 0.1.0
 **Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core)
 
