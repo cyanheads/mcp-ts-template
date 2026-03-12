@@ -319,7 +319,7 @@ const ALL_CHECKS: Check[] = [
     slowCheck: true,
     getCommand: (ctx) => [
       path.join(ctx.rootDir, 'node_modules', '.bin', 'depcheck'),
-      '--ignores=@types/*,pino-pretty,typescript,bun-types,@vitest/coverage-istanbul,repomix,bun',
+      '--ignores=@types/*,pino-pretty,typescript,bun-types,@vitest/coverage-istanbul,repomix,bun,tsc-alias',
     ],
     tip: (c) =>
       `Remove unused packages with ${c.bold('bun remove <pkg>')} or add to depcheck ignores.`,
