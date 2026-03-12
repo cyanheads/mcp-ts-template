@@ -24,12 +24,13 @@ import { ErrorHandler } from '@cyanheads/mcp-ts-core/utils/errorHandler';
 ## McpError Constructor
 
 ```ts
-throw new McpError(code, message, data?)
+throw new McpError(code, message?, data?, options?)
 ```
 
 - `code` — a `JsonRpcErrorCode` enum value
-- `message` — human-readable description of the failure
+- `message` — optional human-readable description of the failure
 - `data` — optional structured context (plain object)
+- `options` — optional `{ cause?: unknown }` for error chaining
 
 **Example:**
 
@@ -46,22 +47,33 @@ throw new McpError(JsonRpcErrorCode.InvalidParams, 'Missing required field: name
 
 ## Error Codes
 
+**Standard JSON-RPC 2.0 codes:**
+
 | Code | Value | When to Use |
 |:-----|------:|:------------|
-| `InvalidParams` | -32602 | Bad input, missing required fields, schema validation failure |
+| `ParseError` | -32700 | Malformed JSON received |
 | `InvalidRequest` | -32600 | Unsupported operation, missing client capability |
+| `MethodNotFound` | -32601 | Requested method does not exist |
+| `InvalidParams` | -32602 | Bad input, missing required fields, schema validation failure |
+| `InternalError` | -32603 | Unexpected failure, catch-all for programmer errors |
+
+**Implementation-defined codes (-32000 to -32099):**
+
+| Code | Value | When to Use |
+|:-----|------:|:------------|
+| `ServiceUnavailable` | -32000 | External dependency down, upstream failure |
 | `NotFound` | -32001 | Resource, entity, or record doesn't exist |
+| `Conflict` | -32002 | Duplicate key, version mismatch, concurrent modification |
+| `RateLimited` | -32003 | Rate limit exceeded |
+| `Timeout` | -32004 | Operation exceeded time limit |
 | `Forbidden` | -32005 | Authenticated but insufficient scopes/permissions |
 | `Unauthorized` | -32006 | No auth, invalid token, expired credentials |
-| `RateLimited` | -32003 | Rate limit exceeded |
-| `ServiceUnavailable` | -32000 | External dependency down, upstream failure |
-| `Timeout` | -32004 | Operation exceeded time limit |
-| `ConfigurationError` | -32008 | Missing env var, invalid config |
 | `ValidationError` | -32007 | Business rule violation (not schema — use `InvalidParams` for that) |
-| `Conflict` | -32002 | Duplicate key, version mismatch, concurrent modification |
+| `ConfigurationError` | -32008 | Missing env var, invalid config |
 | `InitializationFailed` | -32009 | Server/component startup failure |
 | `DatabaseError` | -32010 | Storage/persistence layer failure |
-| `InternalError` | -32603 | Unexpected failure, catch-all for programmer errors |
+| `SerializationError` | -32070 | Data serialization/deserialization failed |
+| `UnknownError` | -32099 | Generic fallback when no other code fits |
 
 ---
 
@@ -99,7 +111,7 @@ Use `ErrorHandler.tryCatch` in service code — not in tool handlers. It wraps a
 ```ts
 import { ErrorHandler } from '@cyanheads/mcp-ts-core/utils/errorHandler';
 
-// Async
+// Works with both async and sync functions
 const result = await ErrorHandler.tryCatch(
   () => externalApi.fetch(url),
   {
@@ -109,8 +121,7 @@ const result = await ErrorHandler.tryCatch(
   },
 );
 
-// Sync
-const parsed = ErrorHandler.tryCatchSync(
+const parsed = await ErrorHandler.tryCatch(
   () => JSON.parse(raw),
   {
     operation: 'parseConfig',
@@ -119,11 +130,16 @@ const parsed = ErrorHandler.tryCatchSync(
 );
 ```
 
-**Options:**
+`tryCatch` always logs and rethrows — it never swallows errors. The `fn` argument may be synchronous or return a `Promise`; both are handled via `Promise.resolve(fn())`.
 
-| Option | Type | Purpose |
-|:-------|:-----|:--------|
-| `operation` | `string` | Name logged with the error |
-| `context` | `object` | Extra structured fields attached to the error |
-| `errorCode` | `JsonRpcErrorCode` | Code used if the caught error is not already an `McpError` |
-| `input` | `unknown` | Input value logged alongside the error |
+**Options** (`Omit<ErrorHandlerOptions, 'rethrow'>`):
+
+| Option | Type | Required | Purpose |
+|:-------|:-----|:--------:|:--------|
+| `operation` | `string` | Yes | Name logged with the error |
+| `context` | `ErrorContext` | No | Extra structured fields merged into the log record; `requestId` and `timestamp` receive special treatment |
+| `errorCode` | `JsonRpcErrorCode` | No | Code used if the caught error is not already an `McpError` |
+| `input` | `unknown` | No | Input value sanitized and logged alongside the error |
+| `critical` | `boolean` | No | Marks the error as critical in logs (default `false`) |
+| `includeStack` | `boolean` | No | Include stack trace in log output (default `true`) |
+| `errorMapper` | `(error: unknown) => Error` | No | Custom transform applied instead of default `McpError` wrapping |

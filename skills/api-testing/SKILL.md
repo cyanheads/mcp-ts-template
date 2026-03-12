@@ -21,20 +21,79 @@ Tests target handler behavior directly — call `handler(input, ctx)`, assert on
 ```ts
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 
-createMockContext()                                           // minimal — no state, no optional capabilities
-createMockContext({ tenantId: 'test-tenant' })               // enables ctx.state (tenant-scoped storage)
+createMockContext()                                           // minimal — ctx.state operations throw without tenantId
+createMockContext({ tenantId: 'test-tenant' })               // enables ctx.state (tenant-scoped in-memory storage)
 createMockContext({ sample: vi.fn().mockResolvedValue(...) }) // with MCP sampling
 createMockContext({ elicit: vi.fn().mockResolvedValue(...) }) // with elicitation
 createMockContext({ progress: true })                        // with task progress (ctx.progress populated)
+createMockContext({ requestId: 'my-id' })                    // override request ID (default: 'test-request-id')
+createMockContext({ signal: controller.signal })             // custom AbortSignal
+createMockContext({ auth: { clientId: 'test', scopes: [] } }) // with auth context
+createMockContext({ uri: new URL('myscheme://item/123') })   // for resource handler testing
+```
+
+`MockContextOptions` interface:
+
+```ts
+interface MockContextOptions {
+  auth?: AuthContext;
+  elicit?: (message: string, schema: z.ZodObject<z.ZodRawShape>) => Promise<ElicitResult>;
+  progress?: boolean;
+  requestId?: string;
+  sample?: (messages: SamplingMessage[], opts?: SamplingOpts) => Promise<CreateMessageResult>;
+  signal?: AbortSignal;
+  tenantId?: string;
+  uri?: URL;
+}
 ```
 
 | Option | Effect |
 |:-------|:-------|
-| _(none)_ | Minimal context — `ctx.state` throws, `ctx.elicit`/`ctx.sample`/`ctx.progress` are `undefined` |
-| `tenantId` | Enables `ctx.state` with in-memory storage scoped to that tenant |
-| `sample` | Assigns a mock function to `ctx.sample` for testing sampling calls |
-| `elicit` | Assigns a mock function to `ctx.elicit` for testing elicitation calls |
-| `progress` | Populates `ctx.progress` with `{ setTotal, increment, update }` spy functions |
+| _(none)_ | Minimal context — `ctx.state` operations throw without `tenantId`; `ctx.elicit`/`ctx.sample`/`ctx.progress` are `undefined` |
+| `auth` | Sets `ctx.auth` for scope-checking tests |
+| `elicit` | Assigns a function to `ctx.elicit` for testing elicitation calls |
+| `progress` | Populates `ctx.progress` with real state-tracking implementation (see below) |
+| `requestId` | Overrides `ctx.requestId` (default: `'test-request-id'`) |
+| `sample` | Assigns a function to `ctx.sample` for testing sampling calls |
+| `signal` | Overrides `ctx.signal` — useful for cancellation testing |
+| `tenantId` | Sets `ctx.tenantId` and enables `ctx.state` operations with in-memory storage |
+| `uri` | Sets `ctx.uri` for resource handler testing |
+
+### Mock progress
+
+When `progress: true`, `ctx.progress` is a real state-tracking object — not `vi.fn()` spies. It maintains internal state accessible via inspection properties:
+
+```ts
+const ctx = createMockContext({ progress: true });
+// ctx.progress is typed as ContextProgress, but the mock exposes internal state:
+const progress = ctx.progress as ContextProgress & {
+  _total: number;
+  _completed: number;
+  _messages: string[];
+};
+
+await ctx.progress!.setTotal(10);
+await ctx.progress!.increment(3);
+await ctx.progress!.update('step message');
+
+expect(progress._total).toBe(10);
+expect(progress._completed).toBe(3);
+expect(progress._messages).toContain('step message');
+```
+
+### Mock logger
+
+`ctx.log` captures all log calls for inspection:
+
+```ts
+const ctx = createMockContext();
+const log = ctx.log as ContextLogger & {
+  calls: Array<{ level: string; msg: string; data?: unknown }>;
+};
+
+await myTool.handler(input, ctx);
+expect(log.calls.some(c => c.level === 'info' && c.msg.includes('Processing'))).toBe(true);
+```
 
 ---
 
@@ -119,17 +178,43 @@ it('handles missing elicitation gracefully', async () => {
 ```ts
 // vitest.config.ts
 import { defineConfig } from 'vitest/config';
-import coreConfig from '@cyanheads/mcp-ts-core/vitest.config';
+import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-  ...coreConfig,
-  resolve: {
-    alias: { '@/': new URL('./src/', import.meta.url).pathname },
+  plugins: [tsconfigPaths()],
+  ssr: {
+    noExternal: ['zod'],
+  },
+  test: {
+    globals: true,
+    environment: 'node',
+    setupFiles: ['./tests/setup.ts'],
+    exclude: ['tests/integration/**', 'node_modules/**'],
+    pool: 'forks',
+    maxWorkers: 4,
+    isolate: true,
+    coverage: {
+      provider: 'istanbul',
+      reporter: ['text', 'json', 'html'],
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.d.ts'],
+      thresholds: {
+        lines: 80,
+        functions: 75,
+        branches: 70,
+        statements: 80,
+      },
+    },
   },
 });
 ```
 
-The core config sets up ESM, TypeScript, coverage defaults, and test environment. The only server-specific addition is the `@/` path alias pointing to `src/`.
+Key points:
+- `tsconfigPaths()` resolves the `@/` path alias from `tsconfig.json` — no manual `resolve.alias` needed.
+- `ssr: { noExternal: ['zod'] }` fixes Vite SSR transform issues with Zod 4.
+- Integration tests (in `tests/integration/`) are excluded from the default run; they have their own config.
+- `pool: 'forks'` with `isolate: true` prevents mock pollution between test files.
+- `setupFiles` points to `tests/setup.ts` for any global test setup (e.g., env vars).
 
 ---
 
