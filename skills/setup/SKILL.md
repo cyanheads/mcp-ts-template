@@ -4,14 +4,14 @@ description: >
   Post-init orientation for an MCP server built on @cyanheads/mcp-ts-core. Use after running `@cyanheads/mcp-ts-core init` to understand the project structure, conventions, and skill sync model. Also use when onboarding to an existing project for the first time.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.1"
   audience: external
   type: workflow
 ---
 
 ## Context
 
-This skill assumes `@cyanheads/mcp-ts-core init` has already run. The CLI created the project's `CLAUDE.md` and `AGENTS.md` (identical content), copied external skills to `skills/`, and scaffolded the directory structure. This skill orients you to what was created.
+This skill assumes `@cyanheads/mcp-ts-core init` has already run. The CLI created the project's `CLAUDE.md` and `AGENTS.md` (identical content), copied external skills to `skills/`, and scaffolded the directory structure with echo definitions as starting points. This skill orients you to what was created.
 
 ## Agent Protocol File
 
@@ -44,26 +44,30 @@ src/
       types.ts
   mcp-server/
     tools/definitions/
-      [tool-name].tool.ts                       # Tool definitions
-      index.ts                                  # allToolDefinitions barrel
+      echo.tool.ts                              # Echo tool (starter — replace or delete)
     resources/definitions/
-      [resource-name].resource.ts               # Resource definitions
-      index.ts                                  # allResourceDefinitions barrel
+      echo.resource.ts                          # Echo resource (starter — replace or delete)
     prompts/definitions/
-      [prompt-name].prompt.ts                   # Prompt definitions
-      index.ts                                  # allPromptDefinitions barrel
+      echo.prompt.ts                            # Echo prompt (starter — replace or delete)
 ```
+
+## Scaffolded Echo Definitions
+
+The init creates echo definitions for tools, resources, and prompts as starting points. They're functional examples with inline comments explaining conventions. After init:
+
+1. **Delete what you don't need.** If your server has no prompts, delete `echo.prompt.ts` and remove its import/registration from `src/index.ts`. Same for resources.
+2. **Rename and replace what you keep.** The echo definitions show the pattern — swap them out for your real tools/resources/prompts.
+3. **Definitions register directly in `src/index.ts`.** No barrel files — just import and add to the arrays.
 
 ## Conventions
 
 | Convention | Rule |
 |:-----------|:-----|
 | File names | kebab-case |
-| Tool/resource/prompt names | snake_case |
+| Tool/resource/prompt names | snake_case, prefixed with server name (e.g. `tasks_fetch_list`) |
 | File suffixes | `.tool.ts`, `.resource.ts`, `.prompt.ts` |
 | Imports (framework) | `@cyanheads/mcp-ts-core` and subpaths |
 | Imports (server code) | `@/` path alias for `src/` |
-| Barrel exports | One per definitions directory |
 
 ## Skill Sync
 
@@ -79,6 +83,7 @@ For detailed sync procedures, see the `/maintenance` skill.
 
 - [ ] Agent protocol file selected — keep `CLAUDE.md` or `AGENTS.md`, delete the other
 - [ ] Core framework CLAUDE.md read (`node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`)
+- [ ] Unused echo definitions deleted (and unregistered from `src/index.ts`)
 - [ ] Agent skill directory in sync with project `skills/`
-- [ ] Project structure understood (definitions directories, barrel files, entry point)
+- [ ] Project structure understood (definitions directories, entry point)
 - [ ] `bun run devcheck` passes

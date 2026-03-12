@@ -78,8 +78,11 @@ function copyTemplates(
   for (const srcPath of entries) {
     let relPath = relative(TEMPLATES_DIR, srcPath);
 
-    // Strip .template suffix (e.g., biome.template.json → biome.json)
+    // Strip template naming conventions that prevent IDE auto-discovery:
+    //   biome.template.json → biome.json
+    //   _tsconfig.json      → tsconfig.json
     relPath = relPath.replace(/\.template\.json$/, '.json');
+    relPath = relPath.replace(/(^|\/)_([^/]+)$/, '$1$2');
 
     const destPath = join(dest, relPath);
 

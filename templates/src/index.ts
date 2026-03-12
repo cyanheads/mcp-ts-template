@@ -5,12 +5,12 @@
  */
 
 import { createApp } from '@cyanheads/mcp-ts-core';
-import { allToolDefinitions } from './mcp-server/tools/index.js';
-import { allResourceDefinitions } from './mcp-server/resources/index.js';
-import { allPromptDefinitions } from './mcp-server/prompts/index.js';
+import { echoTool } from './mcp-server/tools/definitions/echo.tool.js';
+import { echoResource } from './mcp-server/resources/definitions/echo.resource.js';
+import { echoPrompt } from './mcp-server/prompts/definitions/echo.prompt.js';
 
 await createApp({
-  tools: allToolDefinitions,
-  resources: allResourceDefinitions,
-  prompts: allPromptDefinitions,
+  tools: [echoTool],
+  resources: [echoResource],
+  prompts: [echoPrompt],
 });
