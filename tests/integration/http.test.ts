@@ -51,20 +51,10 @@ describe.skipIf(!SERVER_EXISTS)('HTTP transport integration', () => {
       expect(version?.name).toBeTruthy();
     });
 
-    it('invokes template_echo_message over HTTP', async () => {
-      const result = await client.callTool({
-        name: 'template_echo_message',
-        arguments: { message: 'http-test' },
-      });
-
+    it('responds to ping', async () => {
+      // Core server has no tools — just verify the transport is functional
+      const result = await client.ping();
       expect(result).toBeDefined();
-      expect('content' in result).toBe(true);
-
-      if ('content' in result) {
-        const blocks = result.content as Array<{ text?: string | undefined; type: string }>;
-        const textBlock = blocks.find((b) => b.type === 'text');
-        expect(textBlock?.text).toContain('http-test');
-      }
     });
   });
 
