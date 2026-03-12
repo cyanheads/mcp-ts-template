@@ -21,11 +21,10 @@ const ParamsSchema = z
 const OutputSchema = z
   .object({
     message: z.string().describe('The echoed message.'),
-    timestamp: z
-      .string()
+    timestamp: z.iso
       .datetime()
       .describe('ISO 8601 timestamp when the response was generated.'),
-    requestUri: z.string().url().describe('The request URI used to fetch this resource.'),
+    requestUri: z.url().describe('The request URI used to fetch this resource.'),
   })
   .describe('Echo resource response payload.');
 

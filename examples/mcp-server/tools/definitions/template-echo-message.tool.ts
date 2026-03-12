@@ -46,8 +46,7 @@ const OutputSchema = z.object({
   repeatedMessage: z.string().describe('The final message repeated the requested number of times.'),
   mode: z.enum(ECHO_MODES).describe('The formatting mode that was applied.'),
   repeatCount: z.number().int().min(1).describe('The number of times the message was repeated.'),
-  timestamp: z
-    .string()
+  timestamp: z.iso
     .datetime()
     .optional()
     .describe('Optional ISO 8601 timestamp of when the response was generated.'),

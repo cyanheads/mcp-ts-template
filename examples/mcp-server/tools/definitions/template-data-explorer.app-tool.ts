@@ -39,7 +39,7 @@ const SaleRowSchema = z.object({
 
 const OutputSchema = z.object({
   rows: z.array(SaleRowSchema).describe('Generated sales data rows.'),
-  generatedAt: z.string().datetime().describe('ISO 8601 timestamp when data was generated.'),
+  generatedAt: z.iso.datetime().describe('ISO 8601 timestamp when data was generated.'),
   summary: z
     .object({
       totalRows: z.number().int().describe('Total number of rows.'),

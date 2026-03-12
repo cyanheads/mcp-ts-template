@@ -298,7 +298,7 @@ describe('ToolRegistry', () => {
         inputSchema: z.object({
           user: z.object({
             name: z.string(),
-            email: z.string().email(),
+            email: z.email(),
           }),
           settings: z.object({
             theme: z.enum(['light', 'dark']),

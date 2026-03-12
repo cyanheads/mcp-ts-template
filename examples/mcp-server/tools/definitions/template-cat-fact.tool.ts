@@ -35,8 +35,7 @@ const OutputSchema = z.object({
     .int()
     .optional()
     .describe('The maximum length that was requested for the fact.'),
-  timestamp: z
-    .string()
+  timestamp: z.iso
     .datetime()
     .describe('ISO 8601 timestamp of when the response was generated.'),
 });

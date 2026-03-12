@@ -113,12 +113,12 @@ const ConfigSchema = z
       emptyStringAsUndefined,
       z.enum(['jwt', 'oauth', 'none']).default('none'),
     ),
-    oauthIssuerUrl: z.string().url().optional(),
-    oauthJwksUri: z.string().url().optional(),
+    oauthIssuerUrl: z.url().optional(),
+    oauthJwksUri: z.url().optional(),
     oauthAudience: z.string().optional(),
     oauthJwksCooldownMs: z.coerce.number().default(300_000), // 5 minutes
     oauthJwksTimeoutMs: z.coerce.number().default(5_000), // 5 seconds
-    mcpServerResourceIdentifier: z.string().url().optional(), // RFC 8707 resource indicator
+    mcpServerResourceIdentifier: z.url().optional(), // RFC 8707 resource indicator
     devMcpAuthBypass: z
       .preprocess((val) => {
         if (val === undefined || val === null || val === '') return false;
@@ -139,17 +139,17 @@ const ConfigSchema = z
     llmDefaultMinP: z.coerce.number().optional(),
     oauthProxy: z
       .object({
-        authorizationUrl: z.string().url().optional(),
-        tokenUrl: z.string().url().optional(),
-        revocationUrl: z.string().url().optional(),
-        issuerUrl: z.string().url().optional(),
-        serviceDocumentationUrl: z.string().url().optional(),
+        authorizationUrl: z.url().optional(),
+        tokenUrl: z.url().optional(),
+        revocationUrl: z.url().optional(),
+        issuerUrl: z.url().optional(),
+        serviceDocumentationUrl: z.url().optional(),
         defaultClientRedirectUris: z.array(z.string()).optional(),
       })
       .optional(),
     supabase: z
       .object({
-        url: z.string().url(),
+        url: z.url(),
         anonKey: z.string(),
         serviceRoleKey: z.string().optional(),
       })
@@ -208,8 +208,8 @@ const ConfigSchema = z
       enabled: z.coerce.boolean().default(false),
       serviceName: z.string(),
       serviceVersion: z.string(),
-      tracesEndpoint: z.string().url().optional(),
-      metricsEndpoint: z.string().url().optional(),
+      tracesEndpoint: z.url().optional(),
+      metricsEndpoint: z.url().optional(),
       samplingRatio: z.coerce.number().min(0).max(1).default(1.0),
       logLevel: z
         .preprocess(
@@ -237,7 +237,7 @@ const ConfigSchema = z
             enabled: z.coerce.boolean().default(false),
             provider: z.enum(['elevenlabs']).default('elevenlabs'),
             apiKey: z.string().optional(),
-            baseUrl: z.string().url().optional(),
+            baseUrl: z.url().optional(),
             defaultVoiceId: z.string().optional(),
             defaultModelId: z.string().optional(),
             timeout: z.coerce.number().optional(),
@@ -248,7 +248,7 @@ const ConfigSchema = z
             enabled: z.coerce.boolean().default(false),
             provider: z.enum(['openai-whisper']).default('openai-whisper'),
             apiKey: z.string().optional(),
-            baseUrl: z.string().url().optional(),
+            baseUrl: z.url().optional(),
             defaultModelId: z.string().optional(),
             timeout: z.coerce.number().optional(),
           })

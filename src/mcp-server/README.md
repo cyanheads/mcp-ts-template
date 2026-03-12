@@ -280,7 +280,7 @@ const OutputSchema = z.object({
   content: z.string().describe('The echoed message'),
   metadata: z
     .object({
-      timestamp: z.string().datetime().describe('ISO 8601 timestamp'),
+      timestamp: z.iso.datetime().describe('ISO 8601 timestamp'),
     })
     .describe('Response metadata'),
 });

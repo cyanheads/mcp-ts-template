@@ -214,7 +214,7 @@ import { tool } from '@cyanheads/mcp-ts-core';
 const addBookmark = tool('add_bookmark', {
   description: 'Save a URL as a bookmark with title and optional tags.',
   input: z.object({
-    url: z.string().url().describe('URL to bookmark'),
+    url: z.url().describe('URL to bookmark'),
     title: z.string().describe('Human-readable title'),
     tags: z.array(z.string()).optional().describe('Categorization tags'),
   }),

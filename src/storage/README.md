@@ -531,7 +531,7 @@ const configSchema = z.object({
   // ... existing fields ...
 
   {provider}: z.object({
-    url: z.string().url().optional(),
+    url: z.url().optional(),
     // ... other config fields ...
   }).optional(),
 
