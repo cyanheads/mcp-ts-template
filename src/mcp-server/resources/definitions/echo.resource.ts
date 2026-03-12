@@ -1,14 +1,11 @@
 /**
- * @fileoverview Echo resource definition using the new declarative pattern.
- * Provides a pure logic function and schema-driven params, registered via the
- * generic resource registrar.
+ * @fileoverview Echo resource definition using the new-style `resource()` builder.
+ * Returns a simple echo of the message from the URI template parameter.
  * @module src/mcp-server/resources/definitions/echo.resource
  */
 import { z } from 'zod';
-import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
-import { withResourceAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import { logger } from '@/utils/internal/logger.js';
-import type { RequestContext } from '@/utils/internal/requestContext.js';
+
+import { resource } from '@/mcp-server/resources/utils/newResourceDefinition.js';
 
 const ParamsSchema = z
   .object({
@@ -32,60 +29,42 @@ const OutputSchema = z
   })
   .describe('Echo resource response payload.');
 
-type EchoParams = z.infer<typeof ParamsSchema>;
-type EchoOutput = z.infer<typeof OutputSchema>;
+export const echoResourceDefinition = resource('echo://{message}', {
+  name: 'echo-resource',
+  title: 'Echo Message Resource',
+  description: 'A simple echo resource that returns a message.',
+  params: ParamsSchema,
+  output: OutputSchema,
+  mimeType: 'application/json',
+  examples: [{ name: 'Basic echo', uri: 'echo://hello' }],
+  annotations: { audience: ['user', 'assistant'] },
+  auth: ['resource:echo:read'],
 
-function echoLogic(uri: URL, params: EchoParams, context: RequestContext): EchoOutput {
-  const messageFromPath = uri.hostname || uri.pathname.replace(/^\/+/, '');
-  const messageToEcho = params.message || messageFromPath || 'Default echo message';
+  handler(params, ctx) {
+    // biome-ignore lint/style/noNonNullAssertion: uri is always present in resource handlers
+    const uri = ctx.uri!;
+    const messageFromPath = uri.hostname || uri.pathname.replace(/^\/+/, '');
+    const messageToEcho = params.message || messageFromPath || 'Default echo message';
 
-  logger.debug('Processing echo resource logic.', {
-    ...context,
-    resourceUri: uri.href,
-    extractedMessage: messageToEcho,
-  });
+    ctx.log.debug('Processing echo resource.', {
+      resourceUri: uri.href,
+      extractedMessage: messageToEcho,
+    });
 
-  const responsePayload: EchoOutput = {
-    message: messageToEcho,
-    timestamp: new Date().toISOString(),
-    requestUri: uri.href,
-  };
+    return {
+      message: messageToEcho,
+      timestamp: new Date().toISOString(),
+      requestUri: uri.href,
+    };
+  },
 
-  logger.debug('Echo resource processed successfully.', {
-    ...context,
-    responsePayloadSummary: {
-      messageLength: responsePayload.message.length,
-    },
-  });
-
-  return responsePayload;
-}
-
-export const echoResourceDefinition: ResourceDefinition<typeof ParamsSchema, typeof OutputSchema> =
-  {
-    name: 'echo-resource',
-    title: 'Echo Message Resource',
-    description: 'A simple echo resource that returns a message.',
-    uriTemplate: 'echo://{message}',
-    paramsSchema: ParamsSchema,
-    outputSchema: OutputSchema,
-    mimeType: 'application/json',
-    examples: [{ name: 'Basic echo', uri: 'echo://hello' }],
-    annotations: { audience: ['user', 'assistant'] },
-    list: (_extra) => {
-      // For pagination support, extract cursor and use pagination utilities:
-      // const cursor = extractCursor(_extra._meta);
-      // const { items, nextCursor } = paginateArray(allResources, cursor, 50, 1000, context);
-      // return { resources: items, ...(nextCursor && { nextCursor }) };
-      return {
-        resources: [
-          {
-            uri: 'echo://hello',
-            name: 'Default Echo Message',
-            description: 'A simple echo resource example.',
-          },
-        ],
-      };
-    },
-    logic: withResourceAuth(['resource:echo:read'], echoLogic),
-  };
+  list: () => ({
+    resources: [
+      {
+        uri: 'echo://hello',
+        name: 'Default Echo Message',
+        description: 'A simple echo resource example.',
+      },
+    ],
+  }),
+});

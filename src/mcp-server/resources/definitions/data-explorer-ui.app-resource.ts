@@ -18,10 +18,8 @@
  */
 import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
-import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
-import { withResourceAuth } from '@/mcp-server/transports/auth/lib/withAuth.js';
-import { logger } from '@/utils/internal/logger.js';
-import type { RequestContext } from '@/utils/internal/requestContext.js';
+
+import { resource } from '@/mcp-server/resources/utils/newResourceDefinition.js';
 
 const ParamsSchema = z.object({}).describe('No parameters. Returns the static HTML app.');
 
@@ -287,32 +285,26 @@ const APP_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-// ─── Logic ────────────────────────────────────────────────────────────────────
-
-function dataExplorerUiLogic(
-  uri: URL,
-  _params: z.infer<typeof ParamsSchema>,
-  context: RequestContext,
-): string {
-  logger.debug('Serving data explorer UI resource.', {
-    ...context,
-    resourceUri: uri.href,
-  });
-  return APP_HTML;
-}
-
 // ─── Definition ───────────────────────────────────────────────────────────────
 
-export const dataExplorerUiResource: ResourceDefinition<typeof ParamsSchema> = {
+export const dataExplorerUiResource = resource('ui://template-data-explorer/app.html', {
   name: 'data-explorer-ui',
   title: 'Data Explorer UI',
   description:
     'Interactive HTML app for the data explorer tool. Renders a sortable, filterable table with row selection. Displayed as a sandboxed iframe by MCP Apps-capable hosts.',
-  uriTemplate: 'ui://template-data-explorer/app.html',
-  paramsSchema: ParamsSchema,
+  params: ParamsSchema,
   mimeType: RESOURCE_MIME_TYPE,
   annotations: { audience: ['user'] },
-  list: (_extra) => ({
+  auth: ['resource:data-explorer-ui:read'],
+
+  handler(_params, ctx) {
+    ctx.log.debug('Serving data explorer UI resource.', {
+      resourceUri: ctx.uri?.href,
+    });
+    return APP_HTML;
+  },
+
+  list: () => ({
     resources: [
       {
         uri: 'ui://template-data-explorer/app.html',
@@ -322,12 +314,12 @@ export const dataExplorerUiResource: ResourceDefinition<typeof ParamsSchema> = {
       },
     ],
   }),
-  logic: withResourceAuth(['resource:data-explorer-ui:read'], dataExplorerUiLogic),
-  responseFormatter: (result, meta) => [
+
+  format: (_result, meta) => [
     {
       uri: meta.uri.href,
       mimeType: meta.mimeType,
-      text: result as string,
+      text: _result as string,
       _meta: {
         ui: {
           csp: { resource_domains: ['https://unpkg.com'] },
@@ -335,4 +327,4 @@ export const dataExplorerUiResource: ResourceDefinition<typeof ParamsSchema> = {
       },
     },
   ],
-};
+});

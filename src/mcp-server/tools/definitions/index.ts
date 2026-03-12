@@ -6,7 +6,7 @@
  */
 
 // Task tools (experimental)
-import { asyncCountdownTaskTool } from './template-async-countdown.task-tool.js';
+import { asyncCountdownTool } from './template-async-countdown.tool.js';
 import { catFactTool } from './template-cat-fact.tool.js';
 import { codeReviewSamplingTool } from './template-code-review-sampling.tool.js';
 // App tools (MCP Apps extension)
@@ -27,7 +27,7 @@ export const allToolDefinitions = [
   imageTestTool,
   madlibsElicitationTool,
   // Task tools (experimental)
-  asyncCountdownTaskTool,
+  asyncCountdownTool,
   // App tools (MCP Apps extension)
   dataExplorerAppTool,
 ];
