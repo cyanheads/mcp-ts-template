@@ -1,13 +1,9 @@
 {
   "compilerOptions": {
-    // Target latest JavaScript features
     "target": "ESNext",
-
-    // Use modern Node.js module system
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
 
-    // Enable all strict type checking
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -16,54 +12,33 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
 
-    // Module interop for CommonJS compatibility
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
 
-    // Output configuration
     "outDir": "./dist",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
 
-    // Import helpers to reduce bundle size
     "importHelpers": true,
-
-    // Incremental compilation for faster type checking
     "incremental": true,
-    "tsBuildInfoFile": ".tsbuildinfo",
-
-    // Skip type checking of declaration files
     "skipLibCheck": true,
-
-    // Ensure consistent file naming
     "forceConsistentCasingInFileNames": true,
 
-    // Node.js specific
     "lib": ["ESNext"],
-    "types": ["node", "@cloudflare/workers-types"],
+    "types": ["node"],
 
-    // Error on unused locals and parameters
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-
-    // Ensure void returns are handled
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
 
-    // Modern resolution features
     "resolveJsonModule": true,
     "allowJs": false,
+
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "tests/*": ["tests/*"]
+      "@/*": ["src/*"]
     }
-  },
-  "include": ["src/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "dist", "templates", "examples"],
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
   }
 }
