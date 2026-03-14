@@ -226,7 +226,7 @@ export class OpenRouterProvider implements ILlmProvider {
           'HTTP-Referer': options.siteUrl,
           'X-Title': options.siteName,
         },
-        maxRetries: 0,
+        maxRetries: 2,
       });
       return this.client;
     } catch (e: unknown) {
