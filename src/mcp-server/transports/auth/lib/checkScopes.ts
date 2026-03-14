@@ -5,14 +5,15 @@
  * @module src/mcp-server/transports/auth/lib/checkScopes
  */
 
+import { config } from '@/config/index.js';
 import type { Context } from '@/context.js';
-import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
+import { forbidden, unauthorized } from '@/types-global/errors.js';
 
 /**
- * Checks that the current request has the required auth scopes.
- * Throws `McpError(Forbidden)` if scopes are insufficient.
- * No-ops when auth is disabled (`MCP_AUTH_MODE=none`).
- * Throws `Unauthorized` when auth is enabled but no auth context exists.
+ * Checks that the current request has the required auth scopes by reading
+ * directly from `ctx.auth`. Throws `McpError(Forbidden)` if scopes are
+ * insufficient. No-ops when auth is disabled (`MCP_AUTH_MODE=none`).
+ * Throws `Unauthorized` when auth is enabled but `ctx.auth` is absent.
  *
  * @example
  * ```ts
@@ -25,12 +26,27 @@ import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.j
  * ```
  */
 export function checkScopes(ctx: Context, requiredScopes: string[]): void {
-  withRequiredScopes(requiredScopes, {
-    requestId: ctx.requestId,
-    timestamp: ctx.timestamp,
-    operation: 'checkScopes',
-    ...(ctx.tenantId ? { tenantId: ctx.tenantId } : {}),
-    ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
-    ...(ctx.spanId ? { spanId: ctx.spanId } : {}),
-  });
+  if (config.mcpAuthMode === 'none') {
+    return;
+  }
+
+  if (!ctx.auth) {
+    throw unauthorized('Authentication required but no auth context was established.', {
+      requiredScopes,
+    });
+  }
+
+  const grantedScopeSet = new Set(ctx.auth.scopes);
+  const missingScopes = requiredScopes.filter((scope) => !grantedScopeSet.has(scope));
+
+  if (missingScopes.length > 0) {
+    ctx.log.warning('Authorization failed: missing required scopes.', {
+      requiredScopes,
+      missingScopes,
+    });
+    throw forbidden(
+      `Insufficient permissions. Missing required scopes: ${missingScopes.join(', ')}`,
+      { requiredScopes, missingScopes },
+    );
+  }
 }
