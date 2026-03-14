@@ -62,6 +62,20 @@ describe('ErrorHandler', () => {
       );
     });
 
+    it('should not misclassify "Invalid auth token format" as Unauthorized', () => {
+      // Regression: bare "auth" substring previously matched Unauthorized before ValidationError
+      expect(ErrorHandler.determineErrorCode(new Error('Invalid auth token format'))).toBe(
+        JsonRpcErrorCode.ValidationError,
+      );
+    });
+
+    it('should not misclassify "missing required field" as NotFound', () => {
+      // Regression: bare "missing" previously matched NotFound before ValidationError
+      expect(ErrorHandler.determineErrorCode(new Error('missing required field: name'))).toBe(
+        JsonRpcErrorCode.ValidationError,
+      );
+    });
+
     it('should classify permission-related message as Forbidden', () => {
       expect(ErrorHandler.determineErrorCode(new Error('permission denied'))).toBe(
         JsonRpcErrorCode.Forbidden,

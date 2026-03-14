@@ -103,6 +103,25 @@ describe('Error Handler Mappings', () => {
       expect(match?.errorCode).toBe(JsonRpcErrorCode.Unauthorized);
     });
 
+    it('should NOT match bare "auth" as Unauthorized', () => {
+      const match = COMPILED_ERROR_PATTERNS.find((p) => p.compiledPattern.test('auth'));
+      // bare "auth" should not trigger Unauthorized — it's too ambiguous
+      expect(match?.errorCode).not.toBe(JsonRpcErrorCode.Unauthorized);
+    });
+
+    it('should classify "Invalid auth token format" as ValidationError not Unauthorized', () => {
+      // Simulates the full resolution chain: first match wins across all patterns
+      const msg = 'Invalid auth token format';
+      let matchedCode: JsonRpcErrorCode | undefined;
+      for (const p of COMPILED_ERROR_PATTERNS) {
+        if (p.compiledPattern.test(msg)) {
+          matchedCode = p.errorCode;
+          break;
+        }
+      }
+      expect(matchedCode).toBe(JsonRpcErrorCode.ValidationError);
+    });
+
     it('should match "permission denied" as Forbidden', () => {
       const match = COMPILED_ERROR_PATTERNS.find((p) =>
         p.compiledPattern.test('permission denied'),
@@ -118,6 +137,18 @@ describe('Error Handler Mappings', () => {
     it('should match "not found" as NotFound', () => {
       const match = COMPILED_ERROR_PATTERNS.find((p) => p.compiledPattern.test('not found'));
       expect(match?.errorCode).toBe(JsonRpcErrorCode.NotFound);
+    });
+
+    it('should classify "missing required field" as ValidationError not NotFound', () => {
+      const msg = 'missing required field: name';
+      let matchedCode: JsonRpcErrorCode | undefined;
+      for (const p of COMPILED_ERROR_PATTERNS) {
+        if (p.compiledPattern.test(msg)) {
+          matchedCode = p.errorCode;
+          break;
+        }
+      }
+      expect(matchedCode).toBe(JsonRpcErrorCode.ValidationError);
     });
 
     it('should match "invalid input" as ValidationError', () => {

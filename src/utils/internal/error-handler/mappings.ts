@@ -109,7 +109,8 @@ export const ERROR_TYPE_MAPPINGS: Readonly<Record<string, JsonRpcErrorCode>> = {
  */
 const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
   {
-    pattern: /auth|unauthorized|unauthenticated|not.*logged.*in|invalid.*token|expired.*token/i,
+    pattern:
+      /unauthorized|unauthenticated|not\s+authorized|not.*logged.*in|invalid[\s_-]+token|expired[\s_-]+token/i,
     errorCode: JsonRpcErrorCode.Unauthorized,
   },
   {
@@ -117,11 +118,12 @@ const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
     errorCode: JsonRpcErrorCode.Forbidden,
   },
   {
-    pattern: /not found|missing|no such|doesn't exist|couldn't find/i,
+    pattern: /not found|no such|doesn't exist|couldn't find/i,
     errorCode: JsonRpcErrorCode.NotFound,
   },
   {
-    pattern: /invalid|validation|malformed|bad request|wrong format|missing required/i,
+    pattern:
+      /invalid|validation|malformed|bad request|wrong format|missing\s+(?:required|param|field|input|value|arg)/i,
     errorCode: JsonRpcErrorCode.ValidationError,
   },
   {
