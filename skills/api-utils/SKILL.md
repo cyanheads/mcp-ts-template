@@ -1,7 +1,7 @@
 ---
 name: api-utils
 description: >
-  API reference for all `@cyanheads/mcp-ts-core/utils/*` subpath exports. Use when looking up utility method signatures, options, peer dependencies, or usage patterns.
+  API reference for all utilities exported from `@cyanheads/mcp-ts-core/utils`. Use when looking up utility method signatures, options, peer dependencies, or usage patterns.
 metadata:
   author: cyanheads
   version: "2.0"
@@ -11,21 +11,21 @@ metadata:
 
 ## Overview
 
-Utility subpath exports from `@cyanheads/mcp-ts-core/utils/*`. Complex utilities with rich APIs have dedicated reference files; simpler utilities are documented inline below.
+Utility exports from `@cyanheads/mcp-ts-core/utils`. Complex utilities with rich APIs have dedicated reference files; simpler utilities are documented inline below.
 
 **Tier 3** = optional peer dependency. Install as needed (e.g., `bun add js-yaml`). All Tier 3 methods are **async** (lazy-load deps on first call).
 
 ## References
 
-| Reference | Path | Subpath | Covers |
-|:----------|:-----|:--------|:-------|
-| Formatting | `references/formatting.md` | `utils/formatting` | `markdown()`, `MarkdownBuilder`, `diffFormatter`, `tableFormatter`, `treeFormatter` — builder patterns, option types, style variants, usage examples |
-| Parsing | `references/parsing.md` | `utils/parsing` | `yamlParser`, `xmlParser`, `csvParser`, `jsonParser`, `pdfParser`, `dateParser`, `frontmatterParser` — method signatures, option types, peer deps, `Allow` flags, PDF workflows |
-| Security | `references/security.md` | `utils/security` | `sanitization`, `RateLimiter`, `IdGenerator` — config types, method details, sensitive fields, usage examples |
+| Reference | Path | Covers |
+|:----------|:-----|:-------|
+| Formatting | `references/formatting.md` | `markdown()`, `MarkdownBuilder`, `diffFormatter`, `tableFormatter`, `treeFormatter` — builder patterns, option types, style variants, usage examples |
+| Parsing | `references/parsing.md` | `yamlParser`, `xmlParser`, `csvParser`, `jsonParser`, `pdfParser`, `dateParser`, `frontmatterParser` — method signatures, option types, peer deps, `Allow` flags, PDF workflows |
+| Security | `references/security.md` | `sanitization`, `RateLimiter`, `IdGenerator` — config types, method details, sensitive fields, usage examples |
 
 ---
 
-## `@cyanheads/mcp-ts-core/utils/network`
+## `@cyanheads/mcp-ts-core/utils` — network
 
 | Export | API | Notes |
 |:-------|:----|:------|
@@ -33,7 +33,7 @@ Utility subpath exports from `@cyanheads/mcp-ts-core/utils/*`. Complex utilities
 
 ---
 
-## `@cyanheads/mcp-ts-core/utils/pagination`
+## `@cyanheads/mcp-ts-core/utils` — pagination
 
 | Export | API | Notes |
 |:-------|:----|:------|
@@ -44,7 +44,7 @@ Utility subpath exports from `@cyanheads/mcp-ts-core/utils/*`. Complex utilities
 
 ---
 
-## `@cyanheads/mcp-ts-core/utils/runtime`
+## `@cyanheads/mcp-ts-core/utils` — runtime
 
 | Export | API | Notes |
 |:-------|:----|:------|
@@ -52,7 +52,7 @@ Utility subpath exports from `@cyanheads/mcp-ts-core/utils/*`. Complex utilities
 
 ---
 
-## `@cyanheads/mcp-ts-core/utils/scheduling`
+## `@cyanheads/mcp-ts-core/utils` — scheduling
 
 | Export | API | Notes |
 |:-------|:----|:------|
@@ -60,9 +60,9 @@ Utility subpath exports from `@cyanheads/mcp-ts-core/utils/*`. Complex utilities
 
 ---
 
-## `@cyanheads/mcp-ts-core/utils/types`
+## `@cyanheads/mcp-ts-core/utils` — types
 
-The `utils/types` subpath exports only two guards. The full set of guards lives in the internal module and is not part of the public API.
+The `utils` export includes only two type guards. The full set of guards lives in the internal module and is not part of the public API.
 
 | Export | Signature | Notes |
 |:-------|:----------|:------|
@@ -71,7 +71,7 @@ The `utils/types` subpath exports only two guards. The full set of guards lives 
 
 ---
 
-## `@cyanheads/mcp-ts-core/utils/logger`
+## `@cyanheads/mcp-ts-core/utils` — logger
 
 | Export | API | Notes |
 |:-------|:----|:------|
@@ -79,7 +79,7 @@ The `utils/types` subpath exports only two guards. The full set of guards lives 
 
 ---
 
-## `@cyanheads/mcp-ts-core/utils/requestContext`
+## `@cyanheads/mcp-ts-core/utils` — requestContext
 
 | Export | API | Notes |
 |:-------|:----|:------|
@@ -88,7 +88,7 @@ The `utils/types` subpath exports only two guards. The full set of guards lives 
 
 ---
 
-## `@cyanheads/mcp-ts-core/utils/errorHandler`
+## `@cyanheads/mcp-ts-core/utils` — errorHandler
 
 | Export | API | Notes |
 |:-------|:----|:------|
@@ -96,7 +96,7 @@ The `utils/types` subpath exports only two guards. The full set of guards lives 
 
 ---
 
-## `@cyanheads/mcp-ts-core/utils/telemetry`
+## `@cyanheads/mcp-ts-core/utils` — Telemetry
 
 | Export | Subpath | API | Notes |
 |:-------|:--------|:----|:------|

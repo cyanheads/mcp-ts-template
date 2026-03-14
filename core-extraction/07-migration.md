@@ -32,12 +32,12 @@ For each downstream server already forked from the template:
 | `@/mcp-server/tasks/utils/taskToolDefinition.js` | `@cyanheads/mcp-ts-core/tasks` | Only for raw `TaskToolDefinition` escape hatch; prefer `task: true` |
 | `@/mcp-server/transports/auth/lib/withAuth.js` | **Delete** — use inline `auth: ['scope']` on definitions. `checkScopes()` from `@cyanheads/mcp-ts-core/auth` for dynamic auth. |  |
 | `@/types-global/errors.js` | `@cyanheads/mcp-ts-core/errors` | |
-| `@/utils/internal/logger.js` | **Delete from tool/resource files** — use `ctx.log`. Global `logger` still available from `@cyanheads/mcp-ts-core/utils/logger` for non-request contexts. |  |
-| `@/utils/internal/requestContext.js` | **Delete from tool/resource files** — handler receives unified `ctx: Context`. `RequestContext` still available from `@cyanheads/mcp-ts-core/utils/requestContext` for internal use. |  |
-| `@/utils/formatting/markdownBuilder.js` | `@cyanheads/mcp-ts-core/utils/formatting` | |
-| `@/utils/network/fetchWithTimeout.js` | `@cyanheads/mcp-ts-core/utils/network` | |
-| `@/utils/security/sanitization.js` | `@cyanheads/mcp-ts-core/utils/security` | |
-| `@/utils/pagination/pagination.js` | `@cyanheads/mcp-ts-core/utils/pagination` | |
+| `@/utils/internal/logger.js` | **Delete from tool/resource files** — use `ctx.log`. Global `logger` still available from `@cyanheads/mcp-ts-core/utils` for non-request contexts. |  |
+| `@/utils/internal/requestContext.js` | **Delete from tool/resource files** — handler receives unified `ctx: Context`. `RequestContext` still available from `@cyanheads/mcp-ts-core/utils` for internal use. |  |
+| `@/utils/formatting/markdownBuilder.js` | `@cyanheads/mcp-ts-core/utils` | |
+| `@/utils/network/fetchWithTimeout.js` | `@cyanheads/mcp-ts-core/utils` | |
+| `@/utils/security/sanitization.js` | `@cyanheads/mcp-ts-core/utils` | |
+| `@/utils/pagination/pagination.js` | `@cyanheads/mcp-ts-core/utils` | |
 | `@/container/core/container.js` | **Delete** — no DI container in core. Use `setup()` callback + lazy accessors. |  |
 | `@/container/core/tokens.js` | **Delete** — no DI tokens in core. Services accessed via `CoreServices` or lazy accessors. |  |
 

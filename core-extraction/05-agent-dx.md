@@ -49,17 +49,7 @@ A compact, scannable reference of every subpath export — what it provides, key
 | `@cyanheads/mcp-ts-core/config` | `AppConfig`, `parseConfig` | Zod-validated config types |
 | `@cyanheads/mcp-ts-core/auth` | `checkScopes` | Dynamic scope checking for advanced auth patterns |
 | `@cyanheads/mcp-ts-core/storage` | `StorageService` | Tenant-scoped storage abstraction |
-| `@cyanheads/mcp-ts-core/utils/logger` | `logger` | Pino structured logger |
-| `@cyanheads/mcp-ts-core/utils/requestContext` | `requestContextService`, `RequestContext` | Request tracing context |
-| `@cyanheads/mcp-ts-core/utils/errorHandler` | `ErrorHandler` | `tryCatch` for service-level recovery |
-| `@cyanheads/mcp-ts-core/utils/formatting` | `markdown`, `MarkdownBuilder` | Markdown response builder |
-| `@cyanheads/mcp-ts-core/utils/parsing` | `yamlParser`, `csvParser`, `xmlParser`, ... | Content parsers (lazy, Tier 3) |
-| `@cyanheads/mcp-ts-core/utils/security` | `sanitization`, `rateLimiter`, `idGenerator` | Security utilities (lazy, Tier 3) |
-| `@cyanheads/mcp-ts-core/utils/network` | `fetchWithTimeout` | HTTP client with timeout/abort |
-| `@cyanheads/mcp-ts-core/utils/pagination` | `extractCursor`, `paginateArray` | Opaque cursor pagination |
-| `@cyanheads/mcp-ts-core/utils/runtime` | `runtimeCaps` | Runtime feature detection (Node vs Workers) |
-| `@cyanheads/mcp-ts-core/utils/scheduling` | `scheduler` | Cron scheduling (lazy, Tier 3) |
-| `@cyanheads/mcp-ts-core/utils/types` | `isErrorWithCode`, `isRecord` | Type guard utilities |
+| `@cyanheads/mcp-ts-core/utils` | `markdown`, `fetchWithTimeout`, `extractCursor`, `paginateArray`, `logger`, `ErrorHandler`, `runtimeCaps`, `requestContextService`, parsers, security, scheduling, type guards | All utilities — formatting, parsing, network, pagination, security, scheduling, logging, runtime |
 | `@cyanheads/mcp-ts-core/testing` | `createMockContext` | Test helpers |
 
 Initially hand-maintained. Can be auto-generated from TypeScript source (JSDoc + export names from each subpath entry point) once exports stabilize.
@@ -68,12 +58,12 @@ Initially hand-maintained. Can be auto-generated from TypeScript source (JSDoc +
 
 The exports catalog (Layer 2) tells agents *what exists* — subpath names and key export symbols. But for utils and services, knowing a symbol exists isn't enough to use it. An agent needs method signatures, key behaviors, async/sync distinction, required peer deps, and gotchas.
 
-CLAUDE.md includes a **per-subpath quick reference** section for every `utils/*` and `services/*` export. Each entry is a compact table: method name, signature summary, key behavior notes. This bridges the gap between "I know `diffFormatter` exists" and "I can call `diffFormatter.unifiedDiff(old, new)` correctly."
+CLAUDE.md includes a **quick reference** section for `utils` and `services` exports. Each entry is a compact table: method name, signature summary, key behavior notes. This bridges the gap between "I know `diffFormatter` exists" and "I can call `diffFormatter.unifiedDiff(old, new)` correctly."
 
 **Format:**
 
 ```markdown
-### `@cyanheads/mcp-ts-core/utils/formatting`
+### `@cyanheads/mcp-ts-core/utils` — Formatting
 
 | Export | API | Notes |
 |:-------|:----|:------|

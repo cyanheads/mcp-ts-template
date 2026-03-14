@@ -1,7 +1,7 @@
 # Formatting Utilities (`utils/formatting`)
 
 ```ts
-import { markdown, MarkdownBuilder, diffFormatter, tableFormatter, treeFormatter } from '@cyanheads/mcp-ts-core/utils/formatting';
+import { markdown, MarkdownBuilder, diffFormatter, tableFormatter, treeFormatter } from '@cyanheads/mcp-ts-core/utils';
 ```
 
 ---

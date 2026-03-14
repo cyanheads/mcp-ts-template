@@ -8,7 +8,6 @@ import { z } from 'zod';
 
 import type { Context } from '@cyanheads/mcp-ts-core/context';
 import { tool } from '@cyanheads/mcp-ts-core';
-import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 
 const InputSchema = z.object({
   noun: z.string().optional().describe('A noun for the story.'),
@@ -25,10 +24,7 @@ const OutputSchema = z.object({
 
 async function elicitWord(partOfSpeech: string, ctx: Context): Promise<string> {
   if (!ctx.elicit) {
-    throw new McpError(
-      JsonRpcErrorCode.InvalidRequest,
-      'Elicitation is not available in the current context.',
-    );
+    throw new Error('Elicitation is not available in the current context.');
   }
 
   const result = await ctx.elicit(
@@ -39,18 +35,12 @@ async function elicitWord(partOfSpeech: string, ctx: Context): Promise<string> {
   );
 
   if (result.action !== 'accept') {
-    throw new McpError(
-      JsonRpcErrorCode.InvalidRequest,
-      `User ${result.action} the ${partOfSpeech} elicitation.`,
-    );
+    throw new Error(`User ${result.action} the ${partOfSpeech} elicitation.`);
   }
 
   const value = (result.content as Record<string, unknown> | undefined)?.value;
   if (typeof value !== 'string' || value.length === 0) {
-    throw new McpError(
-      JsonRpcErrorCode.InvalidParams,
-      `Invalid ${partOfSpeech} received from user.`,
-    );
+    throw new Error(`Invalid ${partOfSpeech} received from user.`);
   }
 
   return value;

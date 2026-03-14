@@ -28,7 +28,7 @@
  * @example
  * ```typescript
  * // Using the `markdown()` factory shorthand
- * import { markdown } from '@cyanheads/mcp-ts-core/utils/formatting';
+ * import { markdown } from '@cyanheads/mcp-ts-core/utils';
  *
  * const md = markdown()
  *   .h2('Results')
@@ -735,7 +735,7 @@ export class MarkdownBuilder {
  *
  * @example
  * ```typescript
- * import { markdown } from '@cyanheads/mcp-ts-core/utils/formatting';
+ * import { markdown } from '@cyanheads/mcp-ts-core/utils';
  *
  * const output = markdown()
  *   .h1('Summary')

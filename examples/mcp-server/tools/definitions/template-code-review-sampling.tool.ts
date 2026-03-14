@@ -7,7 +7,6 @@
 import { z } from 'zod';
 
 import { tool } from '@cyanheads/mcp-ts-core';
-import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
 
 const InputSchema = z.object({
   code: z
@@ -69,10 +68,7 @@ export const codeReviewSamplingTool = tool('template_code_review_sampling', {
 
   async handler(input, ctx) {
     if (!ctx.sample) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
-        'Sampling capability is not available. The client does not support MCP sampling.',
-      );
+      throw new Error('Sampling capability is not available. The client does not support MCP sampling.');
     }
 
     ctx.log.debug('Processing code review with sampling.', {

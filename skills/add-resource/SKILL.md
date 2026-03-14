@@ -36,7 +36,6 @@ For the full `resource()` API, pagination utilities, and `Context` interface, re
 
 import { z } from 'zod';
 import { resource } from '@cyanheads/mcp-ts-core';
-import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
 export const {{RESOURCE_EXPORT}} = resource('{{scheme}}://{{{paramName}}}/data', {
   description: '{{RESOURCE_DESCRIPTION}}',
@@ -48,7 +47,7 @@ export const {{RESOURCE_EXPORT}} = resource('{{scheme}}://{{{paramName}}}/data',
 
   async handler(params, ctx) {
     ctx.log.debug('Fetching resource', { {{paramName}}: params.{{paramName}} });
-    // Pure logic — throw McpError on failure, no try/catch
+    // Pure logic — throw on failure, no try/catch
     return { /* resource data */ };
   },
 
@@ -69,7 +68,7 @@ export const {{RESOURCE_EXPORT}} = resource('{{scheme}}://{{{paramName}}}/data',
 For resources returning large lists, use opaque cursor pagination:
 
 ```typescript
-import { extractCursor, paginateArray } from '@cyanheads/mcp-ts-core/utils/pagination';
+import { extractCursor, paginateArray } from '@cyanheads/mcp-ts-core/utils';
 
 async handler(params, ctx) {
   const allItems = await fetchAllItems(params);
@@ -99,7 +98,7 @@ export const allResourceDefinitions = [
 - [ ] URI template uses `{paramName}` syntax for path parameters
 - [ ] All Zod `params` fields have `.describe()` annotations
 - [ ] JSDoc `@fileoverview` and `@module` header present
-- [ ] `handler(params, ctx)` is pure — throws `McpError`, no try/catch
+- [ ] `handler(params, ctx)` is pure — throws on failure, no try/catch
 - [ ] `list()` function provided if the resource is discoverable
 - [ ] Pagination used for large result sets (`extractCursor`/`paginateArray`)
 - [ ] Registered in `definitions/index.ts` barrel and `allResourceDefinitions`

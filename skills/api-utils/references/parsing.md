@@ -1,7 +1,7 @@
 # Parsing Utilities (`utils/parsing`)
 
 ```ts
-import { yamlParser, xmlParser, csvParser, jsonParser, pdfParser, dateParser, frontmatterParser } from '@cyanheads/mcp-ts-core/utils/parsing';
+import { yamlParser, xmlParser, csvParser, jsonParser, pdfParser, dateParser, frontmatterParser } from '@cyanheads/mcp-ts-core/utils';
 ```
 
 All parsers are **Tier 3** — lazy-load their peer dependency on first call. All methods are **async** unless noted.

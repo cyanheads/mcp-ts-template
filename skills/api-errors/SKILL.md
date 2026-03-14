@@ -17,7 +17,7 @@ Error handling in `@cyanheads/mcp-ts-core` follows a strict layered pattern: too
 
 ```ts
 import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { ErrorHandler } from '@cyanheads/mcp-ts-core/utils/errorHandler';
+import { ErrorHandler } from '@cyanheads/mcp-ts-core/utils';
 ```
 
 ---
@@ -110,7 +110,7 @@ export const myTool = tool('my_tool', {
 Use `ErrorHandler.tryCatch` in service code — not in tool handlers. It wraps arbitrary exceptions into `McpError` and supports structured logging context.
 
 ```ts
-import { ErrorHandler } from '@cyanheads/mcp-ts-core/utils/errorHandler';
+import { ErrorHandler } from '@cyanheads/mcp-ts-core/utils';
 
 // Works with both async and sync functions
 const result = await ErrorHandler.tryCatch(

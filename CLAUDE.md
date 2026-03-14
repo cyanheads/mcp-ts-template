@@ -11,7 +11,7 @@
 
 ## Core Rules
 
-- **Logic throws, handlers catch.** Pure, stateless `handler` functions. No `try...catch`. Throw `McpError(code, message, data)` on failure. The framework creates `Context`, measures execution, formats responses, catches errors.
+- **Logic throws, framework catches.** Pure, stateless `handler` functions. No `try...catch`. Throw on failure — plain `Error` is fine; the framework catches, classifies, and formats. Use `McpError(code, message, data)` only when you need a specific JSON-RPC error code or structured data payload.
 - **Full-stack observability.** OpenTelemetry preconfigured. Use `ctx.log` for request-scoped logging — `requestId`, `traceId`, `tenantId` auto-correlated. No `console` calls.
 - **Unified Context.** Handlers receive `ctx` with logging (`ctx.log`), tenant-scoped storage (`ctx.state`), optional protocol capabilities (`ctx.elicit`, `ctx.sample`), and cancellation (`ctx.signal`).
 - **Decoupled storage.** `ctx.state` for tenant-scoped KV. Never access persistence backends directly.
@@ -36,17 +36,8 @@
 | `/auth` | `checkScopes` | Dynamic scope checking |
 | `/storage` | `StorageService` | Storage abstraction |
 | `/storage/types` | `IStorageProvider` | Provider interface |
-| `/utils/logger` | `logger` | Global Pino logger |
-| `/utils/requestContext` | `requestContextService`, `RequestContext` | Request tracing |
-| `/utils/errorHandler` | `ErrorHandler` | `tryCatch` for services |
-| `/utils/formatting` | `markdown`, `MarkdownBuilder`, `diffFormatter`, `tableFormatter`, `treeFormatter` | Response formatters |
-| `/utils/parsing` | `yamlParser`, `csvParser`, `xmlParser`, `jsonParser`, `pdfParser`, `dateParser`, `frontmatterParser` | Content parsers (Tier 3) |
-| `/utils/security` | `sanitization`, `rateLimiter`, `idGenerator` | Security utilities (Tier 3) |
-| `/utils/network` | `fetchWithTimeout` | HTTP client with timeout/abort |
-| `/utils/pagination` | `extractCursor`, `paginateArray` | Opaque cursor pagination |
-| `/utils/runtime` | `runtimeCaps` | Runtime feature detection |
-| `/utils/scheduling` | `schedulerService` | Cron scheduling (Tier 3) |
-| `/utils/types` | `isErrorWithCode`, `isRecord` | Type guard utilities |
+| `/utils` | `markdown`, `fetchWithTimeout`, `extractCursor`, `paginateArray`, `logger`, `ErrorHandler`, `runtimeCaps`, `requestContextService`, parsers, security, scheduling, type guards | All utilities — formatting, parsing, network, pagination, security, scheduling, logging, runtime |
+| `/services` | `OpenRouterProvider`, `SpeechService`, `createSpeechProvider`, `ElevenLabsProvider`, `WhisperProvider`, `GraphService`, provider interfaces and types | LLM, Speech (TTS/STT), Graph services |
 | `/testing` | `createMockContext` | Test helpers |
 
 All subpaths prefixed with `@cyanheads/mcp-ts-core`. **Tier 3 deps** (parsers, security, scheduling) are optional peer dependencies — install as needed. All Tier 3 methods are **async** (lazy-load deps at first call).
@@ -170,7 +161,6 @@ src/
 ```ts
 import { z } from 'zod';
 import { tool } from '@cyanheads/mcp-ts-core';
-import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
 export const myTool = tool('my_tool', {
   description: 'Does something useful.',
@@ -188,7 +178,7 @@ export const myTool = tool('my_tool', {
 });
 ```
 
-**Steps:** Create `src/mcp-server/tools/definitions/[name].tool.ts` (kebab-case) → use `tool('snake_case', {...})` with Zod `.describe()` on all fields → implement `handler(input, ctx)` (pure, throws `McpError`) → add `auth`/`format` if needed → register in `definitions/index.ts` → `bun run devcheck` → smoke-test with `dev:stdio`/`dev:http`.
+**Steps:** Create `src/mcp-server/tools/definitions/[name].tool.ts` (kebab-case) → use `tool('snake_case', {...})` with Zod `.describe()` on all fields → implement `handler(input, ctx)` (pure, throws on failure) → add `auth`/`format` if needed → register in `definitions/index.ts` → `bun run devcheck` → smoke-test with `dev:stdio`/`dev:http`.
 
 **`format`**: Maps output to `ContentBlock[]`. Omit for JSON stringify default. Additional formatters: `markdown()` (builder), `diffFormatter` (async), `tableFormatter`, `treeFormatter` from `/utils/formatting`.
 
@@ -276,7 +266,6 @@ Init/accessor pattern — initialized in `setup()`, accessed at request time.
 import type { AppConfig } from '@cyanheads/mcp-ts-core/config';
 import type { StorageService } from '@cyanheads/mcp-ts-core/storage';
 import type { Context } from '@cyanheads/mcp-ts-core';
-import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
 export class MyService {
   constructor(private readonly config: AppConfig, private readonly storage: StorageService) {}
@@ -291,7 +280,7 @@ export function initMyService(config: AppConfig, storage: StorageService): void 
   _service = new MyService(config, storage);
 }
 export function getMyService(): MyService {
-  if (!_service) throw new McpError(JsonRpcErrorCode.InitializationFailed, 'MyService not initialized');
+  if (!_service) throw new Error('MyService not initialized — call initMyService() in setup()');
   return _service;
 }
 ```
@@ -363,9 +352,23 @@ Present when `task: true`. Methods: `setTotal(n)`, `increment(amount?)`, `update
 
 ## Error Handling
 
+**Default: just throw.** The framework catches all errors from handlers, classifies them by type/message, and returns `isError: true` with an appropriate JSON-RPC error code. Plain `Error`, `ZodError`, and any other thrown value are handled automatically.
+
 ```ts
+// Simple — framework classifies automatically
+throw new Error('Thing not found');
+
+// Zod .parse() failures are caught and mapped to ValidationError
+const data = MySchema.parse(rawData);
+```
+
+**Opt-in precision:** Import `McpError` from `@cyanheads/mcp-ts-core/errors` only when you need a specific error code or structured data payload:
+
+```ts
+import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+
 throw new McpError(JsonRpcErrorCode.InvalidParams, 'Missing required field: name', {
-  requestId: ctx.requestId, field: 'name',
+  field: 'name',
 });
 ```
 
@@ -386,7 +389,7 @@ throw new McpError(JsonRpcErrorCode.InvalidParams, 'Missing required field: name
 | `DatabaseError` | -32010 | Storage layer failure |
 | `InternalError` | -32603 | Catch-all for programmer errors |
 
-**Where handled:** Tool/resource handlers throw `McpError` (no try/catch) → handler factory catches, normalizes, sets `isError: true` → services use `ErrorHandler.tryCatch` for recovery.
+**Where handled:** Handlers throw (no try/catch) → handler factory catches, classifies (`ZodError` → `ValidationError`, message pattern matching for common cases, `McpError` preserved as-is), normalizes to `isError: true` → services use `ErrorHandler.tryCatch` for recovery.
 
 ---
 
@@ -445,7 +448,6 @@ export function getServerConfig(): ServerConfig {
 ```ts
 import { describe, expect, it, vi } from 'vitest';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
-import { McpError } from '@cyanheads/mcp-ts-core/errors';
 import { myTool } from '@/mcp-server/tools/definitions/my-tool.tool.js';
 
 describe('myTool', () => {
@@ -454,8 +456,8 @@ describe('myTool', () => {
     const result = await myTool.handler(myTool.input.parse({ query: 'hello' }), ctx);
     expect(result.result).toBe('Found: hello');
   });
-  it('throws McpError on invalid state', async () => {
-    await expect(myTool.handler(myTool.input.parse({ query: 'BAD' }), createMockContext())).rejects.toThrow(McpError);
+  it('throws on invalid state', async () => {
+    await expect(myTool.handler(myTool.input.parse({ query: 'BAD' }), createMockContext())).rejects.toThrow();
   });
 });
 ```
@@ -500,7 +502,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 
 - **Validation:** Zod schemas, all fields need `.describe()`
 - **Logging:** `ctx.log` in handlers, global `logger` for lifecycle/background
-- **Errors:** handlers throw `McpError`, framework catches. `ErrorHandler.tryCatch` for services only.
+- **Errors:** handlers throw (plain `Error` or `McpError` for precision), framework catches and classifies. `ErrorHandler.tryCatch` for services only.
 - **Secrets:** server config only — no hardcoded credentials
 - **Naming:** kebab-case files, snake_case tool/resource/prompt names, correct suffix
 - **JSDoc:** `@fileoverview` + `@module` required on every file

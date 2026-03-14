@@ -273,7 +273,7 @@ Services receive `Context` in their methods — they use `ctx.log` for correlate
 import { z } from 'zod';
 import { tool } from '@cyanheads/mcp-ts-core';
 import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { markdown } from '@cyanheads/mcp-ts-core/utils/formatting';
+import { markdown } from '@cyanheads/mcp-ts-core/utils';
 import { getBookmarksService } from '../../services/bookmarks/bookmarks-service.js';
 
 export const addBookmark = tool('add_bookmark', {
@@ -329,7 +329,7 @@ What's different from the old pattern:
 |:-------|:-------|:-----------------|
 | `tool` | `@cyanheads/mcp-ts-core` | Builder function |
 | `McpError`, `JsonRpcErrorCode` | `@cyanheads/mcp-ts-core/errors` | Error types |
-| `markdown` | `@cyanheads/mcp-ts-core/utils/formatting` | Response builder |
+| `markdown` | `@cyanheads/mcp-ts-core/utils` | Response builder |
 | `getBookmarksService` | `@/services/...` (relative) | Server's own service |
 
 No `logger` import. No `RequestContext` import. No `withToolAuth` import. The `Context` provides logging, and auth is declarative.

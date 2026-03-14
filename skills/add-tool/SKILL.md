@@ -37,7 +37,6 @@ For the full `tool()` API, `Context` interface, and error codes, read:
 
 import { z } from 'zod';
 import { tool } from '@cyanheads/mcp-ts-core';
-import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
 export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
   description: '{{TOOL_DESCRIPTION}}',
@@ -52,7 +51,7 @@ export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
 
   async handler(input, ctx) {
     ctx.log.info('Processing', { /* relevant input fields */ });
-    // Pure logic — throw McpError on failure, no try/catch
+    // Pure logic — throw on failure, no try/catch
     return { /* output */ };
   },
 
@@ -102,7 +101,7 @@ export const allToolDefinitions = [
 - [ ] File created at `src/mcp-server/tools/definitions/{{tool-name}}.tool.ts`
 - [ ] All Zod schema fields have `.describe()` annotations
 - [ ] JSDoc `@fileoverview` and `@module` header present
-- [ ] `handler(input, ctx)` is pure — throws `McpError`, no try/catch
+- [ ] `handler(input, ctx)` is pure — throws on failure, no try/catch
 - [ ] `auth` scopes declared if the tool needs authorization
 - [ ] `task: true` added if the tool is long-running
 - [ ] Registered in `definitions/index.ts` barrel and `allToolDefinitions`

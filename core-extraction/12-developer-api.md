@@ -73,7 +73,7 @@ Auto-correlated to the current request. No imports, no spreading `appContext`.
 
 ```ts
 // Before (current pattern)
-import { logger } from '@cyanheads/mcp-ts-core/utils/logger';
+import { logger } from '@cyanheads/mcp-ts-core/utils';
 logger.info('Processing query', { ...appContext, query: input.query });
 
 // After

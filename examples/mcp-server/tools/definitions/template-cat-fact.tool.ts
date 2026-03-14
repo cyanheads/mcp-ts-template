@@ -7,8 +7,7 @@
 import { z } from 'zod';
 
 import { tool } from '@cyanheads/mcp-ts-core';
-import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
-import { fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils/network';
+import { fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils';
 
 const CAT_FACT_API_URL = 'https://catfact.ninja/fact';
 const CAT_FACT_API_TIMEOUT_MS = 5000;
@@ -66,34 +65,13 @@ export const catFactTool = tool('template_cat_fact', {
       signal: ctx.signal,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => undefined);
-      throw new McpError(
-        JsonRpcErrorCode.ServiceUnavailable,
-        `Cat Fact API request failed: ${response.status} ${response.statusText}`,
-        { requestId: ctx.requestId, httpStatusCode: response.status, responseBody: errorText },
-      );
-    }
+    const data = CatFactApiSchema.parse(await response.json());
 
-    const rawData = await response.json();
-    const parsed = CatFactApiSchema.safeParse(rawData);
-    if (!parsed.success) {
-      ctx.log.error('Cat Fact API response validation failed', undefined, {
-        receivedData: rawData,
-        issues: parsed.error.issues,
-      });
-      throw new McpError(
-        JsonRpcErrorCode.ServiceUnavailable,
-        'Cat Fact API returned unexpected data format.',
-        { requestId: ctx.requestId, issues: parsed.error.issues },
-      );
-    }
-
-    ctx.log.notice('Random cat fact fetched successfully.', { factLength: parsed.data.length });
+    ctx.log.notice('Random cat fact fetched successfully.', { factLength: data.length });
 
     return {
-      fact: parsed.data.fact,
-      length: parsed.data.length,
+      fact: data.fact,
+      length: data.length,
       requestedMaxLength: input.maxLength,
       timestamp: new Date().toISOString(),
     };

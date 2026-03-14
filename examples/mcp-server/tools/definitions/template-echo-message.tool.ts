@@ -7,8 +7,7 @@
 import { z } from 'zod';
 
 import { tool } from '@cyanheads/mcp-ts-core';
-import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
-import { markdown } from '@cyanheads/mcp-ts-core/utils/formatting';
+import { markdown } from '@cyanheads/mcp-ts-core/utils';
 
 /** Special input which deliberately triggers a failure for testing. */
 export const TEST_ERROR_TRIGGER_MESSAGE = 'TRIGGER_ERROR';
@@ -68,10 +67,7 @@ export const echoTool = tool('template_echo_message', {
     ctx.log.debug('Processing echo message', { toolInput: input });
 
     if (input.message === TEST_ERROR_TRIGGER_MESSAGE) {
-      throw new McpError(JsonRpcErrorCode.ValidationError, 'Deliberate failure triggered.', {
-        requestId: ctx.requestId,
-        ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
-      });
+      throw new Error('Deliberate failure triggered.');
     }
 
     const formattedMessage =

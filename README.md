@@ -50,34 +50,21 @@ That's a complete MCP server. `createApp()` handles config parsing, logger init,
 
 ## Quick start
 
-### Install
-
 ```bash
-bun add @cyanheads/mcp-ts-core zod
+bunx @cyanheads/mcp-ts-core init my-mcp-server
+cd my-mcp-server
+bun install
 ```
 
-### Minimal server
+That gives you a working project with `CLAUDE.md`, skills, config files, and a scaffolded `src/` directory. Open it in your editor, start your coding agent, and tell it what tools to build. The agent learns the framework from the included docs and skills — tool definitions, resources, services, testing patterns, all of it.
+
+### What you get
+
+Here's what tool definitions look like:
 
 ```ts
-// src/index.ts
-#!/usr/bin/env node
-import { createApp } from '@cyanheads/mcp-ts-core';
-import { allToolDefinitions } from './mcp-server/tools/index.js';
-
-await createApp({
-  name: 'my-mcp-server',
-  version: '0.1.0',
-  tools: allToolDefinitions,
-});
-```
-
-### Define a tool
-
-```ts
-// src/mcp-server/tools/definitions/search.tool.ts
 import { z } from 'zod';
 import { tool } from '@cyanheads/mcp-ts-core';
-import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
 export const search = tool('search', {
   description: 'Search for items by query.',
@@ -85,31 +72,15 @@ export const search = tool('search', {
     query: z.string().describe('Search query'),
     limit: z.number().default(10).describe('Max results'),
   }),
-  output: z.object({
-    items: z.array(z.object({
-      id: z.string().describe('Item ID'),
-      title: z.string().describe('Item title'),
-    })).describe('Search results'),
-  }),
-  auth: ['search:read'],
-
   async handler(input, ctx) {
     ctx.log.info('Searching', { query: input.query });
     const results = await doSearch(input.query, input.limit);
-    if (!results.length) {
-      throw new McpError(JsonRpcErrorCode.NotFound, 'No results found');
-    }
     return { items: results };
   },
-
-  format: (result) => [{
-    type: 'text',
-    text: result.items.map(i => `- **${i.title}** (${i.id})`).join('\n'),
-  }],
 });
 ```
 
-### Define a resource
+And resources:
 
 ```ts
 import { z } from 'zod';
@@ -124,18 +95,19 @@ export const itemData = resource('items://{itemId}', {
 });
 ```
 
-### Cloudflare Workers
+Everything registers through `createApp()` in your entry point:
 
 ```ts
-// src/worker.ts
-import { createWorkerHandler } from '@cyanheads/mcp-ts-core/worker';
-import { allToolDefinitions } from './mcp-server/tools/index.js';
-
-export default createWorkerHandler({
+await createApp({
+  name: 'my-mcp-server',
+  version: '0.1.0',
   tools: allToolDefinitions,
-  extraEnvBindings: [['MY_API_KEY', 'MY_API_KEY']],
+  resources: allResourceDefinitions,
+  prompts: allPromptDefinitions,
 });
 ```
+
+It also works on Cloudflare Workers with `createWorkerHandler()` — same definitions, different entry point.
 
 ## Server structure
 
@@ -215,8 +187,8 @@ import { createApp, tool, resource, prompt } from '@cyanheads/mcp-ts-core';
 import { createWorkerHandler } from '@cyanheads/mcp-ts-core/worker';
 import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import { checkScopes } from '@cyanheads/mcp-ts-core/auth';
-import { markdown } from '@cyanheads/mcp-ts-core/utils/formatting';
-import { fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils/network';
+import { markdown, fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils';
+import { OpenRouterProvider, GraphService } from '@cyanheads/mcp-ts-core/services';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 ```
 

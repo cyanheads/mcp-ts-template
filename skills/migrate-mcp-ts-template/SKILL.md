@@ -56,26 +56,21 @@ These are the actual `@/` import paths used in framework source. Rewrite any tha
 | `@/mcp-server/prompts/utils/newPromptDefinition.js` | `@cyanheads/mcp-ts-core/prompts` or `@cyanheads/mcp-ts-core` (for `prompt()` builder) |
 | `@/mcp-server/tasks/utils/taskToolDefinition.js` | `@cyanheads/mcp-ts-core/tasks` |
 
-### Utils — internal
+### Utils
 
 | Old `@/` import | New package import |
 |:----------------|:-------------------|
-| `@/utils/internal/logger.js` | `@cyanheads/mcp-ts-core/utils/logger` |
-| `@/utils/internal/requestContext.js` | `@cyanheads/mcp-ts-core/utils/requestContext` |
-| `@/utils/internal/error-handler/errorHandler.js` | `@cyanheads/mcp-ts-core/utils/errorHandler` |
-| `@/utils/internal/runtime.js` | `@cyanheads/mcp-ts-core/utils/runtime` |
-
-### Utils — public
-
-| Old `@/` import | New package import |
-|:----------------|:-------------------|
-| `@/utils/formatting/*.js` | `@cyanheads/mcp-ts-core/utils/formatting` |
-| `@/utils/parsing/*.js` | `@cyanheads/mcp-ts-core/utils/parsing` |
-| `@/utils/security/*.js` | `@cyanheads/mcp-ts-core/utils/security` |
-| `@/utils/network/*.js` | `@cyanheads/mcp-ts-core/utils/network` |
-| `@/utils/pagination/pagination.js` | `@cyanheads/mcp-ts-core/utils/pagination` |
-| `@/utils/types/guards.js` | `@cyanheads/mcp-ts-core/utils/types` |
-| `@/utils/scheduling/*.js` | `@cyanheads/mcp-ts-core/utils/scheduling` |
+| `@/utils/internal/logger.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/internal/requestContext.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/internal/error-handler/errorHandler.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/internal/runtime.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/formatting/*.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/parsing/*.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/security/*.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/network/*.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/pagination/pagination.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/types/guards.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/scheduling/*.js` | `@cyanheads/mcp-ts-core/utils` |
 
 ## Files to Remove
 

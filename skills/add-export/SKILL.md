@@ -1,7 +1,7 @@
 ---
 name: add-export
 description: >
-  Add a new subpath export to the @cyanheads/mcp-ts-core package. Use when creating a new public API surface that consumers import from a dedicated subpath (e.g., @cyanheads/mcp-ts-core/utils/newutil).
+  Add a new subpath export to the @cyanheads/mcp-ts-core package. Use when creating a new public API surface that consumers import from a dedicated subpath (e.g., @cyanheads/mcp-ts-core/newutil).
 metadata:
   author: cyanheads
   version: "1.0"
@@ -18,16 +18,16 @@ Subpath exports are defined in `package.json` under the `exports` field. Each su
 1. **Create the entry point** source file (e.g., `src/utils/new-util.ts`)
 2. **Add the subpath** to `package.json` `exports`:
    ```jsonc
-   "./utils/newutil": {
-     "types": "./dist/utils/new-util.d.ts",
-     "import": "./dist/utils/new-util.js"
+   "./newutil": {
+     "types": "./dist/new-util.d.ts",
+     "import": "./dist/new-util.js"
    }
    ```
 3. **Update the exports catalog** in `CLAUDE.md` — add a row to the table
 4. **Build** with `bun run build` to generate `dist/` output
 5. **Verify the export** resolves correctly:
    ```bash
-   node -e "import('@cyanheads/mcp-ts-core/utils/newutil').then(m => console.log(Object.keys(m)))"
+   node -e "import('@cyanheads/mcp-ts-core/newutil').then(m => console.log(Object.keys(m)))"
    ```
 6. **Run `bun run devcheck`** to verify
 

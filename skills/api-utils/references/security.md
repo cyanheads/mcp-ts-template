@@ -1,7 +1,7 @@
 # Security Utilities (`utils/security`)
 
 ```ts
-import { sanitization, RateLimiter, IdGenerator, idGenerator, generateUUID, generateRequestContextId } from '@cyanheads/mcp-ts-core/utils/security';
+import { sanitization, RateLimiter, IdGenerator, idGenerator, generateUUID, generateRequestContextId } from '@cyanheads/mcp-ts-core/utils';
 ```
 
 ---

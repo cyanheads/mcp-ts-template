@@ -99,7 +99,7 @@ ctx.log.debug('Cache miss', { key, ttl });
 | `ctx.log` | Inside tool/resource handlers — auto-correlated to the request |
 | `core.logger` / `logger` | In `setup()`, service constructors, background tasks — no request context available |
 
-The global `logger` is imported from `@cyanheads/mcp-ts-core/utils/logger`. In handlers, always prefer `ctx.log`.
+The global `logger` is imported from `@cyanheads/mcp-ts-core/utils`. In handlers, always prefer `ctx.log`.
 
 ---
 

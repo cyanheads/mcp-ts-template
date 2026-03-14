@@ -350,7 +350,7 @@ import type { RequestContext } from '@/utils/internal/requestContext.js';
 // After (core package — builder + stable subpath exports)
 import { tool } from '@cyanheads/mcp-ts-core';                          // or '@cyanheads/mcp-ts-core/tools'
 import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-import { markdown } from '@cyanheads/mcp-ts-core/utils/formatting';
+import { markdown } from '@cyanheads/mcp-ts-core/utils';
 // No logger import needed — use ctx.log
 // No withToolAuth import needed — use auth: ['scope'] on definition
 // No RequestContext import needed — use Context from the handler

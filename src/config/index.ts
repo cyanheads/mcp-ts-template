@@ -521,4 +521,4 @@ const config = new Proxy({} as AppConfig, {
  */
 export type AppConfig = z.infer<typeof ConfigSchema>;
 
-export { config, ConfigSchema, parseConfig, resetConfig };
+export { ConfigSchema, config, parseConfig, resetConfig };

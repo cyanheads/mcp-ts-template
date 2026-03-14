@@ -10,7 +10,7 @@ Servers shouldn't pay for deps they never use. The package has three tiers.
 
 ### How utilities work at each level
 
-**At runtime (ESM):** Lazy by design. If a server never imports `@cyanheads/mcp-ts-core/utils/parsing`, that module never executes — its deps never resolve. Subpath exports enforce this.
+**At runtime (ESM):** Lazy by design. If a server never uses parsers from `@cyanheads/mcp-ts-core/utils`, those lazy-loaded deps never resolve — its deps never resolve. Subpath exports enforce this.
 
 **At bundle time (Workers):** `build:worker` runs esbuild, which tree-shakes unused exports.
 
@@ -71,7 +71,7 @@ In the critical path of `createApp()`. Every server needs these.
 | `@opentelemetry/semantic-conventions` | Standard attributes |
 | `@hono/otel` | HTTP instrumentation middleware. Currently a static import in `httpTransport.ts` but only used behind `if (config.openTelemetry.enabled)` — the import itself runs unconditionally. Lazy conversion requires restructuring: dynamic `import()` inside the `if` block, not just replacing the top-level import. |
 
-### Parsing (`@cyanheads/mcp-ts-core/utils/parsing`)
+### Parsing (via `@cyanheads/mcp-ts-core/utils`)
 
 | Package | Used By |
 |:--------|:--------|

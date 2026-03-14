@@ -41,7 +41,6 @@ For the full service pattern, `CoreServices`, and `Context` interface, read:
 import type { AppConfig } from '@cyanheads/mcp-ts-core/config';
 import type { StorageService } from '@cyanheads/mcp-ts-core/storage';
 import type { Context } from '@cyanheads/mcp-ts-core';
-import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
 export class {{ServiceName}} {
   constructor(
@@ -66,10 +65,7 @@ export function init{{ServiceName}}(config: AppConfig, storage: StorageService):
 
 export function get{{ServiceName}}(): {{ServiceName}} {
   if (!_service) {
-    throw new McpError(
-      JsonRpcErrorCode.InitializationFailed,
-      '{{ServiceName}} not initialized',
-    );
+    throw new Error('{{ServiceName}} not initialized — call init{{ServiceName}}() in setup()');
   }
   return _service;
 }
@@ -109,5 +105,5 @@ handler: async (input, ctx) => {
 - [ ] JSDoc `@fileoverview` and `@module` header present
 - [ ] Service methods accept `Context` for logging and storage
 - [ ] `init` function registered in `setup()` callback in `src/index.ts`
-- [ ] Accessor throws `McpError(InitializationFailed)` if not initialized
+- [ ] Accessor throws `Error` if not initialized
 - [ ] `bun run devcheck` passes

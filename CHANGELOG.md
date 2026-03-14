@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.17] - 2026-03-14
+
+Consolidates 11 granular `./utils/*` subpath exports into a single `./utils` barrel, adds a `./services` barrel, and simplifies error handling across all examples and docs — handlers can now throw plain `Error` instead of requiring `McpError` imports.
+
+### Added
+
+- **`src/utils/index.ts`**: Unified barrel export for all utility modules — formatting, parsing, security, network, pagination, scheduling, telemetry, encoding, logger, error handler, request context, runtime, token counting, and type guards.
+- **`src/services/index.ts`**: Unified barrel export for all service modules — Graph (`GraphService`, types), LLM (`OpenRouterProvider`, types), and Speech (`SpeechService`, `ElevenLabsProvider`, `WhisperProvider`, types).
+
+### Changed
+
+- **`package.json` exports**: Replaced 11 granular `./utils/*` subpaths (`./utils/logger`, `./utils/formatting`, `./utils/parsing`, `./utils/security`, `./utils/network`, `./utils/pagination`, `./utils/runtime`, `./utils/scheduling`, `./utils/types`, `./utils/requestContext`, `./utils/errorHandler`) with a single `./utils` entry. Added `./services` entry.
+- **`package.json` sideEffects**: Changed from `false` to an explicit array (`config/index.js`, `logger.js`, telemetry files) for correct tree-shaking.
+- **Error handling simplification**: All example tools (`template-cat-fact`, `template-echo-message`, `template-image-test`, `template-code-review-sampling`, `template-madlibs-elicitation`) replaced verbose `McpError` throws with plain `Error` or Zod `.parse()` — the framework auto-classifies errors. Removed `McpError`/`JsonRpcErrorCode` imports from examples that no longer need them.
+- **`template-cat-fact`**: Replaced manual HTTP status checking and `safeParse` with direct `.parse()` — framework catches both fetch failures and `ZodError`.
+- **`template-image-test`**: Removed local `arrayBufferToBase64` helper — now imported from `@cyanheads/mcp-ts-core/utils`. Removed manual HTTP error handling.
+- **`CLAUDE.md`**: Exports table condensed to reflect unified `./utils` and `./services` subpaths. Error handling guidance rewritten — "Logic throws, framework catches" replaces "Logic throws, handlers catch." New section explains plain `Error` as default, `McpError` as opt-in for precision. Code examples updated throughout.
+- **`README.md`**: Quick start rewritten to lead with `bunx init` scaffolding workflow. Simplified tool/resource examples. Import examples updated.
+- **`src/utils/formatting/markdownBuilder.ts`**: JSDoc import paths updated.
+- **`src/config/index.ts`**: Export ordering normalized.
+- **`biome.json`**: Schema version bumped to 2.4.7.
+- **Docs** (`core-extraction/02-public-api.md`, `04-dependencies.md`, `05-agent-dx.md`, `07-migration.md`, `11-consumer-workflow.md`, `12-developer-api.md`): All import paths updated from granular `utils/*` to unified `utils`.
+- **Skills** (`add-export`, `add-resource`, `api-context`, `api-errors`, `api-utils`, `api-workers`, `migrate-mcp-ts-template` and references): All import paths and subpath references updated.
+
+### Updated
+
+- `hono` 4.12.7 → 4.12.8, `@biomejs/biome` 2.4.6 → 2.4.7, `@cloudflare/workers-types` 4.20260312.1 → 4.20260313.1, `@types/node` 25.4.0 → 25.5.0, `@vitest/coverage-istanbul` 4.0.18 → 4.1.0, `@vitest/ui` 4.0.18 → 4.1.0, `vite` 7.3.1 → 8.0.0, `vitest` 4.0.18 → 4.1.0. Peer dep `hono` minimum bumped from 4.12.5 → 4.12.7.
+
+---
+
 ## [0.1.0-beta.16] - 2026-03-12
 
 Improves scaffolding DX: auto-generates `.gitignore`, streamlines post-init guidance, and updates template agent protocol files to reflect current project structure.

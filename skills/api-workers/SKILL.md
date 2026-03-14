@@ -99,7 +99,7 @@ Pass `MyBindings` as a type parameter where the framework accepts a generic env 
 ### `runtimeCaps` feature detection
 
 ```ts
-import { runtimeCaps } from '@cyanheads/mcp-ts-core/utils/runtime';
+import { runtimeCaps } from '@cyanheads/mcp-ts-core/utils';
 
 if (runtimeCaps.isWorkerLike) {
   // Workers-specific path

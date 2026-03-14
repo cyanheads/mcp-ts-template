@@ -7,21 +7,10 @@
 import { z } from 'zod';
 
 import { tool } from '@cyanheads/mcp-ts-core';
-import { JsonRpcErrorCode, McpError } from '@cyanheads/mcp-ts-core/errors';
-import { fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils/network';
+import { arrayBufferToBase64, fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils';
 
 const CAT_API_URL = 'https://cataas.com/cat';
 const API_TIMEOUT_MS = 5000;
-
-/** Convert an ArrayBuffer to a base64 string. */
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]!);
-  }
-  return btoa(binary);
-}
 
 const InputSchema = z.object({
   trigger: z
@@ -56,24 +45,9 @@ export const imageTestTool = tool('template_image_test', {
       signal: ctx.signal,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => undefined);
-      throw new McpError(
-        JsonRpcErrorCode.ServiceUnavailable,
-        `Image API request failed: ${response.status} ${response.statusText}`,
-        { requestId: ctx.requestId, httpStatusCode: response.status, responseBody: errorText },
-      );
-    }
-
     const arrayBuf = await response.arrayBuffer();
     if (arrayBuf.byteLength === 0) {
-      throw new McpError(
-        JsonRpcErrorCode.ServiceUnavailable,
-        'Image API returned an empty payload.',
-        {
-          requestId: ctx.requestId,
-        },
-      );
+      throw new Error('Image API returned an empty payload.');
     }
 
     const mimeType = response.headers.get('content-type') || 'image/jpeg';

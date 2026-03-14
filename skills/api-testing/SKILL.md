@@ -104,7 +104,6 @@ expect(log.calls.some(c => c.level === 'info' && c.msg.includes('Processing'))).
 // src/mcp-server/tools/definitions/my-tool.tool.test.ts
 import { describe, expect, it, vi } from 'vitest';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
-import { McpError } from '@cyanheads/mcp-ts-core/errors';
 import { myTool } from '@/mcp-server/tools/definitions/my-tool.tool.js';
 
 describe('myTool', () => {
@@ -115,10 +114,10 @@ describe('myTool', () => {
     expect(result.result).toBe('Found: hello');
   });
 
-  it('throws McpError on invalid state', async () => {
+  it('throws on invalid state', async () => {
     const ctx = createMockContext();
     const input = myTool.input.parse({ query: 'TRIGGER_ERROR' });
-    await expect(myTool.handler(input, ctx)).rejects.toThrow(McpError);
+    await expect(myTool.handler(input, ctx)).rejects.toThrow();
   });
 
   it('formats response correctly', () => {
@@ -133,7 +132,7 @@ Key points:
 
 - Parse input through `myTool.input.parse(...)` — validates against the Zod schema and produces the typed input the handler expects.
 - Call `myTool.handler(input, ctx)` directly — not through the MCP SDK or any framework wrapper.
-- Assert on the return value for happy paths; use `.rejects.toThrow(McpError)` for error paths.
+- Assert on the return value for happy paths; use `.rejects.toThrow()` for error paths.
 - Test `format` separately if the tool defines one — it is a pure function and needs no `ctx`.
 
 ---
