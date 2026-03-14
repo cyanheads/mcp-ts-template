@@ -25,6 +25,10 @@ type PackageManifest = {
 
 const packageManifest = packageJson as PackageManifest;
 
+/** Framework identity — sourced from the package's own package.json. */
+export const FRAMEWORK_NAME = '@cyanheads/mcp-ts-core';
+export const FRAMEWORK_VERSION = packageManifest.version ?? '0.0.0';
+
 // Suppress dotenv's noisy initial log message as suggested by its output.
 dotenv.config({ quiet: true });
 

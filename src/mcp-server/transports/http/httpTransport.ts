@@ -15,13 +15,12 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-
-import { config } from '@/config/index.js';
+import { config, FRAMEWORK_NAME, FRAMEWORK_VERSION } from '@/config/index.js';
 import { createAuthStrategy } from '@/mcp-server/transports/auth/authFactory.js';
 import { createAuthMiddleware } from '@/mcp-server/transports/auth/authMiddleware.js';
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
-import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
+import type { DefinitionCounts, HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 import { protectedResourceMetadataHandler } from '@/mcp-server/transports/http/protectedResourceMetadata.js';
 import { generateSecureSessionId } from '@/mcp-server/transports/http/sessionIdUtils.js';
 import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
@@ -61,6 +60,7 @@ class McpSessionTransport extends StreamableHTTPTransport {
 export async function createHttpApp<TBindings extends object = HonoNodeBindings>(
   serverFactory: () => Promise<McpServer>,
   parentContext: RequestContext,
+  definitionCounts: DefinitionCounts,
 ): Promise<{ app: Hono<{ Bindings: TBindings }>; sessionStore: SessionStore | null }> {
   const app = new Hono<{ Bindings: TBindings }>();
   const transportContext = {
@@ -177,6 +177,19 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
         environment: config.environment,
         transport: config.mcpTransportType,
         sessionMode: config.mcpSessionMode,
+      },
+      capabilities: {
+        logging: true,
+        prompts: definitionCounts.prompts > 0,
+        resources: definitionCounts.resources > 0,
+        tools: definitionCounts.tools > 0,
+      },
+      framework: {
+        name: FRAMEWORK_NAME,
+        version: FRAMEWORK_VERSION,
+      },
+      auth: {
+        mode: config.mcpAuthMode,
       },
     });
   });
@@ -462,6 +475,7 @@ export interface HttpTransportHandle {
 export async function startHttpTransport(
   serverFactory: () => Promise<McpServer>,
   parentContext: RequestContext,
+  definitionCounts: DefinitionCounts,
 ): Promise<HttpTransportHandle> {
   const transportContext = {
     ...parentContext,
@@ -469,7 +483,11 @@ export async function startHttpTransport(
   };
   logger.info('Starting HTTP transport.', transportContext);
 
-  const { app, sessionStore } = await createHttpApp(serverFactory, transportContext);
+  const { app, sessionStore } = await createHttpApp(
+    serverFactory,
+    transportContext,
+    definitionCounts,
+  );
 
   const server = await startHttpServerWithRetry(
     app,

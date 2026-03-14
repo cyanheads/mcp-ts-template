@@ -102,6 +102,7 @@ vi.mock('@/mcp-server/transports/http/httpErrorHandler.js', () => ({
 
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { defaultDefinitionCounts as defaultCounts } from '../../../fixtures/index.js';
 
 // ---------------------------------------------------------------------------
 // Test suite
@@ -129,7 +130,11 @@ describe('HTTP Transport Integration', () => {
   });
 
   test('GET /healthz returns 200 with status ok', async () => {
-    const { app } = await createHttpApp(mockServerFactory as () => Promise<McpServer>, mockContext);
+    const { app } = await createHttpApp(
+      mockServerFactory as () => Promise<McpServer>,
+      mockContext,
+      defaultCounts,
+    );
 
     const res = await app.request('/healthz');
 
@@ -139,7 +144,11 @@ describe('HTTP Transport Integration', () => {
   });
 
   test('GET /healthz includes CORS headers', async () => {
-    const { app } = await createHttpApp(mockServerFactory as () => Promise<McpServer>, mockContext);
+    const { app } = await createHttpApp(
+      mockServerFactory as () => Promise<McpServer>,
+      mockContext,
+      defaultCounts,
+    );
 
     const req = new Request('http://localhost/healthz', {
       method: 'GET',
@@ -153,7 +162,11 @@ describe('HTTP Transport Integration', () => {
   });
 
   test('unknown routes return 404', async () => {
-    const { app } = await createHttpApp(mockServerFactory as () => Promise<McpServer>, mockContext);
+    const { app } = await createHttpApp(
+      mockServerFactory as () => Promise<McpServer>,
+      mockContext,
+      defaultCounts,
+    );
 
     const res = await app.request('/nonexistent');
 
@@ -161,7 +174,11 @@ describe('HTTP Transport Integration', () => {
   });
 
   test('OPTIONS preflight returns CORS headers', async () => {
-    const { app } = await createHttpApp(mockServerFactory as () => Promise<McpServer>, mockContext);
+    const { app } = await createHttpApp(
+      mockServerFactory as () => Promise<McpServer>,
+      mockContext,
+      defaultCounts,
+    );
 
     const req = new Request('http://localhost/mcp', {
       method: 'OPTIONS',

@@ -10,6 +10,7 @@ import { config } from '@/config/index.js';
 import type { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
 import { logger } from '@/utils/internal/logger.js';
+import { defaultDefinitionCounts as defaultCounts } from '../../fixtures/index.js';
 
 // Mock the transport modules
 vi.mock('@/mcp-server/transports/http/httpTransport.js', () => ({
@@ -54,13 +55,18 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
+        defaultCounts,
       );
 
       await manager.start();
 
       const { startHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
       expect(startHttpTransport).toHaveBeenCalledTimes(1);
-      expect(startHttpTransport).toHaveBeenCalledWith(mockCreateMcpServer, expect.any(Object));
+      expect(startHttpTransport).toHaveBeenCalledWith(
+        mockCreateMcpServer,
+        expect.any(Object),
+        defaultCounts,
+      );
     });
 
     it('should start stdio transport when configured', async () => {
@@ -69,6 +75,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
+        defaultCounts,
       );
 
       await manager.start();
@@ -86,6 +93,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
+        defaultCounts,
       );
 
       await expect(manager.start()).rejects.toThrow(
@@ -99,6 +107,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
+        defaultCounts,
       );
 
       await manager.start();
@@ -111,6 +120,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
+        defaultCounts,
       );
 
       await manager.start();
@@ -119,7 +129,13 @@ describe('TransportManager', () => {
     });
 
     it('should store server instance after successful start', async () => {
-      const manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
+      const manager = new TransportManager(
+        config,
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+        defaultCounts,
+      );
       await manager.start();
 
       const server = manager.getServer();
@@ -135,6 +151,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
+        defaultCounts,
       );
       await manager.start();
 
@@ -152,6 +169,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
+        defaultCounts,
       );
       await manager.start();
 
@@ -169,13 +187,20 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
+        defaultCounts,
       );
 
       await expect(freshManager.stop('SIGTERM')).resolves.toBeUndefined();
     });
 
     it('should pass signal to stop functions', async () => {
-      const manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
+      const manager = new TransportManager(
+        config,
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+        defaultCounts,
+      );
       await manager.start();
       await manager.stop('SIGINT');
 
@@ -191,13 +216,20 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
+        defaultCounts,
       );
 
       expect(freshManager.getServer()).toBeNull();
     });
 
     it('should return server instance after start', async () => {
-      const manager = new TransportManager(config, logger, mockCreateMcpServer, mockTaskManager);
+      const manager = new TransportManager(
+        config,
+        logger,
+        mockCreateMcpServer,
+        mockTaskManager,
+        defaultCounts,
+      );
       await manager.start();
 
       const server = manager.getServer();

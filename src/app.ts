@@ -19,6 +19,7 @@ import { createMcpServerInstance } from '@/mcp-server/server.js';
 import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import type { AnyToolDef } from '@/mcp-server/tools/tool-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
+import type { DefinitionCounts } from '@/mcp-server/transports/http/httpTypes.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
 import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
@@ -80,6 +81,7 @@ export interface ServerHandle {
 export interface ComposedApp {
   coreServices: CoreServices;
   createServer: () => Promise<McpServer>;
+  definitionCounts: DefinitionCounts;
 }
 
 /**
@@ -185,7 +187,15 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
       toolRegistry,
     });
 
-  return { coreServices, createServer };
+  return {
+    coreServices,
+    createServer,
+    definitionCounts: {
+      prompts: prompts.length,
+      resources: resources.length,
+      tools: tools.length,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -228,7 +238,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   ]);
 
   // --- Compose services (handles name/version overrides + resetConfig) ---
-  const { coreServices, createServer } = await composeServices(options);
+  const { coreServices, createServer, definitionCounts } = await composeServices(options);
 
   // --- Initialize logger (after composeServices so config reflects overrides) ---
   await logger.initialize(config.logLevel as McpLogLevel, config.mcpTransportType);
@@ -241,7 +251,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
 
   // --- Transport ---
   const taskManager = new TaskManager(config, coreServices.storage);
-  const transportManager = new TransportManager(config, logger, createServer, taskManager);
+  const transportManager = new TransportManager(
+    config,
+    logger,
+    createServer,
+    taskManager,
+    definitionCounts,
+  );
 
   // --- Startup context ---
   const startupContext = requestContextService.createRequestContext({

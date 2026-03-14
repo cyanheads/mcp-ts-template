@@ -15,3 +15,10 @@ export type HonoNodeBindings = {
   incoming: IncomingMessage;
   outgoing: ServerResponse;
 };
+
+/** Counts of registered MCP definitions, exposed via GET /mcp. */
+export interface DefinitionCounts {
+  prompts: number;
+  resources: number;
+  tools: number;
+}

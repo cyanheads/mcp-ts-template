@@ -7,6 +7,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { defaultDefinitionCounts as defaultCounts } from '../../../fixtures/index.js';
 
 // Mock dependencies — factory is hoisted, so all values must be inline.
 vi.mock('@/config/index.js', () => ({
@@ -92,6 +93,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       expect(app).toBeDefined();
@@ -105,6 +107,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       // Make an OPTIONS request to test CORS
@@ -125,6 +128,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       const request = new Request('http://localhost:3000/healthz', {
@@ -142,6 +146,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       const request = new Request('http://localhost:3000/mcp', {
@@ -167,6 +172,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       const request = new Request('http://localhost:3000/mcp', {
@@ -191,6 +197,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       const request = new Request('http://localhost:3000/.well-known/oauth-protected-resource', {
@@ -210,6 +217,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       const request = new Request('http://localhost:3000/mcp', {
@@ -230,6 +238,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       const request = new Request('http://localhost:3000/mcp', {
@@ -248,6 +257,7 @@ describe('HTTP Transport', () => {
         const { app, sessionStore } = await createHttpApp(
           () => Promise.resolve(mockMcpServer as McpServer),
           mockContext,
+          defaultCounts,
         );
 
         // Seed session
@@ -274,6 +284,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       const request = new Request('http://localhost:3000/mcp', {
@@ -300,6 +311,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       const request = new Request('http://localhost:3000/mcp', {
@@ -333,6 +345,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       const request = new Request('http://localhost:3000/mcp', {
@@ -352,6 +365,7 @@ describe('HTTP Transport', () => {
         const { app } = await createHttpApp(
           () => Promise.resolve(mockMcpServer as McpServer),
           mockContext,
+          defaultCounts,
         );
 
         const request = new Request('http://localhost:3000/mcp', {
@@ -373,6 +387,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       const request = new Request('http://localhost:3000/mcp', {
@@ -400,6 +415,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       const request = new Request('http://localhost:3000/mcp', {
@@ -433,6 +449,7 @@ describe('HTTP Transport', () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       // Simulate an error by accessing a non-existent route with proper method
@@ -453,6 +470,7 @@ describe('HTTP Transport', () => {
         const { sessionStore } = await createHttpApp(
           () => Promise.resolve(mockMcpServer as McpServer),
           mockContext,
+          defaultCounts,
         );
 
         expect(sessionStore).not.toBeNull();
@@ -465,6 +483,7 @@ describe('HTTP Transport', () => {
       const { sessionStore } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),
         mockContext,
+        defaultCounts,
       );
 
       expect(sessionStore).toBeNull();
@@ -480,6 +499,7 @@ describe('HTTP Transport', () => {
         const { app, sessionStore } = await createHttpApp(
           () => Promise.resolve(mockServer),
           mockContext,
+          defaultCounts,
         );
 
         const request = new Request('http://localhost:3000/mcp', {
@@ -522,7 +542,11 @@ describe('HTTP Transport', () => {
         connect: vi.fn().mockResolvedValue(undefined),
       } as unknown as McpServer;
 
-      const { app } = await createHttpApp(() => Promise.resolve(mockServer), mockContext);
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockServer),
+        mockContext,
+        defaultCounts,
+      );
 
       const request = new Request('http://localhost:3000/mcp', {
         method: 'POST',
@@ -558,6 +582,7 @@ describe('HTTP Transport', () => {
         const { app, sessionStore } = await createHttpApp(
           () => Promise.resolve(mockServer),
           mockContext,
+          defaultCounts,
         );
 
         // Send a request with an unsupported protocol version — should fail
@@ -592,6 +617,7 @@ describe('HTTP Transport', () => {
         const { app, sessionStore } = await createHttpApp(
           () => Promise.resolve(mockMcpServer as McpServer),
           mockContext,
+          defaultCounts,
         );
 
         // Manually seed a session in the store
