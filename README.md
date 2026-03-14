@@ -18,22 +18,18 @@
 `@cyanheads/mcp-ts-core` is the infrastructure layer for TypeScript MCP servers. Install it as a dependency — don't fork it. You write tools, resources, and prompts; the framework handles transports, auth, storage, config, logging, telemetry, and lifecycle.
 
 ```ts
-import { createApp, tool } from '@cyanheads/mcp-ts-core';
-import { z } from 'zod';
+import { createApp, tool, z } from '@cyanheads/mcp-ts-core';
 
 const greet = tool('greet', {
   description: 'Greet someone by name.',
   input: z.object({ name: z.string().describe('Name to greet') }),
-  handler: async (input, ctx) => {
-    ctx.log.info('Greeting', { name: input.name });
-    return { message: `Hello, ${input.name}!` };
-  },
+  handler: async (input) => ({ message: `Hello, ${input.name}!` }),
 });
 
 await createApp({ tools: [greet] });
 ```
 
-That's a complete MCP server. `createApp()` handles config parsing, logger init, transport startup, signal handlers, and graceful shutdown.
+That's a complete MCP server. Every tool call is automatically logged with duration, payload sizes, memory usage, and request correlation — no instrumentation code needed. `createApp()` handles config parsing, logger init, transport startup, signal handlers, and graceful shutdown.
 
 ## Features
 
@@ -63,8 +59,7 @@ That gives you a working project with `CLAUDE.md`, skills, config files, and a s
 Here's what tool definitions look like:
 
 ```ts
-import { z } from 'zod';
-import { tool } from '@cyanheads/mcp-ts-core';
+import { tool, z } from '@cyanheads/mcp-ts-core';
 
 export const search = tool('search', {
   description: 'Search for items by query.',
@@ -72,8 +67,7 @@ export const search = tool('search', {
     query: z.string().describe('Search query'),
     limit: z.number().default(10).describe('Max results'),
   }),
-  async handler(input, ctx) {
-    ctx.log.info('Searching', { query: input.query });
+  async handler(input) {
     const results = await doSearch(input.query, input.limit);
     return { items: results };
   },
@@ -83,8 +77,7 @@ export const search = tool('search', {
 And resources:
 
 ```ts
-import { z } from 'zod';
-import { resource } from '@cyanheads/mcp-ts-core';
+import { resource, z } from '@cyanheads/mcp-ts-core';
 
 export const itemData = resource('items://{itemId}', {
   description: 'Retrieve item data by ID.',

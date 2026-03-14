@@ -35,8 +35,7 @@ For the full `tool()` API, `Context` interface, and error codes, read:
  * @module mcp-server/tools/definitions/{{TOOL_NAME}}
  */
 
-import { z } from 'zod';
-import { tool } from '@cyanheads/mcp-ts-core';
+import { tool, z } from '@cyanheads/mcp-ts-core';
 
 export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
   description: '{{TOOL_DESCRIPTION}}',

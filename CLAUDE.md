@@ -24,7 +24,7 @@
 
 | Subpath | Key Exports | Purpose |
 |:--------|:------------|:--------|
-| `@cyanheads/mcp-ts-core` | `createApp`, `tool`, `resource`, `prompt`, `Context` | Main entry point |
+| `@cyanheads/mcp-ts-core` | `createApp`, `tool`, `resource`, `prompt`, `Context`, `z` | Main entry point |
 | `/worker` | `createWorkerHandler`, `CloudflareBindings` | Cloudflare Workers entry |
 | `/tools` | `ToolDefinition`, `AnyToolDefinition`, `ToolAnnotations` | Tool definition types |
 | `/resources` | `ResourceDefinition`, `AnyResourceDefinition` | Resource definition types |
@@ -44,8 +44,8 @@ All subpaths prefixed with `@cyanheads/mcp-ts-core`. **Tier 3 deps** (parsers, s
 ### Import conventions
 
 ```ts
-// Framework (from node_modules)
-import { tool } from '@cyanheads/mcp-ts-core';
+// Framework (from node_modules) — z is re-exported, no separate zod import needed
+import { tool, z } from '@cyanheads/mcp-ts-core';
 import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
 // Server's own code (via path alias)
@@ -160,8 +160,7 @@ src/
 ## Adding a Tool
 
 ```ts
-import { z } from 'zod';
-import { tool } from '@cyanheads/mcp-ts-core';
+import { tool, z } from '@cyanheads/mcp-ts-core';
 
 export const myTool = tool('my_tool', {
   description: 'Does something useful.',
@@ -215,8 +214,7 @@ With `task: true`: creates task → returns task ID immediately → runs handler
 ## Adding a Resource
 
 ```ts
-import { z } from 'zod';
-import { resource } from '@cyanheads/mcp-ts-core';
+import { resource, z } from '@cyanheads/mcp-ts-core';
 
 export const myResource = resource('myscheme://{itemId}/data', {
   description: 'Retrieve item data by ID.',
@@ -239,8 +237,7 @@ Handler receives `(params, ctx)` — URI on `ctx.uri` if needed. Large lists mus
 ## Adding a Prompt
 
 ```ts
-import { z } from 'zod';
-import { prompt } from '@cyanheads/mcp-ts-core';
+import { prompt, z } from '@cyanheads/mcp-ts-core';
 
 export const codeReview = prompt('code_review', {
   description: 'Review code for security and best practices.',

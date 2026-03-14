@@ -351,3 +351,4 @@ export type {
   ToolDefinition,
 } from '@/mcp-server/tools/utils/toolDefinition.js';
 export { tool } from '@/mcp-server/tools/utils/toolDefinition.js';
+export { z } from 'zod';

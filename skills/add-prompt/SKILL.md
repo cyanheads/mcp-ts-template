@@ -34,8 +34,7 @@ For the full `prompt()` API, read:
  * @module mcp-server/prompts/definitions/{{PROMPT_NAME}}
  */
 
-import { z } from 'zod';
-import { prompt } from '@cyanheads/mcp-ts-core';
+import { prompt, z } from '@cyanheads/mcp-ts-core';
 
 export const {{PROMPT_EXPORT}} = prompt('{{prompt_name}}', {
   description: '{{PROMPT_DESCRIPTION}}',

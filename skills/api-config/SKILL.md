@@ -45,7 +45,7 @@ Use the lazy init/accessor pattern — do not parse `process.env` at module top-
 
 ```ts
 // src/config/server-config.ts
-import { z } from 'zod';
+import { z } from '@cyanheads/mcp-ts-core';
 
 const ServerConfigSchema = z.object({
   myApiKey: z.string().describe('External API key'),

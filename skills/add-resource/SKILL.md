@@ -34,8 +34,7 @@ For the full `resource()` API, pagination utilities, and `Context` interface, re
  * @module mcp-server/resources/definitions/{{RESOURCE_NAME}}
  */
 
-import { z } from 'zod';
-import { resource } from '@cyanheads/mcp-ts-core';
+import { resource, z } from '@cyanheads/mcp-ts-core';
 
 export const {{RESOURCE_EXPORT}} = resource('{{scheme}}://{{{paramName}}}/data', {
   description: '{{RESOURCE_DESCRIPTION}}',
