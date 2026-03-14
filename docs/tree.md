@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-03-12 11:08:17
+Generated on: 2026-03-14 19:21:41
 
 ```
 mcp-ts-template/
@@ -128,8 +128,12 @@ mcp-ts-template/
 │   │   └── SKILL.md
 │   ├── setup/
 │   │   └── SKILL.md
+│   ├── walkthrough-init/
+│   │   └── SKILL.md
 │   └── README.md
 ├── src/
+│   ├── cli/
+│   │   └── init.ts
 │   ├── config/
 │   │   └── index.ts
 │   ├── mcp-server/
@@ -164,8 +168,7 @@ mcp-ts-template/
 │   │   │   │   │   ├── authTypes.ts
 │   │   │   │   │   ├── authUtils.ts
 │   │   │   │   │   ├── checkScopes.ts
-│   │   │   │   │   ├── claimParser.ts
-│   │   │   │   │   └── withAuth.ts
+│   │   │   │   │   └── claimParser.ts
 │   │   │   │   ├── strategies/
 │   │   │   │   │   ├── authStrategy.ts
 │   │   │   │   │   ├── jwtStrategy.ts
@@ -206,6 +209,7 @@ mcp-ts-template/
 │   │   │   │   ├── elevenlabs.provider.ts
 │   │   │   │   └── whisper.provider.ts
 │   │   │   └── types.ts
+│   │   ├── index.ts
 │   │   └── README.md
 │   ├── storage/
 │   │   ├── core/
@@ -279,9 +283,10 @@ mcp-ts-template/
 │   │   │   ├── metrics.ts
 │   │   │   ├── semconv.ts
 │   │   │   └── trace.ts
-│   │   └── types/
-│   │       ├── guards.ts
-│   │       └── index.ts
+│   │   ├── types/
+│   │   │   ├── guards.ts
+│   │   │   └── index.ts
+│   │   └── index.ts
 │   ├── app.ts
 │   ├── context.ts
 │   ├── index.ts
@@ -291,20 +296,21 @@ mcp-ts-template/
 │   │   ├── mcp-server/
 │   │   │   ├── prompts/
 │   │   │   │   └── definitions/
-│   │   │   │       └── index.ts
+│   │   │   │       └── echo.prompt.ts
 │   │   │   ├── resources/
 │   │   │   │   └── definitions/
-│   │   │   │       └── index.ts
+│   │   │   │       └── echo.resource.ts
 │   │   │   └── tools/
 │   │   │       └── definitions/
-│   │   │           └── index.ts
+│   │   │           └── echo.tool.ts
 │   │   └── index.ts
+│   ├── _.gitignore
+│   ├── _tsconfig.json
 │   ├── .env.example
 │   ├── AGENTS.md
 │   ├── biome.template.json
 │   ├── CLAUDE.md
 │   ├── package.json
-│   ├── tsconfig.json
 │   └── vitest.config.ts
 ├── tests/
 │   ├── config/
@@ -351,18 +357,15 @@ mcp-ts-template/
 │   │   │       └── taskToolDefinition.test.ts
 │   │   ├── tools/
 │   │   │   ├── utils/
-│   │   │   │   ├── toolDefinition.test.ts
 │   │   │   │   └── toolHandlerFactory.test.ts
-│   │   │   ├── tool-registration.test.ts
-│   │   │   └── toolHandlerFactory.test.ts
+│   │   │   └── tool-registration.test.ts
 │   │   ├── transports/
 │   │   │   ├── auth/
 │   │   │   │   ├── lib/
 │   │   │   │   │   ├── authContext.test.ts
 │   │   │   │   │   ├── authTypes.test.ts
 │   │   │   │   │   ├── authUtils.test.ts
-│   │   │   │   │   ├── claimParser.test.ts
-│   │   │   │   │   └── withAuth.test.ts
+│   │   │   │   │   └── claimParser.test.ts
 │   │   │   │   ├── strategies/
 │   │   │   │   │   ├── authStrategy.test.ts
 │   │   │   │   │   ├── jwtStrategy.test.ts
@@ -424,6 +427,8 @@ mcp-ts-template/
 │   │   │       └── supabaseProvider.test.ts
 │   │   ├── storageProviderCompliance.test.ts
 │   │   └── StorageService.test.ts
+│   ├── testing/
+│   │   └── mockContextFidelity.test.ts
 │   ├── types-global/
 │   │   └── errors.test.ts
 │   ├── utils/
@@ -478,6 +483,7 @@ mcp-ts-template/
 │   │   │   └── trace.test.ts
 │   │   └── types/
 │   │       └── guards.test.ts
+│   ├── context.test.ts
 │   ├── setup.ts
 │   └── worker.test.ts
 ├── .dockerignore
