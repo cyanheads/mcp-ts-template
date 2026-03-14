@@ -97,6 +97,20 @@ function createFakeStorage() {
       }
       return result;
     }),
+    setMany: vi.fn(async (entries: Map<string, unknown>, ctx: RequestContext) => {
+      const ts = tenantStore(ctx.tenantId!);
+      for (const [key, value] of entries) {
+        ts.set(key, value);
+      }
+    }),
+    deleteMany: vi.fn(async (keys: string[], ctx: RequestContext) => {
+      const ts = tenantStore(ctx.tenantId!);
+      let count = 0;
+      for (const key of keys) {
+        if (ts.delete(key)) count++;
+      }
+      return count;
+    }),
   };
 }
 
@@ -306,6 +320,73 @@ describe('createContext', () => {
 
       expect(await ctxA.state.get('shared-key')).toBe('a-value');
       expect(await ctxB.state.get('shared-key')).toBe('b-value');
+    });
+
+    it('should accept and return non-string values (generic get/set)', async () => {
+      const storage = createFakeStorage();
+      const ctx = createContext(
+        makeDeps({
+          appContext: makeRequestContext({ tenantId: 'tenant-a' }),
+          storage: storage as any,
+        }),
+      );
+
+      const data = { count: 42, tags: ['a', 'b'] };
+      await ctx.state.set('obj', data);
+      const result = await ctx.state.get('obj');
+      expect(result).toEqual(data);
+    });
+
+    it('should support getMany for batch reads', async () => {
+      const storage = createFakeStorage();
+      const ctx = createContext(
+        makeDeps({
+          appContext: makeRequestContext({ tenantId: 'tenant-a' }),
+          storage: storage as any,
+        }),
+      );
+
+      await ctx.state.set('k1', 'v1');
+      await ctx.state.set('k2', 'v2');
+      const results = await ctx.state.getMany(['k1', 'k2', 'k3']);
+      expect(results.get('k1')).toBe('v1');
+      expect(results.get('k2')).toBe('v2');
+      expect(results.has('k3')).toBe(false);
+    });
+
+    it('should support setMany for batch writes', async () => {
+      const storage = createFakeStorage();
+      const ctx = createContext(
+        makeDeps({
+          appContext: makeRequestContext({ tenantId: 'tenant-a' }),
+          storage: storage as any,
+        }),
+      );
+
+      await ctx.state.setMany(
+        new Map([
+          ['a', 1],
+          ['b', 2],
+        ]),
+      );
+      expect(await ctx.state.get('a')).toBe(1);
+      expect(await ctx.state.get('b')).toBe(2);
+    });
+
+    it('should support deleteMany for batch deletes', async () => {
+      const storage = createFakeStorage();
+      const ctx = createContext(
+        makeDeps({
+          appContext: makeRequestContext({ tenantId: 'tenant-a' }),
+          storage: storage as any,
+        }),
+      );
+
+      await ctx.state.set('x', 1);
+      await ctx.state.set('y', 2);
+      const count = await ctx.state.deleteMany(['x', 'y', 'z']);
+      expect(count).toBe(2);
+      expect(await ctx.state.get('x')).toBeNull();
     });
 
     it('should work with defaulted tenantId ("default") in stdio mode', async () => {

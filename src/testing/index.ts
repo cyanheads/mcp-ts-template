@@ -10,7 +10,7 @@ import type {
   ElicitResult,
   SamplingMessage,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { z } from 'zod';
+import type { ZodType, z } from 'zod';
 import type {
   AuthContext,
   Context,
@@ -69,7 +69,7 @@ function createMockLogger(): ContextLogger & {
 }
 
 function createMockState(tenantId?: string): ContextState {
-  const store = new Map<string, string>();
+  const store = new Map<string, unknown>();
 
   const requireTenant = () => {
     if (!tenantId) {
@@ -78,9 +78,11 @@ function createMockState(tenantId?: string): ContextState {
   };
 
   return {
-    get(key) {
+    get<T = unknown>(key: string, schema?: ZodType<T>) {
       requireTenant();
-      return Promise.resolve(store.get(key) ?? null);
+      const value = store.get(key);
+      if (value === undefined) return Promise.resolve(null);
+      return Promise.resolve(schema ? schema.parse(value) : (value as T));
     },
     set(key, value) {
       requireTenant();
@@ -92,9 +94,32 @@ function createMockState(tenantId?: string): ContextState {
       store.delete(key);
       return Promise.resolve();
     },
+    deleteMany(keys) {
+      requireTenant();
+      let count = 0;
+      for (const key of keys) {
+        if (store.delete(key)) count++;
+      }
+      return Promise.resolve(count);
+    },
+    getMany<T = unknown>(keys: string[]) {
+      requireTenant();
+      const result = new Map<string, T>();
+      for (const key of keys) {
+        if (store.has(key)) result.set(key, store.get(key) as T);
+      }
+      return Promise.resolve(result);
+    },
+    setMany(entries) {
+      requireTenant();
+      for (const [key, value] of entries) {
+        store.set(key, value);
+      }
+      return Promise.resolve();
+    },
     list(prefix) {
       requireTenant();
-      const items: Array<{ key: string; value: string }> = [];
+      const items: Array<{ key: string; value: unknown }> = [];
       for (const [key, value] of store) {
         if (!prefix || key.startsWith(prefix)) {
           items.push({ key, value });

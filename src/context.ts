@@ -12,7 +12,7 @@ import type {
   ElicitResult,
   SamplingMessage,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { z } from 'zod';
+import type { ZodType, z } from 'zod';
 
 import type { StorageService } from '@/storage/core/StorageService.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
@@ -43,16 +43,28 @@ export interface ContextLogger {
  * Delegates to StorageService with the request's tenantId.
  */
 export interface ContextState {
+  /** Delete a key. */
   delete(key: string): Promise<void>;
-  get(key: string): Promise<string | null>;
+  /** Delete multiple keys. Returns the number of keys deleted. */
+  deleteMany(keys: string[]): Promise<number>;
+  /** Get a value by key. Returns null if not found. */
+  get<T = unknown>(key: string): Promise<T | null>;
+  /** Get a value by key with runtime Zod validation. Returns null if not found. */
+  get<T>(key: string, schema: ZodType<T>): Promise<T | null>;
+  /** Get multiple values by key. Missing keys are omitted from the result. */
+  getMany<T = unknown>(keys: string[]): Promise<Map<string, T>>;
+  /** List keys by prefix with pagination. */
   list(
     prefix?: string,
     opts?: { cursor?: string; limit?: number },
   ): Promise<{
-    items: Array<{ key: string; value: string }>;
+    items: Array<{ key: string; value: unknown }>;
     cursor?: string;
   }>;
-  set(key: string, value: string, opts?: { ttl?: number }): Promise<void>;
+  /** Store a value. Accepts any serializable value. */
+  set(key: string, value: unknown, opts?: { ttl?: number }): Promise<void>;
+  /** Store multiple values. */
+  setMany(entries: Map<string, unknown>, opts?: { ttl?: number }): Promise<void>;
 }
 
 /**
@@ -234,15 +246,25 @@ function createContextState(storage: StorageService, appContext: RequestContext)
   };
 
   return {
-    async get(key) {
-      const result = await storage.get<string>(key, requireContext());
-      return result ?? null;
+    async get(key: string, schema?: ZodType) {
+      const result = await storage.get<unknown>(key, requireContext());
+      if (result === null || result === undefined) return null;
+      return schema ? schema.parse(result) : result;
     },
     async set(key, value, opts) {
       await storage.set(key, value, requireContext(), opts?.ttl ? { ttl: opts.ttl } : undefined);
     },
     async delete(key) {
       await storage.delete(key, requireContext());
+    },
+    deleteMany(keys) {
+      return storage.deleteMany(keys, requireContext());
+    },
+    getMany(keys) {
+      return storage.getMany(keys, requireContext());
+    },
+    async setMany(entries, opts) {
+      await storage.setMany(entries, requireContext(), opts?.ttl ? { ttl: opts.ttl } : undefined);
     },
     async list(prefix, opts) {
       const ctx = requireContext();
@@ -253,17 +275,14 @@ function createContextState(storage: StorageService, appContext: RequestContext)
 
       // StorageService.list() returns keys only. Fetch values via getMany.
       const keys = result.keys;
-      const items: Array<{ key: string; value: string }> = [];
+      const items: Array<{ key: string; value: unknown }> = [];
 
       if (keys.length > 0) {
         const values = await storage.getMany<unknown>(keys, ctx);
         for (const key of keys) {
           const value = values.get(key);
           if (value !== undefined) {
-            items.push({
-              key,
-              value: typeof value === 'string' ? value : JSON.stringify(value),
-            });
+            items.push({ key, value });
           }
         }
       }
