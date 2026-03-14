@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.26] - 2026-03-14
+
+Version bump and documentation alignment for error handling guidance.
+
+### Changed
+
+- **`package.json`**: Version bump to `0.1.0-beta.26`.
+- **`templates/CLAUDE.md`**: Updated error handling rules to match current framework behavior — plain `Error` and error factories instead of requiring `McpError` directly.
+
+### Removed
+
+- **`CLAUDE.md`**: Removed stale "Extraction status" note referencing completed phases.
+
+---
+
 ## [0.1.0-beta.25] - 2026-03-14
 
 Moves core entry points (`app.ts`, `context.ts`, `worker.ts`) into `src/core/`, establishing the module boundary for the `@cyanheads/mcp-ts-core` package extraction. Removes outdated legacy READMEs and trims deferred phases from the extraction plan.

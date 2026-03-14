@@ -10,7 +10,7 @@
 
 ## Core Rules
 
-- **Logic throws, handlers catch.** Tool/resource handlers are pure — throw `McpError`, no `try/catch`. The framework catches and formats.
+- **Logic throws, framework catches.** Tool/resource handlers are pure — throw on failure, no `try/catch`. Plain `Error` is fine; the framework catches, classifies, and formats. Use error factories (`notFound()`, `validationError()`, etc.) when the error code matters.
 - **Use `ctx.log`** for request-scoped logging. No `console` calls.
 - **Use `ctx.state`** for tenant-scoped storage. Never access persistence directly.
 - **Check `ctx.elicit` / `ctx.sample`** for presence before calling.
@@ -112,7 +112,7 @@ import { getMyService } from '@/services/my-domain/my-service.js';
 - [ ] Zod schemas: all fields have `.describe()`
 - [ ] JSDoc `@fileoverview` + `@module` on every file
 - [ ] `ctx.log` for logging, `ctx.state` for storage
-- [ ] Handlers throw `McpError`, no try/catch
+- [ ] Handlers throw on failure — error factories or plain `Error`, no try/catch
 - [ ] Registered in `src/index.ts` arrays
 - [ ] Tests use `createMockContext()` from `@cyanheads/mcp-ts-core/testing`
 - [ ] `bun run devcheck` passes

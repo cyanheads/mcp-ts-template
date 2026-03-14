@@ -1,11 +1,9 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.0-beta.24
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.0-beta.26
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
-
-> **Extraction status:** Phases 1–4 complete (foundation, builders, skills, templates, examples, tests). Phase 5 (publish `@cyanheads/mcp-ts-core@0.1.0`) not started. See `core-extraction/` for details.
 
 ---
 
