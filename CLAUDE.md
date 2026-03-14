@@ -1,11 +1,11 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.0
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.0-beta.21
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
 
-> **Extraction status:** This document describes the target API for `@cyanheads/mcp-ts-core`. See `core-extraction/` for implementation status and the Phase 3 checklist.
+> **Extraction status:** Phases 1–4 complete (foundation, builders, skills, templates, examples, tests). Phase 5 (publish `@cyanheads/mcp-ts-core@0.1.0`) not started. See `core-extraction/` for details.
 
 ---
 
@@ -30,13 +30,12 @@
 | `/resources` | `ResourceDefinition`, `AnyResourceDefinition` | Resource definition types |
 | `/prompts` | `PromptDefinition` | Prompt definition type |
 | `/tasks` | `TaskToolDefinition`, `isTaskToolDefinition` | Task tool escape hatch |
-| `/context` | `Context`, `ContextLogger`, `ContextState`, `ContextProgress` | Context types |
 | `/errors` | `McpError`, `JsonRpcErrorCode` | Error types and codes |
-| `/config` | `AppConfig`, `parseConfig` | Zod-validated config |
+| `/config` | `AppConfig`, `parseConfig`, `FRAMEWORK_NAME`, `FRAMEWORK_VERSION` | Zod-validated config, framework identity |
 | `/auth` | `checkScopes` | Dynamic scope checking |
 | `/storage` | `StorageService` | Storage abstraction |
 | `/storage/types` | `IStorageProvider` | Provider interface |
-| `/utils` | `markdown`, `fetchWithTimeout`, `extractCursor`, `paginateArray`, `logger`, `ErrorHandler`, `runtimeCaps`, `requestContextService`, parsers, security, scheduling, type guards | All utilities — formatting, parsing, network, pagination, security, scheduling, logging, runtime |
+| `/utils` | formatting, encoding, network, pagination, logging, runtime, telemetry, token counting, parsers†, security†, scheduling† | All utilities (†Tier 3: optional peer deps, async) |
 | `/services` | `OpenRouterProvider`, `SpeechService`, `createSpeechProvider`, `ElevenLabsProvider`, `WhisperProvider`, `GraphService`, provider interfaces and types | LLM, Speech (TTS/STT), Graph services |
 | `/testing` | `createMockContext` | Test helpers |
 
@@ -96,9 +95,11 @@ export default createWorkerHandler({
 });
 ```
 
-Key design: per-request `McpServer` factory (security: SDK GHSA-345p-7cg4-v4c7), env bindings refreshed per-request, `ctx.waitUntil()` for telemetry flush. Requires `compatibility_flags = ["nodejs_compat"]` and `compatibility_date >= "2025-09-01"` in `wrangler.toml`. Only `in-memory`, `cloudflare-r2`, `cloudflare-kv`, `cloudflare-d1` storage providers in Workers.
+Key design: per-request `McpServer` factory (security: SDK GHSA-345p-7cg4-v4c7), env bindings refreshed per-request. OTEL `NodeSDK` unavailable in Workers — no telemetry flush needed. Requires `compatibility_flags = ["nodejs_compat"]` and `compatibility_date >= "2025-09-01"` in `wrangler.toml` (unlocks `node:fs`, `node:http` server, `process.env`). Only `in-memory`, `cloudflare-r2`, `cloudflare-kv`, `cloudflare-d1` storage providers in Workers.
 
 ### Interfaces
+
+`createApp()` returns `Promise<ServerHandle>`. `createWorkerHandler()` returns an `ExportedHandler`.
 
 ```ts
 interface CreateAppOptions {
@@ -180,7 +181,7 @@ export const myTool = tool('my_tool', {
 
 **Steps:** Create `src/mcp-server/tools/definitions/[name].tool.ts` (kebab-case) → use `tool('snake_case', {...})` with Zod `.describe()` on all fields → implement `handler(input, ctx)` (pure, throws on failure) → add `auth`/`format` if needed → register in `definitions/index.ts` → `bun run devcheck` → smoke-test with `dev:stdio`/`dev:http`.
 
-**`format`**: Maps output to `ContentBlock[]`. Omit for JSON stringify default. Additional formatters: `markdown()` (builder), `diffFormatter` (async), `tableFormatter`, `treeFormatter` from `/utils/formatting`.
+**`format`**: Maps output to `ContentBlock[]`. Omit for JSON stringify default. Additional formatters: `markdown()` (builder), `diffFormatter` (async), `tableFormatter`, `treeFormatter` from `/utils`.
 
 ### Task tools
 
@@ -231,7 +232,7 @@ export const myResource = resource('myscheme://{itemId}/data', {
 });
 ```
 
-Handler receives `(params, ctx)` — URI on `ctx.uri` if needed. Large lists must use `extractCursor`/`paginateArray` from `/utils/pagination`. Opaque cursors; invalid → `InvalidParams` (-32602).
+Handler receives `(params, ctx)` — URI on `ctx.uri` if needed. Large lists must use `extractCursor`/`paginateArray` from `/utils`. Opaque cursors; invalid → `InvalidParams` (-32602).
 
 ---
 
@@ -316,8 +317,9 @@ Methods: `debug`, `info`, `notice`, `warning`, `error`. Use `ctx.log` in handler
 ### `ctx.state`
 
 ```ts
-await ctx.state.set('item:123', JSON.stringify(data));
-const value = await ctx.state.get('item:123');       // string | null
+await ctx.state.set('item:123', JSON.stringify(data));          // void
+await ctx.state.set('item:123', JSON.stringify(data), { ttl: 3600 }); // with TTL (seconds)
+const value = await ctx.state.get('item:123');                   // string | null
 await ctx.state.delete('item:123');
 const page = await ctx.state.list('item:', { cursor, limit: 20 }); // { items, cursor? }
 ```
@@ -404,7 +406,13 @@ const myTool = tool('my_tool', {
 });
 ```
 
-Handler factory checks `ctx.auth.scopes` before calling handler. Dynamic: `checkScopes(ctx, ['team:${id}:write'])` from `/auth`.
+Handler factory checks `ctx.auth.scopes` before calling handler. Dynamic scopes via `/auth`:
+
+```ts
+import { checkScopes } from '@cyanheads/mcp-ts-core/auth';
+
+checkScopes(ctx, [`team:${input.teamId}:write`]);
+```
 
 **Modes** (`MCP_AUTH_MODE`): `none` (default) | `jwt` (local secret via `MCP_AUTH_SECRET_KEY`) | `oauth` (JWKS via `OAUTH_ISSUER_URL`, `OAUTH_AUDIENCE`). Claims: `clientId` (cid/client_id), `scopes` (scp/scope), `sub`, `tenantId` (tid). Unprotected endpoints: `/healthz`, `GET /mcp`. CORS: `MCP_ALLOWED_ORIGINS` or `*`. Stdio: no HTTP auth.
 
@@ -434,6 +442,7 @@ const ServerConfigSchema = z.object({
   myApiKey: z.string().describe('External API key'),
   maxResults: z.coerce.number().default(100),
 });
+type ServerConfig = z.infer<typeof ServerConfigSchema>;
 let _config: ServerConfig | undefined;
 export function getServerConfig(): ServerConfig {
   _config ??= ServerConfigSchema.parse({ myApiKey: process.env.MY_API_KEY, maxResults: process.env.MY_MAX_RESULTS });

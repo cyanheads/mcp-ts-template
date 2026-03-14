@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.21] - 2026-03-14
+
+Removes the `./context` subpath export (Context is re-exported from main entry), removes `--dry-run` from the CLI init command, adds `idempotentHint` annotations to example tools, and updates CLAUDE.md and skill docs to reflect current API surface.
+
+### Changed
+
+- **`CLAUDE.md`**: Updated version to 0.1.0-beta.21. Refreshed exports table — removed `/context` row, added `FRAMEWORK_NAME`/`FRAMEWORK_VERSION` to `/config`, updated `/utils` description with Tier 3 notation. Expanded Workers docs (OTEL unavailability, compat flags). Added `ServerHandle`/`ExportedHandler` return type documentation. Expanded dynamic auth scopes example with code block. Added `type ServerConfig` to server config example. Added TTL example to `ctx.state.set`. Minor formatting fixes.
+- **`src/cli/init.ts`**: Removed `--dry-run` flag — init now always writes files. Simplified `copyTemplates`, `copyExternalSkills`, and `printSummary` signatures by removing the `dryRun` parameter.
+- **`examples/mcp-server/tools/definitions/template-async-countdown.tool.ts`**: Added `idempotentHint: false` annotation.
+- **`examples/mcp-server/tools/definitions/template-cat-fact.tool.ts`**: Added `idempotentHint: true` annotation.
+- **`examples/mcp-server/tools/definitions/template-image-test.tool.ts`**: Added `idempotentHint: true` annotation.
+- **`examples/mcp-server/tools/definitions/template-madlibs-elicitation.tool.ts`**: Changed `Context` import from `@cyanheads/mcp-ts-core/context` to `@cyanheads/mcp-ts-core`. Removed unnecessary type cast on elicitation result content.
+- **`skills/api-context/SKILL.md`**: Updated Context import path from `/context` to main entry.
+- **`skills/migrate-mcp-ts-template/SKILL.md`**: Updated context import mapping — removed `/context` alternative.
+
+### Removed
+
+- **`package.json`**: Removed `./context` subpath export (Context type available from main `@cyanheads/mcp-ts-core` entry).
+- **`src/cli/init.ts`**: Removed `--dry-run` CLI flag and all associated branching logic.
+
+---
+
 ## [0.1.0-beta.20] - 2026-03-14
 
 Enriches the `GET /mcp` discovery endpoint with server capability flags, framework identity, and auth mode. Threads definition counts from `composeServices` through the transport layer.

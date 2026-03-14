@@ -37,7 +37,7 @@ These are the actual `@/` import paths used in framework source. Rewrite any tha
 | Old `@/` import | New package import |
 |:----------------|:-------------------|
 | `@/config/index.js` | `@cyanheads/mcp-ts-core/config` |
-| `@/context.js` | `@cyanheads/mcp-ts-core/context` or `@cyanheads/mcp-ts-core` |
+| `@/context.js` | `@cyanheads/mcp-ts-core` |
 | `@/types-global/errors.js` | `@cyanheads/mcp-ts-core/errors` |
 | `@/storage/core/StorageService.js` | `@cyanheads/mcp-ts-core/storage` |
 | `@/storage/core/IStorageProvider.js` | `@cyanheads/mcp-ts-core/storage/types` |

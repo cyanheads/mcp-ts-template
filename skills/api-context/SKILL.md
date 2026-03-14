@@ -20,7 +20,7 @@ Every tool and resource handler receives a single `Context` (`ctx`) argument. It
 ## `Context` Interface
 
 ```ts
-import type { Context } from '@cyanheads/mcp-ts-core/context';
+import type { Context } from '@cyanheads/mcp-ts-core';
 
 interface Context {
   // Identity & tracing
