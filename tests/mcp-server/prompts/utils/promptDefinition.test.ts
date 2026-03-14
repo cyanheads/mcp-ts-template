@@ -63,4 +63,76 @@ describe('prompt() builder', () => {
     const parsed = def.args!.parse({ code: 'const x = 1;' });
     expect(parsed.code).toBe('const x = 1;');
   });
+
+  it('generate produces correct messages without args', async () => {
+    const def = prompt('greeting', {
+      description: 'A greeting prompt',
+      generate: () => [{ role: 'user', content: { type: 'text', text: 'Hello!' } }],
+    });
+
+    const messages = await def.generate({} as Record<string, never>);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.role).toBe('user');
+    expect(messages[0]!.content).toEqual({ type: 'text', text: 'Hello!' });
+  });
+
+  it('generate produces messages from args', async () => {
+    const def = prompt('review', {
+      description: 'Code review',
+      args: z.object({
+        code: z.string().describe('Code'),
+        language: z.string().optional().describe('Language'),
+      }),
+      generate: (args) => [
+        {
+          role: 'user',
+          content: {
+            type: 'text',
+            text: `Review this ${args.language ?? 'unknown'} code:\n${args.code}`,
+          },
+        },
+      ],
+    });
+
+    const messages = await def.generate({ code: 'fn main() {}', language: 'rust' });
+    expect(messages).toHaveLength(1);
+    expect((messages[0]!.content as { text: string }).text).toContain('rust');
+    expect((messages[0]!.content as { text: string }).text).toContain('fn main()');
+  });
+
+  it('generate can produce multi-turn messages', async () => {
+    const def = prompt('conversation', {
+      description: 'Multi-turn',
+      args: z.object({ topic: z.string().describe('Topic') }),
+      generate: (args) => [
+        { role: 'user', content: { type: 'text', text: `Tell me about ${args.topic}` } },
+        {
+          role: 'assistant',
+          content: { type: 'text', text: `Sure, let me explain ${args.topic}.` },
+        },
+        { role: 'user', content: { type: 'text', text: 'Go deeper.' } },
+      ],
+    });
+
+    const messages = await def.generate({ topic: 'MCP' });
+    expect(messages).toHaveLength(3);
+    expect(messages[0]!.role).toBe('user');
+    expect(messages[1]!.role).toBe('assistant');
+    expect(messages[2]!.role).toBe('user');
+  });
+
+  it('supports async generate', async () => {
+    const def = prompt('async_prompt', {
+      description: 'Async prompt',
+      args: z.object({ query: z.string().describe('Query') }),
+      generate: async (args) => {
+        await Promise.resolve();
+        return [{ role: 'user' as const, content: { type: 'text' as const, text: args.query } }];
+      },
+    });
+
+    const messages = await def.generate({ query: 'hello' });
+    expect(messages).toHaveLength(1);
+    expect((messages[0]!.content as { text: string }).text).toBe('hello');
+  });
 });

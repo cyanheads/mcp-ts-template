@@ -74,4 +74,111 @@ describe('resource() builder', () => {
     expect(def.format).toBeDefined();
     expect(def.list).toBeDefined();
   });
+
+  it('preserves mimeType', () => {
+    const def = resource('docs://{docId}', {
+      description: 'Get document',
+      mimeType: 'text/markdown',
+      handler: () => ({ content: '# Hello' }),
+    });
+
+    expect(def.mimeType).toBe('text/markdown');
+  });
+
+  it('preserves name override', () => {
+    const def = resource('items://{id}', {
+      description: 'Get item',
+      name: 'custom_resource_name',
+      handler: () => ({ ok: true }),
+    });
+
+    expect(def.name).toBe('custom_resource_name');
+  });
+
+  it('preserves title', () => {
+    const def = resource('items://{id}', {
+      description: 'Get item',
+      title: 'Item Lookup',
+      handler: () => ({ ok: true }),
+    });
+
+    expect(def.title).toBe('Item Lookup');
+  });
+
+  it('preserves examples', () => {
+    const def = resource('items://{id}', {
+      description: 'Get item',
+      examples: [
+        { name: 'First item', uri: 'items://1' },
+        { name: 'Second item', uri: 'items://2' },
+      ],
+      handler: () => ({ ok: true }),
+    });
+
+    expect(def.examples).toHaveLength(2);
+    expect(def.examples![0]!.uri).toBe('items://1');
+  });
+
+  it('preserves annotations', () => {
+    const def = resource('items://{id}', {
+      description: 'Get item',
+      annotations: {
+        audience: ['user'],
+        priority: 0.8,
+        lastModified: '2026-03-14T00:00:00Z',
+      },
+      handler: () => ({ ok: true }),
+    });
+
+    expect(def.annotations?.audience).toEqual(['user']);
+    expect(def.annotations?.priority).toBe(0.8);
+  });
+
+  it('supports async handler', async () => {
+    const def = resource('items://{id}', {
+      description: 'Get item',
+      params: z.object({ id: z.string().describe('Item ID') }),
+      handler: async (params) => {
+        await Promise.resolve();
+        return { id: params.id, name: 'Widget' };
+      },
+    });
+
+    const result = await def.handler({ id: '42' }, {} as any);
+    expect(result).toEqual({ id: '42', name: 'Widget' });
+  });
+
+  it('format function receives uri and mimeType', () => {
+    const def = resource('items://{id}', {
+      description: 'Get item',
+      mimeType: 'application/json',
+      handler: () => ({ ok: true }),
+      format: (result, meta) => [
+        { uri: meta.uri.href, text: JSON.stringify(result), mimeType: meta.mimeType },
+      ],
+    });
+
+    const uri = new URL('items://42');
+    const contents = def.format!({ ok: true }, { uri, mimeType: 'application/json' });
+    expect(contents).toHaveLength(1);
+    expect(contents[0]!.uri).toBe('items://42');
+    expect(contents[0]!.mimeType).toBe('application/json');
+  });
+
+  it('list function returns resources', async () => {
+    const def = resource('items://{id}', {
+      description: 'Get item',
+      handler: () => ({ ok: true }),
+      list: async () => ({
+        resources: [
+          { uri: 'items://1', name: 'Item 1' },
+          { uri: 'items://2', name: 'Item 2' },
+        ],
+      }),
+    });
+
+    const listing = await def.list!({} as any);
+    expect(listing.resources).toHaveLength(2);
+    expect(listing.resources[0]!.name).toBe('Item 1');
+  });
 });

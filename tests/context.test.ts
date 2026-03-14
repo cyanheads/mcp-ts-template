@@ -40,6 +40,8 @@ vi.mock('@/utils/internal/logger.js', () => ({
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 
+import { z } from 'zod';
+
 import type { ContextDeps } from '@/core/context.js';
 import { createContext } from '@/core/context.js';
 import type { Logger } from '@/utils/internal/logger.js';
@@ -261,6 +263,20 @@ describe('createContext', () => {
       expect(contextArg).toMatchObject({ requestId: 'req-001', detail: 'info' });
     });
 
+    it('should call logger.error with enriched context when no Error is provided', () => {
+      const ctx = createContext(makeDeps());
+
+      ctx.log.error('bad thing happened');
+
+      expect(mockLogger.error).toHaveBeenCalledTimes(1);
+      const args = mockLogger.error.mock.calls[0]!;
+      // When no Error object: logger.error(msg, enrichedContext)
+      expect(args[0]).toBe('bad thing happened');
+      expect(args[1]).toMatchObject({ requestId: 'req-001' });
+      // Should NOT have a third argument
+      expect(args).toHaveLength(2);
+    });
+
     it('ctx.log should use the defaulted tenantId, not the original undefined', () => {
       const appContext = makeRequestContext();
       delete (appContext as any).tenantId;
@@ -405,6 +421,126 @@ describe('createContext', () => {
       const result = await ctx.state.get('key');
       expect(result).toBe('val');
     });
+
+    it('should validate with Zod schema on get when schema is provided', async () => {
+      const storage = createFakeStorage();
+      const ctx = createContext(
+        makeDeps({
+          appContext: makeRequestContext({ tenantId: 'tenant-a' }),
+          storage: storage as any,
+        }),
+      );
+
+      const ItemSchema = z.object({ name: z.string(), count: z.number() });
+
+      await ctx.state.set('item', { name: 'Widget', count: 5 });
+      const result = await ctx.state.get('item', ItemSchema);
+      expect(result).toEqual({ name: 'Widget', count: 5 });
+    });
+
+    it('should throw ZodError when schema validation fails on get', async () => {
+      const storage = createFakeStorage();
+      const ctx = createContext(
+        makeDeps({
+          appContext: makeRequestContext({ tenantId: 'tenant-a' }),
+          storage: storage as any,
+        }),
+      );
+
+      const ItemSchema = z.object({ name: z.string(), count: z.number() });
+
+      await ctx.state.set('item', { name: 123, count: 'not a number' });
+      await expect(ctx.state.get('item', ItemSchema)).rejects.toThrow();
+    });
+
+    it('should return null when key missing even with schema', async () => {
+      const storage = createFakeStorage();
+      const ctx = createContext(
+        makeDeps({
+          appContext: makeRequestContext({ tenantId: 'tenant-a' }),
+          storage: storage as any,
+        }),
+      );
+
+      const result = await ctx.state.get('nonexistent', z.object({ x: z.number() }));
+      expect(result).toBeNull();
+    });
+
+    it('should pass TTL option through to storage on set', async () => {
+      const storage = createFakeStorage();
+      const ctx = createContext(
+        makeDeps({
+          appContext: makeRequestContext({ tenantId: 'tenant-a' }),
+          storage: storage as any,
+        }),
+      );
+
+      await ctx.state.set('ephemeral', 'data', { ttl: 3600 });
+
+      expect(storage.set).toHaveBeenCalledWith(
+        'ephemeral',
+        'data',
+        expect.objectContaining({ tenantId: 'tenant-a' }),
+        { ttl: 3600 },
+      );
+    });
+
+    it('should pass TTL option through to storage on setMany', async () => {
+      const storage = createFakeStorage();
+      const ctx = createContext(
+        makeDeps({
+          appContext: makeRequestContext({ tenantId: 'tenant-a' }),
+          storage: storage as any,
+        }),
+      );
+
+      const entries = new Map([
+        ['a', 1],
+        ['b', 2],
+      ]);
+      await ctx.state.setMany(entries, { ttl: 600 });
+
+      expect(storage.setMany).toHaveBeenCalledWith(
+        entries,
+        expect.objectContaining({ tenantId: 'tenant-a' }),
+        { ttl: 600 },
+      );
+    });
+
+    it('should list keys with hydrated values', async () => {
+      const storage = createFakeStorage();
+      const ctx = createContext(
+        makeDeps({
+          appContext: makeRequestContext({ tenantId: 'tenant-a' }),
+          storage: storage as any,
+        }),
+      );
+
+      await ctx.state.set('item:1', { name: 'A' });
+      await ctx.state.set('item:2', { name: 'B' });
+      await ctx.state.set('other:1', { name: 'C' });
+
+      const page = await ctx.state.list('item:');
+      expect(page.items).toEqual([
+        { key: 'item:1', value: { name: 'A' } },
+        { key: 'item:2', value: { name: 'B' } },
+      ]);
+      expect(page.cursor).toBeUndefined();
+    });
+
+    it('should return empty items when no keys match prefix', async () => {
+      const storage = createFakeStorage();
+      const ctx = createContext(
+        makeDeps({
+          appContext: makeRequestContext({ tenantId: 'tenant-a' }),
+          storage: storage as any,
+        }),
+      );
+
+      const page = await ctx.state.list('nonexistent:');
+      expect(page.items).toEqual([]);
+      expect(page.cursor).toBeUndefined();
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -515,6 +651,25 @@ describe('createContext', () => {
       expect(calls[0]).toEqual(['task-002', 'working', '25% complete']);
       expect(calls[1]).toEqual(['task-002', 'working', '50% complete']);
       expect(calls[2]).toEqual(['task-002', 'working', '100% complete']);
+    });
+
+    it('should pass undefined message when incrementing without setTotal', async () => {
+      const mockStore = { updateTaskStatus: vi.fn() };
+
+      const ctx = createContext(
+        makeDeps({
+          taskCtx: { store: mockStore as any, taskId: 'task-003' },
+        }),
+      );
+
+      // No setTotal — total stays 0
+      await ctx.progress!.increment();
+      await ctx.progress!.increment(3);
+
+      const calls = mockStore.updateTaskStatus.mock.calls;
+      // percentage is undefined when total is 0
+      expect(calls[0]).toEqual(['task-003', 'working', undefined]);
+      expect(calls[1]).toEqual(['task-003', 'working', undefined]);
     });
   });
 });
