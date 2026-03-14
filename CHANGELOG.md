@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.27] - 2026-03-14
+
+Comprehensive OpenTelemetry instrumentation across the entire framework. Every major subsystem now emits spans, counters, and histograms — tools, resources, prompts, storage, auth, sessions, tasks, LLM, speech, graph, and error classification. Process-level health gauges (memory, uptime, event loop delay) registered at startup. New semantic convention constants for all custom attributes.
+
+### Added
+
+- **Process-level observable gauges** (`src/core/app.ts`): RSS, heap used/total, uptime, and event loop delay p99 — registered once after OTel init.
+- **Startup/shutdown spans** (`src/core/app.ts`): `mcp.server.startup` and `mcp.server.shutdown` spans with server metadata and transport phase breakdown.
+- **Resource execution measurement** (`src/utils/internal/performance.ts`): `measureResourceExecution` — OTel span, duration histogram, read counter, error counter, structured completion log. Integrated into `resourceHandlerFactory`.
+- **Prompt generation measurement** (`src/utils/internal/performance.ts`): `measurePromptGeneration` — OTel span, duration histogram, generate counter, message count attribute. Integrated into `prompt-registration`.
+- **Active request gauge** (`src/utils/internal/performance.ts`): `mcp.requests.active` up/down counter tracks in-flight tool and resource handler concurrency.
+- **Storage instrumentation** (`src/storage/core/StorageService.ts`): `withStorageOp` wrapper — every storage operation (get, set, delete, list, batch) emits a span, duration histogram, and operation counter with key count for batch ops.
+- **Auth instrumentation** (`src/mcp-server/transports/auth/authMiddleware.ts`): `mcp.auth.attempts` counter and `mcp.auth.duration` histogram with outcome/failure reason attributes. Span attributes migrated to semantic convention constants.
+- **Session lifecycle metrics** (`src/mcp-server/transports/http/sessionStore.ts`): `mcp.sessions.events` counter with event type (created, terminated, rejected, stale_cleanup).
+- **Task lifecycle metrics** (`src/mcp-server/tasks/core/taskManager.ts`): `InstrumentedTaskStore` decorator — `mcp.tasks.created` counter, `mcp.tasks.status_changes` counter, `mcp.tasks.active` observable gauge for in-memory stores.
+- **LLM instrumentation** (`src/services/llm/providers/openrouter.provider.ts`): `gen_ai.chat_completion` span with GenAI semantic conventions — request model/temperature/top_p/max_tokens/streaming, response model, token usage (input/output/total), request counter, duration histogram, error counter, token counter by type.
+- **Speech instrumentation** (`src/services/speech/`): `speech:tts` and `speech:stt` spans with provider, operation, input/output bytes, duration, success. Shared `recordSpeechOp` helper in new `speechMetrics.ts`.
+- **Graph instrumentation** (`src/services/graph/core/GraphService.ts`): `withGraphOp` wrapper — every graph operation (relate, unrelate, traverse, shortestPath, edges, pathExists, getStats, healthCheck) emits a span with operation name, duration, and success.
+- **Error classification metric** (`src/utils/internal/error-handler/errorHandler.ts`): `mcp.errors.classified` counter with classified JSON-RPC error code attribute.
+- **Semantic convention constants** (`src/utils/telemetry/semconv.ts`): 60+ new constants covering prompts, resources, storage, GenAI, speech, graph, auth, sessions, tasks, and error classification.
+- **`templates/CLAUDE.md`**: Added Patterns section (tool, resource, prompt, server config examples), Context quick reference table, and Errors escalation guide.
+- **New test file** (`tests/mcp-server/tools/utils/toolDefinition.test.ts`): Comprehensive tests for `ToolDefinition` interface, `ToolAnnotations`, `AnyToolDefinition`, and `tool()` builder (schema validation, handler execution, auth, annotations, task flag, format, _meta, title).
+
+### Changed
+
+- **`package.json`**: Version bump to `0.1.0-beta.27`.
+- **`CLAUDE.md`**: Version bump; removed stale shebang from `createApp` example.
+- **`README.md`**: Enhanced hero example with `annotations`, `output` schema, and richer field descriptions.
+- **`src/utils/internal/performance.ts`**: Refactored `measureToolExecution` — pre-compute input/output bytes outside try/catch, use `Math.round` instead of `toFixed`.
+- **`src/storage/core/StorageService.ts`**: All methods now explicitly `async` (were returning raw promises).
+- **Auth middleware span attributes**: Migrated from ad-hoc `auth.*` strings to `ATTR_MCP_*` semantic convention constants.
+
+### Tests
+
+- **`tests/context.test.ts`**: Added tests for `ctx.log.error` without Error object, Zod schema validation on `ctx.state.get`, TTL passthrough on set/setMany, list with prefix filtering, empty list results, and progress increment without `setTotal`.
+- **`tests/mcp-server/prompts/utils/promptDefinition.test.ts`**: Added tests for generate without args, generate with args, multi-turn messages, and async generate.
+- **`tests/mcp-server/resources/utils/resourceDefinition.test.ts`**: Added tests for mimeType, name override, title, examples, annotations, async handler, format function, and list function.
+
+---
+
 ## [0.1.0-beta.26] - 2026-03-14
 
 Version bump and documentation alignment for error handling guidance.

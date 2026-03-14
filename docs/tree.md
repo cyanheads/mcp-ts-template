@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-03-14 22:17:09
+Generated on: 2026-03-14 23:06:17
 
 ```
 mcp-ts-template/
@@ -207,6 +207,7 @@ mcp-ts-template/
 │   │   ├── speech/
 │   │   │   ├── core/
 │   │   │   │   ├── ISpeechProvider.ts
+│   │   │   │   ├── speechMetrics.ts
 │   │   │   │   └── SpeechService.ts
 │   │   │   ├── providers/
 │   │   │   │   ├── elevenlabs.provider.ts
@@ -355,6 +356,7 @@ mcp-ts-template/
 │   │   │       └── taskToolDefinition.test.ts
 │   │   ├── tools/
 │   │   │   ├── utils/
+│   │   │   │   ├── toolDefinition.test.ts
 │   │   │   │   └── toolHandlerFactory.test.ts
 │   │   │   └── tool-registration.test.ts
 │   │   ├── transports/
