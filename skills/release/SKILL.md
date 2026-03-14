@@ -18,7 +18,7 @@ Publishing is a multi-step process with irreversible actions (npm publish, Docke
 1. **Determine version bump** — ask the user: patch, minor, or major?
 2. **Update version** in:
    - `package.json` (`version` field)
-   - `server.json` (`version` field, if present)
+   - `server.json` — **3 fields**: root `version` + `version` inside each of the two `packages[]` entries
    - `CLAUDE.md` (version reference at the top)
    - `README.md` (version badge, if present)
 3. **Update CHANGELOG.md** — add a new entry with:
@@ -28,7 +28,7 @@ Publishing is a multi-step process with irreversible actions (npm publish, Docke
 4. **Run `bun run devcheck`** — must pass cleanly
 5. **Run `bun run test`** — all tests must pass
 6. **Run `bun run build`** — verify build succeeds
-7. **Commit** with message: `chore(release): v{{VERSION}}`
+7. **Commit** with message: `chore: bump version to {{VERSION}} and add changelog entry`
 8. **Stop and inform the user** — the following commands require manual execution:
 
 ```bash
@@ -51,17 +51,17 @@ Before committing, verify these files are in sync:
 
 - `README.md` — version badge, feature counts, descriptions
 - `package.json` — version
-- `server.json` — version (if present)
+- `server.json` — root `version` + both `packages[]` version fields (3 total)
 - `CHANGELOG.md` — new entry with concrete version and date
 - `CLAUDE.md` — version reference
 - `docs/tree.md` — updated if structure changed
 
 ## Checklist
 
-- [ ] Version bumped in all locations (package.json, server.json, CLAUDE.md, README.md)
+- [ ] Version bumped in all locations (package.json, server.json ×3, CLAUDE.md, README.md)
 - [ ] CHANGELOG.md updated with concrete version number and date
 - [ ] `bun run devcheck` passes
 - [ ] `bun run test` passes
 - [ ] `bun run build` succeeds
-- [ ] Release commit created: `chore(release): v{{VERSION}}`
+- [ ] Release commit created: `chore: bump version to {{VERSION}} and add changelog entry`
 - [ ] User informed of publish commands (npm, Docker, mcp-publisher)

@@ -28,7 +28,7 @@ For the full exports catalog, see `CLAUDE.md` → Exports Reference.
 7. **Run `bun run devcheck`** to verify no broken imports remain
 8. **Verify no `@/` imports** point to files that were removed
 
-## Import Mapping
+## Import mapping
 
 These are the actual `@/` import paths used in framework source. Rewrite any that appear in server-specific files (tools, resources, services, config).
 
@@ -37,7 +37,7 @@ These are the actual `@/` import paths used in framework source. Rewrite any tha
 | Old `@/` import | New package import |
 |:----------------|:-------------------|
 | `@/config/index.js` | `@cyanheads/mcp-ts-core/config` |
-| `@/context.js` | `@cyanheads/mcp-ts-core` |
+| `@/context.js` or `@/core/context.js` | `@cyanheads/mcp-ts-core` |
 | `@/types-global/errors.js` | `@cyanheads/mcp-ts-core/errors` |
 | `@/storage/core/StorageService.js` | `@cyanheads/mcp-ts-core/storage` |
 | `@/storage/core/IStorageProvider.js` | `@cyanheads/mcp-ts-core/storage/types` |
@@ -69,13 +69,13 @@ These are the actual `@/` import paths used in framework source. Rewrite any tha
 | `@/utils/types/guards.js` | `@cyanheads/mcp-ts-core/utils` |
 | `@/utils/scheduling/*.js` | `@cyanheads/mcp-ts-core/utils` |
 
-## Files to Remove
+## Files to remove
 
 After rewriting imports, remove these framework directories/files. **Do not remove** server-specific code under `mcp-server/tools/definitions/`, `mcp-server/resources/definitions/`, `mcp-server/prompts/definitions/`, `services/` (server's own), or `config/server-config.ts`.
 
 Framework files to delete:
 
-- `src/app.ts`, `src/worker.ts`, `src/context.ts`
+- `src/core/` (`app.ts`, `context.ts`, `worker.ts`)
 - `src/config/index.ts` (keep `server-config.ts` if it exists)
 - `src/types-global/`
 - `src/storage/`
@@ -92,7 +92,7 @@ Framework files to delete:
 - `src/testing/`
 - `src/services/llm/`, `src/services/speech/`, `src/services/graph/` (framework services)
 
-## Entry Point Rewrite
+## Entry point rewrite
 
 Replace the fork's `src/index.ts` with:
 

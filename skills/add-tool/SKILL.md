@@ -38,6 +38,7 @@ For the full `tool()` API, `Context` interface, and error codes, read:
 import { tool, z } from '@cyanheads/mcp-ts-core';
 
 export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
+  title: '{{TOOL_TITLE}}',
   description: '{{TOOL_DESCRIPTION}}',
   annotations: { readOnlyHint: true },
   input: z.object({
@@ -85,12 +86,11 @@ export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
 
 ```typescript
 // src/mcp-server/tools/definitions/index.ts
-export { {{TOOL_EXPORT}} } from './{{tool-name}}.tool.js';
-
-// Add to allToolDefinitions array
+import { existingTool } from './existing-tool.tool.js';
 import { {{TOOL_EXPORT}} } from './{{tool-name}}.tool.js';
+
 export const allToolDefinitions = [
-  // ... existing tools
+  existingTool,
   {{TOOL_EXPORT}},
 ];
 ```

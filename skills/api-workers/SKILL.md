@@ -46,17 +46,17 @@ export default createWorkerHandler({
 | `tools` | `AnyToolDefinition[]` | Tool definitions to register |
 | `resources` | `AnyResourceDefinition[]` | Resource definitions to register |
 | `prompts` | `PromptDefinition[]` | Prompt definitions to register |
-| `setup` | `(core: CoreServices) => void \| Promise<void>` | Runs after core services are ready, before first request |
+| `setup` | `(core: CoreServices) => void \| Promise<void>` | Runs after core services are ready, during the first request (lazy init inside the fetch handler) |
 | `extraEnvBindings` | `[bindingKey: string, processEnvKey: string][]` | Maps CF string bindings to `process.env` keys |
 | `extraObjectBindings` | `[bindingKey: string, globalKey: string][]` | Maps CF object bindings (KV, R2, D1, AI) to `globalThis` keys |
 | `onScheduled` | `(controller, env, ctx) => Promise<void>` | Cloudflare cron trigger handler |
 
 ### Key design points
 
-- **Per-request `McpServer` factory** — a new server instance is created for each request. Required by SDK security advisory GHSA-345p-7cg4-v4c7.
-- **Env bindings refreshed per-request** — Cloudflare may rotate binding object references between requests; the handler re-injects them on every call.
-- **`ctx.waitUntil()` is documented but not yet called by the framework** — the `ExecutionContext` is received and passed through to `app.fetch` and `onScheduled`, but the framework itself does not currently call `ctx.waitUntil()` for telemetry flush. Spans complete synchronously within the request lifecycle.
-- **Singleton app promise with retry-on-failure** — the framework init runs once; if it fails, the next request retries rather than leaving the Worker in a permanently broken state.
+- **Per-request `McpServer` factory**: a new server instance is created for each request. Required by SDK security advisory GHSA-345p-7cg4-v4c7.
+- **Env bindings refreshed per-request**: Cloudflare may rotate binding object references between requests; the handler re-injects them on every call.
+- **`ctx.waitUntil()` is documented but not yet called by the framework**: the `ExecutionContext` is received and passed through to `app.fetch` and `onScheduled`, but the framework does not currently call `ctx.waitUntil()` for telemetry flush. Spans complete synchronously within the request lifecycle.
+- **Singleton app promise with retry-on-failure**: the framework init runs once; if it fails, the next request retries rather than leaving the Worker in a permanently broken state.
 
 ---
 
@@ -69,9 +69,9 @@ Cloudflare Workers bindings come in two kinds with different injection mechanism
 | String values | API keys, base URLs, feature flags | `injectEnvVars()` → `process.env` | `process.env.MY_API_KEY` |
 | Object bindings | KV namespace, R2 bucket, D1 database, AI | `storeBindings()` → `globalThis` | `(globalThis as any).MY_CUSTOM_KV` |
 
-**`extraEnvBindings`** — array of `[bindingKey, processEnvKey]` tuples. The value of `env[bindingKey]` is assigned to `process.env[processEnvKey]` at request time.
+**`extraEnvBindings`**: array of `[bindingKey, processEnvKey]` tuples. The value of `env[bindingKey]` is assigned to `process.env[processEnvKey]` at request time.
 
-**`extraObjectBindings`** — array of `[bindingKey, globalKey]` tuples. The object at `env[bindingKey]` is stored on `globalThis[globalKey]` at request time.
+**`extraObjectBindings`**: array of `[bindingKey, globalKey]` tuples. The object at `env[bindingKey]` is stored on `globalThis[globalKey]` at request time.
 
 Both are refreshed on every request. Never cache binding references between requests.
 
@@ -123,7 +123,12 @@ In Workers, only these storage providers are allowed:
 | `cloudflare-r2` | R2 bucket binding — object storage |
 | `cloudflare-d1` | D1 database binding — SQLite-compatible |
 
-`filesystem` and `supabase` providers are not on the whitelist. In a serverless environment, any non-whitelisted provider type is **silently forced to `in-memory`** (a warning is logged) rather than throwing. Set `STORAGE_PROVIDER_TYPE` to one of the whitelisted values to avoid the fallback.
+`filesystem` and `supabase` are not on the whitelist and behave differently:
+
+- **`filesystem`** and other unknown types are **silently forced to `in-memory`** (a warning is logged) in a serverless environment.
+- **`supabase`** does **not** silently fall back. The framework attempts to connect and throws `ConfigurationError` if credentials (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`) are missing or the client cannot be constructed. Do not set `STORAGE_PROVIDER_TYPE=supabase` in a Worker.
+
+Set `STORAGE_PROVIDER_TYPE` to one of the four whitelisted values to avoid unexpected behavior.
 
 ---
 
@@ -148,7 +153,7 @@ bucket_name = "..."
 
 ## Workers-specific warnings
 
-**Lazy env parsing is mandatory.** Cloudflare injects env bindings at request time via `injectEnvVars()` — after all static module imports complete. Never parse `process.env` at module top-level in Workers:
+**Lazy env parsing is mandatory.** Cloudflare injects env bindings at request time via `injectEnvVars()`, after all static module imports complete. Never parse `process.env` at module top-level in Workers:
 
 ```ts
 // WRONG — parsed before env is injected

@@ -21,7 +21,7 @@ Trace the onboarding path through the actual files as they exist right now. Foll
 
 ### Step 1: Read the project's CLAUDE.md
 
-This is the first file the agent sees. Read `templates/CLAUDE.md` (or wherever the template lives). Report:
+This is the first file the agent sees. Read `CLAUDE.md` at the project root. Report:
 
 - What does it tell you to do first?
 - What files does it point you to?

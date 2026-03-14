@@ -31,7 +31,7 @@ The provider interface — implemented by ElevenLabs (TTS) and Whisper (STT):
 | Provider | Capability | Tier 3 peer |
 |:---------|:-----------|:------------|
 | `ElevenLabsProvider` | TTS only (`supportsTTS: true`, `supportsSTT: false`) | ElevenLabs API (direct HTTP) |
-| `WhisperProvider` | STT only (`supportsTTS: false`, `supportsSTT: true`) | `openai` (Whisper API). 25MB file size limit. |
+| `WhisperProvider` | STT only (`supportsTTS: false`, `supportsSTT: true`) | OpenAI Whisper API (direct HTTP, no `openai` SDK). 25MB file size limit. |
 
 ## Configuration
 
@@ -51,15 +51,15 @@ The provider interface — implemented by ElevenLabs (TTS) and Whisper (STT):
 const ttsProvider = speechService.getTTSProvider();
 const ttsResult = await ttsProvider.textToSpeech({
   text: 'Hello, world!',
-  voice: 'some-voice-id',
-  outputFormat: 'mp3_44100_128',
+  voice: { voiceId: 'some-voice-id' },
+  format: 'mp3',
 });
 
 // Speech-to-Text
 const sttProvider = speechService.getSTTProvider();
 const sttResult = await sttProvider.speechToText({
-  audioData: buffer,
-  mimeType: 'audio/mp3',
+  audio: buffer,
+  format: 'mp3',
   language: 'en',
 });
 

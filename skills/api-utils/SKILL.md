@@ -11,7 +11,7 @@ metadata:
 
 ## Overview
 
-Utility exports from `@cyanheads/mcp-ts-core/utils`. Complex utilities with rich APIs have dedicated reference files; simpler utilities are documented inline below.
+Utility exports from `@cyanheads/mcp-ts-core/utils`. Utilities with complex APIs have dedicated reference files; simpler utilities are documented inline below.
 
 **Tier 3** = optional peer dependency. Install as needed (e.g., `bun add js-yaml`). All Tier 3 methods are **async** (lazy-load deps on first call).
 
@@ -48,7 +48,7 @@ Utility exports from `@cyanheads/mcp-ts-core/utils`. Complex utilities with rich
 
 | Export | API | Notes |
 |:-------|:----|:------|
-| `runtimeCaps` | `RuntimeCapabilities` object | Snapshot at import time. Fields: `isNode`, `isBun`, `isWorkerLike`, `isBrowserLike`, `hasProcess`, `hasBuffer`, `hasTextEncoder`, `hasPerformanceNow`. All booleans, never throw. |
+| `runtimeCaps` | `RuntimeCapabilities` object | Snapshot at import time. Fields: `isNode`, `isBun`, `isWorkerLike`, `isBrowserLike`, `hasProcess`, `hasBuffer`, `hasTextEncoder`, `hasPerformanceNow`. All booleans. Never throws. |
 
 ---
 
@@ -62,7 +62,7 @@ Utility exports from `@cyanheads/mcp-ts-core/utils`. Complex utilities with rich
 
 ## `@cyanheads/mcp-ts-core/utils` — types
 
-The `utils` export includes only two type guards. The full set of guards lives in the internal module and is not part of the public API.
+The `utils` export includes two type guards. The full set of guards lives in the internal module and is not part of the public API.
 
 | Export | Signature | Notes |
 |:-------|:----------|:------|
@@ -75,7 +75,9 @@ The `utils` export includes only two type guards. The full set of guards lives i
 
 | Export | API | Notes |
 |:-------|:----|:------|
-| `logger` | Pino instance. `.debug()` `.info()` `.notice()` `.warning()` `.error()` `.fatal()` | Global structured logger. Use `ctx.log` in handlers instead. `logger` is for lifecycle/background contexts (startup, shutdown, `setup()`). Auto-redacts sensitive fields. |
+| `Logger` | Class | The `Logger` class itself. Use `Logger.getInstance()` if needed; most consumers use the `logger` singleton. |
+| `logger` | `Logger` instance (wraps Pino). `.debug(msg, ctx?)` `.info(msg, ctx?)` `.notice(msg, ctx?)` `.warning(msg, ctx?)` `.error(msg, errorOrCtx, ctx?)` `.crit(msg, errorOrCtx, ctx?)` `.alert(msg, errorOrCtx, ctx?)` `.emerg(msg, errorOrCtx, ctx?)` `.fatal(msg, errorOrCtx, ctx?)` | Global structured logger. Use `ctx.log` in handlers instead. `logger` is for lifecycle/background contexts (startup, shutdown, `setup()`). Auto-redacts sensitive fields. **Note:** `.error()` and higher accept `(msg, Error, ctx?)` or `(msg, ctx?)` — the second arg is overloaded. `.fatal()` is an alias for `.emerg()`. Full RFC 5424 severity set. |
+| `McpLogLevel` | Type | Log level union type for typing level variables. |
 
 ---
 
@@ -83,8 +85,14 @@ The `utils` export includes only two type guards. The full set of guards lives i
 
 | Export | API | Notes |
 |:-------|:----|:------|
-| `requestContextService` | `.createRequestContext(opts?) -> RequestContext` `.createFromHeaders(headers, fallback?) -> RequestContext` | Creates tracing context with `requestId`, `timestamp`, `traceId`, `spanId`, `tenantId`, `auth`. Internal — most consumers use `ctx` from handlers. |
-| `RequestContext` | Type: `{ requestId, timestamp, operation?, traceId?, spanId?, tenantId?, auth? }` | Request tracing metadata. |
+| `requestContextService` | `.createRequestContext(params?) -> RequestContext` `.withAuthInfo(authInfo, parentContext?) -> RequestContext` | Creates tracing context with `requestId`, `timestamp`, `traceId`, `spanId`, `tenantId`, `auth`. Internal — most consumers use `ctx` from handlers. |
+| `RequestContext` | Type: `{ requestId, timestamp, operation?, traceId?, spanId?, tenantId?, auth?, [key: string]: unknown }` | Request tracing metadata. |
+| `CreateRequestContextParams` | Type: `{ parentContext?, additionalContext?, operation?, [key: string]: unknown }` | Params accepted by `createRequestContext`. Named fields get special merge handling; other properties spread directly onto the context. |
+| `AuthContext` | Type: `{ clientId, scopes, sub, token, tenantId?, [key: string]: unknown }` | Structured auth data attached to `RequestContext.auth` after token verification. |
+
+`createRequestContext` merge order (later wins, except `requestId`/`timestamp`): `parentContext` → spread rest params → `additionalContext` (strips `requestId`/`timestamp`) → pinned `requestId`/`timestamp` → resolved `tenantId` → `operation` → OTel `traceId`/`spanId`.
+
+`withAuthInfo(authInfo, parentContext?)` builds a context and populates `auth` from a validated token. Does **not** write to `AsyncLocalStorage` — ALS propagation is the auth middleware's responsibility.
 
 ---
 
@@ -96,11 +104,68 @@ The `utils` export includes only two type guards. The full set of guards lives i
 
 ---
 
+## `@cyanheads/mcp-ts-core/utils` — encoding
+
+Cross-platform encoding utilities. No peer deps.
+
+| Export | Signature | Notes |
+|:-------|:----------|:------|
+| `arrayBufferToBase64` | `(buffer: ArrayBuffer) -> string` | Encodes an `ArrayBuffer` to base64. Uses `Buffer` on Node/Bun; chunked `btoa` on Workers/browsers to avoid stack overflow on large buffers. |
+| `stringToBase64` | `(str: string) -> string` | UTF-8 string → base64. Uses `Buffer.from(str, 'utf-8')` on Node/Bun; `TextEncoder` + `arrayBufferToBase64` on Workers. |
+| `base64ToString` | `(base64: string) -> string` | base64 → UTF-8 string. Uses `Buffer` on Node/Bun; `atob` + `TextDecoder` on Workers. Throws if input is not valid base64. |
+
+---
+
+## `@cyanheads/mcp-ts-core/utils` — token counting
+
+Dependency-free heuristic token estimation. No native/WASM deps.
+
+| Export | Signature | Notes |
+|:-------|:----------|:------|
+| `countTokens` | `async (text: string, context?: RequestContext, model?: string) -> Promise<number>` | Estimates tokens in a plain string. Normalizes whitespace, divides by `charsPerToken`. Returns `0` for empty/whitespace input. Falls back to `gpt-4o` heuristics when `model` is omitted or unrecognized. |
+| `countChatTokens` | `async (messages: ReadonlyArray<ChatMessage>, context?: RequestContext, model?: string) -> Promise<number>` | Estimates total tokens for a chat message array. Adds per-message overhead (`tokensPerMessage`), counts string/array content, `name`, assistant `tool_calls`, and tool `tool_call_id`. Adds `replyPrimer` once. |
+| `ChatMessage` | Type | `{ role: string, content: string \| Array<{type, text?, ...}> \| null, name?, tool_calls?, tool_call_id? }` — provider-agnostic chat message shape. |
+| `ModelHeuristics` | Interface | `{ charsPerToken, replyPrimer, tokensPerMessage, tokensPerName }` — heuristic parameters; built-in entries for `gpt-4o`, `gpt-4o-mini`, `default`. |
+
+Both functions throw `McpError(InternalError)` only on unexpected heuristic failure.
+
+---
+
 ## `@cyanheads/mcp-ts-core/utils` — Telemetry
 
-| Export | Subpath | API | Notes |
-|:-------|:--------|:----|:------|
-| `initInstrumentation` | `telemetry/instrumentation` | `(config) -> void` | Initializes OpenTelemetry SDK with OTLP exporter. Call once at startup. |
-| `metrics` | `telemetry/metrics` | `.recordToolExecution(name, duration, success)` `.recordResourceAccess(uri, duration)` `.getMetrics()` | In-process metrics collection with OTEL integration. |
-| `trace` | `telemetry/trace` | `.startSpan(name, opts?)` `.runInSpan(name, fn)` `.runInContext(fn)` | Tracing helpers wrapping OTEL `@opentelemetry/api`. |
-| `SEMCONV_*` | `telemetry/semconv` | 38 semantic convention constants | Attribute keys following OpenTelemetry semantic conventions. |
+### `telemetry/instrumentation`
+
+| Export | Signature | Notes |
+|:-------|:----------|:------|
+| `initializeOpenTelemetry` | `() -> Promise<void>` | Idempotent. Initializes `NodeSDK` with OTLP trace + metrics exporters, `TraceIdRatioBasedSampler`, Node auto-instrumentations, and Pino log injection. No-ops when `OTEL_ENABLED=false` or in Worker/Edge runtimes where `NodeSDK` is unavailable. Safe to call multiple times. |
+| `shutdownOpenTelemetry` | `(timeoutMs?: number) -> Promise<void>` | Gracefully flushes and shuts down the SDK. `timeoutMs` defaults to `5000`. Resets internal state so the next `initializeOpenTelemetry()` call can reinitialize. No-op when SDK was never started. |
+| `sdk` | `NodeSDK \| null` | The live SDK instance, or `null` when telemetry is disabled, in a Worker runtime, or after shutdown. |
+
+### `telemetry/metrics`
+
+| Export | Signature | Notes |
+|:-------|:----------|:------|
+| `getMeter` | `(name?: string) -> Meter` | Returns an OTel `Meter`. Defaults to service name + version from config. |
+| `createCounter` | `(name: string, description: string, unit?: string) -> Counter` | Monotonically increasing counter. `unit` defaults to `'1'`. |
+| `createUpDownCounter` | `(name: string, description: string, unit?: string) -> UpDownCounter` | Bidirectional counter (active connections, queue depth, etc.). `unit` defaults to `'1'`. |
+| `createHistogram` | `(name: string, description: string, unit?: string) -> Histogram` | Distribution recording (latency, sizes). `unit` optional. |
+| `createObservableGauge` | `(name: string, description: string, callback: () => Promise<number> \| number, unit?: string) -> ObservableGauge` | Polled gauge. `callback` is registered via `addCallback`; invoked on each SDK collection cycle. `unit` optional. |
+| `createObservableCounter` | `(name: string, description: string, callback: () => Promise<number> \| number, unit?: string) -> ObservableCounter` | Polled cumulative counter. `unit` defaults to `'1'`. |
+| `createObservableUpDownCounter` | `(name: string, description: string, callback: () => Promise<number> \| number, unit?: string) -> ObservableUpDownCounter` | Polled bidirectional counter. `unit` defaults to `'1'`. |
+
+### `telemetry/trace`
+
+| Export | Signature | Notes |
+|:-------|:----------|:------|
+| `withSpan` | `async <T>(operationName: string, fn: (span: Span) => Promise<T>, attributes?: Record<string, string \| number \| boolean>) -> Promise<T>` | Creates an active span, calls `fn(span)`, sets `OK` on success or records exception + sets `ERROR` on throw, then ends the span. Always rethrows. |
+| `runInContext` | `(ctx: RequestContext \| undefined, fn: () => T) -> T` | Runs `fn` inside the currently active OTel context. When `ctx` has no `traceId`/`spanId`, calls `fn` directly. Does not restore a specific span — use for carrying context across async boundaries (`setTimeout`, `queueMicrotask`). |
+| `buildTraceparent` | `(ctx?: RequestContext) -> string \| undefined` | Builds a W3C `traceparent` header (`00-<traceId>-<spanId>-01`) from `ctx` or the active span. Returns `undefined` when neither source yields both IDs. |
+| `extractTraceparent` | `(headers: Headers \| Record<string, string \| undefined>) -> TraceparentInfo \| undefined` | Parses a W3C `traceparent` header. Returns `undefined` when absent or malformed. `TraceparentInfo: { traceId, spanId, sampled }`. |
+| `createContextWithParentTrace` | `(parentHeaders: Headers \| Record<string, string \| undefined>, operation: string) -> RequestContext` | Extracts `traceparent` from headers and creates a child `RequestContext` inheriting `traceId`/`parentSpanId`. |
+| `injectCurrentContextInto` | `<T extends Record<string, unknown>>(carrier: T) -> T` | Injects the active OTel context (traceparent, tracestate, etc.) into `carrier` via `propagation.inject`. Returns the same object. |
+
+### `telemetry/semconv`
+
+51 `ATTR_*` constant exports covering: service, deployment, cloud, HTTP, URL, error/exception, code, network, user agent, MCP tool execution (name, input/output bytes, duration, success, error code, memory), MCP resource (URI, MIME type, size), MCP request context (request ID, operation, tenant ID, client ID), and MCP session (ID).
+
+Additional categories (prompts, storage, GenAI, speech, graph, auth, tasks, error classification) are defined in the internal `semconv.ts` module but not re-exported from the `/utils` barrel — they are used by the framework's handler factories and service instrumentation internally.

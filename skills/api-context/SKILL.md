@@ -13,11 +13,11 @@ metadata:
 
 Every tool and resource handler receives a single `Context` (`ctx`) argument. It provides request identity, structured logging, tenant-scoped storage, optional protocol capabilities (elicitation, sampling), cancellation, and task progress — all auto-correlated to the current request.
 
-**Rule:** The framework auto-instruments every handler call (OTel span, duration, payload metrics). Use `ctx.log` for domain-specific logging and `ctx.state` for storage inside handlers. Use the global `logger` and `StorageService` directly only in lifecycle/background code (`setup()`, services).
+The framework auto-instruments every handler call (OTel span, duration, payload metrics). Use `ctx.log` for domain-specific logging and `ctx.state` for storage inside handlers. Use the global `logger` and `StorageService` directly only in lifecycle/background code (`setup()`, services).
 
 ---
 
-## `Context` Interface
+## `Context` interface
 
 ```ts
 import type { Context } from '@cyanheads/mcp-ts-core';
@@ -38,7 +38,7 @@ interface Context {
   readonly state: ContextState;
 
   // Optional protocol capabilities (undefined when client doesn't support them)
-  readonly elicit?: (message: string, schema: z.ZodObject<any>) => Promise<ElicitResult>;
+  readonly elicit?: (message: string, schema: z.ZodObject<z.ZodRawShape>) => Promise<ElicitResult>;
   readonly sample?: (messages: SamplingMessage[], opts?: SamplingOpts) => Promise<CreateMessageResult>;
 
   // Cancellation
@@ -160,11 +160,11 @@ if (page.cursor) { /* more pages available */ }
 
 ## `ctx.elicit` / `ctx.sample`
 
-Both are optional — they are `undefined` when the connected client does not support the capability. Always check for presence before calling. No type guards are required; a simple truthiness check is sufficient.
+Both are optional — `undefined` when the connected client doesn't support the capability. Always check for presence before calling. A simple truthiness check is enough; no type guards needed.
 
 ### `ctx.elicit` — ask the user for structured input
 
-Presents a form to the human user via the MCP elicitation protocol. The user fills in a Zod-validated schema and returns an action (`accept`, `decline`, or `cancel`).
+Presents a form to the user via the MCP elicitation protocol. The user fills in a Zod-validated schema and returns an action (`accept`, `decline`, or `cancel`).
 
 ```ts
 if (ctx.elicit) {
@@ -177,8 +177,8 @@ if (ctx.elicit) {
   );
 
   if (result.action === 'accept') {
-    // result.data is typed as { format: 'json' | 'csv' | 'markdown', includeHeaders: boolean }
-    await produceOutput(result.data.format, result.data.includeHeaders);
+    // result.content is Record<string, string | number | boolean | string[]> | undefined
+    await produceOutput(result.content?.format as string, result.content?.includeHeaders as boolean);
   } else {
     // 'decline' or 'cancel' — user opted out
     throw new McpError(JsonRpcErrorCode.InvalidRequest, 'User declined input');
@@ -186,19 +186,24 @@ if (ctx.elicit) {
 }
 ```
 
-`ElicitResult`:
+`ElicitResult` (from `@modelcontextprotocol/sdk/types.js`):
 
 ```ts
-type ElicitResult =
-  | { action: 'accept'; data: z.infer<typeof schema> }
-  | { action: 'decline' | 'cancel' };
+// Actual SDK type — a flat object, not a discriminated union
+interface ElicitResult {
+  action: 'accept' | 'decline' | 'cancel';
+  // Present when action === 'accept'; values are primitives or string arrays
+  content?: Record<string, string | number | boolean | string[]>;
+}
 ```
+
+> **Note:** `content` is not typed against the Zod schema you pass — it is a `Record` of primitives. Validate `content` against your schema manually (e.g. `MySchema.parse(result.content)`) when `action === 'accept'`.
 
 **Convention:** Only call `ctx.elicit` from tool handlers, not from services.
 
 ### `ctx.sample` — request an LLM completion from the client
 
-Requests the client's LLM to generate a completion (MCP sampling protocol). Useful for AI-assisted tool behavior without managing a separate LLM provider.
+Requests a completion from the client's LLM via the MCP sampling protocol. Useful for AI-assisted tool behavior without managing a separate LLM provider.
 
 ```ts
 if (ctx.sample) {
@@ -311,7 +316,7 @@ Prefer `params` (the extracted URI template variables) over parsing `ctx.uri` ma
 
 ---
 
-## Quick Reference
+## Quick reference
 
 | Property | Type | Present when |
 |:---------|:-----|:-------------|

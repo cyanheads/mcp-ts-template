@@ -4,663 +4,76 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [0.1.0-beta.27] - 2026-03-14
+## [0.1.0] - 2026-03-14
 
-Comprehensive OpenTelemetry instrumentation across the entire framework. Every major subsystem now emits spans, counters, and histograms — tools, resources, prompts, storage, auth, sessions, tasks, LLM, speech, graph, and error classification. Process-level health gauges (memory, uptime, event loop delay) registered at startup. New semantic convention constants for all custom attributes.
+First stable pre-release of `@cyanheads/mcp-ts-core` — a framework for building MCP servers in TypeScript. Extracted from the `mcp-ts-template` template into a standalone npm package with explicit subpath exports, builder-pattern definition APIs, unified handler context, and full-stack observability.
+
+### Highlights
+
+- **Package identity**: `@cyanheads/mcp-ts-core` on npm, `ghcr.io/cyanheads/mcp-ts-core` on Docker.
+- **Builder API**: `tool()`, `resource()`, `prompt()` builders with Zod-validated `input`/`output`/`args`, inline `auth`, and `handler(input, ctx)` signatures. Replaces the legacy `logic`/`inputSchema`/`outputSchema`/`responseFormatter`/`withToolAuth` pattern.
+- **Unified `Context`**: Single handler argument providing `ctx.log`, `ctx.state`, `ctx.elicit`, `ctx.sample`, `ctx.signal`, `ctx.progress`, and `ctx.uri`.
+- **`createApp()` lifecycle**: Owns OTEL init, logger, transport startup, signal handling, and graceful shutdown. Returns `ServerHandle` with `shutdown()` and `services`.
+- **Cloudflare Workers**: `createWorkerHandler()` with per-request `McpServer` factory, env binding injection, and `onScheduled` support.
+- **Comprehensive observability**: Every tool/resource/prompt call automatically instrumented with OTel spans, duration histograms, call/error counters, and structured completion logs. Process-level gauges (RSS, heap, uptime, event loop delay). Subsystem instrumentation for storage, auth, sessions, tasks, LLM, speech, graph, and error classification. 60+ semantic convention constants.
 
 ### Added
 
-- **Process-level observable gauges** (`src/core/app.ts`): RSS, heap used/total, uptime, and event loop delay p99 — registered once after OTel init.
-- **Startup/shutdown spans** (`src/core/app.ts`): `mcp.server.startup` and `mcp.server.shutdown` spans with server metadata and transport phase breakdown.
-- **Resource execution measurement** (`src/utils/internal/performance.ts`): `measureResourceExecution` — OTel span, duration histogram, read counter, error counter, structured completion log. Integrated into `resourceHandlerFactory`.
-- **Prompt generation measurement** (`src/utils/internal/performance.ts`): `measurePromptGeneration` — OTel span, duration histogram, generate counter, message count attribute. Integrated into `prompt-registration`.
-- **Active request gauge** (`src/utils/internal/performance.ts`): `mcp.requests.active` up/down counter tracks in-flight tool and resource handler concurrency.
-- **Storage instrumentation** (`src/storage/core/StorageService.ts`): `withStorageOp` wrapper — every storage operation (get, set, delete, list, batch) emits a span, duration histogram, and operation counter with key count for batch ops.
-- **Auth instrumentation** (`src/mcp-server/transports/auth/authMiddleware.ts`): `mcp.auth.attempts` counter and `mcp.auth.duration` histogram with outcome/failure reason attributes. Span attributes migrated to semantic convention constants.
-- **Session lifecycle metrics** (`src/mcp-server/transports/http/sessionStore.ts`): `mcp.sessions.events` counter with event type (created, terminated, rejected, stale_cleanup).
-- **Task lifecycle metrics** (`src/mcp-server/tasks/core/taskManager.ts`): `InstrumentedTaskStore` decorator — `mcp.tasks.created` counter, `mcp.tasks.status_changes` counter, `mcp.tasks.active` observable gauge for in-memory stores.
-- **LLM instrumentation** (`src/services/llm/providers/openrouter.provider.ts`): `gen_ai.chat_completion` span with GenAI semantic conventions — request model/temperature/top_p/max_tokens/streaming, response model, token usage (input/output/total), request counter, duration histogram, error counter, token counter by type.
-- **Speech instrumentation** (`src/services/speech/`): `speech:tts` and `speech:stt` spans with provider, operation, input/output bytes, duration, success. Shared `recordSpeechOp` helper in new `speechMetrics.ts`.
-- **Graph instrumentation** (`src/services/graph/core/GraphService.ts`): `withGraphOp` wrapper — every graph operation (relate, unrelate, traverse, shortestPath, edges, pathExists, getStats, healthCheck) emits a span with operation name, duration, and success.
-- **Error classification metric** (`src/utils/internal/error-handler/errorHandler.ts`): `mcp.errors.classified` counter with classified JSON-RPC error code attribute.
-- **Semantic convention constants** (`src/utils/telemetry/semconv.ts`): 60+ new constants covering prompts, resources, storage, GenAI, speech, graph, auth, sessions, tasks, and error classification.
-- **`templates/CLAUDE.md`**: Added Patterns section (tool, resource, prompt, server config examples), Context quick reference table, and Errors escalation guide.
-- **New test file** (`tests/mcp-server/tools/utils/toolDefinition.test.ts`): Comprehensive tests for `ToolDefinition` interface, `ToolAnnotations`, `AnyToolDefinition`, and `tool()` builder (schema validation, handler execution, auth, annotations, task flag, format, _meta, title).
+- **Definition builders**: `tool()`, `resource()`, `prompt()` with Zod schemas, inline `auth` scopes, `format` functions, `title` field, and `task: true` for async task tools.
+- **Unified `Context` interface**: `ctx.log` (auto-correlated logging), `ctx.state` (tenant-scoped KV with generics, Zod validation, batch ops, TTL), `ctx.elicit` (user prompting), `ctx.sample` (LLM completion), `ctx.signal` (cancellation), `ctx.progress` (task progress).
+- **`createApp(options)`**: Composition root accepting `tools`, `resources`, `prompts`, `setup()`, `name`, `version`. Full server lifecycle management.
+- **`createWorkerHandler(options)`**: Cloudflare Workers entry point with `extraEnvBindings`, `extraObjectBindings`, `onScheduled`.
+- **Subpath exports**: 25+ explicit entries — `./tools`, `./resources`, `./prompts`, `./tasks`, `./errors`, `./config`, `./auth`, `./storage`, `./storage/types`, `./utils`, `./services`, `./testing`, `./worker`.
+- **`z` re-export**: `import { tool, z } from '@cyanheads/mcp-ts-core'` — no separate `zod` import needed.
+- **Error factories**: `notFound()`, `validationError()`, `unauthorized()`, `forbidden()`, `conflict()`, `rateLimited()`, `timeout()`, `serviceUnavailable()`, `configurationError()`, `invalidParams()`, `invalidRequest()` — all accept `(message, data?, options?)` with `{ cause }` for error chaining.
+- **Auto-error classification**: Framework catches all handler errors and classifies by type/message pattern matching — `ZodError` to `ValidationError`, HTTP status codes, common message patterns, `McpError` preserved as-is.
+- **`checkScopes(ctx, scopes)`**: Dynamic scope checking for runtime-dependent auth requirements.
+- **`createMockContext(options?)`**: Test utility with stubbed `log`, in-memory `state`, optional `elicit`/`sample`/`progress` mocks.
+- **Auto-task tools**: `task: true` on tool definitions — framework manages task creation, background execution, progress reporting, cancellation, and result storage.
+- **`GET /mcp` discovery**: Server capabilities, framework identity, auth mode, and definition counts.
+- **`init` CLI**: `mcp-ts-core init [name]` scaffolds a new consumer project with templates, echo definitions, and agent protocol files.
+- **Shareable configs**: `tsconfig.base.json`, `biome.json`, `vitest.config.base.ts` for consumer extension.
+- **Agent skills**: 12+ skill files (`skills/`) covering `setup`, `add-tool`, `add-resource`, `add-prompt`, `add-service`, `add-provider`, `add-export`, `devcheck`, `release`, `maintenance`, `migrate-mcp-ts-template`, and API references.
+- **`examples/` directory**: Complete reference consumer server with 7 tools, 2 resources, 1 prompt, and 39 tests.
+- **OTel instrumentation**: Process gauges, startup/shutdown spans, resource/prompt measurement, active request gauge, storage/auth/session/task/LLM/speech/graph instrumentation, error classification metric.
+- **Semantic conventions**: `src/utils/telemetry/semconv.ts` with 60+ constants for all custom OTel attributes.
+- **Services**: `CoreServices` exposes `config`, `logger`, `storage`, `rateLimiter`, optional `llmProvider`, `speechService`, `supabase`.
+- **`GraphService.healthCheck()`**: Liveness check delegated to the underlying graph provider.
+- **Utility barrels**: Unified `./utils` and `./services` exports covering formatting, parsing, security, network, pagination, scheduling, telemetry, encoding, runtime, token counting, and type guards.
 
-### Changed
+### Changed (from legacy template)
 
-- **`package.json`**: Version bump to `0.1.0-beta.27`.
-- **`CLAUDE.md`**: Version bump; removed stale shebang from `createApp` example.
-- **`README.md`**: Enhanced hero example with `annotations`, `output` schema, and richer field descriptions.
-- **`src/utils/internal/performance.ts`**: Refactored `measureToolExecution` — pre-compute input/output bytes outside try/catch, use `Math.round` instead of `toFixed`.
-- **`src/storage/core/StorageService.ts`**: All methods now explicitly `async` (were returning raw promises).
-- **Auth middleware span attributes**: Migrated from ad-hoc `auth.*` strings to `ATTR_MCP_*` semantic convention constants.
-
-### Tests
-
-- **`tests/context.test.ts`**: Added tests for `ctx.log.error` without Error object, Zod schema validation on `ctx.state.get`, TTL passthrough on set/setMany, list with prefix filtering, empty list results, and progress increment without `setTotal`.
-- **`tests/mcp-server/prompts/utils/promptDefinition.test.ts`**: Added tests for generate without args, generate with args, multi-turn messages, and async generate.
-- **`tests/mcp-server/resources/utils/resourceDefinition.test.ts`**: Added tests for mimeType, name override, title, examples, annotations, async handler, format function, and list function.
-
----
-
-## [0.1.0-beta.26] - 2026-03-14
-
-Version bump and documentation alignment for error handling guidance.
-
-### Changed
-
-- **`package.json`**: Version bump to `0.1.0-beta.26`.
-- **`templates/CLAUDE.md`**: Updated error handling rules to match current framework behavior — plain `Error` and error factories instead of requiring `McpError` directly.
+- **DI container removed**: Replaced by `createApp()` direct construction. Explicit dependency struct (`McpServerDeps`) instead of token-based resolution.
+- **Definition types consolidated**: Merged `New*Definition` types into canonical `ToolDefinition`, `ResourceDefinition`, `PromptDefinition`. Single code path per primitive in registration.
+- **Error handling simplified**: "Logic throws, framework catches." Handlers throw plain `Error` or use error factories. No `try/catch` needed in handlers. Framework classifies, normalizes, and returns `isError: true`.
+- **Auth moved inline**: `auth: ['scope']` on definitions replaces `withToolAuth()`/`withResourceAuth()` HOF wrappers.
+- **`ctx.state` accepts any serializable value**: No manual `JSON.stringify`/`JSON.parse`. Supports generic types, Zod validation, batch operations (`getMany`, `setMany`, `deleteMany`), and TTL.
+- **Tenant ID defaults to `'default'`**: `ctx.state` works in stdio mode without JWT auth.
+- **Build system**: `tsc` + `tsc-alias` replaces `bun build` for proper `.d.ts` generation.
+- **Dependencies restructured**: Heavy deps (OTEL, Supabase, OpenAI, parsers, sanitization, scheduling) moved to optional peer dependencies with lazy dynamic `import()`. Core deps minimized.
+- **Auth fail-closed**: When auth is enabled but no auth context exists, throws `Unauthorized` instead of defaulting to allowed.
+- **Config immutable**: Config proxy `set()`/`defineProperty()` traps return `false` after parse.
+- **Async API surface**: Parser `parse()` methods, `diffFormatter`, and `sanitization` methods are async due to lazy loading.
+- **Zod modernized**: `z.url()`, `z.email()`, `z.iso.datetime()` replace string refinements.
+- **`devcheck` audit**: Classifies vulnerabilities as direct vs transitive, warns instead of failing for upstream-only issues.
+- **HTTP error mappings expanded**: `InvalidParams` 400, `Timeout` 504, `ServiceUnavailable` 503. Error responses include `McpError.data`.
+- **Prompt registration**: Callbacks wrapped in error handling via `ErrorHandler.handleError`.
+- **OpenRouter provider**: SDK-level retries (`maxRetries: 2`) with exponential backoff on 429/5xx, replacing manual retry logic.
+- **`ElicitResult` type**: Updated to match actual MCP SDK shape — flat `Record<string, string | number | boolean | string[]>` content, not a discriminated union with typed `data`.
+- **Speech API parameters**: TTS uses `voice: { voiceId }` / `format`, STT uses `audio` / `format`. `WhisperProvider` uses direct HTTP instead of OpenAI SDK.
+- **`AuthContext` narrowed**: Removed `[key: string]: unknown` index signature — explicit fields only.
+- **Agent skill documentation**: Expanded with full env var reference tables (all defaults), provider registration guides per domain, auto-classification pattern reference, vitest `mergeConfig` setup, and corrected pagination/elicitation examples.
 
 ### Removed
 
-- **`CLAUDE.md`**: Removed stale "Extraction status" note referencing completed phases.
-
----
-
-## [0.1.0-beta.25] - 2026-03-14
-
-Moves core entry points (`app.ts`, `context.ts`, `worker.ts`) into `src/core/`, establishing the module boundary for the `@cyanheads/mcp-ts-core` package extraction. Removes outdated legacy READMEs and trims deferred phases from the extraction plan.
-
-### Changed
-
-- **Core module extraction**: Moved `src/app.ts`, `src/context.ts`, `src/worker.ts` → `src/core/app.ts`, `src/core/context.ts`, `src/core/worker.ts`.
-- **`package.json`**: Updated `main`, `types`, and `exports` (`.`, `./worker`) to point to `dist/core/` paths.
-- **Internal imports**: Updated all references from `@/context.js`, `@/app.js`, `@/worker.js` to `@/core/context.js`, `@/core/app.js`, `@/core/worker.js` across handler factories, definitions, auth, testing, and tests.
-- **`core-extraction/09-execution.md`**: Trimmed phases 6–9 (template repo, downstream migration, 1.0 cut, `create-mcp-server`) — deferred until post-publish.
-
-### Removed
-
-- **`src/mcp-server/README.md`** (~982 lines): Legacy module README superseded by CLAUDE.md and skill files.
-- **`src/services/README.md`** (~713 lines): Legacy services README superseded by CLAUDE.md and skill files.
-- **`src/storage/README.md`** (~642 lines): Legacy storage README superseded by CLAUDE.md and skill files.
-- **`core-extraction/README.md`**: Removed references to deferred phases 6–9.
-
-### Documentation
-
-- **`docs/tree.md`**: Updated directory structure to reflect `src/core/` addition and removed README entries.
-
----
-
-## [0.1.0-beta.24] - 2026-03-14
-
-Adds `{ cause }` support to all error factory functions, migrates the entire codebase from verbose `new McpError(JsonRpcErrorCode.X, ...)` to concise factory calls, and refactors `checkScopes` to read directly from `ctx.auth`.
-
-### Added
-
-- **`src/types-global/errors.ts`**: `ErrorFactoryOptions` type alias (ES2022 `ErrorOptions`) and optional third `options` parameter on all 11 error factory functions, enabling `{ cause }` error chaining.
-- **`tests/types-global/errors.test.ts`**: Tests for `cause` pass-through on factory functions (with and without `data`).
-
-### Changed
-
-- **Codebase-wide error factory migration**: Replaced `new McpError(JsonRpcErrorCode.X, message, data)` with corresponding factory calls (`configurationError()`, `invalidParams()`, `notFound()`, `forbidden()`, `unauthorized()`, `validationError()`, `serviceUnavailable()`, `timeout()`, `rateLimited()`, `invalidRequest()`, `conflict()`) across ~40 files. Net reduction of ~110 lines.
-- **`src/mcp-server/transports/auth/lib/checkScopes.ts`**: Refactored to read scopes directly from `ctx.auth` instead of delegating through `withRequiredScopes` and AsyncLocalStorage. Simpler, more direct scope checking.
-- **`src/services/speech/providers/elevenlabs.provider.ts`**, **`whisper.provider.ts`**: Changed catch-all `InternalError` throws to `serviceUnavailable()` with `{ cause }` for external API failures.
-- **`src/services/llm/providers/openrouter.provider.ts`**: Changed client construction error to `configurationError()` with `{ cause }`.
-- **`src/mcp-server/tasks/core/storageBackedTaskStore.ts`**: Changed "task not found" errors from `InvalidRequest` to `notFound()` for semantic correctness.
-
-### Documentation
-
-- **`CLAUDE.md`**: Updated version to beta.24, revised error factory signatures to show `options?` parameter, updated examples with `{ cause }` usage.
-- **`skills/api-errors/SKILL.md`**: Updated factory table signatures and added `cause` example.
-- **`src/mcp-server/README.md`**, **`src/services/README.md`**, **`src/storage/README.md`**: Updated error examples to use factory functions.
-
----
-
-## [0.1.0-beta.23] - 2026-03-14
-
-Adds error factory functions for ergonomic error creation, expands the Context state API with generic typing and batch operations, and tightens error pattern matching to prevent misclassification.
-
-### Added
-
-- **`src/types-global/errors.ts`**: 11 error factory functions (`invalidParams`, `invalidRequest`, `notFound`, `forbidden`, `unauthorized`, `validationError`, `conflict`, `rateLimited`, `timeout`, `serviceUnavailable`, `configurationError`) — shorter and more readable than `new McpError(code, msg, data)`.
-- **`src/context.ts`**: `ctx.state.getMany()`, `ctx.state.setMany()`, `ctx.state.deleteMany()` batch operations. `ctx.state.get()` now supports generic type parameter and optional Zod schema validation.
-- **`src/testing/index.ts`**: Mock state implementation updated with batch operations and generic get support.
-- **`tests/types-global/errors.test.ts`**: Full test coverage for all 11 error factory functions.
-- **`tests/context.test.ts`**: Tests for generic get/set, getMany, setMany, deleteMany.
-- **`tests/utils/internal/error-handler/mappings.test.ts`**: Regression tests for narrowed patterns (bare `auth` ≠ Unauthorized, `missing required field` = ValidationError).
-- **`tests/utils/internal/error-handler/errorHandler.test.ts`**: Regression tests for misclassification fixes.
-- **`examples/mcp-server/tools/definitions/template-cat-fact.tool.ts`**: Demonstrates error factory usage (`serviceUnavailable`) for external API failure handling.
-
-### Changed
-
-- **`src/context.ts`**: `ctx.state` values are now `unknown` instead of `string` — no manual `JSON.stringify`/`JSON.parse` needed. List items return `value: unknown` instead of stringified values.
-- **`src/utils/internal/error-handler/mappings.ts`**: Narrowed Unauthorized pattern (removed bare `auth` match, requires `unauthorized`/`unauthenticated`/`not authorized`/`invalid token`/`expired token`). Removed bare `missing` from NotFound pattern. Narrowed ValidationError `missing required` to require a following noun (`field`, `param`, `input`, `value`, `arg`).
-- **`tests/utils/internal/errorHandler.int.test.ts`**: Updated integration test to reflect narrowed pattern matching (bare `missing` → `missing required field`).
-- **`tests/mcp-server/transports/http/httpTransport.test.ts`**: Added missing `mcpAuthMode` and framework identity fields to config mock.
-
-### Docs
-
-- **`CLAUDE.md`**: Version bump to 0.1.0-beta.23. Updated exports table, error handling section (factories, auto-classification patterns table), Context state API docs (generic types, batch ops), observability guidance, code style section, checklist.
-- **`skills/api-errors/SKILL.md`**: Added error factories section with full table, updated examples to prefer factories over `new McpError()`.
-- **`skills/api-context/SKILL.md`**: Updated ContextState interface (generic types, batch ops), usage examples (no manual JSON serialization), auto-instrumentation note.
-- **`skills/api-auth/SKILL.md`**: Updated state usage example to use typed values instead of JSON strings.
-
----
-
-## [0.1.0-beta.22] - 2026-03-14
-
-Re-exports `z` from the main entry point so consumers never need a separate `zod` import. Simplifies the README hero example to the true minimum — single import line, no `ctx.log` boilerplate (the framework logs every tool call automatically).
-
-### Added
-
-- **`src/app.ts`**: Re-exports `z` from `zod` — consumers can now `import { tool, z } from '@cyanheads/mcp-ts-core'` with no separate zod import.
-
-### Changed
-
-- **`README.md`**: Hero example simplified to single-import pattern (`import { createApp, tool, z }`), removed `ctx.log.info` from hello world, added note about automatic observability. "What you get" examples updated to single-import pattern.
-- **`CLAUDE.md`**: Exports table includes `z`. All code examples (tool, resource, prompt) updated to single-import pattern. Import conventions section updated.
-- **`skills/add-tool/SKILL.md`**, **`skills/add-resource/SKILL.md`**, **`skills/add-prompt/SKILL.md`**: Template imports updated to single-import pattern.
-- **`skills/api-config/SKILL.md`**: Server config example imports `z` from `@cyanheads/mcp-ts-core`.
-- **Examples**: All tool, resource, and prompt definitions migrated to single-import pattern (`import { tool, z } from '@cyanheads/mcp-ts-core'` instead of separate `zod` import).
-- **Templates**: All scaffolded definitions migrated to single-import pattern. Removed unnecessary inline comments and unused `ctx` parameter from simple echo handlers. Updated `CLAUDE.md` import conventions section.
-
----
-
-## [0.1.0-beta.21] - 2026-03-14
-
-Removes the `./context` subpath export (Context is re-exported from main entry), removes `--dry-run` from the CLI init command, adds `idempotentHint` annotations to example tools, and updates CLAUDE.md and skill docs to reflect current API surface.
-
-### Changed
-
-- **`CLAUDE.md`**: Updated version to 0.1.0-beta.21. Refreshed exports table — removed `/context` row, added `FRAMEWORK_NAME`/`FRAMEWORK_VERSION` to `/config`, updated `/utils` description with Tier 3 notation. Expanded Workers docs (OTEL unavailability, compat flags). Added `ServerHandle`/`ExportedHandler` return type documentation. Expanded dynamic auth scopes example with code block. Added `type ServerConfig` to server config example. Added TTL example to `ctx.state.set`. Minor formatting fixes.
-- **`src/cli/init.ts`**: Removed `--dry-run` flag — init now always writes files. Simplified `copyTemplates`, `copyExternalSkills`, and `printSummary` signatures by removing the `dryRun` parameter.
-- **`examples/mcp-server/tools/definitions/template-async-countdown.tool.ts`**: Added `idempotentHint: false` annotation.
-- **`examples/mcp-server/tools/definitions/template-cat-fact.tool.ts`**: Added `idempotentHint: true` annotation.
-- **`examples/mcp-server/tools/definitions/template-image-test.tool.ts`**: Added `idempotentHint: true` annotation.
-- **`examples/mcp-server/tools/definitions/template-madlibs-elicitation.tool.ts`**: Changed `Context` import from `@cyanheads/mcp-ts-core/context` to `@cyanheads/mcp-ts-core`. Removed unnecessary type cast on elicitation result content.
-- **`skills/api-context/SKILL.md`**: Updated Context import path from `/context` to main entry.
-- **`skills/migrate-mcp-ts-template/SKILL.md`**: Updated context import mapping — removed `/context` alternative.
-
-### Removed
-
-- **`package.json`**: Removed `./context` subpath export (Context type available from main `@cyanheads/mcp-ts-core` entry).
-- **`src/cli/init.ts`**: Removed `--dry-run` CLI flag and all associated branching logic.
-
----
-
-## [0.1.0-beta.20] - 2026-03-14
-
-Enriches the `GET /mcp` discovery endpoint with server capability flags, framework identity, and auth mode. Threads definition counts from `composeServices` through the transport layer.
-
-### Added
-
-- **`src/mcp-server/transports/http/httpTypes.ts`**: New `DefinitionCounts` interface tracking registered prompts, resources, and tools.
-- **`src/config/index.ts`**: Exported `FRAMEWORK_NAME` and `FRAMEWORK_VERSION` constants sourced from the package's own `package.json`.
-- **`GET /mcp` response**: Now includes `capabilities` (logging, prompts, resources, tools), `framework` (name, version), and `auth` (mode) fields.
-- **`tests/fixtures/index.ts`**: `defaultDefinitionCounts` fixture for tests requiring a `DefinitionCounts` value.
-
-### Changed
-
-- **`src/app.ts`**: `composeServices()` returns `definitionCounts`; `createApp()` passes it to `TransportManager`.
-- **`src/mcp-server/transports/manager.ts`**: `TransportManager` constructor accepts `DefinitionCounts` and forwards it to `startHttpTransport`.
-- **`src/mcp-server/transports/http/httpTransport.ts`**: `createHttpApp` and `startHttpTransport` accept `DefinitionCounts` parameter.
-- **`src/worker.ts`**: Worker handler passes `definitionCounts` to `createHttpApp`.
-- **Tests updated**: All `createHttpApp` and `TransportManager` call sites updated with `defaultCounts` fixture across unit and integration tests.
-
----
-
-## [0.1.0-beta.19] - 2026-03-14
-
-Eliminates the "legacy vs new-style" definition split — merges all `new*Definition` and `new*HandlerFactory` modules into their original counterparts. One definition type, one handler factory, one registration path per primitive. Adds context and mock-context fidelity tests. Pins all `latest` devDependencies to specific versions.
-
-### Added
-
-- **`tests/context.test.ts`**: Comprehensive tests for `createContext()` — field assembly, tenant defaulting, `ctx.log` correlation, `ctx.state` scoping, `ctx.progress` lifecycle, and optional capability wiring.
-- **`tests/testing/mockContextFidelity.test.ts`**: Fidelity tests comparing `createMockContext()` against real `createContext()`, documenting known divergences and ensuring behavioral equivalence.
-
-### Changed
-
-- **Tool definitions consolidated**: Merged `newToolDefinition.ts` into `toolDefinition.ts` — `ToolDefinition` now uses `handler(input, ctx)` / `input` / `output` / `format` / `auth` fields directly. `tool()` builder exported from `toolDefinition.ts`. Removed the `New` prefix from all type names (`AnyNewToolDefinition` → `AnyToolDefinition`, `NewToolDefinition` → `ToolDefinition`).
-- **Tool handler factory consolidated**: Merged `newToolHandlerFactory.ts` into `toolHandlerFactory.ts` — single `createToolHandler()` function (was `createNewToolHandler` + `createMcpToolHandler`).
-- **Resource definitions consolidated**: Merged `newResourceDefinition.ts` into `resourceDefinition.ts` — `ResourceDefinition` now uses `handler(params, ctx)` / `params` / `auth` / `format` / `list` fields directly. `resource()` builder exported from `resourceDefinition.ts`.
-- **Resource handler factory consolidated**: Merged `newResourceHandlerFactory.ts` into `resourceHandlerFactory.ts` — single handler factory, no legacy path.
-- **Prompt definitions consolidated**: Merged `newPromptDefinition.ts` into `promptDefinition.ts` — `PromptDefinition` now uses `generate(args)` / `args` fields directly. `prompt()` builder exported from `promptDefinition.ts`.
-- **Registration files simplified**: `tool-registration.ts`, `resource-registration.ts`, and `prompt-registration.ts` no longer branch on "legacy vs new-style" — one code path per primitive. Removed `isNewToolDefinition`, `isNewResourceDefinition`, `isNewPromptDefinition` type guards.
-- **`src/app.ts`**: Re-exports updated from `New*` prefixed types to canonical names. `CreateAppOptions` uses `AnyToolDefinition`, `AnyResourceDefinition`, `AnyPromptDefinition` directly.
-- **`src/mcp-server/tasks/utils/taskToolDefinition.ts`**: `TaskToolDefinition` references updated from legacy `ToolDefinition` fields to current interface.
-- **`package.json` exports**: `./tools` now points to `toolDefinition.ts` (was `newToolDefinition.ts`). `./resources` points to `resourceDefinition.ts` (was `newResourceDefinition.ts`). `./prompts` points to `promptDefinition.ts` (was `newPromptDefinition.ts`).
-- **Vitest configs**: Replaced `vite-tsconfig-paths` plugin with native `resolve: { tsconfigPaths: true }` across `vitest.config.ts`, `vitest.config.base.ts`, and `vitest.integration.ts`.
-- **`tests/setup.ts`**: Removed `IS_INTEGRATION` conditional — mocks now apply unconditionally (integration tests use a separate config with no `setupFiles`). Cleaned up comments.
-- **`package.json` devDependencies**: Pinned all `latest` specifiers to explicit versions — `@hono/otel` ^1.1.1, `@opentelemetry/*` ^0.213.0/^2.6.0/^1.40.0, `@supabase/supabase-js` ^2.99.1, `chrono-node` ^2.9.0, `node-cron` ^4.2.1, `openai` ^6.29.0, `papaparse` ^5.5.3, `partial-json` ^0.1.7, `pdf-lib` ^1.17.1, `sanitize-html` ^2.17.0, `unpdf` ^1.4.0, `validator` ^13.15.0. Removed `vite-tsconfig-paths`.
-- **Documentation**: Updated `docs/conformance-test-plan.md`, `docs/tree.md`, `src/mcp-server/README.md`, `skills/api-testing/SKILL.md`, `skills/migrate-mcp-ts-template/SKILL.md`, and `src/cli/init.ts` to reflect consolidated module names.
-- **Tests updated**: All tool, resource, and prompt registration/definition/handler tests rewritten against the unified types. Removed references to `New*` prefixed types and legacy `inputSchema`/`logic`/`responseFormatter` fields.
-
-### Removed
-
-- **`src/mcp-server/tools/utils/newToolDefinition.ts`**: Consolidated into `toolDefinition.ts`.
-- **`src/mcp-server/tools/utils/newToolHandlerFactory.ts`**: Consolidated into `toolHandlerFactory.ts`.
-- **`src/mcp-server/resources/utils/newResourceDefinition.ts`**: Consolidated into `resourceDefinition.ts`.
-- **`src/mcp-server/resources/utils/newResourceHandlerFactory.ts`**: Consolidated into `resourceHandlerFactory.ts`.
-- **`src/mcp-server/prompts/utils/newPromptDefinition.ts`**: Consolidated into `promptDefinition.ts`.
-- **`src/mcp-server/transports/auth/lib/withAuth.ts`**: HOF auth wrapper removed — auth is now inline on definitions via `auth: ['scope']`.
-- **`tests/mcp-server/tools/toolHandlerFactory.test.ts`**: Legacy handler factory tests (superseded by `tools/utils/toolHandlerFactory.test.ts`).
-- **`tests/mcp-server/tools/utils/toolDefinition.test.ts`**: Legacy definition tests (superseded by consolidated `toolDefinition.test.ts` coverage in handler tests).
-- **`tests/mcp-server/transports/auth/lib/withAuth.test.ts`**: Tests for removed `withAuth` HOF.
-- **`tests/fixtures/index.ts`**: Unused test fixtures barrel.
+- **DI container** (`src/container/`): 6 source files + 5 test files.
+- **Legacy definition types**: `New*` prefixed types, `isNew*Definition` type guards, `newToolHandlerFactory`, `newResourceHandlerFactory`, `newPromptDefinition` — all consolidated into canonical modules.
+- **`withAuth` HOF**: `withToolAuth()`, `withResourceAuth()` — replaced by inline `auth` on definitions.
+- **Template definitions from `src/`**: Moved to `examples/`. Core library ships with no built-in tools/resources/prompts.
+- **Legacy READMEs**: `src/mcp-server/README.md`, `src/services/README.md`, `src/storage/README.md` — superseded by CLAUDE.md and skill files.
+- **Conformance test suite**: 20 test files + 4 helpers — to be rewritten against stable API post-publish.
+- **`./context` subpath export**: `Context` available from main entry point.
+- **11 granular `./utils/*` subpath exports**: Replaced by single `./utils` barrel.
+- **`changelog/archive.md`**: Pre-3.0.0 history.
+- **`@traversable/*` devDependencies**: No longer needed after removing Zod schema compatibility tests.
 - **`vite-tsconfig-paths`**: Replaced by native Vitest `resolve.tsconfigPaths`.
-
----
-
-## [0.1.0-beta.18] - 2026-03-14
-
-Adds error handling to prompt registration callbacks, expands HTTP error status mappings, and corrects Worker JSDoc.
-
-### Fixed
-
-- **`src/mcp-server/prompts/prompt-registration.ts`**: Prompt handler callbacks (both new and legacy definition styles) now wrap execution in try/catch — errors are routed through `ErrorHandler.handleError` and re-thrown as `McpError`. Previously, prompt handler errors bypassed the framework's error classification.
-- **`src/mcp-server/transports/http/httpErrorHandler.ts`**: Added missing HTTP status mappings — `InvalidParams` → 400, `Timeout` → 504, `ServiceUnavailable` → 503. Error responses now include `McpError.data` when present.
-- **`src/worker.ts`**: Updated JSDoc to clarify that OpenTelemetry `NodeSDK` is unavailable in Workers runtime (`canUseNodeSDK()` returns false), removing misleading telemetry flush references.
-
----
-
-## [0.1.0-beta.17] - 2026-03-14
-
-Consolidates 11 granular `./utils/*` subpath exports into a single `./utils` barrel, adds a `./services` barrel, and simplifies error handling across all examples and docs — handlers can now throw plain `Error` instead of requiring `McpError` imports.
-
-### Added
-
-- **`src/utils/index.ts`**: Unified barrel export for all utility modules — formatting, parsing, security, network, pagination, scheduling, telemetry, encoding, logger, error handler, request context, runtime, token counting, and type guards.
-- **`src/services/index.ts`**: Unified barrel export for all service modules — Graph (`GraphService`, types), LLM (`OpenRouterProvider`, types), and Speech (`SpeechService`, `ElevenLabsProvider`, `WhisperProvider`, types).
-
-### Changed
-
-- **`package.json` exports**: Replaced 11 granular `./utils/*` subpaths (`./utils/logger`, `./utils/formatting`, `./utils/parsing`, `./utils/security`, `./utils/network`, `./utils/pagination`, `./utils/runtime`, `./utils/scheduling`, `./utils/types`, `./utils/requestContext`, `./utils/errorHandler`) with a single `./utils` entry. Added `./services` entry.
-- **`package.json` sideEffects**: Changed from `false` to an explicit array (`config/index.js`, `logger.js`, telemetry files) for correct tree-shaking.
-- **Error handling simplification**: All example tools (`template-cat-fact`, `template-echo-message`, `template-image-test`, `template-code-review-sampling`, `template-madlibs-elicitation`) replaced verbose `McpError` throws with plain `Error` or Zod `.parse()` — the framework auto-classifies errors. Removed `McpError`/`JsonRpcErrorCode` imports from examples that no longer need them.
-- **`template-cat-fact`**: Replaced manual HTTP status checking and `safeParse` with direct `.parse()` — framework catches both fetch failures and `ZodError`.
-- **`template-image-test`**: Removed local `arrayBufferToBase64` helper — now imported from `@cyanheads/mcp-ts-core/utils`. Removed manual HTTP error handling.
-- **`CLAUDE.md`**: Exports table condensed to reflect unified `./utils` and `./services` subpaths. Error handling guidance rewritten — "Logic throws, framework catches" replaces "Logic throws, handlers catch." New section explains plain `Error` as default, `McpError` as opt-in for precision. Code examples updated throughout.
-- **`README.md`**: Quick start rewritten to lead with `bunx init` scaffolding workflow. Simplified tool/resource examples. Import examples updated.
-- **`src/utils/formatting/markdownBuilder.ts`**: JSDoc import paths updated.
-- **`src/config/index.ts`**: Export ordering normalized.
-- **`biome.json`**: Schema version bumped to 2.4.7.
-- **Docs** (`core-extraction/02-public-api.md`, `04-dependencies.md`, `05-agent-dx.md`, `07-migration.md`, `11-consumer-workflow.md`, `12-developer-api.md`): All import paths updated from granular `utils/*` to unified `utils`.
-- **Skills** (`add-export`, `add-resource`, `api-context`, `api-errors`, `api-utils`, `api-workers`, `migrate-mcp-ts-template` and references): All import paths and subpath references updated.
-
-### Updated
-
-- `hono` 4.12.7 → 4.12.8, `@biomejs/biome` 2.4.6 → 2.4.7, `@cloudflare/workers-types` 4.20260312.1 → 4.20260313.1, `@types/node` 25.4.0 → 25.5.0, `@vitest/coverage-istanbul` 4.0.18 → 4.1.0, `@vitest/ui` 4.0.18 → 4.1.0, `vite` 7.3.1 → 8.0.0, `vitest` 4.0.18 → 4.1.0. Peer dep `hono` minimum bumped from 4.12.5 → 4.12.7.
-
----
-
-## [0.1.0-beta.16] - 2026-03-12
-
-Improves scaffolding DX: auto-generates `.gitignore`, streamlines post-init guidance, and updates template agent protocol files to reflect current project structure.
-
-### Added
-
-- **`templates/_.gitignore`**: New `.gitignore` template scaffolded automatically on init (`node_modules/`, `dist/`, `.env`, `.tsbuildinfo`).
-
-### Changed
-
-- **`src/cli/init.ts`**: Redesigned post-scaffold "Next steps" output — clearer numbered steps, includes `cd` step when name is provided, lists supported coding agents (claude, codex, cursor).
-- **`templates/CLAUDE.md`**, **`templates/AGENTS.md`**: Removed `index.ts` barrel file references from structure diagram (definitions register directly in `src/index.ts`). Added API reference skills to skills table. Updated checklist to reference `src/index.ts` arrays instead of barrel files.
-- **`templates/src/index.ts`**: Fixed stale `{{SERVER_NAME}}` placeholder to `{{PACKAGE_NAME}}` in fileoverview JSDoc.
-- **`skills/setup/SKILL.md`**: Removed manual `.gitignore` creation step and checklist item (now handled by template scaffolding).
-
----
-
-## [0.1.0-beta.15] - 2026-03-12
-
-Adds missing `@types/node` to template devDependencies.
-
-### Fixed
-
-- **`templates/package.json`**: Added `@types/node@^25.0.0` to `devDependencies` — was missing from scaffolded projects.
-
----
-
-## [0.1.0-beta.14] - 2026-03-12
-
-Unifies the template placeholder to `{{PACKAGE_NAME}}` and expands init CLI substitution to all text files. Adds post-scaffold checklist items to the setup skill.
-
-### Changed
-
-- **`src/cli/init.ts`**: `{{PACKAGE_NAME}}` substitution now applies to all text files (`.md`, `.ts`, `.js`, `.json`, `.yaml`, `.yml`, `.toml`, `.txt`) instead of only `package.json`. Added `isTextFile()` helper and `TEXT_EXTENSIONS` set.
-- **`templates/CLAUDE.md`**, **`templates/AGENTS.md`**: Replaced `{{SERVER_NAME}}` placeholder with `{{PACKAGE_NAME}}` for consistency with the unified substitution.
-- **`templates/package.json`**: Bumped `@biomejs/biome` to `^2.4.0`, `typescript` to `^5.9.0`, `vitest` to `^4.0.0`.
-- **`skills/setup/SKILL.md`**: Added "Project Scaffolding" section with post-init steps (git init, `.gitignore`, placeholder verification). Added checklist items for `{{PACKAGE_NAME}}` replacement and `.gitignore` creation.
-
----
-
-## [0.1.0-beta.13] - 2026-03-12
-
-Improves the `init` CLI to scaffold into a named subdirectory and updates template dependencies to current versions.
-
-### Changed
-
-- **`src/cli/init.ts`**: When a project name is provided, the CLI now creates a subdirectory and scaffolds into it (`join(cwd(), name)`) instead of always using `cwd()`. Running `mcp-ts-core init my-server` now creates `./my-server/` with the scaffolded project inside.
-- **`templates/package.json`**: Updated `@cyanheads/mcp-ts-core` dependency from `^0.1.0` to `beta` tag for automatic pre-release tracking. Bumped `zod` from `^3.25.0` to `^4.3.6`.
-- **`package.json`**: Version bump to `0.1.0-beta.13`.
-- **`server.json`**: Version bump to `0.1.0-beta.13`.
-
----
-
-## [0.1.0-beta.12] - 2026-03-12
-
-Enhances `devcheck` audit to classify vulnerabilities as direct (fixable) vs transitive/upstream (not directly fixable), warning instead of failing for upstream-only issues.
-
-### Changed
-
-- **`scripts/devcheck.ts`**: Added `classifyAuditVulns()` parser that reads `bun audit` output and separates high/critical vulnerabilities into direct dependencies (fail the check) vs transitive/upstream dependencies (warn but pass). Added `warning` field to `CommandResult` and `WARNING` status in UI output. `isSuccess` callbacks can now return `{ success, warning }` objects.
-- **`package.json`**: Version bump to `0.1.0-beta.12`.
-- **`server.json`**: Version bump to `0.1.0-beta.12`.
-
----
-
-## [0.1.0-beta.11] - 2026-03-12
-
-Modernizes Zod schemas to use new top-level validators (`z.url()`, `z.email()`, `z.iso.datetime()`), replaces empty template barrel files with functional echo definitions as starting points, and updates the CLI init to handle underscore-prefixed template files.
-
-### Added
-
-- **`templates/src/mcp-server/tools/definitions/echo.tool.ts`**: Functional echo tool definition as a starter for new projects — replaces empty barrel file.
-- **`templates/src/mcp-server/resources/definitions/echo.resource.ts`**: Functional echo resource definition as a starter for new projects.
-- **`templates/src/mcp-server/prompts/definitions/echo.prompt.ts`**: Functional echo prompt definition as a starter for new projects.
-- **`templates/_tsconfig.json`**: Renamed from `tsconfig.json` with underscore prefix to prevent IDE auto-discovery in the core package; init CLI strips the prefix on copy.
-
-### Changed
-
-- **Zod schema modernization**: Migrated `z.string().url()` → `z.url()`, `z.string().email()` → `z.email()`, `z.string().datetime()` → `z.iso.datetime()` across `src/config/index.ts`, examples, docs (`src/mcp-server/README.md`, `src/storage/README.md`, `core-extraction/11-consumer-workflow.md`, `core-extraction/12-developer-api.md`), and tests.
-- **`templates/src/index.ts`**: Imports echo definitions directly instead of barrel files; registers them inline in `createApp()`.
-- **`src/cli/init.ts`**: Added `_` prefix stripping for template files (e.g., `_tsconfig.json` → `tsconfig.json`) alongside existing `.template.json` suffix stripping.
-- **`skills/setup/SKILL.md`** (v1.1): Updated to reflect echo scaffold definitions, removed barrel file references, added server-name prefix naming convention, added checklist item for deleting unused echo definitions.
-
-### Removed
-
-- **`templates/src/mcp-server/tools/definitions/index.ts`**: Empty barrel file replaced by echo definition.
-- **`templates/src/mcp-server/resources/definitions/index.ts`**: Empty barrel file replaced by echo definition.
-- **`templates/src/mcp-server/prompts/definitions/index.ts`**: Empty barrel file replaced by echo definition.
-- **`templates/tsconfig.json`**: Replaced by `_tsconfig.json` (underscore prefix convention).
-
----
-
-## [0.1.0-beta.10] - 2026-03-12
-
-Implements the `init` CLI subcommand for scaffolding new consumer projects, adds `type` metadata to all skill frontmatter for classification, and adds a debug skill for tracing agent onboarding.
-
-### Added
-
-- **`src/cli/init.ts`**: CLI entry point implementing `mcp-ts-core init [name] [--dry-run]`. Copies templates, filters skills by `audience: external`, substitutes `{{PACKAGE_NAME}}` in `package.json`, and prints a summary with next steps.
-- **`skills/walkthrough-init/SKILL.md`**: New internal debug skill for tracing the agent onboarding flow after `init` scaffolds a project — follows every instruction chain through CLAUDE.md, skills, and framework docs to find broken links and dead ends.
-
-### Changed
-
-- **`package.json`**: Added `templates/` to `files` array; changed `bin` entry from `dist/index.js` to `dist/cli/init.js`.
-- **All SKILL.md files**: Added `metadata.type` field (`reference`, `workflow`, or `debug`) to frontmatter for skill classification.
-- **`skills/migrate-mcp-ts-template/SKILL.md`**: Changed `audience` from `internal` to `external` — migration skill is needed by consumer projects upgrading from legacy template forks.
-- **`core-extraction/13-init-cli.md`**: Updated checklist — marked `init.ts`, `bin` field, `files` array, audience filtering, `--dry-run`, and `[name]` argument as complete.
-
----
-
-## [0.1.0-beta.9] - 2026-03-12
-
-Documentation refactoring: condenses CLAUDE.md, extracts detailed API references from skill files into dedicated reference subdirectories, updates skill docs to reflect current API surfaces, and refreshes the project tree.
-
-### Added
-
-- **`skills/api-services/references/`**: Extracted LLM, Speech, and Graph service documentation into dedicated reference files (`llm.md`, `speech.md`, `graph.md`) — previously inline in `SKILL.md`.
-- **`skills/api-utils/references/`**: Extracted Formatting, Parsing, and Security utility documentation into dedicated reference files (`formatting.md`, `parsing.md`, `security.md`) — previously inline in `SKILL.md`.
-
-### Changed
-
-- **`CLAUDE.md`**: Major condensation — compressed verbose paragraphs into terse bullet-point rules, merged header lines, reduced net ~545 lines while preserving all API surface documentation.
-- **`docs/tree.md`**: Regenerated to reflect current project structure (examples/, new scripts, skill reference dirs, barrel files, removed conformance tests).
-- **`skills/api-services/SKILL.md`** (v1.2): Replaced inline service docs with references table pointing to new reference files.
-- **`skills/api-utils/SKILL.md`** (v2.0): Replaced inline formatting/parsing/security docs with references table; updated method signatures for `fetchWithTimeout`, `paginateArray`, `extractCursor`, `decodeCursor`, `schedulerService`, `ErrorHandler`, and `utils/types` guards.
-- **`skills/api-errors/SKILL.md`**: Expanded error code table with standard JSON-RPC 2.0 codes (`ParseError`, `MethodNotFound`) and new implementation-defined codes (`SerializationError`, `UnknownError`); added `McpError` `options` parameter; expanded `ErrorHandler.tryCatch` options documentation.
-- **`skills/api-testing/SKILL.md`**: Expanded `MockContextOptions` interface docs (`auth`, `requestId`, `signal`, `uri`); added mock progress state-tracking and mock logger inspection examples; replaced vitest config with standalone example using `tsconfigPaths()`.
-- **`skills/migrate-mcp-ts-template/SKILL.md`** (v2.0): Comprehensive rewrite — categorized import mapping tables (core, definition types, internal utils, public utils), added files-to-remove checklist, added entry point rewrite example, expanded verification checklist.
-- **`skills/api-auth/SKILL.md`**: Minor signature and description corrections.
-- **`skills/api-context/SKILL.md`**: Minor corrections.
-- **`skills/api-workers/SKILL.md`**: Minor corrections.
-- **`skills/add-provider/SKILL.md`**: Minor corrections.
-- **`skills/add-resource/SKILL.md`**: Minor corrections.
-
----
-
-## [0.1.0-beta.8] - 2026-03-12
-
-Extracts all template definitions from `src/` to `examples/`, completing the core/consumer separation. The core library now ships as a clean framework with no built-in tools, resources, or prompts. Template definitions live in `examples/` as a reference consumer server.
-
-### Added
-
-- **`examples/` directory**: Complete example consumer server demonstrating the `@cyanheads/mcp-ts-core` API.
-  - `examples/index.ts` — Node.js entry point using `createApp()` with all template definitions.
-  - `examples/worker.ts` — Cloudflare Workers entry point using `createWorkerHandler()`.
-  - 7 tool definitions, 2 resource definitions, 1 prompt definition — all importing from `@cyanheads/mcp-ts-core` public subpath exports.
-- **CLAUDE.md**: Added "Utils API Quick Reference" and "Services API Quick Reference" sections with per-subpath method tables for all utility and service exports.
-- **Example tests** (`tests/examples/`): 7 test files with 39 tests covering all example definitions — echo tool, async countdown task tool, code review sampling tool, Mad Libs elicitation tool, data explorer app tool, echo resource, and code review prompt.
-
-### Changed
-
-- **`src/index.ts`**: Stripped to minimal core entry point — calls `createApp()` with no definitions. Consumer servers provide their own.
-- **`scripts/build.ts`**: Safer `--project` arg parsing (handles undefined index gracefully).
-- **`scripts/test-report.ts`**: Removed conformance suite config (conformance tests were deleted in beta.6).
-- **Integration tests** (`tests/integration/`): Replaced `template_echo_message` tool invocations with `client.ping()` — core server ships with no built-in tools; tests now verify transport functionality only.
-- **`package.json`**: Removed `test:fuzz` from `test:all` script (fuzz tests deleted in this release).
-- **`core-extraction/09-execution.md`**: Phase 4 checklist items marked complete — examples verified with subpath exports, build, tests, and devcheck.
-- **`core-extraction/README.md`**: Phase 3 marked complete (JSDoc accuracy deferred to post-publish); Phase 4 marked complete with test counts.
-- **`src/utils/scheduling/scheduler.ts`**: Fixed JSDoc example code.
-- **`tests/mcp-server/prompts/prompt-registration.test.ts`**: Rewritten with inline test fixtures (new-style + legacy prompt definitions) instead of importing from deleted template definitions.
-- **`tests/mcp-server/transports/auth/strategies/oauthStrategy.test.ts`**: Replaced bracket notation with dot notation for config property access.
-- **`core-extraction/09-execution.md`**: Updated Phase 3 checklist — template definitions moved, CLAUDE.md API refs added.
-- **`core-extraction/README.md`**: Updated Phase 3 status description.
-
-### Removed
-
-- **Template definitions from `src/`**: All tool, resource, and prompt definitions moved to `examples/`. Deleted `src/mcp-server/tools/definitions/`, `src/mcp-server/resources/definitions/`, `src/mcp-server/prompts/definitions/` (10 source files + 3 barrel indexes).
-- **Template definition tests**: All unit tests, schema snapshot tests, fuzz tests, and JSON schema compatibility tests for the moved definitions (20 test files + 2 snapshot files).
-- **`@traversable/*` devDependencies**: Removed `@traversable/registry`, `@traversable/zod-test`, `@traversable/zod-types` — no longer needed after removing Zod schema compatibility tests.
-
----
-
-## [0.1.0-beta.7] - 2026-03-12
-
-Migrates template resources and tools to new-style builders, expands `CoreServices` with optional providers, adds shareable Vitest base config and a build script with progress reporting.
-
-### Added
-
-- **`vitest.config.base.ts`**: Shareable Vitest base configuration for consumer servers. Exported via `@cyanheads/mcp-ts-core/vitest.config` subpath.
-- **`scripts/build.ts`**: Build script wrapping `tsc` + `tsc-alias` with timing, file counts, and size reporting.
-- **`CoreServices` expansion** (`src/app.ts`): `composeServices()` now constructs and exposes `rateLimiter`, optional `llmProvider` (OpenRouter), optional `speechService` (ElevenLabs/Whisper), and optional `supabase` client.
-
-### Changed
-
-- **`echo.resource.ts`**: Migrated from legacy `ResourceDefinition` with `withResourceAuth()` wrapper to new-style `resource()` builder with inline `auth`, `handler(params, ctx)`, and `format`.
-- **`data-explorer-ui.app-resource.ts`**: Migrated from legacy `ResourceDefinition` to `resource()` builder with inline `auth` and `handler`.
-- **`template-async-countdown`**: Rewritten from `TaskToolDefinition` (`.task-tool.ts`) to `tool()` builder with `task: true` (`.tool.ts`). Same behavior, simpler API.
-- **`scripts/clean.ts`**: Added `.tsbuildinfo` to default clean targets.
-- **`package.json`**: Build script changed to `bun run scripts/build.ts`. Added `vitest.config.base.ts` to `files` and `exports` map.
-- **Tests**: All resource and tool tests updated to use `createMockContext()` instead of `requestContextService`. Field name references updated (`paramsSchema` -> `params`, `outputSchema` -> `output`, `logic` -> `handler`, `responseFormatter` -> `format`). Fuzz tests pass `progress: true` for task tools.
-
-### Removed
-
-- **`template-async-countdown.task-tool.ts`**: Replaced by `template-async-countdown.tool.ts` using `task: true` flag.
-- **Legacy `withResourceAuth()` usage**: Both template resources now use inline `auth` on the `resource()` builder.
-
----
-
-## [0.1.0-beta.6] - 2026-03-11
-
-Restructures the package for npm consumption: explicit subpath exports, `tsc` + `tsc-alias` build, heavy deps moved to optional peers, `createApp()` owns the full server lifecycle, and `createWorkerHandler()` replaces the default Worker export.
-
-### Added
-
-- **Explicit subpath exports**: 25+ entries in `package.json` `exports` map replacing the wildcard `"./*"` pattern. Every public API surface (`./tools`, `./resources`, `./prompts`, `./tasks`, `./context`, `./errors`, `./config`, `./auth`, `./storage`, `./storage/types`, `./utils/*`, `./testing`, `./worker`) has dedicated `types` + `import` conditions.
-- **Utility barrel files**: New `src/utils/formatting/index.ts`, `src/utils/parsing/index.ts`, `src/utils/security/index.ts`, `src/utils/types/index.ts` — barrel exports for subpath resolution.
-- **`tsconfig.base.json`**: Shareable TypeScript config for consumer repos (`extends "@cyanheads/mcp-ts-core/tsconfig.base.json"`).
-- **`tsconfig.build.json`**: Build-specific config (src-only, excludes tests/examples).
-- **`scripts/verify-exports.ts`**: Post-build script that verifies all subpath exports resolve to existing files in `dist/`.
-- **`composeServices()`** (`src/app.ts`): Extracted shared service composition used by both `createApp()` and `createWorkerHandler()`. Handles name/version overrides, `resetConfig()`, core service construction, registry wiring, and server factory.
-- **`ServerHandle` interface**: Returned by `createApp()` — provides `shutdown()` for graceful teardown and `services` for read-only access to core services.
-- **`WorkerHandlerOptions`**: `createWorkerHandler()` accepts `extraEnvBindings`, `extraObjectBindings`, and `onScheduled` for server-specific extensibility.
-- **`resetConfig()` export** (`src/config/index.ts`): Invalidates the cached config parse so name/version overrides take effect.
-- **`prepublishOnly` script**: Runs build before `bun publish`.
-
-### Changed
-
-- **Build system**: Switched from `bun build` to `tsc -p tsconfig.build.json && tsc-alias` for proper `.d.ts` generation and path alias resolution.
-- **Main entry point**: `package.json` `main`/`types` now point to `dist/app.js`/`dist/app.d.ts` (was `dist/index.js`).
-- **`createApp()` lifecycle** (`src/app.ts`): Now handles the complete server lifecycle — OTEL init, high-res timer, logger initialization, transport startup, signal/error handler registration, and graceful shutdown. Returns `ServerHandle` instead of `AppHandle`.
-- **`src/index.ts`**: Simplified from ~160 lines to ~17 lines. Now just imports built-in definitions and calls `createApp()`. All startup/shutdown logic moved into `createApp()`.
-- **`createWorkerHandler()` factory** (`src/worker.ts`): Replaces the default export object. Returns `{ fetch, scheduled }` with closure over singleton app promise. Supports `extraEnvBindings`/`extraObjectBindings`/`onScheduled` options. Uses `composeServices()` instead of `createApp()`.
-- **Config proxy immutability** (`src/config/index.ts`): `set()` and `defineProperty()` traps now return `false` — config is read-only after parse. Replaced manual `hasFileSystemAccess` check with `runtimeCaps.isNode`.
-- **Auth fail-closed** (`src/mcp-server/transports/auth/lib/authUtils.ts`): `withRequiredScopes()` now explicitly checks `MCP_AUTH_MODE`. When auth is disabled (`none`), skips scope check. When auth is enabled but no auth context exists, throws `Unauthorized` instead of defaulting to allowed. Error data no longer leaks `grantedScopes`, `clientId`, or `subject` to the client.
-- **Dependencies restructured**: Most dependencies (OTEL, Supabase, OpenAI, parsers, sanitization, scheduling) moved to optional `peerDependencies`. Core deps reduced to `hono`, `pino`, `dotenv`, `jose`, `@hono/mcp`, `@hono/node-server`, `@modelcontextprotocol/sdk`, `@modelcontextprotocol/ext-apps`, `@opentelemetry/api`. `zod` moved to required peer dependency.
-- **`package.json` `files`**: Now includes `dist/`, `skills/`, `CLAUDE.md`, `tsconfig.base.json`, `biome.json`.
-- **`tsconfig.json`**: Removed `bun-types` from `types`, updated `exclude` to include `examples`.
-- **`vitest.config.ts`**: Removed conformance test exclusion.
-- **Test modernization**: All auth, transport, logger, and worker tests refactored to use `vi.mock`/`vi.hoisted` for config mocking instead of `Object.defineProperty` on the live config proxy. Transport manager tests construct `TransportManager` per test with appropriate config.
-
-### Fixed
-
-- **`src/utils/internal/encoding.ts`**: Cast `bytes.buffer` to `ArrayBuffer` for TypeScript strict mode compatibility.
-- **`src/utils/internal/runtime.ts`**: Type-safe `performance.now` check avoids accessing `globalThis.performance` directly (Workers type mismatch).
-
-### Removed
-
-- **Conformance test suite**: Deleted 20 test files, 4 helpers, and `vitest.conformance.ts`. Conformance tests will be rewritten against the stable `composeServices()` API post-extraction.
-- **`test:conformance` script**: Removed from `package.json`.
-- **`bun build` scripts**: Removed `build` (bun build) and `build:worker` scripts, replaced with `tsc` build.
-
----
-
-## [0.1.0-beta.5] - 2026-03-11
-
-Comprehensive documentation pass: enhanced JSDoc across all service and utility modules, added 8 new API reference skill files, and updated CLAUDE.md with the Agent Skills section.
-
-### Added
-
-- **API reference skills**: 8 new skill files in `skills/` covering auth (`api-auth`), config (`api-config`), context (`api-context`), errors (`api-errors`), services (`api-services`), testing (`api-testing`), utils (`api-utils`), and workers (`api-workers`). Each provides detailed API documentation and usage examples for its domain.
-- **Agent Skills section in CLAUDE.md**: Added skills reference table linking all 13 skills with paths and descriptions.
-
-### Changed
-
-- **JSDoc: services** (`src/services/`): Enhanced documentation across graph (`GraphService`, `IGraphProvider`, types), LLM (`ILlmProvider`, `openrouter.provider`, types), and speech (`ISpeechProvider`, `SpeechService`, `elevenlabs.provider`, `whisper.provider`, types) with expanded `@remarks`, `@param`, `@returns`, `@throws`, and `@example` tags.
-- **JSDoc: formatting utilities** (`src/utils/formatting/`): Enhanced `diffFormatter`, `markdownBuilder`, `tableFormatter`, and `treeFormatter` with detailed method documentation, usage examples, and clearer type descriptions.
-- **JSDoc: internal utilities** (`src/utils/internal/`): Enhanced `encoding`, `errorHandler` (handler, helpers, mappings, types), `health`, `logger`, `performance`, `requestContext`, and `runtime` modules.
-- **JSDoc: parsing utilities** (`src/utils/parsing/`): Enhanced `csvParser`, `dateParser`, `frontmatterParser`, `jsonParser`, `pdfParser`, `thinkBlock`, `xmlParser`, and `yamlParser`.
-- **JSDoc: remaining utilities**: Enhanced `tokenCounter` (metrics), `fetchWithTimeout` (network), `pagination` (pagination), `scheduler` (scheduling), `idGenerator`/`rateLimiter`/`sanitization` (security), `instrumentation`/`metrics`/`semconv`/`trace` (telemetry), and `guards` (types).
-- **Core extraction docs**: Updated `05-agent-dx.md`, `09-execution.md`, and `10-decisions.md` with current status.
-
----
-
-## [0.1.0-beta.4] - 2026-03-11
-
-Renames package identity to `@cyanheads/mcp-ts-core`. Wires new-style `resource()` and `prompt()` builders into their registries, adds `task: true` auto-task support for new-style tools, implements `checkScopes()` for dynamic auth, and defaults `tenantId` to `'default'` in stdio mode so `ctx.state` works without auth.
-
-### Added
-
-- **`createApp()` options**: `CreateAppOptions` and `CoreServices` interfaces exported from `src/app.ts`. Accepts `tools`, `resources`, `prompts`, `setup`, `name`, and `version` — consumers can override definition arrays and hook into server lifecycle.
-- **Auto-task tool registration**: New-style tools with `task: true` are automatically registered via the experimental Tasks API. The framework manages the full lifecycle — create task, background handler execution, progress reporting, cancellation polling, and result/error storage.
-- **`checkScopes()` public API** (`src/mcp-server/transports/auth/lib/checkScopes.ts`): Dynamic scope checking for new-style handlers. Wraps `withRequiredScopes` with `Context`-based interface for runtime-dependent scopes (e.g., `team:${input.teamId}:write`).
-- **`newResourceHandlerFactory.ts`**: Handler factory for new-style resource definitions — creates `Context` with `ctx.uri`, checks inline auth, validates params via Zod, formats response, catches errors.
-
-### Changed
-
-- **Package identity**: Renamed from `mcp-ts-template` to `@cyanheads/mcp-ts-core` across `package.json`, `server.json`, `wrangler.toml`, `typedoc.json`, test report, and config test. Repository URLs unchanged (Phase 6).
-- **`ResourceRegistry`**: Now accepts optional `ResourceHandlerFactoryServices` (logger + storage). Detects new-style definitions via `isNewResourceDefinition()` type guard and routes to `registerNewResource()` which uses `ResourceTemplate` and `createNewResourceHandler()`.
-- **`PromptRegistry`**: Detects new-style definitions via `isNewPromptDefinition()` type guard and routes to `registerNewPrompt()` which reads `args` instead of `argumentsSchema`.
-- **`ToolRegistry`**: New-style tools with `task: true` routed to `registerAutoTaskTool()` instead of `registerNewTool()`.
-- **`createContext()`**: Defaults `tenantId` to `'default'` when not set, so `ctx.state` works in stdio mode without JWT auth.
-- **`createApp()`**: Passes `{ logger, storage }` to both `ToolRegistry` and `ResourceRegistry` constructors. Runs `setup()` callback after core services, before registry construction.
-- **Task conformance test**: Updated `createTaskHarness()` to pass `{ logger, storage }` services to `ToolRegistry` and `ResourceRegistry`.
-- **Auth factory test**: Fixed JWT strategy tests to provide `mcpAuthSecretKey` config value, preventing runtime errors.
-
-### Updated
-
-- **`core-extraction/` docs**: Updated Phase 3 checklists in `05-agent-dx.md`, `09-execution.md`, `12-developer-api.md`, `13-init-cli.md`, and `README.md` to reflect completed registry wiring, auto-task support, `checkScopes`, stdio tenantId default, templates, and skills.
-
----
-
-## [0.1.0-beta.3] - 2026-03-11
-
-Adds the `templates/` directory for the `init` CLI, simplifies the init design to a one-time bootstrap (no idempotency), and reclassifies the `migrate-imports` skill as internal.
-
-### Added
-
-- **`templates/` directory**: Complete set of project scaffold templates for the `init` CLI — `CLAUDE.md`, `package.json`, `tsconfig.json`, `biome.json`, `vitest.config.ts`, `.env.example`, `src/index.ts`, and barrel `index.ts` files for tools/resources/prompts definitions.
-- **Standalone config templates**: `tsconfig.json`, `biome.json`, and `vitest.config.ts` templates are self-contained — no `extends` from core, so they work before `bun install`.
-
-### Changed
-
-- **`core-extraction/13-init-cli.md`**: Simplified init CLI from idempotent re-runnable command to one-time bootstrap. Removed `--force` flag, added `[name]` argument for package name substitution. Config templates are now standalone. Skill updates after `bun update` delegated to the `maintenance` skill.
-- **`skills/migrate-imports/SKILL.md`**: Reclassified from `audience: external` to `audience: internal` — this skill is only needed for legacy template forks, not new projects created via `init`.
-- **`skills/release/SKILL.md`**: Minor formatting cleanup.
-- **`skills/setup/SKILL.md`**: Minor formatting cleanup.
-- **`tsconfig.json`**: Added `templates` to `exclude` array to prevent TypeScript from checking template files.
-
----
-
-## [0.1.0-beta.2] - 2026-03-11
-
-Adds the `skills/` directory with 12 agent skill definitions following the [Agent Skills specification](https://agentskills.io/specification), and updates the agent DX plan to separate the `init` CLI from the `/setup` skill.
-
-### Added
-
-- **`skills/` directory**: 12 skill definitions (README + 11 SKILL.md files) covering the full development workflow. Each skill declares `metadata.audience` (`external` or `internal`) and `metadata.version` for update tracking.
-  - **External skills** (copied to consumer projects by `init`): `setup`, `add-tool`, `add-resource`, `add-prompt`, `add-service`, `devcheck`, `migrate-imports`, `maintenance`
-  - **Internal skills** (core package development only): `add-export`, `add-provider`, `release`
-- **`skills/README.md`**: Documents the three-tier skill distribution model (package → project → agent) and versioning strategy.
-- **`maintenance` skill**: New skill for syncing skills and dependencies after package updates — covers Tier 1→2 and Tier 2→3 sync workflows.
-
-### Changed
-
-- **`core-extraction/05-agent-dx.md`**: Separated `init` CLI (executable code that copies files) from `/setup` skill (pure text for agent orientation). Updated skill distribution to three-tier model. Clarified `metadata.version` comparison for skill updates. Updated skill count from 11 to 12. Added `init` CLI checklist items.
-
----
-
-## [0.1.0-beta.1] - 2026-03-10
-
-First pre-release on the `@cyanheads/mcp-ts-core` extraction path. Removes the DI container, introduces direct construction via `createApp()`, converts all third-party imports to lazy dynamic loading, adds the new-style definition API (`tool()`, `resource()`, `prompt()` builders with unified `Context`), and adds comprehensive conformance and integration test suites.
-
-### Added
-
-- **New-style definition builders**: `tool()`, `resource()`, `prompt()` builder functions producing `NewToolDefinition`, `NewResourceDefinition`, and `NewPromptDefinition`. Simplified field names (`handler`/`input`/`output`/`format`/`auth`/`task`) replace the legacy `logic`/`inputSchema`/`outputSchema`/`responseFormatter`/`withToolAuth` pattern.
-- **Unified `Context` interface** (`src/context.ts`): Single object for all handler dependencies — `ctx.log` (request-scoped logging), `ctx.state` (tenant-scoped storage), `ctx.elicit` (user prompting), `ctx.sample` (LLM completion), `ctx.signal` (cancellation), `ctx.progress` (task reporting). Replaces the split `appContext` + `sdkContext` pattern.
-- **`createContext()` factory** (`src/context.ts`): Internal constructor that wires `ContextLogger`, `ContextState`, and `ContextProgress` implementations from `RequestContext`, `StorageService`, and `RequestTaskStore`.
-- **New-style handler factory** (`src/mcp-server/tools/utils/newToolHandlerFactory.ts`): `createNewToolHandler()` builds SDK-compatible tool callbacks from `NewToolDefinition` — creates `Context`, checks inline `auth` scopes, validates input, measures execution, formats response, catches errors.
-- **`createMockContext()` test utility** (`src/testing/index.ts`): Mock `Context` for testing handlers directly — stubbed `log`, in-memory `state`, optional `elicit`/`sample`/`progress` mocks. Configurable via `MockContextOptions`.
-- **`src/app.ts` composition root**: `createApp()` factory constructs all services in dependency order and returns an `AppHandle` with `createServer` (bound factory) and `transportManager`. Replaces the DI container.
-- **`McpServerDeps` interface**: Explicit dependency struct for `createMcpServerInstance()` — config, toolRegistry, resourceRegistry, promptRegistry, rootsRegistry.
-- **`src/utils/parsing/thinkBlock.ts`**: Shared `thinkBlockRegex` constant extracted from four parsers that previously duplicated the pattern.
-- **Conformance test suite**: 122 tests across 14 test files plus 2 helpers (`RecordingTransport`, low-level raw transport helpers). Covers cancellation, completions, elicitation, sampling, roots, logging, pagination, progress, tasks, subscriptions, list-changed notifications, protocol ordering, version negotiation, and JSON-RPC edge cases.
-- **Integration test suite**: 4 test files plus 2 helpers for black-box transport validation. Spawns the built server as a subprocess and exercises stdio, HTTP, JWT auth, and stateful session management over real transport channels.
-- **`vitest.integration.ts`**: Separate Vitest config for integration tests (sequential execution, 30s timeouts).
-- **`scripts/test-report.ts`**: CLI script that runs all test suites, collects JSON output, and generates a self-contained HTML dashboard report with `--open` and `--suite` filtering.
-- **New package.json scripts**: `test:integration`, `test:report`, `test:report:open`, `test:ui` (Vitest UI for conformance).
-- **`docs/conformance-test-plan.md`**: MCP conformance test plan targeting spec 2025-06-18, updated with full implementation status and SDK limitation notes.
-
-### Changed
-
-- **Template tools migrated to new-style API**: All 6 template tools (`template_echo_message`, `template_cat_fact`, `template_madlibs_elicitation`, `template_code_review_sampling`, `template_image_test`, `template_data_explorer`) rewritten using the `tool()` builder with `handler(input, ctx)` instead of legacy `logic(input, appCtx, sdkCtx)`.
-- **`ToolRegistry` supports new-style definitions**: Constructor now accepts optional `HandlerFactoryServices` (logger + storage). `registerAll()` auto-detects new-style (`handler` + `input`), legacy (`logic` + `inputSchema`), and task (`taskHandlers`) definitions, routing each to the appropriate registration path.
-- **`src/app.ts`**: Passes `{ logger, storage }` to `ToolRegistry` constructor for new-style handler factory.
-- **`CLAUDE.md`**: Complete rewrite targeting the `@cyanheads/mcp-ts-core` public API — new exports reference, builder signatures, `Context` documentation, service patterns, error codes, auth, Workers, and testing guide.
-- **`README.md`**: Updated for `@cyanheads/mcp-ts-core` package identity — new hero example, builder API docs, Context reference, subpath exports, server structure, and configuration table.
-- **Test suite updated for new-style definitions**: All tool tests use `createMockContext()` and call `handler(input, ctx)` directly. Fuzz tests detect both old (`inputSchema`/`logic`) and new (`input`/`handler`) shapes. Schema snapshot and compatibility tests handle both `inputSchema` and `input` fields.
-- **Lazy dependency loading (Phase 2)**: All 11 third-party dependencies converted from top-level static imports to lazy dynamic `import()` with cached singleton patterns and clear `McpError(ConfigurationError)` messages when a dep is missing. Affected modules: `yamlParser`, `xmlParser`, `csvParser`, `jsonParser`, `pdfParser`, `dateParser`, `diffFormatter`, `sanitization`, `httpTransport` (`@hono/otel`), `openrouter.provider` (`openai`), `app.ts` (`@supabase/supabase-js`).
-- **Async API surface**: All parser `parse()` methods, `diffFormatter` methods, and `sanitization` methods are now `async` (return `Promise`) as a consequence of lazy loading.
-- **`createApp()` is now async**: Returns `Promise<AppHandle>`. Entry points (`src/index.ts`, `src/worker.ts`) updated with `await`.
-- **`createHttpApp()` is now async**: `@hono/otel` middleware loaded conditionally inside the OTel-enabled guard.
-- **`src/config/index.ts`**: `mcpHttpPort` minimum changed from 1 to 0 (allows ephemeral port assignment for testing).
-- **`src/index.ts`**: `createApp()` call uses `await`.
-- **`src/worker.ts`**: `createApp()` and `createHttpApp()` calls use `await`.
-- **`src/mcp-server/server.ts`**: Accepts `McpServerDeps` parameter instead of resolving registries from the container.
-- **`src/mcp-server/transports/manager.ts`**: `TransportManager` accepts `TaskManager` as 4th constructor parameter instead of resolving it at shutdown.
-- **`pdfParser.ts`**: `PDFDocument`, `StandardFonts`, `degrees`, `rgb` changed from value re-exports to type-only re-exports. `embedFont()` parameter relaxed from `keyof typeof StandardFonts` to `string`.
-- **`jsonParser.ts`**: `Allow` enum from `partial-json` replaced with local `as const` object to avoid importing the library at module evaluation time.
-- **`openrouter.provider.ts`**: OpenAI client construction deferred to first use via `ensureClient()` with cached promise. `sanitization` changed from lazy to direct import (local module).
-- **`xmlParser.ts`**: Class no longer holds a `private parser` in constructor; uses module-level lazy singleton instead.
-- **`vitest.config.ts`**: Integration tests excluded from default `bun run test` run.
-- **Dev dependencies**: Added `@vitest/ui` 4.0.18. Bumped `@cloudflare/workers-types` to 4.20260310.1, `@types/node` to 25.4.0.
-- **`core-extraction/`**: Updated execution plan, developer API spec, and README to reflect Phase 3 progress.
-
-### Removed
-
-- **`src/container/`**: Entire DI container (6 files — `core/container.ts`, `core/tokens.ts`, `registrations/core.ts`, `registrations/mcp.ts`, `index.ts`, `README.md`).
-- **`tests/container/`**: All container tests (5 files).
-- **`changelog/archive.md`**: Legacy changelog archive (pre-3.0.0 history).

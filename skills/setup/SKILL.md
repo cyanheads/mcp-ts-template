@@ -11,7 +11,7 @@ metadata:
 
 ## Context
 
-This skill assumes `@cyanheads/mcp-ts-core init` has already run. The CLI created the project's `CLAUDE.md` and `AGENTS.md` (identical content), copied external skills to `skills/`, and scaffolded the directory structure with echo definitions as starting points. This skill orients you to what was created.
+This skill assumes `@cyanheads/mcp-ts-core init` has already run. The CLI created the project's `CLAUDE.md` and `AGENTS.md` (identical content), copied external skills to `skills/`, and scaffolded the directory structure with echo definitions as starting points. This skill covers what was created and what to do next.
 
 ## Agent Protocol File
 
@@ -30,18 +30,14 @@ Read that file once per session. It contains the exports catalog, tool/resource/
 
 ## Project Structure
 
+What `init` actually creates:
+
 ```
 CLAUDE.md                                       # Agent protocol (project-specific)
+AGENTS.md                                       # Same content — delete whichever you don't use
 skills/                                         # Project skills (source of truth)
 src/
   index.ts                                      # createApp() entry point
-  worker.ts                                     # createWorkerHandler() (if using Workers)
-  config/
-    server-config.ts                            # Server-specific env vars (own Zod schema)
-  services/
-    [domain]/
-      [domain]-service.ts                       # Init/accessor pattern
-      types.ts
   mcp-server/
     tools/definitions/
       echo.tool.ts                              # Echo tool (starter — replace or delete)
@@ -51,13 +47,26 @@ src/
       echo.prompt.ts                            # Echo prompt (starter — replace or delete)
 ```
 
+Add these as needed:
+
+```
+src/
+  worker.ts                                     # createWorkerHandler() — only for Cloudflare Workers
+  config/
+    server-config.ts                            # Server-specific env vars (own Zod schema)
+  services/
+    [domain]/
+      [domain]-service.ts                       # Init/accessor pattern
+      types.ts
+```
+
 ## Scaffolded Echo Definitions
 
-The init creates echo definitions for tools, resources, and prompts as starting points. They're functional examples with inline comments explaining conventions. After init:
+The init creates echo definitions for tools, resources, and prompts. They're functional examples with inline comments explaining conventions. After init:
 
-1. **Delete what you don't need.** If your server has no prompts, delete `echo.prompt.ts` and remove its import/registration from `src/index.ts`. Same for resources.
-2. **Rename and replace what you keep.** The echo definitions show the pattern — swap them out for your real tools/resources/prompts.
-3. **Definitions register directly in `src/index.ts`.** No barrel files — just import and add to the arrays.
+1. Delete what you don't need. If your server has no prompts, delete `echo.prompt.ts` and remove its import/registration from `src/index.ts`. Same for resources.
+2. Rename and replace what you keep. The echo definitions show the pattern — swap them out for your real tools/resources/prompts.
+3. Definitions register directly in `src/index.ts`. No barrel files, just import and add to the arrays.
 
 ## Conventions
 
@@ -71,7 +80,7 @@ The init creates echo definitions for tools, resources, and prompts as starting 
 
 ## Skill Sync
 
-Your agent skill directory (e.g., `.claude/skills/`) must stay in sync with the project's `skills/` directory. The project `skills/` is the source of truth.
+Your agent skill directory (e.g., `.claude/skills/`) must stay in sync with the project's `skills/` directory. `skills/` is the source of truth.
 
 1. Compare your agent skill directory against `skills/`
 2. Copy any missing or updated skills into your agent directory

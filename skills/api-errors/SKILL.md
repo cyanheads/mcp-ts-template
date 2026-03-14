@@ -24,7 +24,7 @@ import { ErrorHandler } from '@cyanheads/mcp-ts-core/utils';
 
 ## Error Factories (Preferred)
 
-Ergonomic factory functions — shorter than `new McpError(...)` and self-documenting. All return `McpError` instances. All accept an optional `options` parameter for error chaining via `{ cause }`.
+Shorter than `new McpError(...)` and self-documenting. All return `McpError` instances. All accept an optional `options` parameter for error chaining via `{ cause }`.
 
 ```ts
 throw notFound('Item not found', { itemId: '123' });
@@ -112,6 +112,81 @@ throw new McpError(JsonRpcErrorCode.DatabaseError, 'Connection pool exhausted', 
 
 ---
 
+## Auto-Classification
+
+When a handler throws a plain `Error` (or any non-`McpError` value), the framework classifies it to the most specific `JsonRpcErrorCode` automatically. This matters when you don't control what a third-party library throws and can't predict its error type.
+
+Use factories or `McpError` directly when the code must be exact — auto-classification is best-effort pattern matching and not guaranteed for ambiguous messages. For errors from your own code where the code matters, be explicit.
+
+### Resolution Order
+
+The framework applies these steps in order — first match wins:
+
+1. **`McpError` instance** — `error.code` is preserved as-is; no classification needed.
+2. **JS constructor name** — matched against a fixed table (e.g. `TypeError` → `ValidationError`).
+3. **Provider-specific patterns** — HTTP status codes, AWS exception names, Supabase, OpenRouter. Checked before common patterns because they are more specific (e.g. `status code 429` beats the generic `rate limit` pattern).
+4. **Common message/name patterns** — broad keyword patterns covering auth, not-found, validation, etc. First match wins; order matters.
+5. **`AbortError` name** — `error.name === 'AbortError'` → `Timeout`.
+6. **Fallback** — `InternalError`.
+
+### JS Constructor Name Mappings
+
+| Constructor | Mapped Code |
+|:------------|:------------|
+| `SyntaxError` | `ValidationError` |
+| `TypeError` | `ValidationError` |
+| `RangeError` | `ValidationError` |
+| `URIError` | `ValidationError` |
+| `ReferenceError` | `InternalError` |
+| `EvalError` | `InternalError` |
+| `AggregateError` | `InternalError` |
+
+### Common Message Patterns
+
+Patterns are tested against both the error `message` and `name`, case-insensitively. First match wins.
+
+| Pattern (regex) | Mapped Code |
+|:----------------|:------------|
+| `unauthorized\|unauthenticated\|not\s+authorized\|not.*logged.*in\|invalid[\s_-]+token\|expired[\s_-]+token` | `Unauthorized` |
+| `permission\|forbidden\|access.*denied\|not.*allowed` | `Forbidden` |
+| `not found\|no such\|doesn't exist\|couldn't find` | `NotFound` |
+| `invalid\|validation\|malformed\|bad request\|wrong format\|missing\s+(?:required\|param\|field\|input\|value\|arg)` | `ValidationError` |
+| `conflict\|already exists\|duplicate\|unique constraint` | `Conflict` |
+| `rate limit\|too many requests\|throttled` | `RateLimited` |
+| `timeout\|timed out\|deadline exceeded` | `Timeout` |
+| `abort(ed)?\|cancell?ed` | `Timeout` |
+| `service unavailable\|bad gateway\|gateway timeout\|upstream error` | `ServiceUnavailable` |
+| `zod\|zoderror\|schema validation` | `ValidationError` |
+
+### Provider-Specific Patterns
+
+Checked before common patterns. Cover: AWS exception names, HTTP status codes, DB connection/constraint errors, Supabase JWT/RLS, OpenRouter/LLM quota errors, and low-level network errors.
+
+| Pattern | Mapped Code |
+|:--------|:------------|
+| `ThrottlingException\|TooManyRequestsException` | `RateLimited` |
+| `AccessDenied\|UnauthorizedOperation` | `Forbidden` |
+| `ResourceNotFoundException` | `NotFound` |
+| `status code 401` | `Unauthorized` |
+| `status code 403` | `Forbidden` |
+| `status code 404` | `NotFound` |
+| `status code 409` | `Conflict` |
+| `status code 429` | `RateLimited` |
+| `status code 5xx` | `ServiceUnavailable` |
+| `ECONNREFUSED\|connection refused` | `ServiceUnavailable` |
+| `ETIMEDOUT\|connection timeout` | `Timeout` |
+| `unique constraint\|duplicate key` | `Conflict` |
+| `foreign key constraint` | `ValidationError` |
+| `JWT expired` | `Unauthorized` |
+| `row level security` | `Forbidden` |
+| `insufficient_quota\|quota exceeded` | `RateLimited` |
+| `model_not_found` | `NotFound` |
+| `context_length_exceeded` | `ValidationError` |
+| `ENOTFOUND\|DNS` | `ServiceUnavailable` |
+| `ECONNRESET\|connection reset` | `ServiceUnavailable` |
+
+---
+
 ## Where Errors Are Handled
 
 | Layer | Pattern |
@@ -141,7 +216,7 @@ export const myTool = tool('my_tool', {
 
 ## ErrorHandler.tryCatch (Services)
 
-Use `ErrorHandler.tryCatch` in service code — not in tool handlers. It wraps arbitrary exceptions into `McpError` and supports structured logging context.
+Use `ErrorHandler.tryCatch` in service code, not in tool handlers. It wraps arbitrary exceptions into `McpError` and supports structured logging context.
 
 ```ts
 import { ErrorHandler } from '@cyanheads/mcp-ts-core/utils';

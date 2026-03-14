@@ -3,7 +3,7 @@
 | Export | API | Notes |
 |:-------|:----|:------|
 | `ILlmProvider` | `.chatCompletion(params, context) -> Promise<ChatCompletion \| Stream<ChatCompletionChunk>>` `.chatCompletionStream(params, context) -> Promise<AsyncIterable<ChatCompletionChunk>>` | OpenAI-compatible interface. `params.stream` discriminates return type on `chatCompletion`. Context is `RequestContext`, not unified `Context`. |
-| `OpenRouterProvider` | Implements `ILlmProvider` via OpenRouter API | Tier 3 peer: `openai`. Lazy-loaded. Rate-limited via `RateLimiter`. Retries on 429/5xx. |
+| `OpenRouterProvider` | Implements `ILlmProvider` via OpenRouter API | Tier 3 peer: `openai`. Lazy-loaded. Rate-limited via `RateLimiter`. SDK-level retries (`maxRetries: 2`) with exponential backoff on 429/5xx. |
 | `OpenRouterChatParams` | `ChatCompletionCreateParamsNonStreaming \| ChatCompletionCreateParamsStreaming` | OpenAI SDK types — OpenRouter is API-compatible. |
 
 ## Configuration

@@ -128,12 +128,7 @@ describe('myTool', () => {
 });
 ```
 
-Key points:
-
-- Parse input through `myTool.input.parse(...)` — validates against the Zod schema and produces the typed input the handler expects.
-- Call `myTool.handler(input, ctx)` directly — not through the MCP SDK or any framework wrapper.
-- Assert on the return value for happy paths; use `.rejects.toThrow()` for error paths.
-- Test `format` separately if the tool defines one — it is a pure function and needs no `ctx`.
+Parse input through `myTool.input.parse(...)` to validate against the Zod schema and produce the typed input the handler expects. Call `myTool.handler(input, ctx)` directly, not through the MCP SDK or any framework wrapper. Assert on the return value for happy paths; use `.rejects.toThrow()` for error paths. Test `format` separately if the tool defines one — it's a pure function and needs no `ctx`.
 
 ---
 
@@ -175,45 +170,21 @@ it('handles missing elicitation gracefully', async () => {
 
 ## Vitest config
 
+Extend the framework's base config using `mergeConfig`. The base provides `globals: true`, `pool: 'forks'`, `isolate: true`, `tsconfigPaths`, and a Zod SSR compatibility fix. Add only the `@/` alias for your server's source:
+
 ```ts
 // vitest.config.ts
-import { defineConfig } from 'vitest/config';
+import { defineConfig, mergeConfig } from 'vitest/config';
+import coreConfig from '@cyanheads/mcp-ts-core/vitest.config';
 
-export default defineConfig({
-  resolve: { tsconfigPaths: true },
-  ssr: {
-    noExternal: ['zod'],
+export default mergeConfig(coreConfig, defineConfig({
+  resolve: {
+    alias: { '@/': new URL('./src/', import.meta.url).pathname },
   },
-  test: {
-    globals: true,
-    environment: 'node',
-    setupFiles: ['./tests/setup.ts'],
-    exclude: ['tests/integration/**', 'node_modules/**'],
-    pool: 'forks',
-    maxWorkers: 4,
-    isolate: true,
-    coverage: {
-      provider: 'istanbul',
-      reporter: ['text', 'json', 'html'],
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/*.d.ts'],
-      thresholds: {
-        lines: 80,
-        functions: 75,
-        branches: 70,
-        statements: 80,
-      },
-    },
-  },
-});
+}));
 ```
 
-Key points:
-- `tsconfigPaths()` resolves the `@/` path alias from `tsconfig.json` — no manual `resolve.alias` needed.
-- `ssr: { noExternal: ['zod'] }` fixes Vite SSR transform issues with Zod 4.
-- Integration tests (in `tests/integration/`) are excluded from the default run; they have their own config.
-- `pool: 'forks'` with `isolate: true` prevents mock pollution between test files.
-- `setupFiles` points to `tests/setup.ts` for any global test setup (e.g., env vars).
+`mergeConfig` deep-merges the framework base with your overrides. The base sets `globals: true` (`describe`, `it`, `expect`, etc. available without imports), `pool: 'forks'` and `isolate: true` (test files run in separate worker processes), and `ssr: { noExternal: ['zod'] }` for Zod 4 compatibility. The `resolve.alias` entry maps `@/` to `src/`, matching the `paths` alias in `tsconfig.json` so imports like `@/services/...` resolve correctly in tests.
 
 ---
 

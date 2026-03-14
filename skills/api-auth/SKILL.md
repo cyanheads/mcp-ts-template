@@ -15,7 +15,7 @@ The framework handles auth at the handler factory level — tools and resources 
 
 ---
 
-## Inline Auth (Primary Pattern)
+## Inline auth (primary pattern)
 
 Declare required scopes directly on the tool or resource definition via the `auth` property. The handler factory checks `ctx.auth.scopes` against these before calling `handler`.
 
@@ -34,7 +34,7 @@ When `MCP_AUTH_MODE=none`, auth checks are skipped and defaults are allowed.
 
 ---
 
-## Dynamic Auth
+## Dynamic auth
 
 For runtime-computed scopes (e.g., scopes that depend on input values like a team or resource ID), use `checkScopes` from `@cyanheads/mcp-ts-core/auth` inside the handler:
 
@@ -56,7 +56,7 @@ handler: async (input, ctx) => {
 
 ---
 
-## Auth Modes
+## Auth modes
 
 Set via `MCP_AUTH_MODE` environment variable.
 
@@ -66,7 +66,7 @@ Set via `MCP_AUTH_MODE` environment variable.
 | JWT | `jwt` | Local secret verification via `MCP_AUTH_SECRET_KEY`. Requires explicit `DEV_MCP_AUTH_BYPASS=true` to bypass in development. |
 | OAuth | `oauth` | JWKS verification against an external issuer. |
 
-### JWT Config
+### JWT config
 
 | Variable | Required | Purpose |
 |:---------|:---------|:--------|
@@ -77,15 +77,16 @@ Set via `MCP_AUTH_MODE` environment variable.
 
 **Important:** With `MCP_AUTH_MODE=jwt`, a missing `MCP_AUTH_SECRET_KEY` is a **fatal startup error** unless `DEV_MCP_AUTH_BYPASS=true` is explicitly set. Setting `DEV_MCP_AUTH_BYPASS` in production (`NODE_ENV=production`) is rejected at config parse time.
 
-### OAuth Config
+### OAuth config
 
 | Variable | Required | Purpose |
 |:---------|:---------|:--------|
 | `OAUTH_ISSUER_URL` | Yes | Token issuer URL (used for JWKS discovery) |
 | `OAUTH_AUDIENCE` | Yes | Expected `aud` claim value |
 | `OAUTH_JWKS_URI` | No | Override JWKS endpoint (defaults to `{issuer}/.well-known/jwks.json`) |
+| `MCP_SERVER_RESOURCE_IDENTIFIER` | No | RFC 8707 resource indicator URI. When set, the OAuth strategy validates that the token's `resource` or `aud` claim matches this value — throws `Forbidden` on mismatch. |
 
-### JWT Claims Mapping
+### JWT claims mapping
 
 | Claim | JWT Field | Purpose |
 |:------|:----------|:--------|
@@ -111,18 +112,18 @@ Set via `MCP_AUTH_MODE` environment variable.
 
 ---
 
-## Multi-Tenancy
+## Multi-tenancy
 
 `ctx.state` is automatically scoped to the current tenant — no manual key prefixing needed.
 
-### tenantId Sources
+### tenantId sources
 
 | Transport | Source | Value |
 |:----------|:-------|:------|
 | HTTP with auth | JWT `tid` claim | Auto-propagated from token |
 | Stdio | Hardcoded default | `'default'` |
 
-### Tenant ID Validation Rules
+### Tenant ID validation rules
 
 - Max 128 characters
 - Characters: alphanumeric, hyphens, underscores, dots
@@ -130,7 +131,7 @@ Set via `MCP_AUTH_MODE` environment variable.
 - No path traversal sequences (`../`)
 - No consecutive dots (`..`)
 
-### Using ctx.state
+### Using `ctx.state`
 
 ```ts
 handler: async (input, ctx) => {
@@ -148,7 +149,7 @@ handler: async (input, ctx) => {
 
 ---
 
-## Auth Context Shape
+## Auth context shape
 
 Available on `ctx.auth` inside handlers (when auth is enabled):
 
@@ -159,7 +160,6 @@ interface AuthContext {
   sub: string;             // Required — 'sub' claim; falls back to clientId when absent
   token: string;           // Required — raw JWT or OAuth bearer token string
   tenantId?: string;       // Optional — 'tid' claim; present only for multi-tenant tokens
-  [key: string]: unknown;  // Additional token payload properties
 }
 ```
 

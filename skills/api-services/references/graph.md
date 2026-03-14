@@ -25,6 +25,7 @@ Thin facade over `IGraphProvider` — delegates all calls to the injected provid
 | Method | Return |
 |:-------|:-------|
 | `getProvider()` | `IGraphProvider` — access the underlying provider |
+| `healthCheck()` | `Promise<boolean>` — liveness check on the underlying provider |
 
 Not auto-constructed — initialize in `setup()` with a provider.
 

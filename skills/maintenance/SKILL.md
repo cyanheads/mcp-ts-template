@@ -17,7 +17,7 @@ Skills flow through three tiers:
 2. **Project** — `skills/` at project root (source of truth for this project)
 3. **Agent** — your agent skill directory (e.g., `.claude/skills/`)
 
-After `bun update @cyanheads/mcp-ts-core`, Tier 1 may have newer skills than Tier 2 And Tier 3 may be out of sync with Tier 2 at any time.
+After `bun update @cyanheads/mcp-ts-core`, Tier 1 may have newer skills than Tier 2, and Tier 3 may be out of sync with Tier 2 at any time.
 
 ## Steps
 
@@ -39,9 +39,11 @@ After `bun update @cyanheads/mcp-ts-core`, Tier 1 may have newer skills than Tie
 
 ### Dependency updates
 
-1. Run `bun update` to update all dependencies
-2. Check `bun outdated` for any remaining outdated packages
-3. Review changelogs for major version bumps before updating
+1. Run `bun outdated` to see what's out of date
+2. Review changelogs for any major version bumps before proceeding
+3. Run `bun update` to update dependencies
+4. Run `bun audit` to check for vulnerabilities introduced by the update
+5. Run `bun run devcheck` to confirm lint, types, and tests still pass
 
 ## Checklist
 
@@ -49,4 +51,5 @@ After `bun update @cyanheads/mcp-ts-core`, Tier 1 may have newer skills than Tie
 - [ ] New or updated skills copied to project `skills/`
 - [ ] Agent skill directory in sync with project `skills/`
 - [ ] Dependencies updated (`bun update`)
+- [ ] `bun audit` passes (no new vulnerabilities)
 - [ ] `bun run devcheck` passes

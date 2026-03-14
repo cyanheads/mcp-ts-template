@@ -50,7 +50,7 @@ export const {{RESOURCE_EXPORT}} = resource('{{scheme}}://{{{paramName}}}/data',
     return { /* resource data */ };
   },
 
-  list: async () => ({
+  list: async (extra) => ({
     resources: [
       {
         uri: '{{scheme}}://all',
@@ -64,15 +64,25 @@ export const {{RESOURCE_EXPORT}} = resource('{{scheme}}://{{{paramName}}}/data',
 
 ### With pagination
 
-For resources returning large lists, use opaque cursor pagination:
+For resources that return large result sets, include `cursor` in the URI template params and use opaque cursor pagination in the `handler`. The cursor arrives as a validated URI param. `paginateArray` requires a `RequestContext` for logging — create one from `requestContextService`:
 
 ```typescript
-import { extractCursor, paginateArray } from '@cyanheads/mcp-ts-core/utils';
+import { extractCursor, paginateArray, requestContextService } from '@cyanheads/mcp-ts-core/utils';
+
+// URI template: '{{scheme}}://{{{paramName}}}/items'
+params: z.object({
+  {{paramName}}: z.string().describe('{{PARAM_DESCRIPTION}}'),
+  cursor: z.string().optional().describe('Opaque pagination cursor'),
+}),
 
 async handler(params, ctx) {
-  const allItems = await fetchAllItems(params);
-  const cursor = extractCursor(params);
-  const page = paginateArray(allItems, cursor, 20, 100, ctx);
+  const allItems = await fetchAllItems(params.{{paramName}});
+  const cursor = extractCursor({ cursor: params.cursor });
+  const reqCtx = requestContextService.createRequestContext({
+    operation: 'list-{{paramName}}',
+    parentContext: { requestId: ctx.requestId, traceId: ctx.traceId },
+  });
+  const page = paginateArray(allItems, cursor, 20, 100, reqCtx);
   return {
     items: page.items,
     nextCursor: page.nextCursor,
