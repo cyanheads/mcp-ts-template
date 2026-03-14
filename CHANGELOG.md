@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.25] - 2026-03-14
+
+Moves core entry points (`app.ts`, `context.ts`, `worker.ts`) into `src/core/`, establishing the module boundary for the `@cyanheads/mcp-ts-core` package extraction. Removes outdated legacy READMEs and trims deferred phases from the extraction plan.
+
+### Changed
+
+- **Core module extraction**: Moved `src/app.ts`, `src/context.ts`, `src/worker.ts` → `src/core/app.ts`, `src/core/context.ts`, `src/core/worker.ts`.
+- **`package.json`**: Updated `main`, `types`, and `exports` (`.`, `./worker`) to point to `dist/core/` paths.
+- **Internal imports**: Updated all references from `@/context.js`, `@/app.js`, `@/worker.js` to `@/core/context.js`, `@/core/app.js`, `@/core/worker.js` across handler factories, definitions, auth, testing, and tests.
+- **`core-extraction/09-execution.md`**: Trimmed phases 6–9 (template repo, downstream migration, 1.0 cut, `create-mcp-server`) — deferred until post-publish.
+
+### Removed
+
+- **`src/mcp-server/README.md`** (~982 lines): Legacy module README superseded by CLAUDE.md and skill files.
+- **`src/services/README.md`** (~713 lines): Legacy services README superseded by CLAUDE.md and skill files.
+- **`src/storage/README.md`** (~642 lines): Legacy storage README superseded by CLAUDE.md and skill files.
+- **`core-extraction/README.md`**: Removed references to deferred phases 6–9.
+
+### Documentation
+
+- **`docs/tree.md`**: Updated directory structure to reflect `src/core/` addition and removed README entries.
+
+---
+
 ## [0.1.0-beta.24] - 2026-03-14
 
 Adds `{ cause }` support to all error factory functions, migrates the entire codebase from verbose `new McpError(JsonRpcErrorCode.X, ...)` to concise factory calls, and refactors `checkScopes` to read directly from `ctx.auth`.
