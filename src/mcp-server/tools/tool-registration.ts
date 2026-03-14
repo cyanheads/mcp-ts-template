@@ -9,7 +9,7 @@ import type { RequestTaskStore } from '@modelcontextprotocol/sdk/shared/protocol
 import type { CallToolResult, ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape } from 'zod';
 
-import { createContext } from '@/context.js';
+import { createContext } from '@/core/context.js';
 import {
   isTaskToolDefinition,
   type TaskToolDefinition,

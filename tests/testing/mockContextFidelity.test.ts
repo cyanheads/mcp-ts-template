@@ -40,8 +40,8 @@ vi.mock('@/utils/internal/logger.js', () => ({
 // Imports
 // ---------------------------------------------------------------------------
 
-import type { ContextDeps } from '@/context.js';
-import { createContext } from '@/context.js';
+import type { ContextDeps } from '@/core/context.js';
+import { createContext } from '@/core/context.js';
 import { createMockContext } from '@/testing/index.js';
 import type { Logger } from '@/utils/internal/logger.js';
 

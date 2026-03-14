@@ -13,8 +13,8 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape } from 'zod';
 
-import type { SamplingOpts } from '@/context.js';
-import { createContext } from '@/context.js';
+import type { SamplingOpts } from '@/core/context.js';
+import { createContext } from '@/core/context.js';
 import type { AnyResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
@@ -65,7 +65,7 @@ function wrapElicit(sdkContext: SdkRuntimeCapabilities) {
   const fn = sdkContext.elicitInput;
   return (msg: string, schema: ZodObject<ZodRawShape>) =>
     fn({ message: msg, requestedSchema: schema }) as ReturnType<
-      NonNullable<import('@/context.js').Context['elicit']>
+      NonNullable<import('@/core/context.js').Context['elicit']>
     >;
 }
 
@@ -73,11 +73,11 @@ function wrapSample(sdkContext: SdkRuntimeCapabilities) {
   if (typeof sdkContext.createMessage !== 'function') return;
   const fn = sdkContext.createMessage;
   return (
-    msgs: Parameters<NonNullable<import('@/context.js').Context['sample']>>[0],
+    msgs: Parameters<NonNullable<import('@/core/context.js').Context['sample']>>[0],
     opts?: SamplingOpts,
   ) =>
     fn({ messages: msgs, ...opts }) as ReturnType<
-      NonNullable<import('@/context.js').Context['sample']>
+      NonNullable<import('@/core/context.js').Context['sample']>
     >;
 }
 

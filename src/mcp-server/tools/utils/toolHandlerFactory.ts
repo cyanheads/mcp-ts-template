@@ -13,8 +13,8 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import type { Context, SamplingOpts } from '@/context.js';
-import { createContext } from '@/context.js';
+import type { Context, SamplingOpts } from '@/core/context.js';
+import { createContext } from '@/core/context.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';

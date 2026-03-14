@@ -7,7 +7,7 @@
  * Note: OpenTelemetry `NodeSDK` is unavailable in Workers (`canUseNodeSDK()`
  * returns false), so no telemetry flush is needed. If a Worker-compatible OTEL
  * exporter is added in the future, `ctx.waitUntil()` should be wired for flush.
- * @module src/worker
+ * @module src/core/worker
  */
 import type {
   Ai,
@@ -18,7 +18,7 @@ import type {
   ScheduledController,
 } from '@cloudflare/workers-types';
 import type { Hono } from 'hono';
-import { type CreateAppOptions, composeServices } from '@/app.js';
+import { type CreateAppOptions, composeServices } from '@/core/app.js';
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
 import { logger, type McpLogLevel } from '@/utils/internal/logger.js';
 import { initHighResTimer } from '@/utils/internal/performance.js';

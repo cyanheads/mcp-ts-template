@@ -18,7 +18,7 @@ import type {
   ContextProgress,
   ContextState,
   SamplingOpts,
-} from '@/context.js';
+} from '@/core/context.js';
 
 // ---------------------------------------------------------------------------
 // Options

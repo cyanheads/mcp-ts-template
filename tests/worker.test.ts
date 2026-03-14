@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { type CloudflareBindings, createWorkerHandler } from '@/worker.js';
+import { type CloudflareBindings, createWorkerHandler } from '@/core/worker.js';
 
 describe('Cloudflare Worker Entry Point', () => {
   describe('CloudflareBindings Interface', () => {
@@ -91,7 +91,7 @@ describe('Cloudflare Worker Entry Point', () => {
 
   describe('Worker Exports', () => {
     it('should export createWorkerHandler factory', async () => {
-      const worker = await import('@/worker.js');
+      const worker = await import('@/core/worker.js');
       expect(worker.createWorkerHandler).toBeDefined();
       expect(typeof worker.createWorkerHandler).toBe('function');
     });

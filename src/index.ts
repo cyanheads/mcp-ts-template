@@ -5,6 +5,6 @@
  * @module src/index
  */
 
-import { createApp } from '@/app.js';
+import { createApp } from '@/core/app.js';
 
 await createApp();

@@ -6,7 +6,7 @@
  */
 
 import { config } from '@/config/index.js';
-import type { Context } from '@/context.js';
+import type { Context } from '@/core/context.js';
 import { forbidden, unauthorized } from '@/types-global/errors.js';
 
 /**

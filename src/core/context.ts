@@ -3,7 +3,7 @@
  * Replaces the split `appContext` (RequestContext) + `sdkContext` (RequestHandlerExtra)
  * pattern with a single object that provides logging, storage, protocol capabilities,
  * and cancellation.
- * @module src/context
+ * @module src/core/context
  */
 
 import type { RequestTaskStore } from '@modelcontextprotocol/sdk/shared/protocol.js';

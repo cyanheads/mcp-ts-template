@@ -16,7 +16,7 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import type { Context } from '@/context.js';
+import type { Context } from '@/core/context.js';
 
 /**
  * Optional annotations providing clients additional context about a resource.

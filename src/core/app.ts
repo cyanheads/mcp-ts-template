@@ -3,7 +3,7 @@
  * dependency order, initializes telemetry/logger, starts transport, and
  * registers shutdown/signal handlers. Returns a ServerHandle for lifecycle
  * management.
- * @module src/app
+ * @module src/core/app
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -334,7 +334,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
 // ---------------------------------------------------------------------------
 
 export { z } from 'zod';
-export type { Context, ContextLogger, ContextProgress, ContextState } from '@/context.js';
+export type { Context, ContextLogger, ContextProgress, ContextState } from '@/core/context.js';
 export type { PromptDefinition } from '@/mcp-server/prompts/utils/promptDefinition.js';
 export { prompt } from '@/mcp-server/prompts/utils/promptDefinition.js';
 export type {
