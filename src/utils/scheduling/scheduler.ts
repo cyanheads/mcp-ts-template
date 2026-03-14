@@ -13,7 +13,7 @@
  * @module src/utils/scheduling/scheduler
  */
 import type { ScheduledTask } from 'node-cron';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError, conflict, invalidParams, notFound } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
@@ -30,8 +30,7 @@ let cronModulePromise: Promise<typeof import('node-cron')> | null = null;
 
 async function loadCron(): Promise<typeof import('node-cron')> {
   if (!runtimeCaps.isNode) {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
+    throw configurationError(
       'SchedulerService requires a Node.js runtime. Cron scheduling is not available in Workers or browser environments.',
     );
   }
@@ -152,13 +151,13 @@ export class SchedulerService {
     description: string,
   ): Promise<Job> {
     if (this.jobs.has(id)) {
-      throw new McpError(JsonRpcErrorCode.Conflict, `Job with ID '${id}' already exists.`);
+      throw conflict(`Job with ID '${id}' already exists.`);
     }
 
     const cron = await loadCron();
 
     if (!cron.validate(schedule)) {
-      throw new McpError(JsonRpcErrorCode.InvalidParams, `Invalid cron schedule: ${schedule}`);
+      throw invalidParams(`Invalid cron schedule: ${schedule}`);
     }
 
     const task = cron.createTask(schedule, async () => {
@@ -279,7 +278,7 @@ export class SchedulerService {
   private resolveJob(id: string): Job {
     const job = this.jobs.get(id);
     if (!job) {
-      throw new McpError(JsonRpcErrorCode.NotFound, `Job with ID '${id}' not found.`);
+      throw notFound(`Job with ID '${id}' not found.`);
     }
     return job;
   }

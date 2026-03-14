@@ -8,7 +8,7 @@
  * Peer dependency: `fast-xml-parser` — install with `bun add fast-xml-parser`.
  * @module src/utils/parsing/xmlParser
  */
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError, validationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { thinkBlockRegex } from './thinkBlock.js';
@@ -17,8 +17,7 @@ let _fxp: typeof import('fast-xml-parser') | undefined;
 let _xmlParserInstance: { parse(data: string): unknown } | undefined;
 async function getFxp() {
   _fxp ??= await import('fast-xml-parser').catch(() => {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
+    throw configurationError(
       'Install "fast-xml-parser" to use XML parsing: bun add fast-xml-parser',
     );
   });
@@ -91,8 +90,7 @@ export class XmlParser {
     stringToParse = stringToParse.trim();
 
     if (!stringToParse) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
+      throw validationError(
         'XML string is empty after removing <think> block and trimming.',
         context,
       );
@@ -118,16 +116,12 @@ export class XmlParser {
         contentAttempted: stringToParse.substring(0, 200),
       });
 
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        `Failed to parse XML: ${error.message}`,
-        {
-          ...context,
-          originalContentSample:
-            stringToParse.substring(0, 200) + (stringToParse.length > 200 ? '...' : ''),
-          rawError: error instanceof Error ? error.stack : String(error),
-        },
-      );
+      throw validationError(`Failed to parse XML: ${error.message}`, {
+        ...context,
+        originalContentSample:
+          stringToParse.substring(0, 200) + (stringToParse.length > 200 ? '...' : ''),
+        rawError: error instanceof Error ? error.stack : String(error),
+      });
     }
   }
 }

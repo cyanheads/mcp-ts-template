@@ -4,7 +4,7 @@
  * optional <think>...</think> blocks often found at the beginning of LLM outputs.
  * @module src/utils/parsing/jsonParser
  */
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError, validationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { thinkBlockRegex } from './thinkBlock.js';
@@ -12,8 +12,7 @@ import { thinkBlockRegex } from './thinkBlock.js';
 let _partialJson: typeof import('partial-json') | undefined;
 async function getPartialJson() {
   _partialJson ??= await import('partial-json').catch(() => {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
+    throw configurationError(
       'Install "partial-json" to use partial JSON parsing: bun add partial-json',
     );
   });
@@ -139,8 +138,7 @@ export class JsonParser {
     stringToParse = stringToParse.trim();
 
     if (!stringToParse) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
+      throw validationError(
         'JSON string is empty after removing <think> block and trimming.',
         context,
       );
@@ -162,16 +160,12 @@ export class JsonParser {
         contentAttempted: stringToParse.substring(0, 200),
       });
 
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        `Failed to parse JSON: ${error.message}`,
-        {
-          ...context,
-          originalContentSample:
-            stringToParse.substring(0, 200) + (stringToParse.length > 200 ? '...' : ''),
-          rawError: error instanceof Error ? error.stack : String(error),
-        },
-      );
+      throw validationError(`Failed to parse JSON: ${error.message}`, {
+        ...context,
+        originalContentSample:
+          stringToParse.substring(0, 200) + (stringToParse.length > 200 ? '...' : ''),
+        rawError: error instanceof Error ? error.stack : String(error),
+      });
     }
   }
 }

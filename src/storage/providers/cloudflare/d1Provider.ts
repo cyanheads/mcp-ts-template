@@ -12,7 +12,12 @@ import type {
   StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
 import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import {
+  configurationError,
+  invalidParams,
+  JsonRpcErrorCode,
+  McpError,
+} from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
@@ -59,14 +64,10 @@ export class D1Provider implements IStorageProvider {
 
   constructor(db: D1Database, tableName = 'kv_store') {
     if (!db) {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
-        'D1Provider requires a valid D1Database instance.',
-      );
+      throw configurationError('D1Provider requires a valid D1Database instance.');
     }
     if (!D1Provider.SAFE_TABLE_NAME.test(tableName)) {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         `D1Provider tableName must be a valid SQL identifier (letters, digits, underscores; start with letter or underscore; max 64 chars): ${tableName}`,
       );
     }
@@ -242,11 +243,7 @@ export class D1Provider implements IStorageProvider {
           try {
             lastKey = decodeCursor(options.cursor, tenantId, context);
           } catch (error: unknown) {
-            throw new McpError(
-              JsonRpcErrorCode.InvalidParams,
-              'Invalid cursor format or tenant mismatch',
-              { ...context, error },
-            );
+            throw invalidParams('Invalid cursor format or tenant mismatch', { ...context, error });
           }
         }
 

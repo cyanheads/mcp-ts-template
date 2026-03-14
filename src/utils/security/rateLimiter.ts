@@ -5,7 +5,7 @@
  */
 import { trace } from '@opentelemetry/api';
 import type { config as ConfigType } from '@/config/index.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { rateLimited } from '@/types-global/errors.js';
 import type { logger as LoggerType } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -294,7 +294,7 @@ export class RateLimiter {
         'mcp.rate_limit.wait_time_seconds': waitTime,
       });
 
-      throw new McpError(JsonRpcErrorCode.RateLimited, errorMessage, {
+      throw rateLimited(errorMessage, {
         waitTimeSeconds: waitTime,
         key: limitKey,
         limit: this.effectiveConfig.maxRequests,

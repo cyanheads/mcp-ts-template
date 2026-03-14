@@ -5,7 +5,7 @@
  * @module src/services/speech/core/SpeechService
  */
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { invalidParams, invalidRequest } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 
 import { ElevenLabsProvider } from '../providers/elevenlabs.provider.js';
@@ -38,14 +38,11 @@ export function createSpeechProvider(config: SpeechProviderConfig): ISpeechProvi
       return new WhisperProvider(config);
 
     case 'mock':
-      throw new McpError(JsonRpcErrorCode.InvalidParams, 'Mock provider not yet implemented');
+      throw invalidParams('Mock provider not yet implemented');
 
     default: {
       const _exhaustive: never = config.provider;
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
-        `Unknown speech provider: ${String(_exhaustive)}`,
-      );
+      throw invalidParams(`Unknown speech provider: ${String(_exhaustive)}`);
     }
   }
 }
@@ -103,7 +100,7 @@ export class SpeechService {
    */
   getTTSProvider(): ISpeechProvider {
     if (!this.ttsProvider) {
-      throw new McpError(JsonRpcErrorCode.InvalidRequest, 'No TTS provider configured');
+      throw invalidRequest('No TTS provider configured');
     }
     return this.ttsProvider;
   }
@@ -116,7 +113,7 @@ export class SpeechService {
    */
   getSTTProvider(): ISpeechProvider {
     if (!this.sttProvider) {
-      throw new McpError(JsonRpcErrorCode.InvalidRequest, 'No STT provider configured');
+      throw invalidRequest('No STT provider configured');
     }
     return this.sttProvider;
   }

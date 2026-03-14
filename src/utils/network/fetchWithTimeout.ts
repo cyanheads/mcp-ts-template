@@ -3,7 +3,13 @@
  * and optional SSRF protection including DNS resolution validation and redirect following.
  * @module src/utils/network/fetchWithTimeout
  */
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import {
+  JsonRpcErrorCode,
+  McpError,
+  serviceUnavailable,
+  timeout,
+  validationError,
+} from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { runtimeCaps } from '@/utils/internal/runtime.js';
@@ -111,33 +117,24 @@ async function assertNotPrivateUrl(urlString: string): Promise<void> {
   try {
     parsed = new URL(urlString);
   } catch {
-    throw new McpError(JsonRpcErrorCode.ValidationError, `Invalid URL: ${urlString}`);
+    throw validationError(`Invalid URL: ${urlString}`);
   }
 
   const hostname = parsed.hostname.replace(/^\[|\]$/g, ''); // Strip IPv6 brackets
 
   // Check known private hostnames
   if (PRIVATE_HOSTNAMES.has(hostname.toLowerCase())) {
-    throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      `Request to private/internal hostname blocked: ${hostname}`,
-    );
+    throw validationError(`Request to private/internal hostname blocked: ${hostname}`);
   }
 
   // Check IPv6 loopback
   if (hostname === '::1' || hostname === '0:0:0:0:0:0:0:1') {
-    throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      `Request to loopback address blocked: ${hostname}`,
-    );
+    throw validationError(`Request to loopback address blocked: ${hostname}`);
   }
 
   // Check IPv4 private ranges (hostname as literal IP)
   if (PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(hostname))) {
-    throw new McpError(
-      JsonRpcErrorCode.ValidationError,
-      `Request to private/reserved IP blocked: ${hostname}`,
-    );
+    throw validationError(`Request to private/reserved IP blocked: ${hostname}`);
   }
 
   // DNS resolution check (Node.js only — Workers have no DNS API)
@@ -172,10 +169,7 @@ async function assertDnsNotPrivate(hostname: string): Promise<void> {
 
     for (const ip of resolvedIPs) {
       if (isPrivateIP(ip)) {
-        throw new McpError(
-          JsonRpcErrorCode.ValidationError,
-          `DNS resolved ${hostname} to private IP ${ip} — SSRF blocked`,
-        );
+        throw validationError(`DNS resolved ${hostname} to private IP ${ip} — SSRF blocked`);
       }
     }
   } catch (error) {
@@ -295,16 +289,14 @@ export async function fetchWithTimeout(
       if (rejectPrivate && response.status >= 300 && response.status < 400) {
         const location = response.headers.get('location');
         if (!location) {
-          throw new McpError(
-            JsonRpcErrorCode.ServiceUnavailable,
+          throw serviceUnavailable(
             `Redirect response missing Location header from ${String(currentUrl)}`,
           );
         }
 
         redirectCount++;
         if (redirectCount > MAX_SSRF_REDIRECTS) {
-          throw new McpError(
-            JsonRpcErrorCode.ValidationError,
+          throw validationError(
             `Too many redirects (${MAX_SSRF_REDIRECTS}) — possible SSRF redirect loop`,
           );
         }
@@ -329,8 +321,7 @@ export async function fetchWithTimeout(
           responseBody: errorBody,
           errorSource: 'FetchHttpError',
         });
-        throw new McpError(
-          JsonRpcErrorCode.ServiceUnavailable,
+        throw serviceUnavailable(
           `Fetch failed for ${String(currentUrl)}. Status: ${response.status}`,
           {
             requestId: context.requestId,
@@ -357,7 +348,7 @@ export async function fetchWithTimeout(
           ...context,
           errorSource: 'FetchTimeout',
         });
-        throw new McpError(JsonRpcErrorCode.Timeout, `${operationDescription} timed out.`, {
+        throw timeout(`${operationDescription} timed out.`, {
           requestId: context.requestId,
           operation: context.operation as string | undefined,
           errorSource: 'FetchTimeout',
@@ -386,16 +377,12 @@ export async function fetchWithTimeout(
       throw error;
     }
 
-    throw new McpError(
-      JsonRpcErrorCode.ServiceUnavailable,
-      `Network error during ${operationDescription}: ${errorMessage}`,
-      {
-        requestId: context.requestId,
-        operation: context.operation as string | undefined,
-        originalErrorName: error instanceof Error ? error.name : 'UnknownError',
-        errorSource: 'FetchNetworkErrorWrapper',
-      },
-    );
+    throw serviceUnavailable(`Network error during ${operationDescription}: ${errorMessage}`, {
+      requestId: context.requestId,
+      operation: context.operation as string | undefined,
+      originalErrorName: error instanceof Error ? error.name : 'UnknownError',
+      errorSource: 'FetchNetworkErrorWrapper',
+    });
   } finally {
     clearTimeout(timeoutId);
   }

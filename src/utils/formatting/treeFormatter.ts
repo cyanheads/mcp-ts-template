@@ -4,7 +4,7 @@
  * @module src/utils/formatting/treeFormatter
  */
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { JsonRpcErrorCode, McpError, validationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -221,11 +221,7 @@ export class TreeFormatter {
 
     // Validate input
     if (!root || typeof root.name !== 'string') {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Root node must have a name property',
-        logContext,
-      );
+      throw validationError('Root node must have a name property', logContext);
     }
 
     const opts = {
@@ -317,11 +313,7 @@ export class TreeFormatter {
       });
 
     if (!Array.isArray(roots) || roots.length === 0) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Roots must be a non-empty array',
-        logContext,
-      );
+      throw validationError('Roots must be a non-empty array', logContext);
     }
 
     try {

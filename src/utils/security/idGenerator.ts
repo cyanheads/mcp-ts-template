@@ -9,7 +9,7 @@
  * during application startup.
  * @module src/utils/security/idGenerator
  */
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { validationError } from '@/types-global/errors.js';
 
 /**
  * Returns cryptographically secure random bytes using the Web Crypto API (`crypto.getRandomValues`).
@@ -170,10 +170,7 @@ export class IdGenerator {
   public generateForEntity(entityType: string, options: IdGenerationOptions = {}): string {
     const prefix = this.entityPrefixes[entityType];
     if (!prefix) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        `Unknown entity type: ${entityType}. No prefix registered.`,
-      );
+      throw validationError(`Unknown entity type: ${entityType}. No prefix registered.`);
     }
     return this.generate(prefix, options);
   }
@@ -252,8 +249,7 @@ export class IdGenerator {
   public getEntityType(id: string, separator: string = IdGenerator.DEFAULT_SEPARATOR): string {
     const parts = id.split(separator);
     if (parts.length < 2 || !parts[0]) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
+      throw validationError(
         `Invalid ID format: ${id}. Expected format like: PREFIX${separator}RANDOMPART`,
       );
     }
@@ -262,10 +258,7 @@ export class IdGenerator {
     const entityType = this.prefixToEntityType[prefix.toLowerCase()];
 
     if (!entityType) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        `Unknown entity type for prefix: ${prefix}`,
-      );
+      throw validationError(`Unknown entity type for prefix: ${prefix}`);
     }
     return entityType;
   }

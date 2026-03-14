@@ -5,7 +5,7 @@
  * @module src/utils/formatting/tableFormatter
  */
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { JsonRpcErrorCode, McpError, validationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -185,7 +185,7 @@ export class TableFormatter {
       });
 
     if (!Array.isArray(data)) {
-      throw new McpError(JsonRpcErrorCode.ValidationError, 'Data must be an array', logContext);
+      throw validationError('Data must be an array', logContext);
     }
 
     if (data.length === 0) {
@@ -251,15 +251,11 @@ export class TableFormatter {
 
     // Validate inputs
     if (!Array.isArray(headers) || headers.length === 0) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Headers must be a non-empty array',
-        logContext,
-      );
+      throw validationError('Headers must be a non-empty array', logContext);
     }
 
     if (!Array.isArray(rows)) {
-      throw new McpError(JsonRpcErrorCode.ValidationError, 'Rows must be an array', logContext);
+      throw validationError('Rows must be an array', logContext);
     }
 
     if (rows.length === 0) {
@@ -271,8 +267,7 @@ export class TableFormatter {
     const columnCount = headers.length;
     for (let i = 0; i < rows.length; i++) {
       if (rows[i]?.length !== columnCount) {
-        throw new McpError(
-          JsonRpcErrorCode.ValidationError,
+        throw validationError(
           `Row ${i} has ${rows[i]?.length} columns but expected ${columnCount}`,
           { ...logContext, rowIndex: i, expectedColumns: columnCount },
         );

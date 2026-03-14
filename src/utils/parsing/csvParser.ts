@@ -9,7 +9,7 @@
  */
 import type Papa from 'papaparse';
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError, validationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { thinkBlockRegex } from './thinkBlock.js';
@@ -18,10 +18,7 @@ let _papa: typeof Papa | undefined;
 async function getPapa() {
   if (!_papa) {
     const mod = await import('papaparse').catch(() => {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
-        'Install "papaparse" to use CSV parsing: bun add papaparse',
-      );
+      throw configurationError('Install "papaparse" to use CSV parsing: bun add papaparse');
     });
     // Handle CJS/ESM interop — papaparse uses `export =`
     _papa = ('default' in mod ? (mod.default as typeof Papa) : mod) as typeof Papa;
@@ -105,8 +102,7 @@ export class CsvParser {
     stringToParse = stringToParse.trim();
 
     if (!stringToParse) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
+      throw validationError(
         'CSV string is empty after removing <think> block and trimming.',
         context,
       );
@@ -127,8 +123,7 @@ export class CsvParser {
         contentAttempted: stringToParse.substring(0, 200),
       });
 
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
+      throw validationError(
         `Failed to parse CSV: ${result.errors.map((e) => e.message).join(', ')}`,
         {
           ...context,

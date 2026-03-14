@@ -14,7 +14,7 @@ import dotenv from 'dotenv';
 import { z } from 'zod';
 
 import packageJson from '../../package.json' with { type: 'json' };
-import { JsonRpcErrorCode, McpError } from '../types-global/errors.js';
+import { configurationError } from '../types-global/errors.js';
 import { runtimeCaps } from '../utils/internal/runtime.js';
 
 type PackageManifest = {
@@ -469,7 +469,7 @@ const parseConfig = () => {
       );
     }
     // Throw a specific, typed error instead of exiting.
-    throw new McpError(JsonRpcErrorCode.ConfigurationError, 'Invalid application configuration.', {
+    throw configurationError('Invalid application configuration.', {
       validationErrors: parsedConfig.error.flatten().fieldErrors,
     });
   }

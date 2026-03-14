@@ -14,7 +14,7 @@ import {
   handleJoseVerifyError,
 } from '@/mcp-server/transports/auth/lib/claimParser.js';
 import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError } from '@/types-global/errors.js';
 import type { logger as LoggerType } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -40,8 +40,7 @@ export class JwtStrategy implements AuthStrategy {
         'CRITICAL: MCP_AUTH_SECRET_KEY is not set for JWT auth. Set the key or enable DEV_MCP_AUTH_BYPASS=true for development.',
         context,
       );
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'MCP_AUTH_SECRET_KEY must be set for JWT auth (or set DEV_MCP_AUTH_BYPASS=true).',
         context,
       );

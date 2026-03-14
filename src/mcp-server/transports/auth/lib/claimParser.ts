@@ -8,7 +8,7 @@
 import type { JWTPayload } from 'jose';
 
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { McpError, unauthorized } from '@/types-global/errors.js';
 
 /**
  * Builds an {@link AuthInfo} from a raw token string and decoded JWT payload.
@@ -31,10 +31,7 @@ export function buildAuthInfoFromClaims(token: string, payload: JWTPayload): Aut
         : undefined;
 
   if (!clientId) {
-    throw new McpError(
-      JsonRpcErrorCode.Unauthorized,
-      "Invalid token: missing 'cid' or 'client_id' claim.",
-    );
+    throw unauthorized("Invalid token: missing 'cid' or 'client_id' claim.");
   }
 
   let scopes: string[] = [];
@@ -45,10 +42,7 @@ export function buildAuthInfoFromClaims(token: string, payload: JWTPayload): Aut
   }
 
   if (scopes.length === 0) {
-    throw new McpError(
-      JsonRpcErrorCode.Unauthorized,
-      'Token must contain valid, non-empty scopes.',
-    );
+    throw unauthorized('Token must contain valid, non-empty scopes.');
   }
 
   return {
@@ -77,5 +71,5 @@ export function handleJoseVerifyError(error: unknown, fallbackMessage: string): 
   const message =
     error instanceof Error && error.name === 'JWTExpired' ? 'Token has expired.' : fallbackMessage;
 
-  throw new McpError(JsonRpcErrorCode.Unauthorized, message);
+  throw unauthorized(message);
 }

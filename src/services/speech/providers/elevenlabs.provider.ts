@@ -5,7 +5,12 @@
  * @module src/services/speech/providers/elevenlabs.provider
  */
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import {
+  invalidParams,
+  JsonRpcErrorCode,
+  McpError,
+  serviceUnavailable,
+} from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
@@ -69,7 +74,7 @@ export class ElevenLabsProvider implements ISpeechProvider {
    */
   constructor(config: SpeechProviderConfig) {
     if (!config.apiKey) {
-      throw new McpError(JsonRpcErrorCode.InvalidParams, 'ElevenLabs API key is required');
+      throw invalidParams('ElevenLabs API key is required');
     }
 
     this.apiKey = config.apiKey;
@@ -108,15 +113,11 @@ export class ElevenLabsProvider implements ISpeechProvider {
     logger.debug('Converting text to speech with ElevenLabs', context);
 
     if (!options.text || options.text.trim().length === 0) {
-      throw new McpError(JsonRpcErrorCode.InvalidParams, 'Text cannot be empty', context);
+      throw invalidParams('Text cannot be empty', context);
     }
 
     if (options.text.length > 5000) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
-        'Text exceeds maximum length of 5000 characters',
-        context,
-      );
+      throw invalidParams('Text exceeds maximum length of 5000 characters', context);
     }
 
     const url = `${this.baseUrl}/text-to-speech/${voiceId}`;
@@ -174,10 +175,10 @@ export class ElevenLabsProvider implements ISpeechProvider {
         context,
       );
 
-      throw new McpError(
-        JsonRpcErrorCode.InternalError,
+      throw serviceUnavailable(
         `Failed to convert text to speech: ${error instanceof Error ? error.message : 'Unknown error'}`,
         context,
+        { cause: error },
       );
     }
   }
@@ -251,9 +252,10 @@ export class ElevenLabsProvider implements ISpeechProvider {
         context,
       );
 
-      throw new McpError(
-        JsonRpcErrorCode.InternalError,
+      throw serviceUnavailable(
         `Failed to fetch voices: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        undefined,
+        { cause: error },
       );
     }
   }

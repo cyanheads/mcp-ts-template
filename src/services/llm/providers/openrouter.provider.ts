@@ -16,7 +16,7 @@ import type { Stream } from 'openai/streaming';
 
 import type { config as ConfigType } from '@/config/index.js';
 import type { ILlmProvider, OpenRouterChatParams } from '@/services/llm/core/ILlmProvider.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { logger as LoggerType } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
@@ -39,10 +39,7 @@ let _openai: typeof import('openai') | undefined;
  */
 async function getOpenAI() {
   _openai ??= await import('openai').catch(() => {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
-      'Install "openai" to use the OpenRouter LLM provider: bun add openai',
-    );
+    throw configurationError('Install "openai" to use the OpenRouter LLM provider: bun add openai');
   });
   return _openai.default;
 }
@@ -136,11 +133,7 @@ export class OpenRouterProvider implements ILlmProvider {
         'OpenRouter API key is not configured. Please set OPENROUTER_API_KEY.',
         context,
       );
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
-        'OpenRouter API key is not configured.',
-        context,
-      );
+      throw configurationError('OpenRouter API key is not configured.', context);
     }
 
     this.defaultParams = {
@@ -210,9 +203,9 @@ export class OpenRouterProvider implements ILlmProvider {
         ...context,
         error: error.message,
       });
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'Failed to construct OpenRouter client. Please check the configuration.',
+        undefined,
         { cause: error },
       );
     }

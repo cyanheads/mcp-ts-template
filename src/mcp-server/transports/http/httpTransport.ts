@@ -24,7 +24,7 @@ import type { DefinitionCounts, HonoNodeBindings } from '@/mcp-server/transports
 import { protectedResourceMetadataHandler } from '@/mcp-server/transports/http/protectedResourceMetadata.js';
 import { generateSecureSessionId } from '@/mcp-server/transports/http/sessionIdUtils.js';
 import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { logStartupBanner } from '@/utils/internal/startupBanner.js';
@@ -90,8 +90,7 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
   // @hono/otel is a Tier 3 optional peer — lazy import inside the guard.
   if (config.openTelemetry.enabled) {
     const { httpInstrumentationMiddleware } = await import('@hono/otel').catch(() => {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'Install "@hono/otel" to use OpenTelemetry HTTP instrumentation: bun add @hono/otel',
       );
     });

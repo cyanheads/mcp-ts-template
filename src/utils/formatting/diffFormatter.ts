@@ -7,16 +7,18 @@
  * @module src/utils/formatting/diffFormatter
  */
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import {
+  configurationError,
+  JsonRpcErrorCode,
+  McpError,
+  validationError,
+} from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 
 let _diff: typeof import('diff') | undefined;
 async function getDiff() {
   _diff ??= await import('diff').catch(() => {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
-      'Install "diff" to use diff formatting: bun add diff',
-    );
+    throw configurationError('Install "diff" to use diff formatting: bun add diff');
   });
   return _diff;
 }
@@ -127,11 +129,7 @@ export class DiffFormatter {
 
     // Validate inputs
     if (typeof oldText !== 'string' || typeof newText !== 'string') {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Both oldText and newText must be strings',
-        logContext,
-      );
+      throw validationError('Both oldText and newText must be strings', logContext);
     }
 
     const opts: Required<Omit<DiffFormatterOptions, 'oldPath' | 'newPath'>> &
@@ -219,11 +217,7 @@ export class DiffFormatter {
 
     // Validate inputs
     if (!Array.isArray(oldLines) || !Array.isArray(newLines)) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Both oldLines and newLines must be arrays',
-        logContext,
-      );
+      throw validationError('Both oldLines and newLines must be arrays', logContext);
     }
 
     // Join arrays back into text and use main diff method
@@ -268,11 +262,7 @@ export class DiffFormatter {
 
     // Validate inputs
     if (typeof oldText !== 'string' || typeof newText !== 'string') {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Both oldText and newText must be strings',
-        logContext,
-      );
+      throw validationError('Both oldText and newText must be strings', logContext);
     }
 
     try {

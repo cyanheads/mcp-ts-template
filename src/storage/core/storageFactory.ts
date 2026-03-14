@@ -17,7 +17,7 @@ import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemPro
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -52,8 +52,7 @@ function getGlobalBinding<T>(
 ): T {
   const g = globalThis as Record<string, unknown>;
   if (!(key in g) || g[key] == null) {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
+    throw configurationError(
       `${key} binding not available in globalThis. Ensure wrangler.toml is configured correctly.`,
       context,
     );
@@ -126,8 +125,7 @@ export function createStorageProvider(
       return new InMemoryProvider();
     case 'filesystem':
       if (!config.storage.filesystemPath) {
-        throw new McpError(
-          JsonRpcErrorCode.ConfigurationError,
+        throw configurationError(
           'STORAGE_FILESYSTEM_PATH must be set for the filesystem storage provider.',
           context,
         );
@@ -135,15 +133,13 @@ export function createStorageProvider(
       return new FileSystemProvider(config.storage.filesystemPath);
     case 'supabase':
       if (!config.supabase?.url || !config.supabase?.serviceRoleKey) {
-        throw new McpError(
-          JsonRpcErrorCode.ConfigurationError,
+        throw configurationError(
           'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for the supabase storage provider.',
           context,
         );
       }
       if (!deps.supabaseClient) {
-        throw new McpError(
-          JsonRpcErrorCode.ConfigurationError,
+        throw configurationError(
           'Supabase client must be provided via deps for the supabase storage provider.',
           context,
         );
@@ -157,8 +153,7 @@ export function createStorageProvider(
         const r2Binding = getGlobalBinding<R2Bucket>('R2_BUCKET', context);
         return new R2Provider(r2Binding);
       }
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'Cloudflare R2 storage is only available in a Cloudflare Worker environment.',
         context,
       );
@@ -170,8 +165,7 @@ export function createStorageProvider(
         const kvBinding = getGlobalBinding<KVNamespace>('KV_NAMESPACE', context);
         return new KvProvider(kvBinding);
       }
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'Cloudflare KV storage is only available in a Cloudflare Worker environment.',
         context,
       );
@@ -183,15 +177,13 @@ export function createStorageProvider(
         const d1Binding = getGlobalBinding<D1Database>('DB', context);
         return new D1Provider(d1Binding);
       }
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'Cloudflare D1 storage is only available in a Cloudflare Worker environment.',
         context,
       );
     default: {
       const exhaustiveCheck: never = providerType;
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         `Unhandled storage provider type: ${String(exhaustiveCheck)}`,
         context,
       );

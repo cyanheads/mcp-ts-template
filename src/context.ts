@@ -15,7 +15,7 @@ import type {
 import type { ZodType, z } from 'zod';
 
 import type { StorageService } from '@/storage/core/StorageService.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { invalidRequest } from '@/types-global/errors.js';
 import type { Logger } from '@/utils/internal/logger.js';
 import type { AuthContext, RequestContext } from '@/utils/internal/requestContext.js';
 
@@ -237,8 +237,7 @@ function createContextLogger(appLogger: Logger, appContext: RequestContext): Con
 function createContextState(storage: StorageService, appContext: RequestContext): ContextState {
   const requireContext = (): RequestContext => {
     if (!appContext.tenantId) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
+      throw invalidRequest(
         'tenantId required for state operations. HTTP requests must include a JWT with a "tid" claim. Stdio mode should default tenantId to "default" via createApp().',
       );
     }

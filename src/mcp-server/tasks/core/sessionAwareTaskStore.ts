@@ -10,7 +10,7 @@
  */
 import type { Request, RequestId, Result } from '@modelcontextprotocol/sdk/types.js';
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { forbidden } from '@/types-global/errors.js';
 import type { CreateTaskOptions, Task, TaskStore } from './taskTypes.js';
 import { isTerminal } from './taskTypes.js';
 
@@ -98,7 +98,7 @@ export class SessionAwareTaskStore implements TaskStore {
     const owner = this.ownership.get(taskId);
     if (!owner) return; // No owner recorded — accessible by anyone
     if (owner !== callerSessionId) {
-      throw new McpError(JsonRpcErrorCode.Forbidden, `Access denied to task ${taskId}`);
+      throw forbidden(`Access denied to task ${taskId}`);
     }
   }
 }

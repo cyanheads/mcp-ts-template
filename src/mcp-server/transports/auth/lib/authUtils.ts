@@ -6,7 +6,7 @@
 
 import { config } from '@/config/index.js';
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { forbidden, unauthorized } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -46,8 +46,7 @@ export function withRequiredScopes(requiredScopes: string[], parentContext?: Req
       'Auth enabled but no authentication context found. Denying request.',
       initialContext,
     );
-    throw new McpError(
-      JsonRpcErrorCode.Unauthorized,
+    throw unauthorized(
       'Authentication required but no auth context was established.',
       initialContext,
     );
@@ -74,8 +73,7 @@ export function withRequiredScopes(requiredScopes: string[], parentContext?: Req
       missingScopes,
     });
     // Only surface non-sensitive info in the client-facing error
-    throw new McpError(
-      JsonRpcErrorCode.Forbidden,
+    throw forbidden(
       `Insufficient permissions. Missing required scopes: ${missingScopes.join(', ')}`,
       { requiredScopes, missingScopes },
     );

@@ -5,7 +5,7 @@
  */
 import type * as chrono from 'chrono-node';
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError, JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
@@ -13,10 +13,7 @@ import type { RequestContext } from '@/utils/internal/requestContext.js';
 let _chrono: typeof import('chrono-node') | undefined;
 async function getChrono() {
   _chrono ??= await import('chrono-node').catch(() => {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
-      'Install "chrono-node" to use date parsing: bun add chrono-node',
-    );
+    throw configurationError('Install "chrono-node" to use date parsing: bun add chrono-node');
   });
   return _chrono;
 }

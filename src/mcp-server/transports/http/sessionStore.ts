@@ -6,7 +6,7 @@
  */
 
 import { validateSessionIdFormat } from '@/mcp-server/transports/http/sessionIdUtils.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { invalidParams } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -80,8 +80,7 @@ export class SessionStore {
         sessionIdPrefix: sessionId.substring(0, 16),
       });
       logger.warning('Invalid session ID format rejected', context);
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
+      throw invalidParams(
         'Invalid session ID format. Session IDs must be 64 hexadecimal characters.',
         context,
       );

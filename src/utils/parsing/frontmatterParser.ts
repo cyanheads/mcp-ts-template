@@ -4,7 +4,7 @@
  * Leverages the existing yamlParser for parsing extracted YAML content.
  * @module src/utils/parsing/frontmatterParser
  */
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { McpError, validationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { yamlParser } from './yamlParser.js';
@@ -155,16 +155,11 @@ export class FrontmatterParser {
         throw error;
       }
 
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        `Failed to parse frontmatter: ${error.message}`,
-        {
-          ...context,
-          yamlContentSample:
-            yamlContent.substring(0, 200) + (yamlContent.length > 200 ? '...' : ''),
-          rawError: error instanceof Error ? error.stack : String(error),
-        },
-      );
+      throw validationError(`Failed to parse frontmatter: ${error.message}`, {
+        ...context,
+        yamlContentSample: yamlContent.substring(0, 200) + (yamlContent.length > 200 ? '...' : ''),
+        rawError: error instanceof Error ? error.stack : String(error),
+      });
     }
   }
 }

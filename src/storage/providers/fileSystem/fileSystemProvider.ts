@@ -20,7 +20,12 @@ import type {
   StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
 import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import {
+  configurationError,
+  JsonRpcErrorCode,
+  McpError,
+  validationError,
+} from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { sanitization } from '@/utils/security/sanitization.js';
@@ -40,10 +45,7 @@ export class FileSystemProvider implements IStorageProvider {
 
   constructor(storagePath: string) {
     if (!storagePath) {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
-        'FileSystemProvider requires a valid storagePath.',
-      );
+      throw configurationError('FileSystemProvider requires a valid storagePath.');
     }
     this.storagePath = path.resolve(storagePath);
     if (!existsSync(this.storagePath)) {
@@ -56,10 +58,7 @@ export class FileSystemProvider implements IStorageProvider {
       toPosix: true,
     }).sanitizedPath;
     if (sanitizedTenantId.includes('/') || sanitizedTenantId.includes('..')) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Invalid tenantId contains path characters.',
-      );
+      throw validationError('Invalid tenantId contains path characters.');
     }
     const tenantPath = path.join(this.storagePath, sanitizedTenantId);
     if (!existsSync(tenantPath)) {
@@ -76,10 +75,7 @@ export class FileSystemProvider implements IStorageProvider {
     }).sanitizedPath;
     const filePath = path.join(tenantPath, sanitizedKey);
     if (!path.resolve(filePath).startsWith(path.resolve(tenantPath))) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Invalid key results in path traversal attempt.',
-      );
+      throw validationError('Invalid key results in path traversal attempt.');
     }
     return filePath;
   }

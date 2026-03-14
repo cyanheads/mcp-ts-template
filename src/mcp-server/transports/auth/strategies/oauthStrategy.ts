@@ -13,7 +13,7 @@ import {
   handleJoseVerifyError,
 } from '@/mcp-server/transports/auth/lib/claimParser.js';
 import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError, forbidden, serviceUnavailable } from '@/types-global/errors.js';
 import type { logger as LoggerType } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -39,8 +39,7 @@ export class OauthStrategy implements AuthStrategy {
         'CRITICAL: OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.',
         context,
       );
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'OAUTH_ISSUER_URL and OAUTH_AUDIENCE must be set for OAuth mode.',
         context,
       );
@@ -64,14 +63,10 @@ export class OauthStrategy implements AuthStrategy {
         ...context,
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new McpError(
-        JsonRpcErrorCode.ServiceUnavailable,
-        'Could not initialize JWKS client for OAuth strategy.',
-        {
-          ...context,
-          originalError: error instanceof Error ? error.message : 'Unknown',
-        },
-      );
+      throw serviceUnavailable('Could not initialize JWKS client for OAuth strategy.', {
+        ...context,
+        originalError: error instanceof Error ? error.message : 'Unknown',
+      });
     }
   }
 
@@ -115,8 +110,7 @@ export class OauthStrategy implements AuthStrategy {
               received: resourceClaim,
             },
           );
-          throw new McpError(
-            JsonRpcErrorCode.Forbidden,
+          throw forbidden(
             'Token was not issued for this MCP server. Resource indicator mismatch.',
             {
               expected: expectedResource,

@@ -7,7 +7,7 @@
  * Peer dependency: `js-yaml` — install with `bun add js-yaml`.
  * @module src/utils/parsing/yamlParser
  */
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError, validationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { thinkBlockRegex } from './thinkBlock.js';
@@ -15,10 +15,7 @@ import { thinkBlockRegex } from './thinkBlock.js';
 let _yaml: typeof import('js-yaml') | undefined;
 async function getYaml() {
   _yaml ??= await import('js-yaml').catch(() => {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
-      'Install "js-yaml" to use YAML parsing: bun add js-yaml',
-    );
+    throw configurationError('Install "js-yaml" to use YAML parsing: bun add js-yaml');
   });
   return _yaml;
 }
@@ -85,8 +82,7 @@ export class YamlParser {
     stringToParse = stringToParse.trim();
 
     if (!stringToParse) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
+      throw validationError(
         'YAML string is empty after removing <think> block and trimming.',
         context,
       );
@@ -108,16 +104,12 @@ export class YamlParser {
         contentAttempted: stringToParse.substring(0, 200),
       });
 
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        `Failed to parse YAML: ${error.message}`,
-        {
-          ...context,
-          originalContentSample:
-            stringToParse.substring(0, 200) + (stringToParse.length > 200 ? '...' : ''),
-          rawError: error instanceof Error ? error.stack : String(error),
-        },
-      );
+      throw validationError(`Failed to parse YAML: ${error.message}`, {
+        ...context,
+        originalContentSample:
+          stringToParse.substring(0, 200) + (stringToParse.length > 200 ? '...' : ''),
+        rawError: error instanceof Error ? error.stack : String(error),
+      });
     }
   }
 }

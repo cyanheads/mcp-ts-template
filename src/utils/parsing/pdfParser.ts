@@ -6,17 +6,19 @@
  */
 import type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from 'pdf-lib';
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import {
+  configurationError,
+  JsonRpcErrorCode,
+  McpError,
+  validationError,
+} from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 let _pdfLib: typeof import('pdf-lib') | undefined;
 async function getPdfLib() {
   _pdfLib ??= await import('pdf-lib').catch(() => {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
-      'Install "pdf-lib" to use PDF operations: bun add pdf-lib',
-    );
+    throw configurationError('Install "pdf-lib" to use PDF operations: bun add pdf-lib');
   });
   return _pdfLib;
 }
@@ -24,10 +26,7 @@ async function getPdfLib() {
 let _unpdf: typeof import('unpdf') | undefined;
 async function getUnpdf() {
   _unpdf ??= await import('unpdf').catch(() => {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
-      'Install "unpdf" to use PDF text extraction: bun add unpdf',
-    );
+    throw configurationError('Install "unpdf" to use PDF text extraction: bun add unpdf');
   });
   return _unpdf;
 }
@@ -388,14 +387,10 @@ export class PdfParser {
         errorDetails: error.message,
       });
 
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        `Failed to load PDF document: ${error.message}`,
-        {
-          ...context,
-          rawError: error instanceof Error ? error.stack : String(error),
-        },
-      );
+      throw validationError(`Failed to load PDF document: ${error.message}`, {
+        ...context,
+        rawError: error instanceof Error ? error.stack : String(error),
+      });
     }
   }
 

@@ -16,7 +16,7 @@ import type { Context, MiddlewareHandler, Next } from 'hono';
 
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { unauthorized } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -43,16 +43,13 @@ export function createAuthMiddleware(
     const authHeader = c.req.header('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       logger.warning('Authorization header missing or invalid.', context);
-      throw new McpError(
-        JsonRpcErrorCode.Unauthorized,
-        'Missing or invalid Authorization header. Bearer scheme required.',
-      );
+      throw unauthorized('Missing or invalid Authorization header. Bearer scheme required.');
     }
 
     const token = authHeader.substring(7);
     if (!token) {
       logger.warning('Bearer token is missing from Authorization header.', context);
-      throw new McpError(JsonRpcErrorCode.Unauthorized, 'Authentication token is missing.');
+      throw unauthorized('Authentication token is missing.');
     }
 
     logger.debug('Extracted Bearer token, proceeding to verification.', context);

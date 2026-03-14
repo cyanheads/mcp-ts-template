@@ -14,7 +14,12 @@
  */
 import type sanitizeHtml from 'sanitize-html';
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import {
+  configurationError,
+  JsonRpcErrorCode,
+  McpError,
+  validationError,
+} from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 import { runtimeCaps } from '@/utils/internal/runtime.js';
@@ -24,8 +29,7 @@ let _sanitizeHtmlFn: typeof sanitizeHtml | undefined;
 async function loadSanitizeHtml() {
   _sanitizeHtmlFn ??= (
     await import('sanitize-html').catch(() => {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'Install "sanitize-html" to use HTML sanitization: bun add sanitize-html',
       );
     })
@@ -37,10 +41,7 @@ let _validator: typeof import('validator').default | undefined;
 async function loadValidator() {
   _validator ??= (
     await import('validator').catch(() => {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
-        'Install "validator" to use input validation: bun add validator',
-      );
+      throw configurationError('Install "validator" to use input validation: bun add validator');
     })
   ).default;
   return _validator;
@@ -475,8 +476,7 @@ export class Sanitization {
             additionalContext: { inputSnippet: input.substring(0, 50) },
           }),
         );
-        throw new McpError(
-          JsonRpcErrorCode.ValidationError,
+        throw validationError(
           'JavaScript sanitization is not supported through sanitizeString due to security risks.',
         );
       default: {
@@ -550,8 +550,7 @@ export class Sanitization {
       }
       return trimmedInput;
     } catch (error: unknown) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
+      throw validationError(
         error instanceof Error ? error.message : 'Invalid or unsafe URL provided.',
         { input },
       );
@@ -678,8 +677,7 @@ export class Sanitization {
           },
         }),
       );
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
+      throw validationError(
         error instanceof Error ? error.message : 'Invalid or unsafe path provided.',
         { input: originalInput },
       );
@@ -728,23 +726,18 @@ export class Sanitization {
       };
 
       if (maxSize !== undefined && computeBytes(input) > maxSize) {
-        throw new McpError(
-          JsonRpcErrorCode.ValidationError,
-          `JSON string exceeds maximum allowed size of ${maxSize} bytes.`,
-          { actualSize: computeBytes(input), maxSize },
-        );
+        throw validationError(`JSON string exceeds maximum allowed size of ${maxSize} bytes.`, {
+          actualSize: computeBytes(input),
+          maxSize,
+        });
       }
 
       return JSON.parse(input) as T;
     } catch (error: unknown) {
       if (error instanceof McpError) throw error;
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        error instanceof Error ? error.message : 'Invalid JSON format.',
-        {
-          inputPreview: input.length > 100 ? `${input.substring(0, 100)}...` : input,
-        },
-      );
+      throw validationError(error instanceof Error ? error.message : 'Invalid JSON format.', {
+        inputPreview: input.length > 100 ? `${input.substring(0, 100)}...` : input,
+      });
     }
   }
 
@@ -783,29 +776,19 @@ export class Sanitization {
       const v = await loadValidator();
       const trimmedInput = input.trim();
       if (trimmedInput === '' || !v.isNumeric(trimmedInput)) {
-        throw new McpError(
-          JsonRpcErrorCode.ValidationError,
-          'Invalid number format: input is empty or not numeric.',
-          { input },
-        );
+        throw validationError('Invalid number format: input is empty or not numeric.', { input });
       }
       value = parseFloat(trimmedInput);
     } else if (typeof input === 'number') {
       value = input;
     } else {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Invalid input type: expected number or string.',
-        { input: String(input) },
-      );
+      throw validationError('Invalid input type: expected number or string.', {
+        input: String(input),
+      });
     }
 
     if (Number.isNaN(value) || !Number.isFinite(value)) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Invalid number value (NaN or Infinity).',
-        { input },
-      );
+      throw validationError('Invalid number value (NaN or Infinity).', { input });
     }
 
     let clamped = false;

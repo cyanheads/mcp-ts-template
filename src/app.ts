@@ -28,7 +28,7 @@ import type { SpeechProviderConfig } from '@/services/speech/types.js';
 import { StorageService } from '@/storage/core/StorageService.js';
 import { createStorageProvider } from '@/storage/core/storageFactory.js';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError } from '@/types-global/errors.js';
 import { logger, type McpLogLevel } from '@/utils/internal/logger.js';
 import { initHighResTimer } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
@@ -108,14 +108,10 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
   let supabaseClient: SupabaseClient<Database> | undefined;
   if (config.storage.providerType === 'supabase') {
     if (!config.supabase?.url || !config.supabase?.serviceRoleKey) {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
-        'Supabase URL or service role key is missing for admin client.',
-      );
+      throw configurationError('Supabase URL or service role key is missing for admin client.');
     }
     const { createClient } = await import('@supabase/supabase-js').catch(() => {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'Install "@supabase/supabase-js" to use Supabase storage: bun add @supabase/supabase-js',
       );
     });

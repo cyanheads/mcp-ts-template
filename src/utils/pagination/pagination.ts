@@ -12,7 +12,7 @@
  * @module src/utils/pagination/pagination
  */
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { invalidParams, JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { base64ToString, stringToBase64 } from '@/utils/internal/encoding.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
@@ -118,8 +118,7 @@ export function decodeCursor(cursor: string, context: RequestContext): Paginatio
       cursor,
       error: error instanceof Error ? error.message : String(error),
     });
-    throw new McpError(
-      JsonRpcErrorCode.InvalidParams,
+    throw invalidParams(
       'Invalid pagination cursor. The cursor may be expired, corrupted, or from a different request.',
       { cursor },
     );

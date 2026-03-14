@@ -7,7 +7,12 @@
  * @module src/services/speech/providers/whisper.provider
  */
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import {
+  invalidParams,
+  JsonRpcErrorCode,
+  McpError,
+  serviceUnavailable,
+} from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
@@ -69,7 +74,7 @@ export class WhisperProvider implements ISpeechProvider {
    */
   constructor(config: SpeechProviderConfig) {
     if (!config.apiKey) {
-      throw new McpError(JsonRpcErrorCode.InvalidParams, 'OpenAI API key is required');
+      throw invalidParams('OpenAI API key is required');
     }
 
     this.apiKey = config.apiKey;
@@ -123,7 +128,7 @@ export class WhisperProvider implements ISpeechProvider {
 
     // Validate audio input
     if (!options.audio) {
-      throw new McpError(JsonRpcErrorCode.InvalidParams, 'Audio data is required', context);
+      throw invalidParams('Audio data is required', context);
     }
 
     // Convert audio to Buffer if it's a base64 string
@@ -132,7 +137,7 @@ export class WhisperProvider implements ISpeechProvider {
       try {
         audioBuffer = Buffer.from(options.audio, 'base64');
       } catch (_error) {
-        throw new McpError(JsonRpcErrorCode.InvalidParams, 'Invalid base64 audio data', context);
+        throw invalidParams('Invalid base64 audio data', context);
       }
     } else {
       audioBuffer = options.audio;
@@ -141,8 +146,7 @@ export class WhisperProvider implements ISpeechProvider {
     // Check file size (Whisper has a 25MB limit)
     const maxSize = 25 * 1024 * 1024; // 25MB
     if (audioBuffer.length > maxSize) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
+      throw invalidParams(
         `Audio file exceeds maximum size of 25MB (got ${Math.round(audioBuffer.length / 1024 / 1024)}MB)`,
         context,
       );
@@ -224,10 +228,10 @@ export class WhisperProvider implements ISpeechProvider {
         context,
       );
 
-      throw new McpError(
-        JsonRpcErrorCode.InternalError,
+      throw serviceUnavailable(
         `Failed to transcribe audio: ${error instanceof Error ? error.message : 'Unknown error'}`,
         context,
+        { cause: error },
       );
     }
   }
