@@ -87,6 +87,54 @@ export class McpError extends Error {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Factory functions — ergonomic alternatives to `new McpError(code, msg, data)`
+// ---------------------------------------------------------------------------
+
+/** Create an InvalidParams (-32602) error. */
+export const invalidParams = (message: string, data?: Record<string, unknown>) =>
+  new McpError(JsonRpcErrorCode.InvalidParams, message, data);
+
+/** Create an InvalidRequest (-32600) error. */
+export const invalidRequest = (message: string, data?: Record<string, unknown>) =>
+  new McpError(JsonRpcErrorCode.InvalidRequest, message, data);
+
+/** Create a NotFound (-32001) error. */
+export const notFound = (message: string, data?: Record<string, unknown>) =>
+  new McpError(JsonRpcErrorCode.NotFound, message, data);
+
+/** Create a Forbidden (-32005) error. */
+export const forbidden = (message: string, data?: Record<string, unknown>) =>
+  new McpError(JsonRpcErrorCode.Forbidden, message, data);
+
+/** Create an Unauthorized (-32006) error. */
+export const unauthorized = (message: string, data?: Record<string, unknown>) =>
+  new McpError(JsonRpcErrorCode.Unauthorized, message, data);
+
+/** Create a ValidationError (-32007) error. */
+export const validationError = (message: string, data?: Record<string, unknown>) =>
+  new McpError(JsonRpcErrorCode.ValidationError, message, data);
+
+/** Create a Conflict (-32002) error. */
+export const conflict = (message: string, data?: Record<string, unknown>) =>
+  new McpError(JsonRpcErrorCode.Conflict, message, data);
+
+/** Create a RateLimited (-32003) error. */
+export const rateLimited = (message: string, data?: Record<string, unknown>) =>
+  new McpError(JsonRpcErrorCode.RateLimited, message, data);
+
+/** Create a Timeout (-32004) error. */
+export const timeout = (message: string, data?: Record<string, unknown>) =>
+  new McpError(JsonRpcErrorCode.Timeout, message, data);
+
+/** Create a ServiceUnavailable (-32000) error. */
+export const serviceUnavailable = (message: string, data?: Record<string, unknown>) =>
+  new McpError(JsonRpcErrorCode.ServiceUnavailable, message, data);
+
+/** Create a ConfigurationError (-32008) error. */
+export const configurationError = (message: string, data?: Record<string, unknown>) =>
+  new McpError(JsonRpcErrorCode.ConfigurationError, message, data);
+
 /**
  * Zod schema for validating error objects. This schema can be used for:
  * - Validating error structures when parsing error responses from external services.

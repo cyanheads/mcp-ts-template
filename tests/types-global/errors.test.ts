@@ -5,10 +5,21 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  configurationError,
+  conflict,
   type ErrorResponse,
   ErrorSchema,
+  forbidden,
+  invalidParams,
+  invalidRequest,
   JsonRpcErrorCode,
   McpError,
+  notFound,
+  rateLimited,
+  serviceUnavailable,
+  timeout,
+  unauthorized,
+  validationError,
 } from '@/types-global/errors.js';
 
 describe('Global Error Types', () => {
@@ -230,6 +241,51 @@ describe('Global Error Types', () => {
 
       const result = ErrorSchema.safeParse(errorWithComplexData);
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('Error factory functions', () => {
+    const factories = [
+      { fn: invalidParams, name: 'invalidParams', code: JsonRpcErrorCode.InvalidParams },
+      { fn: invalidRequest, name: 'invalidRequest', code: JsonRpcErrorCode.InvalidRequest },
+      { fn: notFound, name: 'notFound', code: JsonRpcErrorCode.NotFound },
+      { fn: forbidden, name: 'forbidden', code: JsonRpcErrorCode.Forbidden },
+      { fn: unauthorized, name: 'unauthorized', code: JsonRpcErrorCode.Unauthorized },
+      { fn: validationError, name: 'validationError', code: JsonRpcErrorCode.ValidationError },
+      { fn: conflict, name: 'conflict', code: JsonRpcErrorCode.Conflict },
+      { fn: rateLimited, name: 'rateLimited', code: JsonRpcErrorCode.RateLimited },
+      { fn: timeout, name: 'timeout', code: JsonRpcErrorCode.Timeout },
+      {
+        fn: serviceUnavailable,
+        name: 'serviceUnavailable',
+        code: JsonRpcErrorCode.ServiceUnavailable,
+      },
+      {
+        fn: configurationError,
+        name: 'configurationError',
+        code: JsonRpcErrorCode.ConfigurationError,
+      },
+    ];
+
+    for (const { fn, name, code } of factories) {
+      it(`${name}() should create McpError with code ${code}`, () => {
+        const err = fn('test message');
+        expect(err).toBeInstanceOf(McpError);
+        expect(err.code).toBe(code);
+        expect(err.message).toBe('test message');
+        expect(err.data).toBeUndefined();
+      });
+
+      it(`${name}() should accept optional data`, () => {
+        const err = fn('msg', { key: 'val' });
+        expect(err.data).toEqual({ key: 'val' });
+      });
+    }
+
+    it('should be throwable and catchable as McpError', () => {
+      expect(() => {
+        throw notFound('Item not found', { itemId: '123' });
+      }).toThrow(McpError);
     });
   });
 
