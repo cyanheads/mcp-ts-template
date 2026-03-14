@@ -73,9 +73,16 @@ export const httpErrorHandler = async <TBindings extends object = HonoNodeBindin
     case JsonRpcErrorCode.Forbidden:
       status = 403;
       break;
+    case JsonRpcErrorCode.InvalidParams:
     case JsonRpcErrorCode.ValidationError:
     case JsonRpcErrorCode.InvalidRequest:
       status = 400;
+      break;
+    case JsonRpcErrorCode.Timeout:
+      status = 504;
+      break;
+    case JsonRpcErrorCode.ServiceUnavailable:
+      status = 503;
       break;
     case JsonRpcErrorCode.Conflict:
       status = 409;
@@ -113,11 +120,13 @@ export const httpErrorHandler = async <TBindings extends object = HonoNodeBindin
   }
 
   c.status(status);
+  const errorData = handledError instanceof McpError ? handledError.data : undefined;
   const errorResponse = {
     jsonrpc: '2.0',
     error: {
       code: errorCode,
       message: handledError.message,
+      ...(errorData !== undefined && { data: errorData }),
     },
     id: requestId,
   };
