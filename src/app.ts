@@ -337,6 +337,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
 // Convenience re-exports from the main entry point
 // ---------------------------------------------------------------------------
 
+export { z } from 'zod';
 export type { Context, ContextLogger, ContextProgress, ContextState } from '@/context.js';
 export type { PromptDefinition } from '@/mcp-server/prompts/utils/promptDefinition.js';
 export { prompt } from '@/mcp-server/prompts/utils/promptDefinition.js';
@@ -351,4 +352,3 @@ export type {
   ToolDefinition,
 } from '@/mcp-server/tools/utils/toolDefinition.js';
 export { tool } from '@/mcp-server/tools/utils/toolDefinition.js';
-export { z } from 'zod';
