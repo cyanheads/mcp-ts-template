@@ -47,6 +47,7 @@ export const catFactTool = tool('template_cat_fact', {
   auth: ['tool:cat_fact:read'],
   annotations: {
     readOnlyHint: true,
+    idempotentHint: true,
     openWorldHint: true,
   },
 

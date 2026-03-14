@@ -6,8 +6,7 @@
 
 import { z } from 'zod';
 
-import type { Context } from '@cyanheads/mcp-ts-core/context';
-import { tool } from '@cyanheads/mcp-ts-core';
+import { type Context, tool } from '@cyanheads/mcp-ts-core';
 
 const InputSchema = z.object({
   noun: z.string().optional().describe('A noun for the story.'),
@@ -38,7 +37,7 @@ async function elicitWord(partOfSpeech: string, ctx: Context): Promise<string> {
     throw new Error(`User ${result.action} the ${partOfSpeech} elicitation.`);
   }
 
-  const value = (result.content as Record<string, unknown> | undefined)?.value;
+  const value = result.content?.value;
   if (typeof value !== 'string' || value.length === 0) {
     throw new Error(`Invalid ${partOfSpeech} received from user.`);
   }
