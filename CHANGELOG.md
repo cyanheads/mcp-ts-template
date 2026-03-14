@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.22] - 2026-03-14
+
+Re-exports `z` from the main entry point so consumers never need a separate `zod` import. Simplifies the README hero example to the true minimum — single import line, no `ctx.log` boilerplate (the framework logs every tool call automatically).
+
+### Added
+
+- **`src/app.ts`**: Re-exports `z` from `zod` — consumers can now `import { tool, z } from '@cyanheads/mcp-ts-core'` with no separate zod import.
+
+### Changed
+
+- **`README.md`**: Hero example simplified to single-import pattern (`import { createApp, tool, z }`), removed `ctx.log.info` from hello world, added note about automatic observability. "What you get" examples updated to single-import pattern.
+- **`CLAUDE.md`**: Exports table includes `z`. All code examples (tool, resource, prompt) updated to single-import pattern. Import conventions section updated.
+- **`skills/add-tool/SKILL.md`**, **`skills/add-resource/SKILL.md`**, **`skills/add-prompt/SKILL.md`**: Template imports updated to single-import pattern.
+- **`skills/api-config/SKILL.md`**: Server config example imports `z` from `@cyanheads/mcp-ts-core`.
+
+---
+
 ## [0.1.0-beta.21] - 2026-03-14
 
 Removes the `./context` subpath export (Context is re-exported from main entry), removes `--dry-run` from the CLI init command, adds `idempotentHint` annotations to example tools, and updates CLAUDE.md and skill docs to reflect current API surface.
