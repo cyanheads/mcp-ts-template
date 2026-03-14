@@ -5,6 +5,7 @@
  */
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
+import { serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
 import { fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils';
 
 const CAT_FACT_API_URL = 'https://catfact.ninja/fact';
@@ -63,6 +64,13 @@ export const catFactTool = tool('template_cat_fact', {
     const response = await fetchWithTimeout(url, CAT_FACT_API_TIMEOUT_MS, reqCtx, {
       signal: ctx.signal,
     });
+
+    if (!response.ok) {
+      throw serviceUnavailable(`Cat fact API returned ${response.status}`, {
+        url,
+        status: response.status,
+      });
+    }
 
     const data = CatFactApiSchema.parse(await response.json());
 

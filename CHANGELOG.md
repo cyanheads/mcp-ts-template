@@ -17,6 +17,7 @@ Adds error factory functions for ergonomic error creation, expands the Context s
 - **`tests/context.test.ts`**: Tests for generic get/set, getMany, setMany, deleteMany.
 - **`tests/utils/internal/error-handler/mappings.test.ts`**: Regression tests for narrowed patterns (bare `auth` ≠ Unauthorized, `missing required field` = ValidationError).
 - **`tests/utils/internal/error-handler/errorHandler.test.ts`**: Regression tests for misclassification fixes.
+- **`examples/mcp-server/tools/definitions/template-cat-fact.tool.ts`**: Demonstrates error factory usage (`serviceUnavailable`) for external API failure handling.
 
 ### Changed
 
