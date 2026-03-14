@@ -37,6 +37,8 @@ import {
   initializeOpenTelemetry,
   shutdownOpenTelemetry,
 } from '@/utils/telemetry/instrumentation.js';
+import { createObservableGauge } from '@/utils/telemetry/metrics.js';
+import { withSpan } from '@/utils/telemetry/trace.js';
 
 /** Options for {@link createApp}. All arrays default to the template's built-in definitions. */
 export interface CreateAppOptions {
@@ -233,6 +235,66 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
     initHighResTimer(),
   ]);
 
+  // --- Process-level observable gauges (registered once after OTEL init) ---
+  if (typeof process !== 'undefined' && typeof process.memoryUsage === 'function') {
+    // Share a single memoryUsage() syscall across the three gauge callbacks per
+    // collection cycle. The snapshot is refreshed at most once per 100 ms.
+    let memSnapshot: NodeJS.MemoryUsage | undefined;
+    let memSnapshotTs = 0;
+    const getMemSnapshot = (): NodeJS.MemoryUsage => {
+      const now = Date.now();
+      if (!memSnapshot || now - memSnapshotTs > 100) {
+        memSnapshot = process.memoryUsage();
+        memSnapshotTs = now;
+      }
+      return memSnapshot;
+    };
+
+    createObservableGauge(
+      'process.memory.rss',
+      'Process resident set size',
+      () => getMemSnapshot().rss,
+      'bytes',
+    );
+    createObservableGauge(
+      'process.memory.heap_used',
+      'V8 heap memory used',
+      () => getMemSnapshot().heapUsed,
+      'bytes',
+    );
+    createObservableGauge(
+      'process.memory.heap_total',
+      'V8 total heap size',
+      () => getMemSnapshot().heapTotal,
+      'bytes',
+    );
+  }
+  if (typeof process !== 'undefined' && typeof process.uptime === 'function') {
+    createObservableGauge(
+      'process.uptime',
+      'Process uptime in seconds',
+      () => process.uptime(),
+      's',
+    );
+  }
+
+  // --- Event loop delay gauge (best single signal for Node.js health) ---
+  if (typeof process !== 'undefined') {
+    try {
+      const { monitorEventLoopDelay } = await import('node:perf_hooks');
+      const eld = monitorEventLoopDelay({ resolution: 20 });
+      eld.enable();
+      createObservableGauge(
+        'process.event_loop.delay',
+        'Event loop delay p99 in milliseconds',
+        () => eld.percentile(99) / 1e6, // ns → ms
+        'ms',
+      );
+    } catch {
+      // perf_hooks unavailable in this runtime — skip silently
+    }
+  }
+
   // --- Compose services (handles name/version overrides + resetConfig) ---
   const { coreServices, createServer, definitionCounts } = await composeServices(options);
 
@@ -299,17 +361,26 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
     logger.info(`Received ${signal}. Initiating graceful shutdown...`, shutdownContext);
 
     try {
-      await transportManager.stop(signal);
-      logger.info('Graceful shutdown completed successfully.', shutdownContext);
+      await withSpan('mcp.server.shutdown', async (span) => {
+        span.setAttribute('mcp.server.shutdown.signal', signal);
+
+        await withSpan('mcp.server.shutdown.transport', async () => {
+          await transportManager.stop(signal);
+        });
+
+        logger.info('Graceful shutdown completed successfully.', shutdownContext);
+      });
+      // Flush telemetry after shutdown span is recorded
       await shutdownOpenTelemetry();
       await logger.close();
     } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Critical error during shutdown process.', err, shutdownContext);
       try {
+        await shutdownOpenTelemetry();
         await logger.close();
       } catch {
-        // Ignore errors during final logger close
+        // Ignore errors during final cleanup
       }
     }
   };
@@ -318,8 +389,19 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   process.on('uncaughtException', onUncaughtException);
   process.on('unhandledRejection', onUnhandledRejection);
 
-  // --- Start transport ---
-  await transportManager.start();
+  // --- Start transport (wrapped in startup span with phase breakdown) ---
+  await withSpan('mcp.server.startup', async (span) => {
+    span.setAttribute('mcp.server.name', config.mcpServerName);
+    span.setAttribute('mcp.server.version', config.mcpServerVersion);
+    span.setAttribute('mcp.server.transport', config.mcpTransportType);
+    span.setAttribute('mcp.server.tools_count', definitionCounts.tools);
+    span.setAttribute('mcp.server.resources_count', definitionCounts.resources);
+    span.setAttribute('mcp.server.prompts_count', definitionCounts.prompts);
+
+    await withSpan('mcp.server.startup.transport', async () => {
+      await transportManager.start();
+    });
+  });
 
   logger.info(`${config.mcpServerName} is now running and ready.`, startupContext);
 
