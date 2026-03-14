@@ -43,21 +43,19 @@ function printUsage(): void {
   @cyanheads/mcp-ts-core v${pkg.version}
 
   Usage:
-    mcp-ts-core init [name] [--dry-run]   Scaffold a new MCP server project
-    mcp-ts-core --help                    Show this help message
+    mcp-ts-core init [name]   Scaffold a new MCP server project
+    mcp-ts-core --help        Show this help message
 
   Examples:
     npx @cyanheads/mcp-ts-core init my-mcp-server
-    bunx @cyanheads/mcp-ts-core init banking-server --dry-run
+    bunx @cyanheads/mcp-ts-core init banking-server
 `);
 }
 
 // ── Init command ──────────────────────────────────────────────────────
 
 function init(): void {
-  const args = process.argv.slice(3);
-  const dryRun = args.includes('--dry-run');
-  const name = args.find((a) => !a.startsWith('--'));
+  const name = process.argv.slice(3).find((a) => !a.startsWith('--'));
   const dest = name ? join(process.cwd(), name) : process.cwd();
 
   if (name) {
@@ -67,7 +65,7 @@ function init(): void {
       );
       process.exit(1);
     }
-    if (!dryRun) mkdirSync(dest, { recursive: true });
+    mkdirSync(dest, { recursive: true });
   }
 
   console.log(`\n  Scaffolding${name ? ` ${name}` : ''} in ${dest}\n`);
@@ -76,13 +74,13 @@ function init(): void {
   const skipped: string[] = [];
 
   // Step 1: Copy templates
-  copyTemplates(dest, name, dryRun, created, skipped);
+  copyTemplates(dest, name, created, skipped);
 
   // Step 2: Copy external skills
-  copyExternalSkills(dest, dryRun, created, skipped);
+  copyExternalSkills(dest, created, skipped);
 
   // Print summary
-  printSummary(created, skipped, dryRun, name);
+  printSummary(created, skipped, name);
 }
 
 // ── Template copying ──────────────────────────────────────────────────
@@ -90,7 +88,6 @@ function init(): void {
 function copyTemplates(
   dest: string,
   name: string | undefined,
-  dryRun: boolean,
   created: string[],
   skipped: string[],
 ): void {
@@ -112,15 +109,13 @@ function copyTemplates(
       continue;
     }
 
-    if (!dryRun) {
-      mkdirSync(dirname(destPath), { recursive: true });
+    mkdirSync(dirname(destPath), { recursive: true });
 
-      if (name && isTextFile(srcPath)) {
-        const content = readFileSync(srcPath, 'utf-8').replace(/\{\{PACKAGE_NAME\}\}/g, name);
-        writeFileSync(destPath, content);
-      } else {
-        cpSync(srcPath, destPath);
-      }
+    if (name && isTextFile(srcPath)) {
+      const content = readFileSync(srcPath, 'utf-8').replace(/\{\{PACKAGE_NAME\}\}/g, name);
+      writeFileSync(destPath, content);
+    } else {
+      cpSync(srcPath, destPath);
     }
 
     created.push(relPath);
@@ -129,12 +124,7 @@ function copyTemplates(
 
 // ── Skill copying ─────────────────────────────────────────────────────
 
-function copyExternalSkills(
-  dest: string,
-  dryRun: boolean,
-  created: string[],
-  skipped: string[],
-): void {
+function copyExternalSkills(dest: string, created: string[], skipped: string[]): void {
   if (!existsSync(SKILLS_DIR)) return;
 
   const skillDirs = readdirSync(SKILLS_DIR, { withFileTypes: true }).filter((d) => d.isDirectory());
@@ -157,10 +147,8 @@ function copyExternalSkills(
         continue;
       }
 
-      if (!dryRun) {
-        mkdirSync(dirname(destPath), { recursive: true });
-        cpSync(srcPath, destPath);
-      }
+      mkdirSync(dirname(destPath), { recursive: true });
+      cpSync(srcPath, destPath);
 
       created.push(relPath);
     }
@@ -204,23 +192,16 @@ function isTextFile(filePath: string): boolean {
   return TEXT_EXTENSIONS.has(extname(filePath).toLowerCase());
 }
 
-function printSummary(
-  created: string[],
-  skipped: string[],
-  dryRun: boolean,
-  name: string | undefined,
-): void {
-  const prefix = dryRun ? '(dry run) ' : '';
-
+function printSummary(created: string[], skipped: string[], name: string | undefined): void {
   if (created.length > 0) {
-    console.log(`  ${prefix}Created:`);
+    console.log('  Created:');
     for (const f of created) {
       console.log(`    + ${f}`);
     }
   }
 
   if (skipped.length > 0) {
-    console.log(`\n  ${prefix}Skipped (already exist):`);
+    console.log('\n  Skipped (already exist):');
     for (const f of skipped) {
       console.log(`    - ${f}`);
     }
@@ -228,7 +209,7 @@ function printSummary(
 
   console.log(`\n  ${created.length} created, ${skipped.length} skipped`);
 
-  if (!dryRun && created.length > 0) {
+  if (created.length > 0) {
     console.log('\n  Next steps:');
     let step = 1;
     if (name) {
