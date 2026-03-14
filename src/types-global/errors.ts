@@ -91,49 +91,85 @@ export class McpError extends Error {
 // Factory functions — ergonomic alternatives to `new McpError(code, msg, data)`
 // ---------------------------------------------------------------------------
 
+/** Options shared by all error factory functions (re-uses the ES2022 built-in). */
+export type ErrorFactoryOptions = ErrorOptions;
+
 /** Create an InvalidParams (-32602) error. */
-export const invalidParams = (message: string, data?: Record<string, unknown>) =>
-  new McpError(JsonRpcErrorCode.InvalidParams, message, data);
+export const invalidParams = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.InvalidParams, message, data, options);
 
 /** Create an InvalidRequest (-32600) error. */
-export const invalidRequest = (message: string, data?: Record<string, unknown>) =>
-  new McpError(JsonRpcErrorCode.InvalidRequest, message, data);
+export const invalidRequest = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.InvalidRequest, message, data, options);
 
 /** Create a NotFound (-32001) error. */
-export const notFound = (message: string, data?: Record<string, unknown>) =>
-  new McpError(JsonRpcErrorCode.NotFound, message, data);
+export const notFound = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.NotFound, message, data, options);
 
 /** Create a Forbidden (-32005) error. */
-export const forbidden = (message: string, data?: Record<string, unknown>) =>
-  new McpError(JsonRpcErrorCode.Forbidden, message, data);
+export const forbidden = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.Forbidden, message, data, options);
 
 /** Create an Unauthorized (-32006) error. */
-export const unauthorized = (message: string, data?: Record<string, unknown>) =>
-  new McpError(JsonRpcErrorCode.Unauthorized, message, data);
+export const unauthorized = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.Unauthorized, message, data, options);
 
 /** Create a ValidationError (-32007) error. */
-export const validationError = (message: string, data?: Record<string, unknown>) =>
-  new McpError(JsonRpcErrorCode.ValidationError, message, data);
+export const validationError = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.ValidationError, message, data, options);
 
 /** Create a Conflict (-32002) error. */
-export const conflict = (message: string, data?: Record<string, unknown>) =>
-  new McpError(JsonRpcErrorCode.Conflict, message, data);
+export const conflict = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.Conflict, message, data, options);
 
 /** Create a RateLimited (-32003) error. */
-export const rateLimited = (message: string, data?: Record<string, unknown>) =>
-  new McpError(JsonRpcErrorCode.RateLimited, message, data);
+export const rateLimited = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.RateLimited, message, data, options);
 
 /** Create a Timeout (-32004) error. */
-export const timeout = (message: string, data?: Record<string, unknown>) =>
-  new McpError(JsonRpcErrorCode.Timeout, message, data);
+export const timeout = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.Timeout, message, data, options);
 
 /** Create a ServiceUnavailable (-32000) error. */
-export const serviceUnavailable = (message: string, data?: Record<string, unknown>) =>
-  new McpError(JsonRpcErrorCode.ServiceUnavailable, message, data);
+export const serviceUnavailable = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.ServiceUnavailable, message, data, options);
 
 /** Create a ConfigurationError (-32008) error. */
-export const configurationError = (message: string, data?: Record<string, unknown>) =>
-  new McpError(JsonRpcErrorCode.ConfigurationError, message, data);
+export const configurationError = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.ConfigurationError, message, data, options);
 
 /**
  * Zod schema for validating error objects. This schema can be used for:
