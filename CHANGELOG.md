@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.18] - 2026-03-14
+
+Adds error handling to prompt registration callbacks, expands HTTP error status mappings, and corrects Worker JSDoc.
+
+### Fixed
+
+- **`src/mcp-server/prompts/prompt-registration.ts`**: Prompt handler callbacks (both new and legacy definition styles) now wrap execution in try/catch — errors are routed through `ErrorHandler.handleError` and re-thrown as `McpError`. Previously, prompt handler errors bypassed the framework's error classification.
+- **`src/mcp-server/transports/http/httpErrorHandler.ts`**: Added missing HTTP status mappings — `InvalidParams` → 400, `Timeout` → 504, `ServiceUnavailable` → 503. Error responses now include `McpError.data` when present.
+- **`src/worker.ts`**: Updated JSDoc to clarify that OpenTelemetry `NodeSDK` is unavailable in Workers runtime (`canUseNodeSDK()` returns false), removing misleading telemetry flush references.
+
+---
+
 ## [0.1.0-beta.17] - 2026-03-14
 
 Consolidates 11 granular `./utils/*` subpath exports into a single `./utils` barrel, adds a `./services` barrel, and simplifies error handling across all examples and docs — handlers can now throw plain `Error` instead of requiring `McpError` imports.
