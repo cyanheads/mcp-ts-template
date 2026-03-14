@@ -11,6 +11,8 @@ import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { generateUUID } from '@/utils/security/idGenerator.js';
 import { sanitizeInputForLogging } from '@/utils/security/sanitization.js';
+import { createCounter } from '@/utils/telemetry/metrics.js';
+import { ATTR_MCP_ERROR_CLASSIFIED_CODE } from '@/utils/telemetry/semconv.js';
 import { extractErrorCauseChain, getErrorMessage, getErrorName } from './helpers.js';
 import {
   COMPILED_ERROR_PATTERNS,
@@ -19,6 +21,18 @@ import {
   getCompiledPattern,
 } from './mappings.js';
 import type { ErrorHandlerOptions, ErrorMapping } from './types.js';
+
+// OTel error classification counter (lazy-initialized)
+let errorClassifiedCounter: ReturnType<typeof createCounter> | undefined;
+
+function getErrorMetrics() {
+  errorClassifiedCounter ??= createCounter(
+    'mcp.errors.classified',
+    'Total errors classified by JSON-RPC error code',
+    '{errors}',
+  );
+  return { errorClassifiedCounter };
+}
 
 /**
  * A utility class providing static methods for comprehensive error handling.
@@ -201,6 +215,12 @@ export class ErrorHandler {
             cause,
           });
     }
+
+    // Record error classification metric
+    getErrorMetrics().errorClassifiedCounter.add(1, {
+      [ATTR_MCP_ERROR_CLASSIFIED_CODE]: String(loggedErrorCode),
+      operation,
+    });
 
     if (
       finalError !== error &&

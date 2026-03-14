@@ -13,10 +13,20 @@ import { config } from '@/config/index.js';
 import { McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
-import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
+import { createCounter, createHistogram, createUpDownCounter } from '@/utils/telemetry/metrics.js';
 import {
   ATTR_CODE_FUNCTION,
   ATTR_CODE_NAMESPACE,
+  ATTR_MCP_PROMPT_DURATION_MS,
+  ATTR_MCP_PROMPT_MESSAGE_COUNT,
+  ATTR_MCP_PROMPT_NAME,
+  ATTR_MCP_PROMPT_SUCCESS,
+  ATTR_MCP_RESOURCE_DURATION_MS,
+  ATTR_MCP_RESOURCE_ERROR_CODE,
+  ATTR_MCP_RESOURCE_MIME_TYPE,
+  ATTR_MCP_RESOURCE_SIZE_BYTES,
+  ATTR_MCP_RESOURCE_SUCCESS,
+  ATTR_MCP_RESOURCE_URI,
   ATTR_MCP_TOOL_DURATION_MS,
   ATTR_MCP_TOOL_ERROR_CODE,
   ATTR_MCP_TOOL_INPUT_BYTES,
@@ -35,12 +45,22 @@ import {
 let toolCallCounter: ReturnType<typeof createCounter> | undefined;
 let toolCallDuration: ReturnType<typeof createHistogram> | undefined;
 let toolCallErrors: ReturnType<typeof createCounter> | undefined;
+let activeRequests: ReturnType<typeof createUpDownCounter> | undefined;
 
 function getToolMetrics() {
   toolCallCounter ??= createCounter('mcp.tool.calls', 'Total MCP tool invocations', '{calls}');
   toolCallDuration ??= createHistogram('mcp.tool.duration', 'MCP tool execution duration', 'ms');
   toolCallErrors ??= createCounter('mcp.tool.errors', 'Total MCP tool errors', '{errors}');
   return { toolCallCounter, toolCallDuration, toolCallErrors };
+}
+
+function getActiveRequestsGauge() {
+  activeRequests ??= createUpDownCounter(
+    'mcp.requests.active',
+    'Number of in-flight tool and resource handler executions',
+    '{requests}',
+  );
+  return activeRequests;
 }
 
 // Environment-aware high-resolution timer
@@ -185,28 +205,33 @@ export async function measureToolExecution<T>(
   const { toolName } = context;
 
   return await tracer.startActiveSpan(`tool_execution:${toolName}` as const, async (span) => {
+    // Track in-flight request concurrency
+    const activeGauge = getActiveRequestsGauge();
+    activeGauge.add(1);
+
     // Pre-capture lightweight metrics
     const memBefore = getMemoryUsage();
     const t0 = nowMs();
 
+    const inputBytes = toBytes(inputPayload);
     span.setAttributes({
       [ATTR_CODE_FUNCTION]: toolName,
       [ATTR_CODE_NAMESPACE]: 'mcp-tools',
-      [ATTR_MCP_TOOL_INPUT_BYTES]: toBytes(inputPayload),
+      [ATTR_MCP_TOOL_INPUT_BYTES]: inputBytes,
       [ATTR_MCP_TOOL_MEMORY_RSS_BEFORE]: memBefore.rss,
       [ATTR_MCP_TOOL_MEMORY_HEAP_USED_BEFORE]: memBefore.heapUsed,
     });
 
     let ok = false;
     let errorCode: string | undefined;
-    let output: T | undefined;
+    let outputBytes = 0;
 
     try {
       const result = await toolLogicFn();
       ok = true;
-      output = result;
+      outputBytes = toBytes(result);
       span.setStatus({ code: SpanStatusCode.OK });
-      span.setAttribute(ATTR_MCP_TOOL_OUTPUT_BYTES, toBytes(output));
+      span.setAttribute(ATTR_MCP_TOOL_OUTPUT_BYTES, outputBytes);
       return result;
     } catch (err) {
       if (err instanceof McpError) errorCode = String(err.code);
@@ -220,8 +245,9 @@ export async function measureToolExecution<T>(
       });
       throw err;
     } finally {
+      activeGauge.add(-1);
       const t1 = nowMs();
-      const durationMs = Number((t1 - t0).toFixed(2));
+      const durationMs = Math.round((t1 - t0) * 100) / 100;
       const memAfter = getMemoryUsage();
 
       const rssDelta = memAfter.rss - memBefore.rss;
@@ -251,8 +277,8 @@ export async function measureToolExecution<T>(
           durationMs,
           isSuccess: ok,
           errorCode,
-          inputBytes: toBytes(inputPayload),
-          outputBytes: toBytes(output),
+          inputBytes,
+          outputBytes,
           memory: {
             rss: {
               before: memBefore.rss,
@@ -266,6 +292,223 @@ export async function measureToolExecution<T>(
             },
           },
         },
+      });
+    }
+  });
+}
+
+// ==========================================================================
+// Resource execution measurement
+// ==========================================================================
+
+let resourceReadCounter: ReturnType<typeof createCounter> | undefined;
+let resourceReadDuration: ReturnType<typeof createHistogram> | undefined;
+let resourceReadErrors: ReturnType<typeof createCounter> | undefined;
+
+function getResourceMetrics() {
+  resourceReadCounter ??= createCounter(
+    'mcp.resource.reads',
+    'Total MCP resource read invocations',
+    '{reads}',
+  );
+  resourceReadDuration ??= createHistogram(
+    'mcp.resource.duration',
+    'MCP resource read execution duration',
+    'ms',
+  );
+  resourceReadErrors ??= createCounter(
+    'mcp.resource.errors',
+    'Total MCP resource read errors',
+    '{errors}',
+  );
+  return { resourceReadCounter, resourceReadDuration, resourceReadErrors };
+}
+
+/**
+ * Wraps a resource handler with observability: OTel span, metric counters/histogram,
+ * and a structured log. Mirrors {@link measureToolExecution} but tuned for resource reads
+ * (no memory profiling — resources are typically lightweight data fetches).
+ *
+ * @template T - The resolved type of the resource handler's return value.
+ * @param resourceLogicFn - Zero-argument async function containing the resource handler.
+ * @param context - Request context extended with `resourceName`; used for span/log correlation.
+ * @param meta - Resource metadata: URI and MIME type for span attributes.
+ * @returns A promise that resolves with the handler's return value or rejects with the original error.
+ */
+export async function measureResourceExecution<T>(
+  resourceLogicFn: () => Promise<T>,
+  context: RequestContext & { resourceName: string },
+  meta: { uri: string; mimeType: string },
+): Promise<T> {
+  const tracer = trace.getTracer(
+    config.openTelemetry.serviceName,
+    config.openTelemetry.serviceVersion,
+  );
+
+  const { resourceName } = context;
+
+  return await tracer.startActiveSpan(`resource_read:${resourceName}` as const, async (span) => {
+    const activeGauge = getActiveRequestsGauge();
+    activeGauge.add(1);
+    const t0 = nowMs();
+
+    span.setAttributes({
+      [ATTR_CODE_FUNCTION]: resourceName,
+      [ATTR_CODE_NAMESPACE]: 'mcp-resources',
+      [ATTR_MCP_RESOURCE_URI]: meta.uri,
+      [ATTR_MCP_RESOURCE_MIME_TYPE]: meta.mimeType,
+    });
+
+    let ok = false;
+    let errorCode: string | undefined;
+    let outputBytes = 0;
+
+    try {
+      const result = await resourceLogicFn();
+      ok = true;
+      outputBytes = toBytes(result);
+      span.setStatus({ code: SpanStatusCode.OK });
+      span.setAttribute(ATTR_MCP_RESOURCE_SIZE_BYTES, outputBytes);
+      return result;
+    } catch (err) {
+      if (err instanceof McpError) errorCode = String(err.code);
+      else if (err instanceof Error) errorCode = 'UNHANDLED_ERROR';
+      else errorCode = 'UNKNOWN_ERROR';
+
+      if (err instanceof Error) span.recordException(err);
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    } finally {
+      activeGauge.add(-1);
+      const t1 = nowMs();
+      const durationMs = Math.round((t1 - t0) * 100) / 100;
+
+      span.setAttributes({
+        [ATTR_MCP_RESOURCE_DURATION_MS]: durationMs,
+        [ATTR_MCP_RESOURCE_SUCCESS]: ok,
+      });
+      if (errorCode) span.setAttribute(ATTR_MCP_RESOURCE_ERROR_CODE, errorCode);
+      span.end();
+
+      const m = getResourceMetrics();
+      const metricAttrs = { [ATTR_MCP_RESOURCE_URI]: meta.uri, [ATTR_MCP_RESOURCE_SUCCESS]: ok };
+      m.resourceReadCounter.add(1, metricAttrs);
+      m.resourceReadDuration.record(durationMs, metricAttrs);
+      if (!ok) m.resourceReadErrors.add(1, { [ATTR_MCP_RESOURCE_URI]: meta.uri });
+
+      logger.info('Resource read finished.', {
+        ...context,
+        metrics: {
+          durationMs,
+          isSuccess: ok,
+          errorCode,
+          outputBytes,
+          uri: meta.uri,
+          mimeType: meta.mimeType,
+        },
+      });
+    }
+  });
+}
+
+// ==========================================================================
+// Prompt generation measurement
+// ==========================================================================
+
+let promptGenerateCounter: ReturnType<typeof createCounter> | undefined;
+let promptGenerateDuration: ReturnType<typeof createHistogram> | undefined;
+let promptGenerateErrors: ReturnType<typeof createCounter> | undefined;
+
+function getPromptMetrics() {
+  promptGenerateCounter ??= createCounter(
+    'mcp.prompt.generates',
+    'Total MCP prompt generate invocations',
+    '{generates}',
+  );
+  promptGenerateDuration ??= createHistogram(
+    'mcp.prompt.duration',
+    'MCP prompt generate execution duration',
+    'ms',
+  );
+  promptGenerateErrors ??= createCounter(
+    'mcp.prompt.errors',
+    'Total MCP prompt generate errors',
+    '{errors}',
+  );
+  return { promptGenerateCounter, promptGenerateDuration, promptGenerateErrors };
+}
+
+/**
+ * Wraps a prompt generate function with observability: OTel span, metric counters/histogram,
+ * and a structured log. Lightweight — prompts are pure templates with no I/O.
+ *
+ * @template T - The resolved type of the prompt generate function's return value.
+ * @param promptLogicFn - Zero-argument async function containing the prompt's generate logic.
+ * @param context - Request context extended with `promptName`.
+ * @returns A promise that resolves with the generate result or rejects with the original error.
+ */
+export async function measurePromptGeneration<T>(
+  promptLogicFn: () => Promise<T>,
+  context: RequestContext & { promptName: string },
+): Promise<T> {
+  const tracer = trace.getTracer(
+    config.openTelemetry.serviceName,
+    config.openTelemetry.serviceVersion,
+  );
+
+  const { promptName } = context;
+
+  return await tracer.startActiveSpan(`prompt_generate:${promptName}` as const, async (span) => {
+    const t0 = nowMs();
+
+    span.setAttributes({
+      [ATTR_CODE_FUNCTION]: promptName,
+      [ATTR_CODE_NAMESPACE]: 'mcp-prompts',
+      [ATTR_MCP_PROMPT_NAME]: promptName,
+    });
+
+    let ok = false;
+
+    try {
+      const result = await promptLogicFn();
+      ok = true;
+      span.setStatus({ code: SpanStatusCode.OK });
+
+      // Record message count if result is an array (prompt messages)
+      if (Array.isArray(result)) {
+        span.setAttribute(ATTR_MCP_PROMPT_MESSAGE_COUNT, result.length);
+      }
+
+      return result;
+    } catch (err) {
+      if (err instanceof Error) span.recordException(err);
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    } finally {
+      const t1 = nowMs();
+      const durationMs = Math.round((t1 - t0) * 100) / 100;
+
+      span.setAttributes({
+        [ATTR_MCP_PROMPT_DURATION_MS]: durationMs,
+        [ATTR_MCP_PROMPT_SUCCESS]: ok,
+      });
+      span.end();
+
+      const m = getPromptMetrics();
+      const metricAttrs = { [ATTR_MCP_PROMPT_NAME]: promptName, [ATTR_MCP_PROMPT_SUCCESS]: ok };
+      m.promptGenerateCounter.add(1, metricAttrs);
+      m.promptGenerateDuration.record(durationMs, metricAttrs);
+      if (!ok) m.promptGenerateErrors.add(1, { [ATTR_MCP_PROMPT_NAME]: promptName });
+
+      logger.info('Prompt generation finished.', {
+        ...context,
+        metrics: { durationMs, isSuccess: ok, promptName },
       });
     }
   });
