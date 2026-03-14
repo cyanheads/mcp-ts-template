@@ -13,7 +13,7 @@ metadata:
 
 Every tool and resource handler receives a single `Context` (`ctx`) argument. It provides request identity, structured logging, tenant-scoped storage, optional protocol capabilities (elicitation, sampling), cancellation, and task progress — all auto-correlated to the current request.
 
-**Rule:** Use `ctx.log` and `ctx.state` inside handlers. Use the global `logger` and `StorageService` directly only in lifecycle/background code (`setup()`, services).
+**Rule:** The framework auto-instruments every handler call (OTel span, duration, payload metrics). Use `ctx.log` for domain-specific logging and `ctx.state` for storage inside handlers. Use the global `logger` and `StorageService` directly only in lifecycle/background code (`setup()`, services).
 
 ---
 
@@ -111,11 +111,15 @@ Tenant-scoped key-value storage. Delegates to `StorageService` with automatic `t
 
 ```ts
 interface ContextState {
-  get(key: string): Promise<string | null>;
-  set(key: string, value: string, opts?: { ttl?: number }): Promise<void>;
+  get<T = unknown>(key: string): Promise<T | null>;
+  get<T>(key: string, schema: ZodType<T>): Promise<T | null>;  // runtime-validated
+  set(key: string, value: unknown, opts?: { ttl?: number }): Promise<void>;
   delete(key: string): Promise<void>;
+  deleteMany(keys: string[]): Promise<number>;
+  getMany<T = unknown>(keys: string[]): Promise<Map<string, T>>;
+  setMany(entries: Map<string, unknown>, opts?: { ttl?: number }): Promise<void>;
   list(prefix?: string, opts?: { cursor?: string; limit?: number }): Promise<{
-    items: Array<{ key: string; value: string }>;
+    items: Array<{ key: string; value: unknown }>;
     cursor?: string;  // opaque base64url; omitted on last page
   }>;
 }
@@ -124,16 +128,21 @@ interface ContextState {
 ### Usage
 
 ```ts
-// Store (values are always strings — serialize JSON manually)
-await ctx.state.set('item:123', JSON.stringify(data));
+// Store — accepts any serializable value, no manual JSON.stringify needed
+await ctx.state.set('item:123', { name: 'Widget', count: 42 });
 await ctx.state.set('session:xyz', token, { ttl: 3600 }); // TTL in seconds
 
-// Retrieve
-const raw = await ctx.state.get('item:123');
-const data = raw ? JSON.parse(raw) : null;
+// Retrieve — generic type assertion or Zod-validated
+const item = await ctx.state.get<Item>('item:123');       // T | null (type assertion)
+const safe = await ctx.state.get('item:123', ItemSchema);  // T | null (runtime validated)
 
 // Delete
 await ctx.state.delete('item:123');
+
+// Batch operations
+const values = await ctx.state.getMany<Item>(['item:1', 'item:2']); // Map<string, T>
+await ctx.state.setMany(new Map([['a', 1], ['b', 2]]));
+const deleted = await ctx.state.deleteMany(['item:1', 'item:2']);    // number
 
 // List with prefix + pagination
 const page = await ctx.state.list('item:', { cursor, limit: 20 });

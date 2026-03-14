@@ -135,8 +135,8 @@ Set via `MCP_AUTH_MODE` environment variable.
 ```ts
 handler: async (input, ctx) => {
   // Automatically scoped to ctx.tenantId — no manual prefixing
-  await ctx.state.set('item:123', JSON.stringify(data));
-  const value = await ctx.state.get('item:123');
+  await ctx.state.set('item:123', { name: 'Widget', count: 42 });
+  const item = await ctx.state.get<Item>('item:123');
   await ctx.state.delete('item:123');
 
   const page = await ctx.state.list('item:', { cursor, limit: 20 });

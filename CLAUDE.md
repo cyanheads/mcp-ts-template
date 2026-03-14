@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.0-beta.22
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.0-beta.23
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -12,7 +12,7 @@
 ## Core Rules
 
 - **Logic throws, framework catches.** Pure, stateless `handler` functions. No `try...catch`. Throw on failure — plain `Error` is fine; the framework catches, classifies, and formats. Use `McpError(code, message, data)` only when you need a specific JSON-RPC error code or structured data payload.
-- **Full-stack observability.** OpenTelemetry preconfigured. Use `ctx.log` for request-scoped logging — `requestId`, `traceId`, `tenantId` auto-correlated. No `console` calls.
+- **Full-stack observability.** The framework automatically instruments every tool/resource call — OTel span, duration/payload/memory metrics, structured completion log. Use `ctx.log` for additional domain-specific logging within handlers (external API calls, multi-step operations, business events). `requestId`, `traceId`, `tenantId` auto-correlated. No `console` calls.
 - **Unified Context.** Handlers receive `ctx` with logging (`ctx.log`), tenant-scoped storage (`ctx.state`), optional protocol capabilities (`ctx.elicit`, `ctx.sample`), and cancellation (`ctx.signal`).
 - **Decoupled storage.** `ctx.state` for tenant-scoped KV. Never access persistence backends directly.
 - **Runtime parity.** All features work with `stdio`/`http` and Worker bundle. Guard non-portable deps via `runtimeCaps`. Prefer runtime-agnostic abstractions (Hono + `@hono/mcp`, Fetch APIs).
@@ -30,7 +30,7 @@
 | `/resources` | `ResourceDefinition`, `AnyResourceDefinition` | Resource definition types |
 | `/prompts` | `PromptDefinition` | Prompt definition type |
 | `/tasks` | `TaskToolDefinition`, `isTaskToolDefinition` | Task tool escape hatch |
-| `/errors` | `McpError`, `JsonRpcErrorCode` | Error types and codes |
+| `/errors` | `McpError`, `JsonRpcErrorCode`, `notFound`, `validationError`, `unauthorized`, ... | Error types, codes, and factory functions |
 | `/config` | `AppConfig`, `parseConfig`, `FRAMEWORK_NAME`, `FRAMEWORK_VERSION` | Zod-validated config, framework identity |
 | `/auth` | `checkScopes` | Dynamic scope checking |
 | `/storage` | `StorageService` | Storage abstraction |
@@ -170,8 +170,9 @@ export const myTool = tool('my_tool', {
   auth: ['tool:my_tool:read'],
 
   async handler(input, ctx) {
-    ctx.log.info('Processing query', { query: input.query });
-    return { result: `Found: ${input.query}` };
+    const data = await fetchFromApi(input.query);
+    ctx.log.info('Query resolved', { query: input.query, resultCount: data.length });
+    return { result: data.summary };
   },
 
   format: (result) => [{ type: 'text', text: result.result }],
@@ -309,16 +310,31 @@ interface Context {
 
 ### `ctx.log`
 
-Methods: `debug`, `info`, `notice`, `warning`, `error`. Use `ctx.log` in handlers; global `logger` for startup/shutdown/background.
+**Automatic instrumentation (no code needed):** The handler factory wraps every tool/resource call with an OTel span, duration histogram, call/error counters, input/output byte sizes, memory usage, and a structured completion log. This happens transparently — handlers get full observability for free.
+
+**`ctx.log` is opt-in, for domain-specific logging.** Use it when the handler does meaningful work worth tracing beyond the automatic metrics — external API calls, multi-step processing, business-significant events. Trivial handlers (echo, passthrough) don't need it.
+
+Methods: `debug`, `info`, `notice`, `warning`, `error`. All calls auto-include `requestId`, `traceId`, `tenantId`, `spanId`. Use `ctx.log` in handlers; global `logger` for startup/shutdown/background.
 
 ### `ctx.state`
 
+Tenant-scoped KV storage. Accepts any serializable value — no manual `JSON.stringify`/`JSON.parse` needed.
+
 ```ts
-await ctx.state.set('item:123', JSON.stringify(data));          // void
-await ctx.state.set('item:123', JSON.stringify(data), { ttl: 3600 }); // with TTL (seconds)
-const value = await ctx.state.get('item:123');                   // string | null
+// Single operations
+await ctx.state.set('item:123', { name: 'Widget', count: 42 }); // any serializable value
+await ctx.state.set('item:123', data, { ttl: 3600 });           // with TTL (seconds)
+const item = await ctx.state.get<Item>('item:123');              // T | null
+const safe = await ctx.state.get('item:123', ItemSchema);        // Zod-validated T | null
 await ctx.state.delete('item:123');
-const page = await ctx.state.list('item:', { cursor, limit: 20 }); // { items, cursor? }
+
+// Batch operations
+const values = await ctx.state.getMany<Item>(['item:1', 'item:2']); // Map<string, T>
+await ctx.state.setMany(new Map([['a', 1], ['b', 2]]));             // void
+const deleted = await ctx.state.deleteMany(['item:1', 'item:2']);    // number
+
+// Pagination
+const page = await ctx.state.list('item:', { cursor, limit: 20 });  // { items, cursor? }
 ```
 
 Throws `McpError(InvalidRequest)` if `tenantId` missing. Stdio defaults to `'default'`. Workers with `in-memory` lose data between cold starts — use `cloudflare-kv`/`cloudflare-r2`/`cloudflare-d1` for persistence.
@@ -361,13 +377,41 @@ throw new Error('Thing not found');
 const data = MySchema.parse(rawData);
 ```
 
-**Opt-in precision:** Import `McpError` from `@cyanheads/mcp-ts-core/errors` only when you need a specific error code or structured data payload:
+**Auto-classification:** The framework maps plain `Error` messages to JSON-RPC codes via pattern matching. Resolution order: `McpError` code (preserved as-is) → JS constructor name (`TypeError` → `ValidationError`) → provider patterns (HTTP status codes, AWS errors, DB errors) → common message patterns → `InternalError` fallback.
+
+Common message patterns match these keywords (first match wins):
+
+| Pattern | Code | Example messages |
+|:--------|:-----|:-----------------|
+| `unauthorized`, `unauthenticated`, `not authorized`, `invalid[_\s-]token`, `expired[_\s-]token` | Unauthorized | "unauthorized access", "invalid_token" |
+| `permission`, `forbidden`, `access denied`, `not allowed` | Forbidden | "permission denied" |
+| `not found`, `no such`, `doesn't exist`, `couldn't find` | NotFound | "resource not found" |
+| `invalid`, `validation`, `malformed`, `bad request`, `missing required/param/field/…` | ValidationError | "invalid input", "missing required field" |
+| `conflict`, `already exists`, `duplicate` | Conflict | "already exists" |
+| `rate limit`, `too many requests`, `throttled` | RateLimited | "rate limit exceeded" |
+| `timeout`, `timed out`, `deadline exceeded` | Timeout | "request timed out" |
+
+Patterns are intentionally narrow to avoid misclassification. If your error message doesn't match a pattern, it falls through to `InternalError`. **Use error factories or `McpError` when the code matters** — they bypass all pattern matching.
+
+**Error factories (preferred):** Shorter than `new McpError(...)` and self-documenting. Available from `@cyanheads/mcp-ts-core/errors`:
+
+```ts
+import { notFound, validationError, unauthorized } from '@cyanheads/mcp-ts-core/errors';
+
+throw notFound('Item not found', { itemId: '123' });
+throw validationError('Missing required field: name', { field: 'name' });
+throw unauthorized('Token expired');
+```
+
+Available factories: `invalidParams`, `invalidRequest`, `notFound`, `forbidden`, `unauthorized`, `validationError`, `conflict`, `rateLimited`, `timeout`, `serviceUnavailable`, `configurationError`. All return `McpError` instances.
+
+**`McpError` (full control):** For cases needing a code not covered by factories:
 
 ```ts
 import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
-throw new McpError(JsonRpcErrorCode.InvalidParams, 'Missing required field: name', {
-  field: 'name',
+throw new McpError(JsonRpcErrorCode.DatabaseError, 'Connection pool exhausted', {
+  pool: 'primary',
 });
 ```
 
@@ -507,8 +551,8 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 ## Code Style
 
 - **Validation:** Zod schemas, all fields need `.describe()`
-- **Logging:** `ctx.log` in handlers, global `logger` for lifecycle/background
-- **Errors:** handlers throw (plain `Error` or `McpError` for precision), framework catches and classifies. `ErrorHandler.tryCatch` for services only.
+- **Logging:** Framework auto-instruments all handler calls. `ctx.log` for domain-specific logging in handlers, global `logger` for lifecycle/background
+- **Errors:** handlers throw — error factories (`notFound()`, `validationError()`, etc.) when the code matters, plain `Error` for don't-care cases. Framework catches and classifies. `ErrorHandler.tryCatch` for services only.
 - **Secrets:** server config only — no hardcoded credentials
 - **Naming:** kebab-case files, snake_case tool/resource/prompt names, correct suffix
 - **JSDoc:** `@fileoverview` + `@module` required on every file
@@ -579,7 +623,7 @@ When used: `model: "opus"` (preferred) or `"sonnet"` (never `haiku`). Always `ru
 - [ ] Zod schemas: all fields have `.describe()`
 - [ ] JSDoc `@fileoverview` + `@module` on every new/modified file
 - [ ] Auth via `auth: ['scope']` on definitions (not HOF wrapper)
-- [ ] `ctx.log` for logging, `ctx.state` for storage
+- [ ] `ctx.log` for domain-specific logging (external calls, business events), `ctx.state` for storage
 - [ ] `ctx.elicit`/`ctx.sample` checked for presence before use
 - [ ] Naming: kebab-case files, snake_case names, correct suffixes
 - [ ] Task tools use `task: true` flag

@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.23] - 2026-03-14
+
+Adds error factory functions for ergonomic error creation, expands the Context state API with generic typing and batch operations, and tightens error pattern matching to prevent misclassification.
+
+### Added
+
+- **`src/types-global/errors.ts`**: 11 error factory functions (`invalidParams`, `invalidRequest`, `notFound`, `forbidden`, `unauthorized`, `validationError`, `conflict`, `rateLimited`, `timeout`, `serviceUnavailable`, `configurationError`) — shorter and more readable than `new McpError(code, msg, data)`.
+- **`src/context.ts`**: `ctx.state.getMany()`, `ctx.state.setMany()`, `ctx.state.deleteMany()` batch operations. `ctx.state.get()` now supports generic type parameter and optional Zod schema validation.
+- **`src/testing/index.ts`**: Mock state implementation updated with batch operations and generic get support.
+- **`tests/types-global/errors.test.ts`**: Full test coverage for all 11 error factory functions.
+- **`tests/context.test.ts`**: Tests for generic get/set, getMany, setMany, deleteMany.
+- **`tests/utils/internal/error-handler/mappings.test.ts`**: Regression tests for narrowed patterns (bare `auth` ≠ Unauthorized, `missing required field` = ValidationError).
+- **`tests/utils/internal/error-handler/errorHandler.test.ts`**: Regression tests for misclassification fixes.
+
+### Changed
+
+- **`src/context.ts`**: `ctx.state` values are now `unknown` instead of `string` — no manual `JSON.stringify`/`JSON.parse` needed. List items return `value: unknown` instead of stringified values.
+- **`src/utils/internal/error-handler/mappings.ts`**: Narrowed Unauthorized pattern (removed bare `auth` match, requires `unauthorized`/`unauthenticated`/`not authorized`/`invalid token`/`expired token`). Removed bare `missing` from NotFound pattern. Narrowed ValidationError `missing required` to require a following noun (`field`, `param`, `input`, `value`, `arg`).
+- **`tests/utils/internal/errorHandler.int.test.ts`**: Updated integration test to reflect narrowed pattern matching (bare `missing` → `missing required field`).
+- **`tests/mcp-server/transports/http/httpTransport.test.ts`**: Added missing `mcpAuthMode` and framework identity fields to config mock.
+
+### Docs
+
+- **`CLAUDE.md`**: Version bump to 0.1.0-beta.23. Updated exports table, error handling section (factories, auto-classification patterns table), Context state API docs (generic types, batch ops), observability guidance, code style section, checklist.
+- **`skills/api-errors/SKILL.md`**: Added error factories section with full table, updated examples to prefer factories over `new McpError()`.
+- **`skills/api-context/SKILL.md`**: Updated ContextState interface (generic types, batch ops), usage examples (no manual JSON serialization), auto-instrumentation note.
+- **`skills/api-auth/SKILL.md`**: Updated state usage example to use typed values instead of JSON strings.
+
+---
+
 ## [0.1.0-beta.22] - 2026-03-14
 
 Re-exports `z` from the main entry point so consumers never need a separate `zod` import. Simplifies the README hero example to the true minimum — single import line, no `ctx.log` boilerplate (the framework logs every tool call automatically).

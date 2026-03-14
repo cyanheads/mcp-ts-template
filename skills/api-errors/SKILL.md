@@ -16,13 +16,43 @@ Error handling in `@cyanheads/mcp-ts-core` follows a strict layered pattern: too
 **Imports:**
 
 ```ts
-import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { notFound, validationError, McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 import { ErrorHandler } from '@cyanheads/mcp-ts-core/utils';
 ```
 
 ---
 
+## Error Factories (Preferred)
+
+Ergonomic factory functions — shorter than `new McpError(...)` and self-documenting. All return `McpError` instances.
+
+```ts
+throw notFound('Item not found', { itemId: '123' });
+throw validationError('Missing required field: name', { field: 'name' });
+throw unauthorized('Token expired');
+```
+
+**Available factories:**
+
+| Factory | Code |
+|:--------|:-----|
+| `invalidParams(msg, data?)` | InvalidParams (-32602) |
+| `invalidRequest(msg, data?)` | InvalidRequest (-32600) |
+| `notFound(msg, data?)` | NotFound (-32001) |
+| `forbidden(msg, data?)` | Forbidden (-32005) |
+| `unauthorized(msg, data?)` | Unauthorized (-32006) |
+| `validationError(msg, data?)` | ValidationError (-32007) |
+| `conflict(msg, data?)` | Conflict (-32002) |
+| `rateLimited(msg, data?)` | RateLimited (-32003) |
+| `timeout(msg, data?)` | Timeout (-32004) |
+| `serviceUnavailable(msg, data?)` | ServiceUnavailable (-32000) |
+| `configurationError(msg, data?)` | ConfigurationError (-32008) |
+
+---
+
 ## McpError Constructor
+
+For codes not covered by factories, or when you need `cause` chaining:
 
 ```ts
 throw new McpError(code, message?, data?, options?)
@@ -38,9 +68,8 @@ throw new McpError(code, message?, data?, options?)
 ```ts
 import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
-throw new McpError(JsonRpcErrorCode.InvalidParams, 'Missing required field: name', {
-  requestId: ctx.requestId,
-  field: 'name',
+throw new McpError(JsonRpcErrorCode.DatabaseError, 'Connection pool exhausted', {
+  pool: 'primary',
 });
 ```
 
@@ -89,14 +118,14 @@ throw new McpError(JsonRpcErrorCode.InvalidParams, 'Missing required field: name
 **Handler — throw freely, no try/catch:**
 
 ```ts
+import { notFound } from '@cyanheads/mcp-ts-core/errors';
+
 export const myTool = tool('my_tool', {
   input: z.object({ id: z.string().describe('Item ID') }),
   async handler(input, ctx) {
     const item = await db.find(input.id);
     if (!item) {
-      throw new McpError(JsonRpcErrorCode.NotFound, `Item not found: ${input.id}`, {
-        id: input.id,
-      });
+      throw notFound(`Item not found: ${input.id}`, { id: input.id });
     }
     return item;
   },
