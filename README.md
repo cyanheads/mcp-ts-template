@@ -21,8 +21,10 @@
 import { createApp, tool, z } from '@cyanheads/mcp-ts-core';
 
 const greet = tool('greet', {
-  description: 'Greet someone by name.',
-  input: z.object({ name: z.string().describe('Name to greet') }),
+  description: 'Greet someone by name and return a personalized message.',
+  annotations: { readOnlyHint: true },
+  input: z.object({ name: z.string().describe('Name of the person to greet') }),
+  output: z.object({ message: z.string().describe('The greeting message') }),
   handler: async (input) => ({ message: `Hello, ${input.name}!` }),
 });
 

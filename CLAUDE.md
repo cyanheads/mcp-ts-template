@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.0-beta.26
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.0-beta.27
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -59,7 +59,6 @@ Build configs exported for consumer extension: `tsconfig.json` extends `@cyanhea
 ### Node.js — `createApp(options)`
 
 ```ts
-#!/usr/bin/env node
 import { createApp } from '@cyanheads/mcp-ts-core';
 import { allToolDefinitions } from './mcp-server/tools/index.js';
 import { allResourceDefinitions } from './mcp-server/resources/index.js';

@@ -10,11 +10,137 @@
 
 ## Core Rules
 
-- **Logic throws, handlers catch.** Tool/resource handlers are pure — throw `McpError`, no `try/catch`. The framework catches and formats.
+- **Logic throws, framework catches.** Tool/resource handlers are pure — throw on failure, no `try/catch`. Plain `Error` is fine; the framework catches, classifies, and formats. Use error factories (`notFound()`, `validationError()`, etc.) when the error code matters.
 - **Use `ctx.log`** for request-scoped logging. No `console` calls.
 - **Use `ctx.state`** for tenant-scoped storage. Never access persistence directly.
 - **Check `ctx.elicit` / `ctx.sample`** for presence before calling.
 - **Secrets in env vars only** — never hardcoded.
+
+---
+
+## Patterns
+
+### Tool
+
+```ts
+import { tool, z } from '@cyanheads/mcp-ts-core';
+
+export const searchItems = tool('search_items', {
+  description: 'Search inventory items by query.',
+  annotations: { readOnlyHint: true },
+  input: z.object({
+    query: z.string().describe('Search terms'),
+    limit: z.number().default(10).describe('Max results'),
+  }),
+  output: z.object({
+    items: z.array(z.object({
+      id: z.string().describe('Item ID'),
+      name: z.string().describe('Item name'),
+    })).describe('Matching items'),
+  }),
+  auth: ['inventory:read'],
+
+  async handler(input, ctx) {
+    const items = await findItems(input.query, input.limit);
+    ctx.log.info('Search completed', { query: input.query, count: items.length });
+    return { items };
+  },
+
+  format: (result) => [{ type: 'text', text: `Found ${result.items.length} items` }],
+});
+```
+
+### Resource
+
+```ts
+import { resource, z } from '@cyanheads/mcp-ts-core';
+
+export const itemData = resource('inventory://{itemId}', {
+  description: 'Fetch an inventory item by ID.',
+  params: z.object({ itemId: z.string().describe('Item identifier') }),
+  auth: ['inventory:read'],
+  async handler(params, ctx) {
+    const item = await ctx.state.get(`item:${params.itemId}`);
+    if (!item) throw new Error(`Item ${params.itemId} not found`);
+    return item;
+  },
+});
+```
+
+### Prompt
+
+```ts
+import { prompt, z } from '@cyanheads/mcp-ts-core';
+
+export const reviewCode = prompt('review_code', {
+  description: 'Review code for issues and best practices.',
+  args: z.object({
+    code: z.string().describe('Code to review'),
+    language: z.string().optional().describe('Programming language'),
+  }),
+  generate: (args) => [
+    { role: 'user', content: { type: 'text', text: `Review this ${args.language ?? ''} code:\n${args.code}` } },
+  ],
+});
+```
+
+### Server config
+
+```ts
+// src/config/server-config.ts — lazy-parsed, separate from framework config
+const ServerConfigSchema = z.object({
+  myApiKey: z.string().describe('External API key'),
+  maxResults: z.coerce.number().default(100),
+});
+let _config: z.infer<typeof ServerConfigSchema> | undefined;
+export function getServerConfig() {
+  _config ??= ServerConfigSchema.parse({
+    myApiKey: process.env.MY_API_KEY,
+    maxResults: process.env.MY_MAX_RESULTS,
+  });
+  return _config;
+}
+```
+
+---
+
+## Context
+
+Handlers receive a unified `ctx` object. Key properties:
+
+| Property | Description |
+|:---------|:------------|
+| `ctx.log` | Request-scoped logger — `.debug()`, `.info()`, `.notice()`, `.warning()`, `.error()`. Auto-correlates requestId, traceId, tenantId. |
+| `ctx.state` | Tenant-scoped KV — `.get(key)`, `.set(key, value, { ttl? })`, `.delete(key)`, `.list(prefix, { cursor, limit })`. Accepts any serializable value. |
+| `ctx.elicit` | Ask user for structured input. **Check for presence first:** `if (ctx.elicit) { ... }` |
+| `ctx.sample` | Request LLM completion from the client. **Check for presence first:** `if (ctx.sample) { ... }` |
+| `ctx.signal` | `AbortSignal` for cancellation. |
+| `ctx.progress` | Task progress (present when `task: true`) — `.setTotal(n)`, `.increment()`, `.update(message)`. |
+| `ctx.requestId` | Unique request ID. |
+| `ctx.tenantId` | Tenant ID from JWT or `'default'` for stdio. |
+
+---
+
+## Errors
+
+Handlers throw — the framework catches, classifies, and formats. Three escalation levels:
+
+```ts
+// 1. Plain Error — framework auto-classifies from message patterns
+throw new Error('Item not found');           // → NotFound
+throw new Error('Invalid query format');     // → ValidationError
+
+// 2. Error factories — explicit code, concise
+import { notFound, validationError, forbidden, serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
+throw notFound('Item not found', { itemId });
+throw serviceUnavailable('API unavailable', { url }, { cause: err });
+
+// 3. McpError — full control over code and data
+import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+throw new McpError(JsonRpcErrorCode.DatabaseError, 'Connection failed', { pool: 'primary' });
+```
+
+Plain `Error` is fine for most cases. Use factories when the error code matters. See framework CLAUDE.md for the full auto-classification table and all available factories.
 
 ---
 
@@ -97,8 +223,8 @@ When you complete a skill's checklist, check the boxes and add a completion time
 ## Imports
 
 ```ts
-// Framework — from node_modules
-import { tool } from '@cyanheads/mcp-ts-core';
+// Framework — z is re-exported, no separate zod import needed
+import { tool, z } from '@cyanheads/mcp-ts-core';
 import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
 // Server's own code — via path alias
@@ -112,7 +238,7 @@ import { getMyService } from '@/services/my-domain/my-service.js';
 - [ ] Zod schemas: all fields have `.describe()`
 - [ ] JSDoc `@fileoverview` + `@module` on every file
 - [ ] `ctx.log` for logging, `ctx.state` for storage
-- [ ] Handlers throw `McpError`, no try/catch
+- [ ] Handlers throw on failure — error factories or plain `Error`, no try/catch
 - [ ] Registered in `src/index.ts` arrays
 - [ ] Tests use `createMockContext()` from `@cyanheads/mcp-ts-core/testing`
 - [ ] `bun run devcheck` passes
