@@ -3,8 +3,6 @@
  * Consolidates common test setup patterns used across the suite.
  * @module tests/fixtures
  */
-import { vi } from 'vitest';
-import type { SdkContext } from '@/mcp-server/tools/utils/toolDefinition.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
@@ -19,17 +17,4 @@ export function createTestAppContext(
     tenantId: 'test-tenant',
     ...overrides,
   });
-}
-
-/**
- * Create a mock SdkContext for tool logic tests.
- */
-export function createTestSdkContext(overrides: Partial<SdkContext> = {}): SdkContext {
-  return {
-    signal: new AbortController().signal,
-    requestId: 'test-request-id',
-    sendNotification: vi.fn().mockResolvedValue(undefined),
-    sendRequest: vi.fn().mockResolvedValue({}),
-    ...overrides,
-  } as unknown as SdkContext;
 }

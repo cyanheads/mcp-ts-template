@@ -1,24 +1,47 @@
 /**
- * @fileoverview A factory for registering standardized MCP resources from definitions.
- * Encapsulates context creation, error handling, and response formatting, keeping
- * resource logic pure and stateless.
+ * @fileoverview Handler factory for resource definitions.
+ * Constructs Context (with `uri`), checks inline auth, validates params, formats response.
  * @module src/mcp-server/resources/utils/resourceHandlerFactory
  */
-import { type McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
-import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import type { Variables } from '@modelcontextprotocol/sdk/shared/uriTemplate.js';
+import type {
+  ReadResourceResult,
+  ServerNotification,
+  ServerRequest,
+} from '@modelcontextprotocol/sdk/types.js';
+import type { ZodObject, ZodRawShape } from 'zod';
+
+import type { SamplingOpts } from '@/context.js';
+import { createContext } from '@/context.js';
+import type { AnyResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
+import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
+import type { StorageService } from '@/storage/core/StorageService.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
-import { logger } from '@/utils/internal/logger.js';
-import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
+import type { Logger } from '@/utils/internal/logger.js';
+import { requestContextService } from '@/utils/internal/requestContext.js';
 
-/** Default formatter producing a single JSON text content block. */
-type ResponseFormatter = (
-  result: unknown,
-  meta: { uri: URL; mimeType: string },
-) => ReadResourceResult['contents'];
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type SdkExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
+
+interface SdkRuntimeCapabilities {
+  createMessage?: (params: Record<string, unknown>) => Promise<unknown>;
+  elicitInput?: (params: { message: string; requestedSchema: unknown }) => Promise<unknown>;
+}
+
+/** Services required by the handler factory to construct Context. */
+export interface ResourceHandlerFactoryServices {
+  logger: Logger;
+  storage: StorageService;
+}
+
+// ---------------------------------------------------------------------------
+// Default formatter
+// ---------------------------------------------------------------------------
 
 function defaultResponseFormatter(
   result: unknown,
@@ -27,140 +50,110 @@ function defaultResponseFormatter(
   return [
     {
       uri: meta.uri.href,
-      text: JSON.stringify(result),
+      text: JSON.stringify(result, null, 2),
       mimeType: meta.mimeType,
     },
   ];
 }
 
-function ensureResourceContents(
-  contents: unknown,
-  handlerContext: RequestContext,
-  resourceName: string,
-  uri: URL,
-): ReadResourceResult['contents'] {
-  if (!Array.isArray(contents)) {
-    throw new McpError(
-      JsonRpcErrorCode.InternalError,
-      'Resource formatter must return an array of contents.',
-      {
-        requestId: handlerContext.requestId,
-        resourceName,
-        uri: uri.href,
-      },
-    );
-  }
+// ---------------------------------------------------------------------------
+// Capability detection helpers
+// ---------------------------------------------------------------------------
 
-  // We perform a shallow validation here. A full Zod schema validation would be safer
-  // but might be too slow for every resource call. This is a pragmatic trade-off.
-  for (const item of contents) {
-    if (typeof item !== 'object' || item === null || !('uri' in item)) {
-      throw new McpError(
-        JsonRpcErrorCode.InternalError,
-        'Invalid content block found in resource formatter output. Each item must be an object with a `uri` property.',
-        {
-          requestId: handlerContext.requestId,
-          resourceName,
-          uri: uri.href,
-        },
-      );
-    }
-  }
-
-  return contents as ReadResourceResult['contents'];
+function wrapElicit(sdkContext: SdkRuntimeCapabilities) {
+  if (typeof sdkContext.elicitInput !== 'function') return;
+  const fn = sdkContext.elicitInput;
+  return (msg: string, schema: ZodObject<ZodRawShape>) =>
+    fn({ message: msg, requestedSchema: schema }) as ReturnType<
+      NonNullable<import('@/context.js').Context['elicit']>
+    >;
 }
 
+function wrapSample(sdkContext: SdkRuntimeCapabilities) {
+  if (typeof sdkContext.createMessage !== 'function') return;
+  const fn = sdkContext.createMessage;
+  return (
+    msgs: Parameters<NonNullable<import('@/context.js').Context['sample']>>[0],
+    opts?: SamplingOpts,
+  ) =>
+    fn({ messages: msgs, ...opts }) as ReturnType<
+      NonNullable<import('@/context.js').Context['sample']>
+    >;
+}
+
+// ---------------------------------------------------------------------------
+// Factory
+// ---------------------------------------------------------------------------
+
 /**
- * Registers a single resource definition with the provided MCP server.
+ * Creates an MCP resource read handler from a resource definition.
+ * The returned function is compatible with the MCP SDK's resource callback type.
+ *
+ * Responsibilities:
+ * - Creates RequestContext from SDK context (for tracing)
+ * - Creates unified Context with `ctx.uri` set
+ * - Checks inline `auth` scopes if defined
+ * - Validates params via Zod schema
+ * - Formats response via `format` or JSON default
+ * - Catches errors and re-throws for the SDK
  */
-export async function registerResource<
-  TParamsSchema extends ZodObject<ZodRawShape>,
-  TOutputSchema extends ZodObject<ZodRawShape> | undefined = undefined,
->(server: McpServer, def: ResourceDefinition<TParamsSchema, TOutputSchema>): Promise<void> {
-  const resourceName = def.name;
-  const registrationContext: RequestContext = requestContextService.createRequestContext({
-    operation: 'RegisterResource',
-    additionalContext: { resourceName },
-  });
+export function createResourceHandler(
+  def: AnyResourceDefinition,
+  services: ResourceHandlerFactoryServices,
+): (uri: URL, variables: Variables, extra: SdkExtra) => Promise<ReadResourceResult> {
+  const mimeType = def.mimeType ?? 'application/json';
+  const formatter = def.format ?? defaultResponseFormatter;
 
-  logger.info(`Registering resource: '${resourceName}'`, registrationContext);
+  return async (uri, variables, callContext): Promise<ReadResourceResult> => {
+    const sdkContext = callContext as unknown as SdkExtra;
+    const sdkCaps = callContext as unknown as SdkRuntimeCapabilities;
 
-  await ErrorHandler.tryCatch(
-    () => {
-      const template = new ResourceTemplate(def.uriTemplate, {
-        list: def.list,
+    const sessionId = typeof sdkContext?.sessionId === 'string' ? sdkContext.sessionId : undefined;
+
+    const appContext = requestContextService.createRequestContext({
+      parentContext: {
+        ...(typeof sdkContext?.requestId === 'string' ? { requestId: sdkContext.requestId } : {}),
+        ...(sessionId ? { sessionId } : {}),
+      },
+      operation: 'HandleResourceRead',
+      additionalContext: {
+        resourceName: def.name ?? def.uriTemplate,
+        resourceUri: uri.href,
+        sessionId,
+        inputParams: variables,
+      },
+    });
+
+    try {
+      // Check inline auth scopes
+      if (def.auth && def.auth.length > 0) {
+        withRequiredScopes(def.auth, appContext);
+      }
+
+      // Validate params via schema if defined
+      const validatedParams = def.params ? def.params.parse(variables) : variables;
+
+      // Construct Context with uri set
+      const ctx = createContext({
+        appContext,
+        logger: services.logger,
+        storage: services.storage,
+        signal: sdkContext.signal,
+        elicit: wrapElicit(sdkCaps),
+        sample: wrapSample(sdkCaps),
+        uri,
       });
 
-      const mimeType = def.mimeType ?? 'application/json';
-      const formatter: ResponseFormatter = def.responseFormatter ?? defaultResponseFormatter;
-      const title = def.title ?? resourceName;
+      const result = await Promise.resolve(def.handler(validatedParams, ctx));
 
-      server.resource(
-        resourceName,
-        template,
-        {
-          title,
-          description: def.description,
-          mimeType,
-          ...(def.examples && { examples: def.examples }),
-          ...(def.annotations && { annotations: def.annotations }),
-        },
-        async (uri, params, callContext): Promise<ReadResourceResult> => {
-          const sessionId =
-            typeof callContext?.sessionId === 'string' ? callContext.sessionId : undefined;
-
-          // Extract only plain-data fields from callContext — spreading the raw SDK
-          // object copies native objects (AbortSignal) that crash Pino serialization.
-          const handlerContext: RequestContext = requestContextService.createRequestContext({
-            parentContext: {
-              ...(typeof callContext?.requestId === 'string'
-                ? { requestId: callContext.requestId }
-                : {}),
-              ...(sessionId ? { sessionId } : {}),
-            },
-            operation: 'HandleResourceRead',
-            additionalContext: {
-              resourceUri: uri.href,
-              sessionId,
-              inputParams: params,
-            },
-          });
-
-          try {
-            // Validate params via the schema before invoking logic
-            type TParams = z.infer<TParamsSchema>;
-            type TOutput =
-              TOutputSchema extends ZodObject<ZodRawShape> ? z.infer<TOutputSchema> : unknown;
-            const parsedParams = def.paramsSchema.parse(params) as TParams;
-            const responseData = (await def.logic(uri, parsedParams, handlerContext)) as TOutput;
-
-            const rawContents: unknown = formatter(responseData, {
-              uri,
-              mimeType,
-            });
-
-            const contents = ensureResourceContents(rawContents, handlerContext, resourceName, uri);
-
-            const readResult: ReadResourceResult = { contents };
-            return readResult;
-          } catch (error: unknown) {
-            // Centralized handler re-throws the error for the SDK to catch
-            throw ErrorHandler.handleError(error, {
-              operation: `resource:${resourceName}:readHandler`,
-              context: handlerContext,
-              input: { uri: uri.href, params },
-            });
-          }
-        },
-      );
-
-      logger.notice(`Resource '${resourceName}' registered successfully.`, registrationContext);
-    },
-    {
-      operation: `RegisteringResource_${resourceName}`,
-      context: registrationContext,
-      errorCode: JsonRpcErrorCode.InitializationFailed,
-      critical: true,
-    },
-  );
+      const contents = formatter(result, { uri, mimeType });
+      return { contents };
+    } catch (error: unknown) {
+      throw ErrorHandler.handleError(error, {
+        operation: `resource:${def.name ?? def.uriTemplate}:readHandler`,
+        context: appContext,
+        input: { uri: uri.href, variables },
+      });
+    }
+  };
 }

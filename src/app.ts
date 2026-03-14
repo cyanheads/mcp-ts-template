@@ -10,10 +10,10 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { config, resetConfig } from '@/config/index.js';
-import type { AnyPromptDef } from '@/mcp-server/prompts/prompt-registration.js';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
-import type { AnyResourceDef } from '@/mcp-server/resources/resource-registration.js';
+import type { AnyPromptDefinition } from '@/mcp-server/prompts/utils/promptDefinition.js';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
+import type { AnyResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
 import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
@@ -41,10 +41,10 @@ import {
 export interface CreateAppOptions {
   /** Server name — overrides package.json and MCP_SERVER_NAME env var. */
   name?: string;
-  /** Prompt definitions (legacy or new-style). */
-  prompts?: AnyPromptDef[];
-  /** Resource definitions (legacy or new-style). */
-  resources?: AnyResourceDef[];
+  /** Prompt definitions. */
+  prompts?: AnyPromptDefinition[];
+  /** Resource definitions. */
+  resources?: AnyResourceDefinition[];
   /** Runs after core services are constructed, before transport starts. */
   setup?: (core: CoreServices) => void | Promise<void>;
   /** Tool definitions (legacy, new-style, or task). */
@@ -322,16 +322,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
 // ---------------------------------------------------------------------------
 
 export type { Context, ContextLogger, ContextProgress, ContextState } from '@/context.js';
-export type { NewPromptDefinition as PromptDefinition } from '@/mcp-server/prompts/utils/newPromptDefinition.js';
-export { prompt } from '@/mcp-server/prompts/utils/newPromptDefinition.js';
+export type { PromptDefinition } from '@/mcp-server/prompts/utils/promptDefinition.js';
+export { prompt } from '@/mcp-server/prompts/utils/promptDefinition.js';
 export type {
-  AnyNewResourceDefinition as AnyResourceDefinition,
-  NewResourceDefinition as ResourceDefinition,
-} from '@/mcp-server/resources/utils/newResourceDefinition.js';
-export { resource } from '@/mcp-server/resources/utils/newResourceDefinition.js';
+  AnyResourceDefinition,
+  ResourceDefinition,
+} from '@/mcp-server/resources/utils/resourceDefinition.js';
+export { resource } from '@/mcp-server/resources/utils/resourceDefinition.js';
 export type {
-  AnyNewToolDefinition as AnyToolDefinition,
-  NewToolDefinition as ToolDefinition,
+  AnyToolDefinition,
   ToolAnnotations,
-} from '@/mcp-server/tools/utils/newToolDefinition.js';
-export { tool } from '@/mcp-server/tools/utils/newToolDefinition.js';
+  ToolDefinition,
+} from '@/mcp-server/tools/utils/toolDefinition.js';
+export { tool } from '@/mcp-server/tools/utils/toolDefinition.js';

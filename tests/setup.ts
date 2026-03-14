@@ -11,41 +11,41 @@ if (typeof process !== 'undefined' && process.env && !process.env.NODE_ENV) {
   process.env.NODE_ENV = 'test';
 }
 
-// Pre-mock modules that are imported before tests call vi.mock.
-// Skip these mocks for integration tests (so we exercise the real stack).
+// Pre-mock heavy external modules imported before individual tests call vi.mock.
+// This setup file is only referenced by vitest.config.ts (unit tests).
+// Integration tests use vitest.integration.ts which has no setupFiles, so these
+// mocks never apply there.
 //
-// IMPORTANT: Vitest's module mocking can interfere with AsyncLocalStorage context propagation
-// in some test scenarios. If you encounter "getStore is not a function" errors with
-// AsyncLocalStorage, the issue is likely with test isolation settings in vitest.config.ts.
-// Solution: Ensure poolOptions.forks.isolate = true (each test file gets clean module state).
+// NOTE: vi.mock calls must be at the top level — Vitest hoists them regardless
+// of nesting, and nested calls produce warnings (future errors).
+//
+// If you encounter "getStore is not a function" errors with AsyncLocalStorage,
+// ensure poolOptions.forks.isolate = true in vitest.config.ts.
 // See: https://github.com/vitest-dev/vitest/issues/5858
-const IS_INTEGRATION = process.env.INTEGRATION === '1';
 
-if (!IS_INTEGRATION) {
-  vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
-    class McpServer {
-      connect = vi.fn(async () => {});
-    }
-    class ResourceTemplate {
-      match = vi.fn(() => null);
-      render = vi.fn(() => '');
-    }
-    return { McpServer, ResourceTemplate };
-  });
+vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
+  class McpServer {
+    connect = vi.fn(async () => {});
+  }
+  class ResourceTemplate {
+    match = vi.fn(() => null);
+    render = vi.fn(() => '');
+  }
+  return { McpServer, ResourceTemplate };
+});
 
-  vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => {
-    const StdioServerTransport: any = vi.fn(function StdioServerTransport(
-      this: any,
-      ..._args: any[]
-    ) {});
-    return { StdioServerTransport };
-  });
+vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => {
+  const StdioServerTransport: any = vi.fn(function StdioServerTransport(
+    this: any,
+    ..._args: any[]
+  ) {});
+  return { StdioServerTransport };
+});
 
-  vi.mock('chrono-node', () => ({
-    parseDate: vi.fn(() => null),
-    parse: vi.fn(() => []),
-  }));
-}
+vi.mock('chrono-node', () => ({
+  parseDate: vi.fn(() => null),
+  parse: vi.fn(() => []),
+}));
 
 beforeAll(() => {
   // Global setup

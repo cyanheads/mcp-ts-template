@@ -1,18 +1,14 @@
 /**
- * @fileoverview Defines the standard structure for a declarative tool definition.
- * This interface ensures that all tools provide the necessary metadata (name, schemas)
- * and logic in a consistent, self-contained format, aligned with MCP specifications.
- * @module mcp-server/tools/utils/toolDefinition
+ * @fileoverview Tool definition types and `tool()` builder function.
+ * Provides the canonical `ToolDefinition` interface and `ToolAnnotations` type
+ * used by all tool definitions and the handler factory.
+ * @module src/mcp-server/tools/utils/toolDefinition
  */
-import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
-import type {
-  ContentBlock,
-  ServerNotification,
-  ServerRequest,
-} from '@modelcontextprotocol/sdk/types.js';
+
+import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import type { RequestContext } from '@/utils/internal/requestContext.js';
+import type { Context } from '@/context.js';
 
 /**
  * Defines the annotations that provide hints about a tool's behavior.
@@ -51,82 +47,73 @@ export interface ToolAnnotations {
 }
 
 /**
- * A type alias for the SDK's `RequestHandlerExtra` context, making it more
- * specific and easier to reference in our tool logic signatures.
- */
-export type SdkContext = RequestHandlerExtra<ServerRequest, ServerNotification>;
-
-/**
  * Represents the complete, self-contained definition of an MCP tool.
  */
 export interface ToolDefinition<
-  TInputSchema extends ZodObject<ZodRawShape>,
-  TOutputSchema extends ZodObject<ZodRawShape>,
+  TInput extends ZodObject<ZodRawShape> = ZodObject<ZodRawShape>,
+  TOutput extends ZodObject<ZodRawShape> = ZodObject<ZodRawShape>,
 > {
-  /**
-   * Optional protocol-level metadata passed alongside the tool registration.
-   * Extensions use namespaced keys within `_meta` to attach additional semantics.
-   *
-   * Currently used by the MCP Apps extension (`io.modelcontextprotocol/ui`)
-   * to link a tool to an interactive UI resource.
-   */
+  /** Protocol-level metadata (e.g., MCP Apps extension). */
   _meta?: Record<string, unknown>;
-  /**
-   * Optional metadata providing hints about the tool's behavior.
-   */
+  /** UI/behavior hints for clients. */
   annotations?: ToolAnnotations;
-  /**
-   * A clear, concise description of what the tool does.
-   * This is sent to the LLM to help it decide when to use the tool.
-   */
+  /** Required auth scopes. Checked by handler factory before calling handler. */
+  auth?: string[];
+  /** LLM-facing description. */
   description: string;
   /**
-   * The Zod schema for validating the tool's input parameters.
+   * Optional formatter mapping output to ContentBlock[].
+   * If omitted, the handler factory JSON-stringifies the output.
    */
-  inputSchema: TInputSchema;
+  format?: (result: z.infer<TOutput>) => ContentBlock[];
   /**
-   * The core business logic function for the tool. It receives the validated
-   * input and two context objects, and returns a structured output or throws an McpError.
-   *
-   * @param input The validated tool input, conforming to `inputSchema`.
-   *
-   * @param appContext The application's internal `RequestContext`. This should be
-   * passed to any internal services (like the logger) for consistent tracing and
-   * session management. It contains IDs (`requestId`, `sessionId`, `traceId`)
-   * and scoping information (`clientId`, `tenantId`, `scopes`).
-   *
-   * @param sdkContext The raw `SdkContext` (`RequestHandlerExtra`) from the MCP
-   * SDK. This provides access to lower-level protocol capabilities:
-   * - `signal`: An `AbortSignal` for handling request cancellation.
-   * - `sendNotification`: Send a notification back to the client.
-   * - `sendRequest`: Send a new request to the client (e.g., for elicitation).
-   * - `authInfo`: Raw, validated authentication information.
-   *
-   * @returns A promise that resolves with the structured output, conforming to `outputSchema`.
+   * The core handler function. Receives validated input and unified Context.
+   * Throw on failure — no try/catch needed.
    */
-  logic: (
-    input: z.infer<TInputSchema>,
-    appContext: RequestContext,
-    sdkContext: SdkContext,
-  ) => Promise<z.infer<TOutputSchema>>;
-  /**
-   * The programmatic, unique name for the tool (e.g., 'echo_message').
-   */
+  handler: (input: z.infer<TInput>, ctx: Context) => Promise<z.infer<TOutput>> | z.infer<TOutput>;
+  /** Zod schema for input validation. All fields need `.describe()`. */
+  input: TInput;
+  /** Programmatic unique name (snake_case). */
   name: string;
-  /**
-   * The Zod schema for validating the tool's successful output structure.
-   */
-  outputSchema: TOutputSchema;
-  /**
-   * An optional function to format the successful output into an array of ContentBlocks
-   * for the `CallToolResult`. If not provided, a default JSON stringifier is used.
-   * @param result The successful output from the logic function.
-   * @returns An array of ContentBlocks to be sent to the client.
-   */
-  responseFormatter?: (result: z.infer<TOutputSchema>) => ContentBlock[];
-  /**
-   * An optional, human-readable title for the tool. This is preferred for display in UIs.
-   * If not provided, the `name` or `annotations.title` may be used as a fallback.
-   */
+  /** Zod schema for output validation. */
+  output?: TOutput;
+  /** When true, the framework manages task lifecycle automatically. */
+  task?: boolean;
+  /** Human-readable title for UI display. */
   title?: string;
+}
+
+/** Type-erased union for mixed arrays passed to createApp(). */
+export type AnyToolDefinition = ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>;
+
+// ---------------------------------------------------------------------------
+// Builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a tool definition with full type inference from Zod schemas.
+ *
+ * @example
+ * ```ts
+ * const myTool = tool('my_tool', {
+ *   description: 'Does something useful.',
+ *   input: z.object({ query: z.string().describe('Search query') }),
+ *   output: z.object({ result: z.string().describe('Search result') }),
+ *   auth: ['tool:my_tool:read'],
+ *   annotations: { readOnlyHint: true },
+ *   async handler(input, ctx) {
+ *     ctx.log.info('Processing', { query: input.query });
+ *     return { result: `Found: ${input.query}` };
+ *   },
+ * });
+ * ```
+ */
+export function tool<
+  TInput extends ZodObject<ZodRawShape>,
+  TOutput extends ZodObject<ZodRawShape> = ZodObject<ZodRawShape>,
+>(
+  name: string,
+  options: Omit<ToolDefinition<TInput, TOutput>, 'name'>,
+): ToolDefinition<TInput, TOutput> {
+  return { name, ...options };
 }

@@ -1,18 +1,80 @@
 /**
  * @fileoverview Tests for tool registration system.
- * @module tests/mcp-server/tools/tool-registration.test.ts
+ * @module tests/mcp-server/tools/tool-registration.test
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
-import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
+import { tool } from '@/mcp-server/tools/utils/toolDefinition.js';
+import type { HandlerFactoryServices } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
+
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
+
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    notice: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    crit: vi.fn(),
+    emerg: vi.fn(),
+    child: vi.fn(),
+  },
+}));
+
+vi.mock('@/config/index.js', () => ({
+  config: {
+    environment: 'testing',
+    mcpServerVersion: '1.0.0-test',
+    mcpAuthMode: 'none',
+    openTelemetry: { serviceName: 'test', serviceVersion: '0.0.0' },
+  },
+}));
+
+vi.mock('@/utils/internal/logger.js', () => ({
+  logger: mockLogger,
+  Logger: { getInstance: () => mockLogger },
+}));
+
+vi.mock('@/utils/internal/requestContext.js', () => ({
+  requestContextService: {
+    createRequestContext: vi.fn((opts: any) => ({
+      requestId: 'test-req-id',
+      timestamp: new Date().toISOString(),
+      operation: opts?.operation ?? 'test',
+    })),
+  },
+}));
+
+vi.mock('@/utils/internal/performance.js', () => ({
+  measureToolExecution: vi.fn((fn: () => unknown) => fn()),
+}));
+
+// ---------------------------------------------------------------------------
+// Shared fixtures
+// ---------------------------------------------------------------------------
+
+const mockStorage = {
+  get: vi.fn(async () => null),
+  set: vi.fn(async () => {}),
+  delete: vi.fn(async () => {}),
+  list: vi.fn(async () => ({ keys: [] })),
+  getMany: vi.fn(async () => new Map()),
+};
+
+const services: HandlerFactoryServices = {
+  logger: mockLogger as any,
+  storage: mockStorage as any,
+};
 
 describe('ToolRegistry', () => {
   let mockServer: any;
-  let registry: ToolRegistry;
 
   beforeEach(() => {
-    // Create a mock MCP server
+    vi.clearAllMocks();
     mockServer = {
       registerTool: vi.fn(() => {}),
     };
@@ -20,17 +82,14 @@ describe('ToolRegistry', () => {
 
   describe('Tool Registration', () => {
     it('should register a single tool successfully', async () => {
-      const testTool: ToolDefinition<any, any> = {
-        name: 'test_tool',
+      const testTool = tool('test_tool', {
         description: 'A test tool',
-        inputSchema: z.object({ input: z.string() }),
-        outputSchema: z.object({ output: z.string() }),
-        logic: async (input: { input: string }) => ({
-          output: input.input.toUpperCase(),
-        }),
-      };
+        input: z.object({ input: z.string().describe('input') }),
+        output: z.object({ output: z.string().describe('output') }),
+        handler: (input) => ({ output: input.input.toUpperCase() }),
+      });
 
-      registry = new ToolRegistry([testTool]);
+      const registry = new ToolRegistry([testTool], services);
       await registry.registerAll(mockServer);
 
       expect(mockServer.registerTool).toHaveBeenCalledTimes(1);
@@ -41,30 +100,26 @@ describe('ToolRegistry', () => {
     });
 
     it('should register multiple tools', async () => {
-      const tool1: ToolDefinition<any, any> = {
-        name: 'tool_one',
+      const tool1 = tool('tool_one', {
         description: 'First tool',
-        inputSchema: z.object({}),
-        outputSchema: z.object({}),
-        logic: async () => ({}),
-      };
+        input: z.object({}),
+        handler: () => ({}),
+      });
 
-      const tool2: ToolDefinition<any, any> = {
-        name: 'tool_two',
+      const tool2 = tool('tool_two', {
         description: 'Second tool',
-        inputSchema: z.object({}),
-        outputSchema: z.object({}),
-        logic: async () => ({}),
-      };
+        input: z.object({}),
+        handler: () => ({}),
+      });
 
-      registry = new ToolRegistry([tool1, tool2]);
+      const registry = new ToolRegistry([tool1, tool2], services);
       await registry.registerAll(mockServer);
 
       expect(mockServer.registerTool).toHaveBeenCalledTimes(2);
     });
 
     it('should handle empty tool list', async () => {
-      registry = new ToolRegistry([]);
+      const registry = new ToolRegistry([], services);
       await registry.registerAll(mockServer);
 
       expect(mockServer.registerTool).toHaveBeenCalledTimes(0);
@@ -73,16 +128,14 @@ describe('ToolRegistry', () => {
 
   describe('Title Derivation', () => {
     it('should use explicit title when provided', async () => {
-      const toolWithTitle: ToolDefinition<any, any> = {
-        name: 'my_tool',
+      const testTool = tool('my_tool', {
         title: 'Custom Title',
         description: 'Test tool',
-        inputSchema: z.object({}),
-        outputSchema: z.object({}),
-        logic: async () => ({}),
-      };
+        input: z.object({}),
+        handler: () => ({}),
+      });
 
-      registry = new ToolRegistry([toolWithTitle]);
+      const registry = new ToolRegistry([testTool], services);
       await registry.registerAll(mockServer);
 
       const call = mockServer.registerTool.mock.calls[0];
@@ -90,18 +143,14 @@ describe('ToolRegistry', () => {
     });
 
     it('should use annotation title when no explicit title', async () => {
-      const toolWithAnnotationTitle: ToolDefinition<any, any> = {
-        name: 'my_tool',
+      const testTool = tool('my_tool', {
         description: 'Test tool',
-        inputSchema: z.object({}),
-        outputSchema: z.object({}),
-        logic: async () => ({}),
-        annotations: {
-          title: 'Annotation Title',
-        },
-      };
+        input: z.object({}),
+        handler: () => ({}),
+        annotations: { title: 'Annotation Title' },
+      });
 
-      registry = new ToolRegistry([toolWithAnnotationTitle]);
+      const registry = new ToolRegistry([testTool], services);
       await registry.registerAll(mockServer);
 
       const call = mockServer.registerTool.mock.calls[0];
@@ -109,36 +158,29 @@ describe('ToolRegistry', () => {
     });
 
     it('should derive title from name when no title provided', async () => {
-      const toolWithoutTitle: ToolDefinition<any, any> = {
-        name: 'echo_message_test',
+      const testTool = tool('echo_message_test', {
         description: 'Test tool',
-        inputSchema: z.object({}),
-        outputSchema: z.object({}),
-        logic: async () => ({}),
-      };
+        input: z.object({}),
+        handler: () => ({}),
+      });
 
-      registry = new ToolRegistry([toolWithoutTitle]);
+      const registry = new ToolRegistry([testTool], services);
       await registry.registerAll(mockServer);
 
       const call = mockServer.registerTool.mock.calls[0];
-      // Should convert snake_case to Title Case
       expect(call[1].title).toBe('Echo Message Test');
     });
 
     it('should prefer explicit title over annotation title', async () => {
-      const tool: ToolDefinition<any, any> = {
-        name: 'my_tool',
+      const testTool = tool('my_tool', {
         title: 'Explicit Title',
         description: 'Test tool',
-        inputSchema: z.object({}),
-        outputSchema: z.object({}),
-        logic: async () => ({}),
-        annotations: {
-          title: 'Annotation Title',
-        },
-      };
+        input: z.object({}),
+        handler: () => ({}),
+        annotations: { title: 'Annotation Title' },
+      });
 
-      registry = new ToolRegistry([tool]);
+      const registry = new ToolRegistry([testTool], services);
       await registry.registerAll(mockServer);
 
       const call = mockServer.registerTool.mock.calls[0];
@@ -148,26 +190,24 @@ describe('ToolRegistry', () => {
 
   describe('Schema Registration', () => {
     it('should register input and output schemas', async () => {
-      const tool: ToolDefinition<any, any> = {
-        name: 'typed_tool',
+      const testTool = tool('typed_tool', {
         description: 'Tool with schemas',
-        inputSchema: z.object({
-          name: z.string(),
-          age: z.number(),
+        input: z.object({
+          name: z.string().describe('name'),
+          age: z.number().describe('age'),
         }),
-        outputSchema: z.object({
-          greeting: z.string(),
+        output: z.object({
+          greeting: z.string().describe('greeting'),
         }),
-        logic: async (input) => ({ greeting: `Hello ${input.name}` }),
-      };
+        handler: (input) => ({ greeting: `Hello ${input.name}` }),
+      });
 
-      registry = new ToolRegistry([tool]);
+      const registry = new ToolRegistry([testTool], services);
       await registry.registerAll(mockServer);
 
       const call = mockServer.registerTool.mock.calls[0];
       expect(call[1].inputSchema).toBeDefined();
       expect(call[1].outputSchema).toBeDefined();
-      // In Zod 4, schema properties are accessed via .shape
       expect(call[1].inputSchema.shape.name).toBeDefined();
       expect(call[1].outputSchema.shape.greeting).toBeDefined();
     });
@@ -175,20 +215,18 @@ describe('ToolRegistry', () => {
 
   describe('Annotations', () => {
     it('should register annotations when provided', async () => {
-      const toolWithAnnotations: ToolDefinition<any, any> = {
-        name: 'annotated_tool',
+      const testTool = tool('annotated_tool', {
         description: 'Tool with annotations',
-        inputSchema: z.object({}),
-        outputSchema: z.object({}),
-        logic: async () => ({}),
+        input: z.object({}),
+        handler: () => ({}),
         annotations: {
           readOnlyHint: true,
           idempotentHint: true,
           openWorldHint: false,
         },
-      };
+      });
 
-      registry = new ToolRegistry([toolWithAnnotations]);
+      const registry = new ToolRegistry([testTool], services);
       await registry.registerAll(mockServer);
 
       const call = mockServer.registerTool.mock.calls[0];
@@ -199,15 +237,13 @@ describe('ToolRegistry', () => {
     });
 
     it('should not include annotations field when none provided', async () => {
-      const toolWithoutAnnotations: ToolDefinition<any, any> = {
-        name: 'plain_tool',
+      const testTool = tool('plain_tool', {
         description: 'Tool without annotations',
-        inputSchema: z.object({}),
-        outputSchema: z.object({}),
-        logic: async () => ({}),
-      };
+        input: z.object({}),
+        handler: () => ({}),
+      });
 
-      registry = new ToolRegistry([toolWithoutAnnotations]);
+      const registry = new ToolRegistry([testTool], services);
       await registry.registerAll(mockServer);
 
       const call = mockServer.registerTool.mock.calls[0];
@@ -216,21 +252,16 @@ describe('ToolRegistry', () => {
   });
 
   describe('Handler Creation', () => {
-    it('should create handler with custom response formatter', async () => {
-      const customFormatter = (result: { data: string }) => [
-        { type: 'text' as const, text: `Custom: ${result.data}` },
-      ];
-
-      const tool: ToolDefinition<any, any> = {
-        name: 'formatted_tool',
+    it('should create handler with custom format', async () => {
+      const testTool = tool('formatted_tool', {
         description: 'Tool with formatter',
-        inputSchema: z.object({}),
-        outputSchema: z.object({ data: z.string() }),
-        logic: async () => ({ data: 'test' }),
-        responseFormatter: customFormatter,
-      };
+        input: z.object({}),
+        output: z.object({ data: z.string().describe('data') }),
+        handler: () => ({ data: 'test' }),
+        format: (result) => [{ type: 'text', text: `Custom: ${result.data}` }],
+      });
 
-      registry = new ToolRegistry([tool]);
+      const registry = new ToolRegistry([testTool], services);
       await registry.registerAll(mockServer);
 
       expect(mockServer.registerTool).toHaveBeenCalledTimes(1);
@@ -238,16 +269,14 @@ describe('ToolRegistry', () => {
       expect(typeof handler).toBe('function');
     });
 
-    it('should create handler without formatter when not provided', async () => {
-      const tool: ToolDefinition<any, any> = {
-        name: 'plain_tool',
+    it('should create handler without format when not provided', async () => {
+      const testTool = tool('plain_tool', {
         description: 'Tool without formatter',
-        inputSchema: z.object({}),
-        outputSchema: z.object({}),
-        logic: async () => ({}),
-      };
+        input: z.object({}),
+        handler: () => ({}),
+      });
 
-      registry = new ToolRegistry([tool]);
+      const registry = new ToolRegistry([testTool], services);
       await registry.registerAll(mockServer);
 
       const handler = mockServer.registerTool.mock.calls[0][2];
@@ -257,31 +286,13 @@ describe('ToolRegistry', () => {
 
   describe('Registration Order', () => {
     it('should register tools in the order they are provided', async () => {
-      const tools: ToolDefinition<any, any>[] = [
-        {
-          name: 'first',
-          description: 'First tool',
-          inputSchema: z.object({}),
-          outputSchema: z.object({}),
-          logic: async () => ({}),
-        },
-        {
-          name: 'second',
-          description: 'Second tool',
-          inputSchema: z.object({}),
-          outputSchema: z.object({}),
-          logic: async () => ({}),
-        },
-        {
-          name: 'third',
-          description: 'Third tool',
-          inputSchema: z.object({}),
-          outputSchema: z.object({}),
-          logic: async () => ({}),
-        },
+      const tools = [
+        tool('first', { description: 'First tool', input: z.object({}), handler: () => ({}) }),
+        tool('second', { description: 'Second tool', input: z.object({}), handler: () => ({}) }),
+        tool('third', { description: 'Third tool', input: z.object({}), handler: () => ({}) }),
       ];
 
-      registry = new ToolRegistry(tools);
+      const registry = new ToolRegistry(tools, services);
       await registry.registerAll(mockServer);
 
       expect(mockServer.registerTool.mock.calls[0][0]).toBe('first');
@@ -292,35 +303,37 @@ describe('ToolRegistry', () => {
 
   describe('Complex Tools', () => {
     it('should handle tool with complex nested schemas', async () => {
-      const complexTool: ToolDefinition<any, any> = {
-        name: 'complex_tool',
+      const complexTool = tool('complex_tool', {
         description: 'Complex tool with nested schemas',
-        inputSchema: z.object({
-          user: z.object({
-            name: z.string(),
-            email: z.email(),
-          }),
-          settings: z.object({
-            theme: z.enum(['light', 'dark']),
-            notifications: z.boolean(),
-          }),
+        input: z.object({
+          user: z
+            .object({
+              name: z.string().describe('name'),
+              email: z.email().describe('email'),
+            })
+            .describe('user'),
+          settings: z
+            .object({
+              theme: z.enum(['light', 'dark']).describe('theme'),
+              notifications: z.boolean().describe('notifications'),
+            })
+            .describe('settings'),
         }),
-        outputSchema: z.object({
-          success: z.boolean(),
-          message: z.string(),
+        output: z.object({
+          success: z.boolean().describe('success'),
+          message: z.string().describe('message'),
         }),
-        logic: async (input) => ({
+        handler: (input) => ({
           success: true,
           message: `Processed settings for ${input.user.name}`,
         }),
-      };
+      });
 
-      registry = new ToolRegistry([complexTool]);
+      const registry = new ToolRegistry([complexTool], services);
       await registry.registerAll(mockServer);
 
       expect(mockServer.registerTool).toHaveBeenCalledTimes(1);
       const call = mockServer.registerTool.mock.calls[0];
-      // In Zod 4, schema properties are accessed via .shape
       expect(call[1].inputSchema.shape.user).toBeDefined();
       expect(call[1].inputSchema.shape.settings).toBeDefined();
     });

@@ -3,7 +3,6 @@
  * @module tests/examples/tools/template-madlibs-elicitation.tool.test
  */
 
-import { McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { madlibsElicitationTool } from '../../../examples/mcp-server/tools/definitions/template-madlibs-elicitation.tool.js';
@@ -26,7 +25,9 @@ describe('madlibsElicitationTool', () => {
   it('throws when elicitation is unavailable and inputs missing', async () => {
     const ctx = createMockContext();
     const input = madlibsElicitationTool.input.parse({});
-    await expect(madlibsElicitationTool.handler(input, ctx)).rejects.toThrow(McpError);
+    await expect(madlibsElicitationTool.handler(input, ctx)).rejects.toThrow(
+      'Elicitation is not available',
+    );
   });
 
   it('elicits missing words from user', async () => {
@@ -48,7 +49,9 @@ describe('madlibsElicitationTool', () => {
       elicit: vi.fn().mockResolvedValue({ action: 'decline' }),
     });
     const input = madlibsElicitationTool.input.parse({});
-    await expect(madlibsElicitationTool.handler(input, ctx)).rejects.toThrow(McpError);
+    await expect(madlibsElicitationTool.handler(input, ctx)).rejects.toThrow(
+      'User decline the noun elicitation',
+    );
   });
 
   it('formats output as story and JSON', () => {

@@ -3,7 +3,6 @@
  * @module tests/examples/tools/template-echo-message.tool.test
  */
 
-import { McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { describe, expect, it } from 'vitest';
 import {
@@ -59,7 +58,7 @@ describe('echoTool', () => {
   it('throws McpError on error trigger', () => {
     const ctx = createMockContext();
     const input = echoTool.input.parse({ message: TEST_ERROR_TRIGGER_MESSAGE });
-    expect(() => echoTool.handler(input, ctx)).toThrow(McpError);
+    expect(() => echoTool.handler(input, ctx)).toThrow('Deliberate failure triggered.');
   });
 
   it('validates input schema rejects empty message', () => {

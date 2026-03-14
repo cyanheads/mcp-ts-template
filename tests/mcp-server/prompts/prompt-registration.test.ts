@@ -1,16 +1,14 @@
 /**
  * @fileoverview Tests for prompt registration system.
- * @module tests/mcp-server/prompts/prompt-registration.test.ts
+ * @module tests/mcp-server/prompts/prompt-registration.test
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
-import { prompt } from '@/mcp-server/prompts/utils/newPromptDefinition.js';
-import type { PromptDefinition } from '@/mcp-server/prompts/utils/promptDefinition.js';
+import { prompt } from '@/mcp-server/prompts/utils/promptDefinition.js';
 import { logger } from '@/utils/internal/logger.js';
 
-/** Inline test prompt using new-style builder. */
 const testPrompt = prompt('test_prompt', {
   description: 'A test prompt for unit tests.',
   args: z.object({
@@ -27,22 +25,17 @@ const testPrompt = prompt('test_prompt', {
   ],
 });
 
-/** Inline test prompt using legacy shape. */
-const legacyPrompt: PromptDefinition<z.ZodObject<{ code: z.ZodOptional<z.ZodString> }>> = {
-  name: 'legacy_prompt',
-  description: 'A legacy-style prompt for testing.',
-  argumentsSchema: z.object({
-    code: z.string().optional().describe('Code to review.'),
-  }),
-  generate: (args) => [
+const noArgsPrompt = prompt('no_args_prompt', {
+  description: 'A prompt with no arguments.',
+  generate: () => [
     {
-      role: 'user',
-      content: { type: 'text', text: `Review: ${args.code ?? 'nothing'}` },
+      role: 'user' as const,
+      content: { type: 'text' as const, text: 'Hello, world!' },
     },
   ],
-};
+});
 
-const testDefinitions = [testPrompt, legacyPrompt];
+const testDefinitions = [testPrompt, noArgsPrompt];
 
 describe('PromptRegistry', () => {
   let mockServer: any;

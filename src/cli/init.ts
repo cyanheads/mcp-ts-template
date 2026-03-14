@@ -60,7 +60,15 @@ function init(): void {
   const name = args.find((a) => !a.startsWith('--'));
   const dest = name ? join(process.cwd(), name) : process.cwd();
 
-  if (name) mkdirSync(dest, { recursive: true });
+  if (name) {
+    if (!/^[a-zA-Z0-9_][\w.-]*$/.test(name) || name.includes('..')) {
+      console.error(
+        `  Error: invalid project name "${name}". Use alphanumeric, hyphens, underscores, dots.`,
+      );
+      process.exit(1);
+    }
+    if (!dryRun) mkdirSync(dest, { recursive: true });
+  }
 
   console.log(`\n  Scaffolding${name ? ` ${name}` : ''} in ${dest}\n`);
 
@@ -166,7 +174,10 @@ function copyExternalSkills(
 function extractAudience(content: string): string | undefined {
   const frontmatter = content.match(/^---\n([\s\S]*?)\n---/);
   if (!frontmatter?.[1]) return;
-  return frontmatter[1].match(/audience:\s*(\w+)/)?.[1];
+  // Match `audience:` only at top-level or indented under `metadata:`
+  const nested = frontmatter[1].match(/^metadata:\s*\n\s+audience:\s*(\w+)/m);
+  if (nested) return nested[1];
+  return frontmatter[1].match(/^audience:\s*(\w+)/m)?.[1];
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────

@@ -28,8 +28,8 @@ import type { ToolAnnotations } from '@/mcp-server/tools/utils/toolDefinition.js
  * const myTaskTool: TaskToolDefinition<typeof InputSchema, typeof OutputSchema> = {
  *   name: 'long_running_analysis',
  *   description: 'Performs a long-running analysis operation',
- *   inputSchema: z.object({ data: z.string() }),
- *   outputSchema: z.object({ result: z.string() }),
+ *   input: z.object({ data: z.string() }),
+ *   output: z.object({ result: z.string() }),
  *   execution: { taskSupport: 'required' },
  *   taskHandlers: {
  *     createTask: async (args, extra) => {
@@ -75,22 +75,14 @@ export interface TaskToolDefinition<
    */
   execution: TaskToolExecution;
 
-  /**
-   * The Zod schema for validating the tool's input parameters.
-   * All fields should have `.describe()` for LLM context.
-   */
-  inputSchema: TInputSchema;
-  /**
-   * The programmatic, unique name for the tool (e.g., 'async_analysis').
-   * Must follow MCP tool naming conventions: alphanumeric, underscores, hyphens.
-   */
+  /** Zod schema for input validation. All fields need `.describe()`. */
+  input: TInputSchema;
+
+  /** Programmatic unique name (snake_case). */
   name: string;
 
-  /**
-   * The Zod schema for validating the tool's successful output structure.
-   * Used for documentation and client-side type inference.
-   */
-  outputSchema?: TOutputSchema;
+  /** Zod schema for output validation. */
+  output?: TOutputSchema;
 
   /**
    * The task handlers implementing the task lifecycle.

@@ -3,7 +3,6 @@
  * @module tests/examples/tools/template-code-review-sampling.tool.test
  */
 
-import { McpError } from '@cyanheads/mcp-ts-core/errors';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { codeReviewSamplingTool } from '../../../examples/mcp-server/tools/definitions/template-code-review-sampling.tool.js';
@@ -12,7 +11,9 @@ describe('codeReviewSamplingTool', () => {
   it('throws when sampling is unavailable', async () => {
     const ctx = createMockContext();
     const input = codeReviewSamplingTool.input.parse({ code: 'const x = 1;' });
-    await expect(codeReviewSamplingTool.handler(input, ctx)).rejects.toThrow(McpError);
+    await expect(codeReviewSamplingTool.handler(input, ctx)).rejects.toThrow(
+      'Sampling capability is not available',
+    );
   });
 
   it('performs code review via sampling', async () => {

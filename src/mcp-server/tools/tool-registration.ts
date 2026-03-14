@@ -1,6 +1,7 @@
 /**
  * @fileoverview Encapsulates the registration of all tool definitions with an McpServer.
- * Supports legacy ToolDefinition, TaskToolDefinition, and new-style NewToolDefinition.
+ * Supports ToolDefinition (standard and auto-task via `task: true`) and TaskToolDefinition
+ * (escape hatch for custom task lifecycle).
  * @module src/mcp-server/tools/tool-registration
  */
 import type { McpServer, ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -13,16 +14,11 @@ import {
   isTaskToolDefinition,
   type TaskToolDefinition,
 } from '@/mcp-server/tasks/utils/taskToolDefinition.js';
+import type { AnyToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
 import {
-  type AnyNewToolDefinition,
-  isNewToolDefinition,
-} from '@/mcp-server/tools/utils/newToolDefinition.js';
-import {
-  createNewToolHandler,
+  createToolHandler,
   type HandlerFactoryServices,
-} from '@/mcp-server/tools/utils/newToolHandlerFactory.js';
-import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
-import { createMcpToolHandler } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
+} from '@/mcp-server/tools/utils/toolHandlerFactory.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
@@ -31,9 +27,8 @@ import { requestContextService } from '@/utils/internal/requestContext.js';
 
 /** Union of all accepted tool definition shapes. */
 export type AnyToolDef =
-  | ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>
-  | TaskToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>
-  | AnyNewToolDefinition;
+  | AnyToolDefinition
+  | TaskToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>;
 
 export class ToolRegistry {
   constructor(
@@ -43,47 +38,40 @@ export class ToolRegistry {
 
   /**
    * Registers all tool definitions with the provided McpServer instance.
-   * Automatically detects new-style, legacy, and task-based tools.
+   * Automatically detects standard tools, auto-task tools (task: true),
+   * and escape-hatch TaskToolDefinitions.
    */
   public async registerAll(server: McpServer): Promise<void> {
     const context = requestContextService.createRequestContext({
       operation: 'ToolRegistry.registerAll',
     });
 
-    const newTools: AnyNewToolDefinition[] = [];
-    const legacyTools: ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>[] = [];
+    const standardTools: AnyToolDefinition[] = [];
     const taskTools: TaskToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>[] = [];
 
     for (const def of this.toolDefs) {
-      if (isNewToolDefinition(def)) {
-        newTools.push(def);
-      } else if (isTaskToolDefinition(def)) {
+      if (isTaskToolDefinition(def)) {
         taskTools.push(def);
       } else {
-        legacyTools.push(def as ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>);
+        standardTools.push(def as AnyToolDefinition);
       }
     }
 
     logger.info(
-      `Registering ${newTools.length + legacyTools.length} regular tool(s) and ${taskTools.length} task tool(s)...`,
+      `Registering ${standardTools.length} regular tool(s) and ${taskTools.length} task tool(s)...`,
       context,
     );
 
-    // Register new-style tools (regular and auto-task)
-    for (const toolDef of newTools) {
+    // Register standard tools (regular and auto-task)
+    for (const toolDef of standardTools) {
       if (toolDef.task) {
         await this.registerAutoTaskTool(server, toolDef);
       } else {
-        await this.registerNewTool(server, toolDef);
+        await this.registerTool(server, toolDef);
       }
     }
 
-    // Register legacy tools
-    for (const toolDef of legacyTools) {
-      await this.registerTool(server, toolDef);
-    }
-
-    // Register task tools via experimental API
+    // Register escape-hatch task tools via experimental API
     for (const toolDef of taskTools) {
       await this.registerTaskTool(server, toolDef);
     }
@@ -94,26 +82,26 @@ export class ToolRegistry {
   }
 
   /**
-   * Registers a new-style tool definition (with `handler`, `input`, `auth`, etc.).
+   * Registers a standard tool definition.
    * Requires `services` to have been passed to the constructor for Context creation.
    */
-  private async registerNewTool(server: McpServer, tool: AnyNewToolDefinition): Promise<void> {
+  private async registerTool(server: McpServer, tool: AnyToolDefinition): Promise<void> {
     const registrationContext = requestContextService.createRequestContext({
-      operation: 'ToolRegistry.registerNewTool',
+      operation: 'ToolRegistry.registerTool',
       toolName: tool.name,
     });
 
-    logger.debug(`Registering tool (new-style): '${tool.name}'`, registrationContext);
+    logger.debug(`Registering tool: '${tool.name}'`, registrationContext);
 
     await ErrorHandler.tryCatch(
       () => {
         if (!this.services) {
           throw new Error(
-            `Cannot register new-style tool '${tool.name}': HandlerFactoryServices not provided to ToolRegistry`,
+            `Cannot register tool '${tool.name}': HandlerFactoryServices not provided to ToolRegistry`,
           );
         }
 
-        const handler = createNewToolHandler(tool, this.services);
+        const handler = createToolHandler(tool, this.services);
         const title = tool.title ?? tool.annotations?.title ?? this.deriveTitleFromName(tool.name);
 
         // Type assertion required: SDK's conditional types don't resolve with erased generics
@@ -142,20 +130,17 @@ export class ToolRegistry {
   }
 
   /**
-   * Registers a new-style tool with `task: true` via the experimental Tasks API.
+   * Registers a tool with `task: true` via the experimental Tasks API.
    * Auto-generates task handlers from the definition's `handler` function.
    * The framework manages the full task lifecycle: create, background run, store result.
    */
-  private async registerAutoTaskTool(server: McpServer, tool: AnyNewToolDefinition): Promise<void> {
+  private async registerAutoTaskTool(server: McpServer, tool: AnyToolDefinition): Promise<void> {
     const registrationContext = requestContextService.createRequestContext({
       operation: 'ToolRegistry.registerAutoTaskTool',
       toolName: tool.name,
     });
 
-    logger.debug(
-      `Registering auto-task tool (new-style, task: true): '${tool.name}'`,
-      registrationContext,
-    );
+    logger.debug(`Registering auto-task tool (task: true): '${tool.name}'`, registrationContext);
 
     await ErrorHandler.tryCatch(
       () => {
@@ -224,11 +209,11 @@ export class ToolRegistry {
   }
 
   /**
-   * Runs a new-style tool handler as a background task.
+   * Runs a tool handler as a background task.
    * Creates Context with `progress` and `signal`, stores result/error on completion.
    */
   private async runAutoTaskHandler(
-    tool: AnyNewToolDefinition,
+    tool: AnyToolDefinition,
     input: unknown,
     taskId: string,
     taskStore: RequestTaskStore,
@@ -296,55 +281,6 @@ export class ToolRegistry {
     }
   }
 
-  private async registerTool<
-    TInputSchema extends ZodObject<ZodRawShape>,
-    TOutputSchema extends ZodObject<ZodRawShape>,
-  >(server: McpServer, tool: ToolDefinition<TInputSchema, TOutputSchema>): Promise<void> {
-    const registrationContext = requestContextService.createRequestContext({
-      operation: 'ToolRegistry.registerTool',
-      toolName: tool.name,
-    });
-
-    logger.debug(`Registering tool: '${tool.name}'`, registrationContext);
-
-    await ErrorHandler.tryCatch(
-      () => {
-        const handler = createMcpToolHandler({
-          toolName: tool.name,
-          inputSchema: tool.inputSchema,
-          logic: tool.logic,
-          ...(tool.responseFormatter && {
-            responseFormatter: tool.responseFormatter,
-          }),
-        });
-
-        const title = tool.title ?? tool.annotations?.title ?? this.deriveTitleFromName(tool.name);
-
-        // Type assertion required: SDK's conditional types don't resolve with generic constraints
-        server.registerTool(
-          tool.name,
-          {
-            title,
-            description: tool.description,
-            inputSchema: tool.inputSchema,
-            outputSchema: tool.outputSchema,
-            ...(tool.annotations && { annotations: tool.annotations }),
-            ...(tool._meta && { _meta: tool._meta }),
-          },
-          handler as ToolCallback<TInputSchema>,
-        );
-
-        logger.notice(`Tool '${tool.name}' registered successfully.`, registrationContext);
-      },
-      {
-        operation: `RegisteringTool_${tool.name}`,
-        context: registrationContext,
-        errorCode: JsonRpcErrorCode.InitializationFailed,
-        critical: true,
-      },
-    );
-  }
-
   /**
    * Registers a task-based tool with the MCP server via the experimental Tasks API.
    * Task tools support long-running async operations with polling for status and results.
@@ -372,8 +308,8 @@ export class ToolRegistry {
           {
             title,
             description: tool.description,
-            inputSchema: tool.inputSchema,
-            ...(tool.outputSchema && { outputSchema: tool.outputSchema }),
+            inputSchema: tool.input,
+            ...(tool.output && { outputSchema: tool.output }),
             ...(tool.annotations && { annotations: tool.annotations }),
             execution: tool.execution,
           },
