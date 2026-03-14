@@ -11,7 +11,7 @@
 
 ## Core Rules
 
-- **Logic throws, framework catches.** Pure, stateless `handler` functions. No `try...catch`. Throw on failure — plain `Error` is fine; the framework catches, classifies, and formats. Use `McpError(code, message, data)` only when you need a specific JSON-RPC error code or structured data payload.
+- **Logic throws, framework catches.** Pure, stateless `handler` functions. No `try...catch`. Throw on failure — plain `Error` is fine; the framework catches, classifies, and formats. Use `McpError(code, message, data, options?)` only when you need a specific JSON-RPC error code or structured data payload. The optional 4th arg accepts `{ cause }` for error chaining.
 - **Full-stack observability.** The framework automatically instruments every tool/resource call — OTel span, duration/payload/memory metrics, structured completion log. Use `ctx.log` for additional domain-specific logging within handlers (external API calls, multi-step operations, business events). `requestId`, `traceId`, `tenantId` auto-correlated. No `console` calls.
 - **Unified Context.** Handlers receive `ctx` with logging (`ctx.log`), tenant-scoped storage (`ctx.state`), optional protocol capabilities (`ctx.elicit`, `ctx.sample`), and cancellation (`ctx.signal`).
 - **Decoupled storage.** `ctx.state` for tenant-scoped KV. Never access persistence backends directly.
@@ -31,15 +31,15 @@
 | `/prompts` | `PromptDefinition` | Prompt definition type |
 | `/tasks` | `TaskToolDefinition`, `isTaskToolDefinition` | Task tool escape hatch |
 | `/errors` | `McpError`, `JsonRpcErrorCode`, `notFound`, `validationError`, `unauthorized`, ... | Error types, codes, and factory functions |
-| `/config` | `AppConfig`, `parseConfig`, `FRAMEWORK_NAME`, `FRAMEWORK_VERSION` | Zod-validated config, framework identity |
+| `/config` | `AppConfig`, `config`, `parseConfig`, `resetConfig`, `ConfigSchema`, `FRAMEWORK_NAME`, `FRAMEWORK_VERSION` | Zod-validated config, framework identity |
 | `/auth` | `checkScopes` | Dynamic scope checking |
 | `/storage` | `StorageService` | Storage abstraction |
 | `/storage/types` | `IStorageProvider` | Provider interface |
-| `/utils` | formatting, encoding, network, pagination, logging, runtime, telemetry, token counting, parsers†, security†, scheduling† | All utilities (†Tier 3: optional peer deps, async) |
+| `/utils` | formatting, encoding, network, pagination, logging, runtime, telemetry, token counting, parsers†, sanitization†, scheduling† | All utilities (†optional peer deps — see below) |
 | `/services` | `OpenRouterProvider`, `SpeechService`, `createSpeechProvider`, `ElevenLabsProvider`, `WhisperProvider`, `GraphService`, provider interfaces and types | LLM, Speech (TTS/STT), Graph services |
 | `/testing` | `createMockContext` | Test helpers |
 
-All subpaths prefixed with `@cyanheads/mcp-ts-core`. **Tier 3 deps** (parsers, security, scheduling) are optional peer dependencies — install as needed. All Tier 3 methods are **async** (lazy-load deps at first call).
+All subpaths prefixed with `@cyanheads/mcp-ts-core`. **†Tier 3 modules** require optional peer dependencies — install as needed. Tier 3 methods that lazy-load deps are **async**. Specifically: **parsers** (CSV → `papaparse`, YAML → `js-yaml`, XML → `fast-xml-parser`, PDF → `pdf-lib`/`unpdf`, date → `chrono-node`, frontmatter → `js-yaml`; JSON parser has no peer dep), **sanitization** (`sanitize-html`, `validator` — other security utils like `RateLimiter` and `IdGenerator` have no peer deps), **scheduling** (`node-cron`).
 
 ### Import conventions
 
@@ -377,7 +377,7 @@ throw new Error('Thing not found');
 const data = MySchema.parse(rawData);
 ```
 
-**Auto-classification:** The framework maps plain `Error` messages to JSON-RPC codes via pattern matching. Resolution order: `McpError` code (preserved as-is) → JS constructor name (`TypeError` → `ValidationError`) → provider patterns (HTTP status codes, AWS errors, DB errors) → common message patterns → `InternalError` fallback.
+**Auto-classification:** The framework maps plain `Error` messages to JSON-RPC codes via pattern matching. Resolution order: `McpError` code (preserved as-is) → JS constructor name (`TypeError` → `ValidationError`) → provider patterns (HTTP status codes, AWS errors, DB errors) → common message patterns → `AbortError` name → `InternalError` fallback.
 
 Common message patterns match these keywords (first match wins):
 
@@ -386,10 +386,13 @@ Common message patterns match these keywords (first match wins):
 | `unauthorized`, `unauthenticated`, `not authorized`, `invalid[_\s-]token`, `expired[_\s-]token` | Unauthorized | "unauthorized access", "invalid_token" |
 | `permission`, `forbidden`, `access denied`, `not allowed` | Forbidden | "permission denied" |
 | `not found`, `no such`, `doesn't exist`, `couldn't find` | NotFound | "resource not found" |
-| `invalid`, `validation`, `malformed`, `bad request`, `missing required/param/field/…` | ValidationError | "invalid input", "missing required field" |
-| `conflict`, `already exists`, `duplicate` | Conflict | "already exists" |
+| `invalid`, `validation`, `malformed`, `bad request`, `wrong format`, `missing required/param/field/…` | ValidationError | "invalid input", "missing required field", "wrong format" |
+| `conflict`, `already exists`, `duplicate`, `unique constraint` | Conflict | "already exists", "unique constraint" |
 | `rate limit`, `too many requests`, `throttled` | RateLimited | "rate limit exceeded" |
 | `timeout`, `timed out`, `deadline exceeded` | Timeout | "request timed out" |
+| `abort`, `aborted`, `cancelled`, `canceled` | Timeout | "request aborted", "operation cancelled" |
+| `service unavailable`, `bad gateway`, `gateway timeout`, `upstream error` | ServiceUnavailable | "service unavailable" |
+| `zod`, `zoderror`, `schema validation` | ValidationError | "ZodError", "schema validation failed" |
 
 Patterns are intentionally narrow to avoid misclassification. If your error message doesn't match a pattern, it falls through to `InternalError`. **Use error factories or `McpError` when the code matters** — they bypass all pattern matching.
 
@@ -430,7 +433,9 @@ throw new McpError(JsonRpcErrorCode.DatabaseError, 'Connection pool exhausted', 
 | `Conflict` | -32002 | Duplicate key, version mismatch |
 | `InitializationFailed` | -32009 | Startup failure |
 | `DatabaseError` | -32010 | Storage layer failure |
+| `SerializationError` | -32070 | Data serialization/deserialization failed |
 | `InternalError` | -32603 | Catch-all for programmer errors |
+| `UnknownError` | -32099 | Generic fallback (rare) |
 
 **Where handled:** Handlers throw (no try/catch) → handler factory catches, classifies (`ZodError` → `ValidationError`, message pattern matching for common cases, `McpError` preserved as-is), normalizes to `isError: true` → services use `ErrorHandler.tryCatch` for recovery.
 
@@ -447,7 +452,7 @@ const myTool = tool('my_tool', {
 });
 ```
 
-Handler factory checks `ctx.auth.scopes` before calling handler. Dynamic scopes via `/auth`:
+Handler factory checks auth scopes (via `AsyncLocalStorage` auth context) before calling handler. Dynamic scopes via `/auth`:
 
 ```ts
 import { checkScopes } from '@cyanheads/mcp-ts-core/auth';

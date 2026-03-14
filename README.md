@@ -37,6 +37,7 @@ That's a complete MCP server. Every tool call is automatically logged with durat
 - **Unified Context** — handlers receive a single `ctx` object with `ctx.log` (request-scoped logging), `ctx.state` (tenant-scoped storage), `ctx.elicit` (user prompting), `ctx.sample` (LLM completion), and `ctx.signal` (cancellation).
 - **Inline auth** — `auth: ['scope']` on definitions. No wrapper functions. Framework checks scopes before calling your handler.
 - **Task tools** — `task: true` flag for long-running operations. Framework manages the full lifecycle (create, poll, progress, complete/fail/cancel).
+- **Structured error handling** — Handlers throw freely; the framework catches, classifies, and formats. Error factories (`notFound()`, `validationError()`, `serviceUnavailable()`, etc.) for precise control when the code matters. Auto-classification from plain `Error` messages when it doesn't.
 - **Multi-backend storage** — `in-memory`, `filesystem`, `Supabase`, `Cloudflare D1/KV/R2`. Swap providers via env var without changing tool logic. Cursor pagination, batch ops, TTL, tenant isolation.
 - **Pluggable auth** — `none`, `jwt`, or `oauth` modes. JWT with local secret or OAuth with JWKS verification.
 - **Observability** — Pino structured logging with optional OpenTelemetry tracing and metrics. Request IDs, trace correlation, tool execution metrics — all automatic.
@@ -178,7 +179,7 @@ Handlers receive a unified `Context` object:
 ```ts
 import { createApp, tool, resource, prompt } from '@cyanheads/mcp-ts-core';
 import { createWorkerHandler } from '@cyanheads/mcp-ts-core/worker';
-import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { McpError, JsonRpcErrorCode, notFound, serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
 import { checkScopes } from '@cyanheads/mcp-ts-core/auth';
 import { markdown, fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils';
 import { OpenRouterProvider, GraphService } from '@cyanheads/mcp-ts-core/services';
@@ -194,7 +195,7 @@ The `examples/` directory contains a reference server consuming core through pub
 | Tool | Pattern |
 |:-----|:--------|
 | `template_echo_message` | Basic tool with `format`, `auth` |
-| `template_cat_fact` | External API call with `fetchWithTimeout` |
+| `template_cat_fact` | External API call, error factories |
 | `template_madlibs_elicitation` | `ctx.elicit` for interactive input |
 | `template_code_review_sampling` | `ctx.sample` for LLM completion |
 | `template_image_test` | Image content blocks |
