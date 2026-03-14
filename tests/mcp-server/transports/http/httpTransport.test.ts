@@ -21,12 +21,15 @@ vi.mock('@/config/index.js', () => ({
     mcpServerDescription: 'Test MCP Server',
     environment: 'test',
     mcpTransportType: 'http',
+    mcpAuthMode: 'none',
     oauthIssuerUrl: '',
     mcpServerResourceIdentifier: '',
     oauthAudience: '',
     oauthJwksUri: '',
     openTelemetry: { enabled: false },
   },
+  FRAMEWORK_NAME: '@cyanheads/mcp-ts-core',
+  FRAMEWORK_VERSION: '0.0.0-test',
 }));
 
 vi.mock('@/mcp-server/transports/auth/authFactory.js', () => ({
