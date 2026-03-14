@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.20] - 2026-03-14
+
+Enriches the `GET /mcp` discovery endpoint with server capability flags, framework identity, and auth mode. Threads definition counts from `composeServices` through the transport layer.
+
+### Added
+
+- **`src/mcp-server/transports/http/httpTypes.ts`**: New `DefinitionCounts` interface tracking registered prompts, resources, and tools.
+- **`src/config/index.ts`**: Exported `FRAMEWORK_NAME` and `FRAMEWORK_VERSION` constants sourced from the package's own `package.json`.
+- **`GET /mcp` response**: Now includes `capabilities` (logging, prompts, resources, tools), `framework` (name, version), and `auth` (mode) fields.
+- **`tests/fixtures/index.ts`**: `defaultDefinitionCounts` fixture for tests requiring a `DefinitionCounts` value.
+
+### Changed
+
+- **`src/app.ts`**: `composeServices()` returns `definitionCounts`; `createApp()` passes it to `TransportManager`.
+- **`src/mcp-server/transports/manager.ts`**: `TransportManager` constructor accepts `DefinitionCounts` and forwards it to `startHttpTransport`.
+- **`src/mcp-server/transports/http/httpTransport.ts`**: `createHttpApp` and `startHttpTransport` accept `DefinitionCounts` parameter.
+- **`src/worker.ts`**: Worker handler passes `definitionCounts` to `createHttpApp`.
+- **Tests updated**: All `createHttpApp` and `TransportManager` call sites updated with `defaultCounts` fixture across unit and integration tests.
+
+---
+
 ## [0.1.0-beta.19] - 2026-03-14
 
 Eliminates the "legacy vs new-style" definition split — merges all `new*Definition` and `new*HandlerFactory` modules into their original counterparts. One definition type, one handler factory, one registration path per primitive. Adds context and mock-context fidelity tests. Pins all `latest` devDependencies to specific versions.
