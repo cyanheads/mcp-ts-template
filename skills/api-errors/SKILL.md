@@ -24,35 +24,40 @@ import { ErrorHandler } from '@cyanheads/mcp-ts-core/utils';
 
 ## Error Factories (Preferred)
 
-Ergonomic factory functions — shorter than `new McpError(...)` and self-documenting. All return `McpError` instances.
+Ergonomic factory functions — shorter than `new McpError(...)` and self-documenting. All return `McpError` instances. All accept an optional `options` parameter for error chaining via `{ cause }`.
 
 ```ts
 throw notFound('Item not found', { itemId: '123' });
 throw validationError('Missing required field: name', { field: 'name' });
 throw unauthorized('Token expired');
+
+// With cause for error chaining
+throw serviceUnavailable('API call failed', { url }, { cause: error });
 ```
 
 **Available factories:**
 
 | Factory | Code |
 |:--------|:-----|
-| `invalidParams(msg, data?)` | InvalidParams (-32602) |
-| `invalidRequest(msg, data?)` | InvalidRequest (-32600) |
-| `notFound(msg, data?)` | NotFound (-32001) |
-| `forbidden(msg, data?)` | Forbidden (-32005) |
-| `unauthorized(msg, data?)` | Unauthorized (-32006) |
-| `validationError(msg, data?)` | ValidationError (-32007) |
-| `conflict(msg, data?)` | Conflict (-32002) |
-| `rateLimited(msg, data?)` | RateLimited (-32003) |
-| `timeout(msg, data?)` | Timeout (-32004) |
-| `serviceUnavailable(msg, data?)` | ServiceUnavailable (-32000) |
-| `configurationError(msg, data?)` | ConfigurationError (-32008) |
+| `invalidParams(msg, data?, options?)` | InvalidParams (-32602) |
+| `invalidRequest(msg, data?, options?)` | InvalidRequest (-32600) |
+| `notFound(msg, data?, options?)` | NotFound (-32001) |
+| `forbidden(msg, data?, options?)` | Forbidden (-32005) |
+| `unauthorized(msg, data?, options?)` | Unauthorized (-32006) |
+| `validationError(msg, data?, options?)` | ValidationError (-32007) |
+| `conflict(msg, data?, options?)` | Conflict (-32002) |
+| `rateLimited(msg, data?, options?)` | RateLimited (-32003) |
+| `timeout(msg, data?, options?)` | Timeout (-32004) |
+| `serviceUnavailable(msg, data?, options?)` | ServiceUnavailable (-32000) |
+| `configurationError(msg, data?, options?)` | ConfigurationError (-32008) |
+
+`options` is `{ cause?: unknown }` — the standard ES2022 `ErrorOptions` type.
 
 ---
 
 ## McpError Constructor
 
-For codes not covered by factories, or when you need `cause` chaining:
+For codes not covered by factories (InternalError, DatabaseError, etc.):
 
 ```ts
 throw new McpError(code, message?, data?, options?)

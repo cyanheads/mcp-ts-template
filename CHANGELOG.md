@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.24] - 2026-03-14
+
+Adds `{ cause }` support to all error factory functions, migrates the entire codebase from verbose `new McpError(JsonRpcErrorCode.X, ...)` to concise factory calls, and refactors `checkScopes` to read directly from `ctx.auth`.
+
+### Added
+
+- **`src/types-global/errors.ts`**: `ErrorFactoryOptions` type alias (ES2022 `ErrorOptions`) and optional third `options` parameter on all 11 error factory functions, enabling `{ cause }` error chaining.
+- **`tests/types-global/errors.test.ts`**: Tests for `cause` pass-through on factory functions (with and without `data`).
+
+### Changed
+
+- **Codebase-wide error factory migration**: Replaced `new McpError(JsonRpcErrorCode.X, message, data)` with corresponding factory calls (`configurationError()`, `invalidParams()`, `notFound()`, `forbidden()`, `unauthorized()`, `validationError()`, `serviceUnavailable()`, `timeout()`, `rateLimited()`, `invalidRequest()`, `conflict()`) across ~40 files. Net reduction of ~110 lines.
+- **`src/mcp-server/transports/auth/lib/checkScopes.ts`**: Refactored to read scopes directly from `ctx.auth` instead of delegating through `withRequiredScopes` and AsyncLocalStorage. Simpler, more direct scope checking.
+- **`src/services/speech/providers/elevenlabs.provider.ts`**, **`whisper.provider.ts`**: Changed catch-all `InternalError` throws to `serviceUnavailable()` with `{ cause }` for external API failures.
+- **`src/services/llm/providers/openrouter.provider.ts`**: Changed client construction error to `configurationError()` with `{ cause }`.
+- **`src/mcp-server/tasks/core/storageBackedTaskStore.ts`**: Changed "task not found" errors from `InvalidRequest` to `notFound()` for semantic correctness.
+
+### Documentation
+
+- **`CLAUDE.md`**: Updated version to beta.24, revised error factory signatures to show `options?` parameter, updated examples with `{ cause }` usage.
+- **`skills/api-errors/SKILL.md`**: Updated factory table signatures and added `cause` example.
+- **`src/mcp-server/README.md`**, **`src/services/README.md`**, **`src/storage/README.md`**: Updated error examples to use factory functions.
+
+---
+
 ## [0.1.0-beta.23] - 2026-03-14
 
 Adds error factory functions for ergonomic error creation, expands the Context state API with generic typing and batch operations, and tightens error pattern matching to prevent misclassification.

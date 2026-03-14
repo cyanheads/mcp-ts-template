@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.0-beta.23
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.0-beta.24
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -399,16 +399,18 @@ Patterns are intentionally narrow to avoid misclassification. If your error mess
 **Error factories (preferred):** Shorter than `new McpError(...)` and self-documenting. Available from `@cyanheads/mcp-ts-core/errors`:
 
 ```ts
-import { notFound, validationError, unauthorized } from '@cyanheads/mcp-ts-core/errors';
+import { notFound, validationError, serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
 
 throw notFound('Item not found', { itemId: '123' });
 throw validationError('Missing required field: name', { field: 'name' });
-throw unauthorized('Token expired');
+
+// With cause for error chaining
+throw serviceUnavailable('API call failed', { url }, { cause: error });
 ```
 
-Available factories: `invalidParams`, `invalidRequest`, `notFound`, `forbidden`, `unauthorized`, `validationError`, `conflict`, `rateLimited`, `timeout`, `serviceUnavailable`, `configurationError`. All return `McpError` instances.
+Available factories: `invalidParams`, `invalidRequest`, `notFound`, `forbidden`, `unauthorized`, `validationError`, `conflict`, `rateLimited`, `timeout`, `serviceUnavailable`, `configurationError`. All accept `(message, data?, options?)` where `options` is `{ cause?: unknown }`. All return `McpError` instances.
 
-**`McpError` (full control):** For cases needing a code not covered by factories:
+**`McpError` (full control):** For codes not covered by factories (InternalError, DatabaseError, etc.):
 
 ```ts
 import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
@@ -452,7 +454,7 @@ const myTool = tool('my_tool', {
 });
 ```
 
-Handler factory checks auth scopes (via `AsyncLocalStorage` auth context) before calling handler. Dynamic scopes via `/auth`:
+Handler factory checks auth scopes before calling handler. Dynamic scopes via `/auth`:
 
 ```ts
 import { checkScopes } from '@cyanheads/mcp-ts-core/auth';
