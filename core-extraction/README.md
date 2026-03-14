@@ -38,10 +38,6 @@ This directory contains the living plan for extracting the infrastructure layer 
 | 3 | Repo transformation (the extraction) | **Complete** (JSDoc accuracy check + conformance harness deferred to post-publish) |
 | 4 | Validate with examples | **Complete** — 7 test files, 39 tests; all subpath exports verified; integration tests updated |
 | 5 | Publish `@cyanheads/mcp-ts-core@0.1.0` | Not started — ⚠️ requires user action |
-| 6 | Create thin `mcp-ts-template` reference repo | Not started — ⚠️ requires user action (GitHub rename, npm deprecation) |
-| 7 | Migrate downstream servers | Not started |
-| 8 | Cut 1.0 | Not started — ⚠️ requires user action (npm publish, Docker push) |
-| 9 | Build `create-mcp-server` (deferred) | Not started |
 
 ## Audience
 

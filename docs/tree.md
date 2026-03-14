@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-03-14 19:21:41
+Generated on: 2026-03-14 22:17:09
 
 ```
 mcp-ts-template/
@@ -136,6 +136,10 @@ mcp-ts-template/
 │   │   └── init.ts
 │   ├── config/
 │   │   └── index.ts
+│   ├── core/
+│   │   ├── app.ts
+│   │   ├── context.ts
+│   │   └── worker.ts
 │   ├── mcp-server/
 │   │   ├── prompts/
 │   │   │   ├── utils/
@@ -186,7 +190,6 @@ mcp-ts-template/
 │   │   │   │   └── stdioTransport.ts
 │   │   │   ├── ITransport.ts
 │   │   │   └── manager.ts
-│   │   ├── README.md
 │   │   └── server.ts
 │   ├── services/
 │   │   ├── graph/
@@ -209,27 +212,25 @@ mcp-ts-template/
 │   │   │   │   ├── elevenlabs.provider.ts
 │   │   │   │   └── whisper.provider.ts
 │   │   │   └── types.ts
-│   │   ├── index.ts
-│   │   └── README.md
+│   │   └── index.ts
 │   ├── storage/
 │   │   ├── core/
 │   │   │   ├── IStorageProvider.ts
 │   │   │   ├── storageFactory.ts
 │   │   │   ├── StorageService.ts
 │   │   │   └── storageValidation.ts
-│   │   ├── providers/
-│   │   │   ├── cloudflare/
-│   │   │   │   ├── d1Provider.ts
-│   │   │   │   ├── kvProvider.ts
-│   │   │   │   └── r2Provider.ts
-│   │   │   ├── fileSystem/
-│   │   │   │   └── fileSystemProvider.ts
-│   │   │   ├── inMemory/
-│   │   │   │   └── inMemoryProvider.ts
-│   │   │   └── supabase/
-│   │   │       ├── supabase.types.ts
-│   │   │       └── supabaseProvider.ts
-│   │   └── README.md
+│   │   └── providers/
+│   │       ├── cloudflare/
+│   │       │   ├── d1Provider.ts
+│   │       │   ├── kvProvider.ts
+│   │       │   └── r2Provider.ts
+│   │       ├── fileSystem/
+│   │       │   └── fileSystemProvider.ts
+│   │       ├── inMemory/
+│   │       │   └── inMemoryProvider.ts
+│   │       └── supabase/
+│   │           ├── supabase.types.ts
+│   │           └── supabaseProvider.ts
 │   ├── testing/
 │   │   └── index.ts
 │   ├── types-global/
@@ -287,10 +288,7 @@ mcp-ts-template/
 │   │   │   ├── guards.ts
 │   │   │   └── index.ts
 │   │   └── index.ts
-│   ├── app.ts
-│   ├── context.ts
-│   ├── index.ts
-│   └── worker.ts
+│   └── index.ts
 ├── templates/
 │   ├── src/
 │   │   ├── mcp-server/
