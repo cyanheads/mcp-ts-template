@@ -14,7 +14,7 @@ import {
   type NewPromptDefinition,
 } from '@/mcp-server/prompts/utils/newPromptDefinition.js';
 import type { PromptDefinition } from '@/mcp-server/prompts/utils/promptDefinition.js';
-import { JsonRpcErrorCode } from '@/types-global/errors.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { logger as defaultLogger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
@@ -91,11 +91,21 @@ export class PromptRegistry {
             }),
           },
           async (args: Record<string, unknown>) => {
-            const validatedArgs = promptDef.args ? promptDef.args.parse(args) : args;
-            const messages = await promptDef.generate(
-              validatedArgs as Parameters<typeof promptDef.generate>[0],
-            );
-            return { messages };
+            try {
+              const validatedArgs = promptDef.args ? promptDef.args.parse(args) : args;
+              const messages = await promptDef.generate(
+                validatedArgs as Parameters<typeof promptDef.generate>[0],
+              );
+              return { messages };
+            } catch (error: unknown) {
+              const handled = ErrorHandler.handleError(error, {
+                operation: `prompt:${promptDef.name}`,
+                context,
+              });
+              throw handled instanceof McpError
+                ? handled
+                : new McpError(JsonRpcErrorCode.InternalError, handled.message);
+            }
           },
         );
 
@@ -131,13 +141,23 @@ export class PromptRegistry {
             }),
           },
           async (args: Record<string, unknown>) => {
-            const validatedArgs = promptDef.argumentsSchema
-              ? promptDef.argumentsSchema.parse(args)
-              : args;
-            const messages = await promptDef.generate(
-              validatedArgs as Parameters<typeof promptDef.generate>[0],
-            );
-            return { messages };
+            try {
+              const validatedArgs = promptDef.argumentsSchema
+                ? promptDef.argumentsSchema.parse(args)
+                : args;
+              const messages = await promptDef.generate(
+                validatedArgs as Parameters<typeof promptDef.generate>[0],
+              );
+              return { messages };
+            } catch (error: unknown) {
+              const handled = ErrorHandler.handleError(error, {
+                operation: `prompt:${promptDef.name}`,
+                context,
+              });
+              throw handled instanceof McpError
+                ? handled
+                : new McpError(JsonRpcErrorCode.InternalError, handled.message);
+            }
           },
         );
 
