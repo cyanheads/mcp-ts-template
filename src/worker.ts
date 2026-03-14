@@ -2,8 +2,11 @@
  * @fileoverview Cloudflare Worker entry point factory. `createWorkerHandler()`
  * returns a standard Workers export object (`{ fetch, scheduled }`) that handles
  * env injection, binding storage, singleton init caching, per-request server
- * creation (GHSA-345p-7cg4-v4c7), error responses, and telemetry flush via
- * `ctx.waitUntil()`.
+ * creation (GHSA-345p-7cg4-v4c7), and error responses.
+ *
+ * Note: OpenTelemetry `NodeSDK` is unavailable in Workers (`canUseNodeSDK()`
+ * returns false), so no telemetry flush is needed. If a Worker-compatible OTEL
+ * exporter is added in the future, `ctx.waitUntil()` should be wired for flush.
  * @module src/worker
  */
 import type {
@@ -139,7 +142,7 @@ function storeBindings(env: CloudflareBindings, extraBindings?: Array<[string, s
 /**
  * Returns a standard Cloudflare Workers export object (`{ fetch, scheduled }`).
  * Handles env injection, binding storage, singleton init caching, per-request
- * server creation, error responses, and telemetry flush via `ctx.waitUntil()`.
+ * server creation, and error responses.
  */
 export function createWorkerHandler(options: WorkerHandlerOptions = {}) {
   const { extraEnvBindings, extraObjectBindings, onScheduled, ...appOptions } = options;
