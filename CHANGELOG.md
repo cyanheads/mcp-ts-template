@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.0-beta.19] - 2026-03-14
+
+Eliminates the "legacy vs new-style" definition split — merges all `new*Definition` and `new*HandlerFactory` modules into their original counterparts. One definition type, one handler factory, one registration path per primitive. Adds context and mock-context fidelity tests. Pins all `latest` devDependencies to specific versions.
+
+### Added
+
+- **`tests/context.test.ts`**: Comprehensive tests for `createContext()` — field assembly, tenant defaulting, `ctx.log` correlation, `ctx.state` scoping, `ctx.progress` lifecycle, and optional capability wiring.
+- **`tests/testing/mockContextFidelity.test.ts`**: Fidelity tests comparing `createMockContext()` against real `createContext()`, documenting known divergences and ensuring behavioral equivalence.
+
+### Changed
+
+- **Tool definitions consolidated**: Merged `newToolDefinition.ts` into `toolDefinition.ts` — `ToolDefinition` now uses `handler(input, ctx)` / `input` / `output` / `format` / `auth` fields directly. `tool()` builder exported from `toolDefinition.ts`. Removed the `New` prefix from all type names (`AnyNewToolDefinition` → `AnyToolDefinition`, `NewToolDefinition` → `ToolDefinition`).
+- **Tool handler factory consolidated**: Merged `newToolHandlerFactory.ts` into `toolHandlerFactory.ts` — single `createToolHandler()` function (was `createNewToolHandler` + `createMcpToolHandler`).
+- **Resource definitions consolidated**: Merged `newResourceDefinition.ts` into `resourceDefinition.ts` — `ResourceDefinition` now uses `handler(params, ctx)` / `params` / `auth` / `format` / `list` fields directly. `resource()` builder exported from `resourceDefinition.ts`.
+- **Resource handler factory consolidated**: Merged `newResourceHandlerFactory.ts` into `resourceHandlerFactory.ts` — single handler factory, no legacy path.
+- **Prompt definitions consolidated**: Merged `newPromptDefinition.ts` into `promptDefinition.ts` — `PromptDefinition` now uses `generate(args)` / `args` fields directly. `prompt()` builder exported from `promptDefinition.ts`.
+- **Registration files simplified**: `tool-registration.ts`, `resource-registration.ts`, and `prompt-registration.ts` no longer branch on "legacy vs new-style" — one code path per primitive. Removed `isNewToolDefinition`, `isNewResourceDefinition`, `isNewPromptDefinition` type guards.
+- **`src/app.ts`**: Re-exports updated from `New*` prefixed types to canonical names. `CreateAppOptions` uses `AnyToolDefinition`, `AnyResourceDefinition`, `AnyPromptDefinition` directly.
+- **`src/mcp-server/tasks/utils/taskToolDefinition.ts`**: `TaskToolDefinition` references updated from legacy `ToolDefinition` fields to current interface.
+- **`package.json` exports**: `./tools` now points to `toolDefinition.ts` (was `newToolDefinition.ts`). `./resources` points to `resourceDefinition.ts` (was `newResourceDefinition.ts`). `./prompts` points to `promptDefinition.ts` (was `newPromptDefinition.ts`).
+- **Vitest configs**: Replaced `vite-tsconfig-paths` plugin with native `resolve: { tsconfigPaths: true }` across `vitest.config.ts`, `vitest.config.base.ts`, and `vitest.integration.ts`.
+- **`tests/setup.ts`**: Removed `IS_INTEGRATION` conditional — mocks now apply unconditionally (integration tests use a separate config with no `setupFiles`). Cleaned up comments.
+- **`package.json` devDependencies**: Pinned all `latest` specifiers to explicit versions — `@hono/otel` ^1.1.1, `@opentelemetry/*` ^0.213.0/^2.6.0/^1.40.0, `@supabase/supabase-js` ^2.99.1, `chrono-node` ^2.9.0, `node-cron` ^4.2.1, `openai` ^6.29.0, `papaparse` ^5.5.3, `partial-json` ^0.1.7, `pdf-lib` ^1.17.1, `sanitize-html` ^2.17.0, `unpdf` ^1.4.0, `validator` ^13.15.0. Removed `vite-tsconfig-paths`.
+- **Documentation**: Updated `docs/conformance-test-plan.md`, `docs/tree.md`, `src/mcp-server/README.md`, `skills/api-testing/SKILL.md`, `skills/migrate-mcp-ts-template/SKILL.md`, and `src/cli/init.ts` to reflect consolidated module names.
+- **Tests updated**: All tool, resource, and prompt registration/definition/handler tests rewritten against the unified types. Removed references to `New*` prefixed types and legacy `inputSchema`/`logic`/`responseFormatter` fields.
+
+### Removed
+
+- **`src/mcp-server/tools/utils/newToolDefinition.ts`**: Consolidated into `toolDefinition.ts`.
+- **`src/mcp-server/tools/utils/newToolHandlerFactory.ts`**: Consolidated into `toolHandlerFactory.ts`.
+- **`src/mcp-server/resources/utils/newResourceDefinition.ts`**: Consolidated into `resourceDefinition.ts`.
+- **`src/mcp-server/resources/utils/newResourceHandlerFactory.ts`**: Consolidated into `resourceHandlerFactory.ts`.
+- **`src/mcp-server/prompts/utils/newPromptDefinition.ts`**: Consolidated into `promptDefinition.ts`.
+- **`src/mcp-server/transports/auth/lib/withAuth.ts`**: HOF auth wrapper removed — auth is now inline on definitions via `auth: ['scope']`.
+- **`tests/mcp-server/tools/toolHandlerFactory.test.ts`**: Legacy handler factory tests (superseded by `tools/utils/toolHandlerFactory.test.ts`).
+- **`tests/mcp-server/tools/utils/toolDefinition.test.ts`**: Legacy definition tests (superseded by consolidated `toolDefinition.test.ts` coverage in handler tests).
+- **`tests/mcp-server/transports/auth/lib/withAuth.test.ts`**: Tests for removed `withAuth` HOF.
+- **`tests/fixtures/index.ts`**: Unused test fixtures barrel.
+- **`vite-tsconfig-paths`**: Replaced by native Vitest `resolve.tsconfigPaths`.
+
+---
+
 ## [0.1.0-beta.18] - 2026-03-14
 
 Adds error handling to prompt registration callbacks, expands HTTP error status mappings, and corrects Worker JSDoc.

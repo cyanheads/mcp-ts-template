@@ -48,12 +48,9 @@ These are the actual `@/` import paths used in framework source. Rewrite any tha
 
 | Old `@/` import | New package import |
 |:----------------|:-------------------|
-| `@/mcp-server/tools/utils/toolDefinition.js` | `@cyanheads/mcp-ts-core/tools` |
-| `@/mcp-server/tools/utils/newToolDefinition.js` | `@cyanheads/mcp-ts-core/tools` or `@cyanheads/mcp-ts-core` (for `tool()` builder) |
-| `@/mcp-server/resources/utils/resourceDefinition.js` | `@cyanheads/mcp-ts-core/resources` |
-| `@/mcp-server/resources/utils/newResourceDefinition.js` | `@cyanheads/mcp-ts-core/resources` or `@cyanheads/mcp-ts-core` (for `resource()` builder) |
-| `@/mcp-server/prompts/utils/promptDefinition.js` | `@cyanheads/mcp-ts-core/prompts` |
-| `@/mcp-server/prompts/utils/newPromptDefinition.js` | `@cyanheads/mcp-ts-core/prompts` or `@cyanheads/mcp-ts-core` (for `prompt()` builder) |
+| `@/mcp-server/tools/utils/toolDefinition.js` | `@cyanheads/mcp-ts-core/tools` or `@cyanheads/mcp-ts-core` (for `tool()` builder) |
+| `@/mcp-server/resources/utils/resourceDefinition.js` | `@cyanheads/mcp-ts-core/resources` or `@cyanheads/mcp-ts-core` (for `resource()` builder) |
+| `@/mcp-server/prompts/utils/promptDefinition.js` | `@cyanheads/mcp-ts-core/prompts` or `@cyanheads/mcp-ts-core` (for `prompt()` builder) |
 | `@/mcp-server/tasks/utils/taskToolDefinition.js` | `@cyanheads/mcp-ts-core/tasks` |
 
 ### Utils

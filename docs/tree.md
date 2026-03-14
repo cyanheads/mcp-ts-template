@@ -135,13 +135,10 @@ mcp-ts-template/
 │   ├── mcp-server/
 │   │   ├── prompts/
 │   │   │   ├── utils/
-│   │   │   │   ├── newPromptDefinition.ts
 │   │   │   │   └── promptDefinition.ts
 │   │   │   └── prompt-registration.ts
 │   │   ├── resources/
 │   │   │   ├── utils/
-│   │   │   │   ├── newResourceDefinition.ts
-│   │   │   │   ├── newResourceHandlerFactory.ts
 │   │   │   │   ├── resourceDefinition.ts
 │   │   │   │   └── resourceHandlerFactory.ts
 │   │   │   └── resource-registration.ts
@@ -157,8 +154,6 @@ mcp-ts-template/
 │   │   │       └── taskToolDefinition.ts
 │   │   ├── tools/
 │   │   │   ├── utils/
-│   │   │   │   ├── newToolDefinition.ts
-│   │   │   │   ├── newToolHandlerFactory.ts
 │   │   │   │   ├── toolDefinition.ts
 │   │   │   │   └── toolHandlerFactory.ts
 │   │   │   └── tool-registration.ts

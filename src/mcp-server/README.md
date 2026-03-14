@@ -334,21 +334,18 @@ Location: [prompts/definitions/](prompts/definitions/)
  */
 
 import { z } from 'zod';
-import { PromptDefinition } from '../utils/promptDefinition.js';
+import { prompt } from '@cyanheads/mcp-ts-core';
 
-const ArgumentsSchema = z.object({
-  language: z
-    .string()
-    .optional()
-    .describe('Programming language of the code to review'),
-  focus: z.string().optional().describe('Primary focus area for the review'),
-});
-
-export const codeReviewPrompt: PromptDefinition<typeof ArgumentsSchema> = {
-  name: 'code_review',
+export const codeReviewPrompt = prompt('code_review', {
   description:
     'Generates a structured code review prompt for analyzing code quality',
-  argumentsSchema: ArgumentsSchema,
+  args: z.object({
+    language: z
+      .string()
+      .optional()
+      .describe('Programming language of the code to review'),
+    focus: z.string().optional().describe('Primary focus area for the review'),
+  }),
 
   generate: (args) => {
     const focus = args.focus || 'general';
@@ -362,7 +359,7 @@ export const codeReviewPrompt: PromptDefinition<typeof ArgumentsSchema> = {
       },
     ];
   },
-};
+});
 ```
 
 ---
