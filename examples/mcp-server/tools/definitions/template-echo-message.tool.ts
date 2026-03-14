@@ -4,9 +4,7 @@
  * @module examples/mcp-server/tools/definitions/template-echo-message.tool
  */
 
-import { z } from 'zod';
-
-import { tool } from '@cyanheads/mcp-ts-core';
+import { tool, z } from '@cyanheads/mcp-ts-core';
 import { markdown } from '@cyanheads/mcp-ts-core/utils';
 
 /** Special input which deliberately triggers a failure for testing. */

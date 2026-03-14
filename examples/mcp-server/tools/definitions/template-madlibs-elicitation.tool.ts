@@ -4,9 +4,7 @@
  * @module examples/mcp-server/tools/definitions/template-madlibs-elicitation.tool
  */
 
-import { z } from 'zod';
-
-import { type Context, tool } from '@cyanheads/mcp-ts-core';
+import { type Context, tool, z } from '@cyanheads/mcp-ts-core';
 
 const InputSchema = z.object({
   noun: z.string().optional().describe('A noun for the story.'),

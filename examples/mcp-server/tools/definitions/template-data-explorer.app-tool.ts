@@ -11,9 +11,7 @@
  */
 
 import { RESOURCE_URI_META_KEY } from '@modelcontextprotocol/ext-apps/server';
-import { z } from 'zod';
-
-import { tool } from '@cyanheads/mcp-ts-core';
+import { tool, z } from '@cyanheads/mcp-ts-core';
 
 /** The UI Resource URI that hosts will fetch and render as a sandboxed iframe. */
 const UI_RESOURCE_URI = 'ui://template-data-explorer/app.html';

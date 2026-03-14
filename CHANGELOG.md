@@ -18,6 +18,8 @@ Re-exports `z` from the main entry point so consumers never need a separate `zod
 - **`CLAUDE.md`**: Exports table includes `z`. All code examples (tool, resource, prompt) updated to single-import pattern. Import conventions section updated.
 - **`skills/add-tool/SKILL.md`**, **`skills/add-resource/SKILL.md`**, **`skills/add-prompt/SKILL.md`**: Template imports updated to single-import pattern.
 - **`skills/api-config/SKILL.md`**: Server config example imports `z` from `@cyanheads/mcp-ts-core`.
+- **Examples**: All tool, resource, and prompt definitions migrated to single-import pattern (`import { tool, z } from '@cyanheads/mcp-ts-core'` instead of separate `zod` import).
+- **Templates**: All scaffolded definitions migrated to single-import pattern. Removed unnecessary inline comments and unused `ctx` parameter from simple echo handlers. Updated `CLAUDE.md` import conventions section.
 
 ---
 

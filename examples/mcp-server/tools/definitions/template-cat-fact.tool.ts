@@ -4,9 +4,7 @@
  * @module examples/mcp-server/tools/definitions/template-cat-fact.tool
  */
 
-import { z } from 'zod';
-
-import { tool } from '@cyanheads/mcp-ts-core';
+import { tool, z } from '@cyanheads/mcp-ts-core';
 import { fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils';
 
 const CAT_FACT_API_URL = 'https://catfact.ninja/fact';

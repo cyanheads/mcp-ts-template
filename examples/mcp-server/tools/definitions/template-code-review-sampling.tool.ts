@@ -4,9 +4,7 @@
  * @module examples/mcp-server/tools/definitions/template-code-review-sampling.tool
  */
 
-import { z } from 'zod';
-
-import { tool } from '@cyanheads/mcp-ts-core';
+import { tool, z } from '@cyanheads/mcp-ts-core';
 
 const InputSchema = z.object({
   code: z

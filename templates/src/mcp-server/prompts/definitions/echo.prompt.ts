@@ -3,8 +3,7 @@
  * @module mcp-server/prompts/definitions/echo.prompt
  */
 
-import { z } from 'zod';
-import { prompt } from '@cyanheads/mcp-ts-core';
+import { prompt, z } from '@cyanheads/mcp-ts-core';
 
 // Prompts are pure message templates — no Context, no auth, no side effects.
 // They generate conversation messages that clients can use to start interactions.

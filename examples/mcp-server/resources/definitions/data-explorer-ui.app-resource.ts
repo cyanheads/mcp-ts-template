@@ -8,9 +8,7 @@
  * @module examples/mcp-server/resources/definitions/data-explorer-ui.app-resource
  */
 import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
-import { z } from 'zod';
-
-import { resource } from '@cyanheads/mcp-ts-core';
+import { resource, z } from '@cyanheads/mcp-ts-core';
 
 const ParamsSchema = z.object({}).describe('No parameters. Returns the static HTML app.');
 

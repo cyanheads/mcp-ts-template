@@ -3,14 +3,13 @@
  * @module mcp-server/resources/definitions/echo.resource
  */
 
-import { z } from 'zod';
-import { resource } from '@cyanheads/mcp-ts-core';
+import { resource, z } from '@cyanheads/mcp-ts-core';
 
 // Resource URI templates use RFC 6570 syntax. Params are extracted from {placeholders}.
 // Like tools, prefix names with your server name: template-echo, tasks-status, etc.
 export const echoResource = resource('echo://{message}', {
   name: 'template-echo-resource',
-  description: 'Echoes a message from the URI. Replace this with your first real resource.', // Descriptions help the LLM decide when to read this resource.
+  description: 'Echoes a message from the URI. Replace this with your first real resource.',
   mimeType: 'application/json',
   params: z.object({
     message: z.string().describe('The message to echo back.'),
@@ -19,12 +18,11 @@ export const echoResource = resource('echo://{message}', {
     message: z.string().describe('The echoed message.'),
   }),
 
-  handler(params, ctx) {
-    ctx.log.info('Echoing resource', { message: params.message });
+  handler(params) {
     return { message: params.message };
   },
 
   list: () => ({
-    resources: [{ uri: 'echo://hello', name: 'Echo Hello' }], // Static discovery — clients call list to find available resources.
+    resources: [{ uri: 'echo://hello', name: 'Echo Hello' }],
   }),
 });

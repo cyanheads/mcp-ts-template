@@ -2,9 +2,7 @@
  * @fileoverview Code review prompt template demonstrating MCP prompts capability.
  * @module examples/mcp-server/prompts/definitions/code-review.prompt
  */
-import { z } from 'zod';
-
-import { prompt } from '@cyanheads/mcp-ts-core';
+import { prompt, z } from '@cyanheads/mcp-ts-core';
 
 export const codeReviewPrompt = prompt('code_review', {
   description:

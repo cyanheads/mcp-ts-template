@@ -4,9 +4,7 @@
  * @module examples/mcp-server/tools/definitions/template-image-test.tool
  */
 
-import { z } from 'zod';
-
-import { tool } from '@cyanheads/mcp-ts-core';
+import { tool, z } from '@cyanheads/mcp-ts-core';
 import { arrayBufferToBase64, fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils';
 
 const CAT_API_URL = 'https://cataas.com/cat';

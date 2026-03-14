@@ -97,8 +97,8 @@ When you complete a skill's checklist, check the boxes and add a completion time
 ## Imports
 
 ```ts
-// Framework — from node_modules
-import { tool } from '@cyanheads/mcp-ts-core';
+// Framework — z is re-exported, no separate zod import needed
+import { tool, z } from '@cyanheads/mcp-ts-core';
 import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
 // Server's own code — via path alias

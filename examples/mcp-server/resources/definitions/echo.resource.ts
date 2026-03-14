@@ -3,9 +3,7 @@
  * Returns a simple echo of the message from the URI template parameter.
  * @module examples/mcp-server/resources/definitions/echo.resource
  */
-import { z } from 'zod';
-
-import { resource } from '@cyanheads/mcp-ts-core';
+import { resource, z } from '@cyanheads/mcp-ts-core';
 
 const ParamsSchema = z
   .object({
