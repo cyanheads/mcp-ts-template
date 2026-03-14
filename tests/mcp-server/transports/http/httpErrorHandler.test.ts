@@ -13,6 +13,10 @@ import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 vi.mock('@/config/index.js', () => ({
   config: {
     mcpServerName: 'test-server',
+    openTelemetry: {
+      serviceName: 'test-server',
+      serviceVersion: '0.0.0',
+    },
   },
 }));
 

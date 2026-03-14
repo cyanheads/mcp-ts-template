@@ -4,7 +4,6 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { config as configType } from '@/config/index.js';
-import type { StorageBackedTaskStore } from '@/mcp-server/tasks/core/storageBackedTaskStore.js';
 import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { StorageService } from '@/storage/core/StorageService.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
@@ -111,11 +110,14 @@ describe('TaskManager', () => {
       expect(taskManager.getTaskCount()).toBeNull();
     });
 
-    it('should return a TaskStore that is StorageBackedTaskStore', () => {
+    it('should return a TaskStore wrapping StorageBackedTaskStore', () => {
       const store = taskManager.getTaskStore();
       expect(store).toBeDefined();
-      // StorageBackedTaskStore has deleteTask method that InMemoryTaskStore doesn't
-      expect(typeof (store as StorageBackedTaskStore).deleteTask).toBe('function');
+      // The store is wrapped in InstrumentedTaskStore, so we verify via storeType
+      expect(taskManager.getStoreType()).toBe('storage');
+      // Standard TaskStore methods should be present
+      expect(typeof store.createTask).toBe('function');
+      expect(typeof store.getTask).toBe('function');
     });
   });
 
