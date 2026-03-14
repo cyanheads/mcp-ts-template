@@ -11,6 +11,7 @@ import type { AnyPromptDefinition } from '@/mcp-server/prompts/utils/promptDefin
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { logger as defaultLogger } from '@/utils/internal/logger.js';
+import { measurePromptGeneration } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
 export class PromptRegistry {
@@ -56,8 +57,12 @@ export class PromptRegistry {
           async (args: Record<string, unknown>) => {
             try {
               const validatedArgs = promptDef.args ? promptDef.args.parse(args) : args;
-              const messages = await promptDef.generate(
-                validatedArgs as Parameters<typeof promptDef.generate>[0],
+              const messages = await measurePromptGeneration(
+                () =>
+                  Promise.resolve(
+                    promptDef.generate(validatedArgs as Parameters<typeof promptDef.generate>[0]),
+                  ),
+                { ...context, promptName: promptDef.name },
               );
               return { messages };
             } catch (error: unknown) {

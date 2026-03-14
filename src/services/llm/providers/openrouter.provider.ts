@@ -19,9 +19,25 @@ import type { ILlmProvider, OpenRouterChatParams } from '@/services/llm/core/ILl
 import { configurationError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { logger as LoggerType } from '@/utils/internal/logger.js';
+import { nowMs } from '@/utils/internal/performance.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import type { RateLimiter } from '@/utils/security/rateLimiter.js';
 import { sanitization } from '@/utils/security/sanitization.js';
+import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
+import {
+  ATTR_GEN_AI_REQUEST_MAX_TOKENS,
+  ATTR_GEN_AI_REQUEST_MODEL,
+  ATTR_GEN_AI_REQUEST_STREAMING,
+  ATTR_GEN_AI_REQUEST_TEMPERATURE,
+  ATTR_GEN_AI_REQUEST_TOP_P,
+  ATTR_GEN_AI_RESPONSE_MODEL,
+  ATTR_GEN_AI_SYSTEM,
+  ATTR_GEN_AI_TOKEN_TYPE,
+  ATTR_GEN_AI_USAGE_INPUT_TOKENS,
+  ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
+  ATTR_GEN_AI_USAGE_TOTAL_TOKENS,
+} from '@/utils/telemetry/semconv.js';
+import { withSpan } from '@/utils/telemetry/trace.js';
 
 /**
  * Module-level cache for the lazily-imported `openai` package. Undefined until the
@@ -42,6 +58,23 @@ async function getOpenAI() {
     throw configurationError('Install "openai" to use the OpenRouter LLM provider: bun add openai');
   });
   return _openai.default;
+}
+
+/**
+ * Lazily-initialized OTel metrics for LLM API calls. Created on first use to
+ * avoid meter overhead when the provider is never invoked.
+ */
+let llmRequestCounter: ReturnType<typeof createCounter> | undefined;
+let llmRequestDuration: ReturnType<typeof createHistogram> | undefined;
+let llmRequestErrors: ReturnType<typeof createCounter> | undefined;
+let llmTokenCounter: ReturnType<typeof createCounter> | undefined;
+
+function getLlmMetrics() {
+  llmRequestCounter ??= createCounter('mcp.llm.requests', 'Total LLM API requests', '{requests}');
+  llmRequestDuration ??= createHistogram('mcp.llm.duration', 'LLM API request duration', 'ms');
+  llmRequestErrors ??= createCounter('mcp.llm.errors', 'Total LLM API errors', '{errors}');
+  llmTokenCounter ??= createCounter('mcp.llm.tokens', 'Total LLM tokens consumed', '{tokens}');
+  return { llmRequestCounter, llmRequestDuration, llmRequestErrors, llmTokenCounter };
 }
 
 /**
@@ -329,7 +362,73 @@ export class OpenRouterProvider implements ILlmProvider {
         this.rateLimiter.check(rateLimitKey, context);
         const finalApiParams = this._prepareApiParameters(params) as OpenRouterChatParams;
         const client = await this.ensureClient();
-        return await this._openRouterChatCompletionLogic(client, finalApiParams, context);
+
+        return await withSpan(
+          'gen_ai.chat_completion',
+          async (span) => {
+            const t0 = nowMs();
+            let ok = false;
+            try {
+              const response = await this._openRouterChatCompletionLogic(
+                client,
+                finalApiParams,
+                context,
+              );
+              ok = true;
+
+              // Record token usage and response model from non-streaming responses
+              if (!params.stream && response && 'usage' in response) {
+                const completion = response as ChatCompletion;
+                const usage = completion.usage;
+                if (usage) {
+                  span.setAttribute(ATTR_GEN_AI_USAGE_INPUT_TOKENS, usage.prompt_tokens ?? 0);
+                  span.setAttribute(ATTR_GEN_AI_USAGE_OUTPUT_TOKENS, usage.completion_tokens ?? 0);
+                  span.setAttribute(ATTR_GEN_AI_USAGE_TOTAL_TOKENS, usage.total_tokens ?? 0);
+
+                  const m = getLlmMetrics();
+                  const tokenAttrs = { [ATTR_GEN_AI_REQUEST_MODEL]: finalApiParams.model };
+                  if (usage.prompt_tokens)
+                    m.llmTokenCounter.add(usage.prompt_tokens, {
+                      ...tokenAttrs,
+                      [ATTR_GEN_AI_TOKEN_TYPE]: 'input',
+                    });
+                  if (usage.completion_tokens)
+                    m.llmTokenCounter.add(usage.completion_tokens, {
+                      ...tokenAttrs,
+                      [ATTR_GEN_AI_TOKEN_TYPE]: 'output',
+                    });
+                }
+                span.setAttribute(ATTR_GEN_AI_RESPONSE_MODEL, completion.model);
+              }
+
+              return response;
+            } finally {
+              const durationMs = Math.round((nowMs() - t0) * 100) / 100;
+              const m = getLlmMetrics();
+              const metricAttrs = {
+                [ATTR_GEN_AI_REQUEST_MODEL]: finalApiParams.model,
+                [ATTR_GEN_AI_SYSTEM]: 'openrouter',
+              };
+              m.llmRequestCounter.add(1, metricAttrs);
+              m.llmRequestDuration.record(durationMs, metricAttrs);
+              if (!ok) m.llmRequestErrors.add(1, metricAttrs);
+            }
+          },
+          {
+            [ATTR_GEN_AI_SYSTEM]: 'openrouter',
+            [ATTR_GEN_AI_REQUEST_MODEL]: finalApiParams.model,
+            ...(finalApiParams.max_tokens != null && {
+              [ATTR_GEN_AI_REQUEST_MAX_TOKENS]: finalApiParams.max_tokens,
+            }),
+            ...(finalApiParams.temperature != null && {
+              [ATTR_GEN_AI_REQUEST_TEMPERATURE]: finalApiParams.temperature,
+            }),
+            ...(finalApiParams.top_p != null && {
+              [ATTR_GEN_AI_REQUEST_TOP_P]: finalApiParams.top_p,
+            }),
+            [ATTR_GEN_AI_REQUEST_STREAMING]: Boolean(params.stream),
+          },
+        );
       },
       { operation, context, input: sanitizedParams },
     );

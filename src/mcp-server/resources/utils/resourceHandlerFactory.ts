@@ -20,6 +20,7 @@ import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.j
 import type { StorageService } from '@/storage/core/StorageService.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { Logger } from '@/utils/internal/logger.js';
+import { measureResourceExecution } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
 // ---------------------------------------------------------------------------
@@ -144,7 +145,13 @@ export function createResourceHandler(
         uri,
       });
 
-      const result = await Promise.resolve(def.handler(validatedParams, ctx));
+      // Execute handler with performance measurement
+      const resourceName = def.name ?? def.uriTemplate;
+      const result = await measureResourceExecution(
+        () => Promise.resolve(def.handler(validatedParams, ctx)),
+        { ...appContext, resourceName },
+        { uri: uri.href, mimeType },
+      );
 
       const contents = formatter(result, { uri, mimeType });
       return { contents };

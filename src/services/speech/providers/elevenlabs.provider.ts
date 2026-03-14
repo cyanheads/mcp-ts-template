@@ -12,10 +12,19 @@ import {
   serviceUnavailable,
 } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
+import { nowMs } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
+import {
+  ATTR_MCP_SPEECH_INPUT_BYTES,
+  ATTR_MCP_SPEECH_OPERATION,
+  ATTR_MCP_SPEECH_OUTPUT_BYTES,
+  ATTR_MCP_SPEECH_PROVIDER,
+} from '@/utils/telemetry/semconv.js';
+import { withSpan } from '@/utils/telemetry/trace.js';
 
 import type { ISpeechProvider } from '../core/ISpeechProvider.js';
+import { recordSpeechOp } from '../core/speechMetrics.js';
 import type {
   SpeechProviderConfig,
   SpeechToTextOptions,
@@ -120,67 +129,87 @@ export class ElevenLabsProvider implements ISpeechProvider {
       throw invalidParams('Text exceeds maximum length of 5000 characters', context);
     }
 
-    const url = `${this.baseUrl}/text-to-speech/${voiceId}`;
+    const inputBytes = new TextEncoder().encode(options.text).length;
 
-    // Build voice settings
-    const voiceSettings = {
-      stability: options.voice?.stability ?? 0.5,
-      similarity_boost: options.voice?.similarityBoost ?? 0.75,
-      style: options.voice?.style ?? 0.0,
-      use_speaker_boost: true,
-    };
+    return await withSpan(
+      'speech:tts',
+      async (span) => {
+        const t0 = nowMs();
+        let ok = false;
 
-    const requestBody = {
-      text: options.text,
-      model_id: modelId,
-      voice_settings: voiceSettings,
-    };
+        const url = `${this.baseUrl}/text-to-speech/${voiceId}`;
 
-    try {
-      const response = await fetchWithTimeout(url, this.timeout, context, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'xi-api-key': this.apiKey,
-        },
-        body: JSON.stringify(requestBody),
-      });
+        // Build voice settings
+        const voiceSettings = {
+          stability: options.voice?.stability ?? 0.5,
+          similarity_boost: options.voice?.similarityBoost ?? 0.75,
+          style: options.voice?.style ?? 0.0,
+          use_speaker_boost: true,
+        };
 
-      // fetchWithTimeout already throws McpError on non-ok responses
-      const audioBuffer = Buffer.from(await response.arrayBuffer());
+        const requestBody = {
+          text: options.text,
+          model_id: modelId,
+          voice_settings: voiceSettings,
+        };
 
-      logger.info(
-        `Text-to-speech conversion successful (voice=${voiceId}, ${audioBuffer.length} bytes)`,
-        context,
-      );
+        try {
+          const response = await fetchWithTimeout(url, this.timeout, context, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'xi-api-key': this.apiKey,
+            },
+            body: JSON.stringify(requestBody),
+          });
 
-      return {
-        audio: audioBuffer,
-        format: 'mp3',
-        characterCount: options.text.length,
-        metadata: {
-          voiceId,
-          modelId,
-          provider: this.name,
-        },
-      };
-    } catch (error: unknown) {
-      if (error instanceof McpError) {
-        throw error;
-      }
+          // fetchWithTimeout already throws McpError on non-ok responses
+          const audioBuffer = Buffer.from(await response.arrayBuffer());
+          ok = true;
 
-      logger.error(
-        'Failed to convert text to speech',
-        error instanceof Error ? error : new Error(String(error)),
-        context,
-      );
+          span.setAttribute(ATTR_MCP_SPEECH_OUTPUT_BYTES, audioBuffer.length);
 
-      throw serviceUnavailable(
-        `Failed to convert text to speech: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        context,
-        { cause: error },
-      );
-    }
+          logger.info(
+            `Text-to-speech conversion successful (voice=${voiceId}, ${audioBuffer.length} bytes)`,
+            context,
+          );
+
+          return {
+            audio: audioBuffer,
+            format: 'mp3' as const,
+            characterCount: options.text.length,
+            metadata: {
+              voiceId,
+              modelId,
+              provider: this.name,
+            },
+          };
+        } catch (error: unknown) {
+          if (error instanceof McpError) {
+            throw error;
+          }
+
+          logger.error(
+            'Failed to convert text to speech',
+            error instanceof Error ? error : new Error(String(error)),
+            context,
+          );
+
+          throw serviceUnavailable(
+            `Failed to convert text to speech: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            context,
+            { cause: error },
+          );
+        } finally {
+          recordSpeechOp(span, t0, ok, 'tts', 'elevenlabs');
+        }
+      },
+      {
+        [ATTR_MCP_SPEECH_PROVIDER]: 'elevenlabs',
+        [ATTR_MCP_SPEECH_OPERATION]: 'tts',
+        [ATTR_MCP_SPEECH_INPUT_BYTES]: inputBytes,
+      },
+    );
   }
 
   /**

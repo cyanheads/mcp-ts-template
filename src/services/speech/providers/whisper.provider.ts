@@ -14,10 +14,19 @@ import {
   serviceUnavailable,
 } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
+import { nowMs } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
+import {
+  ATTR_MCP_SPEECH_INPUT_BYTES,
+  ATTR_MCP_SPEECH_OPERATION,
+  ATTR_MCP_SPEECH_OUTPUT_BYTES,
+  ATTR_MCP_SPEECH_PROVIDER,
+} from '@/utils/telemetry/semconv.js';
+import { withSpan } from '@/utils/telemetry/trace.js';
 
 import type { ISpeechProvider } from '../core/ISpeechProvider.js';
+import { recordSpeechOp } from '../core/speechMetrics.js';
 import type {
   SpeechProviderConfig,
   SpeechToTextOptions,
@@ -152,88 +161,110 @@ export class WhisperProvider implements ISpeechProvider {
       );
     }
 
-    const url = `${this.baseUrl}/audio/transcriptions`;
+    return await withSpan(
+      'speech:stt',
+      async (span) => {
+        const t0 = nowMs();
+        let ok = false;
 
-    // Build form data
-    const formData = new FormData();
+        const url = `${this.baseUrl}/audio/transcriptions`;
 
-    // Determine filename with appropriate extension
-    const extension = this.getFileExtension(options.format);
-    const blob = new Blob([audioBuffer], {
-      type: this.getMimeType(options.format),
-    });
-    formData.append('file', blob, `audio.${extension}`);
-    formData.append('model', modelId);
+        // Build form data
+        const formData = new FormData();
 
-    if (options.language) {
-      formData.append('language', options.language);
-    }
+        // Determine filename with appropriate extension
+        const extension = this.getFileExtension(options.format);
+        const blob = new Blob([audioBuffer], {
+          type: this.getMimeType(options.format),
+        });
+        formData.append('file', blob, `audio.${extension}`);
+        formData.append('model', modelId);
 
-    if (options.temperature !== undefined) {
-      formData.append('temperature', options.temperature.toString());
-    }
+        if (options.language) {
+          formData.append('language', options.language);
+        }
 
-    if (options.prompt) {
-      formData.append('prompt', options.prompt);
-    }
+        if (options.temperature !== undefined) {
+          formData.append('temperature', options.temperature.toString());
+        }
 
-    // Request verbose JSON format to get timestamps and metadata
-    formData.append('response_format', options.timestamps ? 'verbose_json' : 'json');
+        if (options.prompt) {
+          formData.append('prompt', options.prompt);
+        }
 
-    if (options.timestamps) {
-      formData.append('timestamp_granularities[]', 'word');
-    }
+        // Request verbose JSON format to get timestamps and metadata
+        formData.append('response_format', options.timestamps ? 'verbose_json' : 'json');
 
-    try {
-      const response = await fetchWithTimeout(url, this.timeout, context, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          // Don't set Content-Type - let fetch set it with boundary for FormData
-        },
-        body: formData,
-      });
+        if (options.timestamps) {
+          formData.append('timestamp_granularities[]', 'word');
+        }
 
-      // fetchWithTimeout already throws McpError on non-ok responses
-      const data = (await response.json()) as WhisperTranscriptionResponse;
+        try {
+          const response = await fetchWithTimeout(url, this.timeout, context, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${this.apiKey}`,
+              // Don't set Content-Type - let fetch set it with boundary for FormData
+            },
+            body: formData,
+          });
 
-      // Convert word timestamps if present
-      const words: WordTimestamp[] | undefined = data.words?.map((w) => ({
-        word: w.word,
-        start: w.start,
-        end: w.end,
-      }));
+          // fetchWithTimeout already throws McpError on non-ok responses
+          const data = (await response.json()) as WhisperTranscriptionResponse;
 
-      logger.info(`Speech-to-text transcription successful (${data.text.length} chars)`, context);
+          // Convert word timestamps if present
+          const words: WordTimestamp[] | undefined = data.words?.map((w) => ({
+            word: w.word,
+            start: w.start,
+            end: w.end,
+          }));
 
-      return {
-        text: data.text,
-        ...(data.language !== undefined && { language: data.language }),
-        ...(data.duration !== undefined && { duration: data.duration }),
-        ...(words !== undefined && { words }),
-        metadata: {
-          modelId,
-          provider: this.name,
-          ...(data.task !== undefined && { task: data.task }),
-        },
-      };
-    } catch (error: unknown) {
-      if (error instanceof McpError) {
-        throw error;
-      }
+          ok = true;
+          const outputBytes = new TextEncoder().encode(data.text).length;
+          span.setAttribute(ATTR_MCP_SPEECH_OUTPUT_BYTES, outputBytes);
 
-      logger.error(
-        'Failed to transcribe audio',
-        error instanceof Error ? error : new Error(String(error)),
-        context,
-      );
+          logger.info(
+            `Speech-to-text transcription successful (${data.text.length} chars)`,
+            context,
+          );
 
-      throw serviceUnavailable(
-        `Failed to transcribe audio: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        context,
-        { cause: error },
-      );
-    }
+          return {
+            text: data.text,
+            ...(data.language !== undefined && { language: data.language }),
+            ...(data.duration !== undefined && { duration: data.duration }),
+            ...(words !== undefined && { words }),
+            metadata: {
+              modelId,
+              provider: this.name,
+              ...(data.task !== undefined && { task: data.task }),
+            },
+          };
+        } catch (error: unknown) {
+          if (error instanceof McpError) {
+            throw error;
+          }
+
+          logger.error(
+            'Failed to transcribe audio',
+            error instanceof Error ? error : new Error(String(error)),
+            context,
+          );
+
+          throw serviceUnavailable(
+            `Failed to transcribe audio: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            context,
+            { cause: error },
+          );
+        } finally {
+          recordSpeechOp(span, t0, ok, 'stt', 'openai-whisper');
+        }
+      },
+      {
+        [ATTR_MCP_SPEECH_PROVIDER]: 'openai-whisper',
+        [ATTR_MCP_SPEECH_OPERATION]: 'stt',
+        [ATTR_MCP_SPEECH_INPUT_BYTES]: audioBuffer.length,
+      },
+    );
   }
 
   /**

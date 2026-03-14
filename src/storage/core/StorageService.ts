@@ -21,7 +21,18 @@ import {
 } from '@/storage/core/storageValidation.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
+import { nowMs } from '@/utils/internal/performance.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
+import {
+  ATTR_CODE_FUNCTION,
+  ATTR_CODE_NAMESPACE,
+  ATTR_MCP_STORAGE_DURATION_MS,
+  ATTR_MCP_STORAGE_KEY_COUNT,
+  ATTR_MCP_STORAGE_OPERATION,
+  ATTR_MCP_STORAGE_SUCCESS,
+} from '@/utils/telemetry/semconv.js';
+import { withSpan } from '@/utils/telemetry/trace.js';
 
 /**
  * Validates and returns the tenant ID from the request context.
@@ -59,13 +70,67 @@ function requireTenantId(context: RequestContext): string {
   return tenantId.trim();
 }
 
+let storageOpCounter: ReturnType<typeof createCounter> | undefined;
+let storageOpDuration: ReturnType<typeof createHistogram> | undefined;
+let storageOpErrors: ReturnType<typeof createCounter> | undefined;
+
+function getStorageMetrics() {
+  storageOpCounter ??= createCounter('mcp.storage.operations', 'Total storage operations', '{ops}');
+  storageOpDuration ??= createHistogram('mcp.storage.duration', 'Storage operation duration', 'ms');
+  storageOpErrors ??= createCounter(
+    'mcp.storage.errors',
+    'Total storage operation errors',
+    '{errors}',
+  );
+  return { storageOpCounter, storageOpDuration, storageOpErrors };
+}
+
 export class StorageService {
   constructor(private provider: IStorageProvider) {
     // Note: Cannot use structured logging in constructor as we don't have RequestContext yet
     // This is logged when the service is first instantiated by the DI container
   }
 
-  get<T>(key: string, context: RequestContext): Promise<T | null> {
+  /**
+   * Wraps a provider call with an OTel span and standard storage metrics.
+   * Accepts optional extra span attributes (e.g. key count for batch ops).
+   */
+  private async withStorageOp<T>(
+    operation: string,
+    fn: () => Promise<T>,
+    extraAttrs?: Record<string, string | number | boolean>,
+  ): Promise<T> {
+    return await withSpan(
+      `storage:${operation}`,
+      async (span) => {
+        const t0 = nowMs();
+        let ok = false;
+        try {
+          const result = await fn();
+          ok = true;
+          return result;
+        } finally {
+          const durationMs = Math.round((nowMs() - t0) * 100) / 100;
+          span.setAttribute(ATTR_MCP_STORAGE_DURATION_MS, durationMs);
+          span.setAttribute(ATTR_MCP_STORAGE_SUCCESS, ok);
+          if (extraAttrs) span.setAttributes(extraAttrs);
+          const m = getStorageMetrics();
+          const attrs = { [ATTR_MCP_STORAGE_OPERATION]: operation, [ATTR_MCP_STORAGE_SUCCESS]: ok };
+          m.storageOpCounter.add(1, attrs);
+          m.storageOpDuration.record(durationMs, attrs);
+          if (!ok) m.storageOpErrors.add(1, { [ATTR_MCP_STORAGE_OPERATION]: operation });
+        }
+      },
+      {
+        [ATTR_CODE_FUNCTION]: operation,
+        [ATTR_CODE_NAMESPACE]: 'StorageService',
+        [ATTR_MCP_STORAGE_OPERATION]: operation,
+        ...extraAttrs,
+      },
+    );
+  }
+
+  async get<T>(key: string, context: RequestContext): Promise<T | null> {
     const tenantId = requireTenantId(context);
     validateKey(key, context);
 
@@ -76,10 +141,10 @@ export class StorageService {
       key,
     });
 
-    return this.provider.get(tenantId, key, context);
+    return await this.withStorageOp('get', () => this.provider.get<T>(tenantId, key, context));
   }
 
-  set(
+  async set(
     key: string,
     value: unknown,
     context: RequestContext,
@@ -98,10 +163,12 @@ export class StorageService {
       ttl: options?.ttl,
     });
 
-    return this.provider.set(tenantId, key, value, context, options);
+    return await this.withStorageOp('set', () =>
+      this.provider.set(tenantId, key, value, context, options),
+    );
   }
 
-  delete(key: string, context: RequestContext): Promise<boolean> {
+  async delete(key: string, context: RequestContext): Promise<boolean> {
     const tenantId = requireTenantId(context);
     validateKey(key, context);
 
@@ -112,10 +179,10 @@ export class StorageService {
       key,
     });
 
-    return this.provider.delete(tenantId, key, context);
+    return await this.withStorageOp('delete', () => this.provider.delete(tenantId, key, context));
   }
 
-  list(prefix: string, context: RequestContext, options?: ListOptions): Promise<ListResult> {
+  async list(prefix: string, context: RequestContext, options?: ListOptions): Promise<ListResult> {
     const tenantId = requireTenantId(context);
     validatePrefix(prefix, context);
     validateListOptions(options, context);
@@ -129,12 +196,13 @@ export class StorageService {
       hasCursor: !!options?.cursor,
     });
 
-    return this.provider.list(tenantId, prefix, context, options);
+    return await this.withStorageOp('list', () =>
+      this.provider.list(tenantId, prefix, context, options),
+    );
   }
 
-  getMany<T>(keys: string[], context: RequestContext): Promise<Map<string, T>> {
+  async getMany<T>(keys: string[], context: RequestContext): Promise<Map<string, T>> {
     const tenantId = requireTenantId(context);
-    // Validate all keys
     for (const key of keys) {
       validateKey(key, context);
     }
@@ -146,17 +214,20 @@ export class StorageService {
       keyCount: keys.length,
     });
 
-    return this.provider.getMany(tenantId, keys, context);
+    return await this.withStorageOp(
+      'getMany',
+      () => this.provider.getMany<T>(tenantId, keys, context),
+      { [ATTR_MCP_STORAGE_KEY_COUNT]: keys.length },
+    );
   }
 
-  setMany(
+  async setMany(
     entries: Map<string, unknown>,
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
     const tenantId = requireTenantId(context);
     validateStorageOptions(options, context);
-    // Validate all keys
     for (const key of entries.keys()) {
       validateKey(key, context);
     }
@@ -170,12 +241,17 @@ export class StorageService {
       ttl: options?.ttl,
     });
 
-    return this.provider.setMany(tenantId, entries, context, options);
+    return await this.withStorageOp(
+      'setMany',
+      async () => {
+        await this.provider.setMany(tenantId, entries, context, options);
+      },
+      { [ATTR_MCP_STORAGE_KEY_COUNT]: entries.size },
+    );
   }
 
-  deleteMany(keys: string[], context: RequestContext): Promise<number> {
+  async deleteMany(keys: string[], context: RequestContext): Promise<number> {
     const tenantId = requireTenantId(context);
-    // Validate all keys
     for (const key of keys) {
       validateKey(key, context);
     }
@@ -187,10 +263,14 @@ export class StorageService {
       keyCount: keys.length,
     });
 
-    return this.provider.deleteMany(tenantId, keys, context);
+    return await this.withStorageOp(
+      'deleteMany',
+      () => this.provider.deleteMany(tenantId, keys, context),
+      { [ATTR_MCP_STORAGE_KEY_COUNT]: keys.length },
+    );
   }
 
-  clear(context: RequestContext): Promise<number> {
+  async clear(context: RequestContext): Promise<number> {
     const tenantId = requireTenantId(context);
 
     logger.info('[StorageService] clear operation', {
@@ -199,6 +279,6 @@ export class StorageService {
       tenantId,
     });
 
-    return this.provider.clear(tenantId, context);
+    return await this.withStorageOp('clear', () => this.provider.clear(tenantId, context));
   }
 }

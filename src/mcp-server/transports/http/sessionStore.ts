@@ -9,6 +9,19 @@ import { validateSessionIdFormat } from '@/mcp-server/transports/http/sessionIdU
 import { invalidParams } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
+import { createCounter } from '@/utils/telemetry/metrics.js';
+import { ATTR_MCP_SESSION_EVENT } from '@/utils/telemetry/semconv.js';
+
+let sessionEventCounter: ReturnType<typeof createCounter> | undefined;
+
+function getSessionMetrics() {
+  sessionEventCounter ??= createCounter(
+    'mcp.sessions.events',
+    'Session lifecycle events',
+    '{events}',
+  );
+  return { sessionEventCounter };
+}
 
 /**
  * Identity information for binding sessions to authenticated users.
@@ -103,6 +116,7 @@ export class SessionStore {
 
       session = newSession;
       this.sessions.set(sessionId, session);
+      getSessionMetrics().sessionEventCounter.add(1, { [ATTR_MCP_SESSION_EVENT]: 'created' });
       const context = requestContextService.createRequestContext({
         operation: 'SessionStore.create',
         sessionId,
@@ -174,6 +188,7 @@ export class SessionStore {
     // If request has no identity but session does, reject (security: session was authenticated)
     if (!identity) {
       warn('Session requires authentication but request has no identity');
+      getSessionMetrics().sessionEventCounter.add(1, { [ATTR_MCP_SESSION_EVENT]: 'rejected' });
       return false;
     }
 
@@ -183,6 +198,7 @@ export class SessionStore {
         sessionTenant: session.tenantId,
         requestTenant: identity.tenantId,
       });
+      getSessionMetrics().sessionEventCounter.add(1, { [ATTR_MCP_SESSION_EVENT]: 'rejected' });
       return false;
     }
 
@@ -192,6 +208,7 @@ export class SessionStore {
         sessionClient: session.clientId,
         requestClient: identity.clientId,
       });
+      getSessionMetrics().sessionEventCounter.add(1, { [ATTR_MCP_SESSION_EVENT]: 'rejected' });
       return false;
     }
 
@@ -201,6 +218,7 @@ export class SessionStore {
         sessionSubject: session.subject,
         requestSubject: identity.subject,
       });
+      getSessionMetrics().sessionEventCounter.add(1, { [ATTR_MCP_SESSION_EVENT]: 'rejected' });
       return false;
     }
 
@@ -214,6 +232,7 @@ export class SessionStore {
   terminate(sessionId: string): void {
     const deleted = this.sessions.delete(sessionId);
     if (deleted) {
+      getSessionMetrics().sessionEventCounter.add(1, { [ATTR_MCP_SESSION_EVENT]: 'terminated' });
       const context = requestContextService.createRequestContext({
         operation: 'SessionStore.terminate',
         sessionId,
@@ -237,6 +256,9 @@ export class SessionStore {
     }
 
     if (cleanedCount > 0) {
+      getSessionMetrics().sessionEventCounter.add(cleanedCount, {
+        [ATTR_MCP_SESSION_EVENT]: 'stale_cleanup',
+      });
       const context = requestContextService.createRequestContext({
         operation: 'SessionStore.cleanup',
       });

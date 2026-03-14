@@ -5,7 +5,17 @@
  */
 
 import { logger } from '@/utils/internal/logger.js';
+import { nowMs } from '@/utils/internal/performance.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
+import {
+  ATTR_CODE_FUNCTION,
+  ATTR_CODE_NAMESPACE,
+  ATTR_MCP_GRAPH_DURATION_MS,
+  ATTR_MCP_GRAPH_OPERATION,
+  ATTR_MCP_GRAPH_SUCCESS,
+} from '@/utils/telemetry/semconv.js';
+import { withSpan } from '@/utils/telemetry/trace.js';
 import type { GraphStats } from '../types.js';
 import type {
   Edge,
@@ -16,6 +26,21 @@ import type {
   TraversalOptions,
   TraversalResult,
 } from './IGraphProvider.js';
+
+let _graphOpCounter: ReturnType<typeof createCounter> | undefined;
+let _graphOpDuration: ReturnType<typeof createHistogram> | undefined;
+let _graphOpErrors: ReturnType<typeof createCounter> | undefined;
+
+function getGraphMetrics() {
+  _graphOpCounter ??= createCounter('mcp.graph.operations', 'Total graph operations', '{ops}');
+  _graphOpDuration ??= createHistogram('mcp.graph.duration', 'Graph operation duration', 'ms');
+  _graphOpErrors ??= createCounter('mcp.graph.errors', 'Total graph operation errors', '{errors}');
+  return {
+    graphOpCounter: _graphOpCounter,
+    graphOpDuration: _graphOpDuration,
+    graphOpErrors: _graphOpErrors,
+  };
+}
 
 /**
  * Provider-agnostic service for graph database operations.
@@ -52,6 +77,39 @@ import type {
 export class GraphService {
   constructor(private readonly provider: IGraphProvider) {
     logger.info(`Graph service initialized with provider: ${provider.name}`);
+  }
+
+  /**
+   * Wraps a provider call with an OTel span and standard graph metrics.
+   * All public methods delegate here to avoid repeating the instrumentation boilerplate.
+   */
+  private async withGraphOp<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+    return await withSpan(
+      `graph:${operation}`,
+      async (span) => {
+        const t0 = nowMs();
+        let ok = false;
+        try {
+          const result = await fn();
+          ok = true;
+          return result;
+        } finally {
+          const durationMs = Math.round((nowMs() - t0) * 100) / 100;
+          span.setAttribute(ATTR_MCP_GRAPH_DURATION_MS, durationMs);
+          span.setAttribute(ATTR_MCP_GRAPH_SUCCESS, ok);
+          const m = getGraphMetrics();
+          const attrs = { [ATTR_MCP_GRAPH_OPERATION]: operation, [ATTR_MCP_GRAPH_SUCCESS]: ok };
+          m.graphOpCounter.add(1, attrs);
+          m.graphOpDuration.record(durationMs, attrs);
+          if (!ok) m.graphOpErrors.add(1, { [ATTR_MCP_GRAPH_OPERATION]: operation });
+        }
+      },
+      {
+        [ATTR_CODE_FUNCTION]: operation,
+        [ATTR_CODE_NAMESPACE]: 'GraphService',
+        [ATTR_MCP_GRAPH_OPERATION]: operation,
+      },
+    );
   }
 
   /**
@@ -97,7 +155,9 @@ export class GraphService {
   ): Promise<Edge> {
     logger.debug(`[GraphService] Creating relationship: ${from} -[${edgeTable}]-> ${to}`, context);
 
-    return await this.provider.relate(from, edgeTable, to, context, options);
+    return await this.withGraphOp('relate', () =>
+      this.provider.relate(from, edgeTable, to, context, options),
+    );
   }
 
   /**
@@ -116,7 +176,7 @@ export class GraphService {
   async unrelate(edgeId: string, context: RequestContext): Promise<boolean> {
     logger.debug(`[GraphService] Deleting relationship: ${edgeId}`, context);
 
-    return await this.provider.unrelate(edgeId, context);
+    return await this.withGraphOp('unrelate', () => this.provider.unrelate(edgeId, context));
   }
 
   /**
@@ -145,7 +205,9 @@ export class GraphService {
   ): Promise<TraversalResult> {
     logger.debug(`[GraphService] Traversing from: ${startVertexId}`, context);
 
-    return await this.provider.traverse(startVertexId, context, options);
+    return await this.withGraphOp('traverse', () =>
+      this.provider.traverse(startVertexId, context, options),
+    );
   }
 
   /**
@@ -175,7 +237,9 @@ export class GraphService {
   ): Promise<GraphPath | null> {
     logger.debug(`[GraphService] Finding shortest path: ${from} -> ${to}`, context);
 
-    return await this.provider.shortestPath(from, to, context, options);
+    return await this.withGraphOp('shortestPath', () =>
+      this.provider.shortestPath(from, to, context, options),
+    );
   }
 
   /**
@@ -197,7 +261,9 @@ export class GraphService {
     context: RequestContext,
     edgeTypes?: string[],
   ): Promise<Edge[]> {
-    return await this.provider.getOutgoingEdges(vertexId, context, edgeTypes);
+    return await this.withGraphOp('getOutgoingEdges', () =>
+      this.provider.getOutgoingEdges(vertexId, context, edgeTypes),
+    );
   }
 
   /**
@@ -219,7 +285,9 @@ export class GraphService {
     context: RequestContext,
     edgeTypes?: string[],
   ): Promise<Edge[]> {
-    return await this.provider.getIncomingEdges(vertexId, context, edgeTypes);
+    return await this.withGraphOp('getIncomingEdges', () =>
+      this.provider.getIncomingEdges(vertexId, context, edgeTypes),
+    );
   }
 
   /**
@@ -244,7 +312,9 @@ export class GraphService {
     context: RequestContext,
     maxDepth?: number,
   ): Promise<boolean> {
-    return await this.provider.pathExists(from, to, context, maxDepth);
+    return await this.withGraphOp('pathExists', () =>
+      this.provider.pathExists(from, to, context, maxDepth),
+    );
   }
 
   /**
@@ -262,7 +332,8 @@ export class GraphService {
    */
   async getStats(context: RequestContext): Promise<GraphStats> {
     logger.debug('[GraphService] Getting graph statistics', context);
-    return await this.provider.getStats(context);
+
+    return await this.withGraphOp('getStats', () => this.provider.getStats(context));
   }
 
   /**
@@ -278,6 +349,6 @@ export class GraphService {
    * ```
    */
   async healthCheck(): Promise<boolean> {
-    return await this.provider.healthCheck();
+    return await this.withGraphOp('healthCheck', () => this.provider.healthCheck());
   }
 }
