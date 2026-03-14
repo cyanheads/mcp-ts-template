@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/mcp-ts-core",
-  "version": "0.1.0-beta.19",
+  "version": "0.1.0-beta.21",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "TypeScript framework for building Model Context Protocol (MCP) servers. Declarative tool/resource/prompt definitions, pluggable auth, multi-backend storage, OpenTelemetry observability, and support for both local (stdio/HTTP) and edge (Cloudflare Workers) runtimes.",
   "main": "dist/app.js",
@@ -41,10 +41,6 @@
     "./tasks": {
       "types": "./dist/mcp-server/tasks/utils/taskToolDefinition.d.ts",
       "import": "./dist/mcp-server/tasks/utils/taskToolDefinition.js"
-    },
-    "./context": {
-      "types": "./dist/context.d.ts",
-      "import": "./dist/context.js"
     },
     "./errors": {
       "types": "./dist/types-global/errors.d.ts",
