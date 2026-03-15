@@ -168,8 +168,8 @@ function copyExternalSkills(dest: string, created: string[], skipped: string[]):
 function extractAudience(content: string): string | undefined {
   const frontmatter = content.match(/^---\n([\s\S]*?)\n---/);
   if (!frontmatter?.[1]) return;
-  // Match `audience:` only at top-level or indented under `metadata:`
-  const nested = frontmatter[1].match(/^metadata:\s*\n\s+audience:\s*(\w+)/m);
+  // Match `audience:` indented under `metadata:` (may have sibling keys before it)
+  const nested = frontmatter[1].match(/^metadata:\s*\n(?:\s+\w[\w-]*:.*\n)*\s+audience:\s*(\w+)/m);
   if (nested) return nested[1];
   return frontmatter[1].match(/^audience:\s*(\w+)/m)?.[1];
 }
