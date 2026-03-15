@@ -96,9 +96,10 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
   const { tools = [], resources = [], prompts = [], setup } = options;
 
   // Apply name/version overrides to env before config is parsed.
-  // resetConfig() invalidates the cached parse so the next config access
-  // picks up the new env values. This is the single authority for overrides —
-  // createApp() and createWorkerHandler() both delegate here.
+  // Save previous values so we don't permanently contaminate process.env
+  // for later composeServices() / createApp() calls in the same process.
+  const prevName = process.env.MCP_SERVER_NAME;
+  const prevVersion = process.env.MCP_SERVER_VERSION;
   if (options.name || options.version) {
     if (options.name) process.env.MCP_SERVER_NAME = options.name;
     if (options.version) process.env.MCP_SERVER_VERSION = options.version;
@@ -184,6 +185,15 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
       rootsRegistry,
       toolRegistry,
     });
+
+  // Restore previous env values so subsequent composeServices() / createApp()
+  // calls in the same process aren't contaminated by this call's overrides.
+  if (options.name || options.version) {
+    if (prevName === undefined) delete process.env.MCP_SERVER_NAME;
+    else process.env.MCP_SERVER_NAME = prevName;
+    if (prevVersion === undefined) delete process.env.MCP_SERVER_VERSION;
+    else process.env.MCP_SERVER_VERSION = prevVersion;
+  }
 
   return {
     coreServices,
