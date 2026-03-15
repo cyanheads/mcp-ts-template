@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.4] - 2026-03-14
+
+Rebranding and version bump: repository URLs, Docker labels, and package metadata updated from `mcp-ts-template` to `mcp-ts-core`.
+
+### Changed
+
+- Dockerfile labels and log paths renamed from `mcp-ts-template` to `mcp-ts-core`.
+- `package.json` repository, bugs, and homepage URLs updated to `mcp-ts-core`.
+- `server.json` repository URL updated to `mcp-ts-core`.
+- `smithery.yaml` bunx command updated to `@cyanheads/mcp-ts-core`.
+- `docs/tree.md` regenerated to reflect current directory structure (removed obsolete planning docs and schemas).
+- Version bumped to 0.1.4 across `package.json`, `server.json`, and `README.md`.
+
+---
+
 ## [0.1.3] - 2026-03-14
 
 Housekeeping release: regex fix for skill audience extraction, version alignment across manifests, and removal of obsolete planning docs and schemas.
