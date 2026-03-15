@@ -96,8 +96,9 @@ After the initial copy, use the `maintenance` skill to keep them in sync after p
 
 After `bun install`, complete these one-time setup tasks:
 
-1. **Initialize git** — `git init && git add -A && git commit -m "chore: scaffold from @cyanheads/mcp-ts-core"`
-2. **Verify agent protocol placeholders** — if the `init` CLI was run without a `[name]` argument, `{{PACKAGE_NAME}}` may remain as a literal in `CLAUDE.md`/`AGENTS.md` and `package.json`. Replace it with the actual server name.
+1. **Update dependencies to latest** — `bun update --latest` (or `npm update` / `npx npm-check-updates -u && npm install` for npm). The scaffolded `package.json` pins minimum versions from when the framework was published; updating ensures you start with the latest compatible releases.
+2. **Initialize git** — `git init && git add -A && git commit -m "chore: scaffold from @cyanheads/mcp-ts-core"`
+3. **Verify agent protocol placeholders** — if the `init` CLI was run without a `[name]` argument, `{{PACKAGE_NAME}}` may remain as a literal in `CLAUDE.md`/`AGENTS.md` and `package.json`. Replace it with the actual server name.
 
 ## Checklist
 
