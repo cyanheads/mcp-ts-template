@@ -139,7 +139,7 @@ export function createToolHandler(
       );
 
       return {
-        structuredContent: result,
+        ...(def.output && { structuredContent: result }),
         content: formatter(result),
       };
     } catch (error: unknown) {

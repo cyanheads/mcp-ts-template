@@ -275,26 +275,30 @@ const requestContextServiceInstance = {
     authInfo: AuthInfo,
     parentContext?: Record<string, unknown> | RequestContext,
   ): RequestContext {
+    // Inherit the operation from parentContext when provided, so callers that
+    // already established an operation name (e.g. 'AutoTaskHandler') keep it.
+    const parentOp =
+      parentContext && typeof (parentContext as Record<string, unknown>).operation === 'string'
+        ? ((parentContext as Record<string, unknown>).operation as string)
+        : undefined;
+
     const baseContext = this.createRequestContext({
-      operation: 'withAuthInfo',
+      operation: parentOp ?? 'withAuthInfo',
       parentContext,
       additionalContext: {
         tenantId: authInfo.tenantId,
       },
     });
 
-    // Populate auth property with structured authentication context
-    const authContext: AuthContext = {
-      sub: authInfo.subject ?? authInfo.clientId,
-      scopes: authInfo.scopes,
-      clientId: authInfo.clientId,
-      token: authInfo.token,
-      ...(authInfo.tenantId ? { tenantId: authInfo.tenantId } : {}),
-    };
-
     return {
       ...baseContext,
-      auth: authContext,
+      auth: {
+        sub: authInfo.subject ?? authInfo.clientId,
+        scopes: authInfo.scopes,
+        clientId: authInfo.clientId,
+        token: authInfo.token,
+        ...(authInfo.tenantId && { tenantId: authInfo.tenantId }),
+      },
     };
   },
 };

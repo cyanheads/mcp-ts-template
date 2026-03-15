@@ -19,6 +19,8 @@ import {
   createToolHandler,
   type HandlerFactoryServices,
 } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
+import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
+import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
@@ -169,6 +171,17 @@ export class ToolRegistry {
           },
           {
             createTask: async (args, extra) => {
+              // Capture auth info from the request's ALS before firing the
+              // background handler — ALS is gone once we leave this scope.
+              // Single getStore() call serves both scope checking and capture.
+              const callerAuth = authContext.getStore()?.authInfo;
+
+              // Check inline auth scopes in the request path (inside ALS context)
+              // before creating the task — not in the background handler.
+              if (tool.auth && tool.auth.length > 0) {
+                withRequiredScopes(tool.auth);
+              }
+
               const validatedInput = tool.input.parse(args);
 
               const task = await extra.taskStore.createTask({
@@ -184,6 +197,7 @@ export class ToolRegistry {
                 extra.taskStore,
                 services,
                 formatter,
+                callerAuth,
               );
 
               return { task };
@@ -219,6 +233,7 @@ export class ToolRegistry {
     taskStore: RequestTaskStore,
     services: HandlerFactoryServices,
     formatter: (result: unknown) => ContentBlock[],
+    callerAuth?: AuthInfo,
   ): Promise<void> {
     const abortController = new AbortController();
 
@@ -237,15 +252,19 @@ export class ToolRegistry {
     }, 2000);
 
     try {
-      const appContext = requestContextService.createRequestContext({
-        operation: 'AutoTaskHandler',
-        additionalContext: { toolName: tool.name, taskId },
-      });
-
-      // Check inline auth scopes
-      if (tool.auth && tool.auth.length > 0) {
-        withRequiredScopes(tool.auth, appContext);
-      }
+      // Auth scopes are checked in createTask (inside the request's ALS context),
+      // not here — this runs in a detached background context where ALS is gone.
+      // We use the captured callerAuth to populate ctx.auth for identity access.
+      const appContext = callerAuth
+        ? requestContextService.withAuthInfo(callerAuth, {
+            operation: 'AutoTaskHandler',
+            toolName: tool.name,
+            taskId,
+          })
+        : requestContextService.createRequestContext({
+            operation: 'AutoTaskHandler',
+            additionalContext: { toolName: tool.name, taskId },
+          });
 
       const ctx = createContext({
         appContext,
@@ -261,7 +280,7 @@ export class ToolRegistry {
 
       await taskStore.storeTaskResult(taskId, 'completed', {
         content: formatter(result),
-        structuredContent: result,
+        ...(tool.output && { structuredContent: result }),
       });
     } catch (error: unknown) {
       clearInterval(cancelInterval);
