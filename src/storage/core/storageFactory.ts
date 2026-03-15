@@ -2,7 +2,7 @@
  * @fileoverview Factory function for creating a storage provider based on application configuration.
  * This module decouples the application from concrete storage implementations, allowing the
  * storage backend to be selected via environment variables. In a serverless environment,
- * it defaults to `in-memory` to ensure compatibility.
+ * it throws a configuration error for unsupported providers.
  * @module src/storage/core/storageFactory
  */
 import type { D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types';
@@ -17,7 +17,7 @@ import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemPro
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -52,8 +52,7 @@ function getGlobalBinding<T>(
 ): T {
   const g = globalThis as Record<string, unknown>;
   if (!(key in g) || g[key] == null) {
-    throw new McpError(
-      JsonRpcErrorCode.ConfigurationError,
+    throw configurationError(
       `${key} binding not available in globalThis. Ensure wrangler.toml is configured correctly.`,
       context,
     );
@@ -112,11 +111,10 @@ export function createStorageProvider(
     isServerless() &&
     !['in-memory', 'cloudflare-r2', 'cloudflare-kv', 'cloudflare-d1'].includes(providerType)
   ) {
-    logger.warning(
-      `Forcing 'in-memory' storage provider in serverless environment (configured: ${providerType}).`,
-      context,
+    throw configurationError(
+      `Storage provider '${providerType}' is not supported in serverless environments. ` +
+        `Use one of: 'in-memory', 'cloudflare-r2', 'cloudflare-kv', 'cloudflare-d1'.`,
     );
-    return new InMemoryProvider();
   }
 
   logger.info(`Creating storage provider of type: ${providerType}`, context);
@@ -126,8 +124,7 @@ export function createStorageProvider(
       return new InMemoryProvider();
     case 'filesystem':
       if (!config.storage.filesystemPath) {
-        throw new McpError(
-          JsonRpcErrorCode.ConfigurationError,
+        throw configurationError(
           'STORAGE_FILESYSTEM_PATH must be set for the filesystem storage provider.',
           context,
         );
@@ -135,15 +132,13 @@ export function createStorageProvider(
       return new FileSystemProvider(config.storage.filesystemPath);
     case 'supabase':
       if (!config.supabase?.url || !config.supabase?.serviceRoleKey) {
-        throw new McpError(
-          JsonRpcErrorCode.ConfigurationError,
+        throw configurationError(
           'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for the supabase storage provider.',
           context,
         );
       }
       if (!deps.supabaseClient) {
-        throw new McpError(
-          JsonRpcErrorCode.ConfigurationError,
+        throw configurationError(
           'Supabase client must be provided via deps for the supabase storage provider.',
           context,
         );
@@ -157,8 +152,7 @@ export function createStorageProvider(
         const r2Binding = getGlobalBinding<R2Bucket>('R2_BUCKET', context);
         return new R2Provider(r2Binding);
       }
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'Cloudflare R2 storage is only available in a Cloudflare Worker environment.',
         context,
       );
@@ -170,8 +164,7 @@ export function createStorageProvider(
         const kvBinding = getGlobalBinding<KVNamespace>('KV_NAMESPACE', context);
         return new KvProvider(kvBinding);
       }
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'Cloudflare KV storage is only available in a Cloudflare Worker environment.',
         context,
       );
@@ -183,15 +176,13 @@ export function createStorageProvider(
         const d1Binding = getGlobalBinding<D1Database>('DB', context);
         return new D1Provider(d1Binding);
       }
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         'Cloudflare D1 storage is only available in a Cloudflare Worker environment.',
         context,
       );
     default: {
       const exhaustiveCheck: never = providerType;
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
+      throw configurationError(
         `Unhandled storage provider type: ${String(exhaustiveCheck)}`,
         context,
       );

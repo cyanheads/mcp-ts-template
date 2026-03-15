@@ -3,9 +3,15 @@
  * Consolidates common test setup patterns used across the suite.
  * @module tests/fixtures
  */
-import { vi } from 'vitest';
-import type { SdkContext } from '@/mcp-server/tools/utils/toolDefinition.js';
+import type { DefinitionCounts } from '@/mcp-server/transports/http/httpTypes.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
+
+/** Default definition counts for tests that need a {@link DefinitionCounts} value. */
+export const defaultDefinitionCounts: DefinitionCounts = {
+  prompts: 1,
+  resources: 1,
+  tools: 1,
+};
 
 /**
  * Create a test RequestContext with sensible defaults.
@@ -19,17 +25,4 @@ export function createTestAppContext(
     tenantId: 'test-tenant',
     ...overrides,
   });
-}
-
-/**
- * Create a mock SdkContext for tool logic tests.
- */
-export function createTestSdkContext(overrides: Partial<SdkContext> = {}): SdkContext {
-  return {
-    signal: new AbortController().signal,
-    requestId: 'test-request-id',
-    sendNotification: vi.fn().mockResolvedValue(undefined),
-    sendRequest: vi.fn().mockResolvedValue({}),
-    ...overrides,
-  } as unknown as SdkContext;
 }

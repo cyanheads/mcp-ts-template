@@ -9,8 +9,22 @@ import { isAggregateError } from '@/utils/types/guards.js';
 
 /**
  * Retrieves a descriptive name for an error object or value.
+ *
+ * - `Error` instances → `error.name` (e.g. `'TypeError'`), falling back to `'Error'`.
+ * - `null` → `'NullValueEncountered'`
+ * - `undefined` → `'UndefinedValueEncountered'`
+ * - Non-plain objects with a named constructor → `'<ConstructorName>Encountered'`
+ * - Everything else → `'<typeof value>Encountered'` (e.g. `'stringEncountered'`)
+ *
  * @param error - The error object or value.
- * @returns A string representing the error's name or type.
+ * @returns A stable, human-readable string identifying the error's type.
+ *
+ * @example
+ * ```ts
+ * getErrorName(new TypeError('bad'));   // → 'TypeError'
+ * getErrorName('oops');                 // → 'stringEncountered'
+ * getErrorName(null);                   // → 'NullValueEncountered'
+ * ```
  */
 export function getErrorName(error: unknown): string {
   if (error instanceof Error) {
@@ -35,9 +49,29 @@ export function getErrorName(error: unknown): string {
 }
 
 /**
- * Extracts a message string from an error object or value.
- * @param error - The error object or value.
- * @returns The error message string.
+ * Extracts a human-readable message string from any thrown value.
+ *
+ * Handles every JavaScript type so that `catch (e)` blocks never produce `[object Object]`:
+ * - `AggregateError` → combines up to 3 inner error messages after the outer message.
+ * - `Error` → `error.message`
+ * - `null` / `undefined` → descriptive literal strings.
+ * - Primitives (`string`, `number`, `boolean`, `bigint`, `symbol`) → string-coerced value.
+ * - Functions → `[function <name>]`
+ * - Objects → JSON-serialized if possible; otherwise constructor name fallback.
+ * - If conversion itself throws, returns a safe fallback describing the conversion error.
+ *
+ * @param error - The thrown value to extract a message from.
+ * @returns A non-empty string describing the error.
+ *
+ * @example
+ * ```ts
+ * getErrorMessage(new Error('oops'));              // → 'oops'
+ * getErrorMessage('string thrown');               // → 'string thrown'
+ * getErrorMessage(42);                            // → '42'
+ * getErrorMessage(null);                          // → 'Null value encountered as error'
+ * getErrorMessage(new AggregateError([new Error('a'), new Error('b')], 'multi'));
+ * // → 'multi: a; b'
+ * ```
  */
 export function getErrorMessage(error: unknown): string {
   try {
@@ -92,7 +126,9 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
- * Represents a node in the error cause chain for structured error analysis.
+ * Represents a single node in an error cause chain produced by `extractErrorCauseChain`.
+ * Each node captures the identity, message, and optional metadata of one error in the chain,
+ * with `depth: 0` being the original (outermost) error and increasing depth tracking nested causes.
  */
 export interface ErrorCauseNode {
   /** Additional data from McpError instances */
@@ -108,11 +144,32 @@ export interface ErrorCauseNode {
 }
 
 /**
- * Extracts the complete error cause chain with circular reference detection.
- * Traverses the error.cause chain up to maxDepth, tracking seen errors to prevent infinite loops.
- * @param error - The error to extract causes from
- * @param maxDepth - Maximum depth to traverse (default: 20)
- * @returns Array of error cause nodes from root to leaf
+ * Extracts the complete error cause chain into a flat array of `ErrorCauseNode` objects.
+ *
+ * Starts at `error` (depth 0) and follows `error.cause` links until:
+ * - a non-Error value is encountered (appended as the terminal node, then stops),
+ * - a circular reference is detected (sentinel node appended, then stops),
+ * - or `maxDepth` is reached (sentinel node appended, then stops).
+ *
+ * String causes are treated as terminal `StringError` nodes.
+ * `McpError` nodes include the `data` property when present.
+ * Circular references are detected via `WeakSet` identity tracking.
+ *
+ * @param error - The outermost error to start traversal from.
+ * @param maxDepth - Maximum number of nodes to traverse before stopping. Defaults to `20`.
+ * @returns An array of `ErrorCauseNode` objects ordered from outermost (depth 0) to deepest cause.
+ *          An empty array is returned if `error` itself is falsy.
+ *
+ * @example
+ * ```ts
+ * const inner = new Error('db connection failed');
+ * const outer = new Error('user lookup failed', { cause: inner });
+ * const chain = extractErrorCauseChain(outer);
+ * // → [
+ * //   { name: 'Error', message: 'user lookup failed', depth: 0, stack: '...' },
+ * //   { name: 'Error', message: 'db connection failed', depth: 1, stack: '...' },
+ * // ]
+ * ```
  */
 export function extractErrorCauseChain(error: unknown, maxDepth = 20): ErrorCauseNode[] {
   const chain: ErrorCauseNode[] = [];

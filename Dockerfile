@@ -37,11 +37,11 @@ WORKDIR /usr/src/app
 ENV NODE_ENV=production
 
 # OCI image metadata (https://github.com/opencontainers/image-spec/blob/main/annotations.md)
-LABEL org.opencontainers.image.title="mcp-ts-template"
-LABEL org.opencontainers.image.description="TypeScript template for MCP servers with declarative tools/resources, pluggable auth, multi-backend storage, OpenTelemetry observability, and Cloudflare Workers support."
-LABEL org.opencontainers.image.source="https://github.com/cyanheads/mcp-ts-template"
+LABEL org.opencontainers.image.title="mcp-ts-core"
+LABEL org.opencontainers.image.description="TypeScript framework for building MCP servers with declarative tools/resources, pluggable auth, multi-backend storage, OpenTelemetry observability, and Cloudflare Workers support."
+LABEL org.opencontainers.image.source="https://github.com/cyanheads/mcp-ts-core"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
-LABEL io.modelcontextprotocol.server.name="io.github.cyanheads/mcp-ts-template"
+LABEL io.modelcontextprotocol.server.name="io.github.cyanheads/mcp-ts-core"
 
 # Copy dependency manifests
 COPY package.json bun.lock ./
@@ -60,7 +60,7 @@ COPY --from=build /usr/src/app/dist ./dist
 # We will use this existing user for enhanced security.
 
 # Create and set permissions for the log directory, assigning ownership to the 'bun' user.
-RUN mkdir -p /var/log/mcp-ts-template && chown -R bun:bun /var/log/mcp-ts-template
+RUN mkdir -p /var/log/mcp-ts-core && chown -R bun:bun /var/log/mcp-ts-core
 
 # Switch to the non-root user
 USER bun
@@ -76,7 +76,7 @@ ENV MCP_HTTP_HOST="0.0.0.0"
 ENV MCP_TRANSPORT_TYPE="http"
 ENV MCP_SESSION_MODE="stateless"
 ENV MCP_LOG_LEVEL="info"
-ENV LOGS_DIR="/var/log/mcp-ts-template"
+ENV LOGS_DIR="/var/log/mcp-ts-core"
 ENV MCP_FORCE_CONSOLE_LOGGING="true"
 
 # Expose the port the server listens on

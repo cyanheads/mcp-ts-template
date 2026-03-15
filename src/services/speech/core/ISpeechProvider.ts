@@ -14,57 +14,97 @@ import type {
 
 /**
  * Main interface for speech service providers.
- * Providers may implement TTS, STT, or both.
+ * Providers may implement TTS, STT, or both. Check `supportsTTS` / `supportsSTT`
+ * before calling the corresponding method.
  */
 export interface ISpeechProvider {
   /**
-   * Get available voices (for TTS providers).
-   * @throws {McpError} if operation fails or not supported
+   * Retrieve the list of voices available from this provider.
+   * Only meaningful for TTS providers; STT-only providers should throw.
+   *
+   * @returns Resolved array of available {@link Voice} objects.
+   * @throws {McpError} With `MethodNotFound` if the provider does not support TTS,
+   *   or with `InternalError` / `ServiceUnavailable` if the API call fails.
    */
   getVoices(): Promise<Voice[]>;
 
   /**
-   * Health check for the provider.
-   * @returns true if provider is healthy and configured correctly
+   * Verify that the provider is reachable and properly configured.
+   * Implementations should perform a lightweight API call (e.g., listing models
+   * or voices) rather than a full synthesis/transcription round-trip.
+   *
+   * @returns `true` if the provider responded successfully, `false` otherwise.
+   *   Never rejects — errors are caught and logged internally.
    */
   healthCheck(): Promise<boolean>;
+
   /**
-   * Provider name for identification.
+   * Unique identifier for this provider implementation (e.g. `'elevenlabs'`, `'openai-whisper'`).
    */
   readonly name: string;
 
   /**
-   * Convert speech audio to text.
-   * @throws {McpError} if STT is not supported or operation fails
+   * Transcribe audio data to text using this provider.
+   *
+   * @param options - Transcription options including audio data, format, language hint,
+   *   model, temperature, and optional timestamp request.
+   * @returns Resolved {@link SpeechToTextResult} containing the transcript, detected language,
+   *   duration, and optional word-level timestamps.
+   * @throws {McpError} With `MethodNotFound` if the provider does not support STT,
+   *   `InvalidParams` for invalid or oversized audio, or `InternalError` on API failure.
    */
   speechToText(options: SpeechToTextOptions): Promise<SpeechToTextResult>;
 
   /**
-   * Whether this provider supports speech-to-text.
+   * `true` if this provider supports speech-to-text transcription.
+   * Check before calling {@link speechToText}.
    */
   readonly supportsSTT: boolean;
 
   /**
-   * Whether this provider supports text-to-speech.
+   * `true` if this provider supports text-to-speech synthesis.
+   * Check before calling {@link textToSpeech}.
    */
   readonly supportsTTS: boolean;
 
   /**
-   * Convert text to speech audio.
-   * @throws {McpError} if TTS is not supported or operation fails
+   * Synthesize speech audio from text using this provider.
+   *
+   * @param options - Synthesis options including the text, voice settings, output format,
+   *   language, and model ID.
+   * @returns Resolved {@link TextToSpeechResult} containing audio data as a Buffer,
+   *   character count, format, and provider metadata.
+   * @throws {McpError} With `MethodNotFound` if the provider does not support TTS,
+   *   `InvalidParams` for empty or oversized text, or `InternalError` on API failure.
    */
   textToSpeech(options: TextToSpeechOptions): Promise<TextToSpeechResult>;
 }
 
 /**
- * Type guard to check if a provider supports TTS.
+ * Type guard — returns `true` if the provider supports text-to-speech synthesis.
+ *
+ * @param provider - Any `ISpeechProvider` instance.
+ * @returns `true` when `provider.supportsTTS` is set, narrowing the type for callers.
+ *
+ * @example
+ * if (supportsTTS(provider)) {
+ *   const result = await provider.textToSpeech({ text: 'Hello' });
+ * }
  */
 export function supportsTTS(provider: ISpeechProvider): provider is ISpeechProvider {
   return provider.supportsTTS;
 }
 
 /**
- * Type guard to check if a provider supports STT.
+ * Type guard — returns `true` if the provider supports speech-to-text transcription.
+ *
+ * @param provider - Any `ISpeechProvider` instance.
+ * @returns `true` when `provider.supportsSTT` is set, narrowing the type for callers.
+ *
+ * @example
+ * if (supportsSTT(provider)) {
+ *   const result = await provider.speechToText({ audio: buffer });
+ * }
  */
 export function supportsSTT(provider: ISpeechProvider): provider is ISpeechProvider {
   return provider.supportsSTT;

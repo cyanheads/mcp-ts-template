@@ -1,45 +1,63 @@
 /**
- * @fileoverview Defines the standard structure for a declarative prompt definition.
- * Prompts are structured message templates that users can discover and invoke.
- * Unlike tools (which execute code), prompts generate messages for the LLM.
+ * @fileoverview Prompt definition type and `prompt()` builder function.
+ * Prompts are pure message templates — no Context, no auth, no side effects.
  *
  * MCP Prompts Specification:
  * @see {@link https://modelcontextprotocol.io/specification/2025-06-18/basic/prompts | MCP Prompts}
  * @module src/mcp-server/prompts/utils/promptDefinition
  */
+
 import type { PromptMessage } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
 /**
  * Represents the complete, self-contained definition of an MCP prompt.
  */
-export interface PromptDefinition<
-  TArgumentsSchema extends ZodObject<ZodRawShape> | undefined = undefined,
-> {
+export interface PromptDefinition<TArgs extends ZodObject<ZodRawShape> | undefined = undefined> {
   /**
-   * Optional Zod schema for validating the prompt's arguments.
+   * Optional Zod schema for prompt arguments. All fields need `.describe()`.
    * If undefined, the prompt accepts no arguments.
    */
-  argumentsSchema?: TArgumentsSchema;
-
-  /**
-   * A clear, concise description of what the prompt does.
-   * This helps users understand when to use this prompt.
-   */
+  args?: TArgs;
+  /** LLM-facing description. */
   description: string;
-
   /**
-   * The function that generates the prompt messages.
-   * @param args The validated arguments (if argumentsSchema is defined).
-   * @returns An array of PromptMessage objects to be sent to the LLM.
+   * Generates the prompt messages from validated arguments.
    */
   generate: (
-    args: TArgumentsSchema extends ZodObject<ZodRawShape>
-      ? z.infer<TArgumentsSchema>
-      : Record<string, never>,
+    args: TArgs extends ZodObject<ZodRawShape> ? z.infer<TArgs> : Record<string, never>,
   ) => PromptMessage[] | Promise<PromptMessage[]>;
-  /**
-   * The programmatic, unique name for the prompt (e.g., 'code_review').
-   */
+  /** Programmatic unique name (snake_case). */
   name: string;
+}
+
+/** Widened type that accepts any `PromptDefinition` regardless of args schema. */
+export type AnyPromptDefinition = PromptDefinition<ZodObject<ZodRawShape> | undefined>;
+
+// ---------------------------------------------------------------------------
+// Builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a prompt definition.
+ *
+ * @example
+ * ```ts
+ * const codeReview = prompt('code_review', {
+ *   description: 'Review code for security and best practices.',
+ *   args: z.object({
+ *     code: z.string().describe('Code to review'),
+ *     language: z.string().optional().describe('Programming language'),
+ *   }),
+ *   generate: (args) => [
+ *     { role: 'user', content: { type: 'text', text: `Review: ${args.code}` } },
+ *   ],
+ * });
+ * ```
+ */
+export function prompt<TArgs extends ZodObject<ZodRawShape> | undefined = undefined>(
+  name: string,
+  options: Omit<PromptDefinition<TArgs>, 'name'>,
+): PromptDefinition<TArgs> {
+  return { name, ...options };
 }

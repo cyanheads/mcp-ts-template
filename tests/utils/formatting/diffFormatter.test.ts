@@ -29,8 +29,8 @@ describe('DiffFormatter', () => {
   });
 
   describe('diff() method', () => {
-    it('should generate a unified diff for changed text', () => {
-      const result = diffFormatter.diff(oldText, newText);
+    it('should generate a unified diff for changed text', async () => {
+      const result = await diffFormatter.diff(oldText, newText);
 
       expect(result).toBeTruthy();
       expect(result).toContain('@@'); // Unified diff header
@@ -38,51 +38,51 @@ describe('DiffFormatter', () => {
       expect(result).toContain('+'); // Additions
     });
 
-    it('should return minimal output for identical text', () => {
-      const result = diffFormatter.diff('same text', 'same text');
+    it('should return minimal output for identical text', async () => {
+      const result = await diffFormatter.diff('same text', 'same text');
 
       // Library still returns headers even with no changes
       expect(result).toBeTruthy();
       expect(result).not.toContain('@@'); // No hunks for identical content
     });
 
-    it('should handle empty strings', () => {
-      const result = diffFormatter.diff('', '');
+    it('should handle empty strings', async () => {
+      const result = await diffFormatter.diff('', '');
 
       // Library returns headers even for empty content
       expect(result).toBeTruthy();
       expect(result).not.toContain('@@'); // No hunks for identical empty strings
     });
 
-    it('should show additions when adding to empty text', () => {
-      const result = diffFormatter.diff('', 'new content');
+    it('should show additions when adding to empty text', async () => {
+      const result = await diffFormatter.diff('', 'new content');
 
       expect(result).toContain('+'); // Addition marker
       expect(result).toContain('new content');
     });
 
-    it('should show deletions when removing all text', () => {
-      const result = diffFormatter.diff('old content', '');
+    it('should show deletions when removing all text', async () => {
+      const result = await diffFormatter.diff('old content', '');
 
       expect(result).toContain('-'); // Deletion marker
       expect(result).toContain('old content');
     });
 
-    it('should respect context option', () => {
+    it('should respect context option', async () => {
       const largeOld = Array(20)
         .fill('line')
         .map((l, i) => `${l} ${i}`)
         .join('\n');
       const largeNew = largeOld.replace('line 10', 'modified 10');
 
-      const diff3 = diffFormatter.diff(largeOld, largeNew, { context: 3 });
-      const diff1 = diffFormatter.diff(largeOld, largeNew, { context: 1 });
+      const diff3 = await diffFormatter.diff(largeOld, largeNew, { context: 3 });
+      const diff1 = await diffFormatter.diff(largeOld, largeNew, { context: 1 });
 
       expect(diff3.length).toBeGreaterThan(diff1.length); // More context = more output
     });
 
-    it('should support patch format with headers', () => {
-      const result = diffFormatter.diff(oldText, newText, {
+    it('should support patch format with headers', async () => {
+      const result = await diffFormatter.diff(oldText, newText, {
         format: 'patch',
         includeHeaders: true,
         oldPath: 'a/file.ts',
@@ -93,8 +93,8 @@ describe('DiffFormatter', () => {
       expect(result).toContain('+++'); // New file header
     });
 
-    it('should support unified format without file headers', () => {
-      const result = diffFormatter.diff(oldText, newText, {
+    it('should support unified format without file headers', async () => {
+      const result = await diffFormatter.diff(oldText, newText, {
         format: 'unified',
       });
 
@@ -103,8 +103,8 @@ describe('DiffFormatter', () => {
       expect(result).not.toContain('+++'); // No file headers
     });
 
-    it('should support patch format with includeHeaders: false', () => {
-      const result = diffFormatter.diff(oldText, newText, {
+    it('should support patch format with includeHeaders: false', async () => {
+      const result = await diffFormatter.diff(oldText, newText, {
         format: 'patch',
         includeHeaders: false,
       });
@@ -115,8 +115,8 @@ describe('DiffFormatter', () => {
       expect(result).not.toContain('+++');
     });
 
-    it('should handle identical text with unified format (stripHeaders no @@ found)', () => {
-      const result = diffFormatter.diff('same text', 'same text', {
+    it('should handle identical text with unified format (stripHeaders no @@ found)', async () => {
+      const result = await diffFormatter.diff('same text', 'same text', {
         format: 'unified',
       });
 
@@ -126,11 +126,11 @@ describe('DiffFormatter', () => {
   });
 
   describe('diffLines() method', () => {
-    it('should generate diff from line arrays', () => {
+    it('should generate diff from line arrays', async () => {
       const oldLines = ['line 1', 'line 2', 'line 3'];
       const newLines = ['line 1', 'modified line 2', 'line 3', 'line 4'];
 
-      const result = diffFormatter.diffLines(oldLines, newLines);
+      const result = await diffFormatter.diffLines(oldLines, newLines);
 
       expect(result).toBeTruthy();
       expect(result).toContain('@@');
@@ -139,16 +139,16 @@ describe('DiffFormatter', () => {
       expect(result).toContain('+line 4');
     });
 
-    it('should handle empty line arrays', () => {
-      const result = diffFormatter.diffLines([], []);
+    it('should handle empty line arrays', async () => {
+      const result = await diffFormatter.diffLines([], []);
 
       // Library returns headers even for empty arrays
       expect(result).toBeTruthy();
       expect(result).not.toContain('@@'); // No hunks for identical empty arrays
     });
 
-    it('should handle single-line arrays', () => {
-      const result = diffFormatter.diffLines(['old'], ['new']);
+    it('should handle single-line arrays', async () => {
+      const result = await diffFormatter.diffLines(['old'], ['new']);
 
       expect(result).toContain('-old');
       expect(result).toContain('+new');
@@ -156,11 +156,11 @@ describe('DiffFormatter', () => {
   });
 
   describe('diffWords() method', () => {
-    it('should generate word-level diff', () => {
+    it('should generate word-level diff', async () => {
       const old = 'The quick brown fox';
       const new_ = 'The fast brown dog';
 
-      const result = diffFormatter.diffWords(old, new_);
+      const result = await diffFormatter.diffWords(old, new_);
 
       expect(result).toContain('[-quick-]'); // Removed word
       expect(result).toContain('[+fast+]'); // Added word
@@ -169,62 +169,62 @@ describe('DiffFormatter', () => {
       expect(result).toContain('brown'); // Unchanged word
     });
 
-    it('should handle identical text in word diff', () => {
-      const result = diffFormatter.diffWords('same text', 'same text');
+    it('should handle identical text in word diff', async () => {
+      const result = await diffFormatter.diffWords('same text', 'same text');
 
       expect(result).toBe('same text');
       expect(result).not.toContain('[-');
       expect(result).not.toContain('[+');
     });
 
-    it('should handle empty strings in word diff', () => {
-      const result = diffFormatter.diffWords('', '');
+    it('should handle empty strings in word diff', async () => {
+      const result = await diffFormatter.diffWords('', '');
       expect(result).toBe('');
     });
 
-    it('should show all additions for empty old text', () => {
-      const result = diffFormatter.diffWords('', 'new words here');
+    it('should show all additions for empty old text', async () => {
+      const result = await diffFormatter.diffWords('', 'new words here');
 
       expect(result).toContain('[+new words here+]');
     });
 
-    it('should show all deletions for empty new text', () => {
-      const result = diffFormatter.diffWords('old words here', '');
+    it('should show all deletions for empty new text', async () => {
+      const result = await diffFormatter.diffWords('old words here', '');
 
       expect(result).toContain('[-old words here-]');
     });
   });
 
   describe('getStats() method', () => {
-    it('should return statistics for diff', () => {
+    it('should return statistics for diff', async () => {
       const old = 'line 1\nline 2\nline 3';
       const new_ = 'line 1\nmodified 2\nline 3\nline 4';
 
-      const stats = diffFormatter.getStats(old, new_);
+      const stats = await diffFormatter.getStats(old, new_);
 
       expect(stats.additions).toBeGreaterThan(0);
       expect(stats.deletions).toBeGreaterThan(0);
       expect(stats.changes).toBe(stats.additions + stats.deletions);
     });
 
-    it('should return zero stats for identical text', () => {
-      const stats = diffFormatter.getStats('same', 'same');
+    it('should return zero stats for identical text', async () => {
+      const stats = await diffFormatter.getStats('same', 'same');
 
       expect(stats.additions).toBe(0);
       expect(stats.deletions).toBe(0);
       expect(stats.changes).toBe(0);
     });
 
-    it('should count only additions when adding to empty', () => {
-      const stats = diffFormatter.getStats('', 'line 1\nline 2');
+    it('should count only additions when adding to empty', async () => {
+      const stats = await diffFormatter.getStats('', 'line 1\nline 2');
 
       expect(stats.additions).toBe(2);
       expect(stats.deletions).toBe(0);
       expect(stats.changes).toBe(2);
     });
 
-    it('should count only deletions when removing all', () => {
-      const stats = diffFormatter.getStats('line 1\nline 2', '');
+    it('should count only deletions when removing all', async () => {
+      const stats = await diffFormatter.getStats('line 1\nline 2', '');
 
       expect(stats.additions).toBe(0);
       expect(stats.deletions).toBe(2);
@@ -233,15 +233,13 @@ describe('DiffFormatter', () => {
   });
 
   describe('Error handling', () => {
-    it('should throw McpError for non-string oldText in diff()', () => {
-      expect(() => {
-        // @ts-expect-error Testing invalid input
-        diffFormatter.diff(123, 'text');
-      }).toThrow(McpError);
+    it('should throw McpError for non-string oldText in diff()', async () => {
+      // @ts-expect-error Testing invalid input
+      await expect(diffFormatter.diff(123, 'text')).rejects.toThrow(McpError);
 
       try {
         // @ts-expect-error Testing invalid input
-        diffFormatter.diff(123, 'text');
+        await diffFormatter.diff(123, 'text');
       } catch (error) {
         expect(error).toBeInstanceOf(McpError);
         const mcpError = error as McpError;
@@ -250,22 +248,18 @@ describe('DiffFormatter', () => {
       }
     });
 
-    it('should throw McpError for non-string newText in diff()', () => {
-      expect(() => {
-        // @ts-expect-error Testing invalid input
-        diffFormatter.diff('text', null);
-      }).toThrow(McpError);
+    it('should throw McpError for non-string newText in diff()', async () => {
+      // @ts-expect-error Testing invalid input
+      await expect(diffFormatter.diff('text', null)).rejects.toThrow(McpError);
     });
 
-    it('should throw McpError for non-array inputs in diffLines()', () => {
-      expect(() => {
-        // @ts-expect-error Testing invalid input
-        diffFormatter.diffLines('not array', ['valid']);
-      }).toThrow(McpError);
+    it('should throw McpError for non-array inputs in diffLines()', async () => {
+      // @ts-expect-error Testing invalid input
+      await expect(diffFormatter.diffLines('not array', ['valid'])).rejects.toThrow(McpError);
 
       try {
         // @ts-expect-error Testing invalid input
-        diffFormatter.diffLines('not array', ['valid']);
+        await diffFormatter.diffLines('not array', ['valid']);
       } catch (error) {
         expect(error).toBeInstanceOf(McpError);
         const mcpError = error as McpError;
@@ -274,43 +268,35 @@ describe('DiffFormatter', () => {
       }
     });
 
-    it('should throw McpError for non-array second argument in diffLines()', () => {
-      expect(() => {
-        // @ts-expect-error Testing invalid input
-        diffFormatter.diffLines(['valid'], 'not array');
-      }).toThrow(McpError);
+    it('should throw McpError for non-array second argument in diffLines()', async () => {
+      // @ts-expect-error Testing invalid input
+      await expect(diffFormatter.diffLines(['valid'], 'not array')).rejects.toThrow(McpError);
     });
 
-    it('should throw McpError for non-string inputs in diffWords()', () => {
-      expect(() => {
-        // @ts-expect-error Testing invalid input
-        diffFormatter.diffWords(undefined, 'text');
-      }).toThrow(McpError);
+    it('should throw McpError for non-string inputs in diffWords()', async () => {
+      // @ts-expect-error Testing invalid input
+      await expect(diffFormatter.diffWords(undefined, 'text')).rejects.toThrow(McpError);
     });
 
-    it('should throw McpError for non-string second argument in diffWords()', () => {
-      expect(() => {
-        // @ts-expect-error Testing invalid input
-        diffFormatter.diffWords('valid', 42);
-      }).toThrow(McpError);
+    it('should throw McpError for non-string second argument in diffWords()', async () => {
+      // @ts-expect-error Testing invalid input
+      await expect(diffFormatter.diffWords('valid', 42)).rejects.toThrow(McpError);
     });
 
-    it('should throw McpError for non-string second argument in diff()', () => {
-      expect(() => {
-        // @ts-expect-error Testing invalid input
-        diffFormatter.diff('valid', 123);
-      }).toThrow(McpError);
+    it('should throw McpError for non-string second argument in diff()', async () => {
+      // @ts-expect-error Testing invalid input
+      await expect(diffFormatter.diff('valid', 123)).rejects.toThrow(McpError);
     });
   });
 
   describe('Context logging', () => {
-    it('should log successful diff generation with context', () => {
+    it('should log successful diff generation with context', async () => {
       const debugSpy = vi.spyOn(logger, 'debug');
       const context = requestContextService.createRequestContext({
         operation: 'test-diff',
       });
 
-      diffFormatter.diff('old', 'new', {}, context);
+      await diffFormatter.diff('old', 'new', {}, context);
 
       expect(debugSpy).toHaveBeenCalledWith(
         'Diff generated successfully',
@@ -322,10 +308,10 @@ describe('DiffFormatter', () => {
       debugSpy.mockRestore();
     });
 
-    it('should create auto-generated context when none provided', () => {
+    it('should create auto-generated context when none provided', async () => {
       const debugSpy = vi.spyOn(logger, 'debug');
 
-      diffFormatter.diff('old', 'new');
+      await diffFormatter.diff('old', 'new');
 
       expect(debugSpy).toHaveBeenCalledWith(
         'Diff generated successfully',
@@ -337,10 +323,10 @@ describe('DiffFormatter', () => {
       debugSpy.mockRestore();
     });
 
-    it('should log word diff generation', () => {
+    it('should log word diff generation', async () => {
       const debugSpy = vi.spyOn(logger, 'debug');
 
-      diffFormatter.diffWords('old words', 'new words');
+      await diffFormatter.diffWords('old words', 'new words');
 
       expect(debugSpy).toHaveBeenCalledWith('Word diff generated successfully', expect.any(Object));
 
@@ -349,51 +335,51 @@ describe('DiffFormatter', () => {
   });
 
   describe('Edge cases', () => {
-    it('should handle text with special characters', () => {
+    it('should handle text with special characters', async () => {
       const old = 'Hello\nWorld\t!';
       const new_ = 'Hello\nUniverse\t!';
 
-      const result = diffFormatter.diff(old, new_);
+      const result = await diffFormatter.diff(old, new_);
       expect(result).toBeTruthy();
     });
 
-    it('should handle very long lines', () => {
+    it('should handle very long lines', async () => {
       const longLine = 'A'.repeat(10000);
       const modifiedLine = `${'A'.repeat(9999)}B`;
 
-      const result = diffFormatter.diff(longLine, modifiedLine);
+      const result = await diffFormatter.diff(longLine, modifiedLine);
       expect(result).toBeTruthy();
     });
 
-    it('should handle multiline text with various line endings', () => {
+    it('should handle multiline text with various line endings', async () => {
       const old = 'line1\nline2\nline3';
       const new_ = 'line1\r\nline2\r\nmodified3';
 
-      const result = diffFormatter.diff(old, new_);
+      const result = await diffFormatter.diff(old, new_);
       expect(result).toBeTruthy();
     });
 
-    it('should handle text with only whitespace changes', () => {
+    it('should handle text with only whitespace changes', async () => {
       const old = 'word1  word2';
       const new_ = 'word1 word2';
 
-      const result = diffFormatter.diff(old, new_);
+      const result = await diffFormatter.diff(old, new_);
       expect(result).toBeTruthy();
     });
   });
 
   describe('Format options', () => {
-    it('should produce different outputs for different formats', () => {
-      const unified = diffFormatter.diff(oldText, newText, {
+    it('should produce different outputs for different formats', async () => {
+      const unified = await diffFormatter.diff(oldText, newText, {
         format: 'unified',
       });
 
-      const patch = diffFormatter.diff(oldText, newText, {
+      const patch = await diffFormatter.diff(oldText, newText, {
         format: 'patch',
         includeHeaders: true,
       });
 
-      const inline = diffFormatter.diff(oldText, newText, {
+      const inline = await diffFormatter.diff(oldText, newText, {
         format: 'inline',
       });
 
@@ -412,8 +398,8 @@ describe('DiffFormatter', () => {
       expect(inline).toBeTruthy();
     });
 
-    it('should allow custom file paths in headers', () => {
-      const result = diffFormatter.diff(oldText, newText, {
+    it('should allow custom file paths in headers', async () => {
+      const result = await diffFormatter.diff(oldText, newText, {
         format: 'patch',
         oldPath: 'src/old/file.ts',
         newPath: 'src/new/file.ts',

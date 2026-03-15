@@ -5,8 +5,9 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import type { AppConfig as AppConfigType } from '@/config/index.js';
-import { container, TaskManagerToken } from '@/container/index.js';
+import type { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { startHttpTransport } from '@/mcp-server/transports/http/httpTransport.js';
+import type { DefinitionCounts } from '@/mcp-server/transports/http/httpTypes.js';
 import type { TransportServer } from '@/mcp-server/transports/ITransport.js';
 import {
   startStdioTransport,
@@ -24,6 +25,8 @@ export class TransportManager {
     private config: AppConfigType,
     private logger: typeof LoggerType,
     private createMcpServer: () => Promise<McpServer>,
+    private taskManager: TaskManager,
+    private definitionCounts: DefinitionCounts,
   ) {}
 
   async start(): Promise<void> {
@@ -37,7 +40,7 @@ export class TransportManager {
     if (this.config.mcpTransportType === 'http') {
       // HTTP: pass factory so each request gets a fresh McpServer+transport pair
       // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
-      const handle = await startHttpTransport(this.createMcpServer, context);
+      const handle = await startHttpTransport(this.createMcpServer, context, this.definitionCounts);
       this.serverInstance = handle.server;
       this.shutdown = (ctx) => handle.stop(ctx);
     } else if (this.config.mcpTransportType === 'stdio') {
@@ -67,9 +70,7 @@ export class TransportManager {
     await this.shutdown(context);
 
     // Clean up task manager timers to allow clean process exit
-    if (container.has(TaskManagerToken)) {
-      container.resolve(TaskManagerToken).cleanup();
-    }
+    this.taskManager.cleanup();
 
     this.serverInstance = null;
     this.shutdown = null;

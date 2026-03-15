@@ -1,8 +1,7 @@
 import { defineConfig } from 'vitest/config';
-import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  resolve: { tsconfigPaths: true },
   // Inline zod to fix Vite SSR transform issues with Zod 4
   ssr: {
     noExternal: ['zod'],
@@ -11,8 +10,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
-    // Conformance tests use real modules (no mocks) and have their own config
-    exclude: ['tests/conformance/**', 'node_modules/**'],
+    // Integration tests use real modules (no mocks) and have their own config
+    exclude: ['tests/integration/**', 'node_modules/**'],
     // Run tests in parallel with proper isolation to prevent mock pollution
     pool: 'forks',
     maxWorkers: 4,
@@ -28,17 +27,6 @@ export default defineConfig({
         branches: 70,
         statements: 80,
       },
-    },
-    fakeTimers: {
-      toFake: [
-        'setTimeout',
-        'clearTimeout',
-        'setInterval',
-        'clearInterval',
-        'setImmediate',
-        'clearImmediate',
-        'Date',
-      ],
     },
   },
 });

@@ -11,7 +11,7 @@
 import type { Request, RequestId, Result } from '@modelcontextprotocol/sdk/types.js';
 
 import type { StorageService } from '@/storage/core/StorageService.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { forbidden, invalidRequest, notFound } from '@/types-global/errors.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { idGenerator } from '@/utils/security/idGenerator.js';
 import type { CreateTaskOptions, Task, TaskStore } from './taskTypes.js';
@@ -125,7 +125,7 @@ export class StorageBackedTaskStore implements TaskStore {
   ): void {
     if (!stored.sessionId) return;
     if (stored.sessionId !== callerSessionId) {
-      throw new McpError(JsonRpcErrorCode.Forbidden, `Access denied to task ${taskId}`);
+      throw forbidden(`Access denied to task ${taskId}`);
     }
   }
 
@@ -200,14 +200,13 @@ export class StorageBackedTaskStore implements TaskStore {
 
     const stored = await this.storage.get<StoredTask>(key, context);
     if (!stored) {
-      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task with ID ${taskId} not found`);
+      throw notFound(`Task with ID ${taskId} not found`);
     }
     this.assertOwnership(stored, sessionId, taskId);
 
     // Don't allow storing results for tasks already in terminal state
     if (isTerminal(stored.task.status)) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
+      throw invalidRequest(
         `Cannot store result for task ${taskId} in terminal status '${stored.task.status}'. Task results can only be stored once.`,
       );
     }
@@ -230,12 +229,12 @@ export class StorageBackedTaskStore implements TaskStore {
     const stored = await this.storage.get<StoredTask>(this.getTaskKey(taskId), context);
 
     if (!stored) {
-      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task with ID ${taskId} not found`);
+      throw notFound(`Task with ID ${taskId} not found`);
     }
     this.assertOwnership(stored, sessionId, taskId);
 
     if (!stored.result) {
-      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task ${taskId} has no result stored`);
+      throw invalidRequest(`Task ${taskId} has no result stored`);
     }
 
     return stored.result;
@@ -252,14 +251,13 @@ export class StorageBackedTaskStore implements TaskStore {
 
     const stored = await this.storage.get<StoredTask>(key, context);
     if (!stored) {
-      throw new McpError(JsonRpcErrorCode.InvalidRequest, `Task with ID ${taskId} not found`);
+      throw notFound(`Task with ID ${taskId} not found`);
     }
     this.assertOwnership(stored, sessionId, taskId);
 
     // Don't allow transitions from terminal states
     if (isTerminal(stored.task.status)) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidRequest,
+      throw invalidRequest(
         `Cannot update task ${taskId} from terminal status '${stored.task.status}' to '${status}'. Terminal states (completed, failed, cancelled) cannot transition to other states.`,
       );
     }

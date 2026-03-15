@@ -1,150 +1,197 @@
 /**
  * @fileoverview Tests for resource registration system.
- * @module tests/mcp-server/resources/resource-registration.test.ts
+ * @module tests/mcp-server/resources/resource-registration.test
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
+import { resource } from '@/mcp-server/resources/utils/resourceDefinition.js';
+import type { ResourceHandlerFactoryServices } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
+
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
+
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    notice: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    crit: vi.fn(),
+    emerg: vi.fn(),
+    child: vi.fn(),
+  },
+}));
+
+vi.mock('@/config/index.js', () => ({
+  config: {
+    environment: 'testing',
+    mcpServerVersion: '1.0.0-test',
+    mcpAuthMode: 'none',
+    openTelemetry: { serviceName: 'test', serviceVersion: '0.0.0' },
+  },
+}));
+
+vi.mock('@/utils/internal/logger.js', () => ({
+  logger: mockLogger,
+  Logger: { getInstance: () => mockLogger },
+}));
+
+vi.mock('@/utils/internal/requestContext.js', () => ({
+  requestContextService: {
+    createRequestContext: vi.fn((opts: any) => ({
+      requestId: 'test-req-id',
+      timestamp: new Date().toISOString(),
+      operation: opts?.operation ?? 'test',
+    })),
+  },
+}));
+
+// ---------------------------------------------------------------------------
+// Shared fixtures
+// ---------------------------------------------------------------------------
+
+const mockStorage = {
+  get: vi.fn(async () => null),
+  set: vi.fn(async () => {}),
+  delete: vi.fn(async () => {}),
+  list: vi.fn(async () => ({ keys: [] })),
+  getMany: vi.fn(async () => new Map()),
+};
+
+const services: ResourceHandlerFactoryServices = {
+  logger: mockLogger as any,
+  storage: mockStorage as any,
+};
 
 describe('ResourceRegistry', () => {
   let mockServer: any;
-  let registry: ResourceRegistry;
 
   beforeEach(() => {
-    // Create a mock MCP server
+    vi.clearAllMocks();
     mockServer = {
       resource: vi.fn(() => {}),
     };
-
-    // Create registry with empty resource definitions
-    registry = new ResourceRegistry([]);
   });
 
   describe('Resource Registration', () => {
-    it('should have registerAll method', () => {
-      expect(typeof registry.registerAll).toBe('function');
-    });
+    it('should register a single resource successfully', async () => {
+      const testResource = resource('test://{id}', {
+        description: 'A test resource',
+        params: z.object({ id: z.string().describe('id') }),
+        handler: (params) => ({ id: params.id }),
+      });
 
-    it('should handle empty resources list', async () => {
+      const registry = new ResourceRegistry([testResource], services);
       await registry.registerAll(mockServer);
-      // Should not throw with empty list
-      expect(true).toBe(true);
+
+      expect(mockServer.resource).toHaveBeenCalledTimes(1);
     });
 
-    it('should create registry with resource definitions', () => {
-      const mockResource = {
-        name: 'test_resource',
-        description: 'Test resource',
-        uriTemplate: 'test://{id}',
+    it('should register multiple resources', async () => {
+      const r1 = resource('one://{id}', {
+        description: 'First',
+        handler: () => ({}),
+      });
+      const r2 = resource('two://{id}', {
+        description: 'Second',
+        handler: () => ({}),
+      });
+
+      const registry = new ResourceRegistry([r1, r2], services);
+      await registry.registerAll(mockServer);
+
+      expect(mockServer.resource).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle empty resource list', async () => {
+      const registry = new ResourceRegistry([], services);
+      await registry.registerAll(mockServer);
+
+      expect(mockServer.resource).toHaveBeenCalledTimes(0);
+    });
+
+    it('should register resources with correct metadata', async () => {
+      const testResource = resource('echo://{msg}', {
+        name: 'echo-resource',
+        title: 'Echo Resource',
+        description: 'Echoes a message',
         mimeType: 'text/plain',
-      };
+        handler: () => ({}),
+      });
 
-      const registryWithResource = new ResourceRegistry([mockResource as any]);
-
-      // Registry should be created successfully
-      expect(registryWithResource).toBeDefined();
-      expect(typeof registryWithResource.registerAll).toBe('function');
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should not throw when registering with valid server', async () => {
-      // Empty registry should complete successfully
+      const registry = new ResourceRegistry([testResource], services);
       await registry.registerAll(mockServer);
-      expect(true).toBe(true);
+
+      const call = mockServer.resource.mock.calls[0];
+      expect(call[0]).toBe('echo-resource');
+      expect(call[2]).toMatchObject({
+        title: 'Echo Resource',
+        description: 'Echoes a message',
+        mimeType: 'text/plain',
+      });
     });
 
-    it('should handle server with resource method', async () => {
-      const serverWithMethod: any = {
-        resource: vi.fn(async () => {}),
-      };
+    it('should use uriTemplate as fallback name', async () => {
+      const testResource = resource('scheme://{id}', {
+        description: 'No name',
+        handler: () => ({}),
+      });
 
-      // Should complete registration without throwing
-      await registry.registerAll(serverWithMethod);
-      expect(true).toBe(true);
+      const registry = new ResourceRegistry([testResource], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.resource.mock.calls[0];
+      expect(call[0]).toBe('scheme://{id}');
     });
   });
 
   describe('Registration Order', () => {
-    it('should maintain resource definitions order', () => {
-      const resource1 = {
-        name: 'resource_one',
-        description: 'First resource',
-        uriTemplate: 'one://{id}',
-      };
-      const resource2 = {
-        name: 'resource_two',
-        description: 'Second resource',
-        uriTemplate: 'two://{id}',
-      };
-
-      const registryWithResources = new ResourceRegistry([resource1 as any, resource2 as any]);
-
-      // Registry should preserve order
-      expect(registryWithResources).toBeDefined();
-    });
-  });
-
-  describe('Integration', () => {
-    it('should successfully register all available resources', async () => {
-      await registry.registerAll(mockServer);
-      // Should complete registration process
-      expect(true).toBe(true);
-    });
-
-    it('should create registry with dependency injection', () => {
-      const newRegistry = new ResourceRegistry([]);
-      expect(newRegistry).toBeDefined();
-      expect(typeof newRegistry.registerAll).toBe('function');
-    });
-
-    it('should track multiple resources', () => {
-      const mockResources = [
-        { name: 'r1', description: 'R1', uriTemplate: 'r1://{id}' },
-        { name: 'r2', description: 'R2', uriTemplate: 'r2://{id}' },
+    it('should register resources in the order they are provided', async () => {
+      const resources = [
+        resource('first://{id}', { name: 'first', description: 'First', handler: () => ({}) }),
+        resource('second://{id}', { name: 'second', description: 'Second', handler: () => ({}) }),
+        resource('third://{id}', { name: 'third', description: 'Third', handler: () => ({}) }),
       ];
 
-      const registryWithMultiple = new ResourceRegistry(mockResources as any);
+      const registry = new ResourceRegistry(resources, services);
+      await registry.registerAll(mockServer);
 
-      // Should create registry with multiple resources
-      expect(registryWithMultiple).toBeDefined();
+      expect(mockServer.resource.mock.calls[0][0]).toBe('first');
+      expect(mockServer.resource.mock.calls[1][0]).toBe('second');
+      expect(mockServer.resource.mock.calls[2][0]).toBe('third');
     });
   });
 
-  describe('Resource Definition Validation', () => {
-    it('should accept resources with required fields', () => {
-      const validResource = {
-        name: 'valid_resource',
-        description: 'A valid resource',
-        uriTemplate: 'valid://{id}',
-        mimeType: 'application/json',
-      };
+  describe('Annotations and Examples', () => {
+    it('should pass annotations to server.resource', async () => {
+      const testResource = resource('ann://{id}', {
+        description: 'Annotated',
+        handler: () => ({}),
+        annotations: { audience: ['user'], priority: 0.8 },
+      });
 
-      const registryWithValid = new ResourceRegistry([validResource as any]);
-      expect(registryWithValid).toBeDefined();
+      const registry = new ResourceRegistry([testResource], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.resource.mock.calls[0];
+      expect(call[2].annotations).toEqual({ audience: ['user'], priority: 0.8 });
     });
 
-    it('should handle resources with optional list function', () => {
-      const resourceWithList = {
-        name: 'listable_resource',
-        description: 'Resource with list',
-        uriTemplate: 'list://{id}',
-        list: async () => ({ resources: [] }),
-      };
+    it('should pass examples to server.resource', async () => {
+      const testResource = resource('ex://{id}', {
+        description: 'With examples',
+        handler: () => ({}),
+        examples: [{ name: 'Ex1', uri: 'ex://1' }],
+      });
 
-      const registryWithList = new ResourceRegistry([resourceWithList as any]);
-      expect(registryWithList).toBeDefined();
-    });
+      const registry = new ResourceRegistry([testResource], services);
+      await registry.registerAll(mockServer);
 
-    it('should handle resources with examples', () => {
-      const resourceWithExamples = {
-        name: 'documented_resource',
-        description: 'Resource with examples',
-        uriTemplate: 'doc://{id}',
-        examples: ['doc://123', 'doc://456'],
-      };
-
-      const registryWithExamples = new ResourceRegistry([resourceWithExamples as any]);
-      expect(registryWithExamples).toBeDefined();
+      const call = mockServer.resource.mock.calls[0];
+      expect(call[2].examples).toEqual([{ name: 'Ex1', uri: 'ex://1' }]);
     });
   });
 });

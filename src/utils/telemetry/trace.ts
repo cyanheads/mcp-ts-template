@@ -17,23 +17,27 @@ import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
- * Represents parsed W3C traceparent header data.
+ * Parsed fields from a W3C `traceparent` header (`00-<traceId>-<spanId>-<flags>`).
+ * Used to propagate distributed trace context across service boundaries.
+ * @see https://www.w3.org/TR/trace-context/
  */
 export interface TraceparentInfo {
-  /** Whether the trace is sampled */
+  /** Whether the trace is sampled (flags byte `01` = sampled, `00` = not sampled). */
   sampled: boolean;
-  /** W3C span ID (16 hex characters) */
+  /** W3C parent span ID — 16 lowercase hex characters identifying the caller's span. */
   spanId: string;
-  /** W3C trace ID (32 hex characters) */
+  /** W3C trace ID — 32 lowercase hex characters shared across the entire distributed trace. */
   traceId: string;
 }
 
 /**
- * Builds a W3C `traceparent` header value from the provided RequestContext
- * or the active span if available. Falls back to sampled flag "01".
+ * Builds a W3C `traceparent` header value from a `RequestContext` or the currently active span.
+ * Uses `ctx.traceId`/`ctx.spanId` when provided; falls back to the active OTel span context.
+ * The version field is always `00` and the flags byte is hardcoded to `01` (sampled).
+ * Returns `undefined` when neither source yields a trace ID and span ID.
  *
- * @param ctx - Optional RequestContext containing trace IDs
- * @returns W3C traceparent header string or undefined if no context available
+ * @param ctx - Optional RequestContext containing `traceId` and `spanId`
+ * @returns Formatted `traceparent` string (e.g., `00-<traceId>-<spanId>-01`), or `undefined`
  *
  * @example
  * ```typescript
@@ -194,16 +198,21 @@ export async function withSpan<T>(
 }
 
 /**
- * Runs a function within a specific OpenTelemetry context.
- * Useful for propagating context across async boundaries (e.g., setTimeout, queueMicrotask).
+ * Runs a function within the currently active OpenTelemetry context.
+ * Useful for carrying the active context across async boundaries (e.g., `setTimeout`, `queueMicrotask`).
  *
- * @param ctx - RequestContext containing trace IDs (optional)
- * @param fn - Function to execute in the context
- * @returns Result of the function execution
+ * **Limitation:** When `ctx` contains trace IDs, this function executes within the
+ * current active context rather than restoring `ctx`'s specific span context.
+ * Full span restoration would require span recreation, which this utility intentionally avoids.
+ * If `ctx` has no trace IDs, `fn` is called directly without any context wrapping.
+ *
+ * @param ctx - RequestContext containing trace IDs; if missing or lacking IDs, `fn` runs directly
+ * @param fn - Function to execute within the active OTel context
+ * @returns Result of `fn`
  *
  * @example
  * ```typescript
- * // Preserve trace context in setTimeout
+ * // Carry the active OTel context into a setTimeout callback
  * const context = requestContextService.createRequestContext({ operation: 'delayed' });
  * setTimeout(() => {
  *   runInContext(context, () => {

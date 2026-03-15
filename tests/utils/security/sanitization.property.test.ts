@@ -12,41 +12,41 @@ import { sanitization } from '@/utils/security/sanitization.js';
 
 describe('Sanitization Property-Based Tests', () => {
   describe('sanitizeHtml', () => {
-    it('output should never contain <script> tags', () => {
-      fc.assert(
-        fc.property(fc.string(), (input) => {
-          const result = sanitization.sanitizeHtml(input);
+    it('output should never contain <script> tags', async () => {
+      await fc.assert(
+        fc.asyncProperty(fc.string(), async (input) => {
+          const result = await sanitization.sanitizeHtml(input);
           expect(result.toLowerCase()).not.toContain('<script');
         }),
         { numRuns: 200 },
       );
     });
 
-    it('should be idempotent — sanitizing twice gives same result', () => {
-      fc.assert(
-        fc.property(fc.string(), (input) => {
-          const once = sanitization.sanitizeHtml(input);
-          const twice = sanitization.sanitizeHtml(once);
+    it('should be idempotent — sanitizing twice gives same result', async () => {
+      await fc.assert(
+        fc.asyncProperty(fc.string(), async (input) => {
+          const once = await sanitization.sanitizeHtml(input);
+          const twice = await sanitization.sanitizeHtml(once);
           expect(twice).toBe(once);
         }),
         { numRuns: 200 },
       );
     });
 
-    it('output should never contain event handler attributes', () => {
-      fc.assert(
-        fc.property(fc.string(), (input) => {
-          const result = sanitization.sanitizeHtml(input);
+    it('output should never contain event handler attributes', async () => {
+      await fc.assert(
+        fc.asyncProperty(fc.string(), async (input) => {
+          const result = await sanitization.sanitizeHtml(input);
           expect(result.toLowerCase()).not.toMatch(/\bon\w+\s*=/);
         }),
         { numRuns: 200 },
       );
     });
 
-    it('should return string for any input', () => {
-      fc.assert(
-        fc.property(fc.string(), (input) => {
-          const result = sanitization.sanitizeHtml(input);
+    it('should return string for any input', async () => {
+      await fc.assert(
+        fc.asyncProperty(fc.string(), async (input) => {
+          const result = await sanitization.sanitizeHtml(input);
           expect(typeof result).toBe('string');
         }),
         { numRuns: 200 },
@@ -55,10 +55,10 @@ describe('Sanitization Property-Based Tests', () => {
   });
 
   describe('sanitizeString (text context)', () => {
-    it('output should contain no HTML tags in text mode', () => {
-      fc.assert(
-        fc.property(fc.string(), (input) => {
-          const result = sanitization.sanitizeString(input, {
+    it('output should contain no HTML tags in text mode', async () => {
+      await fc.assert(
+        fc.asyncProperty(fc.string(), async (input) => {
+          const result = await sanitization.sanitizeString(input, {
             context: 'text',
           });
           expect(result).not.toMatch(/<[a-z][^>]*>/i);
@@ -67,11 +67,11 @@ describe('Sanitization Property-Based Tests', () => {
       );
     });
 
-    it('should be idempotent in text mode', () => {
-      fc.assert(
-        fc.property(fc.string(), (input) => {
-          const once = sanitization.sanitizeString(input, { context: 'text' });
-          const twice = sanitization.sanitizeString(once, { context: 'text' });
+    it('should be idempotent in text mode', async () => {
+      await fc.assert(
+        fc.asyncProperty(fc.string(), async (input) => {
+          const once = await sanitization.sanitizeString(input, { context: 'text' });
+          const twice = await sanitization.sanitizeString(once, { context: 'text' });
           expect(twice).toBe(once);
         }),
         { numRuns: 200 },
@@ -80,39 +80,42 @@ describe('Sanitization Property-Based Tests', () => {
   });
 
   describe('sanitizeUrl', () => {
-    it('should throw McpError for javascript: URLs', () => {
-      fc.assert(
-        fc.property(fc.string(), (suffix) => {
+    it('should throw McpError for javascript: URLs', async () => {
+      await fc.assert(
+        fc.asyncProperty(fc.string(), async (suffix) => {
           const input = `javascript:${suffix}`;
-          expect(() => sanitization.sanitizeUrl(input)).toThrow(McpError);
+          await expect(sanitization.sanitizeUrl(input)).rejects.toThrow(McpError);
         }),
         { numRuns: 100 },
       );
     });
 
-    it('should throw McpError for invalid/empty URLs', () => {
-      fc.assert(
-        fc.property(
+    it('should throw McpError for invalid/empty URLs', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           fc.string().filter((s) => {
             // Keep only strings that are clearly not valid http(s) URLs
             const t = s.trim().toLowerCase();
             return !t.startsWith('http://') && !t.startsWith('https://');
           }),
-          (input) => {
-            expect(() => sanitization.sanitizeUrl(input)).toThrow(McpError);
+          async (input) => {
+            await expect(sanitization.sanitizeUrl(input)).rejects.toThrow(McpError);
           },
         ),
         { numRuns: 100 },
       );
     });
 
-    it('should preserve valid https URLs', () => {
-      fc.assert(
-        fc.property(fc.webUrl({ withFragments: true, withQueryParameters: true }), (url) => {
-          const result = sanitization.sanitizeUrl(url);
-          expect(result.length).toBeGreaterThan(0);
-          expect(typeof result).toBe('string');
-        }),
+    it('should preserve valid https URLs', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.webUrl({ withFragments: true, withQueryParameters: true }),
+          async (url) => {
+            const result = await sanitization.sanitizeUrl(url);
+            expect(result.length).toBeGreaterThan(0);
+            expect(typeof result).toBe('string');
+          },
+        ),
         { numRuns: 100 },
       );
     });
@@ -157,19 +160,19 @@ describe('Sanitization Property-Based Tests', () => {
   });
 
   describe('sanitizeNumber', () => {
-    it('should clamp numbers to min/max range', () => {
-      fc.assert(
-        fc.property(
+    it('should clamp numbers to min/max range', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           // Use integer range to avoid subnormal float edge cases
           fc.integer({ min: -1_000_000, max: 1_000_000 }),
           fc.integer({ min: -1_000_000, max: 1_000_000 }),
           fc.integer({ min: -1_000_000, max: 1_000_000 }),
-          (value, a, b) => {
+          async (value, a, b) => {
             const min = Math.min(a, b);
             const max = Math.max(a, b);
             if (min === max) return;
 
-            const result = sanitization.sanitizeNumber(value, min, max);
+            const result = await sanitization.sanitizeNumber(value, min, max);
             expect(result).toBeGreaterThanOrEqual(min);
             expect(result).toBeLessThanOrEqual(max);
           },
@@ -178,19 +181,19 @@ describe('Sanitization Property-Based Tests', () => {
       );
     });
 
-    it('should throw for NaN and Infinity', () => {
-      fc.assert(
-        fc.property(fc.constantFrom(NaN, Infinity, -Infinity), (value) => {
-          expect(() => sanitization.sanitizeNumber(value)).toThrow(McpError);
+    it('should throw for NaN and Infinity', async () => {
+      await fc.assert(
+        fc.asyncProperty(fc.constantFrom(NaN, Infinity, -Infinity), async (value) => {
+          await expect(sanitization.sanitizeNumber(value)).rejects.toThrow(McpError);
         }),
         { numRuns: 10 },
       );
     });
 
-    it('should accept any finite number without min/max', () => {
-      fc.assert(
-        fc.property(fc.double({ noNaN: true, noDefaultInfinity: true }), (value) => {
-          const result = sanitization.sanitizeNumber(value);
+    it('should accept any finite number without min/max', async () => {
+      await fc.assert(
+        fc.asyncProperty(fc.double({ noNaN: true, noDefaultInfinity: true }), async (value) => {
+          const result = await sanitization.sanitizeNumber(value);
           expect(typeof result).toBe('number');
           expect(result).toBe(value);
         }),
@@ -198,10 +201,10 @@ describe('Sanitization Property-Based Tests', () => {
       );
     });
 
-    it('should parse valid numeric strings', () => {
-      fc.assert(
-        fc.property(fc.integer({ min: -1_000_000, max: 1_000_000 }), (value) => {
-          const result = sanitization.sanitizeNumber(String(value));
+    it('should parse valid numeric strings', async () => {
+      await fc.assert(
+        fc.asyncProperty(fc.integer({ min: -1_000_000, max: 1_000_000 }), async (value) => {
+          const result = await sanitization.sanitizeNumber(String(value));
           expect(result).toBe(value);
         }),
         { numRuns: 100 },

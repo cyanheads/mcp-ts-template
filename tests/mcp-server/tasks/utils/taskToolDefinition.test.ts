@@ -9,7 +9,7 @@ import {
   isTaskToolDefinition,
   type TaskToolDefinition,
 } from '@/mcp-server/tasks/utils/taskToolDefinition.js';
-import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
+import { tool } from '@/mcp-server/tools/utils/toolDefinition.js';
 
 describe('isTaskToolDefinition', () => {
   // Sample schemas for testing
@@ -25,8 +25,8 @@ describe('isTaskToolDefinition', () => {
       const taskTool: TaskToolDefinition<typeof SampleInputSchema, typeof SampleOutputSchema> = {
         name: 'test_task_tool',
         description: 'A test task tool',
-        inputSchema: SampleInputSchema,
-        outputSchema: SampleOutputSchema,
+        input: SampleInputSchema,
+        output: SampleOutputSchema,
         execution: { taskSupport: 'required' },
         taskHandlers: {
           createTask: async () => ({ task: { taskId: 'test' } as never }),
@@ -42,7 +42,7 @@ describe('isTaskToolDefinition', () => {
       const taskTool = {
         name: 'test_task_tool',
         description: 'A test task tool',
-        inputSchema: SampleInputSchema,
+        input: SampleInputSchema,
         execution: { taskSupport: 'required' },
         taskHandlers: {
           createTask: async () => ({ task: { taskId: 'test' } as never }),
@@ -58,7 +58,7 @@ describe('isTaskToolDefinition', () => {
       const taskTool = {
         name: 'test_task_tool',
         description: 'A test task tool',
-        inputSchema: SampleInputSchema,
+        input: SampleInputSchema,
         execution: { taskSupport: 'optional' },
         annotations: {
           readOnlyHint: true,
@@ -79,7 +79,7 @@ describe('isTaskToolDefinition', () => {
         name: 'test_task_tool',
         title: 'Test Task Tool',
         description: 'A test task tool',
-        inputSchema: SampleInputSchema,
+        input: SampleInputSchema,
         execution: { taskSupport: 'required' },
         taskHandlers: {
           createTask: async () => ({ task: { taskId: 'test' } as never }),
@@ -94,13 +94,12 @@ describe('isTaskToolDefinition', () => {
 
   describe('should return false for non-task tool definitions', () => {
     it('for regular tool definition without taskHandlers', () => {
-      const regularTool: ToolDefinition<typeof SampleInputSchema, typeof SampleOutputSchema> = {
-        name: 'test_regular_tool',
+      const regularTool = tool('test_regular_tool', {
         description: 'A regular tool',
-        inputSchema: SampleInputSchema,
-        outputSchema: SampleOutputSchema,
-        logic: async () => ({ result: 'done' }),
-      };
+        input: SampleInputSchema,
+        output: SampleOutputSchema,
+        handler: () => ({ result: 'done' }),
+      });
 
       expect(isTaskToolDefinition(regularTool)).toBe(false);
     });
@@ -127,7 +126,7 @@ describe('isTaskToolDefinition', () => {
       const invalidTool = {
         name: 'test_tool',
         description: 'A tool',
-        inputSchema: SampleInputSchema,
+        input: SampleInputSchema,
         taskHandlers: null,
       };
 
@@ -138,7 +137,7 @@ describe('isTaskToolDefinition', () => {
       const invalidTool = {
         name: 'test_tool',
         description: 'A tool',
-        inputSchema: SampleInputSchema,
+        input: SampleInputSchema,
         taskHandlers: 'not an object',
       };
 
@@ -190,8 +189,8 @@ describe('TaskToolDefinition type structure', () => {
     const validTaskTool: TaskToolDefinition<typeof SampleInputSchema, typeof SampleOutputSchema> = {
       name: 'test_task',
       description: 'Test description',
-      inputSchema: SampleInputSchema,
-      outputSchema: SampleOutputSchema,
+      input: SampleInputSchema,
+      output: SampleOutputSchema,
       execution: { taskSupport: 'required' },
       taskHandlers: {
         createTask: async (_args, extra) => {
@@ -220,8 +219,8 @@ describe('TaskToolDefinition type structure', () => {
       name: 'test_task',
       title: 'Test Task Tool',
       description: 'Test description',
-      inputSchema: SampleInputSchema,
-      outputSchema: SampleOutputSchema,
+      input: SampleInputSchema,
+      output: SampleOutputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,

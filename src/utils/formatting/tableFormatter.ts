@@ -5,17 +5,37 @@
  * @module src/utils/formatting/tableFormatter
  */
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { JsonRpcErrorCode, McpError, validationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
 /**
  * Table output style options.
+ *
+ * - `markdown`: GitHub-flavored markdown table with pipe delimiters and alignment indicators.
+ * - `ascii`: Box-drawing table using `+`, `-`, and `|` characters; portable across terminals.
+ * - `grid`: Unicode box-drawing table using `┌─┬─┐` characters; visually cleaner but requires Unicode support.
+ * - `compact`: Borderless table with columns separated by spaces; minimal visual noise.
+ *
+ * @example
+ * ```typescript
+ * const style: TableStyle = 'grid';
+ * ```
  */
 export type TableStyle = 'markdown' | 'ascii' | 'grid' | 'compact';
 
 /**
  * Column alignment options.
+ *
+ * Controls how cell content is padded within its column width.
+ * - `left`: Content flush-left, trailing spaces fill the column.
+ * - `center`: Content centred, padding split evenly (odd remainder goes right).
+ * - `right`: Content flush-right, leading spaces fill the column.
+ *
+ * @example
+ * ```typescript
+ * const alignment: Alignment = 'right';
+ * ```
  */
 export type Alignment = 'left' | 'center' | 'right';
 
@@ -80,7 +100,32 @@ interface ColumnInfo {
 
 /**
  * Utility class for formatting tabular data into various table styles.
- * Provides methods for rendering arrays of objects or raw 2D arrays as tables.
+ *
+ * Provides two rendering methods:
+ * - {@link format} — accepts an array of objects and extracts headers automatically.
+ * - {@link formatRaw} — accepts explicit headers and a 2D string array for full control.
+ *
+ * Column widths are computed from the widest value in each column, clamped by
+ * `minWidth` and `maxWidth`. Content that exceeds `maxWidth` is truncated with
+ * an ellipsis (`...`) when `truncate` is `true` (the default).
+ *
+ * @example
+ * ```typescript
+ * const data = [
+ *   { name: 'Alice', score: 42 },
+ *   { name: 'Bob',   score: 7  },
+ * ];
+ *
+ * // Markdown (default style)
+ * tableFormatter.format(data);
+ * // | name  | score |
+ * // | ----- | ----- |
+ * // | Alice | 42    |
+ * // | Bob   | 7     |
+ *
+ * // Unicode grid with right-aligned score column
+ * tableFormatter.format(data, { style: 'grid', alignment: { score: 'right' } });
+ * ```
  */
 export class TableFormatter {
   /**
@@ -99,22 +144,33 @@ export class TableFormatter {
 
   /**
    * Format an array of objects as a table.
-   * Automatically extracts headers from object keys.
    *
-   * @template T - Type of objects in the array
-   * @param data - Array of objects to format
-   * @param options - Table formatting options
-   * @param context - Optional request context for logging
-   * @returns Formatted table string
-   * @throws {McpError} If data is invalid or formatting fails
+   * Headers are derived from the keys of the first object. Every value is
+   * converted to a string via an internal `stringify` helper that handles
+   * primitives, arrays (JSON), objects (JSON), and special values (`null`,
+   * `undefined`, functions, symbols).
+   *
+   * @template T - Type of objects in the array; must extend `Record<string, unknown>`.
+   * @param data - Array of objects to render. Returns `''` immediately if empty.
+   * @param options - Table formatting options. All fields are optional; defaults apply.
+   * @param context - Optional request context used for correlated debug logging.
+   *   A new context is created automatically when omitted.
+   * @returns Formatted table string in the requested style, or `''` if `data` is empty.
+   * @throws {McpError} With `ValidationError` code if `data` is not an array.
+   * @throws {McpError} With `InternalError` code if rendering fails unexpectedly.
    *
    * @example
    * ```typescript
    * const data = [
    *   { name: 'Alice', age: 30, role: 'Engineer' },
-   *   { name: 'Bob', age: 25, role: 'Designer' }
+   *   { name: 'Bob',   age: 25, role: 'Designer' },
    * ];
-   * const table = tableFormatter.format(data, { style: 'grid' });
+   *
+   * // Default markdown output
+   * tableFormatter.format(data);
+   *
+   * // Unicode grid with right-aligned age column
+   * tableFormatter.format(data, { style: 'grid', alignment: { age: 'right' } });
    * ```
    */
   format<T extends Record<string, unknown>>(
@@ -129,7 +185,7 @@ export class TableFormatter {
       });
 
     if (!Array.isArray(data)) {
-      throw new McpError(JsonRpcErrorCode.ValidationError, 'Data must be an array', logContext);
+      throw validationError('Data must be an array', logContext);
     }
 
     if (data.length === 0) {
@@ -154,22 +210,29 @@ export class TableFormatter {
   }
 
   /**
-   * Format a raw 2D array with explicit headers.
-   * Provides full control over headers and cell values.
+   * Format a raw 2D string array with explicit headers.
    *
-   * @param headers - Array of column headers
-   * @param rows - 2D array of cell values
-   * @param options - Table formatting options
-   * @param context - Optional request context for logging
-   * @returns Formatted table string
-   * @throws {McpError} If headers/rows are invalid or formatting fails
+   * Unlike {@link format}, no automatic key extraction or value stringification
+   * occurs — callers supply pre-serialized strings. All rows must have exactly
+   * the same number of columns as `headers`; a mismatch throws immediately.
+   *
+   * @param headers - Non-empty array of column header strings.
+   * @param rows - 2D array of string cell values. Every inner array must have
+   *   the same length as `headers`. Returns `''` immediately if `rows` is empty.
+   * @param options - Table formatting options. All fields are optional; defaults apply.
+   * @param context - Optional request context used for correlated debug logging.
+   *   A new context is created automatically when omitted.
+   * @returns Formatted table string in the requested style, or `''` if `rows` is empty.
+   * @throws {McpError} With `ValidationError` code if `headers` is empty or not an array,
+   *   `rows` is not an array, or any row's column count differs from `headers.length`.
+   * @throws {McpError} With `InternalError` code if rendering fails unexpectedly.
    *
    * @example
    * ```typescript
    * const headers = ['Name', 'Age', 'Role'];
    * const rows = [
    *   ['Alice', '30', 'Engineer'],
-   *   ['Bob', '25', 'Designer']
+   *   ['Bob',   '25', 'Designer'],
    * ];
    * const table = tableFormatter.formatRaw(headers, rows, { style: 'ascii' });
    * ```
@@ -188,15 +251,11 @@ export class TableFormatter {
 
     // Validate inputs
     if (!Array.isArray(headers) || headers.length === 0) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'Headers must be a non-empty array',
-        logContext,
-      );
+      throw validationError('Headers must be a non-empty array', logContext);
     }
 
     if (!Array.isArray(rows)) {
-      throw new McpError(JsonRpcErrorCode.ValidationError, 'Rows must be an array', logContext);
+      throw validationError('Rows must be an array', logContext);
     }
 
     if (rows.length === 0) {
@@ -208,8 +267,7 @@ export class TableFormatter {
     const columnCount = headers.length;
     for (let i = 0; i < rows.length; i++) {
       if (rows[i]?.length !== columnCount) {
-        throw new McpError(
-          JsonRpcErrorCode.ValidationError,
+        throw validationError(
           `Row ${i} has ${rows[i]?.length} columns but expected ${columnCount}`,
           { ...logContext, rowIndex: i, expectedColumns: columnCount },
         );
@@ -548,8 +606,11 @@ export class TableFormatter {
 }
 
 /**
- * Singleton instance of TableFormatter.
- * Use this instance to format tabular data into various table styles.
+ * Singleton instance of {@link TableFormatter}.
+ *
+ * Prefer this over constructing `new TableFormatter()` directly. Use
+ * {@link TableFormatter.format} for object arrays and
+ * {@link TableFormatter.formatRaw} for pre-serialized 2D string arrays.
  *
  * @example
  * ```typescript
@@ -557,23 +618,30 @@ export class TableFormatter {
  *
  * const data = [
  *   { name: 'Alice', age: 30, role: 'Engineer' },
- *   { name: 'Bob', age: 25, role: 'Designer' }
+ *   { name: 'Bob',   age: 25, role: 'Designer' },
  * ];
  *
- * // Markdown table (default)
+ * // Markdown table (default style)
  * console.log(tableFormatter.format(data));
  *
- * // Grid table with right-aligned age
+ * // Unicode grid with right-aligned age column
  * console.log(tableFormatter.format(data, {
  *   style: 'grid',
- *   alignment: { age: 'right' }
+ *   alignment: { age: 'right' },
  * }));
  *
- * // Compact table with uppercase headers
+ * // Compact borderless table with uppercase headers
  * console.log(tableFormatter.format(data, {
  *   style: 'compact',
- *   headerStyle: 'uppercase'
+ *   headerStyle: 'uppercase',
  * }));
+ *
+ * // Raw 2D array (no automatic key extraction)
+ * console.log(tableFormatter.formatRaw(
+ *   ['Name', 'Age'],
+ *   [['Alice', '30'], ['Bob', '25']],
+ *   { style: 'ascii' },
+ * ));
  * ```
  */
 export const tableFormatter = new TableFormatter();

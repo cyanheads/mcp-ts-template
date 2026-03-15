@@ -1,14 +1,32 @@
 /**
  * @fileoverview OpenAI Whisper speech-to-text provider implementation.
- * @module src/services/speech/providers/whisper
+ * Wraps the OpenAI audio transcriptions API (`POST /audio/transcriptions`) to provide
+ * STT transcription in multiple languages. TTS is not supported and will throw `MethodNotFound`.
+ * Audio is submitted as multipart `FormData`; the 25 MB Whisper file-size limit is enforced
+ * before the network call.
+ * @module src/services/speech/providers/whisper.provider
  */
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import {
+  invalidParams,
+  JsonRpcErrorCode,
+  McpError,
+  serviceUnavailable,
+} from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
+import { nowMs } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 import { fetchWithTimeout } from '@/utils/network/fetchWithTimeout.js';
+import {
+  ATTR_MCP_SPEECH_INPUT_BYTES,
+  ATTR_MCP_SPEECH_OPERATION,
+  ATTR_MCP_SPEECH_OUTPUT_BYTES,
+  ATTR_MCP_SPEECH_PROVIDER,
+} from '@/utils/telemetry/semconv.js';
+import { withSpan } from '@/utils/telemetry/trace.js';
 
 import type { ISpeechProvider } from '../core/ISpeechProvider.js';
+import { recordSpeechOp } from '../core/speechMetrics.js';
 import type {
   SpeechProviderConfig,
   SpeechToTextOptions,
@@ -20,7 +38,9 @@ import type {
 } from '../types.js';
 
 /**
- * OpenAI Whisper API response for transcription.
+ * Shape of the JSON body returned by `POST /audio/transcriptions`.
+ * In `verbose_json` mode (when timestamps are requested) the `language`, `duration`,
+ * `task`, and `words` fields are populated.
  */
 interface WhisperTranscriptionResponse {
   duration?: number;
@@ -36,7 +56,13 @@ interface WhisperTranscriptionResponse {
 
 /**
  * OpenAI Whisper STT provider.
- * Supports high-quality speech-to-text transcription in multiple languages.
+ * Implements {@link ISpeechProvider} for speech-to-text only (`supportsSTT = true`,
+ * `supportsTTS = false`). Submits audio to the OpenAI transcriptions endpoint via
+ * multipart form upload using `fetchWithTimeout`.
+ *
+ * Default model: `whisper-1`
+ * Default timeout: 60 000 ms (audio processing is slower than typical API calls)
+ * Maximum audio size: 25 MB (enforced locally before the network call)
  */
 export class WhisperProvider implements ISpeechProvider {
   public readonly name = 'openai-whisper';
@@ -48,9 +74,16 @@ export class WhisperProvider implements ISpeechProvider {
   private readonly defaultModelId: string;
   private readonly timeout: number;
 
+  /**
+   * Construct a WhisperProvider.
+   *
+   * @param config - Provider configuration. `config.apiKey` is required; other fields
+   *   fall back to OpenAI API defaults.
+   * @throws {McpError} With `InvalidParams` if `config.apiKey` is absent.
+   */
   constructor(config: SpeechProviderConfig) {
     if (!config.apiKey) {
-      throw new McpError(JsonRpcErrorCode.InvalidParams, 'OpenAI API key is required');
+      throw invalidParams('OpenAI API key is required');
     }
 
     this.apiKey = config.apiKey;
@@ -64,7 +97,10 @@ export class WhisperProvider implements ISpeechProvider {
   }
 
   /**
-   * Text-to-speech is not supported by Whisper.
+   * Not supported — Whisper is an STT-only provider.
+   *
+   * @param _options - Unused.
+   * @throws {McpError} Always, with `MethodNotFound`.
    */
   textToSpeech(_options: TextToSpeechOptions): Promise<TextToSpeechResult> {
     throw new McpError(
@@ -74,7 +110,21 @@ export class WhisperProvider implements ISpeechProvider {
   }
 
   /**
-   * Convert speech audio to text using OpenAI Whisper API.
+   * Transcribe audio to text using the OpenAI Whisper API.
+   * Audio may be provided as a raw `Buffer` or a base64-encoded string. The data is
+   * submitted to `POST /audio/transcriptions` as multipart `FormData`. When
+   * `options.timestamps` is `true`, the request uses `verbose_json` format and requests
+   * word-level granularity, populating `result.words`.
+   *
+   * @param options - Transcription options. `options.audio` is required. Optional fields:
+   *   `format` (determines MIME type/filename), `language` (ISO-639-1 hint),
+   *   `modelId` (overrides provider default), `prompt` (style guide), `temperature`,
+   *   and `timestamps` (enables word-level output).
+   * @returns Resolved {@link SpeechToTextResult} with `text`, optional `language`,
+   *   `duration`, `words` (if timestamps were requested), and `metadata` containing
+   *   `modelId`, `provider`, and `task`.
+   * @throws {McpError} With `InvalidParams` for missing audio, invalid base64, or audio > 25 MB.
+   * @throws {McpError} With `InternalError` if the Whisper API call fails.
    */
   async speechToText(options: SpeechToTextOptions): Promise<SpeechToTextResult> {
     const context = requestContextService.createRequestContext({
@@ -87,7 +137,7 @@ export class WhisperProvider implements ISpeechProvider {
 
     // Validate audio input
     if (!options.audio) {
-      throw new McpError(JsonRpcErrorCode.InvalidParams, 'Audio data is required', context);
+      throw invalidParams('Audio data is required', context);
     }
 
     // Convert audio to Buffer if it's a base64 string
@@ -96,7 +146,7 @@ export class WhisperProvider implements ISpeechProvider {
       try {
         audioBuffer = Buffer.from(options.audio, 'base64');
       } catch (_error) {
-        throw new McpError(JsonRpcErrorCode.InvalidParams, 'Invalid base64 audio data', context);
+        throw invalidParams('Invalid base64 audio data', context);
       }
     } else {
       audioBuffer = options.audio;
@@ -105,99 +155,122 @@ export class WhisperProvider implements ISpeechProvider {
     // Check file size (Whisper has a 25MB limit)
     const maxSize = 25 * 1024 * 1024; // 25MB
     if (audioBuffer.length > maxSize) {
-      throw new McpError(
-        JsonRpcErrorCode.InvalidParams,
+      throw invalidParams(
         `Audio file exceeds maximum size of 25MB (got ${Math.round(audioBuffer.length / 1024 / 1024)}MB)`,
         context,
       );
     }
 
-    const url = `${this.baseUrl}/audio/transcriptions`;
+    return await withSpan(
+      'speech:stt',
+      async (span) => {
+        const t0 = nowMs();
+        let ok = false;
 
-    // Build form data
-    const formData = new FormData();
+        const url = `${this.baseUrl}/audio/transcriptions`;
 
-    // Determine filename with appropriate extension
-    const extension = this.getFileExtension(options.format);
-    const blob = new Blob([audioBuffer], {
-      type: this.getMimeType(options.format),
-    });
-    formData.append('file', blob, `audio.${extension}`);
-    formData.append('model', modelId);
+        // Build form data
+        const formData = new FormData();
 
-    if (options.language) {
-      formData.append('language', options.language);
-    }
+        // Determine filename with appropriate extension
+        const extension = this.getFileExtension(options.format);
+        const blob = new Blob([audioBuffer], {
+          type: this.getMimeType(options.format),
+        });
+        formData.append('file', blob, `audio.${extension}`);
+        formData.append('model', modelId);
 
-    if (options.temperature !== undefined) {
-      formData.append('temperature', options.temperature.toString());
-    }
+        if (options.language) {
+          formData.append('language', options.language);
+        }
 
-    if (options.prompt) {
-      formData.append('prompt', options.prompt);
-    }
+        if (options.temperature !== undefined) {
+          formData.append('temperature', options.temperature.toString());
+        }
 
-    // Request verbose JSON format to get timestamps and metadata
-    formData.append('response_format', options.timestamps ? 'verbose_json' : 'json');
+        if (options.prompt) {
+          formData.append('prompt', options.prompt);
+        }
 
-    if (options.timestamps) {
-      formData.append('timestamp_granularities[]', 'word');
-    }
+        // Request verbose JSON format to get timestamps and metadata
+        formData.append('response_format', options.timestamps ? 'verbose_json' : 'json');
 
-    try {
-      const response = await fetchWithTimeout(url, this.timeout, context, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          // Don't set Content-Type - let fetch set it with boundary for FormData
-        },
-        body: formData,
-      });
+        if (options.timestamps) {
+          formData.append('timestamp_granularities[]', 'word');
+        }
 
-      // fetchWithTimeout already throws McpError on non-ok responses
-      const data = (await response.json()) as WhisperTranscriptionResponse;
+        try {
+          const response = await fetchWithTimeout(url, this.timeout, context, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${this.apiKey}`,
+              // Don't set Content-Type - let fetch set it with boundary for FormData
+            },
+            body: formData,
+          });
 
-      // Convert word timestamps if present
-      const words: WordTimestamp[] | undefined = data.words?.map((w) => ({
-        word: w.word,
-        start: w.start,
-        end: w.end,
-      }));
+          // fetchWithTimeout already throws McpError on non-ok responses
+          const data = (await response.json()) as WhisperTranscriptionResponse;
 
-      logger.info(`Speech-to-text transcription successful (${data.text.length} chars)`, context);
+          // Convert word timestamps if present
+          const words: WordTimestamp[] | undefined = data.words?.map((w) => ({
+            word: w.word,
+            start: w.start,
+            end: w.end,
+          }));
 
-      return {
-        text: data.text,
-        ...(data.language !== undefined && { language: data.language }),
-        ...(data.duration !== undefined && { duration: data.duration }),
-        ...(words !== undefined && { words }),
-        metadata: {
-          modelId,
-          provider: this.name,
-          ...(data.task !== undefined && { task: data.task }),
-        },
-      };
-    } catch (error: unknown) {
-      if (error instanceof McpError) {
-        throw error;
-      }
+          ok = true;
+          const outputBytes = new TextEncoder().encode(data.text).length;
+          span.setAttribute(ATTR_MCP_SPEECH_OUTPUT_BYTES, outputBytes);
 
-      logger.error(
-        'Failed to transcribe audio',
-        error instanceof Error ? error : new Error(String(error)),
-        context,
-      );
+          logger.info(
+            `Speech-to-text transcription successful (${data.text.length} chars)`,
+            context,
+          );
 
-      throw new McpError(
-        JsonRpcErrorCode.InternalError,
-        `Failed to transcribe audio: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        context,
-      );
-    }
+          return {
+            text: data.text,
+            ...(data.language !== undefined && { language: data.language }),
+            ...(data.duration !== undefined && { duration: data.duration }),
+            ...(words !== undefined && { words }),
+            metadata: {
+              modelId,
+              provider: this.name,
+              ...(data.task !== undefined && { task: data.task }),
+            },
+          };
+        } catch (error: unknown) {
+          if (error instanceof McpError) {
+            throw error;
+          }
+
+          logger.error(
+            'Failed to transcribe audio',
+            error instanceof Error ? error : new Error(String(error)),
+            context,
+          );
+
+          throw serviceUnavailable(
+            `Failed to transcribe audio: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            context,
+            { cause: error },
+          );
+        } finally {
+          recordSpeechOp(span, t0, ok, 'stt', 'openai-whisper');
+        }
+      },
+      {
+        [ATTR_MCP_SPEECH_PROVIDER]: 'openai-whisper',
+        [ATTR_MCP_SPEECH_OPERATION]: 'stt',
+        [ATTR_MCP_SPEECH_INPUT_BYTES]: audioBuffer.length,
+      },
+    );
   }
 
   /**
-   * Get voices is not applicable for STT providers.
+   * Not applicable — Whisper is an STT-only provider with no voice concept.
+   *
+   * @throws {McpError} Always, with `MethodNotFound`.
    */
   getVoices(): Promise<Voice[]> {
     throw new McpError(
@@ -207,7 +280,12 @@ export class WhisperProvider implements ISpeechProvider {
   }
 
   /**
-   * Health check for OpenAI Whisper API.
+   * Verify OpenAI API connectivity by fetching the models list (`GET /models`).
+   * Uses a 5-second timeout regardless of the provider's configured `timeout`,
+   * to keep health checks lightweight.
+   *
+   * @returns `true` if the models endpoint responds with HTTP 200, `false` otherwise.
+   *   Never rejects.
    */
   async healthCheck(): Promise<boolean> {
     try {
@@ -237,7 +315,11 @@ export class WhisperProvider implements ISpeechProvider {
   }
 
   /**
-   * Get file extension for audio format.
+   * Map an {@link AudioFormat} string to a file extension for the multipart upload filename.
+   * Defaults to `'mp3'` for unrecognized or absent formats.
+   *
+   * @param format - Audio format string (e.g., `'wav'`, `'ogg'`).
+   * @returns File extension without leading dot (e.g., `'wav'`).
    */
   private getFileExtension(format?: string): string {
     const formatMap: Record<string, string> = {
@@ -253,7 +335,11 @@ export class WhisperProvider implements ISpeechProvider {
   }
 
   /**
-   * Get MIME type for audio format.
+   * Map an {@link AudioFormat} string to the corresponding MIME type for the `Blob`
+   * used in the multipart upload. Defaults to `'audio/mpeg'` for unrecognized formats.
+   *
+   * @param format - Audio format string (e.g., `'wav'`, `'ogg'`).
+   * @returns MIME type string (e.g., `'audio/wav'`).
    */
   private getMimeType(format?: string): string {
     const mimeMap: Record<string, string> = {

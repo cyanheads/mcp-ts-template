@@ -11,7 +11,7 @@ import type {
   StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
 import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError, JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
@@ -23,10 +23,7 @@ export class KvProvider implements IStorageProvider {
 
   constructor(kv: KVNamespace) {
     if (!kv) {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
-        'KvProvider requires a valid KVNamespace instance.',
-      );
+      throw configurationError('KvProvider requires a valid KVNamespace instance.');
     }
     this.kv = kv;
   }

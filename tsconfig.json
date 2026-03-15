@@ -21,6 +21,7 @@
     "allowSyntheticDefaultImports": true,
 
     // Output configuration
+    "rootDir": ".",
     "outDir": "./dist",
     "declaration": true,
     "declarationMap": true,
@@ -41,7 +42,7 @@
 
     // Node.js specific
     "lib": ["ESNext"],
-    "types": ["bun-types", "node", "@cloudflare/workers-types"],
+    "types": ["node", "@cloudflare/workers-types"],
 
     // Error on unused locals and parameters
     "noUnusedLocals": true,
@@ -61,7 +62,7 @@
     }
   },
   "include": ["src/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.spec.ts"],
+  "exclude": ["node_modules", "dist", "templates", "examples"],
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"

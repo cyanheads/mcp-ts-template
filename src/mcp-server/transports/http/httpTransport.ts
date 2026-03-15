@@ -11,21 +11,20 @@
 import http from 'node:http';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { type ServerType, serve } from '@hono/node-server';
-import { httpInstrumentationMiddleware } from '@hono/otel';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-
-import { config } from '@/config/index.js';
+import { config, FRAMEWORK_NAME, FRAMEWORK_VERSION } from '@/config/index.js';
 import { createAuthStrategy } from '@/mcp-server/transports/auth/authFactory.js';
 import { createAuthMiddleware } from '@/mcp-server/transports/auth/authMiddleware.js';
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
-import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
+import type { DefinitionCounts, HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
 import { protectedResourceMetadataHandler } from '@/mcp-server/transports/http/protectedResourceMetadata.js';
 import { generateSecureSessionId } from '@/mcp-server/transports/http/sessionIdUtils.js';
 import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
+import { configurationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { logStartupBanner } from '@/utils/internal/startupBanner.js';
@@ -58,21 +57,23 @@ class McpSessionTransport extends StreamableHTTPTransport {
  * @param parentContext - Parent request context for logging
  * @returns Configured Hono application with the specified binding type
  */
-export function createHttpApp<TBindings extends object = HonoNodeBindings>(
+export async function createHttpApp<TBindings extends object = HonoNodeBindings>(
   serverFactory: () => Promise<McpServer>,
   parentContext: RequestContext,
-): { app: Hono<{ Bindings: TBindings }>; sessionStore: SessionStore | null } {
+  definitionCounts: DefinitionCounts,
+): Promise<{ app: Hono<{ Bindings: TBindings }>; sessionStore: SessionStore | null }> {
   const app = new Hono<{ Bindings: TBindings }>();
   const transportContext = {
     ...parentContext,
     component: 'HttpTransportSetup',
   };
 
-  // Initialize session store for stateful mode
-  const sessionStore =
-    config.mcpSessionMode === 'stateful'
-      ? new SessionStore(config.mcpStatefulSessionStaleTimeoutMs)
-      : null;
+  // Initialize session store for stateful mode.
+  // 'auto' resolves to stateful for HTTP (per MCP spec conformance).
+  const isStateful = config.mcpSessionMode === 'stateful' || config.mcpSessionMode === 'auto';
+  const sessionStore = isStateful
+    ? new SessionStore(config.mcpStatefulSessionStaleTimeoutMs)
+    : null;
 
   // Wire session count to OTel observable gauge for durable metrics
   if (sessionStore && config.openTelemetry.enabled) {
@@ -87,7 +88,13 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
   // OpenTelemetry request tracing — outermost middleware on the MCP endpoint
   // so the span captures the full lifecycle (CORS, auth, handler).
   // On Bun, Node.js HTTP auto-instrumentation is a no-op; this fills that gap.
+  // @hono/otel is a Tier 3 optional peer — lazy import inside the guard.
   if (config.openTelemetry.enabled) {
+    const { httpInstrumentationMiddleware } = await import('@hono/otel').catch(() => {
+      throw configurationError(
+        'Install "@hono/otel" to use OpenTelemetry HTTP instrumentation: bun add @hono/otel',
+      );
+    });
     app.use(
       config.mcpHttpEndpointPath,
       httpInstrumentationMiddleware({
@@ -170,6 +177,19 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
         environment: config.environment,
         transport: config.mcpTransportType,
         sessionMode: config.mcpSessionMode,
+      },
+      capabilities: {
+        logging: true,
+        prompts: definitionCounts.prompts > 0,
+        resources: definitionCounts.resources > 0,
+        tools: definitionCounts.tools > 0,
+      },
+      framework: {
+        name: FRAMEWORK_NAME,
+        version: FRAMEWORK_VERSION,
+      },
+      auth: {
+        mode: config.mcpAuthMode,
       },
     });
   });
@@ -327,8 +347,9 @@ export function createHttpApp<TBindings extends object = HonoNodeBindings>(
         }
 
         // MCP Spec 2025-06-18: For stateful sessions, return Mcp-Session-Id header
-        // in InitializeResponse (and all subsequent responses)
-        if (config.mcpSessionMode === 'stateful' && response.ok) {
+        // in InitializeResponse (and all subsequent responses).
+        // 'auto' resolves to stateful for HTTP, matching the SessionStore creation above.
+        if (isStateful && response.ok) {
           response.headers.set('Mcp-Session-Id', sessionId);
           logger.debug('Added Mcp-Session-Id header to response', {
             ...transportContext,
@@ -455,6 +476,7 @@ export interface HttpTransportHandle {
 export async function startHttpTransport(
   serverFactory: () => Promise<McpServer>,
   parentContext: RequestContext,
+  definitionCounts: DefinitionCounts,
 ): Promise<HttpTransportHandle> {
   const transportContext = {
     ...parentContext,
@@ -462,7 +484,11 @@ export async function startHttpTransport(
   };
   logger.info('Starting HTTP transport.', transportContext);
 
-  const { app, sessionStore } = createHttpApp(serverFactory, transportContext);
+  const { app, sessionStore } = await createHttpApp(
+    serverFactory,
+    transportContext,
+    definitionCounts,
+  );
 
   const server = await startHttpServerWithRetry(
     app,

@@ -9,11 +9,13 @@
  * during application startup.
  * @module src/utils/security/idGenerator
  */
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { validationError } from '@/types-global/errors.js';
 
 /**
- * Cross-runtime random bytes using the Web Crypto API.
- * Available in Node.js 19+, Cloudflare Workers, and browsers.
+ * Returns cryptographically secure random bytes using the Web Crypto API (`crypto.getRandomValues`).
+ * Available in Node.js 19+, Cloudflare Workers, and browsers — no Node.js-specific imports needed.
+ * @param count - Number of random bytes to generate.
+ * @returns A `Uint8Array` of `count` random bytes.
  */
 function getRandomBytes(count: number): Uint8Array {
   const bytes = new Uint8Array(count);
@@ -33,8 +35,11 @@ export interface EntityPrefixConfig {
  * Defines options for customizing ID generation.
  */
 export interface IdGenerationOptions {
+  /** Character set to draw from when building the random part. Defaults to `A-Z0-9`. */
   charset?: string;
+  /** Length of the random part of the ID. Defaults to `6`. */
   length?: number;
+  /** String placed between the prefix and the random part. Defaults to `'_'`. */
   separator?: string;
 }
 
@@ -165,10 +170,7 @@ export class IdGenerator {
   public generateForEntity(entityType: string, options: IdGenerationOptions = {}): string {
     const prefix = this.entityPrefixes[entityType];
     if (!prefix) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        `Unknown entity type: ${entityType}. No prefix registered.`,
-      );
+      throw validationError(`Unknown entity type: ${entityType}. No prefix registered.`);
     }
     return this.generate(prefix, options);
   }
@@ -215,10 +217,22 @@ export class IdGenerator {
   }
 
   /**
-   * Strips the prefix and separator from an ID string.
-   * @param id - The ID string (e.g., "PROJ_A6B3J0").
-   * @param separator - The separator used in the ID. Defaults to `IdGenerator.DEFAULT_SEPARATOR`.
-   * @returns The ID part without the prefix, or the original ID if separator not found.
+   * Strips the prefix and separator from an ID string, returning only the random part.
+   * If the separator does not appear in the string, the original ID is returned unchanged.
+   * Handles edge cases where the separator character appears in the random part by
+   * rejoining all parts after the first split.
+   *
+   * @param id - The full ID string (e.g., `"PROJ_A6B3J0"`).
+   * @param separator - The separator character used in the ID. Defaults to `'_'`.
+   * @returns The random part of the ID without the prefix (e.g., `"A6B3J0"`), or the
+   *   original string if the separator is not present.
+   *
+   * @example
+   * ```ts
+   * idGenerator.stripPrefix('PROJ_A6B3J0');         // → 'A6B3J0'
+   * idGenerator.stripPrefix('PROJ-A6B3J0', '-');    // → 'A6B3J0'
+   * idGenerator.stripPrefix('NOPREFIXID');           // → 'NOPREFIXID'
+   * ```
    */
   public stripPrefix(id: string, separator: string = IdGenerator.DEFAULT_SEPARATOR): string {
     const parts = id.split(separator);
@@ -235,8 +249,7 @@ export class IdGenerator {
   public getEntityType(id: string, separator: string = IdGenerator.DEFAULT_SEPARATOR): string {
     const parts = id.split(separator);
     if (parts.length < 2 || !parts[0]) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
+      throw validationError(
         `Invalid ID format: ${id}. Expected format like: PREFIX${separator}RANDOMPART`,
       );
     }
@@ -245,23 +258,32 @@ export class IdGenerator {
     const entityType = this.prefixToEntityType[prefix.toLowerCase()];
 
     if (!entityType) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        `Unknown entity type for prefix: ${prefix}`,
-      );
+      throw validationError(`Unknown entity type for prefix: ${prefix}`);
     }
     return entityType;
   }
 
   /**
-   * Normalizes an entity ID to ensure the prefix matches the registered case
-   * and the random part is uppercase. Note: This assumes the charset characters
-   * have a meaningful uppercase version if case-insensitivity is desired for the random part.
-   * For default charset (A-Z0-9), this is fine. For custom charsets, behavior might vary.
-   * @param id - The ID to normalize (e.g., "proj_a6b3j0").
-   * @param separator - The separator used in the ID. Defaults to `IdGenerator.DEFAULT_SEPARATOR`.
-   * @returns The normalized ID (e.g., "PROJ_A6B3J0").
-   * @throws {McpError} If the entity type cannot be determined from the ID.
+   * Normalizes an entity ID so that the prefix matches its registered casing and the random
+   * part is uppercased. Delegates to {@link getEntityType} to resolve the canonical prefix.
+   *
+   * Note: Uppercasing the random part is correct for the default `A-Z0-9` charset. For custom
+   * charsets that include lowercase or non-alphabetic characters, `toUpperCase()` may produce
+   * unexpected results.
+   *
+   * @param id - The ID to normalize (e.g., `"proj_a6b3j0"`).
+   * @param separator - The separator used in the ID. Defaults to `'_'`.
+   * @returns The normalized ID with canonical prefix casing and uppercase random part
+   *   (e.g., `"PROJ_A6B3J0"`).
+   * @throws {McpError} With {@link JsonRpcErrorCode.ValidationError} if the entity type
+   *   cannot be determined from the ID's prefix.
+   *
+   * @example
+   * ```ts
+   * idGenerator.setEntityPrefixes({ project: 'PROJ' });
+   * idGenerator.normalize('proj_a6b3j0'); // → 'PROJ_A6B3J0'
+   * idGenerator.normalize('PROJ_a6b3j0'); // → 'PROJ_A6B3J0'
+   * ```
    */
   public normalize(id: string, separator: string = IdGenerator.DEFAULT_SEPARATOR): string {
     const entityType = this.getEntityType(id, separator);
@@ -276,23 +298,41 @@ export class IdGenerator {
 }
 
 /**
- * Default singleton instance of the `IdGenerator`.
- * Initialize with `idGenerator.setEntityPrefixes({})` to configure.
+ * Default singleton instance of {@link IdGenerator}, initialized with no entity prefixes.
+ * Call `idGenerator.setEntityPrefixes({ ... })` during application startup to register prefixes
+ * before calling `generateForEntity` or `getEntityType`.
  */
 export const idGenerator = new IdGenerator();
 
 /**
- * Generates a standard Version 4 UUID (Universally Unique Identifier).
- * Uses the Node.js `crypto` module.
- * @returns A new UUID string.
+ * Generates a standard Version 4 UUID using the Web Crypto API (`crypto.randomUUID()`).
+ * Cross-runtime: works in Node.js 19+, Cloudflare Workers, and browsers.
+ *
+ * @returns A new UUID v4 string (e.g., `"110e8400-e29b-41d4-a716-446655440000"`).
+ *
+ * @example
+ * ```ts
+ * const id = generateUUID(); // → '110e8400-e29b-41d4-a716-446655440000'
+ * ```
  */
 export const generateUUID = (): string => crypto.randomUUID();
 
 /**
- * Generates a unique 10-character alphanumeric ID with a hyphen in the middle (e.g., `ABCDE-FGHIJ`).
- * This function is specifically for request contexts to provide a shorter, more readable ID.
- * It contains its own random string generation logic to remain self-contained and avoid circular dependencies.
- * @returns A new unique ID string.
+ * Generates a short, human-readable request context ID in the format `XXXXX-XXXXX`
+ * (two 5-character alphanumeric segments joined by a hyphen, e.g., `"A3K9Z-BQ72M"`).
+ *
+ * This function is self-contained — it does not call `IdGenerator` or any other module-level
+ * export — specifically to avoid circular dependencies with `requestContextService`, which
+ * itself calls this function during initialization.
+ *
+ * Uses rejection sampling against the Web Crypto API for uniform, bias-free character selection.
+ *
+ * @returns A 11-character string in `XXXXX-XXXXX` format suitable for request tracing.
+ *
+ * @example
+ * ```ts
+ * const reqId = generateRequestContextId(); // → 'A3K9Z-BQ72M'
+ * ```
  */
 export const generateRequestContextId = (): string => {
   /**

@@ -9,15 +9,17 @@ type PerfHooksPerformance = typeof import('perf_hooks').performance;
 import { logger } from '../../../src/utils/internal/logger.js';
 import * as performanceModule from '../../../src/utils/internal/performance.js';
 
-const originalPerformance = globalThis.performance;
+type GlobalWithPerf = typeof globalThis & { performance?: Performance };
+
+const g = globalThis as GlobalWithPerf;
+const originalPerformance = g.performance;
 const originalDateNow = Date.now;
 
 afterEach(() => {
   if (originalPerformance) {
-    globalThis.performance = originalPerformance;
+    g.performance = originalPerformance;
   } else {
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete (globalThis as { performance?: typeof globalThis.performance }).performance;
+    delete g.performance;
   }
   Date.now = originalDateNow;
   vi.restoreAllMocks();
@@ -26,9 +28,7 @@ afterEach(() => {
 describe('initHighResTimer', () => {
   it('uses browser performance.now when available', async () => {
     const nowSpy = vi.fn(() => 123.45);
-    globalThis.performance = {
-      now: nowSpy,
-    } as unknown as typeof globalThis.performance;
+    g.performance = { now: nowSpy } as unknown as Performance;
 
     await performanceModule.initHighResTimer();
 
@@ -40,8 +40,7 @@ describe('initHighResTimer', () => {
     const warningSpy = vi.spyOn(logger, 'warning').mockImplementation(() => {});
     const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(678.9);
 
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete (globalThis as { performance?: typeof globalThis.performance }).performance;
+    delete g.performance;
 
     // Pass a failing loader directly — vi.spyOn on ESM exports doesn't
     // affect internal module calls.
@@ -61,8 +60,7 @@ describe('initHighResTimer', () => {
   it('uses perf_hooks when available in a Node environment', async () => {
     const nowSpy = vi.fn(() => 456.78);
 
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete (globalThis as { performance?: typeof globalThis.performance }).performance;
+    delete g.performance;
 
     // Pass a mock loader that returns a fake perf_hooks performance object.
     const mockLoader = async () => ({

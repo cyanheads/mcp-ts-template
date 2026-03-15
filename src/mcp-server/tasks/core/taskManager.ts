@@ -10,19 +10,104 @@
  * @experimental These APIs are experimental and may change without notice.
  * @module src/mcp-server/tasks/core/taskManager
  */
+import type { Request, RequestId, Result } from '@modelcontextprotocol/sdk/types.js';
+
 import type { config as configType } from '@/config/index.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { idGenerator } from '@/utils/security/idGenerator.js';
+import { createCounter, createObservableGauge } from '@/utils/telemetry/metrics.js';
+import { ATTR_MCP_TASK_STATUS, ATTR_MCP_TASK_STORE_TYPE } from '@/utils/telemetry/semconv.js';
 import { SessionAwareTaskStore } from './sessionAwareTaskStore.js';
 import { StorageBackedTaskStore } from './storageBackedTaskStore.js';
 import {
+  type CreateTaskOptions,
   InMemoryTaskMessageQueue,
   InMemoryTaskStore,
+  type Task,
   type TaskMessageQueue,
   type TaskStore,
 } from './taskTypes.js';
+
+// ---------------------------------------------------------------------------
+// Task lifecycle metrics
+// ---------------------------------------------------------------------------
+
+let taskCreatedCounter: ReturnType<typeof createCounter> | undefined;
+let taskStatusCounter: ReturnType<typeof createCounter> | undefined;
+
+function getTaskMetrics() {
+  taskCreatedCounter ??= createCounter('mcp.tasks.created', 'Total tasks created', '{tasks}');
+  taskStatusCounter ??= createCounter(
+    'mcp.tasks.status_changes',
+    'Total task status transitions',
+    '{transitions}',
+  );
+  return { taskCreatedCounter, taskStatusCounter };
+}
+
+/**
+ * Wraps a TaskStore to record lifecycle metrics on create, status update,
+ * and result storage. Delegates all actual logic to the inner store.
+ */
+class InstrumentedTaskStore implements TaskStore {
+  constructor(
+    private readonly inner: TaskStore,
+    private readonly storeTypeLabel: string,
+  ) {}
+
+  async createTask(
+    taskParams: CreateTaskOptions,
+    requestId: RequestId,
+    request: Request,
+    sessionId?: string,
+  ): Promise<Task> {
+    const task = await this.inner.createTask(taskParams, requestId, request, sessionId);
+    getTaskMetrics().taskCreatedCounter.add(1, {
+      [ATTR_MCP_TASK_STORE_TYPE]: this.storeTypeLabel,
+    });
+    return task;
+  }
+
+  async storeTaskResult(
+    taskId: string,
+    status: 'completed' | 'failed',
+    result: Result,
+    sessionId?: string,
+  ): Promise<void> {
+    await this.inner.storeTaskResult(taskId, status, result, sessionId);
+    getTaskMetrics().taskStatusCounter.add(1, {
+      [ATTR_MCP_TASK_STATUS]: status,
+      [ATTR_MCP_TASK_STORE_TYPE]: this.storeTypeLabel,
+    });
+  }
+
+  async updateTaskStatus(
+    taskId: string,
+    status: Task['status'],
+    statusMessage?: string,
+    sessionId?: string,
+  ): Promise<void> {
+    await this.inner.updateTaskStatus(taskId, status, statusMessage, sessionId);
+    getTaskMetrics().taskStatusCounter.add(1, {
+      [ATTR_MCP_TASK_STATUS]: status,
+      [ATTR_MCP_TASK_STORE_TYPE]: this.storeTypeLabel,
+    });
+  }
+
+  getTask(taskId: string, sessionId?: string): Promise<Task | null> {
+    return this.inner.getTask(taskId, sessionId);
+  }
+
+  getTaskResult(taskId: string, sessionId?: string): Promise<Result> {
+    return this.inner.getTaskResult(taskId, sessionId);
+  }
+
+  listTasks(cursor?: string, sessionId?: string): Promise<{ tasks: Task[]; nextCursor?: string }> {
+    return this.inner.listTasks(cursor, sessionId);
+  }
+}
 
 /**
  * Singleton service that manages task state and message queues for the MCP server.
@@ -59,8 +144,9 @@ export class TaskManager {
     this.storeType = config.tasks.storeType;
     this.messageQueue = new InMemoryTaskMessageQueue();
 
+    let baseStore: TaskStore;
     if (this.storeType === 'storage') {
-      this.taskStore = new StorageBackedTaskStore(storageService, {
+      baseStore = new StorageBackedTaskStore(storageService, {
         tenantId: config.tasks.tenantId,
         defaultTtl: config.tasks.defaultTtlMs ?? null,
       });
@@ -68,8 +154,11 @@ export class TaskManager {
       this.inMemoryTaskStore = new InMemoryTaskStore();
       // Wrap with session ownership enforcement — the SDK's InMemoryTaskStore
       // ignores sessionId parameters, so SessionAwareTaskStore adds that layer.
-      this.taskStore = new SessionAwareTaskStore(this.inMemoryTaskStore);
+      baseStore = new SessionAwareTaskStore(this.inMemoryTaskStore);
     }
+
+    // Wrap with lifecycle metrics (outermost layer)
+    this.taskStore = new InstrumentedTaskStore(baseStore, this.storeType);
 
     logger.info(`TaskManager initialized with ${this.storeType} task store`, {
       operation: 'TaskManager.constructor',
@@ -78,6 +167,17 @@ export class TaskManager {
       storeType: this.storeType,
       ...(this.storeType === 'storage' && { tenantId: config.tasks.tenantId }),
     });
+
+    // Wire task count to OTel observable gauge
+    if (this.inMemoryTaskStore) {
+      const store = this.inMemoryTaskStore;
+      createObservableGauge(
+        'mcp.tasks.active',
+        'Number of active tasks in the in-memory store',
+        () => store.getAllTasks().length,
+        '{tasks}',
+      );
+    }
   }
 
   /**

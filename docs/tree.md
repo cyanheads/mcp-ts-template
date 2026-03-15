@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-03-09 15:28:28
+Generated on: 2026-03-15 02:03:42
 
 ```
 mcp-ts-template/
@@ -11,8 +11,6 @@ mcp-ts-template/
 ├── .storage/
 ├── .vscode/
 │   └── settings.json
-├── changelog/
-│   └── archive.md
 ├── docs/
 │   ├── mcp-specification/
 │   │   └── 2025-06-18/
@@ -30,14 +28,29 @@ mcp-ts-template/
 │   │           ├── pagination.md
 │   │           ├── ping.md
 │   │           └── progress.md
-│   ├── mcp-apps.md
-│   ├── mcp-elicitation-summary.md
-│   ├── mcp-sdk-changes.md
-│   ├── mcp-ts-core-extraction.md
-│   └── publishing-mcp-server-registry.md
-├── schemas/
-│   └── cloudflare-d1-schema.sql
+│   └── conformance-test-plan.md
+├── examples/
+│   ├── mcp-server/
+│   │   ├── prompts/
+│   │   │   └── definitions/
+│   │   │       └── code-review.prompt.ts
+│   │   ├── resources/
+│   │   │   └── definitions/
+│   │   │       ├── data-explorer-ui.app-resource.ts
+│   │   │       └── echo.resource.ts
+│   │   └── tools/
+│   │       └── definitions/
+│   │           ├── template-async-countdown.tool.ts
+│   │           ├── template-cat-fact.tool.ts
+│   │           ├── template-code-review-sampling.tool.ts
+│   │           ├── template-data-explorer.app-tool.ts
+│   │           ├── template-echo-message.tool.ts
+│   │           ├── template-image-test.tool.ts
+│   │           └── template-madlibs-elicitation.tool.ts
+│   ├── index.ts
+│   └── worker.ts
 ├── scripts/
+│   ├── build.ts
 │   ├── clean.ts
 │   ├── devcheck.ts
 │   ├── devdocs.ts
@@ -45,31 +58,73 @@ mcp-ts-template/
 │   ├── make-executable.ts
 │   ├── tree.ts
 │   └── update-coverage.ts
+├── skills/
+│   ├── add-export/
+│   │   └── SKILL.md
+│   ├── add-prompt/
+│   │   └── SKILL.md
+│   ├── add-provider/
+│   │   └── SKILL.md
+│   ├── add-resource/
+│   │   └── SKILL.md
+│   ├── add-service/
+│   │   └── SKILL.md
+│   ├── add-tool/
+│   │   └── SKILL.md
+│   ├── api-auth/
+│   │   └── SKILL.md
+│   ├── api-config/
+│   │   └── SKILL.md
+│   ├── api-context/
+│   │   └── SKILL.md
+│   ├── api-errors/
+│   │   └── SKILL.md
+│   ├── api-services/
+│   │   ├── references/
+│   │   │   ├── graph.md
+│   │   │   ├── llm.md
+│   │   │   └── speech.md
+│   │   └── SKILL.md
+│   ├── api-testing/
+│   │   └── SKILL.md
+│   ├── api-utils/
+│   │   ├── references/
+│   │   │   ├── formatting.md
+│   │   │   ├── parsing.md
+│   │   │   └── security.md
+│   │   └── SKILL.md
+│   ├── api-workers/
+│   │   └── SKILL.md
+│   ├── design-mcp-server/
+│   │   └── SKILL.md
+│   ├── devcheck/
+│   │   └── SKILL.md
+│   ├── maintenance/
+│   │   └── SKILL.md
+│   ├── migrate-mcp-ts-template/
+│   │   └── SKILL.md
+│   ├── release/
+│   │   └── SKILL.md
+│   ├── setup/
+│   │   └── SKILL.md
+│   ├── walkthrough-init/
+│   │   └── SKILL.md
+│   └── README.md
 ├── src/
+│   ├── cli/
+│   │   └── init.ts
 │   ├── config/
 │   │   └── index.ts
-│   ├── container/
-│   │   ├── core/
-│   │   │   ├── container.ts
-│   │   │   └── tokens.ts
-│   │   ├── registrations/
-│   │   │   ├── core.ts
-│   │   │   └── mcp.ts
-│   │   ├── index.ts
-│   │   └── README.md
+│   ├── core/
+│   │   ├── app.ts
+│   │   ├── context.ts
+│   │   └── worker.ts
 │   ├── mcp-server/
 │   │   ├── prompts/
-│   │   │   ├── definitions/
-│   │   │   │   ├── code-review.prompt.ts
-│   │   │   │   └── index.ts
 │   │   │   ├── utils/
 │   │   │   │   └── promptDefinition.ts
 │   │   │   └── prompt-registration.ts
 │   │   ├── resources/
-│   │   │   ├── definitions/
-│   │   │   │   ├── data-explorer-ui.app-resource.ts
-│   │   │   │   ├── echo.resource.ts
-│   │   │   │   └── index.ts
 │   │   │   ├── utils/
 │   │   │   │   ├── resourceDefinition.ts
 │   │   │   │   └── resourceHandlerFactory.ts
@@ -85,15 +140,6 @@ mcp-ts-template/
 │   │   │   └── utils/
 │   │   │       └── taskToolDefinition.ts
 │   │   ├── tools/
-│   │   │   ├── definitions/
-│   │   │   │   ├── index.ts
-│   │   │   │   ├── template-async-countdown.task-tool.ts
-│   │   │   │   ├── template-cat-fact.tool.ts
-│   │   │   │   ├── template-code-review-sampling.tool.ts
-│   │   │   │   ├── template-data-explorer.app-tool.ts
-│   │   │   │   ├── template-echo-message.tool.ts
-│   │   │   │   ├── template-image-test.tool.ts
-│   │   │   │   └── template-madlibs-elicitation.tool.ts
 │   │   │   ├── utils/
 │   │   │   │   ├── toolDefinition.ts
 │   │   │   │   └── toolHandlerFactory.ts
@@ -104,8 +150,8 @@ mcp-ts-template/
 │   │   │   │   │   ├── authContext.ts
 │   │   │   │   │   ├── authTypes.ts
 │   │   │   │   │   ├── authUtils.ts
-│   │   │   │   │   ├── claimParser.ts
-│   │   │   │   │   └── withAuth.ts
+│   │   │   │   │   ├── checkScopes.ts
+│   │   │   │   │   └── claimParser.ts
 │   │   │   │   ├── strategies/
 │   │   │   │   │   ├── authStrategy.ts
 │   │   │   │   │   ├── jwtStrategy.ts
@@ -123,7 +169,6 @@ mcp-ts-template/
 │   │   │   │   └── stdioTransport.ts
 │   │   │   ├── ITransport.ts
 │   │   │   └── manager.ts
-│   │   ├── README.md
 │   │   └── server.ts
 │   ├── services/
 │   │   ├── graph/
@@ -141,36 +186,39 @@ mcp-ts-template/
 │   │   ├── speech/
 │   │   │   ├── core/
 │   │   │   │   ├── ISpeechProvider.ts
+│   │   │   │   ├── speechMetrics.ts
 │   │   │   │   └── SpeechService.ts
 │   │   │   ├── providers/
 │   │   │   │   ├── elevenlabs.provider.ts
 │   │   │   │   └── whisper.provider.ts
 │   │   │   └── types.ts
-│   │   └── README.md
+│   │   └── index.ts
 │   ├── storage/
 │   │   ├── core/
 │   │   │   ├── IStorageProvider.ts
 │   │   │   ├── storageFactory.ts
 │   │   │   ├── StorageService.ts
 │   │   │   └── storageValidation.ts
-│   │   ├── providers/
-│   │   │   ├── cloudflare/
-│   │   │   │   ├── d1Provider.ts
-│   │   │   │   ├── kvProvider.ts
-│   │   │   │   └── r2Provider.ts
-│   │   │   ├── fileSystem/
-│   │   │   │   └── fileSystemProvider.ts
-│   │   │   ├── inMemory/
-│   │   │   │   └── inMemoryProvider.ts
-│   │   │   └── supabase/
-│   │   │       ├── supabase.types.ts
-│   │   │       └── supabaseProvider.ts
-│   │   └── README.md
+│   │   └── providers/
+│   │       ├── cloudflare/
+│   │       │   ├── d1Provider.ts
+│   │       │   ├── kvProvider.ts
+│   │       │   └── r2Provider.ts
+│   │       ├── fileSystem/
+│   │       │   └── fileSystemProvider.ts
+│   │       ├── inMemory/
+│   │       │   └── inMemoryProvider.ts
+│   │       └── supabase/
+│   │           ├── supabase.types.ts
+│   │           └── supabaseProvider.ts
+│   ├── testing/
+│   │   └── index.ts
 │   ├── types-global/
 │   │   └── errors.ts
 │   ├── utils/
 │   │   ├── formatting/
 │   │   │   ├── diffFormatter.ts
+│   │   │   ├── index.ts
 │   │   │   ├── markdownBuilder.ts
 │   │   │   ├── tableFormatter.ts
 │   │   │   └── treeFormatter.ts
@@ -197,14 +245,17 @@ mcp-ts-template/
 │   │   │   ├── csvParser.ts
 │   │   │   ├── dateParser.ts
 │   │   │   ├── frontmatterParser.ts
+│   │   │   ├── index.ts
 │   │   │   ├── jsonParser.ts
 │   │   │   ├── pdfParser.ts
+│   │   │   ├── thinkBlock.ts
 │   │   │   ├── xmlParser.ts
 │   │   │   └── yamlParser.ts
 │   │   ├── scheduling/
 │   │   │   └── scheduler.ts
 │   │   ├── security/
 │   │   │   ├── idGenerator.ts
+│   │   │   ├── index.ts
 │   │   │   ├── rateLimiter.ts
 │   │   │   └── sanitization.ts
 │   │   ├── telemetry/
@@ -213,49 +264,63 @@ mcp-ts-template/
 │   │   │   ├── metrics.ts
 │   │   │   ├── semconv.ts
 │   │   │   └── trace.ts
-│   │   └── types/
-│   │       └── guards.ts
-│   ├── index.ts
-│   └── worker.ts
+│   │   ├── types/
+│   │   │   ├── guards.ts
+│   │   │   └── index.ts
+│   │   └── index.ts
+│   └── index.ts
+├── templates/
+│   ├── src/
+│   │   ├── mcp-server/
+│   │   │   ├── prompts/
+│   │   │   │   └── definitions/
+│   │   │   │       └── echo.prompt.ts
+│   │   │   ├── resources/
+│   │   │   │   └── definitions/
+│   │   │   │       └── echo.resource.ts
+│   │   │   └── tools/
+│   │   │       └── definitions/
+│   │   │           └── echo.tool.ts
+│   │   └── index.ts
+│   ├── _.gitignore
+│   ├── _tsconfig.json
+│   ├── .env.example
+│   ├── AGENTS.md
+│   ├── biome.template.json
+│   ├── CLAUDE.md
+│   ├── package.json
+│   └── vitest.config.ts
 ├── tests/
 │   ├── config/
 │   │   ├── index.int.test.ts
 │   │   └── index.test.ts
-│   ├── conformance/
-│   │   ├── helpers/
-│   │   │   ├── assertions.ts
-│   │   │   └── server-harness.ts
-│   │   ├── lifecycle.test.ts
-│   │   ├── prompts.test.ts
-│   │   ├── protocol-init.test.ts
-│   │   ├── resources.test.ts
-│   │   └── tools.test.ts
-│   ├── container/
-│   │   ├── registrations/
-│   │   │   ├── core.test.ts
-│   │   │   └── mcp.test.ts
-│   │   ├── container.test.ts
-│   │   ├── index.test.ts
-│   │   └── tokens.test.ts
+│   ├── examples/
+│   │   ├── prompts/
+│   │   │   └── code-review.prompt.test.ts
+│   │   ├── resources/
+│   │   │   └── echo.resource.test.ts
+│   │   └── tools/
+│   │       ├── template-async-countdown.tool.test.ts
+│   │       ├── template-code-review-sampling.tool.test.ts
+│   │       ├── template-data-explorer.app-tool.test.ts
+│   │       ├── template-echo-message.tool.test.ts
+│   │       └── template-madlibs-elicitation.tool.test.ts
 │   ├── fixtures/
 │   │   └── index.ts
+│   ├── integration/
+│   │   ├── helpers/
+│   │   │   ├── http-helpers.ts
+│   │   │   └── server-process.ts
+│   │   ├── http-auth.test.ts
+│   │   ├── http-sessions.test.ts
+│   │   ├── http.test.ts
+│   │   └── stdio.test.ts
 │   ├── mcp-server/
 │   │   ├── prompts/
-│   │   │   ├── definitions/
-│   │   │   │   └── code-review.prompt.test.ts
 │   │   │   ├── utils/
 │   │   │   │   └── promptDefinition.test.ts
 │   │   │   └── prompt-registration.test.ts
 │   │   ├── resources/
-│   │   │   ├── definitions/
-│   │   │   │   ├── data-explorer-ui.app-resource.test.ts
-│   │   │   │   ├── echo.resource.test.ts
-│   │   │   │   └── index.test.ts
-│   │   │   ├── schemas/
-│   │   │   │   ├── __snapshots__/
-│   │   │   │   │   └── schema-snapshots.test.ts.snap
-│   │   │   │   ├── json-schema-compatibility.test.ts
-│   │   │   │   └── schema-snapshots.test.ts
 │   │   │   ├── utils/
 │   │   │   │   ├── resourceDefinition.test.ts
 │   │   │   │   └── resourceHandlerFactory.test.ts
@@ -269,24 +334,6 @@ mcp-ts-template/
 │   │   │   └── utils/
 │   │   │       └── taskToolDefinition.test.ts
 │   │   ├── tools/
-│   │   │   ├── definitions/
-│   │   │   │   ├── index.test.ts
-│   │   │   │   ├── template-async-countdown.task-tool.test.ts
-│   │   │   │   ├── template-cat-fact.tool.test.ts
-│   │   │   │   ├── template-code-review-sampling.tool.test.ts
-│   │   │   │   ├── template-data-explorer.app-tool.test.ts
-│   │   │   │   ├── template-echo-message.tool.test.ts
-│   │   │   │   ├── template-image-test.tool.test.ts
-│   │   │   │   └── template-madlibs-elicitation.tool.test.ts
-│   │   │   ├── fuzz/
-│   │   │   │   └── tool-input-fuzz.test.ts
-│   │   │   ├── schemas/
-│   │   │   │   ├── __snapshots__/
-│   │   │   │   │   └── schema-snapshots.test.ts.snap
-│   │   │   │   ├── json-schema-compatibility.test.ts
-│   │   │   │   ├── output-schema-coverage.test.ts
-│   │   │   │   ├── schema-snapshots.test.ts
-│   │   │   │   └── zod4-compatibility.test.ts
 │   │   │   ├── utils/
 │   │   │   │   ├── toolDefinition.test.ts
 │   │   │   │   └── toolHandlerFactory.test.ts
@@ -297,8 +344,7 @@ mcp-ts-template/
 │   │   │   │   │   ├── authContext.test.ts
 │   │   │   │   │   ├── authTypes.test.ts
 │   │   │   │   │   ├── authUtils.test.ts
-│   │   │   │   │   ├── claimParser.test.ts
-│   │   │   │   │   └── withAuth.test.ts
+│   │   │   │   │   └── claimParser.test.ts
 │   │   │   │   ├── strategies/
 │   │   │   │   │   ├── authStrategy.test.ts
 │   │   │   │   │   ├── jwtStrategy.test.ts
@@ -325,12 +371,10 @@ mcp-ts-template/
 │   ├── services/
 │   │   ├── graph/
 │   │   │   ├── core/
-│   │   │   │   ├── GraphService.test.ts
-│   │   │   │   └── IGraphProvider.test.ts
+│   │   │   │   └── GraphService.test.ts
 │   │   │   └── types.test.ts
 │   │   ├── llm/
 │   │   │   ├── core/
-│   │   │   │   └── ILlmProvider.test.ts
 │   │   │   ├── providers/
 │   │   │   │   ├── openrouter.provider.test.ts
 │   │   │   │   └── openrouter.provider.test.ts.disabled
@@ -362,6 +406,8 @@ mcp-ts-template/
 │   │   │       └── supabaseProvider.test.ts
 │   │   ├── storageProviderCompliance.test.ts
 │   │   └── StorageService.test.ts
+│   ├── testing/
+│   │   └── mockContextFidelity.test.ts
 │   ├── types-global/
 │   │   └── errors.test.ts
 │   ├── utils/
@@ -416,7 +462,7 @@ mcp-ts-template/
 │   │   │   └── trace.test.ts
 │   │   └── types/
 │   │       └── guards.test.ts
-│   ├── index.test.ts
+│   ├── context.test.ts
 │   ├── setup.ts
 │   └── worker.test.ts
 ├── .dockerignore
@@ -436,13 +482,16 @@ mcp-ts-template/
 ├── repomix.config.json
 ├── server.json
 ├── smithery.yaml
+├── tsconfig.base.json
+├── tsconfig.build.json
 ├── tsconfig.json
 ├── tsconfig.scripts.json
 ├── tsconfig.test.json
 ├── tsdoc.json
 ├── typedoc.json
+├── vitest.config.base.ts
 ├── vitest.config.ts
-├── vitest.conformance.ts
+├── vitest.integration.ts
 └── wrangler.toml
 ```
 

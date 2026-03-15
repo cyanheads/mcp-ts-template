@@ -23,28 +23,28 @@ describe('JsonParser', () => {
     vi.restoreAllMocks();
   });
 
-  it('should parse a valid, complete JSON string', () => {
+  it('should parse a valid, complete JSON string', async () => {
     const jsonString = '{"key": "value", "number": 123}';
-    const result = parser.parse(jsonString, Allow.ALL, context);
+    const result = await parser.parse(jsonString, Allow.ALL, context);
     expect(result).toEqual({ key: 'value', number: 123 });
   });
 
-  it('should parse a partial JSON object string, stopping at the last valid token', () => {
+  it('should parse a partial JSON object string, stopping at the last valid token', async () => {
     const partialJsonString = '{"key": "value", "number": 12';
-    const result = parser.parse(partialJsonString, Allow.OBJ, context);
+    const result = await parser.parse(partialJsonString, Allow.OBJ, context);
     expect(result).toEqual({ key: 'value' });
   });
 
-  it('should parse a partial JSON array string', () => {
+  it('should parse a partial JSON array string', async () => {
     const partialJsonString = '["a", "b", 1,';
-    const result = parser.parse(partialJsonString, Allow.ARR, context);
+    const result = await parser.parse(partialJsonString, Allow.ARR, context);
     expect(result).toEqual(['a', 'b', 1]);
   });
 
-  it('should handle a <think> block and parse the remaining JSON', () => {
+  it('should handle a <think> block and parse the remaining JSON', async () => {
     const debugSpy = vi.spyOn(logger, 'debug');
     const stringWithThinkBlock = '<think>This is a thought.</think>  {"key": "value"}';
-    const result = parser.parse(stringWithThinkBlock, Allow.ALL, context);
+    const result = await parser.parse(stringWithThinkBlock, Allow.ALL, context);
     expect(result).toEqual({ key: 'value' });
     expect(debugSpy).toHaveBeenCalledWith(
       'LLM <think> block detected and logged.',
@@ -52,29 +52,31 @@ describe('JsonParser', () => {
     );
   });
 
-  it('should handle an empty <think> block and log it', () => {
+  it('should handle an empty <think> block and log it', async () => {
     const debugSpy = vi.spyOn(logger, 'debug');
     const stringWithEmptyThinkBlock = '<think></think>{"key": "value"}';
-    const result = parser.parse(stringWithEmptyThinkBlock, Allow.ALL, context);
+    const result = await parser.parse(stringWithEmptyThinkBlock, Allow.ALL, context);
     expect(result).toEqual({ key: 'value' });
     expect(debugSpy).toHaveBeenCalledWith('Empty LLM <think> block detected.', expect.any(Object));
   });
 
-  it('should create its own context for logging if none is provided', () => {
+  it('should create its own context for logging if none is provided', async () => {
     const debugSpy = vi.spyOn(logger, 'debug');
     const stringWithThinkBlock = '<think>No context here.</think>{"key": "value"}';
-    parser.parse(stringWithThinkBlock);
+    await parser.parse(stringWithThinkBlock);
     expect(debugSpy).toHaveBeenCalledWith(
       'LLM <think> block detected and logged.',
       expect.objectContaining({ operation: 'JsonParser.thinkBlock' }),
     );
   });
 
-  it('should throw an McpError if the string is empty after removing the <think> block', () => {
+  it('should throw an McpError if the string is empty after removing the <think> block', async () => {
     const stringWithOnlyThinkBlock = '<think>some thoughts</think>';
-    expect(() => parser.parse(stringWithOnlyThinkBlock, Allow.ALL, context)).toThrow(McpError);
+    await expect(parser.parse(stringWithOnlyThinkBlock, Allow.ALL, context)).rejects.toThrow(
+      McpError,
+    );
     try {
-      parser.parse(stringWithOnlyThinkBlock, Allow.ALL, context);
+      await parser.parse(stringWithOnlyThinkBlock, Allow.ALL, context);
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
@@ -82,15 +84,15 @@ describe('JsonParser', () => {
     }
   });
 
-  it('should correctly parse an incomplete JSON object with a partial string value', () => {
+  it('should correctly parse an incomplete JSON object with a partial string value', async () => {
     const partialJson = '{"key": "value"';
-    const result = parser.parse(partialJson, Allow.ALL, context);
+    const result = await parser.parse(partialJson, Allow.ALL, context);
     expect(result).toEqual({ key: 'value' });
   });
 
-  it('should throw an McpError if the string contains only whitespace after the <think> block', () => {
+  it('should throw an McpError if the string contains only whitespace after the <think> block', async () => {
     const stringWithWhitespace = '<think>thoughts</think>   ';
-    expect(() => parser.parse(stringWithWhitespace, Allow.ALL, context)).toThrow(
+    await expect(parser.parse(stringWithWhitespace, Allow.ALL, context)).rejects.toThrow(
       new McpError(
         JsonRpcErrorCode.ValidationError,
         'JSON string is empty after removing <think> block and trimming.',
@@ -99,18 +101,18 @@ describe('JsonParser', () => {
     );
   });
 
-  it('should handle leading/trailing whitespace in the JSON string', () => {
+  it('should handle leading/trailing whitespace in the JSON string', async () => {
     const jsonWithWhitespace = '  {"key": "value"}  ';
-    const result = parser.parse(jsonWithWhitespace, Allow.ALL, context);
+    const result = await parser.parse(jsonWithWhitespace, Allow.ALL, context);
     expect(result).toEqual({ key: 'value' });
   });
 
-  it('should wrap a parsing error in McpError and log it', () => {
+  it('should wrap a parsing error in McpError and log it', async () => {
     const errorSpy = vi.spyOn(logger, 'error');
     const invalidJson = 'this is not json'; // Unambiguously invalid JSON
-    expect(() => parser.parse(invalidJson, Allow.ALL, context)).toThrow(McpError);
+    await expect(parser.parse(invalidJson, Allow.ALL, context)).rejects.toThrow(McpError);
     try {
-      parser.parse(invalidJson, Allow.ALL, context);
+      await parser.parse(invalidJson, Allow.ALL, context);
     } catch (error) {
       const mcpError = error as McpError;
       expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
@@ -119,10 +121,10 @@ describe('JsonParser', () => {
     }
   });
 
-  it('logs parse failures with an auto-created context when none is provided', () => {
+  it('logs parse failures with an auto-created context when none is provided', async () => {
     const errorSpy = vi.spyOn(logger, 'error');
     try {
-      parser.parse('still invalid json');
+      await parser.parse('still invalid json');
       throw new Error('Expected parser.parse to throw');
     } catch (error) {
       expect(error).toBeInstanceOf(McpError);
@@ -134,15 +136,15 @@ describe('JsonParser', () => {
     errorSpy.mockRestore();
   });
 
-  it('should create a default context when none is provided', () => {
+  it('should create a default context when none is provided', async () => {
     const jsonString = '{"test": "value"}';
-    expect(() => parser.parse(jsonString, Allow.ALL)).not.toThrow();
-    const result = parser.parse(jsonString, Allow.ALL);
+    await expect(parser.parse(jsonString, Allow.ALL)).resolves.not.toThrow();
+    const result = await parser.parse(jsonString, Allow.ALL);
     expect(result).toEqual({ test: 'value' });
   });
 
-  it('provides a singleton instance that can parse JSON without explicit options', () => {
-    const result = jsonParser.parse('{"singleton": true}');
+  it('provides a singleton instance that can parse JSON without explicit options', async () => {
+    const result = await jsonParser.parse('{"singleton": true}');
     expect(result).toEqual({ singleton: true });
   });
 });

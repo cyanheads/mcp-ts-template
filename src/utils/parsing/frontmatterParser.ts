@@ -4,7 +4,7 @@
  * Leverages the existing yamlParser for parsing extracted YAML content.
  * @module src/utils/parsing/frontmatterParser
  */
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { McpError, validationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { yamlParser } from './yamlParser.js';
@@ -40,22 +40,39 @@ export interface FrontmatterResult<T = unknown> {
 
 /**
  * Utility class for extracting and parsing YAML frontmatter from markdown documents.
- * Supports Obsidian-style and Jekyll-style frontmatter (YAML between --- delimiters).
- * Uses the existing yamlParser for parsing, which also handles LLM <think> blocks.
+ * Supports Obsidian-style and Jekyll-style frontmatter (YAML between `---` delimiters).
+ * Delegates YAML parsing to {@link yamlParser}.
  */
 export class FrontmatterParser {
   /**
    * Extracts and parses YAML frontmatter from a markdown string.
-   * If frontmatter is present, it's extracted and parsed using yamlParser.
-   * If no frontmatter is found, returns the original content with an empty frontmatter object.
    *
-   * @template T The expected type of the parsed frontmatter object. Defaults to `unknown`.
-   * @param markdown - The markdown string potentially containing frontmatter.
-   * @param context - Optional `RequestContext` for logging and error correlation.
-   * @returns A `FrontmatterResult` containing parsed frontmatter and remaining content.
-   * @throws {McpError} If frontmatter is malformed or YAML parsing fails.
+   * Looks for a `---`-delimited block at the very start of the document. If
+   * found, the YAML inside is parsed via {@link yamlParser} and the remaining
+   * markdown is returned separately. An empty `---\n---` block is accepted and
+   * returns `frontmatter: {}` with `hasFrontmatter: true`. If no frontmatter
+   * block is present, the original string is returned unchanged.
+   *
+   * @template T - The expected shape of the parsed frontmatter object. Defaults to `unknown`.
+   * @param markdown - The markdown string that may contain a frontmatter block.
+   * @param context - Optional {@link RequestContext} used for correlated logging.
+   * @returns A {@link FrontmatterResult} with `frontmatter`, `content`, and `hasFrontmatter`.
+   * @throws {McpError} With code `ValidationError` if the YAML content is present but malformed.
+   * @example
+   * ```typescript
+   * import { frontmatterParser } from './frontmatterParser.js';
+   *
+   * const md = `---\ntitle: Hello\ntags: [a, b]\n---\n\n# Body`;
+   * const result = await frontmatterParser.parse<{ title: string; tags: string[] }>(md);
+   * // result.frontmatter → { title: 'Hello', tags: ['a', 'b'] }
+   * // result.content     → '\n# Body'
+   * // result.hasFrontmatter → true
+   * ```
    */
-  parse<T = unknown>(markdown: string, context?: RequestContext): FrontmatterResult<T> {
+  async parse<T = unknown>(
+    markdown: string,
+    context?: RequestContext,
+  ): Promise<FrontmatterResult<T>> {
     const match = markdown.match(frontmatterRegex);
 
     if (!match) {
@@ -102,7 +119,7 @@ export class FrontmatterParser {
 
     try {
       // Use existing yamlParser for parsing (handles <think> blocks too)
-      const parsedFrontmatter = yamlParser.parse<T>(yamlContent, context);
+      const parsedFrontmatter = await yamlParser.parse<T>(yamlContent, context);
 
       logger.debug('Frontmatter parsed successfully.', {
         ...logContext,
@@ -138,26 +155,26 @@ export class FrontmatterParser {
         throw error;
       }
 
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
-        `Failed to parse frontmatter: ${error.message}`,
-        {
-          ...context,
-          yamlContentSample:
-            yamlContent.substring(0, 200) + (yamlContent.length > 200 ? '...' : ''),
-          rawError: error instanceof Error ? error.stack : String(error),
-        },
-      );
+      throw validationError(`Failed to parse frontmatter: ${error.message}`, {
+        ...context,
+        yamlContentSample: yamlContent.substring(0, 200) + (yamlContent.length > 200 ? '...' : ''),
+        rawError: error instanceof Error ? error.stack : String(error),
+      });
     }
   }
 }
 
 /**
- * Singleton instance of the `FrontmatterParser`.
- * Use this instance to extract and parse YAML frontmatter from markdown documents.
+ * Singleton instance of {@link FrontmatterParser}.
+ *
+ * Use this shared instance to extract and parse YAML frontmatter from markdown
+ * documents rather than constructing a new parser per call.
+ *
  * @example
  * ```typescript
- * import { frontmatterParser, requestContextService } from './utils';
+ * import { frontmatterParser } from './frontmatterParser.js';
+ * import { requestContextService } from '@/utils/internal/requestContext.js';
+ *
  * const context = requestContextService.createRequestContext({ operation: 'ParseObsidianNote' });
  *
  * // Markdown with frontmatter
@@ -170,16 +187,16 @@ export class FrontmatterParser {
  * # Note Content
  * This is the actual note.`;
  *
- * const result = frontmatterParser.parse(markdown, context);
- * console.log(result.frontmatter); // { title: 'My Note', tags: [...], date: '2025-01-15' }
- * console.log(result.content);     // '# Note Content\nThis is the actual note.'
+ * const result = await frontmatterParser.parse(markdown, context);
+ * console.log(result.frontmatter);    // { title: 'My Note', tags: [...], date: '2025-01-15' }
+ * console.log(result.content);        // '\n# Note Content\nThis is the actual note.'
  * console.log(result.hasFrontmatter); // true
  *
  * // Markdown without frontmatter
  * const plainMarkdown = '# Just Content';
- * const result2 = frontmatterParser.parse(plainMarkdown, context);
- * console.log(result2.frontmatter); // {}
- * console.log(result2.content);     // '# Just Content'
+ * const result2 = await frontmatterParser.parse(plainMarkdown, context);
+ * console.log(result2.frontmatter);    // {}
+ * console.log(result2.content);        // '# Just Content'
  * console.log(result2.hasFrontmatter); // false
  * ```
  */

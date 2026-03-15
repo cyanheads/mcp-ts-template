@@ -14,7 +14,8 @@ import dotenv from 'dotenv';
 import { z } from 'zod';
 
 import packageJson from '../../package.json' with { type: 'json' };
-import { JsonRpcErrorCode, McpError } from '../types-global/errors.js';
+import { configurationError } from '../types-global/errors.js';
+import { runtimeCaps } from '../utils/internal/runtime.js';
 
 type PackageManifest = {
   name?: string;
@@ -23,11 +24,10 @@ type PackageManifest = {
 };
 
 const packageManifest = packageJson as PackageManifest;
-const hasFileSystemAccess =
-  typeof process !== 'undefined' &&
-  typeof process.versions === 'object' &&
-  process.versions !== null &&
-  typeof process.versions.node === 'string';
+
+/** Framework identity — sourced from the package's own package.json. */
+export const FRAMEWORK_NAME = '@cyanheads/mcp-ts-core';
+export const FRAMEWORK_VERSION = packageManifest.version ?? '0.0.0';
 
 // Suppress dotenv's noisy initial log message as suggested by its output.
 dotenv.config({ quiet: true });
@@ -105,7 +105,7 @@ const ConfigSchema = z
       emptyStringAsUndefined,
       z.enum(['minimal', 'standard', 'full']).default('standard'),
     ),
-    mcpHttpPort: z.coerce.number().min(1).max(65535).default(3010),
+    mcpHttpPort: z.coerce.number().min(0).max(65535).default(3010),
     mcpHttpHost: z.string().default('127.0.0.1'),
     mcpHttpEndpointPath: z.string().default('/mcp'),
     mcpHttpMaxPortRetries: z.coerce.number().default(15),
@@ -117,12 +117,12 @@ const ConfigSchema = z
       emptyStringAsUndefined,
       z.enum(['jwt', 'oauth', 'none']).default('none'),
     ),
-    oauthIssuerUrl: z.string().url().optional(),
-    oauthJwksUri: z.string().url().optional(),
+    oauthIssuerUrl: z.url().optional(),
+    oauthJwksUri: z.url().optional(),
     oauthAudience: z.string().optional(),
     oauthJwksCooldownMs: z.coerce.number().default(300_000), // 5 minutes
     oauthJwksTimeoutMs: z.coerce.number().default(5_000), // 5 seconds
-    mcpServerResourceIdentifier: z.string().url().optional(), // RFC 8707 resource indicator
+    mcpServerResourceIdentifier: z.url().optional(), // RFC 8707 resource indicator
     devMcpAuthBypass: z
       .preprocess((val) => {
         if (val === undefined || val === null || val === '') return false;
@@ -143,17 +143,17 @@ const ConfigSchema = z
     llmDefaultMinP: z.coerce.number().optional(),
     oauthProxy: z
       .object({
-        authorizationUrl: z.string().url().optional(),
-        tokenUrl: z.string().url().optional(),
-        revocationUrl: z.string().url().optional(),
-        issuerUrl: z.string().url().optional(),
-        serviceDocumentationUrl: z.string().url().optional(),
+        authorizationUrl: z.url().optional(),
+        tokenUrl: z.url().optional(),
+        revocationUrl: z.url().optional(),
+        issuerUrl: z.url().optional(),
+        serviceDocumentationUrl: z.url().optional(),
         defaultClientRedirectUris: z.array(z.string()).optional(),
       })
       .optional(),
     supabase: z
       .object({
-        url: z.string().url(),
+        url: z.url(),
         anonKey: z.string(),
         serviceRoleKey: z.string().optional(),
       })
@@ -212,8 +212,8 @@ const ConfigSchema = z
       enabled: z.coerce.boolean().default(false),
       serviceName: z.string(),
       serviceVersion: z.string(),
-      tracesEndpoint: z.string().url().optional(),
-      metricsEndpoint: z.string().url().optional(),
+      tracesEndpoint: z.url().optional(),
+      metricsEndpoint: z.url().optional(),
       samplingRatio: z.coerce.number().min(0).max(1).default(1.0),
       logLevel: z
         .preprocess(
@@ -241,7 +241,7 @@ const ConfigSchema = z
             enabled: z.coerce.boolean().default(false),
             provider: z.enum(['elevenlabs']).default('elevenlabs'),
             apiKey: z.string().optional(),
-            baseUrl: z.string().url().optional(),
+            baseUrl: z.url().optional(),
             defaultVoiceId: z.string().optional(),
             defaultModelId: z.string().optional(),
             timeout: z.coerce.number().optional(),
@@ -252,7 +252,7 @@ const ConfigSchema = z
             enabled: z.coerce.boolean().default(false),
             provider: z.enum(['openai-whisper']).default('openai-whisper'),
             apiKey: z.string().optional(),
-            baseUrl: z.string().url().optional(),
+            baseUrl: z.url().optional(),
             defaultModelId: z.string().optional(),
             timeout: z.coerce.number().optional(),
           })
@@ -435,7 +435,7 @@ const parseConfig = () => {
   const finalRawConfig = {
     ...rawConfig,
     pkg: parsedPkg,
-    logsPath: hasFileSystemAccess
+    logsPath: runtimeCaps.isNode
       ? (() => {
           // Bundled (dist/index.js) is one level deep; source (src/config/index.ts) is two.
           // Detect bundle path to avoid overshooting the project root.
@@ -469,7 +469,7 @@ const parseConfig = () => {
       );
     }
     // Throw a specific, typed error instead of exiting.
-    throw new McpError(JsonRpcErrorCode.ConfigurationError, 'Invalid application configuration.', {
+    throw configurationError('Invalid application configuration.', {
       validationErrors: parsedConfig.error.flatten().fieldErrors,
     });
   }
@@ -500,15 +500,11 @@ const config = new Proxy({} as AppConfig, {
     _config ??= parseConfig();
     return (_config as Record<string | symbol, unknown>)[prop];
   },
-  set(_target, prop, value) {
-    _config ??= parseConfig();
-    (_config as Record<string | symbol, unknown>)[prop] = value;
-    return true;
+  set() {
+    return false;
   },
-  defineProperty(_target, prop, descriptor) {
-    _config ??= parseConfig();
-    Object.defineProperty(_config, prop, descriptor);
-    return true;
+  defineProperty() {
+    return false;
   },
   has(_target, prop) {
     _config ??= parseConfig();
@@ -529,4 +525,4 @@ const config = new Proxy({} as AppConfig, {
  */
 export type AppConfig = z.infer<typeof ConfigSchema>;
 
-export { config, ConfigSchema, parseConfig, resetConfig };
+export { ConfigSchema, config, parseConfig, resetConfig };

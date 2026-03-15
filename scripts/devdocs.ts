@@ -476,7 +476,7 @@ async function executeCommand(
       stdio,
       timeout: CONFIG.COMMAND_TIMEOUT_MS,
       maxBuffer: CONFIG.MAX_BUFFER_SIZE,
-      signal: abortController.signal,
+      cancelSignal: abortController.signal,
     });
 
     if (captureOutput) {

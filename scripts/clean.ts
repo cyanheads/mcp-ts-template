@@ -46,7 +46,7 @@ const clean = async (): Promise<void> => {
   try {
     const root = process.cwd();
     const args = process.argv.slice(2);
-    const dirsToClean = [...new Set(args.length > 0 ? args : ['dist', 'logs'])];
+    const dirsToClean = [...new Set(args.length > 0 ? args : ['dist', 'logs', '.tsbuildinfo'])];
 
     console.log(`Cleaning directories: ${dirsToClean.join(', ')}`);
 

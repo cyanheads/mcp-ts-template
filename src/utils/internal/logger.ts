@@ -10,8 +10,16 @@ import pino from 'pino';
 
 import { config } from '@/config/index.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
-import { sanitization } from '@/utils/security/sanitization.js';
 
+/**
+ * RFC 5424 severity levels supported by the MCP logger, ordered from least to most severe.
+ * These map internally to Pino levels for transport compatibility:
+ * - `debug` → pino `debug`
+ * - `info` / `notice` → pino `info`
+ * - `warning` → pino `warn`
+ * - `error` / `crit` → pino `error`
+ * - `alert` / `emerg` → pino `fatal`
+ */
 export type McpLogLevel =
   | 'debug'
   | 'info'
@@ -43,6 +51,41 @@ const pinoToMcpLevelSeverity: Record<string, number> = {
 
 const isServerless = typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
 
+/** Pino redact paths for sensitive fields (top-level, one-deep, two-deep). */
+const SENSITIVE_PINO_FIELDS: string[] = [
+  'password',
+  'token',
+  'secret',
+  'apiKey',
+  'credential',
+  'jwt',
+  'ssn',
+  'cvv',
+  'authorization',
+  'cookie',
+  'clientsecret',
+  'client_secret',
+  'private_key',
+  'privatekey',
+].flatMap((field) => [field, `*.${field}`, `*.*.${field}`]);
+
+/**
+ * Singleton structured logger backed by Pino with RFC 5424 level semantics.
+ *
+ * Features:
+ * - Environment-adaptive output: pretty-printed (pino-pretty) in HTTP development mode,
+ *   JSON to stderr in stdio/production mode (MCP spec requires clean stdout).
+ * - Optional file sinks: `combined.log` at the configured log level, `error.log` for
+ *   errors and above, and `interactions.log` for structured interaction records.
+ * - Sensitive field redaction via Pino's `redact` option.
+ * - Per-message rate limiting to suppress log storms; suppressed counts are flushed
+ *   at the end of each rate-limit window.
+ * - OpenTelemetry trace context is auto-injected via {@link RequestContext} fields.
+ * - Serverless-safe: when `IS_SERVERLESS=true` or `process` is unavailable, falls
+ *   back to minimal Pino config without file transports or Node.js APIs.
+ *
+ * Obtain the singleton via {@link logger} or `Logger.getInstance()`.
+ */
 export class Logger {
   private static readonly instance: Logger = new Logger();
   private pinoLogger?: PinoLogger;
@@ -61,6 +104,18 @@ export class Logger {
     // The constructor is now safe to call in a global scope.
   }
 
+  /**
+   * Returns the singleton `Logger` instance.
+   *
+   * Prefer importing the pre-resolved {@link logger} export rather than calling this directly.
+   *
+   * @returns The singleton `Logger` instance.
+   * @example
+   * ```ts
+   * import { Logger } from '@/utils/internal/logger.js';
+   * const log = Logger.getInstance();
+   * ```
+   */
   public static getInstance(): Logger {
     return Logger.instance;
   }
@@ -79,7 +134,7 @@ export class Logger {
         pid: !isServerless ? process.pid : undefined,
       },
       redact: {
-        paths: sanitization.getSensitivePinoFields(),
+        paths: SENSITIVE_PINO_FIELDS,
         censor: '[REDACTED]',
       },
     };
@@ -170,7 +225,7 @@ export class Logger {
     const { default: path } = await import('node:path');
     return pino({
       redact: {
-        paths: sanitization.getSensitivePinoFields(),
+        paths: SENSITIVE_PINO_FIELDS,
         censor: '[REDACTED]',
       },
       transport: {
@@ -183,6 +238,23 @@ export class Logger {
     });
   }
 
+  /**
+   * Initializes the logger, constructing Pino transports appropriate for the environment.
+   *
+   * Must be called once at server startup before any log methods are used. Subsequent calls
+   * are no-ops (a warning is emitted instead). After initialization, a startup `info` entry
+   * is written confirming the active level.
+   *
+   * @param level - MCP log level to apply. Defaults to `'info'`.
+   * @param transportType - Active transport (`'stdio'` or `'http'`). Determines whether
+   *   colored pretty-print output is enabled. In `'stdio'` mode, logs are always written
+   *   to stderr (fd 2) to preserve stdout for MCP JSON-RPC.
+   * @returns Promise that resolves when Pino transports and file sinks are ready.
+   * @example
+   * ```ts
+   * await logger.initialize('debug', 'http');
+   * ```
+   */
   public async initialize(
     level: McpLogLevel = 'info',
     transportType?: 'stdio' | 'http',
@@ -214,6 +286,19 @@ export class Logger {
     );
   }
 
+  /**
+   * Changes the active log level at runtime without restarting transports.
+   *
+   * Has no effect if the logger has not been initialized; a console error is emitted
+   * to stderr when running in a TTY. After the level is updated, an `info` entry is
+   * written to confirm the change.
+   *
+   * @param newLevel - The new MCP log level to apply.
+   * @example
+   * ```ts
+   * logger.setLevel('debug');
+   * ```
+   */
   public setLevel(newLevel: McpLogLevel): void {
     if (!this.pinoLogger || !this.initialized) {
       // Only log to console if TTY to avoid polluting stderr in STDIO mode
@@ -232,10 +317,32 @@ export class Logger {
     );
   }
 
+  /**
+   * Implements the `AsyncDisposable` protocol (`await using logger`).
+   *
+   * Delegates to {@link close}. Allows the logger to be used with `await using` in
+   * TypeScript 5.2+ explicit resource management contexts.
+   *
+   * @returns Promise that resolves when all transports have been flushed and closed.
+   */
   async [Symbol.asyncDispose](): Promise<void> {
     return await this.close();
   }
 
+  /**
+   * Flushes all pending log entries and shuts down transports gracefully.
+   *
+   * Clears the rate-limit cleanup timer, flushes any suppressed message counts,
+   * and waits for both the main Pino logger and the interaction logger to drain
+   * before resolving. Safe to call multiple times — subsequent calls on an
+   * already-closed logger resolve immediately.
+   *
+   * @returns Promise that resolves when all writes have completed.
+   * @example
+   * ```ts
+   * process.on('SIGTERM', () => logger.close());
+   * ```
+   */
   public async close(): Promise<void> {
     if (!this.initialized) return Promise.resolve();
     this.info(
@@ -271,6 +378,20 @@ export class Logger {
     this.initialized = false;
   }
 
+  /**
+   * Returns whether the logger has been successfully initialized.
+   *
+   * Use this to guard code that should only run after {@link initialize} has resolved,
+   * or to skip logging in contexts where initialization may not have occurred.
+   *
+   * @returns `true` if {@link initialize} has completed and {@link close} has not yet been called.
+   * @example
+   * ```ts
+   * if (logger.isInitialized()) {
+   *   logger.info('Server ready', ctx);
+   * }
+   * ```
+   */
   public isInitialized(): boolean {
     return this.initialized;
   }
@@ -345,19 +466,89 @@ export class Logger {
     this.log(level, msg, actualContext, errorObj);
   }
 
+  /**
+   * Logs a diagnostic message at `debug` severity (RFC 5424 level 7).
+   *
+   * Suppressed unless the active log level is `'debug'`. Use for verbose tracing,
+   * internal state dumps, and low-level request/response details.
+   *
+   * @param msg - Human-readable log message.
+   * @param context - Optional request context providing `requestId`, `traceId`, and related fields.
+   * @example
+   * ```ts
+   * logger.debug('Cache miss', ctx);
+   * ```
+   */
   public debug(msg: string, context?: RequestContext): void {
     this.log('debug', msg, context);
   }
+
+  /**
+   * Logs an informational message at `info` severity (RFC 5424 level 6).
+   *
+   * Use for normal operational events: server startup, request completions, configuration loaded.
+   *
+   * @param msg - Human-readable log message.
+   * @param context - Optional request context.
+   * @example
+   * ```ts
+   * logger.info('Server listening on :3000', ctx);
+   * ```
+   */
   public info(msg: string, context?: RequestContext): void {
     this.log('info', msg, context);
   }
+
+  /**
+   * Logs a notice-level message at `notice` severity (RFC 5424 level 5).
+   *
+   * Use for significant but non-error conditions: configuration changes, deprecation notices,
+   * expected state transitions worth tracking. Maps to pino `info` level internally.
+   *
+   * @param msg - Human-readable log message.
+   * @param context - Optional request context.
+   * @example
+   * ```ts
+   * logger.notice('Feature flag toggled', ctx);
+   * ```
+   */
   public notice(msg: string, context?: RequestContext): void {
     this.log('notice', msg, context);
   }
+
+  /**
+   * Logs a warning message at `warning` severity (RFC 5424 level 4).
+   *
+   * Use for recoverable abnormal conditions: deprecated API usage, retried operations,
+   * non-fatal misconfigurations. Maps to pino `warn` level internally.
+   *
+   * @param msg - Human-readable log message.
+   * @param context - Optional request context.
+   * @example
+   * ```ts
+   * logger.warning('Rate limit approaching', ctx);
+   * ```
+   */
   public warning(msg: string, context?: RequestContext): void {
     this.log('warning', msg, context);
   }
 
+  /**
+   * Logs an error-level message at `error` severity (RFC 5424 level 3).
+   *
+   * Use when an operation fails but the server can continue. The `errorOrContext`
+   * parameter accepts either an `Error` (serialized via `pino.stdSerializers.err`) or a
+   * `RequestContext` when no error object is available. Maps to pino `error` level.
+   *
+   * @param msg - Human-readable description of the failure.
+   * @param errorOrContext - The `Error` to serialize, or a `RequestContext` if no error object exists.
+   * @param context - Request context; required when `errorOrContext` is an `Error`.
+   * @example
+   * ```ts
+   * logger.error('Failed to fetch resource', err, ctx);
+   * logger.error('Invalid state encountered', ctx);
+   * ```
+   */
   public error(
     msg: string,
     errorOrContext: Error | RequestContext,
@@ -365,9 +556,39 @@ export class Logger {
   ): void {
     this.logWithError('error', msg, errorOrContext, context);
   }
+
+  /**
+   * Logs a critical error at `crit` severity (RFC 5424 level 2).
+   *
+   * Use for serious failures that impair a subsystem but do not crash the process —
+   * for example, a storage provider going offline. Maps to pino `error` level.
+   *
+   * @param msg - Human-readable description of the critical condition.
+   * @param errorOrContext - The `Error` to serialize, or a `RequestContext` if no error object exists.
+   * @param context - Request context; required when `errorOrContext` is an `Error`.
+   * @example
+   * ```ts
+   * logger.crit('Database connection pool exhausted', err, ctx);
+   * ```
+   */
   public crit(msg: string, errorOrContext: Error | RequestContext, context?: RequestContext): void {
     this.logWithError('crit', msg, errorOrContext, context);
   }
+
+  /**
+   * Logs an alert-level message at `alert` severity (RFC 5424 level 1).
+   *
+   * Use when immediate human intervention is required — for example, a security breach
+   * detected or critical data loss imminent. Maps to pino `fatal` level.
+   *
+   * @param msg - Human-readable description of the alert condition.
+   * @param errorOrContext - The `Error` to serialize, or a `RequestContext` if no error object exists.
+   * @param context - Request context; required when `errorOrContext` is an `Error`.
+   * @example
+   * ```ts
+   * logger.alert('Unauthorized admin access detected', err, ctx);
+   * ```
+   */
   public alert(
     msg: string,
     errorOrContext: Error | RequestContext,
@@ -375,6 +596,21 @@ export class Logger {
   ): void {
     this.logWithError('alert', msg, errorOrContext, context);
   }
+
+  /**
+   * Logs an emergency-level message at `emerg` severity (RFC 5424 level 0).
+   *
+   * Use for conditions that render the system completely unusable — process about to exit,
+   * unrecoverable internal state. Maps to pino `fatal` level.
+   *
+   * @param msg - Human-readable description of the emergency.
+   * @param errorOrContext - The `Error` to serialize, or a `RequestContext` if no error object exists.
+   * @param context - Request context; required when `errorOrContext` is an `Error`.
+   * @example
+   * ```ts
+   * logger.emerg('Unrecoverable state — shutting down', err, ctx);
+   * ```
+   */
   public emerg(
     msg: string,
     errorOrContext: Error | RequestContext,
@@ -383,6 +619,19 @@ export class Logger {
     this.logWithError('emerg', msg, errorOrContext, context);
   }
 
+  /**
+   * Alias for {@link emerg}. Provided for callers familiar with the pino/winston `fatal` level.
+   *
+   * Maps to RFC 5424 `emerg` (level 0) and pino `fatal` internally.
+   *
+   * @param msg - Human-readable description of the fatal condition.
+   * @param errorOrContext - The `Error` to serialize, or a `RequestContext` if no error object exists.
+   * @param context - Request context; required when `errorOrContext` is an `Error`.
+   * @example
+   * ```ts
+   * logger.fatal('Process terminating due to unhandled exception', err, ctx);
+   * ```
+   */
   public fatal(
     msg: string,
     errorOrContext: Error | RequestContext,
@@ -391,6 +640,21 @@ export class Logger {
     this.emerg(msg, errorOrContext, context);
   }
 
+  /**
+   * Writes a structured interaction record to the dedicated `interactions.log` file sink.
+   *
+   * Interaction logs capture high-level semantic events (tool invocations, resource reads,
+   * prompt renders) as structured JSON, separate from the main operational log stream.
+   * This sink is only available when `config.logsPath` is set and the runtime is not serverless;
+   * a `warning` is emitted if the logger is called before the sink is ready.
+   *
+   * @param interactionName - Identifier for the interaction type (e.g., `'tool:my_tool'`).
+   * @param data - Arbitrary structured data to include alongside `interactionName` in the log record.
+   * @example
+   * ```ts
+   * logger.logInteraction('tool:echo_message', { requestId: ctx.requestId, input });
+   * ```
+   */
   public logInteraction(interactionName: string, data: Record<string, unknown>): void {
     if (!this.interactionLogger) {
       if (!isServerless)
@@ -401,4 +665,23 @@ export class Logger {
   }
 }
 
+/**
+ * Pre-resolved singleton logger instance. Import this directly rather than calling
+ * `Logger.getInstance()` in most contexts.
+ *
+ * Must be initialized once at startup via `logger.initialize()` before any log methods
+ * will produce output. Log calls made before initialization are silently dropped.
+ *
+ * @example
+ * ```ts
+ * import { logger } from '@/utils/internal/logger.js';
+ *
+ * // At startup:
+ * await logger.initialize('debug', 'http');
+ *
+ * // In application code:
+ * logger.info('Request received', ctx);
+ * logger.error('Upstream failure', err, ctx);
+ * ```
+ */
 export const logger = Logger.getInstance();

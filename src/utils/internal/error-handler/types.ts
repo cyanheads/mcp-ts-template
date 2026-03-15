@@ -6,14 +6,26 @@
 import type { JsonRpcErrorCode } from '@/types-global/errors.js';
 
 /**
- * Defines a generic structure for providing context with errors.
- * This context can include identifiers like `requestId` or any other relevant
- * key-value pairs that aid in debugging or understanding the error's circumstances.
+ * Arbitrary key-value context attached to an error for logging and tracing.
+ *
+ * Passed as `options.context` to `ErrorHandler.handleError`. All entries are merged
+ * into the structured log record. `requestId` and `timestamp` receive special treatment:
+ * if present and valid they are used directly; otherwise they are generated automatically.
+ *
+ * @example
+ * ```ts
+ * const ctx: ErrorContext = {
+ *   requestId: 'req-abc123',
+ *   userId: 'usr-456',
+ *   resource: '/api/users',
+ * };
+ * ErrorHandler.handleError(err, { operation: 'getUser', context: ctx });
+ * ```
  */
 export interface ErrorContext {
   /**
    * A unique identifier for the request or operation during which the error occurred.
-   * Useful for tracing errors through logs and distributed systems.
+   * Used directly in log output if provided; auto-generated via `generateUUID` if absent.
    */
   requestId?: string;
 
@@ -25,8 +37,21 @@ export interface ErrorContext {
 }
 
 /**
- * Configuration options for the `ErrorHandler.handleError` method.
- * These options control how an error is processed, logged, and whether it's rethrown.
+ * Configuration options for `ErrorHandler.handleError` and `ErrorHandler.tryCatch`.
+ *
+ * Controls error transformation, log output, and whether the error propagates to the caller.
+ *
+ * @example
+ * ```ts
+ * const opts: ErrorHandlerOptions = {
+ *   operation: 'fetchArticle',
+ *   context: { requestId: 'req-123', articleId: 'art-456' },
+ *   input: { id: 'art-456' },
+ *   rethrow: true,
+ *   critical: false,
+ * };
+ * ErrorHandler.handleError(err, opts);
+ * ```
  */
 export interface ErrorHandlerOptions {
   /**
@@ -83,8 +108,18 @@ export interface ErrorHandlerOptions {
 }
 
 /**
- * Defines a basic rule for mapping errors based on patterns.
- * Used internally by error pattern arrays and as a base for `ErrorMapping`.
+ * A basic rule that classifies an error by matching its message or name against a pattern.
+ *
+ * Used as the element type for `COMMON_ERROR_PATTERNS` and `PROVIDER_ERROR_PATTERNS`, and
+ * as the base for the higher-level `ErrorMapping<T>` interface (which adds a `factory`).
+ *
+ * @example
+ * ```ts
+ * const rule: BaseErrorMapping = {
+ *   pattern: /not found/i,
+ *   errorCode: JsonRpcErrorCode.NotFound,
+ * };
+ * ```
  */
 export interface BaseErrorMapping {
   /**
@@ -105,10 +140,23 @@ export interface BaseErrorMapping {
 }
 
 /**
- * Extends `BaseErrorMapping` to include a factory function for creating
- * specific error instances and additional context for the mapping.
- * Used by `ErrorHandler.mapError`.
- * @template T The type of `Error` this mapping will produce, defaults to `Error`.
+ * A pattern-based rule used by `ErrorHandler.mapError` to transform errors into a specific type `T`.
+ *
+ * Extends `BaseErrorMapping` with a `factory` that constructs the target error and an optional
+ * `additionalContext` object passed to that factory. Rules are tested in order; the first match wins.
+ *
+ * @template T The concrete `Error` subtype this mapping produces. Defaults to `Error`.
+ *
+ * @example
+ * ```ts
+ * const rule: ErrorMapping<McpError> = {
+ *   pattern: /connection refused/i,
+ *   errorCode: JsonRpcErrorCode.ServiceUnavailable,
+ *   additionalContext: { service: 'database' },
+ *   factory: (e, ctx) =>
+ *     new McpError(JsonRpcErrorCode.ServiceUnavailable, getErrorMessage(e), ctx),
+ * };
+ * ```
  */
 export interface ErrorMapping<T extends Error = Error> extends BaseErrorMapping {
   /**

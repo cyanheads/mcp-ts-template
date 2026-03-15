@@ -1,8 +1,8 @@
 # The name of your worker.
-name = "mcp-ts-template-worker"
+name = "mcp-ts-core-worker"
 
 # The main entry point for your worker. Wrangler will build this file.
-main = "src/worker.ts"
+main = "examples/worker.ts"
 
 # The compatibility date ensures your worker runs on a recent version of the Workers runtime.
 # It's good practice to update this periodically.

@@ -87,8 +87,8 @@ describe('ErrorHandler', () => {
       expect(ErrorHandler.determineErrorCode(new Error('User is not authorized'))).toBe(
         JsonRpcErrorCode.Unauthorized,
       );
-      expect(ErrorHandler.determineErrorCode(new Error('This item is missing'))).toBe(
-        JsonRpcErrorCode.NotFound,
+      expect(ErrorHandler.determineErrorCode(new Error('missing required field: name'))).toBe(
+        JsonRpcErrorCode.ValidationError,
       );
       expect(ErrorHandler.determineErrorCode(new Error('Request timed out'))).toBe(
         JsonRpcErrorCode.Timeout,

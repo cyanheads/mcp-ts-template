@@ -3,16 +3,39 @@
  * @module tests/utils/parsing/csvParser.test
  */
 
-import type { ParseConfig, ParseError, ParseResult } from 'papaparse';
-import Papa from 'papaparse';
+import type { ParseError, ParseResult } from 'papaparse';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 import { csvParser } from '@/utils/parsing/csvParser.js';
 
+// vi.hoisted runs before vi.mock hoisting, making mockParse available in the factory.
+const { mockParse } = vi.hoisted(() => ({
+  mockParse: vi.fn(),
+}));
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let realParseFn: any;
+
+vi.mock('papaparse', async (importOriginal) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const actual = (await importOriginal()) as any;
+  const realModule = actual.default ?? actual;
+  realParseFn = realModule.parse.bind(realModule);
+  mockParse.mockImplementation(realParseFn);
+  return {
+    ...actual,
+    default: {
+      ...realModule,
+      parse: mockParse,
+    },
+  };
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
+  mockParse.mockImplementation(realParseFn);
 });
 
 describe('csvParser.parse', () => {
@@ -21,9 +44,9 @@ describe('csvParser.parse', () => {
       operation: 'csv-parser-test',
     });
 
-  it('parses a basic CSV string with headers', () => {
+  it('parses a basic CSV string with headers', async () => {
     const csv = 'name,age\nAda,36\nGrace,45';
-    const result = csvParser.parse<{ name: string; age: string }>(csv, {
+    const result = await csvParser.parse<{ name: string; age: string }>(csv, {
       header: true,
     });
 
@@ -33,17 +56,21 @@ describe('csvParser.parse', () => {
     ]);
   });
 
-  it('strips a <think> block before parsing and logs through provided context', () => {
+  it('strips a <think> block before parsing and logs through provided context', async () => {
     const context = createContext();
     const csv = '<think>pre-computation</think>name,age\nAda,36';
-    const result = csvParser.parse<{ name: string; age: string }>(csv, { header: true }, context);
+    const result = await csvParser.parse<{ name: string; age: string }>(
+      csv,
+      { header: true },
+      context,
+    );
 
     expect(result.data).toEqual([{ name: 'Ada', age: '36' }]);
   });
 
-  it('throws when the CSV content is empty after removing the think block', () => {
+  it('throws when the CSV content is empty after removing the think block', async () => {
     try {
-      csvParser.parse('<think>thoughts</think>   ');
+      await csvParser.parse('<think>thoughts</think>   ');
       throw new Error('Expected csvParser.parse to throw');
     } catch (error) {
       expect(error).toBeInstanceOf(McpError);
@@ -53,7 +80,7 @@ describe('csvParser.parse', () => {
     }
   });
 
-  it('wraps parser errors into an McpError', () => {
+  it('wraps parser errors into an McpError', async () => {
     const context = createContext();
     const parserError: ParseError = {
       type: 'Quotes',
@@ -73,16 +100,10 @@ describe('csvParser.parse', () => {
       },
     };
 
-    const parseSpy = vi.spyOn(
-      Papa as unknown as {
-        parse: (csvString: string, config?: ParseConfig<unknown>) => ParseResult<unknown>;
-      },
-      'parse',
-    );
-    parseSpy.mockImplementation(() => parseResult);
+    mockParse.mockImplementation(() => parseResult as never);
 
     try {
-      csvParser.parse('name,age\n"Ada,36', undefined, context);
+      await csvParser.parse('name,age\n"Ada,36', undefined, context);
       throw new Error('Expected csvParser.parse to throw');
     } catch (error) {
       expect(error).toBeInstanceOf(McpError);
@@ -93,11 +114,11 @@ describe('csvParser.parse', () => {
     }
   });
 
-  it('logs an empty think block and auto-creates a context when none is supplied', () => {
+  it('logs an empty think block and auto-creates a context when none is supplied', async () => {
     const debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
     const csv = '<think>   </think>name,age\nAda,36';
 
-    const result = csvParser.parse<{ name: string; age: string }>(csv, {
+    const result = await csvParser.parse<{ name: string; age: string }>(csv, {
       header: true,
     });
 
@@ -110,7 +131,7 @@ describe('csvParser.parse', () => {
     debugSpy.mockRestore();
   });
 
-  it('logs parser errors with an auto-generated context when none is supplied', () => {
+  it('logs parser errors with an auto-generated context when none is supplied', async () => {
     const parserError: ParseError = {
       type: 'Quotes',
       code: 'MissingQuotes',
@@ -129,16 +150,11 @@ describe('csvParser.parse', () => {
       },
     };
 
-    vi.spyOn(
-      Papa as unknown as {
-        parse: (csvString: string, config?: ParseConfig<unknown>) => ParseResult<unknown>;
-      },
-      'parse',
-    ).mockImplementation(() => parseResult);
+    mockParse.mockImplementation(() => parseResult as never);
 
     const errorSpy = vi.spyOn(logger, 'error');
 
-    expect(() => csvParser.parse('name,age\n"Ada,36')).toThrow(McpError);
+    await expect(csvParser.parse('name,age\n"Ada,36')).rejects.toThrow(McpError);
     expect(errorSpy).toHaveBeenCalledWith(
       'Failed to parse CSV content.',
       expect.objectContaining({ operation: 'CsvParser.parseError' }),

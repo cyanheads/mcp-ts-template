@@ -143,6 +143,7 @@ logs/
 .nyc_output/
 coverage/
 !coverage/coverage-final.json
+reports/
 
 # =============================================================================
 # CACHE & TEMPORARY FILES

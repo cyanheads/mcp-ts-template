@@ -1,9 +1,12 @@
 /**
- * @fileoverview Defines the standard structure for a declarative resource definition.
- * This mirrors the ToolDefinition pattern to provide a consistent, modern
- * architecture for MCP resources, separating pure logic from handler concerns.
+ * @fileoverview Resource definition type, annotations, and `resource()` builder function.
+ * Handler receives `(params, ctx)` — URI is available on `ctx.uri`.
+ *
+ * MCP Resources Specification:
+ * @see {@link https://modelcontextprotocol.io/specification/2025-06-18/basic/resources | MCP Resources}
  * @module src/mcp-server/resources/utils/resourceDefinition
  */
+
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import type {
   ListResourcesResult,
@@ -13,7 +16,7 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import type { RequestContext } from '@/utils/internal/requestContext.js';
+import type { Context } from '@/core/context.js';
 
 /**
  * Optional annotations providing clients additional context about a resource.
@@ -28,82 +31,93 @@ export interface ResourceAnnotations {
   priority?: number;
 }
 
+/** Extra context provided to list() handlers. */
+export type ListExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
+
 /**
  * Represents a complete, self-contained definition of an MCP resource.
+ * Handler receives `(params, ctx)` — URI is available on `ctx.uri`.
  */
 export interface ResourceDefinition<
-  TParamsSchema extends ZodObject<ZodRawShape>,
-  TOutputSchema extends ZodObject<ZodRawShape> | undefined = undefined,
+  TParams extends ZodObject<ZodRawShape> = ZodObject<ZodRawShape>,
+  TOutput extends ZodObject<ZodRawShape> | undefined = undefined,
 > {
-  /** Optional display/behavior hints. */
+  /** Display/behavior hints. */
   annotations?: ResourceAnnotations;
-  /** A concise description of what the resource returns. */
+  /** Required auth scopes. */
+  auth?: string[];
+  /** LLM-facing description. */
   description: string;
-  /** Optional examples to improve discoverability. */
+  /** Optional examples for discoverability. */
   examples?: { name: string; uri: string }[];
   /**
-   * Optional provider for list results. If provided, it's used for resource discovery.
-   * The `extra` parameter provides access to request metadata including pagination cursor
-   * via `extra._meta?.cursor` or from the request params.
-   * Return value should conform to the MCP SDK's ListResourcesResult, which can include
-   * a `nextCursor` field for pagination support per MCP spec 2025-06-18.
-   *
-   * @param extra - Request handler context including signal, authInfo, sessionId, and request metadata
-   * @returns ListResourcesResult with resources array and optional nextCursor for pagination
-   *
-   * @example
-   * ```typescript
-   * import { extractCursor, paginateArray } from '@/utils/pagination/pagination.js';
-   *
-   * list: (extra) => {
-   *   const allResources = [...]  // Your full resource list
-   *   const cursor = extractCursor(extra._meta);
-   *   const { items, nextCursor } = paginateArray(
-   *     allResources,
-   *     cursor,
-   *     50,   // defaultPageSize
-   *     1000, // maxPageSize
-   *     context
-   *   );
-   *   return {
-   *     resources: items,
-   *     ...(nextCursor && { nextCursor }),
-   *   };
-   * }
-   * ```
+   * Optional formatter mapping output to ReadResourceResult contents.
+   * If omitted, a default JSON formatter is used.
    */
-  list?: (
-    extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-  ) => ListResourcesResult | Promise<ListResourcesResult>;
-  /**
-   * The pure, stateless core logic for the resource read operation.
-   * MUST NOT contain try/catch. Throw McpError on failure.
-   */
-  logic: (
-    uri: URL,
-    params: z.infer<TParamsSchema>,
-    context: RequestContext,
-  ) => TOutputSchema extends ZodObject<ZodRawShape>
-    ? z.infer<TOutputSchema> | Promise<z.infer<TOutputSchema>>
-    : unknown;
-  /** Default mime type for the response content. */
-  mimeType?: string;
-  /** The programmatic, unique name for the resource (e.g., 'echo-resource'). */
-  name: string;
-  /** Optional Zod schema describing the successful output payload. */
-  outputSchema?: TOutputSchema;
-  /** Zod schema validating the route/template params received by the handler. */
-  paramsSchema: TParamsSchema;
-  /**
-   * Optional formatter mapping the logic result into MCP ReadResourceResult.contents entries.
-   * If omitted, a default JSON formatter is applied using `mimeType`.
-   */
-  responseFormatter?: (
+  format?: (
     result: unknown,
     meta: { uri: URL; mimeType: string },
   ) => ReadResourceResult['contents'];
-  /** Optional, human-readable title for display in UIs. */
+  /**
+   * The core handler function. Receives validated params and unified Context.
+   * URI is available on `ctx.uri`. Throw on failure.
+   */
+  handler: (
+    params: z.infer<TParams>,
+    ctx: Context,
+  ) => TOutput extends ZodObject<ZodRawShape>
+    ? z.infer<TOutput> | Promise<z.infer<TOutput>>
+    : unknown | Promise<unknown>;
+  /**
+   * Optional provider for resource discovery/listing.
+   */
+  list?: (extra: ListExtra) => ListResourcesResult | Promise<ListResourcesResult>;
+  /** Default MIME type for response content. */
+  mimeType?: string;
+  /** Programmatic unique name. Defaults to slugified URI template if omitted. */
+  name?: string;
+  /** Zod schema for output validation. */
+  output?: TOutput;
+  /** Zod schema for route/template params. All fields need `.describe()`. */
+  params?: TParams;
+  /** Human-readable title for UI display. */
   title?: string;
-  /** The URI template used to register the resource (e.g., 'echo://{message}'). */
+  /** URI template for resource registration (e.g., 'myscheme://{itemId}/data'). */
   uriTemplate: string;
+}
+
+/** Type-erased union for mixed arrays. */
+export type AnyResourceDefinition = ResourceDefinition<
+  ZodObject<ZodRawShape>,
+  ZodObject<ZodRawShape> | undefined
+>;
+
+// ---------------------------------------------------------------------------
+// Builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a resource definition with the URI template as first argument.
+ *
+ * @example
+ * ```ts
+ * const myResource = resource('myscheme://{itemId}/data', {
+ *   description: 'Retrieve item data by ID.',
+ *   mimeType: 'application/json',
+ *   params: z.object({ itemId: z.string().describe('Item identifier') }),
+ *   async handler(params, ctx) {
+ *     ctx.log.debug('Fetching item', { itemId: params.itemId });
+ *     return { id: params.itemId, status: 'active' };
+ *   },
+ * });
+ * ```
+ */
+export function resource<
+  TParams extends ZodObject<ZodRawShape>,
+  TOutput extends ZodObject<ZodRawShape> | undefined = undefined,
+>(
+  uriTemplate: string,
+  options: Omit<ResourceDefinition<TParams, TOutput>, 'uriTemplate'>,
+): ResourceDefinition<TParams, TOutput> {
+  return { uriTemplate, ...options };
 }

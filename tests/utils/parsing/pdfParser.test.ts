@@ -200,12 +200,10 @@ describe('PdfParser', () => {
 
     it('should throw McpError on font embedding failure', async () => {
       const errorSpy = vi.spyOn(logger, 'error');
-      // @ts-expect-error - Testing invalid font name
       const invalidFontPromise = parser.embedFont(doc, 'InvalidFont', context);
       await expect(invalidFontPromise).rejects.toThrow(McpError);
 
       try {
-        // @ts-expect-error - Testing invalid font name
         await parser.embedFont(doc, 'InvalidFont', context);
       } catch (error) {
         const mcpError = error as McpError;
@@ -1256,23 +1254,13 @@ describe('PdfParser', () => {
       expect(pdfParser).toBeInstanceOf(PdfParser);
     });
 
-    it('should export PDFDocument class', async () => {
-      const { PDFDocument: ExportedPDFDocument } = await import(
-        '../../../src/utils/parsing/pdfParser.js'
-      );
-      expect(ExportedPDFDocument).toBe(PDFDocument);
-    });
-
-    it('should export StandardFonts enum', async () => {
-      const { StandardFonts: ExportedStandardFonts } = await import(
-        '../../../src/utils/parsing/pdfParser.js'
-      );
-      expect(ExportedStandardFonts).toBe(StandardFonts);
-    });
-
-    it('should export rgb utility', async () => {
-      const { rgb: exportedRgb } = await import('../../../src/utils/parsing/pdfParser.js');
-      expect(exportedRgb).toBe(rgb);
+    it('should export type-only re-exports for pdf-lib types', async () => {
+      // PDFDocument, PDFFont, PDFImage, PDFPage, RGB are type-only re-exports
+      // (pdf-lib is a lazy optional peer). Consumers import values from pdf-lib directly.
+      const mod = await import('../../../src/utils/parsing/pdfParser.js');
+      // Only PdfParser class and pdfParser singleton should be value exports
+      expect(mod.PdfParser).toBeDefined();
+      expect(mod.pdfParser).toBeInstanceOf(mod.PdfParser);
     });
   });
 });

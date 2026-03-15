@@ -1,45 +1,81 @@
 /**
  * @fileoverview Provides a utility class for parsing CSV strings.
- * It wraps the 'papaparse' library and includes functionality to handle
- * optional <think>...</think> blocks often found at the beginning of LLM outputs.
+ * Wraps the `papaparse` peer dependency (lazy-loaded on first use) and strips
+ * optional `<think>...</think>` blocks that LLMs sometimes prepend to structured
+ * output before parsing. Handles CJS/ESM interop for the `papaparse` module.
+ *
+ * Peer dependency: `papaparse` — install with `bun add papaparse`.
  * @module src/utils/parsing/csvParser
  */
-import Papa from 'papaparse';
+import type Papa from 'papaparse';
 
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError, validationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
+import { thinkBlockRegex } from './thinkBlock.js';
 
-/**
- * Regular expression to find a <think> block at the start of a string.
- * Captures content within <think>...</think> (Group 1) and the rest of the string (Group 2).
- * @private
- */
-const thinkBlockRegex = /^<think>([\s\S]*?)<\/think>\s*([\s\S]*)$/;
+let _papa: typeof Papa | undefined;
+async function getPapa() {
+  if (!_papa) {
+    const mod = await import('papaparse').catch(() => {
+      throw configurationError('Install "papaparse" to use CSV parsing: bun add papaparse');
+    });
+    // Handle CJS/ESM interop — papaparse uses `export =`
+    _papa = ('default' in mod ? (mod.default as typeof Papa) : mod) as typeof Papa;
+  }
+  return _papa;
+}
 
 /**
  * Utility class for parsing CSV strings.
- * Wraps the 'papaparse' library for robust CSV parsing and handles
- * optional <think> blocks from LLMs.
+ *
+ * Lazily loads `papaparse` on first use (peer dependency — install with `bun add papaparse`).
+ * Handles CJS/ESM interop for the `papaparse` module automatically. Handles optional
+ * `<think>...</think>` blocks that some LLMs prepend to structured output; the block's
+ * content is logged at debug level and stripped before parsing.
  */
 export class CsvParser {
   /**
-   * Parses a CSV string, which may be prefixed with a <think> block.
-   * If a <think> block is present, its content is logged, and parsing proceeds on the
-   * remainder.
+   * Parses a CSV string into a `Papa.ParseResult`.
    *
-   * @template T The expected type of the parsed CSV data. Defaults to `any`.
-   * @param csvString - The CSV string to parse.
-   * @param options - Optional `ParseConfig` for papaparse.
-   * @param context - Optional `RequestContext` for logging and error correlation.
-   * @returns The parsed CSV data.
-   * @throws {McpError} If the string is empty after processing or if parsing fails.
+   * This method is async because `papaparse` is loaded lazily on first call.
+   * If the input begins with a `<think>...</think>` block, that block is stripped
+   * and its content logged before parsing the remainder. Parse options (delimiter,
+   * headers, etc.) are forwarded directly to `Papa.parse()`.
+   *
+   * If `papaparse` reports any parse errors in `result.errors`, an `McpError` is thrown
+   * with all error messages joined and the raw `errors` array attached as context.
+   *
+   * @template T - The type of each parsed row. Defaults to `unknown`.
+   * @param csvString - The CSV string to parse. May be prefixed with a `<think>` block.
+   * @param options - Optional `Papa.ParseConfig` forwarded directly to `Papa.parse()`.
+   *   Common options: `header` (boolean), `delimiter` (string), `dynamicTyping` (boolean).
+   * @param context - Optional request context for correlated logging and error metadata.
+   * @returns A promise resolving to `Papa.ParseResult<T>` containing `data`, `errors`, and `meta`.
+   * @throws {McpError} With code `ConfigurationError` if `papaparse` is not installed.
+   * @throws {McpError} With code `ValidationError` if the string is empty after stripping
+   *   the `<think>` block, or if `papaparse` reports parse errors.
+   * @example
+   * ```typescript
+   * import { csvParser } from '@/utils/parsing/csvParser.js';
+   *
+   * // Parse with header row — rows typed as objects
+   * const result = await csvParser.parse<{ name: string; age: string }>(
+   *   'name,age\nAlice,30\nBob,25',
+   *   { header: true },
+   * );
+   * console.log(result.data[0].name); // 'Alice'
+   *
+   * // LLM output with a <think> preamble
+   * const fromLlm = await csvParser.parse('<think>reasoning</think>\na,b\n1,2', { header: true });
+   * console.log(fromLlm.data[0]); // { a: '1', b: '2' }
+   * ```
    */
-  parse<T = unknown>(
+  async parse<T = unknown>(
     csvString: string,
     options?: Papa.ParseConfig,
     context?: RequestContext,
-  ): Papa.ParseResult<T> {
+  ): Promise<Papa.ParseResult<T>> {
     let stringToParse = csvString;
     const match = csvString.match(thinkBlockRegex);
 
@@ -66,14 +102,14 @@ export class CsvParser {
     stringToParse = stringToParse.trim();
 
     if (!stringToParse) {
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
+      throw validationError(
         'CSV string is empty after removing <think> block and trimming.',
         context,
       );
     }
 
-    const result = Papa.parse<T>(stringToParse, options);
+    const papa = await getPapa();
+    const result = papa.parse<T>(stringToParse, options);
 
     if (result.errors.length > 0) {
       const errorLogContext =
@@ -87,8 +123,7 @@ export class CsvParser {
         contentAttempted: stringToParse.substring(0, 200),
       });
 
-      throw new McpError(
-        JsonRpcErrorCode.ValidationError,
+      throw validationError(
         `Failed to parse CSV: ${result.errors.map((e) => e.message).join(', ')}`,
         {
           ...context,
@@ -104,20 +139,27 @@ export class CsvParser {
 }
 
 /**
- * Singleton instance of the `CsvParser`.
- * Use this instance to parse CSV strings, with support for <think> blocks.
+ * Singleton instance of {@link CsvParser}.
+ *
+ * Prefer this over constructing a new `CsvParser` directly. Lazily loads `papaparse`
+ * on first call, so there is no startup cost if CSV parsing is never used.
+ *
  * @example
  * ```typescript
- * import { csvParser, requestContextService } from './utils';
- * const context = requestContextService.createRequestContext({ operation: 'TestCsvParsing' });
+ * import { csvParser } from '@/utils/parsing/csvParser.js';
  *
- * const csv = 'a,b,c\n1,2,3';
- * const parsedCsv = csvParser.parse(csv, { header: true }, context);
- * console.log(parsedCsv.data); // Output: [ { a: '1', b: '2', c: '3' } ]
+ * // Parse with header row
+ * const result = await csvParser.parse<{ a: string; b: string }>('a,b\n1,2', { header: true });
+ * console.log(result.data[0]); // { a: '1', b: '2' }
  *
- * const csvWithThink = '<think>This is a thought.</think>a,b,c\n1,2,3';
- * const parsedWithThink = csvParser.parse(csvWithThink, { header: true }, context);
- * console.log(parsedWithThink.data); // Output: [ { a: '1', b: '2', c: '3' } ]
+ * // With request context for correlated logging
+ * import { requestContextService } from '@/utils/internal/requestContext.js';
+ * const ctx = requestContextService.createRequestContext({ operation: 'importData' });
+ * const imported = await csvParser.parse(rawCsv, { header: true, dynamicTyping: true }, ctx);
+ *
+ * // Strips LLM <think> preamble automatically
+ * const fromLlm = await csvParser.parse('<think>let me think</think>\na,b\n1,2', { header: true });
+ * console.log(fromLlm.data[0]); // { a: '1', b: '2' }
  * ```
  */
 export const csvParser = new CsvParser();

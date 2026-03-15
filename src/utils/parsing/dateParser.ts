@@ -3,23 +3,37 @@
  * into Date objects or detailed parsing results using the `chrono-node` library.
  * @module src/utils/parsing/dateParser
  */
-import * as chrono from 'chrono-node';
+import type * as chrono from 'chrono-node';
 
-import { JsonRpcErrorCode } from '@/types-global/errors.js';
+import { configurationError, JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 
+let _chrono: typeof import('chrono-node') | undefined;
+async function getChrono() {
+  _chrono ??= await import('chrono-node').catch(() => {
+    throw configurationError('Install "chrono-node" to use date parsing: bun add chrono-node');
+  });
+  return _chrono;
+}
+
 /**
- * Parses a natural language date string into a JavaScript Date object.
- * Uses `chrono.parseDate` for lenient parsing of various date formats.
+ * Parses a natural language date string into a JavaScript `Date` object.
  *
- * @param text - The natural language date string to parse.
- * @param context - The request context for logging and error tracking.
- * @param refDate - Optional reference date for parsing relative dates. Defaults to current date/time.
- * @returns A promise resolving with a Date object or `null` if parsing fails.
- * @throws {McpError} If an unexpected error occurs during parsing.
- * @private
+ * Uses `chrono-node`'s `parseDate` with `forwardDate: true` so ambiguous dates
+ * (e.g. "next Friday") resolve to the nearest future occurrence. Returns `null`
+ * if no date can be extracted from the text.
+ *
+ * Async due to lazy loading of the `chrono-node` peer dependency
+ * (`bun add chrono-node`).
+ *
+ * @param text - The natural language date string to parse (e.g. `"next Friday at 3pm"`).
+ * @param context - `RequestContext` for correlated logging and error metadata.
+ * @param refDate - Reference date for relative expressions. Defaults to the current date/time.
+ * @returns A `Date` object if a date was found, or `null` if parsing yields no result.
+ * @throws {McpError} With `ConfigurationError` if `chrono-node` is not installed.
+ * @throws {McpError} With `ParseError` if an unexpected error occurs during parsing.
  */
 export async function parseDateString(
   text: string,
@@ -31,8 +45,9 @@ export async function parseDateString(
   logger.debug(`Attempting to parse date string: "${text}"`, logContext);
 
   return await ErrorHandler.tryCatch(
-    () => {
-      const parsedDate = chrono.parseDate(text, refDate, { forwardDate: true });
+    async () => {
+      const chronoMod = await getChrono();
+      const parsedDate = chronoMod.parseDate(text, refDate, { forwardDate: true });
       if (parsedDate) {
         logger.debug(`Successfully parsed "${text}" to ${parsedDate.toISOString()}`, logContext);
         return parsedDate;
@@ -51,15 +66,26 @@ export async function parseDateString(
 }
 
 /**
- * Parses a natural language date string and returns detailed parsing results.
- * Provides more information than just the Date object, including matched text and components.
+ * Parses a natural language date string and returns detailed `chrono-node` results.
+ *
+ * Unlike `parseDateString`, this function returns the full `ParsedResult[]` from
+ * `chrono-node`, which includes each matched text span, its character index in the
+ * input, and parsed date/time components (start, optional end). Useful for
+ * multi-date strings or when the original matched text is needed.
+ *
+ * Uses `chrono-node`'s `parse` with `forwardDate: true`. Returns an empty array
+ * if no dates are found.
+ *
+ * Async due to lazy loading of the `chrono-node` peer dependency
+ * (`bun add chrono-node`).
  *
  * @param text - The natural language date string to parse.
- * @param context - The request context for logging and error tracking.
- * @param refDate - Optional reference date for parsing relative dates. Defaults to current date/time.
- * @returns A promise resolving with an array of `chrono.ParsedResult` objects. Empty if no dates found.
- * @throws {McpError} If an unexpected error occurs during parsing.
- * @private
+ * @param context - `RequestContext` for correlated logging and error metadata.
+ * @param refDate - Reference date for relative expressions. Defaults to the current date/time.
+ * @returns An array of `chrono.ParsedResult` objects — one per date expression found.
+ *   Empty array if no dates are present in the text.
+ * @throws {McpError} With `ConfigurationError` if `chrono-node` is not installed.
+ * @throws {McpError} With `ParseError` if an unexpected error occurs during parsing.
  */
 export async function parseDateStringDetailed(
   text: string,
@@ -71,8 +97,9 @@ export async function parseDateStringDetailed(
   logger.debug(`Attempting detailed parse of date string: "${text}"`, logContext);
 
   return await ErrorHandler.tryCatch(
-    () => {
-      const results = chrono.parse(text, refDate, { forwardDate: true });
+    async () => {
+      const chronoMod = await getChrono();
+      const results = chronoMod.parse(text, refDate, { forwardDate: true });
       logger.debug(
         `Detailed parse of "${text}" resulted in ${results.length} result(s)`,
         logContext,
@@ -89,43 +116,56 @@ export async function parseDateStringDetailed(
 }
 
 /**
- * An object providing date parsing functionalities.
+ * Singleton object providing natural language date parsing via `chrono-node`.
+ *
+ * Both methods are async due to lazy loading of the `chrono-node` peer dependency
+ * (`bun add chrono-node`). Use `parseDate` for a simple `Date | null` result and
+ * `parse` when you need the full matched-text details.
  *
  * @example
  * ```typescript
- * import { dateParser, requestContextService } from './utils'; // Assuming utils/index.js exports these
- * const context = requestContextService.createRequestContext({ operation: 'TestDateParsing' });
+ * import { dateParser } from '@/utils/parsing/dateParser.js';
+ * import { requestContextService } from '@/utils/internal/requestContext.js';
  *
- * async function testParsing() {
- *   const dateObj = await dateParser.parseDate("next Friday at 3pm", context);
- *   if (dateObj) {
- *     console.log("Parsed Date:", dateObj.toISOString());
- *   }
+ * const ctx = requestContextService.createRequestContext({ operation: 'myOp' });
  *
- *   const detailedResults = await dateParser.parse("Meeting on 2024-12-25 and another one tomorrow", context);
- *   detailedResults.forEach(result => {
- *     console.log("Detailed Result:", result.text, result.start.date());
- *   });
+ * // Simple Date result
+ * const date = await dateParser.parseDate('next Friday at 3pm', ctx);
+ * if (date) console.log(date.toISOString());
+ *
+ * // Detailed results — useful for multi-date strings
+ * const results = await dateParser.parse('Meeting on 2024-12-25 and another one tomorrow', ctx);
+ * for (const r of results) {
+ *   console.log(r.text, r.start.date());
  * }
- * testParsing();
  * ```
  */
 export const dateParser = {
   /**
-   * Parses a natural language date string and returns detailed parsing results
-   * from `chrono-node`.
+   * Parses a natural language date string and returns the full `chrono-node`
+   * `ParsedResult[]`, including matched text spans and parsed components.
+   *
+   * Async due to lazy loading of `chrono-node` (`bun add chrono-node`).
+   *
    * @param text - The natural language date string to parse.
-   * @param context - The request context for logging and error tracking.
-   * @param refDate - Optional reference date for parsing relative dates.
-   * @returns A promise resolving with an array of `chrono.ParsedResult` objects.
+   * @param context - `RequestContext` for correlated logging and error metadata.
+   * @param refDate - Reference date for relative expressions. Defaults to now.
+   * @returns An array of `chrono.ParsedResult` objects; empty if no dates found.
+   * @throws {McpError} With `ConfigurationError` if `chrono-node` is not installed.
+   * @throws {McpError} With `ParseError` if an unexpected error occurs.
    */
   parse: parseDateStringDetailed,
   /**
-   * Parses a natural language date string into a single JavaScript Date object.
+   * Parses a natural language date string into a single JavaScript `Date` object.
+   *
+   * Async due to lazy loading of `chrono-node` (`bun add chrono-node`).
+   *
    * @param text - The natural language date string to parse.
-   * @param context - The request context for logging and error tracking.
-   * @param refDate - Optional reference date for parsing relative dates.
-   * @returns A promise resolving with a Date object or `null`.
+   * @param context - `RequestContext` for correlated logging and error metadata.
+   * @param refDate - Reference date for relative expressions. Defaults to now.
+   * @returns A `Date` if a date expression was found, or `null` if none was recognized.
+   * @throws {McpError} With `ConfigurationError` if `chrono-node` is not installed.
+   * @throws {McpError} With `ParseError` if an unexpected error occurs.
    */
   parseDate: parseDateString,
 };

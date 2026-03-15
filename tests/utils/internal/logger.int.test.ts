@@ -6,7 +6,6 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { config } from '../../../src/config/index.js';
 import { Logger } from '../../../src/utils/internal/logger.js';
 
 const LOGS_DIR = path.join(process.cwd(), 'logs', 'logger-test');
@@ -14,8 +13,19 @@ const COMBINED_LOG_PATH = path.join(LOGS_DIR, 'combined.log');
 const ERROR_LOG_PATH = path.join(LOGS_DIR, 'error.log');
 const INTERACTIONS_LOG_PATH = path.join(LOGS_DIR, 'interactions.log');
 
+const mockConfig = vi.hoisted(() => ({
+  logsPath: '',
+  logLevel: 'debug',
+  environment: 'testing',
+  mcpTransportType: 'stdio',
+  mcpServerName: 'test-server',
+  mcpServerVersion: '0.0.1',
+}));
+
+vi.mock('../../../src/config/index.js', () => ({ config: mockConfig }));
+
 // Override config to use a dedicated test directory
-config.logsPath = LOGS_DIR;
+mockConfig.logsPath = LOGS_DIR;
 
 function readJsonLog(filePath: string): any[] {
   if (!existsSync(filePath)) {
@@ -322,8 +332,8 @@ describe('Logger Transport Mode Handling', () => {
     const stdioTestLogPath = path.join(stdioTestLogDir, 'combined.log');
 
     // Temporarily override config for this test
-    const originalLogsPath = config.logsPath;
-    config.logsPath = stdioTestLogDir;
+    const originalLogsPath = mockConfig.logsPath;
+    mockConfig.logsPath = stdioTestLogDir;
 
     // Clean up old logs if they exist
     if (existsSync(stdioTestLogDir)) {
@@ -381,7 +391,7 @@ describe('Logger Transport Mode Handling', () => {
     }
 
     // Restore original config and environment
-    config.logsPath = originalLogsPath;
+    mockConfig.logsPath = originalLogsPath;
     if (originalEnableTestLogs !== undefined) {
       process.env.ENABLE_TEST_LOGS = originalEnableTestLogs;
     } else {

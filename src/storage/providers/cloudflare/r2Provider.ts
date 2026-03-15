@@ -16,7 +16,7 @@ import type {
   StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
 import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { configurationError, JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
@@ -34,10 +34,7 @@ export class R2Provider implements IStorageProvider {
 
   constructor(bucket: R2Bucket) {
     if (!bucket) {
-      throw new McpError(
-        JsonRpcErrorCode.ConfigurationError,
-        'R2Provider requires a valid R2Bucket instance.',
-      );
+      throw configurationError('R2Provider requires a valid R2Bucket instance.');
     }
     this.bucket = bucket;
   }

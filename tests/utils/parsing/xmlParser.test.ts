@@ -20,21 +20,21 @@ describe('XmlParser', () => {
     errorSpy.mockRestore();
   });
 
-  it('parses XML without a think block', () => {
+  it('parses XML without a think block', async () => {
     const parser = new XmlParser();
     const xml = '<root><item>value</item></root>';
 
-    const result = parser.parse(xml);
+    const result = await parser.parse(xml);
 
     expect(result).toEqual({ root: { item: 'value' } });
     expect(debugSpy).not.toHaveBeenCalled();
   });
 
-  it('parses XML and logs when a think block has content', () => {
+  it('parses XML and logs when a think block has content', async () => {
     const parser = new XmlParser();
     const xml = '<think> Reasoning notes </think><root><item>value</item></root>';
 
-    const result = parser.parse(xml);
+    const result = await parser.parse(xml);
 
     expect(result).toEqual({ root: { item: 'value' } });
     expect(debugSpy).toHaveBeenCalledWith(
@@ -43,11 +43,11 @@ describe('XmlParser', () => {
     );
   });
 
-  it('parses XML and logs when a think block is empty', () => {
+  it('parses XML and logs when a think block is empty', async () => {
     const parser = new XmlParser();
     const xml = '<think>   </think><root><item>value</item></root>';
 
-    const result = parser.parse(xml);
+    const result = await parser.parse(xml);
 
     expect(result).toEqual({ root: { item: 'value' } });
     expect(debugSpy).toHaveBeenCalledWith(
@@ -56,11 +56,11 @@ describe('XmlParser', () => {
     );
   });
 
-  it('throws an McpError when XML is empty after trimming', () => {
+  it('throws an McpError when XML is empty after trimming', async () => {
     const parser = new XmlParser();
 
     try {
-      parser.parse('   ');
+      await parser.parse('   ');
       throw new Error('parse should have thrown');
     } catch (error) {
       expect(error).toBeInstanceOf(McpError);
@@ -73,11 +73,11 @@ describe('XmlParser', () => {
     }
   });
 
-  it('wraps parser errors in an McpError and logs details', () => {
+  it('wraps parser errors in an McpError and logs details', async () => {
     const parser = new XmlParser();
     const xml = '<'; // triggers fast-xml-parser failure
 
-    expect(() => parser.parse(xml)).toThrowError(McpError);
+    await expect(parser.parse(xml)).rejects.toThrow(McpError);
 
     expect(errorSpy).toHaveBeenCalledWith(
       'Failed to parse XML content.',

@@ -1,431 +1,315 @@
 /**
- * @fileoverview Test suite for resource handler factory
+ * @fileoverview Tests for createResourceHandler — the production handler factory
+ * for all `resource()` builder definitions. Verifies context creation with uri,
+ * param validation, error re-throwing, response formatting, and capability wrapping.
  * @module tests/mcp-server/resources/utils/resourceHandlerFactory.test
  */
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import type { ServerNotification, ServerRequest } from '@modelcontextprotocol/sdk/types.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
-import { registerResource } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
-import type { RequestContext } from '@/utils/internal/requestContext.js';
 
-describe('Resource Handler Factory', () => {
-  let mockServer: MockedMcpServer;
+// ---------------------------------------------------------------------------
+// Module mocks — vi.hoisted ensures variables are available during vi.mock hoisting
+// ---------------------------------------------------------------------------
 
-  // Mock type for the MCP server
-  interface MockedMcpServer {
-    resource: Mock;
-  }
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    notice: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    crit: vi.fn(),
+    emerg: vi.fn(),
+    child: vi.fn(),
+  },
+}));
 
+vi.mock('@/config/index.js', () => ({
+  config: {
+    environment: 'testing',
+    mcpServerVersion: '1.0.0-test',
+    mcpAuthMode: 'none',
+    openTelemetry: { serviceName: 'test', serviceVersion: '0.0.0' },
+  },
+}));
+
+vi.mock('@/utils/internal/logger.js', () => ({
+  logger: mockLogger,
+  Logger: { getInstance: () => mockLogger },
+}));
+
+vi.mock('@/utils/internal/requestContext.js', () => ({
+  requestContextService: {
+    createRequestContext: vi.fn((opts: any) => ({
+      requestId: 'test-req-id',
+      timestamp: new Date().toISOString(),
+      operation: opts?.operation ?? 'test',
+      ...(opts?.additionalContext ?? {}),
+    })),
+  },
+}));
+
+// ---------------------------------------------------------------------------
+// Imports (after mocks)
+// ---------------------------------------------------------------------------
+
+import type { AnyResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
+import { resource } from '@/mcp-server/resources/utils/resourceDefinition.js';
+import {
+  createResourceHandler,
+  type ResourceHandlerFactoryServices,
+} from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+type MockSdkContext = RequestHandlerExtra<ServerRequest, ServerNotification>;
+
+function createMockSdkContext(overrides: Record<string, unknown> = {}): MockSdkContext {
+  return {
+    signal: new AbortController().signal,
+    requestId: 'sdk-request-id',
+    sendNotification: () => Promise.resolve(),
+    sendRequest: () => Promise.resolve({}) as never,
+    ...overrides,
+  } as MockSdkContext;
+}
+
+const mockStorage = {
+  get: vi.fn(async () => null),
+  set: vi.fn(async () => {}),
+  delete: vi.fn(async () => {}),
+  list: vi.fn(async () => ({ keys: [] })),
+  getMany: vi.fn(async () => new Map()),
+};
+
+const services: ResourceHandlerFactoryServices = {
+  logger: mockLogger as any,
+  storage: mockStorage as any,
+};
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe('createResourceHandler', () => {
   beforeEach(() => {
-    mockServer = {
-      resource: vi.fn(),
-    };
+    vi.clearAllMocks();
   });
 
-  describe('registerResource', () => {
-    it('should register a basic resource successfully', async () => {
-      const ParamsSchema = z.object({
-        message: z.string().describe('Message parameter'),
-      });
+  // -----------------------------------------------------------------------
+  // Basic execution
+  // -----------------------------------------------------------------------
 
-      const OutputSchema = z.object({
-        result: z.string().describe('Result'),
-      });
+  describe('Basic execution', () => {
+    it('should call handler with validated params and Context, return formatted response', async () => {
+      let capturedCtx: any;
+      let capturedParams: any;
 
-      const mockLogic = vi.fn((_uri: URL, params, _context: RequestContext) => ({
-        result: `Echo: ${params.message}`,
-      }));
-
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, typeof OutputSchema> = {
-        name: 'test-resource',
-        description: 'Test resource',
-        uriTemplate: 'test://{message}',
-        paramsSchema: ParamsSchema,
-        outputSchema: OutputSchema,
-        logic: mockLogic,
-      };
-
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
-
-      expect(mockServer.resource).toHaveBeenCalledTimes(1);
-      expect(mockServer.resource).toHaveBeenCalledWith(
-        'test-resource',
-        expect.anything(), // ResourceTemplate
-        expect.objectContaining({
-          title: 'test-resource',
-          description: 'Test resource',
-          mimeType: 'application/json',
-        }),
-        expect.any(Function),
-      );
-    });
-
-    it('should register resource with custom title and mimeType', async () => {
-      const ParamsSchema = z.object({});
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'custom-resource',
-        title: 'Custom Resource Title',
-        description: 'Custom resource',
-        uriTemplate: 'custom://',
-        paramsSchema: ParamsSchema,
-        mimeType: 'text/plain',
-        logic: async () => ({ data: 'test' }),
-      };
-
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
-
-      expect(mockServer.resource).toHaveBeenCalledWith(
-        'custom-resource',
-        expect.anything(),
-        expect.objectContaining({
-          title: 'Custom Resource Title',
-          mimeType: 'text/plain',
-        }),
-        expect.any(Function),
-      );
-    });
-
-    it('should register resource with examples', async () => {
-      const ParamsSchema = z.object({});
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'example-resource',
-        description: 'Resource with examples',
-        uriTemplate: 'example://',
-        paramsSchema: ParamsSchema,
-        examples: [
-          { name: 'Example 1', uri: 'example://test1' },
-          { name: 'Example 2', uri: 'example://test2' },
-        ],
-        logic: async () => ({ data: 'test' }),
-      };
-
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
-
-      expect(mockServer.resource).toHaveBeenCalledWith(
-        'example-resource',
-        expect.anything(),
-        expect.objectContaining({
-          examples: [
-            { name: 'Example 1', uri: 'example://test1' },
-            { name: 'Example 2', uri: 'example://test2' },
-          ],
-        }),
-        expect.any(Function),
-      );
-    });
-
-    it('should register resource with list capability', async () => {
-      const ParamsSchema = z.object({});
-      const mockList = vi.fn(() => ({
-        resources: [{ uri: 'test://item1', name: 'Item 1' }],
-      }));
-
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'list-resource',
-        description: 'Resource with list',
-        uriTemplate: 'list://',
-        paramsSchema: ParamsSchema,
-        list: mockList,
-        logic: async () => ({ data: 'test' }),
-      };
-
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
-
-      expect(mockServer.resource).toHaveBeenCalled();
-      // Verify ResourceTemplate was created with list function
-      const templateArg = mockServer.resource.mock.calls[0]?.[1];
-      expect(templateArg).toBeDefined();
-    });
-  });
-
-  describe('Resource Handler', () => {
-    it('should invoke resource logic with correct parameters', async () => {
-      const ParamsSchema = z.object({
-        message: z.string(),
-      });
-
-      const mockLogic = vi.fn(async (_uri: URL, params, _context: RequestContext) => ({
-        result: `Processed: ${params.message}`,
-      }));
-
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'invoke-test',
-        description: 'Test invocation',
-        uriTemplate: 'test://{message}',
-        paramsSchema: ParamsSchema,
-        logic: mockLogic,
-      };
-
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
-
-      // Extract the handler function
-      const handler = mockServer.resource.mock.calls[0]?.[3];
-      if (!handler) throw new Error('Handler not registered');
-
-      // Invoke the handler
-      const testUri = new URL('test://hello-world');
-      const testParams = { message: 'hello-world' };
-      const result = await handler(testUri, testParams, {
-        sessionId: 'test-session',
-      });
-
-      expect(mockLogic).toHaveBeenCalledWith(
-        testUri,
-        testParams,
-        expect.objectContaining({
-          requestId: expect.any(String),
-        }),
-      );
-
-      expect(result).toEqual({
-        contents: [
-          {
-            uri: testUri.href,
-            text: JSON.stringify({ result: 'Processed: hello-world' }),
-            mimeType: 'application/json',
-          },
-        ],
-      });
-    });
-
-    it('should validate parameters using schema', async () => {
-      const ParamsSchema = z.object({
-        count: z.number().min(1).max(100),
-      });
-
-      const mockLogic = vi.fn(async () => ({ result: 'ok' }));
-
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'validate-test',
-        description: 'Test validation',
-        uriTemplate: 'test://',
-        paramsSchema: ParamsSchema,
-        logic: mockLogic,
-      };
-
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
-
-      const handler = mockServer.resource.mock.calls[0]?.[3];
-      if (!handler) throw new Error('Handler not registered');
-
-      // Test with invalid parameters
-      await expect(handler(new URL('test://test'), { count: 'invalid' }, {})).rejects.toThrow();
-
-      await expect(handler(new URL('test://test'), { count: 0 }, {})).rejects.toThrow();
-
-      await expect(handler(new URL('test://test'), { count: 101 }, {})).rejects.toThrow();
-
-      // Test with valid parameters
-      const result = await handler(new URL('test://test'), { count: 50 }, {});
-      expect(result).toHaveProperty('contents');
-      expect(mockLogic).toHaveBeenCalled();
-    });
-
-    it('should use custom response formatter', async () => {
-      const ParamsSchema = z.object({});
-
-      const mockLogic = vi.fn(async () => ({ data: 'test-data' }));
-
-      const customFormatter = vi.fn((result: unknown, meta: { uri: URL; mimeType: string }) => [
-        {
-          uri: meta.uri.href,
-          text: `Custom: ${JSON.stringify(result)}`,
-          mimeType: meta.mimeType,
+      const def = resource('items://{itemId}/data', {
+        description: 'Get item data.',
+        params: z.object({ itemId: z.string().describe('Item ID') }),
+        async handler(params, ctx) {
+          capturedParams = params;
+          capturedCtx = ctx;
+          return { id: params.itemId, status: 'active' };
         },
-      ]);
-
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'formatter-test',
-        description: 'Test custom formatter',
-        uriTemplate: 'test://',
-        paramsSchema: ParamsSchema,
-        responseFormatter: customFormatter,
-        logic: mockLogic,
-      };
-
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
-
-      const handler = mockServer.resource.mock.calls[0]?.[3];
-      if (!handler) throw new Error('Handler not registered');
-      const testUri = new URL('test://test');
-      const result = await handler(testUri, {}, {});
-
-      expect(customFormatter).toHaveBeenCalledWith(
-        { data: 'test-data' },
-        expect.objectContaining({
-          uri: testUri,
-          mimeType: 'application/json',
-        }),
-      );
-
-      expect(result.contents[0].text).toBe('Custom: {"data":"test-data"}');
-    });
-
-    it('should handle errors from resource logic', async () => {
-      const ParamsSchema = z.object({});
-
-      const mockLogic = vi.fn(async () => {
-        throw new McpError(JsonRpcErrorCode.InvalidRequest, 'Logic error', {
-          detail: 'test',
-        });
       });
 
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'error-test',
-        description: 'Test error handling',
-        uriTemplate: 'test://',
-        paramsSchema: ParamsSchema,
-        logic: mockLogic,
-      };
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const uri = new URL('items://item-42/data');
+      const result = await handler(uri, { itemId: 'item-42' }, createMockSdkContext());
 
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
+      // Response
+      expect(result.contents).toHaveLength(1);
+      const content = result.contents[0]!;
+      expect(content.uri).toBe('items://item-42/data');
+      expect(content.mimeType).toBe('application/json');
+      const parsed = JSON.parse((content as { text: string }).text);
+      expect(parsed).toEqual({ id: 'item-42', status: 'active' });
 
-      const handler = mockServer.resource.mock.calls[0]?.[3];
-      if (!handler) throw new Error('Handler not registered');
+      // Context
+      expect(capturedCtx.requestId).toBe('test-req-id');
+      expect(capturedCtx.uri).toBe(uri);
+      expect(typeof capturedCtx.log.info).toBe('function');
 
-      await expect(handler(new URL('test://test'), {}, {})).rejects.toThrow(McpError);
+      // Params
+      expect(capturedParams).toEqual({ itemId: 'item-42' });
     });
 
-    it('should validate response format', async () => {
-      const ParamsSchema = z.object({});
-
-      const mockLogic = vi.fn(async () => ({ data: 'test' }));
-
-      // Formatter that returns invalid format (not an array)
-      const invalidFormatter = vi.fn(() => ({ invalid: 'format' }) as any);
-
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'invalid-format-test',
-        description: 'Test invalid response format',
-        uriTemplate: 'test://',
-        paramsSchema: ParamsSchema,
-        responseFormatter: invalidFormatter,
-        logic: mockLogic,
-      };
-
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
-
-      const handler = mockServer.resource.mock.calls[0]?.[3];
-      if (!handler) throw new Error('Handler not registered');
-
-      await expect(handler(new URL('test://test'), {}, {})).rejects.toThrow(/must return an array/);
-    });
-
-    it('should validate content blocks have required uri property', async () => {
-      const ParamsSchema = z.object({});
-
-      const mockLogic = vi.fn(async () => ({ data: 'test' }));
-
-      // Formatter that returns array but without uri property
-      const invalidFormatter = vi.fn(
-        () => [{ text: 'missing uri property', mimeType: 'text/plain' }] as any,
-      );
-
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'missing-uri-test',
-        description: 'Test missing uri in content',
-        uriTemplate: 'test://',
-        paramsSchema: ParamsSchema,
-        responseFormatter: invalidFormatter,
-        logic: mockLogic,
-      };
-
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
-
-      const handler = mockServer.resource.mock.calls[0]?.[3];
-      if (!handler) throw new Error('Handler not registered');
-
-      await expect(handler(new URL('test://test'), {}, {})).rejects.toThrow(
-        /must be an object with a `uri` property/,
-      );
-    });
-
-    it('should handle synchronous resource logic', async () => {
-      const ParamsSchema = z.object({
-        value: z.string(),
+    it('should use custom format function when provided', async () => {
+      const def = resource('custom://{id}', {
+        description: 'Custom format.',
+        params: z.object({ id: z.string().describe('ID') }),
+        handler: (params) => ({ value: params.id }),
+        format: (result, meta) => [
+          { uri: meta.uri.href, text: `Custom: ${(result as any).value}`, mimeType: meta.mimeType },
+        ],
       });
 
-      // Synchronous logic function (not async)
-      const syncLogic = (
-        _uri: URL,
-        params: z.infer<typeof ParamsSchema>,
-        _context: RequestContext,
-      ) => ({ result: params.value.toUpperCase() });
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const result = await handler(new URL('custom://abc'), { id: 'abc' }, createMockSdkContext());
 
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'sync-test',
-        description: 'Test synchronous logic',
-        uriTemplate: 'test://{value}',
-        paramsSchema: ParamsSchema,
-        logic: syncLogic,
-      };
-
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
-
-      const handler = mockServer.resource.mock.calls[0]?.[3];
-      if (!handler) throw new Error('Handler not registered');
-      const result = await handler(new URL('test://hello'), { value: 'hello' }, {});
-
-      expect(result.contents[0].text).toBe(JSON.stringify({ result: 'HELLO' }));
+      expect((result.contents[0] as { text: string }).text).toBe('Custom: abc');
     });
 
-    it('should pass sessionId to handler context when available', async () => {
-      const ParamsSchema = z.object({});
+    it('should default mimeType to application/json', async () => {
+      const def = resource('plain://{id}', {
+        description: 'No mimeType specified.',
+        handler: () => ({ ok: true }),
+      });
 
-      const mockLogic = vi.fn(async (_uri, _params, context: RequestContext) => ({
-        sessionContext: context,
-      }));
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const result = await handler(new URL('plain://x'), { id: 'x' }, createMockSdkContext());
 
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'session-test',
-        description: 'Test session handling',
-        uriTemplate: 'test://',
-        paramsSchema: ParamsSchema,
-        logic: mockLogic,
-      };
+      expect(result.contents[0]!.mimeType).toBe('application/json');
+    });
+  });
 
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
+  // -----------------------------------------------------------------------
+  // Context construction
+  // -----------------------------------------------------------------------
 
-      const handler = mockServer.resource.mock.calls[0]?.[3];
-      if (!handler) throw new Error('Handler not registered');
+  describe('Context construction', () => {
+    it('should set ctx.uri to the resource URI', async () => {
+      let capturedUri: URL | undefined;
 
-      await handler(new URL('test://test'), {}, { sessionId: 'test-session-123' });
+      const def = resource('scheme://{id}', {
+        description: 'URI test.',
+        handler: (_params, ctx) => {
+          capturedUri = ctx.uri;
+          return {};
+        },
+      });
 
-      expect(mockLogic).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.anything(),
-        expect.objectContaining({
-          requestId: expect.any(String),
-        }),
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const uri = new URL('scheme://test-123');
+      await handler(uri, { id: 'test-123' }, createMockSdkContext());
+
+      expect(capturedUri).toBe(uri);
+    });
+
+    it('should default tenantId to "default" (no auth)', async () => {
+      let capturedTenant: string | undefined;
+
+      const def = resource('t://{id}', {
+        description: 'Tenant test.',
+        handler: (_params, ctx) => {
+          capturedTenant = ctx.tenantId;
+          return {};
+        },
+      });
+
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      await handler(new URL('t://x'), { id: 'x' }, createMockSdkContext());
+
+      expect(capturedTenant).toBe('default');
+    });
+
+    it('should wire elicit/sample from SDK context when available', async () => {
+      let capturedCtx: any;
+      const mockElicit = vi.fn();
+      const mockCreate = vi.fn();
+
+      const def = resource('cap://{id}', {
+        description: 'Capability test.',
+        handler: (_params, ctx) => {
+          capturedCtx = ctx;
+          return {};
+        },
+      });
+
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      await handler(
+        new URL('cap://x'),
+        { id: 'x' },
+        createMockSdkContext({ elicitInput: mockElicit, createMessage: mockCreate }),
       );
+
+      expect(capturedCtx.elicit).toBeDefined();
+      expect(capturedCtx.sample).toBeDefined();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Param validation
+  // -----------------------------------------------------------------------
+
+  describe('Param validation', () => {
+    it('should reject invalid params by throwing (re-thrown for SDK)', async () => {
+      const def = resource('strict://{count}', {
+        description: 'Strict params.',
+        params: z.object({ count: z.coerce.number().int().positive().describe('cnt') }),
+        handler: () => ({ ok: true }),
+      });
+
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+
+      await expect(
+        handler(new URL('strict://abc'), { count: 'not-a-number' } as any, createMockSdkContext()),
+      ).rejects.toThrow();
     });
 
-    it('should handle missing sessionId gracefully', async () => {
-      const ParamsSchema = z.object({});
+    it('should pass variables through when no params schema is defined', async () => {
+      let capturedParams: any;
 
-      const mockLogic = vi.fn(async () => ({ result: 'ok' }));
+      const def = resource('loose://{id}', {
+        description: 'No schema.',
+        handler: (params) => {
+          capturedParams = params;
+          return {};
+        },
+      });
 
-      const resourceDef: ResourceDefinition<typeof ParamsSchema, undefined> = {
-        name: 'no-session-test',
-        description: 'Test without session',
-        uriTemplate: 'test://',
-        paramsSchema: ParamsSchema,
-        logic: mockLogic,
-      };
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      await handler(new URL('loose://x'), { id: 'x', extra: 'field' }, createMockSdkContext());
 
-      await registerResource(mockServer as unknown as McpServer, resourceDef);
+      expect(capturedParams).toEqual({ id: 'x', extra: 'field' });
+    });
+  });
 
-      const handler = mockServer.resource.mock.calls[0]?.[3];
-      if (!handler) throw new Error('Handler not registered');
+  // -----------------------------------------------------------------------
+  // Error handling
+  // -----------------------------------------------------------------------
 
-      // Call without sessionId
-      const result = await handler(new URL('test://test'), {}, {});
+  describe('Error handling', () => {
+    it('should re-throw errors (unlike tool handler which returns isError)', async () => {
+      const def = resource('err://{id}', {
+        description: 'Throws.',
+        handler: () => {
+          throw new Error('resource broke');
+        },
+      });
 
-      expect(result).toHaveProperty('contents');
-      expect(mockLogic).toHaveBeenCalled();
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+
+      await expect(
+        handler(new URL('err://x'), { id: 'x' }, createMockSdkContext()),
+      ).rejects.toThrow();
+    });
+
+    it('should re-throw McpError with code preserved', async () => {
+      const def = resource('mcperr://{id}', {
+        description: 'Throws McpError.',
+        handler: () => {
+          throw new McpError(JsonRpcErrorCode.NotFound, 'Resource not found');
+        },
+      });
+
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+
+      try {
+        await handler(new URL('mcperr://x'), { id: 'x' }, createMockSdkContext());
+        expect.fail('should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(McpError);
+        expect((err as McpError).code).toBe(JsonRpcErrorCode.NotFound);
+      }
     });
   });
 });

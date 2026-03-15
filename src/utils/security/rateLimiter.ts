@@ -5,7 +5,7 @@
  */
 import { trace } from '@opentelemetry/api';
 import type { config as ConfigType } from '@/config/index.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { rateLimited } from '@/types-global/errors.js';
 import type { logger as LoggerType } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -41,11 +41,39 @@ export interface RateLimitEntry {
   resetTime: number;
 }
 
+/**
+ * A configurable, in-process rate limiter that enforces request quotas per key within a sliding
+ * time window. Tracks request counts in a `Map`, evicts least-recently-used entries when the
+ * tracked-key cap is reached, and periodically cleans up expired windows via a background timer.
+ *
+ * Throws {@link McpError} with {@link JsonRpcErrorCode.RateLimited} when the limit is exceeded.
+ * Integrates with OpenTelemetry by annotating the active span with rate-limit attributes.
+ *
+ * @example
+ * ```ts
+ * const limiter = new RateLimiter(config, logger);
+ * limiter.configure({ maxRequests: 60, windowMs: 60_000 });
+ *
+ * // In a request handler:
+ * limiter.check(clientId, requestContext); // throws McpError if over limit
+ * ```
+ */
 export class RateLimiter {
   private readonly limits: Map<string, RateLimitEntry>;
   private cleanupTimer: NodeJS.Timeout | null = null;
   private readonly effectiveConfig: RateLimitConfig;
 
+  /**
+   * Creates a new `RateLimiter` instance with sensible defaults:
+   * - 100 requests per 15-minute window
+   * - 5-minute cleanup interval
+   * - Up to 10,000 tracked keys (LRU eviction beyond that)
+   *
+   * Call {@link configure} to override any of these defaults before first use.
+   *
+   * @param config - Application config, used to check `environment` when `skipInDevelopment` is set.
+   * @param logger - Logger instance for debug output on cleanup and eviction events.
+   */
   constructor(
     private config: typeof ConfigType,
     private logger: typeof LoggerType,
@@ -95,6 +123,12 @@ export class RateLimiter {
     }
   }
 
+  /**
+   * Starts (or restarts) the periodic cleanup interval using the current `cleanupInterval` config.
+   * Clears any existing timer first. The timer is unref'd so it does not prevent Node.js from exiting.
+   * No-ops if `cleanupInterval` is 0 or unset.
+   * @private
+   */
   private startCleanupTimer(): void {
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
@@ -110,6 +144,11 @@ export class RateLimiter {
     }
   }
 
+  /**
+   * Iterates all tracked entries and deletes any whose `resetTime` has passed.
+   * Called automatically by the cleanup timer. Logs the number of removed entries at debug level.
+   * @private
+   */
   private cleanupExpiredEntries(): void {
     const now = Date.now();
     let expiredCount = 0;
@@ -131,6 +170,17 @@ export class RateLimiter {
     }
   }
 
+  /**
+   * Merges the provided partial config into the current effective configuration.
+   * If `cleanupInterval` is included, the background timer is restarted with the new interval.
+   *
+   * @param config - Partial {@link RateLimitConfig} fields to apply.
+   *
+   * @example
+   * ```ts
+   * limiter.configure({ maxRequests: 30, windowMs: 60_000, skipInDevelopment: true });
+   * ```
+   */
   public configure(config: Partial<RateLimitConfig>): void {
     Object.assign(this.effectiveConfig, config);
     if (config.cleanupInterval !== undefined) {
@@ -138,10 +188,19 @@ export class RateLimiter {
     }
   }
 
+  /**
+   * Returns a shallow copy of the current effective {@link RateLimitConfig}.
+   *
+   * @returns A copy of the active rate limit configuration.
+   */
   public getConfig(): RateLimitConfig {
     return { ...this.effectiveConfig };
   }
 
+  /**
+   * Clears all tracked rate limit entries, effectively resetting every key's counter.
+   * Useful for testing or emergency bypass scenarios.
+   */
   public reset(): void {
     this.limits.clear();
     const logContext = requestContextService.createRequestContext({
@@ -150,6 +209,33 @@ export class RateLimiter {
     this.logger.debug('Rate limiter reset, all limits cleared', logContext);
   }
 
+  /**
+   * Checks whether the given key has exceeded its rate limit and throws if so.
+   *
+   * On each call:
+   * 1. No-ops if `skipInDevelopment` is `true` and `config.environment === 'development'`.
+   * 2. Resolves the effective key via `keyGenerator` if configured, otherwise uses `key` as-is.
+   * 3. Creates a new window entry on first call or after the previous window expired.
+   *    If the tracked-key cap is reached, the least-recently-used entry is evicted first.
+   * 4. Increments the count and updates the LRU timestamp.
+   * 5. If count exceeds `maxRequests`, throws {@link McpError} with {@link JsonRpcErrorCode.RateLimited}
+   *    and error data containing `waitTimeSeconds`, `key`, `limit`, and `windowMs`.
+   *
+   * The active OpenTelemetry span is annotated with rate-limit attributes on every call.
+   *
+   * @param key - The identifier to rate-limit (e.g., a client ID, IP address, or tool name).
+   * @param context - Optional request context passed to the `keyGenerator`, if configured.
+   * @throws {McpError} With code {@link JsonRpcErrorCode.RateLimited} when the limit is exceeded.
+   *
+   * @example
+   * ```ts
+   * // Basic usage
+   * rateLimiter.check('client-abc');
+   *
+   * // With request context for custom key generation
+   * rateLimiter.check('client-abc', requestContext);
+   * ```
+   */
   public check(key: string, context?: RequestContext): void {
     const activeSpan = trace.getActiveSpan();
     activeSpan?.setAttribute('mcp.rate_limit.checked', true);
@@ -208,7 +294,7 @@ export class RateLimiter {
         'mcp.rate_limit.wait_time_seconds': waitTime,
       });
 
-      throw new McpError(JsonRpcErrorCode.RateLimited, errorMessage, {
+      throw rateLimited(errorMessage, {
         waitTimeSeconds: waitTime,
         key: limitKey,
         limit: this.effectiveConfig.maxRequests,
@@ -217,6 +303,25 @@ export class RateLimiter {
     }
   }
 
+  /**
+   * Returns the current rate limit status for a given key, or `null` if the key is not tracked
+   * (i.e., no requests have been made in the current window).
+   *
+   * Note: This method does **not** apply the `keyGenerator` — pass the already-resolved key
+   * if a custom generator is configured.
+   *
+   * @param key - The rate limit key to query.
+   * @returns An object with `current` count, configured `limit`, `remaining` requests, and
+   *   `resetTime` (ms epoch when the window resets), or `null` if the key has no active entry.
+   *
+   * @example
+   * ```ts
+   * const status = rateLimiter.getStatus('client-abc');
+   * if (status) {
+   *   console.log(`${status.remaining} requests remaining, resets at ${new Date(status.resetTime)}`);
+   * }
+   * ```
+   */
   public getStatus(key: string): {
     current: number;
     limit: number;
@@ -233,6 +338,11 @@ export class RateLimiter {
     };
   }
 
+  /**
+   * Stops the background cleanup timer and clears all tracked entries.
+   * Should be called during application shutdown to allow the process to exit cleanly
+   * (even though the timer is unref'd, explicit disposal is good practice).
+   */
   public dispose(): void {
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);

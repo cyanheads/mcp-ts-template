@@ -5,8 +5,6 @@
 
 import type { Request, RequestId } from '@modelcontextprotocol/sdk/types.js';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { container } from '@/container/core/container.js';
-import { StorageProvider, StorageService as StorageServiceToken } from '@/container/core/tokens.js';
 import { StorageBackedTaskStore } from '@/mcp-server/tasks/core/storageBackedTaskStore.js';
 import { StorageService } from '@/storage/core/StorageService.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
@@ -23,13 +21,7 @@ describe('StorageBackedTaskStore', () => {
   const testRequestId: RequestId = 1;
 
   beforeEach(() => {
-    container.reset();
-    container.registerSingleton(StorageProvider, () => new InMemoryProvider());
-    container.registerSingleton(
-      StorageServiceToken,
-      (c) => new StorageService(c.resolve(StorageProvider)),
-    );
-    storageService = container.resolve(StorageServiceToken);
+    storageService = new StorageService(new InMemoryProvider());
 
     taskStore = new StorageBackedTaskStore(storageService, {
       tenantId: 'test-tasks',

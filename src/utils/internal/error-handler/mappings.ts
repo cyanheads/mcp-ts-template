@@ -15,10 +15,25 @@ import type { BaseErrorMapping } from './types.js';
 const COMPILED_PATTERN_CACHE = new Map<string, RegExp>();
 
 /**
- * Compiles and caches regex patterns at first use for faster matching.
- * Automatically adds case-insensitive flag and removes global flag for safety.
- * @param pattern - Pattern to compile (string or RegExp)
- * @returns Compiled and cached RegExp instance
+ * Compiles and caches a regex pattern for repeated use without re-compilation overhead.
+ *
+ * - String patterns are compiled with the `i` (case-insensitive) flag.
+ * - `RegExp` patterns are re-compiled without the `g` flag (global flag is removed to prevent
+ *   stateful `lastIndex` bugs when the same pattern is reused across multiple `.test()` calls)
+ *   and with `i` added if absent.
+ * - Cache key for `RegExp` inputs is `source + flags`; for strings it is the string itself.
+ *
+ * @param pattern - A string or `RegExp` to compile and cache.
+ * @returns The compiled, cached `RegExp` instance.
+ *
+ * @example
+ * ```ts
+ * const re = getCompiledPattern('not found');
+ * re.test('Resource not found'); // → true
+ *
+ * const re2 = getCompiledPattern(/ThrottlingException/i);
+ * re2.test('ThrottlingException: rate exceeded'); // → true
+ * ```
  */
 export function getCompiledPattern(pattern: string | RegExp): RegExp {
   // Create a stable cache key
@@ -58,6 +73,24 @@ interface CompiledErrorMapping extends BaseErrorMapping {
 
 /**
  * Maps standard JavaScript error constructor names to `JsonRpcErrorCode` values.
+ *
+ * Consulted by `ErrorHandler.determineErrorCode` as the first pattern-match step after
+ * checking for `McpError` instances. Constructor names are matched via `getErrorName()`.
+ *
+ * | Constructor | Mapped Code |
+ * |-------------|-------------|
+ * | `SyntaxError` | `ValidationError` |
+ * | `TypeError` | `ValidationError` |
+ * | `RangeError` | `ValidationError` |
+ * | `URIError` | `ValidationError` |
+ * | `ReferenceError` | `InternalError` |
+ * | `EvalError` | `InternalError` |
+ * | `AggregateError` | `InternalError` |
+ *
+ * @example
+ * ```ts
+ * ERROR_TYPE_MAPPINGS['TypeError']; // → JsonRpcErrorCode.ValidationError
+ * ```
  */
 export const ERROR_TYPE_MAPPINGS: Readonly<Record<string, JsonRpcErrorCode>> = {
   SyntaxError: JsonRpcErrorCode.ValidationError,
@@ -76,7 +109,8 @@ export const ERROR_TYPE_MAPPINGS: Readonly<Record<string, JsonRpcErrorCode>> = {
  */
 const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
   {
-    pattern: /auth|unauthorized|unauthenticated|not.*logged.*in|invalid.*token|expired.*token/i,
+    pattern:
+      /unauthorized|unauthenticated|not\s+authorized|not.*logged.*in|invalid[\s_-]+token|expired[\s_-]+token/i,
     errorCode: JsonRpcErrorCode.Unauthorized,
   },
   {
@@ -84,11 +118,12 @@ const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
     errorCode: JsonRpcErrorCode.Forbidden,
   },
   {
-    pattern: /not found|missing|no such|doesn't exist|couldn't find/i,
+    pattern: /not found|no such|doesn't exist|couldn't find/i,
     errorCode: JsonRpcErrorCode.NotFound,
   },
   {
-    pattern: /invalid|validation|malformed|bad request|wrong format|missing required/i,
+    pattern:
+      /invalid|validation|malformed|bad request|wrong format|missing\s+(?:required|param|field|input|value|arg)/i,
     errorCode: JsonRpcErrorCode.ValidationError,
   },
   {
@@ -118,8 +153,14 @@ const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
 ];
 
 /**
- * Pre-compiled error patterns for performance optimization.
- * These patterns are compiled once at module initialization for faster matching.
+ * Pre-compiled common error patterns used by `ErrorHandler.determineErrorCode`.
+ *
+ * Derived from `COMMON_ERROR_PATTERNS` — each entry has its `pattern` compiled via
+ * `getCompiledPattern` at module initialization. Checked after `COMPILED_PROVIDER_PATTERNS`
+ * (provider patterns are more specific and take priority).
+ *
+ * Patterns cover: auth/unauthorized, forbidden, not-found, validation, conflict,
+ * rate-limit, timeout/abort, service-unavailable, and Zod schema errors.
  */
 export const COMPILED_ERROR_PATTERNS: ReadonlyArray<Readonly<CompiledErrorMapping>> =
   COMMON_ERROR_PATTERNS.map((mapping) => ({
@@ -203,7 +244,16 @@ const PROVIDER_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
 ];
 
 /**
- * Pre-compiled provider error patterns for performance.
+ * Pre-compiled provider-specific error patterns used by `ErrorHandler.determineErrorCode`.
+ *
+ * Derived from `PROVIDER_ERROR_PATTERNS` — each entry has its `pattern` compiled via
+ * `getCompiledPattern` at module initialization. Checked before `COMPILED_ERROR_PATTERNS`
+ * because provider patterns are more specific (e.g. `status code 429` is more precise than
+ * the generic `rate limit` common pattern).
+ *
+ * Covers: AWS service errors, HTTP status codes (401/403/404/409/429/5xx),
+ * database connection/constraint errors, Supabase JWT/RLS, OpenRouter/LLM quota errors,
+ * and low-level network errors (ECONNREFUSED, ECONNRESET, ENOTFOUND, ETIMEDOUT).
  */
 export const COMPILED_PROVIDER_PATTERNS: ReadonlyArray<Readonly<CompiledErrorMapping>> =
   PROVIDER_ERROR_PATTERNS.map((mapping) => ({

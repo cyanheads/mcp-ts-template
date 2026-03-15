@@ -143,20 +143,26 @@ describe('OpenRouterProvider', () => {
       const mockCheck = vi.fn(() => {});
       mockRateLimiter.check = mockCheck;
 
-      // Mock the OpenAI client to avoid actual API calls
-      (provider as any).client.chat.completions.create = vi.fn(async () => ({
-        id: 'test',
-        object: 'chat.completion',
-        created: Date.now(),
-        model: 'test-model',
-        choices: [
-          {
-            index: 0,
-            message: { role: 'assistant', content: 'Test response' },
-            finish_reason: 'stop',
+      // Set mock client (lazily initialized, so must assign the whole object)
+      (provider as any).client = {
+        chat: {
+          completions: {
+            create: vi.fn(async () => ({
+              id: 'test',
+              object: 'chat.completion',
+              created: Date.now(),
+              model: 'test-model',
+              choices: [
+                {
+                  index: 0,
+                  message: { role: 'assistant', content: 'Test response' },
+                  finish_reason: 'stop',
+                },
+              ],
+            })),
           },
-        ],
-      }));
+        },
+      };
 
       await provider.chatCompletion(
         {
@@ -180,10 +186,16 @@ describe('OpenRouterProvider', () => {
     });
 
     it('should handle API errors gracefully', async () => {
-      // Mock client to throw error
-      (provider as any).client.chat.completions.create = vi.fn(async () => {
-        throw new Error('API Error');
-      });
+      // Set mock client that throws (lazily initialized, so must assign the whole object)
+      (provider as any).client = {
+        chat: {
+          completions: {
+            create: vi.fn(async () => {
+              throw new Error('API Error');
+            }),
+          },
+        },
+      };
 
       await expect(
         provider.chatCompletion(
@@ -197,9 +209,15 @@ describe('OpenRouterProvider', () => {
     });
 
     it('should wrap errors in ErrorHandler.tryCatch', async () => {
-      (provider as any).client.chat.completions.create = vi.fn(async () => {
-        throw new Error('Test error');
-      });
+      (provider as any).client = {
+        chat: {
+          completions: {
+            create: vi.fn(async () => {
+              throw new Error('Test error');
+            }),
+          },
+        },
+      };
 
       try {
         await provider.chatCompletion(
@@ -233,7 +251,9 @@ describe('OpenRouterProvider', () => {
         },
       };
 
-      (provider as any).client.chat.completions.create = vi.fn(async () => mockStream);
+      (provider as any).client = {
+        chat: { completions: { create: vi.fn(async () => mockStream) } },
+      };
 
       const stream = await provider.chatCompletionStream(
         {
@@ -268,7 +288,7 @@ describe('OpenRouterProvider', () => {
       expect(typeof provider.chatCompletionStream).toBe('function');
     });
 
-    it('should properly construct OpenAI client with headers', () => {
+    it('should properly construct OpenAI client with headers', async () => {
       const mockConfig = {
         ...config,
         openrouterApiKey: 'test-api-key',
@@ -278,7 +298,8 @@ describe('OpenRouterProvider', () => {
 
       provider = new OpenRouterProvider(mockRateLimiter, mockConfig, logger);
 
-      // Client should be initialized
+      // Client is lazily initialized — trigger it
+      await (provider as any).ensureClient();
       expect((provider as any).client).toBeDefined();
     });
   });

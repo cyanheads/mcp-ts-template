@@ -25,10 +25,13 @@ export function isObject(value: unknown): value is object {
 }
 
 /**
- * Type guard to check if a value is a record (object with string keys).
+ * Type guard to check if a value is a plain record (non-null, non-array object with string keys).
+ *
+ * Arrays are excluded — this guard is intended for key-value objects only.
+ * Delegates to {@link isObject} for the underlying check.
  *
  * @param value - Value to check
- * @returns True if value is a Record<string, unknown>
+ * @returns True if value is a `Record<string, unknown>` (plain object, not null, not an array)
  *
  * @example
  * ```typescript
@@ -93,6 +96,14 @@ export function hasPropertyOfType<K extends PropertyKey, T>(
  *
  * @param value - Value to check
  * @returns True if value is a string
+ *
+ * @example
+ * ```typescript
+ * if (isString(value)) {
+ *   // value is now typed as string
+ *   console.log(value.toUpperCase());
+ * }
+ * ```
  */
 export function isString(value: unknown): value is string {
   return typeof value === 'string';
@@ -101,8 +112,19 @@ export function isString(value: unknown): value is string {
 /**
  * Type guard to check if a value is a number.
  *
+ * `NaN` is explicitly excluded — `typeof NaN === 'number'` is true in JavaScript,
+ * but `NaN` is almost never a valid value in the contexts where this guard is used.
+ *
  * @param value - Value to check
- * @returns True if value is a number (excluding NaN)
+ * @returns True if value is a finite or infinite number (excluding NaN)
+ *
+ * @example
+ * ```typescript
+ * if (isNumber(value)) {
+ *   // value is now typed as number (NaN excluded)
+ *   console.log(value.toFixed(2));
+ * }
+ * ```
  */
 export function isNumber(value: unknown): value is number {
   return typeof value === 'number' && !Number.isNaN(value);
@@ -204,9 +226,20 @@ export function getStringProperty<K extends PropertyKey>(obj: unknown, key: K): 
 /**
  * Safely get a number property from an object.
  *
+ * Returns `undefined` if the property is absent, not a number, or is `NaN`.
+ *
  * @param obj - Object to get property from
  * @param key - Property key
- * @returns Number value or undefined if property doesn't exist or is not a number
+ * @returns Number value or undefined if property doesn't exist, is not a number, or is NaN
+ *
+ * @example
+ * ```typescript
+ * const retries = getNumberProperty(config, 'maxRetries');
+ * if (retries !== undefined) {
+ *   // retries is typed as number
+ *   console.log(`Max retries: ${retries}`);
+ * }
+ * ```
  */
 export function getNumberProperty<K extends PropertyKey>(obj: unknown, key: K): number | undefined {
   const value = getProperty(obj, key);

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { CloudflareBindings } from '@/worker.js';
+import { type CloudflareBindings, createWorkerHandler } from '@/core/worker.js';
 
 describe('Cloudflare Worker Entry Point', () => {
   describe('CloudflareBindings Interface', () => {
@@ -48,8 +48,13 @@ describe('Cloudflare Worker Entry Point', () => {
       expect(bindings.MCP_AUTH_SECRET_KEY).toBe('secret');
     });
 
-    it('should support string index signature for additional bindings', () => {
-      const bindings: CloudflareBindings = {
+    it('should require explicit extension for additional bindings', () => {
+      // CloudflareBindings no longer has an index signature.
+      // Servers must declare extra bindings via TypeScript intersection/extends.
+      interface ExtendedBindings extends CloudflareBindings {
+        CUSTOM_BINDING: string;
+      }
+      const bindings: ExtendedBindings = {
         CUSTOM_BINDING: 'value',
       };
       expect(bindings.CUSTOM_BINDING).toBe('value');
@@ -85,10 +90,10 @@ describe('Cloudflare Worker Entry Point', () => {
   });
 
   describe('Worker Exports', () => {
-    it('should export default handler object', async () => {
-      const worker = await import('@/worker.js');
-      expect(worker.default).toBeDefined();
-      expect(typeof worker.default).toBe('object');
+    it('should export createWorkerHandler factory', async () => {
+      const worker = await import('@/core/worker.js');
+      expect(worker.createWorkerHandler).toBeDefined();
+      expect(typeof worker.createWorkerHandler).toBe('function');
     });
 
     it('should export CloudflareBindings interface', () => {
@@ -99,16 +104,10 @@ describe('Cloudflare Worker Entry Point', () => {
       expect(bindings).toBeDefined();
     });
 
-    it('should have fetch handler', async () => {
-      const worker = await import('@/worker.js');
-      expect(worker.default.fetch).toBeDefined();
-      expect(typeof worker.default.fetch).toBe('function');
-    });
-
-    it('should have scheduled handler', async () => {
-      const worker = await import('@/worker.js');
-      expect(worker.default.scheduled).toBeDefined();
-      expect(typeof worker.default.scheduled).toBe('function');
+    it('should return handler with fetch and scheduled', () => {
+      const handler = createWorkerHandler();
+      expect(typeof handler.fetch).toBe('function');
+      expect(typeof handler.scheduled).toBe('function');
     });
   });
 
