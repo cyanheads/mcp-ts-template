@@ -347,8 +347,9 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
         }
 
         // MCP Spec 2025-06-18: For stateful sessions, return Mcp-Session-Id header
-        // in InitializeResponse (and all subsequent responses)
-        if (config.mcpSessionMode === 'stateful' && response.ok) {
+        // in InitializeResponse (and all subsequent responses).
+        // 'auto' resolves to stateful for HTTP, matching the SessionStore creation above.
+        if (isStateful && response.ok) {
           response.headers.set('Mcp-Session-Id', sessionId);
           logger.debug('Added Mcp-Session-Id header to response', {
             ...transportContext,
