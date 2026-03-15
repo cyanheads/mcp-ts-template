@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.3] - 2026-03-14
+
+Housekeeping release: regex fix for skill audience extraction, version alignment across manifests, and removal of obsolete planning docs and schemas.
+
+### Fixed
+
+- `extractAudience` regex in `init` CLI now handles sibling keys before `audience:` under `metadata:` in skill frontmatter.
+
+### Removed
+
+- `core-extraction/` planning docs (14 files) — extraction complete, no longer needed.
+- `docs/mcp-apps.md`, `docs/mcp-elicitation-summary.md`, `docs/publishing-mcp-server-registry.md` — superseded by CLAUDE.md and skill files.
+- `schemas/cloudflare-d1-schema.sql` — D1 schema now managed by the framework internally.
+
+### Changed
+
+- `server.json` version aligned to 0.1.3 (was 0.1.1).
+
+---
+
 ## [0.1.2] - 2026-03-14
 
 Reliability fixes for core lifecycle, transport, storage, and telemetry. New `design-mcp-server` skill for planning tool surfaces before scaffolding.
