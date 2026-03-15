@@ -13,10 +13,11 @@
  * // bun run scripts/build.ts --project tsconfig.custom.json
  */
 
+import { execFile } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawn } from 'bun';
 
 const ROOT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST_DIR = join(ROOT_DIR, 'dist');
@@ -26,28 +27,33 @@ async function exec(
   label: string,
 ): Promise<{ ok: boolean; stdout: string; stderr: string; ms: number }> {
   const start = performance.now();
-  const proc = spawn(cmd, {
-    cwd: ROOT_DIR,
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const [bin, ...args] = cmd;
+
+  const { stdout, stderr, exitCode } = await new Promise<{
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+  }>((resolve) => {
+    execFile(bin ?? '', args, { cwd: ROOT_DIR }, (error, stdout, stderr) => {
+      resolve({
+        stdout: (stdout ?? '').trim(),
+        stderr: (stderr ?? '').trim(),
+        exitCode: error ? Number(error.code) || 1 : 0,
+      });
+    });
   });
 
-  const [stdout, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
-
-  const exitCode = await proc.exited;
   const ms = Math.round(performance.now() - start);
 
   if (exitCode !== 0) {
     console.error(`  \x1b[31m✗ ${label} failed (${ms}ms)\x1b[0m`);
-    if (stdout.trim()) console.error(stdout.trim());
-    if (stderr.trim()) console.error(stderr.trim());
+    if (stdout) console.error(stdout);
+    if (stderr) console.error(stderr);
   } else {
     console.log(`  \x1b[32m✓\x1b[0m ${label} \x1b[2m(${ms}ms)\x1b[0m`);
   }
 
-  return { ok: exitCode === 0, stdout: stdout.trim(), stderr: stderr.trim(), ms };
+  return { ok: exitCode === 0, stdout, stderr, ms };
 }
 
 /** Recursively count files and total size under a directory. */
@@ -85,7 +91,7 @@ function formatBytes(bytes: number): string {
 
 async function main() {
   // Read package info
-  const pkg = await Bun.file(join(ROOT_DIR, 'package.json')).json();
+  const pkg = JSON.parse(readFileSync(join(ROOT_DIR, 'package.json'), 'utf-8'));
   const projectIdx = process.argv.indexOf('--project');
   const project =
     projectIdx !== -1
