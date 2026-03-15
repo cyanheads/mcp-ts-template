@@ -80,13 +80,17 @@ The init creates echo definitions for tools, resources, and prompts. They're fun
 
 ## Skill Sync
 
-Your agent skill directory (e.g., `.claude/skills/`) must stay in sync with the project's `skills/` directory. `skills/` is the source of truth.
+Copy all project skills into your agent's skill directory so they're available as context. `skills/` is the source of truth.
 
-1. Compare your agent skill directory against `skills/`
-2. Copy any missing or updated skills into your agent directory
-3. Do not remove server-specific skills from either location
+**For Claude Code:**
 
-For detailed sync procedures, see the `/maintenance` skill.
+```bash
+mkdir -p .claude/skills && cp -R skills/* .claude/skills/
+```
+
+**For other agents** (Codex, Cursor, Windsurf, etc.) — copy to the equivalent directory (e.g., `.codex/skills/`, `.cursor/skills/`).
+
+After the initial copy, use the `maintenance` skill to keep them in sync after package updates.
 
 ## Project Scaffolding
 
@@ -101,6 +105,7 @@ After `bun install`, complete these one-time setup tasks:
 - [ ] `{{PACKAGE_NAME}}` placeholders replaced in agent protocol file (if not auto-substituted by init)
 - [ ] Core framework CLAUDE.md read (`node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`)
 - [ ] Unused echo definitions deleted (and unregistered from `src/index.ts`)
-- [ ] Agent skill directory in sync with project `skills/`
+- [ ] Skills copied to agent directory (`cp -R skills/* .claude/skills/` or equivalent)
 - [ ] Project structure understood (definitions directories, entry point)
 - [ ] `bun run devcheck` passes
+- [ ] If new server: proceed to `design-mcp-server` skill to plan the tool surface

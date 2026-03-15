@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-03-15 00:53:59
+Generated on: 2026-03-15 01:36:02
 
 ```
 mcp-ts-template/
@@ -115,6 +115,8 @@ mcp-ts-template/
 │   │   │   └── security.md
 │   │   └── SKILL.md
 │   ├── api-workers/
+│   │   └── SKILL.md
+│   ├── design-mcp-server/
 │   │   └── SKILL.md
 │   ├── devcheck/
 │   │   └── SKILL.md

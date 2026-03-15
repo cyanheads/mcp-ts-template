@@ -1,10 +1,20 @@
 # Agent Protocol
 
 **Server:** {{PACKAGE_NAME}}
-**Version:** 0.1.0
+**Version:** 0.1.2
 **Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core)
 
 > **Read the framework docs first:** `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` contains the full API reference — builders, Context, error codes, exports, patterns. This file covers server-specific conventions only.
+
+---
+
+## First Session
+
+> **Remove this section** from CLAUDE.md / AGENTS.md after completing these steps. The skills and conventions below remain — this block is one-time onboarding only.
+
+1. **Read the framework API** — `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`
+2. **Run the `setup` skill** — read `skills/setup/SKILL.md` and follow its checklist (project orientation, agent protocol file selection, echo definition cleanup, skill sync)
+3. **Design the server** — read `skills/design-mcp-server/SKILL.md` and work through it with the user to map the domain into tools, resources, and services before scaffolding
 
 ---
 
@@ -173,6 +183,7 @@ src/
 | Files | kebab-case with suffix | `search-docs.tool.ts` |
 | Tool/resource/prompt names | snake_case | `search_docs` |
 | Directories | kebab-case | `src/services/doc-search/` |
+| Descriptions | Single string or template literal, no `+` concatenation | `'Search items by query and filter.'` |
 
 ---
 
@@ -187,6 +198,7 @@ Available skills:
 | Skill | Purpose |
 |:------|:--------|
 | `setup` | Post-init project orientation |
+| `design-mcp-server` | Design tool surface, resources, and services for a new server |
 | `add-tool` | Scaffold a new tool definition |
 | `add-resource` | Scaffold a new resource definition |
 | `add-prompt` | Scaffold a new prompt definition |
@@ -211,12 +223,18 @@ When you complete a skill's checklist, check the boxes and add a completion time
 
 | Command | Purpose |
 |:--------|:--------|
-| `bun run build` | Compile TypeScript |
-| `bun run devcheck` | Lint + format + typecheck |
-| `bun run test` | Run tests |
-| `bun run format` | Auto-fix formatting |
-| `bun run dev:stdio` | Dev mode (stdio) |
-| `bun run dev:http` | Dev mode (HTTP) |
+| `npm run build` | Compile TypeScript |
+| `npm run clean` | Remove build artifacts |
+| `bun run devcheck` | Lint + format + typecheck + security |
+| `bun run tree` | Generate directory structure doc |
+| `npm run format` | Auto-fix formatting |
+| `npm test` | Run tests |
+| `npm run dev:stdio` | Dev mode (stdio) |
+| `npm run dev:http` | Dev mode (HTTP) |
+| `npm run start:stdio` | Production mode (stdio) |
+| `npm run start:http` | Production mode (HTTP) |
+
+**Bun requirement:** `devcheck` and `tree` scripts use Bun-specific APIs (`spawn` from `'bun'`). Install [Bun](https://bun.sh) to run them. All other commands work with any Node-compatible package manager.
 
 ---
 
@@ -239,6 +257,6 @@ import { getMyService } from '@/services/my-domain/my-service.js';
 - [ ] JSDoc `@fileoverview` + `@module` on every file
 - [ ] `ctx.log` for logging, `ctx.state` for storage
 - [ ] Handlers throw on failure — error factories or plain `Error`, no try/catch
-- [ ] Registered in `src/index.ts` arrays
+- [ ] Registered in `createApp()` arrays (directly or via barrel exports)
 - [ ] Tests use `createMockContext()` from `@cyanheads/mcp-ts-core/testing`
 - [ ] `bun run devcheck` passes
