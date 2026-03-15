@@ -188,11 +188,13 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
 
   // Restore previous env values so subsequent composeServices() / createApp()
   // calls in the same process aren't contaminated by this call's overrides.
+  // Reset the cached config so the next access re-parses from the restored env.
   if (options.name || options.version) {
     if (prevName === undefined) delete process.env.MCP_SERVER_NAME;
     else process.env.MCP_SERVER_NAME = prevName;
     if (prevVersion === undefined) delete process.env.MCP_SERVER_VERSION;
     else process.env.MCP_SERVER_VERSION = prevVersion;
+    resetConfig();
   }
 
   return {
