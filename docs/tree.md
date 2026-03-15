@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-03-14 23:06:17
+Generated on: 2026-03-15 00:53:59
 
 ```
 mcp-ts-template/
@@ -77,10 +77,8 @@ mcp-ts-template/
 │   ├── devdocs.ts
 │   ├── fetch-openapi-spec.ts
 │   ├── make-executable.ts
-│   ├── test-report.ts
 │   ├── tree.ts
-│   ├── update-coverage.ts
-│   └── verify-exports.ts
+│   └── update-coverage.ts
 ├── skills/
 │   ├── add-export/
 │   │   └── SKILL.md
