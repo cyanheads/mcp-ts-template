@@ -6,12 +6,14 @@
  */
 
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, extname, join, relative } from 'node:path';
+import { basename, dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TEMPLATES_DIR = join(PACKAGE_ROOT, 'templates');
 const SKILLS_DIR = join(PACKAGE_ROOT, 'skills');
+const SCRIPTS_DIR = join(PACKAGE_ROOT, 'scripts');
+const SCAFFOLD_SCRIPTS = ['build.ts', 'clean.ts', 'devcheck.ts', 'tree.ts'];
 const TEXT_EXTENSIONS = new Set([
   '.md',
   '.ts',
@@ -57,6 +59,7 @@ function printUsage(): void {
 function init(): void {
   const name = process.argv.slice(3).find((a) => !a.startsWith('--'));
   const dest = name ? join(process.cwd(), name) : process.cwd();
+  const packageName = name ?? basename(dest);
 
   if (name) {
     if (!/^[a-zA-Z0-9_][\w.-]*$/.test(name) || name.includes('..')) {
@@ -74,9 +77,12 @@ function init(): void {
   const skipped: string[] = [];
 
   // Step 1: Copy templates
-  copyTemplates(dest, name, created, skipped);
+  copyTemplates(dest, packageName, created, skipped);
 
-  // Step 2: Copy external skills
+  // Step 2: Copy scripts
+  copyScripts(dest, created, skipped);
+
+  // Step 3: Copy external skills
   copyExternalSkills(dest, created, skipped);
 
   // Print summary
@@ -85,12 +91,7 @@ function init(): void {
 
 // ── Template copying ──────────────────────────────────────────────────
 
-function copyTemplates(
-  dest: string,
-  name: string | undefined,
-  created: string[],
-  skipped: string[],
-): void {
+function copyTemplates(dest: string, name: string, created: string[], skipped: string[]): void {
   const entries = walkDir(TEMPLATES_DIR);
 
   for (const srcPath of entries) {
@@ -104,21 +105,34 @@ function copyTemplates(
 
     const destPath = join(dest, relPath);
 
-    if (existsSync(destPath)) {
-      skipped.push(relPath);
-      continue;
-    }
-
-    mkdirSync(dirname(destPath), { recursive: true });
-
-    if (name && isTextFile(srcPath)) {
+    if (isTextFile(srcPath)) {
+      if (existsSync(destPath)) {
+        skipped.push(relPath);
+        continue;
+      }
+      mkdirSync(dirname(destPath), { recursive: true });
       const content = readFileSync(srcPath, 'utf-8').replace(/\{\{PACKAGE_NAME\}\}/g, name);
       writeFileSync(destPath, content);
+      created.push(relPath);
     } else {
-      cpSync(srcPath, destPath);
+      copyIfAbsent(srcPath, destPath, relPath, created, skipped);
     }
+  }
+}
 
-    created.push(relPath);
+// ── Script copying ────────────────────────────────────────────────────
+
+function copyScripts(dest: string, created: string[], skipped: string[]): void {
+  if (!existsSync(SCRIPTS_DIR)) return;
+
+  for (const scriptName of SCAFFOLD_SCRIPTS) {
+    const srcPath = join(SCRIPTS_DIR, scriptName);
+    if (!existsSync(srcPath)) continue;
+
+    const relPath = join('scripts', scriptName);
+    const destPath = join(dest, relPath);
+
+    copyIfAbsent(srcPath, destPath, relPath, created, skipped);
   }
 }
 
@@ -142,15 +156,7 @@ function copyExternalSkills(dest: string, created: string[], skipped: string[]):
       const relPath = join('skills', dir.name, relative(join(SKILLS_DIR, dir.name), srcPath));
       const destPath = join(dest, relPath);
 
-      if (existsSync(destPath)) {
-        skipped.push(relPath);
-        continue;
-      }
-
-      mkdirSync(dirname(destPath), { recursive: true });
-      cpSync(srcPath, destPath);
-
-      created.push(relPath);
+      copyIfAbsent(srcPath, destPath, relPath, created, skipped);
     }
   }
 }
@@ -166,6 +172,24 @@ function extractAudience(content: string): string | undefined {
   const nested = frontmatter[1].match(/^metadata:\s*\n\s+audience:\s*(\w+)/m);
   if (nested) return nested[1];
   return frontmatter[1].match(/^audience:\s*(\w+)/m)?.[1];
+}
+
+/** Copy a single file if the destination doesn't already exist, tracking the result. */
+function copyIfAbsent(
+  srcPath: string,
+  destPath: string,
+  relPath: string,
+  created: string[],
+  skipped: string[],
+): boolean {
+  if (existsSync(destPath)) {
+    skipped.push(relPath);
+    return false;
+  }
+  mkdirSync(dirname(destPath), { recursive: true });
+  cpSync(srcPath, destPath);
+  created.push(relPath);
+  return true;
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────

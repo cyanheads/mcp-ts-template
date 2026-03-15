@@ -173,6 +173,7 @@ src/
 | Files | kebab-case with suffix | `search-docs.tool.ts` |
 | Tool/resource/prompt names | snake_case | `search_docs` |
 | Directories | kebab-case | `src/services/doc-search/` |
+| Descriptions | Single string or template literal, no `+` concatenation | `'Search items by query and filter.'` |
 
 ---
 
@@ -211,12 +212,18 @@ When you complete a skill's checklist, check the boxes and add a completion time
 
 | Command | Purpose |
 |:--------|:--------|
-| `bun run build` | Compile TypeScript |
-| `bun run devcheck` | Lint + format + typecheck |
-| `bun run test` | Run tests |
-| `bun run format` | Auto-fix formatting |
-| `bun run dev:stdio` | Dev mode (stdio) |
-| `bun run dev:http` | Dev mode (HTTP) |
+| `npm run build` | Compile TypeScript |
+| `npm run clean` | Remove build artifacts |
+| `bun run devcheck` | Lint + format + typecheck + security |
+| `bun run tree` | Generate directory structure doc |
+| `npm run format` | Auto-fix formatting |
+| `npm test` | Run tests |
+| `npm run dev:stdio` | Dev mode (stdio) |
+| `npm run dev:http` | Dev mode (HTTP) |
+| `npm run start:stdio` | Production mode (stdio) |
+| `npm run start:http` | Production mode (HTTP) |
+
+**Bun requirement:** `devcheck` and `tree` scripts use Bun-specific APIs (`spawn` from `'bun'`). Install [Bun](https://bun.sh) to run them. All other commands work with any Node-compatible package manager.
 
 ---
 
@@ -239,6 +246,6 @@ import { getMyService } from '@/services/my-domain/my-service.js';
 - [ ] JSDoc `@fileoverview` + `@module` on every file
 - [ ] `ctx.log` for logging, `ctx.state` for storage
 - [ ] Handlers throw on failure — error factories or plain `Error`, no try/catch
-- [ ] Registered in `src/index.ts` arrays
+- [ ] Registered in `createApp()` arrays (directly or via barrel exports)
 - [ ] Tests use `createMockContext()` from `@cyanheads/mcp-ts-core/testing`
 - [ ] `bun run devcheck` passes
