@@ -2,7 +2,7 @@
  * @fileoverview Factory function for creating a storage provider based on application configuration.
  * This module decouples the application from concrete storage implementations, allowing the
  * storage backend to be selected via environment variables. In a serverless environment,
- * it defaults to `in-memory` to ensure compatibility.
+ * it throws a configuration error for unsupported providers.
  * @module src/storage/core/storageFactory
  */
 import type { D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types';
@@ -111,11 +111,10 @@ export function createStorageProvider(
     isServerless() &&
     !['in-memory', 'cloudflare-r2', 'cloudflare-kv', 'cloudflare-d1'].includes(providerType)
   ) {
-    logger.warning(
-      `Forcing 'in-memory' storage provider in serverless environment (configured: ${providerType}).`,
-      context,
+    throw configurationError(
+      `Storage provider '${providerType}' is not supported in serverless environments. ` +
+        `Use one of: 'in-memory', 'cloudflare-r2', 'cloudflare-kv', 'cloudflare-d1'.`,
     );
-    return new InMemoryProvider();
   }
 
   logger.info(`Creating storage provider of type: ${providerType}`, context);
