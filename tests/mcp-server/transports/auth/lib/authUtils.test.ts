@@ -62,16 +62,9 @@ describe('withRequiredScopes', () => {
           expect(error).toBeInstanceOf(McpError);
           const mcpError = error as McpError;
           expect(mcpError.code).toBe(JsonRpcErrorCode.Forbidden);
-          expect(mcpError.message).toContain('Missing required scopes');
-          expect(mcpError.data).toMatchObject({
-            requiredScopes: ['scope:read', 'scope:write'],
-            missingScopes: ['scope:write'],
-          });
-          // Sensitive auth details must not leak to client-facing errors
-          const data = mcpError.data as Record<string, unknown>;
-          expect(data).not.toHaveProperty('grantedScopes');
-          expect(data).not.toHaveProperty('clientId');
-          expect(data).not.toHaveProperty('subject');
+          expect(mcpError.message).toBe('Insufficient permissions.');
+          // No auth details should leak to client-facing errors (prevents scope enumeration)
+          expect(mcpError.data).toBeUndefined();
         }
       });
     });

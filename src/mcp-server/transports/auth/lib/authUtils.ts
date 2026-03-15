@@ -72,11 +72,9 @@ export function withRequiredScopes(requiredScopes: string[], parentContext?: Req
       ...finalContext,
       missingScopes,
     });
-    // Only surface non-sensitive info in the client-facing error
-    throw forbidden(
-      `Insufficient permissions. Missing required scopes: ${missingScopes.join(', ')}`,
-      { requiredScopes, missingScopes },
-    );
+    // Do not include scope names in the client-facing error data — prevents scope enumeration.
+    // Full details (grantedScopes, missingScopes, clientId, subject) are in the server-side log above.
+    throw forbidden('Insufficient permissions.');
   }
 
   logger.debug('Scope authorization successful.', finalContext);

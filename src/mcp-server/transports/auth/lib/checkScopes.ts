@@ -31,22 +31,19 @@ export function checkScopes(ctx: Context, requiredScopes: string[]): void {
   }
 
   if (!ctx.auth) {
-    throw unauthorized('Authentication required but no auth context was established.', {
-      requiredScopes,
-    });
+    throw unauthorized('Authentication required but no auth context was established.');
   }
 
   const grantedScopeSet = new Set(ctx.auth.scopes);
   const missingScopes = requiredScopes.filter((scope) => !grantedScopeSet.has(scope));
 
   if (missingScopes.length > 0) {
+    // Log full details server-side; do not include scope names in the client-facing
+    // error data to prevent scope enumeration by unauthorized callers.
     ctx.log.warning('Authorization failed: missing required scopes.', {
       requiredScopes,
       missingScopes,
     });
-    throw forbidden(
-      `Insufficient permissions. Missing required scopes: ${missingScopes.join(', ')}`,
-      { requiredScopes, missingScopes },
-    );
+    throw forbidden('Insufficient permissions.');
   }
 }
