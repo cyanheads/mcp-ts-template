@@ -68,11 +68,12 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     component: 'HttpTransportSetup',
   };
 
-  // Initialize session store for stateful mode
-  const sessionStore =
-    config.mcpSessionMode === 'stateful'
-      ? new SessionStore(config.mcpStatefulSessionStaleTimeoutMs)
-      : null;
+  // Initialize session store for stateful mode.
+  // 'auto' resolves to stateful for HTTP (per MCP spec conformance).
+  const isStateful = config.mcpSessionMode === 'stateful' || config.mcpSessionMode === 'auto';
+  const sessionStore = isStateful
+    ? new SessionStore(config.mcpStatefulSessionStaleTimeoutMs)
+    : null;
 
   // Wire session count to OTel observable gauge for durable metrics
   if (sessionStore && config.openTelemetry.enabled) {
