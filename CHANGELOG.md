@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.2] - 2026-03-14
+
+Reliability fixes for core lifecycle, transport, storage, and telemetry. New `design-mcp-server` skill for planning tool surfaces before scaffolding.
+
+### Added
+
+- `design-mcp-server` skill (`skills/design-mcp-server/SKILL.md`) — structured workflow for mapping a domain into tools, resources, and services before implementation.
+- "First Session" onboarding section in consumer templates (`CLAUDE.md`, `AGENTS.md`) guiding new projects through framework docs, setup, and design.
+
+### Fixed
+
+- `composeServices()` now saves and restores `process.env.MCP_SERVER_NAME` / `MCP_SERVER_VERSION` so successive calls in the same process aren't contaminated by earlier overrides.
+- OpenTelemetry initialization sets `isOtelInitialized` only after `sdk.start()` succeeds, and resets the flag and promise on failure — prevents a failed init from blocking retries.
+- Storage factory throws `configurationError` for unsupported providers in serverless environments instead of silently falling back to `in-memory`.
+- HTTP transport resolves `mcpSessionMode: 'auto'` to stateful (per MCP spec conformance) instead of treating it as stateless.
+
+### Changed
+
+- Setup skill simplified: skill sync is now a single `cp -R skills/* .claude/skills/` command instead of a multi-step comparison workflow.
+- Consumer templates updated: expanded commands table distinguishing `npm` (portable) from `bun` (bun-only) scripts, added description naming convention, added `design-mcp-server` to skills table.
+
+---
+
 ## [0.1.1] - 2026-03-14
 
 Scaffold and build portability improvements. Consumer projects now extend core shared configs instead of inlining them, and the build script runs on plain Node.js.
