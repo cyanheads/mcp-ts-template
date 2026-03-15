@@ -19,7 +19,7 @@ startCommand:
   commandFunction: |
     (config) => ({
       "command": "bunx",
-      "args": ["mcp-ts-template"],
+      "args": ["@cyanheads/mcp-ts-core"],
       "env": {
         "MCP_TRANSPORT_TYPE": config.MCP_TRANSPORT_TYPE,
         "MCP_HTTP_PORT": config.MCP_HTTP_PORT,

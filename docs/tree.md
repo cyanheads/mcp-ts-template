@@ -1,6 +1,6 @@
 # mcp-ts-template - Directory Structure
 
-Generated on: 2026-03-15 01:36:02
+Generated on: 2026-03-15 02:03:42
 
 ```
 mcp-ts-template/
@@ -11,22 +11,6 @@ mcp-ts-template/
 ├── .storage/
 ├── .vscode/
 │   └── settings.json
-├── core-extraction/
-│   ├── 01-architecture.md
-│   ├── 02-public-api.md
-│   ├── 03-config-container.md
-│   ├── 03a-build.md
-│   ├── 04-dependencies.md
-│   ├── 05-agent-dx.md
-│   ├── 06-testing.md
-│   ├── 07-migration.md
-│   ├── 08-pre-extraction.md
-│   ├── 09-execution.md
-│   ├── 10-decisions.md
-│   ├── 11-consumer-workflow.md
-│   ├── 12-developer-api.md
-│   ├── 13-init-cli.md
-│   └── README.md
 ├── docs/
 │   ├── mcp-specification/
 │   │   └── 2025-06-18/
@@ -44,10 +28,7 @@ mcp-ts-template/
 │   │           ├── pagination.md
 │   │           ├── ping.md
 │   │           └── progress.md
-│   ├── conformance-test-plan.md
-│   ├── mcp-apps.md
-│   ├── mcp-elicitation-summary.md
-│   └── publishing-mcp-server-registry.md
+│   └── conformance-test-plan.md
 ├── examples/
 │   ├── mcp-server/
 │   │   ├── prompts/
@@ -68,8 +49,6 @@ mcp-ts-template/
 │   │           └── template-madlibs-elicitation.tool.ts
 │   ├── index.ts
 │   └── worker.ts
-├── schemas/
-│   └── cloudflare-d1-schema.sql
 ├── scripts/
 │   ├── build.ts
 │   ├── clean.ts
