@@ -126,8 +126,6 @@ export async function initializeOpenTelemetry(): Promise<void> {
       return;
     }
 
-    isOtelInitialized = true;
-
     try {
       // Lazy-load Node-specific modules
       const [
@@ -211,12 +209,15 @@ export async function initializeOpenTelemetry(): Promise<void> {
       });
 
       sdk.start();
+      isOtelInitialized = true;
       diag.info(
         `OpenTelemetry NodeSDK initialized for ${config.openTelemetry.serviceName} v${config.openTelemetry.serviceVersion}`,
       );
     } catch (error) {
       diag.error('Error initializing OpenTelemetry', error);
       sdk = null;
+      isOtelInitialized = false;
+      initializationPromise = null;
       throw error;
     }
   })();
