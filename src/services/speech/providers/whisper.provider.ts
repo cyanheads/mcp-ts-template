@@ -22,7 +22,7 @@ import {
   ATTR_MCP_SPEECH_OPERATION,
   ATTR_MCP_SPEECH_OUTPUT_BYTES,
   ATTR_MCP_SPEECH_PROVIDER,
-} from '@/utils/telemetry/semconv.js';
+} from '@/utils/telemetry/attributes.js';
 import { withSpan } from '@/utils/telemetry/trace.js';
 
 import type { ISpeechProvider } from '../core/ISpeechProvider.js';

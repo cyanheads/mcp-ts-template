@@ -9,8 +9,8 @@ import { validateSessionIdFormat } from '@/mcp-server/transports/http/sessionIdU
 import { invalidParams } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
+import { ATTR_MCP_SESSION_EVENT } from '@/utils/telemetry/attributes.js';
 import { createCounter } from '@/utils/telemetry/metrics.js';
-import { ATTR_MCP_SESSION_EVENT } from '@/utils/telemetry/semconv.js';
 
 let sessionEventCounter: ReturnType<typeof createCounter> | undefined;
 

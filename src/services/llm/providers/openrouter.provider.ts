@@ -23,7 +23,6 @@ import { nowMs } from '@/utils/internal/performance.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import type { RateLimiter } from '@/utils/security/rateLimiter.js';
 import { sanitization } from '@/utils/security/sanitization.js';
-import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 import {
   ATTR_GEN_AI_REQUEST_MAX_TOKENS,
   ATTR_GEN_AI_REQUEST_MODEL,
@@ -36,7 +35,8 @@ import {
   ATTR_GEN_AI_USAGE_INPUT_TOKENS,
   ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
   ATTR_GEN_AI_USAGE_TOTAL_TOKENS,
-} from '@/utils/telemetry/semconv.js';
+} from '@/utils/telemetry/attributes.js';
+import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 import { withSpan } from '@/utils/telemetry/trace.js';
 
 /**

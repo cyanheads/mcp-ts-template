@@ -17,8 +17,8 @@ import type { StorageService } from '@/storage/core/StorageService.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { idGenerator } from '@/utils/security/idGenerator.js';
+import { ATTR_MCP_TASK_STATUS, ATTR_MCP_TASK_STORE_TYPE } from '@/utils/telemetry/attributes.js';
 import { createCounter, createObservableGauge } from '@/utils/telemetry/metrics.js';
-import { ATTR_MCP_TASK_STATUS, ATTR_MCP_TASK_STORE_TYPE } from '@/utils/telemetry/semconv.js';
 import { SessionAwareTaskStore } from './sessionAwareTaskStore.js';
 import { StorageBackedTaskStore } from './storageBackedTaskStore.js';
 import {

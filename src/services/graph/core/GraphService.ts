@@ -7,14 +7,14 @@
 import { logger } from '@/utils/internal/logger.js';
 import { nowMs } from '@/utils/internal/performance.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
-import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 import {
-  ATTR_CODE_FUNCTION,
+  ATTR_CODE_FUNCTION_NAME,
   ATTR_CODE_NAMESPACE,
   ATTR_MCP_GRAPH_DURATION_MS,
   ATTR_MCP_GRAPH_OPERATION,
   ATTR_MCP_GRAPH_SUCCESS,
-} from '@/utils/telemetry/semconv.js';
+} from '@/utils/telemetry/attributes.js';
+import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 import { withSpan } from '@/utils/telemetry/trace.js';
 import type { GraphStats } from '../types.js';
 import type {
@@ -105,7 +105,7 @@ export class GraphService {
         }
       },
       {
-        [ATTR_CODE_FUNCTION]: operation,
+        [ATTR_CODE_FUNCTION_NAME]: operation,
         [ATTR_CODE_NAMESPACE]: 'GraphService',
         [ATTR_MCP_GRAPH_OPERATION]: operation,
       },

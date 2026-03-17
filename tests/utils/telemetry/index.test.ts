@@ -4,10 +4,10 @@
  */
 
 import { describe, expect, test } from 'vitest';
+import * as attributes from '@/utils/telemetry/attributes.js';
 import * as telemetryIndex from '@/utils/telemetry/index.js';
 import * as instrumentation from '@/utils/telemetry/instrumentation.js';
 import * as metrics from '@/utils/telemetry/metrics.js';
-import * as semconv from '@/utils/telemetry/semconv.js';
 import * as trace from '@/utils/telemetry/trace.js';
 
 describe('Telemetry Utilities Barrel Export', () => {
@@ -27,42 +27,28 @@ describe('Telemetry Utilities Barrel Export', () => {
     });
   });
 
-  describe('Semantic conventions exports', () => {
-    test('should export standard OTEL service attributes', () => {
-      expect(telemetryIndex.ATTR_SERVICE_NAME).toBe(semconv.ATTR_SERVICE_NAME);
-      expect(telemetryIndex.ATTR_SERVICE_VERSION).toBe(semconv.ATTR_SERVICE_VERSION);
-      expect(telemetryIndex.ATTR_SERVICE_INSTANCE_ID).toBe(semconv.ATTR_SERVICE_INSTANCE_ID);
-    });
-
-    test('should export standard OTEL cloud attributes', () => {
-      expect(telemetryIndex.ATTR_CLOUD_PROVIDER).toBe(semconv.ATTR_CLOUD_PROVIDER);
-      expect(telemetryIndex.ATTR_CLOUD_PLATFORM).toBe(semconv.ATTR_CLOUD_PLATFORM);
-      expect(telemetryIndex.ATTR_CLOUD_REGION).toBe(semconv.ATTR_CLOUD_REGION);
-    });
-
-    test('should export standard OTEL HTTP attributes', () => {
-      expect(telemetryIndex.ATTR_HTTP_REQUEST_METHOD).toBe(semconv.ATTR_HTTP_REQUEST_METHOD);
-      expect(telemetryIndex.ATTR_HTTP_RESPONSE_STATUS_CODE).toBe(
-        semconv.ATTR_HTTP_RESPONSE_STATUS_CODE,
-      );
-      expect(telemetryIndex.ATTR_HTTP_ROUTE).toBe(semconv.ATTR_HTTP_ROUTE);
-    });
-
+  describe('Attribute exports', () => {
     test('should export MCP custom tool attributes', () => {
-      expect(telemetryIndex.ATTR_MCP_TOOL_NAME).toBe(semconv.ATTR_MCP_TOOL_NAME);
-      expect(telemetryIndex.ATTR_MCP_TOOL_DURATION_MS).toBe(semconv.ATTR_MCP_TOOL_DURATION_MS);
-      expect(telemetryIndex.ATTR_MCP_TOOL_SUCCESS).toBe(semconv.ATTR_MCP_TOOL_SUCCESS);
+      expect(telemetryIndex.ATTR_MCP_TOOL_NAME).toBe(attributes.ATTR_MCP_TOOL_NAME);
+      expect(telemetryIndex.ATTR_MCP_TOOL_DURATION_MS).toBe(attributes.ATTR_MCP_TOOL_DURATION_MS);
+      expect(telemetryIndex.ATTR_MCP_TOOL_SUCCESS).toBe(attributes.ATTR_MCP_TOOL_SUCCESS);
     });
 
     test('should export MCP custom resource attributes', () => {
-      expect(telemetryIndex.ATTR_MCP_RESOURCE_URI).toBe(semconv.ATTR_MCP_RESOURCE_URI);
-      expect(telemetryIndex.ATTR_MCP_RESOURCE_MIME_TYPE).toBe(semconv.ATTR_MCP_RESOURCE_MIME_TYPE);
+      expect(telemetryIndex.ATTR_MCP_RESOURCE_URI).toBe(attributes.ATTR_MCP_RESOURCE_URI);
+      expect(telemetryIndex.ATTR_MCP_RESOURCE_MIME_TYPE).toBe(
+        attributes.ATTR_MCP_RESOURCE_MIME_TYPE,
+      );
     });
 
     test('should export MCP request context attributes', () => {
-      expect(telemetryIndex.ATTR_MCP_REQUEST_ID).toBe(semconv.ATTR_MCP_REQUEST_ID);
-      expect(telemetryIndex.ATTR_MCP_OPERATION_NAME).toBe(semconv.ATTR_MCP_OPERATION_NAME);
-      expect(telemetryIndex.ATTR_MCP_TENANT_ID).toBe(semconv.ATTR_MCP_TENANT_ID);
+      expect(telemetryIndex.ATTR_MCP_TENANT_ID).toBe(attributes.ATTR_MCP_TENANT_ID);
+      expect(telemetryIndex.ATTR_MCP_CLIENT_ID).toBe(attributes.ATTR_MCP_CLIENT_ID);
+    });
+
+    test('should export GenAI attributes', () => {
+      expect(telemetryIndex.ATTR_GEN_AI_SYSTEM).toBe(attributes.ATTR_GEN_AI_SYSTEM);
+      expect(telemetryIndex.ATTR_GEN_AI_REQUEST_MODEL).toBe(attributes.ATTR_GEN_AI_REQUEST_MODEL);
     });
   });
 
@@ -118,61 +104,31 @@ describe('Telemetry Utilities Barrel Export', () => {
       expect(telemetryIndex.createHistogram).toBeDefined();
       expect(telemetryIndex.createHistogram).toBe(metrics.createHistogram);
     });
-
-    test('should export createObservableGauge', () => {
-      expect(telemetryIndex.createObservableGauge).toBeDefined();
-      expect(telemetryIndex.createObservableGauge).toBe(metrics.createObservableGauge);
-    });
-
-    test('should export createObservableCounter', () => {
-      expect(telemetryIndex.createObservableCounter).toBeDefined();
-      expect(telemetryIndex.createObservableCounter).toBe(metrics.createObservableCounter);
-    });
-
-    test('should export createObservableUpDownCounter', () => {
-      expect(telemetryIndex.createObservableUpDownCounter).toBeDefined();
-      expect(telemetryIndex.createObservableUpDownCounter).toBe(
-        metrics.createObservableUpDownCounter,
-      );
-    });
   });
 
   describe('Module completeness', () => {
     test('should not have missing exports from instrumentation', () => {
       const instrumentationExports = Object.keys(instrumentation);
       const reexported = instrumentationExports.filter((key) => Object.hasOwn(telemetryIndex, key));
-
       expect(reexported.length).toBeGreaterThan(0);
     });
 
-    test('should not have missing exports from semconv', () => {
-      const semconvExports = Object.keys(semconv);
-      const reexported = semconvExports.filter((key) => Object.hasOwn(telemetryIndex, key));
-
+    test('should not have missing exports from attributes', () => {
+      const attributeExports = Object.keys(attributes);
+      const reexported = attributeExports.filter((key) => Object.hasOwn(telemetryIndex, key));
       expect(reexported.length).toBeGreaterThan(0);
     });
 
     test('should not have missing exports from trace', () => {
       const traceExports = Object.keys(trace);
       const reexported = traceExports.filter((key) => Object.hasOwn(telemetryIndex, key));
-
       expect(reexported.length).toBeGreaterThan(0);
     });
 
     test('should not have missing exports from metrics', () => {
       const metricsExports = Object.keys(metrics);
       const reexported = metricsExports.filter((key) => Object.hasOwn(telemetryIndex, key));
-
       expect(reexported.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('Type exports', () => {
-    test('should be able to import TraceparentInfo type', () => {
-      // This test verifies that types are properly re-exported
-      // TypeScript will fail at compile time if types are not exported
-      // type TestType = typeof telemetryIndex;
-      expect(typeof telemetryIndex).toBe('object');
     });
   });
 
@@ -180,14 +136,15 @@ describe('Telemetry Utilities Barrel Export', () => {
     test('should only export from known modules', () => {
       const allExports = Object.keys(telemetryIndex);
 
-      // All exports should come from one of the four modules
       allExports.forEach((key) => {
         const isFromInstrumentation = Object.hasOwn(instrumentation, key);
-        const isFromSemconv = Object.hasOwn(semconv, key);
+        const isFromAttributes = Object.hasOwn(attributes, key);
         const isFromTrace = Object.hasOwn(trace, key);
         const isFromMetrics = Object.hasOwn(metrics, key);
 
-        expect(isFromInstrumentation || isFromSemconv || isFromTrace || isFromMetrics).toBe(true);
+        expect(isFromInstrumentation || isFromAttributes || isFromTrace || isFromMetrics).toBe(
+          true,
+        );
       });
     });
   });

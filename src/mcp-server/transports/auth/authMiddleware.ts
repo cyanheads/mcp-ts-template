@@ -20,7 +20,6 @@ import { unauthorized } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { nowMs } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
-import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 import {
   ATTR_MCP_AUTH_FAILURE_REASON,
   ATTR_MCP_AUTH_METHOD,
@@ -29,7 +28,8 @@ import {
   ATTR_MCP_AUTH_SUBJECT,
   ATTR_MCP_CLIENT_ID,
   ATTR_MCP_TENANT_ID,
-} from '@/utils/telemetry/semconv.js';
+} from '@/utils/telemetry/attributes.js';
+import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 
 let authAttemptCounter: ReturnType<typeof createCounter> | undefined;
 let authDuration: ReturnType<typeof createHistogram> | undefined;

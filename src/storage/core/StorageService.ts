@@ -23,15 +23,15 @@ import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { nowMs } from '@/utils/internal/performance.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
-import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 import {
-  ATTR_CODE_FUNCTION,
+  ATTR_CODE_FUNCTION_NAME,
   ATTR_CODE_NAMESPACE,
   ATTR_MCP_STORAGE_DURATION_MS,
   ATTR_MCP_STORAGE_KEY_COUNT,
   ATTR_MCP_STORAGE_OPERATION,
   ATTR_MCP_STORAGE_SUCCESS,
-} from '@/utils/telemetry/semconv.js';
+} from '@/utils/telemetry/attributes.js';
+import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 import { withSpan } from '@/utils/telemetry/trace.js';
 
 /**
@@ -122,7 +122,7 @@ export class StorageService {
         }
       },
       {
-        [ATTR_CODE_FUNCTION]: operation,
+        [ATTR_CODE_FUNCTION_NAME]: operation,
         [ATTR_CODE_NAMESPACE]: 'StorageService',
         [ATTR_MCP_STORAGE_OPERATION]: operation,
         ...extraAttrs,

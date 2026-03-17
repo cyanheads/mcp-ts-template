@@ -11,8 +11,8 @@ import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { generateUUID } from '@/utils/security/idGenerator.js';
 import { sanitizeInputForLogging } from '@/utils/security/sanitization.js';
+import { ATTR_MCP_ERROR_CLASSIFIED_CODE } from '@/utils/telemetry/attributes.js';
 import { createCounter } from '@/utils/telemetry/metrics.js';
-import { ATTR_MCP_ERROR_CLASSIFIED_CODE } from '@/utils/telemetry/semconv.js';
 import { extractErrorCauseChain, getErrorMessage, getErrorName } from './helpers.js';
 import {
   COMPILED_ERROR_PATTERNS,

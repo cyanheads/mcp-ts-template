@@ -7,13 +7,13 @@
 import type { Span } from '@opentelemetry/api';
 
 import { nowMs } from '@/utils/internal/performance.js';
-import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 import {
   ATTR_MCP_SPEECH_DURATION_MS,
   ATTR_MCP_SPEECH_OPERATION,
   ATTR_MCP_SPEECH_PROVIDER,
   ATTR_MCP_SPEECH_SUCCESS,
-} from '@/utils/telemetry/semconv.js';
+} from '@/utils/telemetry/attributes.js';
+import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 
 let speechOpCounter: ReturnType<typeof createCounter> | undefined;
 let speechOpDuration: ReturnType<typeof createHistogram> | undefined;
