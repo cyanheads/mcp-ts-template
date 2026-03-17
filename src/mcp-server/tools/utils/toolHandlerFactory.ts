@@ -155,9 +155,17 @@ export function createToolHandler(
               originalError: handled.name,
             });
 
+      // Surface error classification via _meta so programmatic clients can distinguish error types (auth, validation, not-found, etc.) without parsing the text message. Only propagate data from explicitly thrown McpError instances — ErrorHandler enrichment contains internal context (stack traces, operation details) that shouldn't be client-visible.
+      const originalData = error instanceof McpError ? error.data : undefined;
       return {
         isError: true,
         content: [{ type: 'text', text: `Error: ${mcpError.message}` }],
+        _meta: {
+          error: {
+            code: mcpError.code,
+            ...(originalData !== undefined && { data: originalData }),
+          },
+        },
       };
     }
   };
