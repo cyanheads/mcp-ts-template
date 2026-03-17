@@ -1,8 +1,8 @@
 /**
- * @fileoverview Performance utility for tool execution with modern observability.
- * Wraps tool logic to measure duration, payload sizes, and memory usage, and
- * records results to OpenTelemetry plus structured logs. No manual spans beyond
- * the single wrapper span here per project guidelines.
+ * @fileoverview Performance measurement for tool, resource, and prompt execution.
+ * Wraps handler logic with OpenTelemetry spans, metric counters/histograms,
+ * and structured logs. Prompts get structured logs only (no spans/metrics)
+ * since they are pure synchronous template functions.
  * @module src/utils/internal/performance
  */
 
@@ -13,14 +13,9 @@ import { config } from '@/config/index.js';
 import { McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
-import { createCounter, createHistogram, createUpDownCounter } from '@/utils/telemetry/metrics.js';
 import {
-  ATTR_CODE_FUNCTION,
+  ATTR_CODE_FUNCTION_NAME,
   ATTR_CODE_NAMESPACE,
-  ATTR_MCP_PROMPT_DURATION_MS,
-  ATTR_MCP_PROMPT_MESSAGE_COUNT,
-  ATTR_MCP_PROMPT_NAME,
-  ATTR_MCP_PROMPT_SUCCESS,
   ATTR_MCP_RESOURCE_DURATION_MS,
   ATTR_MCP_RESOURCE_ERROR_CODE,
   ATTR_MCP_RESOURCE_MIME_TYPE,
@@ -30,16 +25,11 @@ import {
   ATTR_MCP_TOOL_DURATION_MS,
   ATTR_MCP_TOOL_ERROR_CODE,
   ATTR_MCP_TOOL_INPUT_BYTES,
-  ATTR_MCP_TOOL_MEMORY_HEAP_USED_AFTER,
-  ATTR_MCP_TOOL_MEMORY_HEAP_USED_BEFORE,
-  ATTR_MCP_TOOL_MEMORY_HEAP_USED_DELTA,
-  ATTR_MCP_TOOL_MEMORY_RSS_AFTER,
-  ATTR_MCP_TOOL_MEMORY_RSS_BEFORE,
-  ATTR_MCP_TOOL_MEMORY_RSS_DELTA,
   ATTR_MCP_TOOL_NAME,
   ATTR_MCP_TOOL_OUTPUT_BYTES,
   ATTR_MCP_TOOL_SUCCESS,
-} from '@/utils/telemetry/semconv.js';
+} from '@/utils/telemetry/attributes.js';
+import { createCounter, createHistogram, createUpDownCounter } from '@/utils/telemetry/metrics.js';
 
 // OTel metric instruments for tool execution (lazy-initialized on first use)
 let toolCallCounter: ReturnType<typeof createCounter> | undefined;
@@ -100,9 +90,6 @@ export async function loadPerfHooks(): Promise<{
 export async function initHighResTimer(
   perfLoader: typeof loadPerfHooks = loadPerfHooks,
 ): Promise<void> {
-  // Use a type assertion to safely access `performance` on `globalThis`,
-  // which is present in browser-like environments (e.g., Cloudflare Workers)
-  // but not in Node.js's default global type.
   const globalWithPerf = globalThis as {
     performance?: { now: () => number };
   };
@@ -136,6 +123,13 @@ export async function initHighResTimer(
  */
 export const nowMs = (): number => performanceNow();
 
+// Module-level TextEncoder singleton (stateless, safe to reuse)
+let cachedEncoder: TextEncoder | undefined;
+function getEncoder(): TextEncoder {
+  cachedEncoder ??= new TextEncoder();
+  return cachedEncoder;
+}
+
 const toBytes = (payload: unknown): number => {
   if (payload == null) return 0;
   try {
@@ -145,7 +139,7 @@ const toBytes = (payload: unknown): number => {
       return Buffer.byteLength(json, 'utf8');
     }
     if (typeof TextEncoder !== 'undefined') {
-      return new TextEncoder().encode(json).length;
+      return getEncoder().encode(json).length;
     }
     return json.length;
   } catch {
@@ -153,22 +147,9 @@ const toBytes = (payload: unknown): number => {
   }
 };
 
-const zeroMemory: NodeJS.MemoryUsage = {
-  rss: 0,
-  heapUsed: 0,
-  heapTotal: 0,
-  external: 0,
-  arrayBuffers: 0,
-};
-
-const getMemoryUsage = (): NodeJS.MemoryUsage =>
-  typeof process !== 'undefined' && typeof process.memoryUsage === 'function'
-    ? process.memoryUsage()
-    : zeroMemory;
-
 /**
- * Wraps a tool's logic function with full observability: an OpenTelemetry span,
- * OTel metric counters/histogram, structured log, and memory/payload size capture.
+ * Wraps a tool's logic function with observability: an OpenTelemetry span,
+ * OTel metric counters/histogram, payload size capture, and structured log.
  *
  * The caller supplies the raw tool logic as `toolLogicFn`; this function handles
  * all instrumentation so tool handlers stay free of telemetry boilerplate.
@@ -182,15 +163,6 @@ const getMemoryUsage = (): NodeJS.MemoryUsage =>
  * @param context - Request context extended with `toolName`; used for span/log correlation.
  * @param inputPayload - The raw input object passed to the tool, serialized to compute byte size.
  * @returns A promise that resolves with the tool's return value or rejects with the original error.
- *
- * @example
- * ```typescript
- * const result = await measureToolExecution(
- *   () => myToolHandler(parsedInput),
- *   { ...requestContext, toolName: 'my_tool' },
- *   parsedInput,
- * );
- * ```
  */
 export async function measureToolExecution<T>(
   toolLogicFn: () => Promise<T>,
@@ -205,21 +177,15 @@ export async function measureToolExecution<T>(
   const { toolName } = context;
 
   return await tracer.startActiveSpan(`tool_execution:${toolName}` as const, async (span) => {
-    // Track in-flight request concurrency
     const activeGauge = getActiveRequestsGauge();
     activeGauge.add(1);
 
-    // Pre-capture lightweight metrics
-    const memBefore = getMemoryUsage();
     const t0 = nowMs();
-
     const inputBytes = toBytes(inputPayload);
     span.setAttributes({
-      [ATTR_CODE_FUNCTION]: toolName,
+      [ATTR_CODE_FUNCTION_NAME]: toolName,
       [ATTR_CODE_NAMESPACE]: 'mcp-tools',
       [ATTR_MCP_TOOL_INPUT_BYTES]: inputBytes,
-      [ATTR_MCP_TOOL_MEMORY_RSS_BEFORE]: memBefore.rss,
-      [ATTR_MCP_TOOL_MEMORY_HEAP_USED_BEFORE]: memBefore.heapUsed,
     });
 
     let ok = false;
@@ -248,18 +214,10 @@ export async function measureToolExecution<T>(
       activeGauge.add(-1);
       const t1 = nowMs();
       const durationMs = Math.round((t1 - t0) * 100) / 100;
-      const memAfter = getMemoryUsage();
-
-      const rssDelta = memAfter.rss - memBefore.rss;
-      const heapUsedDelta = memAfter.heapUsed - memBefore.heapUsed;
 
       span.setAttributes({
         [ATTR_MCP_TOOL_DURATION_MS]: durationMs,
         [ATTR_MCP_TOOL_SUCCESS]: ok,
-        [ATTR_MCP_TOOL_MEMORY_RSS_AFTER]: memAfter.rss,
-        [ATTR_MCP_TOOL_MEMORY_HEAP_USED_AFTER]: memAfter.heapUsed,
-        [ATTR_MCP_TOOL_MEMORY_RSS_DELTA]: rssDelta,
-        [ATTR_MCP_TOOL_MEMORY_HEAP_USED_DELTA]: heapUsedDelta,
       });
       if (errorCode) span.setAttribute(ATTR_MCP_TOOL_ERROR_CODE, errorCode);
       span.end();
@@ -279,18 +237,6 @@ export async function measureToolExecution<T>(
           errorCode,
           inputBytes,
           outputBytes,
-          memory: {
-            rss: {
-              before: memBefore.rss,
-              after: memAfter.rss,
-              delta: rssDelta,
-            },
-            heapUsed: {
-              before: memBefore.heapUsed,
-              after: memAfter.heapUsed,
-              delta: heapUsedDelta,
-            },
-          },
         },
       });
     }
@@ -326,8 +272,7 @@ function getResourceMetrics() {
 
 /**
  * Wraps a resource handler with observability: OTel span, metric counters/histogram,
- * and a structured log. Mirrors {@link measureToolExecution} but tuned for resource reads
- * (no memory profiling — resources are typically lightweight data fetches).
+ * and a structured log. Mirrors {@link measureToolExecution} but tuned for resource reads.
  *
  * @template T - The resolved type of the resource handler's return value.
  * @param resourceLogicFn - Zero-argument async function containing the resource handler.
@@ -353,7 +298,7 @@ export async function measureResourceExecution<T>(
     const t0 = nowMs();
 
     span.setAttributes({
-      [ATTR_CODE_FUNCTION]: resourceName,
+      [ATTR_CODE_FUNCTION_NAME]: resourceName,
       [ATTR_CODE_NAMESPACE]: 'mcp-resources',
       [ATTR_MCP_RESOURCE_URI]: meta.uri,
       [ATTR_MCP_RESOURCE_MIME_TYPE]: meta.mimeType,
@@ -415,35 +360,13 @@ export async function measureResourceExecution<T>(
 }
 
 // ==========================================================================
-// Prompt generation measurement
+// Prompt generation measurement (structured log only — no spans/metrics)
 // ==========================================================================
 
-let promptGenerateCounter: ReturnType<typeof createCounter> | undefined;
-let promptGenerateDuration: ReturnType<typeof createHistogram> | undefined;
-let promptGenerateErrors: ReturnType<typeof createCounter> | undefined;
-
-function getPromptMetrics() {
-  promptGenerateCounter ??= createCounter(
-    'mcp.prompt.generates',
-    'Total MCP prompt generate invocations',
-    '{generates}',
-  );
-  promptGenerateDuration ??= createHistogram(
-    'mcp.prompt.duration',
-    'MCP prompt generate execution duration',
-    'ms',
-  );
-  promptGenerateErrors ??= createCounter(
-    'mcp.prompt.errors',
-    'Total MCP prompt generate errors',
-    '{errors}',
-  );
-  return { promptGenerateCounter, promptGenerateDuration, promptGenerateErrors };
-}
-
 /**
- * Wraps a prompt generate function with observability: OTel span, metric counters/histogram,
- * and a structured log. Lightweight — prompts are pure templates with no I/O.
+ * Wraps a prompt generate function with a structured log for duration tracking.
+ * Prompts are pure template functions with no I/O, so they don't warrant
+ * OTel spans or metric instruments — a structured log is sufficient.
  *
  * @template T - The resolved type of the prompt generate function's return value.
  * @param promptLogicFn - Zero-argument async function containing the prompt's generate logic.
@@ -454,62 +377,19 @@ export async function measurePromptGeneration<T>(
   promptLogicFn: () => Promise<T>,
   context: RequestContext & { promptName: string },
 ): Promise<T> {
-  const tracer = trace.getTracer(
-    config.openTelemetry.serviceName,
-    config.openTelemetry.serviceVersion,
-  );
+  const t0 = nowMs();
+  let ok = false;
 
-  const { promptName } = context;
-
-  return await tracer.startActiveSpan(`prompt_generate:${promptName}` as const, async (span) => {
-    const t0 = nowMs();
-
-    span.setAttributes({
-      [ATTR_CODE_FUNCTION]: promptName,
-      [ATTR_CODE_NAMESPACE]: 'mcp-prompts',
-      [ATTR_MCP_PROMPT_NAME]: promptName,
+  try {
+    const result = await promptLogicFn();
+    ok = true;
+    return result;
+  } finally {
+    const durationMs = Math.round((nowMs() - t0) * 100) / 100;
+    const logFn = ok ? logger.info : logger.error;
+    logFn.call(logger, `Prompt generation ${ok ? 'finished' : 'failed'}.`, {
+      ...context,
+      metrics: { durationMs, isSuccess: ok },
     });
-
-    let ok = false;
-
-    try {
-      const result = await promptLogicFn();
-      ok = true;
-      span.setStatus({ code: SpanStatusCode.OK });
-
-      // Record message count if result is an array (prompt messages)
-      if (Array.isArray(result)) {
-        span.setAttribute(ATTR_MCP_PROMPT_MESSAGE_COUNT, result.length);
-      }
-
-      return result;
-    } catch (err) {
-      if (err instanceof Error) span.recordException(err);
-      span.setStatus({
-        code: SpanStatusCode.ERROR,
-        message: err instanceof Error ? err.message : String(err),
-      });
-      throw err;
-    } finally {
-      const t1 = nowMs();
-      const durationMs = Math.round((t1 - t0) * 100) / 100;
-
-      span.setAttributes({
-        [ATTR_MCP_PROMPT_DURATION_MS]: durationMs,
-        [ATTR_MCP_PROMPT_SUCCESS]: ok,
-      });
-      span.end();
-
-      const m = getPromptMetrics();
-      const metricAttrs = { [ATTR_MCP_PROMPT_NAME]: promptName, [ATTR_MCP_PROMPT_SUCCESS]: ok };
-      m.promptGenerateCounter.add(1, metricAttrs);
-      m.promptGenerateDuration.record(durationMs, metricAttrs);
-      if (!ok) m.promptGenerateErrors.add(1, { [ATTR_MCP_PROMPT_NAME]: promptName });
-
-      logger.info('Prompt generation finished.', {
-        ...context,
-        metrics: { durationMs, isSuccess: ok, promptName },
-      });
-    }
-  });
+  }
 }

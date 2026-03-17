@@ -32,7 +32,6 @@ describe('measureToolExecution', () => {
     startActiveSpan: vi.fn(async (_name, callback) => callback(span as never)),
   };
   const tracerSpy = vi.spyOn(trace, 'getTracer');
-  const memoryUsageSpy = vi.spyOn(process, 'memoryUsage');
   let infoSpy: MockInstance;
 
   // Mock OTel metric instruments
@@ -42,7 +41,6 @@ describe('measureToolExecution', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     tracerSpy.mockReturnValue(tracer as never);
-    memoryUsageSpy.mockReset();
     infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
 
     // Track which metric name maps to which mock
@@ -61,14 +59,10 @@ describe('measureToolExecution', () => {
 
   afterAll(() => {
     tracerSpy.mockRestore();
-    memoryUsageSpy.mockRestore();
   });
 
   it('records success metrics and returns the tool result', async () => {
     const byteLengthSpy = vi.spyOn(Buffer, 'byteLength');
-    memoryUsageSpy
-      .mockReturnValueOnce({ rss: 1000, heapUsed: 400 } as NodeJS.MemoryUsage)
-      .mockReturnValueOnce({ rss: 1600, heapUsed: 700 } as NodeJS.MemoryUsage);
 
     const result = await measureToolExecution(
       async () => ({ message: 'ok' }),
@@ -100,10 +94,6 @@ describe('measureToolExecution', () => {
   });
 
   it('records OTel metric counter and histogram on success', async () => {
-    memoryUsageSpy
-      .mockReturnValueOnce({ rss: 1000, heapUsed: 400 } as NodeJS.MemoryUsage)
-      .mockReturnValueOnce({ rss: 1600, heapUsed: 700 } as NodeJS.MemoryUsage);
-
     await measureToolExecution(
       async () => ({ message: 'ok' }),
       { toolName: 'metric-tool', requestId: 'req-m1', timestamp: new Date().toISOString() },
@@ -122,10 +112,6 @@ describe('measureToolExecution', () => {
   });
 
   it('records OTel error counter on failure', async () => {
-    memoryUsageSpy
-      .mockReturnValueOnce({ rss: 500, heapUsed: 250 } as NodeJS.MemoryUsage)
-      .mockReturnValueOnce({ rss: 560, heapUsed: 290 } as NodeJS.MemoryUsage);
-
     await expect(
       measureToolExecution(
         async () => {
@@ -149,10 +135,6 @@ describe('measureToolExecution', () => {
 
   it('captures error metadata and rethrows the original McpError', async () => {
     const failure = new McpError(JsonRpcErrorCode.InternalError, 'boom');
-
-    memoryUsageSpy
-      .mockReturnValueOnce({ rss: 500, heapUsed: 250 } as NodeJS.MemoryUsage)
-      .mockReturnValueOnce({ rss: 560, heapUsed: 290 } as NodeJS.MemoryUsage);
 
     await expect(
       measureToolExecution(
@@ -194,10 +176,6 @@ describe('measureToolExecution', () => {
     // Simulate an environment without Buffer/TextEncoder support.
     delete mutableGlobal.Buffer;
     delete mutableGlobal.TextEncoder;
-
-    memoryUsageSpy
-      .mockReturnValueOnce({ rss: 200, heapUsed: 120 } as NodeJS.MemoryUsage)
-      .mockReturnValueOnce({ rss: 220, heapUsed: 140 } as NodeJS.MemoryUsage);
 
     const failure = new Error('unexpected');
     const payload = { key: 'value' };
@@ -259,10 +237,6 @@ describe('measureToolExecution', () => {
     }
 
     mutableGlobal.TextEncoder = FakeTextEncoder as unknown as typeof TextEncoder;
-
-    memoryUsageSpy
-      .mockReturnValueOnce({ rss: 700, heapUsed: 350 } as NodeJS.MemoryUsage)
-      .mockReturnValueOnce({ rss: 900, heapUsed: 450 } as NodeJS.MemoryUsage);
 
     infoSpy.mockRestore();
     const localInfoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
