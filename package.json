@@ -152,7 +152,7 @@
     "@biomejs/biome": "2.4.7",
     "@cloudflare/workers-types": "^4.20260317.1",
     "@hono/otel": "^1.1.1",
-    "@opentelemetry/auto-instrumentations-node": "^0.71.0",
+    "@opentelemetry/instrumentation-http": "^0.213.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.213.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.213.0",
     "@opentelemetry/instrumentation-pino": "^0.59.0",
@@ -178,7 +178,7 @@
     "execa": "^9.6.1",
     "fast-check": "^4.6.0",
     "ignore": "^7.0.5",
-    "msw": "^2.12.11",
+    "msw": "^2.12.12",
     "node-cron": "^4.2.1",
     "openai": "^6.31.0",
     "papaparse": "^5.5.3",
@@ -261,7 +261,7 @@
   "peerDependencies": {
     "zod": "^4.3.6",
     "@hono/otel": "",
-    "@opentelemetry/auto-instrumentations-node": "",
+    "@opentelemetry/instrumentation-http": "",
     "@opentelemetry/exporter-metrics-otlp-http": "",
     "@opentelemetry/exporter-trace-otlp-http": "",
     "@opentelemetry/instrumentation-pino": "",
@@ -288,7 +288,7 @@
     "@hono/otel": {
       "optional": true
     },
-    "@opentelemetry/auto-instrumentations-node": {
+    "@opentelemetry/instrumentation-http": {
       "optional": true
     },
     "@opentelemetry/exporter-metrics-otlp-http": {

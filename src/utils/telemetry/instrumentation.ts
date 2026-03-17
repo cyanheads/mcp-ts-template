@@ -44,33 +44,41 @@ function canUseNodeSDK(): boolean {
  * @returns Record of cloud-related resource attributes
  */
 function detectCloudResource(): Record<string, string> {
+  // Import constants inline — this function runs once at startup, not on the hot path.
+  // Cloud/deployment attrs use stable SEMRESATTRS_* names; deployment.environment.name
+  // is only in /incubating so we keep the string literal for that one attribute.
+  const CLOUD_PROVIDER = 'cloud.provider';
+  const CLOUD_PLATFORM = 'cloud.platform';
+  const CLOUD_REGION = 'cloud.region';
+  const DEPLOYMENT_ENV_NAME = 'deployment.environment.name';
+
   const attrs: Record<string, string> = {};
 
   // Cloudflare Workers
   if (runtimeCaps.isWorkerLike) {
-    attrs['cloud.provider'] = 'cloudflare';
-    attrs['cloud.platform'] = 'cloudflare_workers';
+    attrs[CLOUD_PROVIDER] = 'cloudflare';
+    attrs[CLOUD_PLATFORM] = 'cloudflare_workers';
   }
 
   // AWS Lambda
   if (typeof process !== 'undefined' && process.env?.AWS_LAMBDA_FUNCTION_NAME) {
-    attrs['cloud.provider'] = 'aws';
-    attrs['cloud.platform'] = 'aws_lambda';
+    attrs[CLOUD_PROVIDER] = 'aws';
+    attrs[CLOUD_PLATFORM] = 'aws_lambda';
     if (process.env.AWS_REGION) {
-      attrs['cloud.region'] = process.env.AWS_REGION;
+      attrs[CLOUD_REGION] = process.env.AWS_REGION;
     }
   }
 
   // GCP Cloud Functions/Cloud Run
   if (typeof process !== 'undefined' && (process.env?.FUNCTION_TARGET || process.env?.K_SERVICE)) {
-    attrs['cloud.provider'] = 'gcp';
-    attrs['cloud.platform'] = process.env.FUNCTION_TARGET ? 'gcp_cloud_functions' : 'gcp_cloud_run';
+    attrs[CLOUD_PROVIDER] = 'gcp';
+    attrs[CLOUD_PLATFORM] = process.env.FUNCTION_TARGET ? 'gcp_cloud_functions' : 'gcp_cloud_run';
     if (process.env.GCP_REGION) {
-      attrs['cloud.region'] = process.env.GCP_REGION;
+      attrs[CLOUD_REGION] = process.env.GCP_REGION;
     }
   }
 
-  attrs['deployment.environment.name'] = config.environment;
+  attrs[DEPLOYMENT_ENV_NAME] = config.environment;
 
   return attrs;
 }
@@ -129,7 +137,7 @@ export async function initializeOpenTelemetry(): Promise<void> {
     try {
       // Lazy-load Node-specific modules
       const [
-        { getNodeAutoInstrumentations },
+        { HttpInstrumentation },
         { OTLPMetricExporter },
         { OTLPTraceExporter },
         { PinoInstrumentation },
@@ -139,7 +147,7 @@ export async function initializeOpenTelemetry(): Promise<void> {
         { BatchSpanProcessor, TraceIdRatioBasedSampler },
         { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION },
       ] = await Promise.all([
-        import('@opentelemetry/auto-instrumentations-node'),
+        import('@opentelemetry/instrumentation-http'),
         import('@opentelemetry/exporter-metrics-otlp-http'),
         import('@opentelemetry/exporter-trace-otlp-http'),
         import('@opentelemetry/instrumentation-pino'),
@@ -147,7 +155,7 @@ export async function initializeOpenTelemetry(): Promise<void> {
         import('@opentelemetry/sdk-metrics'),
         import('@opentelemetry/sdk-node'),
         import('@opentelemetry/sdk-trace-node'),
-        import('@opentelemetry/semantic-conventions/incubating'),
+        import('@opentelemetry/semantic-conventions'),
       ]);
 
       const otelLogLevelString =
@@ -192,12 +200,8 @@ export async function initializeOpenTelemetry(): Promise<void> {
         ...(metricReader && { metricReader }),
         sampler: new TraceIdRatioBasedSampler(config.openTelemetry.samplingRatio),
         instrumentations: [
-          getNodeAutoInstrumentations({
-            '@opentelemetry/instrumentation-http': {
-              enabled: true,
-              ignoreIncomingRequestHook: (req) => req.url === '/healthz',
-            },
-            '@opentelemetry/instrumentation-fs': { enabled: false },
+          new HttpInstrumentation({
+            ignoreIncomingRequestHook: (req) => req.url === '/healthz',
           }),
           new PinoInstrumentation({
             logHook: (_span, record) => {
@@ -251,9 +255,13 @@ export async function shutdownOpenTelemetry(timeoutMs = 5000): Promise<void> {
   try {
     const shutdownPromise = sdk.shutdown();
     const { promise: timeoutPromise, reject } = Promise.withResolvers<never>();
-    setTimeout(() => reject(new Error('OpenTelemetry SDK shutdown timeout')), timeoutMs);
+    const timer = setTimeout(
+      () => reject(new Error('OpenTelemetry SDK shutdown timeout')),
+      timeoutMs,
+    );
 
     await Promise.race([shutdownPromise, timeoutPromise]);
+    clearTimeout(timer);
     diag.info('OpenTelemetry SDK terminated successfully.');
   } catch (error) {
     diag.error('Error terminating OpenTelemetry SDK', error);
