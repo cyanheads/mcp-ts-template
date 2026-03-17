@@ -137,7 +137,7 @@ Both functions throw `McpError(InternalError)` only on unexpected heuristic fail
 
 | Export | Signature | Notes |
 |:-------|:----------|:------|
-| `initializeOpenTelemetry` | `() -> Promise<void>` | Idempotent. Initializes `NodeSDK` with OTLP trace + metrics exporters, `TraceIdRatioBasedSampler`, Node auto-instrumentations, and Pino log injection. No-ops when `OTEL_ENABLED=false` or in Worker/Edge runtimes where `NodeSDK` is unavailable. Safe to call multiple times. |
+| `initializeOpenTelemetry` | `() -> Promise<void>` | Idempotent. Initializes `NodeSDK` with OTLP trace + metrics exporters, `TraceIdRatioBasedSampler`, HTTP instrumentation, and Pino log injection. No-ops when `OTEL_ENABLED=false` or in Worker/Edge runtimes where `NodeSDK` is unavailable. Safe to call multiple times. |
 | `shutdownOpenTelemetry` | `(timeoutMs?: number) -> Promise<void>` | Gracefully flushes and shuts down the SDK. `timeoutMs` defaults to `5000`. Resets internal state so the next `initializeOpenTelemetry()` call can reinitialize. No-op when SDK was never started. |
 | `sdk` | `NodeSDK \| null` | The live SDK instance, or `null` when telemetry is disabled, in a Worker runtime, or after shutdown. |
 
@@ -149,9 +149,7 @@ Both functions throw `McpError(InternalError)` only on unexpected heuristic fail
 | `createCounter` | `(name: string, description: string, unit?: string) -> Counter` | Monotonically increasing counter. `unit` defaults to `'1'`. |
 | `createUpDownCounter` | `(name: string, description: string, unit?: string) -> UpDownCounter` | Bidirectional counter (active connections, queue depth, etc.). `unit` defaults to `'1'`. |
 | `createHistogram` | `(name: string, description: string, unit?: string) -> Histogram` | Distribution recording (latency, sizes). `unit` optional. |
-| `createObservableGauge` | `(name: string, description: string, callback: () => Promise<number> \| number, unit?: string) -> ObservableGauge` | Polled gauge. `callback` is registered via `addCallback`; invoked on each SDK collection cycle. `unit` optional. |
-| `createObservableCounter` | `(name: string, description: string, callback: () => Promise<number> \| number, unit?: string) -> ObservableCounter` | Polled cumulative counter. `unit` defaults to `'1'`. |
-| `createObservableUpDownCounter` | `(name: string, description: string, callback: () => Promise<number> \| number, unit?: string) -> ObservableUpDownCounter` | Polled bidirectional counter. `unit` defaults to `'1'`. |
+| `createObservableGauge` | `(name: string, description: string, callback: () => Promise<number> \| number, unit?: string) -> ObservableGauge` | Polled gauge. `callback` is registered via `addCallback`; invoked on each SDK collection cycle. `unit` optional. For other observable instrument types, use `getMeter()` directly. |
 
 ### `telemetry/trace`
 
@@ -164,8 +162,8 @@ Both functions throw `McpError(InternalError)` only on unexpected heuristic fail
 | `createContextWithParentTrace` | `(parentHeaders: Headers \| Record<string, string \| undefined>, operation: string) -> RequestContext` | Extracts `traceparent` from headers and creates a child `RequestContext` inheriting `traceId`/`parentSpanId`. |
 | `injectCurrentContextInto` | `<T extends Record<string, unknown>>(carrier: T) -> T` | Injects the active OTel context (traceparent, tracestate, etc.) into `carrier` via `propagation.inject`. Returns the same object. |
 
-### `telemetry/semconv`
+### `telemetry/attributes`
 
-51 `ATTR_*` constant exports covering: service, deployment, cloud, HTTP, URL, error/exception, code, network, user agent, MCP tool execution (name, input/output bytes, duration, success, error code, memory), MCP resource (URI, MIME type, size), MCP request context (request ID, operation, tenant ID, client ID), and MCP session (ID).
+MCP-specific `ATTR_*` constant exports for span and metric attributes. Covers: code execution (`code.function.name`, `code.namespace`), MCP tool execution (name, input/output bytes, duration, success, error code), MCP resource (URI, MIME type, size, duration, success, error code), MCP request context (tenant ID, client ID), MCP session events, MCP storage, GenAI semantic conventions, speech, graph, auth, task, and error classification attributes.
 
-Additional categories (prompts, storage, GenAI, speech, graph, auth, tasks, error classification) are defined in the internal `semconv.ts` module but not re-exported from the `/utils` barrel — they are used by the framework's handler factories and service instrumentation internally.
+Standard OTel semantic conventions (HTTP, cloud, service, network, etc.) are NOT re-exported — import those directly from `@opentelemetry/semantic-conventions` if needed.
