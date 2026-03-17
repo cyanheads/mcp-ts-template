@@ -147,13 +147,16 @@ export function createResourceHandler(
 
       // Execute handler with performance measurement
       const resourceName = def.name ?? def.uriTemplate;
-      const result = await measureResourceExecution(
+      const handlerResult = await measureResourceExecution(
         () => Promise.resolve(def.handler(validatedParams, ctx)),
         { ...appContext, resourceName },
         { uri: uri.href, mimeType },
       );
 
-      const contents = formatter(result, { uri, mimeType });
+      // Validate output against schema when defined
+      const validatedResult = def.output ? def.output.parse(handlerResult) : handlerResult;
+
+      const contents = formatter(validatedResult, { uri, mimeType });
       return { contents };
     } catch (error: unknown) {
       throw ErrorHandler.handleError(error, {
