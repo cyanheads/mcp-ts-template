@@ -167,11 +167,15 @@ export interface ContextDeps {
 export function createContext(deps: ContextDeps): Context {
   const { appContext, logger: pinoLogger, storage, signal } = deps;
 
-  // Default tenantId to 'default' when not set (stdio mode, no auth).
-  // This allows ctx.state to work without requiring JWT auth.
+  // Default tenantId to 'default' only for stdio (single-client, no auth).
+  // HTTP without auth leaves tenantId unset — ctx.state will fail-closed
+  // via requireContext() to prevent unauthenticated callers sharing state.
+  const isStdio = process.env.MCP_TRANSPORT_TYPE?.toLowerCase() !== 'http';
   const effectiveContext = appContext.tenantId
     ? appContext
-    : { ...appContext, tenantId: 'default' };
+    : isStdio
+      ? { ...appContext, tenantId: 'default' }
+      : appContext;
 
   const log = createContextLogger(pinoLogger, effectiveContext);
   const state = createContextState(storage, effectiveContext);
@@ -251,7 +255,12 @@ function createContextState(storage: StorageService, appContext: RequestContext)
       return schema ? schema.parse(result) : result;
     },
     async set(key, value, opts) {
-      await storage.set(key, value, requireContext(), opts?.ttl ? { ttl: opts.ttl } : undefined);
+      await storage.set(
+        key,
+        value,
+        requireContext(),
+        opts?.ttl !== undefined ? { ttl: opts.ttl } : undefined,
+      );
     },
     async delete(key) {
       await storage.delete(key, requireContext());
@@ -263,7 +272,11 @@ function createContextState(storage: StorageService, appContext: RequestContext)
       return storage.getMany(keys, requireContext());
     },
     async setMany(entries, opts) {
-      await storage.setMany(entries, requireContext(), opts?.ttl ? { ttl: opts.ttl } : undefined);
+      await storage.setMany(
+        entries,
+        requireContext(),
+        opts?.ttl !== undefined ? { ttl: opts.ttl } : undefined,
+      );
     },
     async list(prefix, opts) {
       const ctx = requireContext();

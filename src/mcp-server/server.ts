@@ -9,6 +9,7 @@
  * - Transports: https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
  * @module src/mcp-server/server
  */
+import type { TaskMessageQueue, TaskStore } from '@modelcontextprotocol/sdk/experimental/tasks';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import type { AppConfig } from '@/config/index.js';
@@ -25,6 +26,11 @@ export interface McpServerDeps {
   promptRegistry: PromptRegistry;
   resourceRegistry: ResourceRegistry;
   rootsRegistry: RootsRegistry;
+  /** Task message queue for side-channel delivery via tasks/result. */
+  taskMessageQueue?: TaskMessageQueue;
+  /** Task store for managing task lifecycle (create, status, result). */
+  taskStore?: TaskStore;
+  /** Tool registry. */
   toolRegistry: ToolRegistry;
 }
 
@@ -61,6 +67,8 @@ export async function createMcpServerInstance(deps: McpServerDeps): Promise<McpS
           },
         },
       },
+      ...(deps.taskStore && { taskStore: deps.taskStore }),
+      ...(deps.taskMessageQueue && { taskMessageQueue: deps.taskMessageQueue }),
     },
   );
 

@@ -84,6 +84,7 @@ export interface ComposedApp {
   coreServices: CoreServices;
   createServer: () => Promise<McpServer>;
   definitionCounts: DefinitionCounts;
+  taskManager: TaskManager;
 }
 
 /**
@@ -166,6 +167,8 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
 
   // --- MCP services ---
 
+  const taskManager = new TaskManager(config, storageService);
+
   const toolRegistry = new ToolRegistry(tools, {
     logger,
     storage: storageService,
@@ -183,6 +186,8 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
       promptRegistry,
       resourceRegistry,
       rootsRegistry,
+      taskStore: taskManager.getTaskStore(),
+      taskMessageQueue: taskManager.getMessageQueue(),
       toolRegistry,
     });
 
@@ -205,6 +210,7 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
       resources: resources.length,
       tools: tools.length,
     },
+    taskManager,
   };
 }
 
@@ -238,6 +244,14 @@ function suppressColors(): void {
  */
 export async function createApp(options: CreateAppOptions = {}): Promise<ServerHandle> {
   suppressColors();
+
+  // Apply name/version overrides early so OTEL picks up the correct identity.
+  // composeServices() handles the full save/restore cycle for re-entrancy.
+  if (options.name || options.version) {
+    if (options.name) process.env.MCP_SERVER_NAME = options.name;
+    if (options.version) process.env.MCP_SERVER_VERSION = options.version;
+    resetConfig();
+  }
 
   // --- Initialize OTEL + high-res timer (independent, run in parallel) ---
   await Promise.all([
@@ -308,7 +322,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   }
 
   // --- Compose services (handles name/version overrides + resetConfig) ---
-  const { coreServices, createServer, definitionCounts } = await composeServices(options);
+  const { coreServices, createServer, definitionCounts, taskManager } =
+    await composeServices(options);
 
   // --- Initialize logger (after composeServices so config reflects overrides) ---
   await logger.initialize(config.logLevel as McpLogLevel, config.mcpTransportType);
@@ -320,7 +335,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   );
 
   // --- Transport ---
-  const taskManager = new TaskManager(config, coreServices.storage);
   const transportManager = new TransportManager(
     config,
     logger,
