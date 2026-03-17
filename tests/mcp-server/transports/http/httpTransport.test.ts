@@ -654,10 +654,10 @@ describe('HTTP Transport - Port Retry Logic', () => {
   });
 
   test('should detect if port is in use', async () => {
-    // Use port 0 so the OS assigns a free port — avoids collisions with other processes
     const http = await import('node:http');
     const testHost = '127.0.0.1';
 
+    // Bind a server to an OS-assigned port
     const blockingServer = http.createServer();
     const occupiedPort = await new Promise<number>((resolve) => {
       blockingServer.listen(0, testHost, () => {
@@ -666,30 +666,25 @@ describe('HTTP Transport - Port Retry Logic', () => {
       });
     });
 
-    // Probe the occupied port — should get EADDRINUSE
-    const tempServer = http.createServer();
-    let portInUse = false;
+    try {
+      // Probe the occupied port — should get EADDRINUSE
+      const tempServer = http.createServer();
+      const portInUse = await new Promise<boolean>((resolve) => {
+        tempServer
+          .once('error', (err: NodeJS.ErrnoException) => {
+            resolve(err.code === 'EADDRINUSE');
+          })
+          .once('listening', () => {
+            tempServer.close(() => resolve(false));
+          })
+          .listen(occupiedPort, testHost);
+      });
 
-    await new Promise<void>((resolve) => {
-      tempServer
-        .once('error', (err: NodeJS.ErrnoException) => {
-          portInUse = err.code === 'EADDRINUSE';
-          resolve();
-        })
-        .once('listening', () => {
-          tempServer.close(() => {
-            portInUse = false;
-            resolve();
-          });
-        })
-        .listen(occupiedPort, testHost);
-    });
-
-    expect(portInUse).toBe(true);
-
-    // Cleanup
-    await new Promise<void>((resolve) => {
-      blockingServer.close(() => resolve());
-    });
+      expect(portInUse).toBe(true);
+    } finally {
+      await new Promise<void>((resolve) => {
+        blockingServer.close(() => resolve());
+      });
+    }
   });
 });

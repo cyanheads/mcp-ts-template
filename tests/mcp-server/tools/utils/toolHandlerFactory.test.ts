@@ -212,7 +212,7 @@ describe('createToolHandler', () => {
   // -----------------------------------------------------------------------
 
   describe('Error handling', () => {
-    it('should catch plain Error and return isError: true', async () => {
+    it('should catch plain Error and return isError with _meta code', async () => {
       const def = tool('failing_tool', {
         description: 'Throws.',
         input: z.object({}),
@@ -226,9 +226,13 @@ describe('createToolHandler', () => {
 
       expect(result.isError).toBe(true);
       expect((result.content![0] as { text: string }).text).toContain('something broke');
+      // Plain errors get classified as InternalError, no data
+      expect(result._meta).toEqual({
+        error: { code: JsonRpcErrorCode.InternalError },
+      });
     });
 
-    it('should catch McpError and preserve message', async () => {
+    it('should catch McpError and surface code + data via _meta', async () => {
       const def = tool('mcp_error_tool', {
         description: 'Throws McpError.',
         input: z.object({}),
@@ -242,6 +246,12 @@ describe('createToolHandler', () => {
 
       expect(result.isError).toBe(true);
       expect((result.content![0] as { text: string }).text).toContain('Item not found');
+      expect(result._meta).toEqual({
+        error: {
+          code: JsonRpcErrorCode.NotFound,
+          data: { id: '123' },
+        },
+      });
     });
 
     it('should handle ZodError from handler (not input validation) as error', async () => {
@@ -261,12 +271,10 @@ describe('createToolHandler', () => {
       expect(result.isError).toBe(true);
     });
 
-    it('should document that McpError.data is NOT propagated in tool responses', async () => {
-      // This test documents the current behavior: error data is lost at the
-      // tool response boundary. The response only contains isError + text message.
+    it('should propagate McpError code and data via _meta', async () => {
       const errorData = { field: 'email', constraint: 'format' };
 
-      const def = tool('data_loss_tool', {
+      const def = tool('meta_error_tool', {
         description: 'McpError with data.',
         input: z.object({}),
         handler: () => {
@@ -278,12 +286,18 @@ describe('createToolHandler', () => {
       const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
-      // structuredContent is not set on error responses
+      // structuredContent is still not set on error responses
       expect(result.structuredContent).toBeUndefined();
-      // The text only contains the message string, not the data payload
+      // Error code and data are surfaced via _meta for programmatic clients
+      expect(result._meta).toEqual({
+        error: {
+          code: JsonRpcErrorCode.ValidationError,
+          data: errorData,
+        },
+      });
+      // Text content contains the message for LLM self-correction
       const text = (result.content![0] as { text: string }).text;
       expect(text).toContain('Validation failed');
-      expect(text).not.toContain('email');
     });
 
     it('should handle non-Error throws (string)', async () => {
