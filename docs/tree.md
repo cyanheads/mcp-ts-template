@@ -1,9 +1,11 @@
-# mcp-ts-template - Directory Structure
+# mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-15 02:03:42
+Generated on: 2026-03-17 01:41:57
 
 ```
-mcp-ts-template/
+mcp-ts-core/
+├── .agents/
+├── .claude/
 ├── .github/
 │   └── FUNDING.yml
 ├── .husky/

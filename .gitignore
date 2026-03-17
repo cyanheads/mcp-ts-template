@@ -182,11 +182,12 @@ docs/api/
 .storage/
 repomix-output*
 duckdata/
-.claude
 data/
 docs/devdocs.md
 ideas/
 .mcp.json
+.claude/
+.agents/
 
 # =============================================================================
 # MCP REGISTRY
