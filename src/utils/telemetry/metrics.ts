@@ -123,29 +123,12 @@ export function createHistogram(name: string, description: string, unit?: string
 /**
  * Creates an observable gauge for async/callback-based measurements.
  * Gauges are polled periodically by the metrics SDK and report current values.
- * Use for measuring things like memory usage, queue depth, temperature, etc.
  *
  * @param name - Metric name (should use dot notation)
  * @param description - Human-readable description
  * @param callback - Async function returning the current metric value
  * @param unit - Optional unit of measurement
  * @returns ObservableGauge instance
- *
- * @example
- * ```typescript
- * // Monitor heap memory usage
- * createObservableGauge(
- *   'process.memory.heap_used',
- *   'Current heap memory usage',
- *   () => {
- *     if (typeof process !== 'undefined') {
- *       return process.memoryUsage().heapUsed;
- *     }
- *     return 0;
- *   },
- *   'bytes'
- * );
- * ```
  */
 export function createObservableGauge(
   name: string,
@@ -160,77 +143,4 @@ export function createObservableGauge(
     result.observe(await callback());
   });
   return gauge;
-}
-
-/**
- * Creates an observable counter for async/callback-based cumulative measurements.
- * Similar to ObservableGauge but for monotonically increasing values.
- * The callback is registered via `addCallback` and polled by the metrics SDK on each collection cycle.
- *
- * @param name - Metric name (should use dot notation, e.g., 'jobs.processed')
- * @param description - Human-readable description
- * @param callback - Async function returning the current cumulative count
- * @param unit - Optional unit of measurement (default: '1')
- * @returns ObservableCounter instance
- *
- * @example
- * ```typescript
- * let totalProcessed = 0;
- *
- * createObservableCounter(
- *   'jobs.processed',
- *   'Total jobs processed since startup',
- *   () => totalProcessed,
- *   '{jobs}'
- * );
- * ```
- */
-export function createObservableCounter(
-  name: string,
-  description: string,
-  callback: () => Promise<number> | number,
-  unit = '1',
-) {
-  const meter = getMeter();
-  const counter = meter.createObservableCounter(name, { description, unit });
-  counter.addCallback(async (result) => {
-    result.observe(await callback());
-  });
-  return counter;
-}
-
-/**
- * Creates an observable up-down counter for async/callback-based measurements
- * that can increase or decrease.
- * The callback is registered via `addCallback` and polled by the metrics SDK on each collection cycle.
- *
- * @param name - Metric name (should use dot notation, e.g., 'queue.size')
- * @param description - Human-readable description of what the metric measures
- * @param callback - Async function returning the current value (can be positive or negative)
- * @param unit - Optional unit of measurement (default: '1')
- * @returns ObservableUpDownCounter instance
- *
- * @example
- * ```typescript
- * // Track current queue size
- * createObservableUpDownCounter(
- *   'queue.size',
- *   'Current number of items in queue',
- *   async () => await getQueueSize(),
- *   '{items}'
- * );
- * ```
- */
-export function createObservableUpDownCounter(
-  name: string,
-  description: string,
-  callback: () => Promise<number> | number,
-  unit = '1',
-) {
-  const meter = getMeter();
-  const counter = meter.createObservableUpDownCounter(name, { description, unit });
-  counter.addCallback(async (result) => {
-    result.observe(await callback());
-  });
-  return counter;
 }

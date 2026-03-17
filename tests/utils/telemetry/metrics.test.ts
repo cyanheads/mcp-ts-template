@@ -245,120 +245,6 @@ describe('OpenTelemetry Metrics', () => {
     });
   });
 
-  describe('createObservableCounter', () => {
-    let createObservableCounterSpy: ReturnType<typeof vi.spyOn>;
-    let mockMeter: any;
-
-    beforeEach(() => {
-      mockMeter = {
-        createObservableCounter: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
-      };
-      vi.spyOn(metrics, 'getMeter').mockReturnValue(mockMeter);
-      createObservableCounterSpy = mockMeter.createObservableCounter;
-    });
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
-    test('should create observable counter with name and description', () => {
-      const callback = () => 10;
-      const counter = metricsUtils.createObservableCounter('test.total', 'Total counter', callback);
-
-      expect(createObservableCounterSpy).toHaveBeenCalledWith('test.total', {
-        description: 'Total counter',
-        unit: '1',
-      });
-      expect(counter).toBeDefined();
-    });
-
-    test('should register callback via addCallback', () => {
-      const callback = () => 7;
-      const counter = metricsUtils.createObservableCounter('test.cb', 'CB counter', callback);
-      expect(counter.addCallback).toHaveBeenCalledTimes(1);
-      expect(counter.addCallback).toHaveBeenCalledWith(expect.any(Function));
-    });
-
-    test('should create observable counter with custom unit', () => {
-      const callback = () => Promise.resolve(50);
-      metricsUtils.createObservableCounter('test.jobs', 'Jobs processed', callback, '{jobs}');
-
-      expect(createObservableCounterSpy).toHaveBeenCalledWith('test.jobs', {
-        description: 'Jobs processed',
-        unit: '{jobs}',
-      });
-    });
-
-    test('should default to unit "1"', () => {
-      const callback = () => 0;
-      metricsUtils.createObservableCounter('test.events', 'Event counter', callback);
-
-      expect(createObservableCounterSpy).toHaveBeenCalledWith('test.events', {
-        description: 'Event counter',
-        unit: '1',
-      });
-    });
-  });
-
-  describe('createObservableUpDownCounter', () => {
-    let createObservableUpDownCounterSpy: ReturnType<typeof vi.spyOn>;
-    let mockMeter: any;
-
-    beforeEach(() => {
-      mockMeter = {
-        createObservableUpDownCounter: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
-      };
-      vi.spyOn(metrics, 'getMeter').mockReturnValue(mockMeter);
-      createObservableUpDownCounterSpy = mockMeter.createObservableUpDownCounter;
-    });
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
-    test('should create observable up-down counter with name and description', () => {
-      const callback = () => 5;
-      const counter = metricsUtils.createObservableUpDownCounter(
-        'test.queue',
-        'Queue size',
-        callback,
-      );
-
-      expect(createObservableUpDownCounterSpy).toHaveBeenCalledWith('test.queue', {
-        description: 'Queue size',
-        unit: '1',
-      });
-      expect(counter).toBeDefined();
-    });
-
-    test('should register callback via addCallback', () => {
-      const callback = () => 3;
-      const counter = metricsUtils.createObservableUpDownCounter('test.cb', 'CB updown', callback);
-      expect(counter.addCallback).toHaveBeenCalledTimes(1);
-      expect(counter.addCallback).toHaveBeenCalledWith(expect.any(Function));
-    });
-
-    test('should create observable up-down counter with custom unit', () => {
-      const callback = async () => -3;
-      metricsUtils.createObservableUpDownCounter('test.items', 'Item count', callback, '{items}');
-
-      expect(createObservableUpDownCounterSpy).toHaveBeenCalledWith('test.items', {
-        description: 'Item count',
-        unit: '{items}',
-      });
-    });
-
-    test('should default to unit "1"', () => {
-      const callback = () => 0;
-      metricsUtils.createObservableUpDownCounter('test.delta', 'Delta counter', callback);
-
-      expect(createObservableUpDownCounterSpy).toHaveBeenCalledWith('test.delta', {
-        description: 'Delta counter',
-        unit: '1',
-      });
-    });
-  });
-
   describe('Integration', () => {
     let mockMeter: any;
 
@@ -368,8 +254,6 @@ describe('OpenTelemetry Metrics', () => {
         createHistogram: vi.fn().mockReturnValue({ record: vi.fn() }),
         createUpDownCounter: vi.fn().mockReturnValue({ add: vi.fn() }),
         createObservableGauge: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
-        createObservableCounter: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
-        createObservableUpDownCounter: vi.fn().mockReturnValue({ addCallback: vi.fn() }),
       };
       vi.spyOn(metrics, 'getMeter').mockReturnValue(mockMeter);
     });
