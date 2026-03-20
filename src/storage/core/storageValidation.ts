@@ -108,13 +108,6 @@ export function validateTenantId(tenantId: string, context: RequestContext): voi
       tenantId: trimmedTenantId,
     });
   }
-
-  if (trimmedTenantId.includes('../') || trimmedTenantId.includes('..\\')) {
-    throw invalidParams('Tenant ID contains path traversal sequences, which are not allowed.', {
-      ...context,
-      tenantId: trimmedTenantId,
-    });
-  }
 }
 
 /**
@@ -294,14 +287,6 @@ export function validateListOptions(
 
     if (options.limit > MAX_LIST_LIMIT) {
       throw validationError(`List limit exceeds maximum of ${MAX_LIST_LIMIT}.`, {
-        ...context,
-        operation: 'validateListOptions',
-        limit: options.limit,
-      });
-    }
-
-    if (!Number.isFinite(options.limit)) {
-      throw validationError('List limit must be a finite number.', {
         ...context,
         operation: 'validateListOptions',
         limit: options.limit,

@@ -245,8 +245,12 @@ function suppressColors(): void {
 export async function createApp(options: CreateAppOptions = {}): Promise<ServerHandle> {
   suppressColors();
 
-  // Apply name/version overrides early so OTEL picks up the correct identity.
-  // composeServices() handles the full save/restore cycle for re-entrancy.
+  // --- Compose services (handles env overrides internally for config parsing) ---
+  const { coreServices, createServer, definitionCounts, taskManager } =
+    await composeServices(options);
+
+  // composeServices restores env vars for re-entrancy. Re-apply overrides
+  // for the process lifetime so OTEL, logger, and transport see the correct identity.
   if (options.name || options.version) {
     if (options.name) process.env.MCP_SERVER_NAME = options.name;
     if (options.version) process.env.MCP_SERVER_VERSION = options.version;
@@ -321,11 +325,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
     }
   }
 
-  // --- Compose services (handles name/version overrides + resetConfig) ---
-  const { coreServices, createServer, definitionCounts, taskManager } =
-    await composeServices(options);
-
-  // --- Initialize logger (after composeServices so config reflects overrides) ---
+  // --- Initialize logger ---
   await logger.initialize(config.logLevel as McpLogLevel, config.mcpTransportType);
 
   logger.info('Core services constructed.');
@@ -393,6 +393,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
         await withSpan('mcp.server.shutdown.transport', async () => {
           await transportManager.stop(signal);
         });
+
+        coreServices.rateLimiter.dispose();
 
         logger.info('Graceful shutdown completed successfully.', shutdownContext);
       });

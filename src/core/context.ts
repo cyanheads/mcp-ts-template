@@ -10,6 +10,7 @@ import type { RequestTaskStore } from '@modelcontextprotocol/sdk/shared/protocol
 import type {
   CreateMessageResult,
   ElicitResult,
+  ModelPreferences,
   SamplingMessage,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodType, z } from 'zod';
@@ -84,7 +85,7 @@ export interface ContextProgress {
 export interface SamplingOpts {
   includeContext?: 'none' | 'thisServer' | 'allServers';
   maxTokens?: number;
-  modelPreferences?: Record<string, unknown>;
+  modelPreferences?: ModelPreferences;
   stopSequences?: string[];
   temperature?: number;
 }
