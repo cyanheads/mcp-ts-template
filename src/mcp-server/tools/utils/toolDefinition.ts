@@ -75,8 +75,8 @@ export interface ToolDefinition<
   input: TInput;
   /** Programmatic unique name (snake_case). */
   name: string;
-  /** Zod schema for output validation. */
-  output?: TOutput;
+  /** Zod schema for output validation. All fields need `.describe()`. */
+  output: TOutput;
   /** When true, the framework manages task lifecycle automatically. */
   task?: boolean;
   /** Human-readable title for UI display. */
@@ -108,10 +108,7 @@ export type AnyToolDefinition = ToolDefinition<ZodObject<ZodRawShape>, ZodObject
  * });
  * ```
  */
-export function tool<
-  TInput extends ZodObject<ZodRawShape>,
-  TOutput extends ZodObject<ZodRawShape> = ZodObject<ZodRawShape>,
->(
+export function tool<TInput extends ZodObject<ZodRawShape>, TOutput extends ZodObject<ZodRawShape>>(
   name: string,
   options: Omit<ToolDefinition<TInput, TOutput>, 'name'>,
 ): ToolDefinition<TInput, TOutput> {

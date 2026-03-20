@@ -19,6 +19,7 @@ describe('ToolDefinition', () => {
       name: 'test_tool',
       description: 'A test tool',
       input: z.object({ msg: z.string().describe('Message') }),
+      output: z.object({ ok: z.boolean() }),
       handler: () => ({ ok: true }),
     };
 
@@ -85,12 +86,14 @@ describe('AnyToolDefinition', () => {
     const toolA = tool('tool_a', {
       description: 'Tool A',
       input: z.object({ x: z.number().describe('X value') }),
+      output: z.object({ doubled: z.number() }),
       handler: (input) => ({ doubled: input.x * 2 }),
     });
 
     const toolB = tool('tool_b', {
       description: 'Tool B',
       input: z.object({ name: z.string().describe('Name') }),
+      output: z.object({ greeting: z.string() }),
       handler: (input) => ({ greeting: `Hello ${input.name}` }),
     });
 
@@ -106,6 +109,7 @@ describe('tool() builder', () => {
     const def = tool('my_tool', {
       description: 'Test tool',
       input: z.object({ value: z.string().describe('A value') }),
+      output: z.object({ ok: z.boolean() }),
       handler: () => ({ ok: true }),
     });
 
@@ -121,6 +125,7 @@ describe('tool() builder', () => {
         query: z.string().min(1).describe('Search query'),
         limit: z.number().default(10).describe('Result limit'),
       }),
+      output: z.object({ query: z.string(), limit: z.number() }),
       handler: (input) => ({ query: input.query, limit: input.limit }),
     });
 
@@ -163,6 +168,7 @@ describe('tool() builder', () => {
     const def = tool('sync_tool', {
       description: 'Sync tool',
       input: z.object({ x: z.number().describe('Input') }),
+      output: z.object({ result: z.number() }),
       handler: (input) => ({ result: input.x + 1 }),
     });
 
@@ -175,6 +181,7 @@ describe('tool() builder', () => {
     const def = tool('auth_tool', {
       description: 'Auth test',
       input: z.object({ id: z.string().describe('ID') }),
+      output: z.object({ ok: z.boolean() }),
       auth: ['tool:auth:read', 'tool:auth:write'],
       handler: () => ({ ok: true }),
     });
@@ -186,6 +193,7 @@ describe('tool() builder', () => {
     const def = tool('annotated_tool', {
       description: 'Annotated',
       input: z.object({ id: z.string().describe('ID') }),
+      output: z.object({ ok: z.boolean() }),
       annotations: {
         readOnlyHint: true,
         idempotentHint: true,
@@ -204,6 +212,7 @@ describe('tool() builder', () => {
       description: 'Task tool',
       task: true,
       input: z.object({ count: z.number().describe('Count') }),
+      output: z.object({ done: z.boolean() }),
       handler: async () => ({ done: true }),
     });
 
@@ -228,6 +237,7 @@ describe('tool() builder', () => {
     const def = tool('meta_tool', {
       description: 'Meta test',
       input: z.object({ x: z.string().describe('X') }),
+      output: z.object({ ok: z.boolean() }),
       _meta: { appToolConfig: { inputComponent: 'textarea' } },
       handler: () => ({ ok: true }),
     });
@@ -240,6 +250,7 @@ describe('tool() builder', () => {
       description: 'Titled',
       title: 'My Titled Tool',
       input: z.object({ x: z.string().describe('X') }),
+      output: z.object({ ok: z.boolean() }),
       handler: () => ({ ok: true }),
     });
 

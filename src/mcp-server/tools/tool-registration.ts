@@ -141,7 +141,7 @@ export class ToolRegistry {
             title,
             description: tool.description,
             inputSchema: tool.input,
-            ...(tool.output && { outputSchema: tool.output }),
+            outputSchema: tool.output,
             ...(tool.annotations && { annotations: tool.annotations }),
             ...(tool._meta && { _meta: tool._meta }),
           },
@@ -196,7 +196,7 @@ export class ToolRegistry {
             title,
             description: tool.description,
             inputSchema: tool.input,
-            ...(tool.output && { outputSchema: tool.output }),
+            outputSchema: tool.output,
             ...(tool.annotations && { annotations: tool.annotations }),
             execution: { taskSupport: 'optional' },
           },
@@ -307,11 +307,11 @@ export class ToolRegistry {
       });
 
       const result = await Promise.resolve(tool.handler(input as Record<string, unknown>, ctx));
-      const validatedResult = tool.output ? tool.output.parse(result) : result;
+      const validatedResult = tool.output.parse(result);
 
       await taskStore.storeTaskResult(taskId, 'completed', {
         content: formatter(validatedResult),
-        ...(tool.output && { structuredContent: validatedResult }),
+        structuredContent: validatedResult,
       });
     } catch (error: unknown) {
       // If cancelled, the SDK already set the terminal state — don't overwrite

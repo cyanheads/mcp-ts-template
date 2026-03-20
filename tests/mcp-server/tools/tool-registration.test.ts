@@ -103,12 +103,14 @@ describe('ToolRegistry', () => {
       const tool1 = tool('tool_one', {
         description: 'First tool',
         input: z.object({}),
+        output: z.object({}),
         handler: () => ({}),
       });
 
       const tool2 = tool('tool_two', {
         description: 'Second tool',
         input: z.object({}),
+        output: z.object({}),
         handler: () => ({}),
       });
 
@@ -132,6 +134,7 @@ describe('ToolRegistry', () => {
         title: 'Custom Title',
         description: 'Test tool',
         input: z.object({}),
+        output: z.object({}),
         handler: () => ({}),
       });
 
@@ -146,6 +149,7 @@ describe('ToolRegistry', () => {
       const testTool = tool('my_tool', {
         description: 'Test tool',
         input: z.object({}),
+        output: z.object({}),
         handler: () => ({}),
         annotations: { title: 'Annotation Title' },
       });
@@ -161,6 +165,7 @@ describe('ToolRegistry', () => {
       const testTool = tool('echo_message_test', {
         description: 'Test tool',
         input: z.object({}),
+        output: z.object({}),
         handler: () => ({}),
       });
 
@@ -176,6 +181,7 @@ describe('ToolRegistry', () => {
         title: 'Explicit Title',
         description: 'Test tool',
         input: z.object({}),
+        output: z.object({}),
         handler: () => ({}),
         annotations: { title: 'Annotation Title' },
       });
@@ -218,6 +224,7 @@ describe('ToolRegistry', () => {
       const testTool = tool('annotated_tool', {
         description: 'Tool with annotations',
         input: z.object({}),
+        output: z.object({}),
         handler: () => ({}),
         annotations: {
           readOnlyHint: true,
@@ -240,6 +247,7 @@ describe('ToolRegistry', () => {
       const testTool = tool('plain_tool', {
         description: 'Tool without annotations',
         input: z.object({}),
+        output: z.object({}),
         handler: () => ({}),
       });
 
@@ -273,6 +281,7 @@ describe('ToolRegistry', () => {
       const testTool = tool('plain_tool', {
         description: 'Tool without formatter',
         input: z.object({}),
+        output: z.object({}),
         handler: () => ({}),
       });
 
@@ -287,9 +296,24 @@ describe('ToolRegistry', () => {
   describe('Registration Order', () => {
     it('should register tools in the order they are provided', async () => {
       const tools = [
-        tool('first', { description: 'First tool', input: z.object({}), handler: () => ({}) }),
-        tool('second', { description: 'Second tool', input: z.object({}), handler: () => ({}) }),
-        tool('third', { description: 'Third tool', input: z.object({}), handler: () => ({}) }),
+        tool('first', {
+          description: 'First tool',
+          input: z.object({}),
+          output: z.object({}),
+          handler: () => ({}),
+        }),
+        tool('second', {
+          description: 'Second tool',
+          input: z.object({}),
+          output: z.object({}),
+          handler: () => ({}),
+        }),
+        tool('third', {
+          description: 'Third tool',
+          input: z.object({}),
+          output: z.object({}),
+          handler: () => ({}),
+        }),
       ];
 
       const registry = new ToolRegistry(tools, services);

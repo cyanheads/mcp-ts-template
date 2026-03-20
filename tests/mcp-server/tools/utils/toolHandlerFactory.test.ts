@@ -182,6 +182,7 @@ describe('createToolHandler', () => {
       const def = tool('strict_tool', {
         description: 'Requires a string.',
         input: z.object({ name: z.string().describe('name') }),
+        output: z.object({ ok: z.boolean() }),
         handler: () => ({ ok: true }),
       });
 
@@ -197,6 +198,7 @@ describe('createToolHandler', () => {
       const def = tool('guarded_tool', {
         description: 'Guarded.',
         input: z.object({ required: z.string().describe('r') }),
+        output: z.object({ ok: z.boolean() }),
         handler: handlerFn,
       });
 
@@ -216,6 +218,7 @@ describe('createToolHandler', () => {
       const def = tool('failing_tool', {
         description: 'Throws.',
         input: z.object({}),
+        output: z.object({}),
         handler: () => {
           throw new Error('something broke');
         },
@@ -236,6 +239,7 @@ describe('createToolHandler', () => {
       const def = tool('mcp_error_tool', {
         description: 'Throws McpError.',
         input: z.object({}),
+        output: z.object({}),
         handler: () => {
           throw new McpError(JsonRpcErrorCode.NotFound, 'Item not found', { id: '123' });
         },
@@ -258,6 +262,7 @@ describe('createToolHandler', () => {
       const def = tool('zod_throw_tool', {
         description: 'Internal Zod parse fails.',
         input: z.object({}),
+        output: z.object({ ok: z.boolean() }),
         handler: () => {
           // Simulate handler internally parsing bad data
           z.object({ required: z.string() }).parse({});
@@ -277,6 +282,7 @@ describe('createToolHandler', () => {
       const def = tool('meta_error_tool', {
         description: 'McpError with data.',
         input: z.object({}),
+        output: z.object({}),
         handler: () => {
           throw new McpError(JsonRpcErrorCode.ValidationError, 'Validation failed', errorData);
         },
@@ -304,6 +310,7 @@ describe('createToolHandler', () => {
       const def = tool('string_throw_tool', {
         description: 'Throws a string.',
         input: z.object({}),
+        output: z.object({}),
         handler: () => {
           throw 'raw string error';
         },
@@ -327,6 +334,7 @@ describe('createToolHandler', () => {
       const def = tool('ctx_tool', {
         description: 'Captures context.',
         input: z.object({}),
+        output: z.object({ ok: z.boolean() }),
         handler: (_input, ctx) => {
           capturedCtx = ctx;
           return { ok: true };
@@ -347,6 +355,7 @@ describe('createToolHandler', () => {
       const def = tool('signal_tool', {
         description: 'Checks signal.',
         input: z.object({}),
+        output: z.object({ ok: z.boolean() }),
         handler: (_input, ctx) => {
           capturedSignal = ctx.signal;
           return { ok: true };
@@ -375,6 +384,7 @@ describe('createToolHandler', () => {
       const def = tool('elicit_tool', {
         description: 'Uses elicitation.',
         input: z.object({}),
+        output: z.object({ ok: z.boolean() }),
         handler: (_input, ctx) => {
           capturedCtx = ctx;
           return { ok: true };
@@ -394,6 +404,7 @@ describe('createToolHandler', () => {
       const def = tool('no_elicit_tool', {
         description: 'No elicitation.',
         input: z.object({}),
+        output: z.object({ ok: z.boolean() }),
         handler: (_input, ctx) => {
           capturedCtx = ctx;
           return { ok: true };
@@ -417,6 +428,7 @@ describe('createToolHandler', () => {
       const def = tool('sample_tool', {
         description: 'Uses sampling.',
         input: z.object({}),
+        output: z.object({ ok: z.boolean() }),
         handler: (_input, ctx) => {
           capturedCtx = ctx;
           return { ok: true };
@@ -436,6 +448,7 @@ describe('createToolHandler', () => {
       const def = tool('no_sample_tool', {
         description: 'No sampling.',
         input: z.object({}),
+        output: z.object({ ok: z.boolean() }),
         handler: (_input, ctx) => {
           capturedCtx = ctx;
           return { ok: true };
@@ -460,6 +473,7 @@ describe('createToolHandler', () => {
       const def = tool('session_tool', {
         description: 'Session test.',
         input: z.object({}),
+        output: z.object({ ok: z.boolean() }),
         handler: () => ({ ok: true }),
       });
 
