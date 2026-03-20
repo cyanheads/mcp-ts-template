@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.9] - 2026-03-20
+
+Markdown linting, formatting fixes, and biome schema alignment.
+
+### Added
+
+- **`.markdownlint.jsonc`** — Markdownlint config suppressing false positives for changelog headings, inline HTML, first-line h1, and dense reference tables.
+
+### Changed
+
+- Fixed markdown formatting across 14 skill files, templates, and docs for markdownlint compliance: added blank lines around fenced code blocks, escaped pipe characters in tables, labeled unlabeled code blocks with `text` language tag.
+- Updated `scripts/tree.ts` to emit labeled code blocks (` ```text ` instead of bare ` ``` `).
+- Regenerated `docs/tree.md` with current structure (adds `Dockerfile` template and `.markdownlint.jsonc`).
+- Bumped `biome.json` schema URL to 2.4.8 (aligns with devDep already at 2.4.8).
+
+---
+
 ## [0.1.8] - 2026-03-20
 
 Output validation for tools, HTTP transport hardening, new skills, and template improvements.
