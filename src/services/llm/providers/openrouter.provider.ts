@@ -303,15 +303,17 @@ export class OpenRouterProvider implements ILlmProvider {
     client: OpenAI,
     params: OpenRouterChatParams,
     context: RequestContext,
+    signal?: AbortSignal,
   ): Promise<ChatCompletion | Stream<ChatCompletionChunk>> {
     this.logger.logInteraction('OpenRouterRequest', {
       context,
       request: params,
     });
+    const requestOpts = signal ? { signal } : undefined;
     if (params.stream) {
-      return client.chat.completions.create(params);
+      return client.chat.completions.create(params, requestOpts);
     } else {
-      const response = await client.chat.completions.create(params);
+      const response = await client.chat.completions.create(params, requestOpts);
 
       this.logger.logInteraction('OpenRouterResponse', {
         context,
@@ -352,6 +354,7 @@ export class OpenRouterProvider implements ILlmProvider {
   public async chatCompletion(
     params: OpenRouterChatParams,
     context: RequestContext,
+    signal?: AbortSignal,
   ): Promise<ChatCompletion | Stream<ChatCompletionChunk>> {
     const operation = 'OpenRouterProvider.chatCompletion';
     const sanitizedParams = sanitization.sanitizeForLogging(params);
@@ -373,6 +376,7 @@ export class OpenRouterProvider implements ILlmProvider {
                 client,
                 finalApiParams,
                 context,
+                signal,
               );
               ok = true;
 
@@ -464,11 +468,13 @@ export class OpenRouterProvider implements ILlmProvider {
   public async chatCompletionStream(
     params: OpenRouterChatParams,
     context: RequestContext,
+    signal?: AbortSignal,
   ): Promise<AsyncIterable<ChatCompletionChunk>> {
     const streamParams = { ...params, stream: true };
     const responseStream = (await this.chatCompletion(
       streamParams,
       context,
+      signal,
     )) as Stream<ChatCompletionChunk>;
 
     const loggingStream = async function* (

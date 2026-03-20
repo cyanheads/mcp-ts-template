@@ -68,6 +68,7 @@ export interface ILlmProvider {
   chatCompletion(
     params: OpenRouterChatParams,
     context: RequestContext,
+    signal?: AbortSignal,
   ): Promise<ChatCompletion | Stream<ChatCompletionChunk>>;
 
   /**
@@ -78,6 +79,7 @@ export interface ILlmProvider {
    * @param params - Chat completion parameters. The `stream` flag is overridden
    *   to `true` regardless of what is passed.
    * @param context - Request context used for correlated logging and tracing.
+   * @param signal - Optional abort signal for request cancellation.
    * @returns An async iterable that yields `ChatCompletionChunk` objects as they
    *   arrive from the provider.
    * @throws {McpError} `ServiceUnavailable` if the upstream provider is
@@ -98,5 +100,6 @@ export interface ILlmProvider {
   chatCompletionStream(
     params: OpenRouterChatParams,
     context: RequestContext,
+    signal?: AbortSignal,
   ): Promise<AsyncIterable<ChatCompletionChunk>>;
 }
