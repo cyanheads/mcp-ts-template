@@ -10,7 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { assertServerBuilt, type ServerHandle, startServer } from './helpers/server-process.js';
+import { assertServerBuilt, type ServerHandle, startServer } from '../helpers/server-process.js';
 
 const SERVER_EXISTS = existsSync(resolve(process.cwd(), 'dist/index.js'));
 

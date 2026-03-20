@@ -8,8 +8,8 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { generateTestJwt, initializeBody, MCP_HEADERS } from './helpers/http-helpers.js';
-import { assertServerBuilt, type ServerHandle, startServer } from './helpers/server-process.js';
+import { generateTestJwt, initializeBody, MCP_HEADERS } from '../helpers/http-helpers.js';
+import { assertServerBuilt, type ServerHandle, startServer } from '../helpers/server-process.js';
 
 const SERVER_EXISTS = existsSync(resolve(process.cwd(), 'dist/index.js'));
 const AUTH_SECRET = 'test-secret-key-for-conformance!';

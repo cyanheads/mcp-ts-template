@@ -10,8 +10,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
-    // Integration tests use real modules (no mocks) and have their own config
-    exclude: ['tests/integration/**', 'node_modules/**'],
+    include: ['tests/unit/**/*.test.ts', 'tests/compliance/**/*.test.ts', 'tests/smoke/**/*.test.ts'],
+    exclude: ['node_modules/**'],
     // Run tests in parallel with proper isolation to prevent mock pollution
     pool: 'forks',
     maxWorkers: 4,

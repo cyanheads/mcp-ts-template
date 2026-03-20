@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['tests/integration/**/*.test.ts'],
+    include: ['tests/integration/**/*.test.ts', 'tests/integration/**/*.int.test.ts'],
     pool: 'forks',
     maxWorkers: 1, // Sequential — shared server processes
     isolate: true,
