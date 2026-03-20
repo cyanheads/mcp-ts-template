@@ -16,6 +16,7 @@ One-line description of what the server does.
 ## Installation
 ## Configuration
 ## Usage
+## Docker (if Dockerfile present)
 ## Development
 ## License
 ```
@@ -147,6 +148,21 @@ Commands table for contributors.
 | `bun run devcheck` | Lint + format + typecheck |
 | `npm test` | Run tests |
 ```
+
+### Docker
+
+Include only if a `Dockerfile` exists. Show how to build and run the image.
+
+```markdown
+## Docker
+
+\`\`\`bash
+docker build -t my-mcp-server .
+docker run -p 3010:3010 -e MY_API_KEY=your-key my-mcp-server
+\`\`\`
+```
+
+Keep it minimal — the Dockerfile's defaults handle transport, port, and log config. Only document env vars the user must provide.
 
 ### License
 

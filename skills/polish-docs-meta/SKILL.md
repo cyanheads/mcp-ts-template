@@ -90,7 +90,18 @@ Use a concrete version and date. Never `[Unreleased]`.
 
 Confirm a license file exists. If not, ask the user which license to use (default: Apache-2.0, matching the scaffolded `package.json`). Create the file.
 
-### 8. `docs/tree.md`
+### 8. `Dockerfile`
+
+If a `Dockerfile` exists, verify the OCI labels and runtime config match the actual server:
+
+- `org.opencontainers.image.title` matches the package name
+- `org.opencontainers.image.description` is filled in (not empty placeholder)
+- `org.opencontainers.image.source` points to the real repository URL (add if missing)
+- Log directory path in `mkdir` and `LOGS_DIR` uses the correct server name
+
+If no `Dockerfile` exists and the server is deployed via HTTP transport, consider scaffolding one — the template is available via `npx @cyanheads/mcp-ts-core init`.
+
+### 9. `docs/tree.md`
 
 Regenerate the directory structure:
 
@@ -100,7 +111,7 @@ bun run tree
 
 Review the output for anything unexpected (leftover files, missing directories).
 
-### 9. Final Verification
+### 10. Final Verification
 
 Run the full check suite one last time:
 
@@ -120,6 +131,7 @@ Both must pass clean.
 - [ ] `package.json` metadata complete (`description`, `repository`, `author`, `keywords`)
 - [ ] `CHANGELOG.md` exists with current entry
 - [ ] `LICENSE` file present
+- [ ] `Dockerfile` OCI labels and runtime config accurate (if present)
 - [ ] `docs/tree.md` regenerated
 - [ ] `bun run devcheck` passes
 - [ ] `npm test` passes
