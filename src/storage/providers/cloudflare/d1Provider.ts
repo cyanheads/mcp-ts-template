@@ -352,11 +352,11 @@ export class D1Provider implements IStorageProvider {
             const parsed = JSON.parse(row.value) as T;
             results.set(row.key, parsed);
           } catch (error: unknown) {
-            logger.warning(`[D1Provider] Failed to parse value for key: ${row.key}`, {
-              ...context,
-              error,
-            });
-            // Skip unparseable values
+            throw new McpError(
+              JsonRpcErrorCode.SerializationError,
+              `[D1Provider] Failed to parse JSON for key: ${row.key}`,
+              { ...context, error },
+            );
           }
         }
 

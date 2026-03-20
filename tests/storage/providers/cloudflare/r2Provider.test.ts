@@ -113,15 +113,7 @@ describe('R2Provider', () => {
   });
 
   describe('delete', () => {
-    it('should return false if key does not exist', async () => {
-      mockBucket.head.mockResolvedValue(null);
-      const result = await r2Provider.delete('tenant-1', 'key-1', context);
-      expect(result).toBe(false);
-      expect(mockBucket.delete).not.toHaveBeenCalled();
-    });
-
-    it('should return true and call delete if key exists', async () => {
-      mockBucket.head.mockResolvedValue({}); // Mock a non-null response
+    it('should always return true (R2 delete is idempotent)', async () => {
       const result = await r2Provider.delete('tenant-1', 'key-1', context);
       expect(result).toBe(true);
       expect(mockBucket.delete).toHaveBeenCalledWith('tenant-1:key-1');
@@ -146,16 +138,14 @@ describe('R2Provider', () => {
     });
 
     it('should apply limit, cursor, and expose next cursor when truncated', async () => {
+      // Implementation fetches limit+1 to detect more pages
       const listedResponse = {
         objects: [{ key: 'tenant-1:key-a' }, { key: 'tenant-1:key-b' }, { key: 'tenant-1:key-c' }],
-        truncated: true,
-        cursor: 'cursor-token',
+        truncated: false,
       };
-      mockBucket.list
-        .mockResolvedValueOnce(listedResponse)
-        .mockResolvedValueOnce({ objects: [], truncated: false });
+      mockBucket.list.mockResolvedValueOnce(listedResponse);
 
-      // Pass a tenant-bound cursor (provider decodes before forwarding to R2)
+      // Pass a tenant-bound cursor (provider decodes and uses startAfter)
       const tenantBoundCursor = encodeCursor('incoming-cursor', 'tenant-1');
       const result = await r2Provider.list('tenant-1', 'key', context, {
         limit: 2,
@@ -163,14 +153,14 @@ describe('R2Provider', () => {
       });
 
       expect(result.keys).toEqual(['key-a', 'key-b']);
-      // nextCursor should be tenant-bound encoded
-      expect(result.nextCursor).toBe(encodeCursor('cursor-token', 'tenant-1'));
+      // nextCursor is built from the last result key, not R2's native cursor
+      expect(result.nextCursor).toBe(encodeCursor('key-b', 'tenant-1'));
       expect(mockBucket.list).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
           prefix: 'tenant-1:key',
           limit: 3,
-          cursor: 'incoming-cursor', // decoded native cursor passed to R2
+          startAfter: 'tenant-1:incoming-cursor', // decoded cursor used as startAfter
         }),
       );
     });

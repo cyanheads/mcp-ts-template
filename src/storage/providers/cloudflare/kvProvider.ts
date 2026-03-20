@@ -89,12 +89,21 @@ export class KvProvider implements IStorageProvider {
     );
   }
 
+  /**
+   * Deletes a key from the KV namespace.
+   *
+   * Note: Cloudflare KV `delete()` is idempotent and does not report whether
+   * the key existed. This method always returns `true` on success, which is a
+   * backend limitation — the KV API provides no existence check on delete.
+   * A pre-delete `get()` would add latency and still be racy under eventual
+   * consistency, so we accept the imprecise return value.
+   */
   async delete(tenantId: string, key: string, context: RequestContext): Promise<boolean> {
     const kvKey = this.getKvKey(tenantId, key);
     return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[KvProvider] Deleting key: ${kvKey}`, context);
-        // KV delete is idempotent — no need to check existence first
+        // KV delete is idempotent — always succeeds regardless of key existence
         await this.kv.delete(kvKey);
         logger.debug(`[KvProvider] Successfully deleted key: ${kvKey}`, context);
         return true;

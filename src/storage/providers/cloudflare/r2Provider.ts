@@ -136,16 +136,19 @@ export class R2Provider implements IStorageProvider {
     );
   }
 
+  /**
+   * Deletes a key from the R2 bucket.
+   *
+   * Note: R2 `delete()` is idempotent and does not report whether the key
+   * existed. This method always returns `true` on success — a backend
+   * limitation, not a bug. A pre-delete `head()` would add latency and
+   * still be racy under eventual consistency.
+   */
   async delete(tenantId: string, key: string, context: RequestContext): Promise<boolean> {
     const r2Key = this.getR2Key(tenantId, key);
     return await ErrorHandler.tryCatch(
       async () => {
         logger.debug(`[R2Provider] Deleting key: ${r2Key}`, context);
-        const head = await this.bucket.head(r2Key);
-        if (head === null) {
-          logger.debug(`[R2Provider] Key to delete not found: ${r2Key}`, context);
-          return false;
-        }
         await this.bucket.delete(r2Key);
         logger.debug(`[R2Provider] Successfully deleted key: ${r2Key}`, context);
         return true;
@@ -175,11 +178,12 @@ export class R2Provider implements IStorageProvider {
         const limit = options?.limit ?? DEFAULT_LIST_LIMIT;
         const listOptions: import('@cloudflare/workers-types').R2ListOptions = {
           prefix: r2Prefix,
-          limit: limit + 1, // Fetch one extra to determine if there are more
+          limit: limit + 1, // Fetch one extra to detect if more pages exist
         };
         if (options?.cursor) {
-          // Decode tenant-bound cursor to get the native R2 cursor
-          listOptions.cursor = decodeCursor(options.cursor, tenantId, context);
+          // Decode tenant-bound cursor to resume after the last key
+          const lastKey = decodeCursor(options.cursor, tenantId, context);
+          listOptions.startAfter = `${tenantId}:${lastKey}`;
         }
         const listed = await this.bucket.list(listOptions);
 
@@ -188,11 +192,17 @@ export class R2Provider implements IStorageProvider {
           obj.key.startsWith(tenantPrefix) ? obj.key.substring(tenantPrefix.length) : obj.key,
         );
 
+        /**
+         * Pure limit+1 pagination (consistent with D1/Supabase providers):
+         * - If we got limit+1 items, there are more pages — return only `limit` items
+         * - If we got <= limit items, this is the last page — no cursor
+         */
         const hasMore = keys.length > limit;
         const resultKeys = hasMore ? keys.slice(0, limit) : keys;
-        // Wrap native R2 cursor in tenant-bound envelope
-        const nativeCursor = 'cursor' in listed && listed.truncated ? listed.cursor : undefined;
-        const nextCursor = nativeCursor ? encodeCursor(nativeCursor, tenantId) : undefined;
+        const nextCursor =
+          hasMore && resultKeys.length > 0
+            ? encodeCursor(resultKeys[resultKeys.length - 1] as string, tenantId)
+            : undefined;
 
         logger.debug(
           `[R2Provider] Found ${resultKeys.length} keys with prefix: ${r2Prefix}`,
@@ -270,6 +280,13 @@ export class R2Provider implements IStorageProvider {
     );
   }
 
+  /**
+   * Deletes multiple keys in a single R2 batch operation.
+   *
+   * Note: R2 batch delete is idempotent — it does not report which keys actually
+   * existed. The returned count reflects the number of keys requested for deletion,
+   * not confirmed deletions. This is a backend limitation, not a bug.
+   */
   async deleteMany(tenantId: string, keys: string[], context: RequestContext): Promise<number> {
     return await ErrorHandler.tryCatch(
       async () => {
