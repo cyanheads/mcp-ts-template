@@ -41,6 +41,10 @@ export const httpErrorHandler = async <TBindings extends object = HonoNodeBindin
   });
   logger.debug('HTTP error handler invoked.', context);
 
+  // Capture original McpError data before enrichment — handleError adds internal
+  // details (stack traces, cause chains, operation context) that must not leak.
+  const originalData = err instanceof McpError ? err.data : undefined;
+
   const handledError = ErrorHandler.handleError(err, {
     operation: 'httpTransport',
     context,
@@ -120,13 +124,12 @@ export const httpErrorHandler = async <TBindings extends object = HonoNodeBindin
   }
 
   c.status(status);
-  const errorData = handledError instanceof McpError ? handledError.data : undefined;
   const errorResponse = {
     jsonrpc: '2.0',
     error: {
       code: errorCode,
       message: handledError.message,
-      ...(errorData !== undefined && { data: errorData }),
+      ...(originalData !== undefined && { data: originalData }),
     },
     id: requestId,
   };

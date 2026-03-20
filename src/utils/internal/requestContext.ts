@@ -26,6 +26,16 @@ import { authContext as alsAuthContext } from '@/mcp-server/transports/auth/lib/
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import { generateRequestContextId } from '@/utils/security/idGenerator.js';
 
+/** Maps validated token info to the context-facing auth shape. */
+function toAuthContext(info: AuthInfo): AuthContext {
+  return {
+    sub: info.subject ?? info.clientId,
+    scopes: info.scopes,
+    clientId: info.clientId,
+    ...(info.tenantId && { tenantId: info.tenantId }),
+  };
+}
+
 /**
  * Processed authentication data extracted from a validated JWT or OAuth token
  * and attached to a {@link RequestContext} by {@link requestContextService.withAuthInfo}.
@@ -50,8 +60,6 @@ export interface AuthContext {
   sub: string;
   /** Tenant identifier from the `tid` JWT claim. Present only for multi-tenant tokens. */
   tenantId?: string;
-  /** The raw JWT or OAuth bearer token string. */
-  token: string;
   /** Additional token payload properties not mapped to named fields. */
   [key: string]: unknown;
 }
@@ -203,6 +211,12 @@ const requestContextServiceInstance = {
     const authStore = alsAuthContext.getStore();
     const tenantIdFromAuth = authStore?.authInfo?.tenantId;
 
+    // Bridge auth info from ALS into the context so ctx.auth is populated
+    // in tool/resource handlers without requiring a separate withAuthInfo() call.
+    const authFromStore: AuthContext | undefined = authStore?.authInfo
+      ? toAuthContext(authStore.authInfo)
+      : undefined;
+
     const requestId =
       typeof inheritedContext.requestId === 'string' && inheritedContext.requestId
         ? inheritedContext.requestId
@@ -233,6 +247,7 @@ const requestContextServiceInstance = {
       timestamp,
       ...(resolvedTenantId ? { tenantId: resolvedTenantId } : {}),
       ...(operation && typeof operation === 'string' ? { operation } : {}),
+      ...(authFromStore && { auth: authFromStore }),
     };
 
     // --- OpenTelemetry Integration ---
@@ -292,13 +307,7 @@ const requestContextServiceInstance = {
 
     return {
       ...baseContext,
-      auth: {
-        sub: authInfo.subject ?? authInfo.clientId,
-        scopes: authInfo.scopes,
-        clientId: authInfo.clientId,
-        token: authInfo.token,
-        ...(authInfo.tenantId && { tenantId: authInfo.tenantId }),
-      },
+      auth: toAuthContext(authInfo),
     };
   },
 };
