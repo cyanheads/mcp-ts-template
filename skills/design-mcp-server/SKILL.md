@@ -4,7 +4,7 @@ description: >
   Design the tool surface, resources, and service layer for a new MCP server. Use when starting a new server, planning a major feature expansion, or when the user describes a domain/API they want to expose via MCP. Produces a design doc at docs/design.md that drives implementation.
 metadata:
   author: cyanheads
-  version: "1.1"
+  version: "2.0"
   audience: external
   type: workflow
 ---
@@ -69,19 +69,160 @@ This is the raw material. Not everything becomes a tool.
 **Common traps:**
 
 - **Everything-is-a-tool**: "Fetch by ID" with no other params is a resource. Resources let clients inject context without a tool call.
-- **CRUD explosion**: Don't map every REST endpoint to a tool. One `update_task` beats `update_task_status` + `assign_task` + `update_task_fields`.
+- **CRUD explosion**: Don't map every REST endpoint to a tool. Related operations on the same noun often belong in one tool with an `operation`/`mode` parameter (see Step 4).
 - **Ignoring resources**: If the server has reference data, schemas, or entities the LLM should read — expose them as resources.
+- **1:1 endpoint mirroring**: API endpoints are designed for programmatic consumers. LLM tools should be designed for workflows — what an agent is *trying to accomplish*, not what HTTP calls happen under the hood.
 
 ### 4. Design Tools
 
-For each tool:
+This is the highest-leverage step. Tool definitions — names, descriptions, parameters, output schemas — are the **entire interface contract** the LLM reads to decide whether and how to call a tool. Every field is context. Design accordingly.
+
+#### Think in workflows, not endpoints
+
+The unit of a tool is a *useful action*, not an API call. Ask: "What is the agent trying to accomplish?" — not "What endpoints does the API have?"
+
+A single tool can call multiple APIs internally, apply local filtering, reshape data, and return enriched results. The LLM doesn't know or care about the underlying calls.
+
+**Consolidation via operation/mode enum.** When a domain noun has several related operations that share parameters, consolidate into one tool with a discriminated parameter. This keeps the tool surface small and lets the LLM discover all capabilities in one place.
+
+```ts
+// One tool for all branch operations — not five separate tools
+const gitBranch = tool('git_branch', {
+  description: 'Manage branches: list, show current, create, delete, or rename.',
+  input: z.object({
+    operation: z.enum(['list', 'create', 'delete', 'rename', 'show-current'])
+      .describe('Branch operation to perform.'),
+    name: z.string().optional().describe('Branch name (required for create/delete/rename).'),
+    newName: z.string().optional().describe('New name (required for rename).'),
+  }),
+  // ...
+});
+```
+
+```ts
+// Workflow tool — search + local filter pipeline, not a raw API proxy
+const findEligibleStudies = tool('clinicaltrials_find_eligible_studies', {
+  description: 'Matches patient demographics and medical profile to eligible clinical trials. '
+    + 'Filters by age, sex, conditions, location, and healthy volunteer status. '
+    + 'Returns ranked list of matching studies with eligibility explanations.',
+  // handler: listStudies() → filter by eligibility → rank by location proximity → slice
+});
+```
+
+**When to consolidate vs. split:**
+
+| Consolidate (one tool) | Split (separate tools) |
+|:------------------------|:-----------------------|
+| Operations share the same noun and most parameters | Operations have fundamentally different inputs/outputs |
+| Related CRUD on a single entity | Read-only lookup vs. multi-step workflow |
+| Agent would naturally think of them together | Agent would use them in different contexts |
+
+There is no fixed ceiling on tool count — tools need to earn their keep, but don't artificially limit the surface. If the domain genuinely has 20 distinct workflows, expose 20 tools.
+
+#### Tool descriptions
+
+The description is the LLM's primary signal for tool selection. It must answer: *what does this do, and when should I use it?*
+
+- **Be concrete about capability.** "Search for clinical trial studies using queries and filters" beats "Interact with studies."
+- **Include operational guidance when it matters.** If the tool has prerequisites, constraints, or gotchas the LLM needs to know, say so in the description. Don't add boilerplate workflow hints when the tool is self-explanatory.
+
+```ts
+// Good — describes a prerequisite the LLM must know
+description: 'Set the session working directory for all git operations. '
+  + 'This allows subsequent git commands to omit the path parameter.'
+
+// Good — self-explanatory, no workflow hints needed
+description: 'Show the working tree status including staged, unstaged, and untracked files.'
+
+// Good — warns about constraints
+description: 'Fetches trial results data for completed studies. '
+  + 'Only available for studies where hasResults is true.'
+```
+
+Context-dependent: a simple read-only tool needs a one-line description. A tool with prerequisites, modes, or non-obvious behavior needs more. Match depth of description to complexity of tool.
+
+#### Parameter descriptions
+
+Every `.describe()` is prompt text the LLM reads. Parameters should convey: what the value is, what it affects, and (where non-obvious) how to use it well.
+
+- **Constrain the type.** Enums and literals over free strings. Regex validation for formatted IDs. Ranges for numeric bounds.
+- **Explain costs and tradeoffs** when a parameter choice has meaningful consequences.
+- **Name alternative approaches** when a simpler path exists.
+- **Include format patterns** for structured values, but don't pad descriptions with redundant examples.
+
+```ts
+// Good — explains cost, recommends action, names the alternative
+fields: z.array(z.string()).optional()
+  .describe('Specific fields to return (reduces payload size). '
+    + 'STRONGLY RECOMMENDED — without this, the full study record (~70KB each) is returned. '
+    + 'Use full data only when you need detailed eligibility criteria, locations, or results.'),
+
+// Good — explains what the flag does AND how to override
+autoExclude: z.boolean().default(true)
+  .describe('Automatically exclude lock files and generated files from diff output '
+    + 'to reduce context bloat. Set to false if you need to inspect these files.'),
+
+// Good — names the format and gives one example
+nctIds: z.union([z.string(), z.array(z.string()).max(5)])
+  .describe('A single NCT ID (e.g., "NCT12345678") or an array of up to 5 NCT IDs to fetch.'),
+```
+
+#### Output design
+
+The output schema and `format` function control what the LLM reads back. Design for the agent's *next decision*, not for a UI or an API consumer.
+
+**Principles:**
+
+- **Include IDs and references for chaining.** If the agent might act on a result, return the identifiers it needs for follow-up tool calls.
+- **Curate vs. pass-through depends on domain.** Medical/scientific data — don't trim fields that could alter correctness. CRUD responses — return what the agent needs, not the full API payload. Match fidelity to consequence.
+- **Surface what was done, not just results.** After a write operation, include the new state. (`git_commit` auto-includes post-commit `git status`. The LLM sees the repo state without an extra round trip.)
+- **Communicate filtering.** If the tool silently excluded content, tell the LLM what was excluded and how to get it back. The agent can't act on what it doesn't know about.
+
+```ts
+// git_diff — when lock files are filtered, the output tells the LLM
+output: z.object({
+  diff: z.string().describe('Unified diff output.'),
+  excludedFiles: z.array(z.string()).optional()
+    .describe('Files automatically excluded from the diff (e.g., lock files). '
+      + 'Call again with autoExclude=false to include them.'),
+}),
+```
+
+- **Truncate large output with counts.** When a list exceeds a reasonable display size, show the top N and append "...and X more". Don't silently drop results.
+- **Use the `format` function for readable summaries** while keeping the full structured data in the output object for programmatic use.
+
+#### Error messages as LLM guidance
+
+When a tool throws, the error message is the agent's only signal for recovery. A good error message tells the LLM *what happened and what to do next*.
+
+```ts
+// Bad — the LLM has no recovery path
+throw new Error('Not found');
+
+// Good — names both resolution options
+"No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first."
+
+// Good — structured hint in error data
+throw new McpError(JsonRpcErrorCode.Forbidden,
+  "Cannot perform 'reset --hard' on protected branch 'main' without explicit confirmation.",
+  { branch: 'main', operation: 'reset --hard', hint: 'Set the confirmed parameter to true to proceed.' },
+);
+```
+
+Think about the common failure modes for each tool and write error messages that guide recovery. This is part of the tool's interface design, not an afterthought.
+
+#### Design table
+
+Summarize each tool:
 
 | Aspect | Decision |
 |:-------|:---------|
 | **Name** | `snake_case`, verb-noun: `search_papers`, `create_task`. Prefix with server domain if ambiguous. |
-| **Granularity** | One tool per user intent, not per API call. A tool can call multiple APIs internally. |
-| **Input schema** | What the LLM provides. `.describe()` on every field. Prefer enums/literals over free strings. Optional fields with defaults over required where reasonable. |
-| **Output schema** | What the LLM needs to see. Curate — not a raw API dump. Design for the LLM's next decision, not for a UI. |
+| **Granularity** | One tool per user-meaningful workflow, not per API call. Consolidate related operations with `operation`/`mode` enum. |
+| **Description** | Concrete capability statement. Add operational guidance (prerequisites, constraints, gotchas) when non-obvious. |
+| **Input schema** | `.describe()` on every field. Constrained types (enums, literals, regex). Explain costs/tradeoffs of parameter choices. |
+| **Output schema** | Designed for the LLM's next action. Include chaining IDs. Communicate filtering. Post-write state where useful. |
+| **Error messages** | Name what went wrong and what the LLM should do about it. Include hints for common recovery paths. |
 | **Annotations** | `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`. Helps clients auto-approve safely. |
 | **Auth scopes** | `tool:noun:read`, `tool:noun:write`. Skip for read-only or stdio-only servers. |
 
@@ -180,10 +321,13 @@ Execute the plan using the scaffolding skills:
 - [ ] External APIs/dependencies researched and verified (docs fetched, SDKs identified)
 - [ ] Domain operations mapped (nouns + verbs)
 - [ ] Each operation classified as tool, resource, prompt, or excluded
-- [ ] Tool names follow verb-noun `snake_case` convention
-- [ ] Tool outputs designed for LLM consumption, not raw API passthrough
+- [ ] Related operations consolidated (operation/mode enum) — not one tool per endpoint
+- [ ] Tool descriptions are concrete and include operational guidance where non-obvious
+- [ ] Parameter `.describe()` text explains what the value is, what it affects, and tradeoffs
+- [ ] Input schemas use constrained types (enums, literals, regex) over free strings
+- [ ] Output schemas designed for LLM's next action — chaining IDs, post-write state, filtering communicated
+- [ ] Error messages guide recovery — name what went wrong and what to do next
 - [ ] Annotations set correctly (`readOnlyHint`, `destructiveHint`, etc.)
-- [ ] Input schemas use constrained types (enums, literals) where the domain allows
 - [ ] Resource URIs use `{param}` templates, pagination planned for large lists
 - [ ] Service layer planned (or explicitly skipped with reasoning)
 - [ ] Server config env vars identified
