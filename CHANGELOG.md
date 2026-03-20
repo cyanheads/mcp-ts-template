@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.12] - 2026-03-20
+
+Required output schemas, OAuth hardening, and metric cardinality fix.
+
+### Security
+
+- **OAuth algorithm pinning** — `OauthStrategy` restricts JWT verification to `['RS256', 'ES256', 'PS256']`, preventing algorithm confusion attacks.
+
+### Added
+
+- **`ATTR_MCP_RESOURCE_NAME`** — New bounded resource identifier attribute for metric dimensions, replacing unbounded URI on metrics.
+
+### Changed
+
+- **`output` required on tool definitions** — `ToolDefinition.output` is now mandatory (was optional). Handler factory and task registration unconditionally validate output and include `structuredContent`.
+- **Resource metric cardinality** — Resource metrics use bounded `mcp.resource.name` attribute instead of unbounded `mcp.resource.uri`. URI attribute reserved for span-level detail only.
+
+---
+
 ## [0.1.11] - 2026-03-20
 
 Security hardening, reliability improvements, public API surface refinement, and storage provider consistency.
@@ -14,7 +33,6 @@ Security hardening, reliability improvements, public API surface refinement, and
 - **Auth-gated server metadata** — `GET /mcp` returns minimal `{ status: 'ok' }` when auth is enabled, hiding server name, version, environment, and capability details from unauthenticated callers.
 - **OTel scope redaction** — Auth middleware logs scope count instead of scope values in OTel span attributes, preventing authorization model exposure to tracing backends.
 - **JWT issuer/audience validation** — `JwtStrategy` validates `iss` and `aud` claims when `MCP_JWT_EXPECTED_ISSUER` / `MCP_JWT_EXPECTED_AUDIENCE` are configured. Explicit `algorithms: ['HS256']` constraint on token verification.
-- **OAuth algorithm pinning** — `OauthStrategy` restricts JWT verification to `['RS256', 'ES256', 'PS256']`, preventing algorithm confusion attacks.
 - **Dev bypass guard** — `DEV_MCP_AUTH_BYPASS` rejected in production (`NODE_ENV=production`). Allowed in development and testing environments.
 - **Session capacity limits** — `SessionStore` enforces a configurable maximum session count (default 10,000), preventing unbounded memory growth from session exhaustion.
 - **Atomic identity binding** — Session identity fields (tenantId, clientId, subject) bound atomically as a snapshot, preventing chimeric identities from per-field races across requests.
@@ -30,7 +48,6 @@ Security hardening, reliability improvements, public API surface refinement, and
 - **`SchedulerService.destroyAll()`** — Stops and removes all cron jobs during shutdown, preventing timers from keeping the event loop alive.
 - **In-memory provider capacity limits** — Configurable `maxEntries` (default 10,000) with automatic TTL sweep when capacity is reached. New `size` getter for monitoring.
 - **Walk-based JSON size estimator** — `estimateJsonSize()` fallback in performance module handles circular references and BigInt without throwing.
-- **`ATTR_MCP_RESOURCE_NAME`** — New bounded resource identifier attribute for metric dimensions, replacing unbounded URI on metrics.
 
 ### Fixed
 
@@ -45,8 +62,6 @@ Security hardening, reliability improvements, public API surface refinement, and
 
 ### Changed
 
-- **`output` required on tool definitions** — `ToolDefinition.output` is now mandatory (was optional). Handler factory and task registration unconditionally validate output and include `structuredContent`.
-- **Resource metric cardinality** — Resource metrics use bounded `mcp.resource.name` attribute instead of unbounded `mcp.resource.uri`. URI attribute reserved for span-level detail only.
 - **TypeError no longer mapped to ValidationError** — Runtime TypeErrors (e.g., "Cannot read properties of undefined") are programming errors, not validation failures. They now fall through to message-pattern matching or `InternalError` fallback.
 - **Validation error pattern** — Restored broad `invalid` keyword matching. The pattern relies on ordering (Unauthorized patterns are checked first) rather than a restrictive noun list, so messages like "Invalid email" correctly classify as ValidationError.
 - **R2 provider: idempotent delete** — Removed pre-delete `head()` check. R2 `delete()` is idempotent; the extra round-trip added latency under eventual consistency.
