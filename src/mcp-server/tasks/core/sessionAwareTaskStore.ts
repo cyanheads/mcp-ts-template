@@ -55,6 +55,8 @@ export class SessionAwareTaskStore implements TaskStore {
   ): Promise<void> {
     this.assertOwnership(taskId, sessionId);
     await this.inner.storeTaskResult(taskId, status, result, sessionId);
+    // Both 'completed' and 'failed' are terminal — clean up ownership
+    this.ownership.delete(taskId);
   }
 
   getTaskResult(taskId: string, sessionId?: string): Promise<Result> {

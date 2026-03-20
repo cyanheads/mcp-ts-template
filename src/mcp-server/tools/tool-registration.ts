@@ -9,6 +9,7 @@ import type { RequestTaskStore } from '@modelcontextprotocol/sdk/shared/protocol
 import type { CallToolResult, ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape } from 'zod';
 
+import { config } from '@/config/index.js';
 import { createContext } from '@/core/context.js';
 import {
   isTaskToolDefinition,
@@ -27,12 +28,26 @@ import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
+/** Options for background auto-task execution. */
+interface AutoTaskOptions {
+  callerAuth?: AuthInfo | undefined;
+  taskId: string;
+  taskStore: RequestTaskStore;
+  ttlMs: number;
+}
+
+/** Default TTL for auto-task tools when config doesn't specify one. */
+const DEFAULT_AUTO_TASK_TTL_MS = 120_000;
+
 /** Union of all accepted tool definition shapes. */
 export type AnyToolDef =
   | AnyToolDefinition
   | TaskToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>;
 
 export class ToolRegistry {
+  /** Tracks registered tool names to detect duplicates at startup. */
+  private readonly registeredNames = new Set<string>();
+
   constructor(
     private toolDefs: AnyToolDef[],
     private services?: HandlerFactoryServices,
@@ -79,6 +94,17 @@ export class ToolRegistry {
     }
   }
 
+  /** Throws at startup if a tool with the same name was already registered. */
+  private assertUniqueName(name: string): void {
+    if (this.registeredNames.has(name)) {
+      throw new Error(
+        `Duplicate tool name '${name}': a tool with this name is already registered. ` +
+          'Each tool must have a unique name.',
+      );
+    }
+    this.registeredNames.add(name);
+  }
+
   private deriveTitleFromName(name: string): string {
     return name.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
   }
@@ -94,6 +120,8 @@ export class ToolRegistry {
     });
 
     logger.debug(`Registering tool: '${tool.name}'`, registrationContext);
+
+    this.assertUniqueName(tool.name);
 
     await ErrorHandler.tryCatch(
       () => {
@@ -144,6 +172,8 @@ export class ToolRegistry {
 
     logger.debug(`Registering auto-task tool (task: true): '${tool.name}'`, registrationContext);
 
+    this.assertUniqueName(tool.name);
+
     await ErrorHandler.tryCatch(
       () => {
         if (!this.services) {
@@ -154,6 +184,7 @@ export class ToolRegistry {
 
         const services = this.services;
         const title = tool.title ?? tool.annotations?.title ?? this.deriveTitleFromName(tool.name);
+        const taskTtlMs = config.tasks.defaultTtlMs ?? DEFAULT_AUTO_TASK_TTL_MS;
         const formatter = (result: unknown): ContentBlock[] =>
           tool.format
             ? tool.format(result as Record<string, unknown>)
@@ -173,7 +204,6 @@ export class ToolRegistry {
             createTask: async (args, extra) => {
               // Capture auth info from the request's ALS before firing the
               // background handler — ALS is gone once we leave this scope.
-              // Single getStore() call serves both scope checking and capture.
               const callerAuth = authContext.getStore()?.authInfo;
 
               // Check inline auth scopes in the request path (inside ALS context)
@@ -185,20 +215,17 @@ export class ToolRegistry {
               const validatedInput = tool.input.parse(args);
 
               const task = await extra.taskStore.createTask({
-                ttl: 120_000,
+                ttl: taskTtlMs,
                 pollInterval: 1000,
               });
 
               // Fire-and-forget: run handler in background
-              void this.runAutoTaskHandler(
-                tool,
-                validatedInput,
-                task.taskId,
-                extra.taskStore,
-                services,
-                formatter,
+              void this.runAutoTaskHandler(tool, validatedInput, services, formatter, {
+                taskId: task.taskId,
+                taskStore: extra.taskStore,
+                ttlMs: taskTtlMs,
                 callerAuth,
-              );
+              });
 
               return { task };
             },
@@ -225,17 +252,23 @@ export class ToolRegistry {
   /**
    * Runs a tool handler as a background task.
    * Creates Context with `progress` and `signal`, stores result/error on completion.
+   * Enforces a deadline matching the task entry TTL to prevent leaked resources.
    */
   private async runAutoTaskHandler(
     tool: AnyToolDefinition,
     input: unknown,
-    taskId: string,
-    taskStore: RequestTaskStore,
     services: HandlerFactoryServices,
     formatter: (result: unknown) => ContentBlock[],
-    callerAuth?: AuthInfo,
+    opts: AutoTaskOptions,
   ): Promise<void> {
+    const { taskId, taskStore, ttlMs, callerAuth } = opts;
     const abortController = new AbortController();
+
+    // Enforce handler execution deadline matching the task entry TTL.
+    // Uses setTimeout + AbortController for cross-runtime compatibility
+    // (AbortSignal.timeout() can fail in Bun's stdio transport due to realm mismatch).
+    const TIMEOUT_SENTINEL = Symbol.for('AUTO_TASK_TIMEOUT');
+    const timeoutId = setTimeout(() => abortController.abort(TIMEOUT_SENTINEL), ttlMs);
 
     // Poll for cancellation every 2 seconds
     const cancelInterval = setInterval(async () => {
@@ -243,11 +276,10 @@ export class ToolRegistry {
         const task = await taskStore.getTask(taskId);
         if (task.status === 'cancelled') {
           abortController.abort();
-          clearInterval(cancelInterval);
         }
       } catch {
-        // Task may have been cleaned up — stop polling
-        clearInterval(cancelInterval);
+        // Task may have been cleaned up — abort to unblock handler
+        abortController.abort();
       }
     }, 2000);
 
@@ -277,26 +309,43 @@ export class ToolRegistry {
       const result = await Promise.resolve(tool.handler(input as Record<string, unknown>, ctx));
       const validatedResult = tool.output ? tool.output.parse(result) : result;
 
-      clearInterval(cancelInterval);
-
       await taskStore.storeTaskResult(taskId, 'completed', {
         content: formatter(validatedResult),
         ...(tool.output && { structuredContent: validatedResult }),
       });
     } catch (error: unknown) {
-      clearInterval(cancelInterval);
-
       // If cancelled, the SDK already set the terminal state — don't overwrite
-      if (abortController.signal.aborted) return;
+      if (abortController.signal.aborted && abortController.signal.reason !== TIMEOUT_SENTINEL) {
+        return;
+      }
+
+      // Route through ErrorHandler for OTel span, structured logging, and classification
+      ErrorHandler.handleError(error, {
+        operation: `auto-task:${tool.name}`,
+        context: { taskId, toolName: tool.name },
+        input,
+      });
 
       try {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const isTimeout = abortController.signal.reason === TIMEOUT_SENTINEL;
+        const errorMessage = isTimeout
+          ? `Task timed out after ${ttlMs}ms`
+          : error instanceof Error
+            ? error.message
+            : String(error);
         await taskStore.storeTaskResult(taskId, 'failed', {
           content: [{ type: 'text', text: `Error: ${errorMessage}` }],
           isError: true,
         });
       } catch {
         // Task may already be in terminal state
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      clearInterval(cancelInterval);
+      // Ensure abort controller is released — signals any lingering listeners
+      if (!abortController.signal.aborted) {
+        abortController.abort();
       }
     }
   }
@@ -317,6 +366,8 @@ export class ToolRegistry {
     });
 
     logger.debug(`Registering task tool: '${tool.name}' (experimental)`, registrationContext);
+
+    this.assertUniqueName(tool.name);
 
     await ErrorHandler.tryCatch(
       () => {
