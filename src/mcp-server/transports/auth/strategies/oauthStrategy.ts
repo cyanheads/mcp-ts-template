@@ -80,6 +80,7 @@ export class OauthStrategy implements AuthStrategy {
       const { payload }: JWTVerifyResult = await jwtVerify(token, this.jwks, {
         issuer: this.issuerUrl,
         audience: this.audience,
+        algorithms: ['RS256', 'ES256', 'PS256'],
       });
       this.logger.debug('OAuth token signature verified successfully.', {
         ...context,
