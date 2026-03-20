@@ -284,6 +284,34 @@ export class SchedulerService {
   }
 
   /**
+   * Stops and removes all registered jobs. Intended for use during server
+   * shutdown to prevent `node-cron` timers from keeping the event loop alive.
+   *
+   * Each job's underlying `ScheduledTask` is stopped before the map is cleared.
+   * In-progress executions are not forcibly interrupted — they will complete
+   * naturally, but no further ticks will fire.
+   *
+   * @remarks
+   * This method should be called from the application's shutdown sequence
+   * (e.g., in `app.ts` signal handler) to ensure a clean exit.
+   *
+   * @example
+   * // During server shutdown
+   * schedulerService.destroyAll();
+   */
+  public destroyAll(): void {
+    const context = requestContextService.createRequestContext({
+      operation: 'scheduler:destroyAll',
+    });
+    for (const job of this.jobs.values()) {
+      void job.task.stop();
+    }
+    const count = this.jobs.size;
+    this.jobs.clear();
+    logger.info(`All scheduled jobs destroyed (${count} removed).`, context);
+  }
+
+  /**
    * Returns a snapshot of all currently registered jobs, regardless of their
    * running state.
    *

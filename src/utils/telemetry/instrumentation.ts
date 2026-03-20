@@ -254,6 +254,9 @@ export async function shutdownOpenTelemetry(timeoutMs = 5000): Promise<void> {
 
   try {
     const shutdownPromise = sdk.shutdown();
+    // Attach a no-op catch so the promise doesn't become an unhandled rejection
+    // if the timeout wins the race and sdk.shutdown() later rejects.
+    shutdownPromise.catch(() => {});
     const { promise: timeoutPromise, reject } = Promise.withResolvers<never>();
     const timer = setTimeout(
       () => reject(new Error('OpenTelemetry SDK shutdown timeout')),

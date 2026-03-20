@@ -32,6 +32,7 @@ import { configurationError } from '@/types-global/errors.js';
 import { logger, type McpLogLevel } from '@/utils/internal/logger.js';
 import { initHighResTimer } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
+import { schedulerService } from '@/utils/scheduling/scheduler.js';
 import { RateLimiter } from '@/utils/security/rateLimiter.js';
 import {
   initializeOpenTelemetry,
@@ -96,13 +97,14 @@ export interface ComposedApp {
 export async function composeServices(options: CreateAppOptions = {}): Promise<ComposedApp> {
   const { tools = [], resources = [], prompts = [], setup } = options;
 
-  // Apply name/version overrides without mutating process.env — avoids
-  // concurrency races in Workers and parallel test suites.
+  // Persist name/version overrides to process.env so they survive resetConfig()
+  // and are visible to OTEL, logger, and transport throughout the process lifetime.
   if (options.name || options.version) {
-    const envOverrides: Record<string, string> = {};
-    if (options.name) envOverrides.MCP_SERVER_NAME = options.name;
-    if (options.version) envOverrides.MCP_SERVER_VERSION = options.version;
-    resetConfig(envOverrides);
+    if (typeof process !== 'undefined' && process.env) {
+      if (options.name) process.env.MCP_SERVER_NAME = options.name;
+      if (options.version) process.env.MCP_SERVER_VERSION = options.version;
+    }
+    resetConfig();
   }
 
   // --- Core services ---
@@ -189,11 +191,6 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
       toolRegistry,
     });
 
-  // Clear overridden config so subsequent proxy accesses re-parse from env.
-  if (options.name || options.version) {
-    resetConfig();
-  }
-
   return {
     coreServices,
     createServer,
@@ -240,14 +237,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   // --- Compose services (handles env overrides internally for config parsing) ---
   const { coreServices, createServer, definitionCounts, taskManager } =
     await composeServices(options);
-
-  // composeServices restores env vars for re-entrancy. Re-apply overrides
-  // for the process lifetime so OTEL, logger, and transport see the correct identity.
-  if (options.name || options.version) {
-    if (options.name) process.env.MCP_SERVER_NAME = options.name;
-    if (options.version) process.env.MCP_SERVER_VERSION = options.version;
-    resetConfig();
-  }
 
   // --- Initialize OTEL + high-res timer (independent, run in parallel) ---
   await Promise.all([
@@ -346,14 +335,21 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   logger.info(`Starting ${config.mcpServerName} (v${config.mcpServerVersion})...`, startupContext);
 
   // --- Named handlers (stored for cleanup in shutdown) ---
+
+  // Attempt graceful shutdown but guarantee termination via backstop timer.
+  const fatalShutdown = (signal: string) => {
+    const backstop = setTimeout(() => process.exit(1), 10_000);
+    backstop.unref();
+    void shutdown(signal).finally(() => process.exit(1));
+  };
   const onUncaughtException = (error: Error) => {
     logger.fatal('FATAL: Uncaught exception detected.', error, startupContext);
-    void shutdown('uncaughtException');
+    fatalShutdown('uncaughtException');
   };
   const onUnhandledRejection = (reason: unknown) => {
     const err = reason instanceof Error ? reason : new Error(String(reason));
     logger.fatal('FATAL: Unhandled promise rejection detected.', err, startupContext);
-    void shutdown('unhandledRejection');
+    fatalShutdown('unhandledRejection');
   };
   const onSigterm = () => void shutdown('SIGTERM');
   const onSigint = () => void shutdown('SIGINT');
@@ -387,6 +383,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
         });
 
         coreServices.rateLimiter.dispose();
+        schedulerService.destroyAll();
 
         logger.info('Graceful shutdown completed successfully.', shutdownContext);
       });
@@ -405,9 +402,12 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
     }
   };
 
-  // --- Register error/signal handlers ---
+  // --- Register error/signal handlers (before transport start so a SIGTERM
+  //     during HTTP bind still triggers graceful shutdown) ---
   process.on('uncaughtException', onUncaughtException);
   process.on('unhandledRejection', onUnhandledRejection);
+  process.on('SIGTERM', onSigterm);
+  process.on('SIGINT', onSigint);
 
   // --- Start transport (wrapped in startup span with phase breakdown) ---
   await withSpan('mcp.server.startup', async (span) => {
@@ -424,9 +424,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   });
 
   logger.info(`${config.mcpServerName} is now running and ready.`, startupContext);
-
-  process.on('SIGTERM', onSigterm);
-  process.on('SIGINT', onSigint);
 
   return { services: coreServices, shutdown };
 }

@@ -163,6 +163,7 @@ export function createWorkerHandler(options: WorkerHandlerOptions = {}) {
         }
 
         const { createServer, definitionCounts } = await composeServices(appOptions);
+
         await initHighResTimer();
 
         const logLevel = env.LOG_LEVEL?.toLowerCase() ?? 'info';
