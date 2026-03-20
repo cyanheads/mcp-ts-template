@@ -542,13 +542,17 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 | `add-resource` | `skills/add-resource/SKILL.md` | Scaffold a new MCP resource definition |
 | `add-prompt` | `skills/add-prompt/SKILL.md` | Scaffold a new MCP prompt definition |
 | `add-service` | `skills/add-service/SKILL.md` | Scaffold a new domain service |
+| `add-test` | `skills/add-test/SKILL.md` | Scaffold test file for a tool, resource, or service |
 | `add-provider` | `skills/add-provider/SKILL.md` | Add a new provider implementation |
 | `add-export` | `skills/add-export/SKILL.md` | Add a new subpath export |
+| `design-mcp-server` | `skills/design-mcp-server/SKILL.md` | Design tool surface, resources, and service layer for a new server |
 | `setup` | `skills/setup/SKILL.md` | Initialize a new consumer server from the template |
 | `devcheck` | `skills/devcheck/SKILL.md` | Run lint, format, typecheck, security checks |
+| `polish` | `skills/polish/SKILL.md` | Finalize docs, README, metadata, and agent protocol for shipping |
 | `release` | `skills/release/SKILL.md` | Version bump, changelog, publish workflow |
 | `maintenance` | `skills/maintenance/SKILL.md` | Dependency updates, housekeeping tasks |
 | `migrate-mcp-ts-template` | `skills/migrate-mcp-ts-template/SKILL.md` | Migrate legacy template fork to package dependency |
+| `walkthrough-init` | `skills/walkthrough-init/SKILL.md` | Trace and audit the agent onboarding instruction chain |
 
 ---
 

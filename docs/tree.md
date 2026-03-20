@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-17 01:41:57
+Generated on: 2026-03-20 12:32:44
 
 ```
 mcp-ts-core/
@@ -13,6 +13,7 @@ mcp-ts-core/
 ├── .storage/
 ├── .vscode/
 │   └── settings.json
+├── claude-plans/
 ├── docs/
 │   ├── mcp-specification/
 │   │   └── 2025-06-18/
@@ -71,6 +72,8 @@ mcp-ts-core/
 │   │   └── SKILL.md
 │   ├── add-service/
 │   │   └── SKILL.md
+│   ├── add-test/
+│   │   └── SKILL.md
 │   ├── add-tool/
 │   │   └── SKILL.md
 │   ├── api-auth/
@@ -104,6 +107,13 @@ mcp-ts-core/
 │   ├── maintenance/
 │   │   └── SKILL.md
 │   ├── migrate-mcp-ts-template/
+│   │   └── SKILL.md
+│   ├── polish/
+│   │   ├── references/
+│   │   │   ├── agent-protocol.md
+│   │   │   ├── package-meta.md
+│   │   │   ├── readme.md
+│   │   │   └── server-json.md
 │   │   └── SKILL.md
 │   ├── release/
 │   │   └── SKILL.md
@@ -261,10 +271,10 @@ mcp-ts-core/
 │   │   │   ├── rateLimiter.ts
 │   │   │   └── sanitization.ts
 │   │   ├── telemetry/
+│   │   │   ├── attributes.ts
 │   │   │   ├── index.ts
 │   │   │   ├── instrumentation.ts
 │   │   │   ├── metrics.ts
-│   │   │   ├── semconv.ts
 │   │   │   └── trace.ts
 │   │   ├── types/
 │   │   │   ├── guards.ts
@@ -457,10 +467,10 @@ mcp-ts-core/
 │   │   │   ├── sanitization.property.test.ts
 │   │   │   └── sanitization.test.ts
 │   │   ├── telemetry/
+│   │   │   ├── attributes.test.ts
 │   │   │   ├── index.test.ts
 │   │   │   ├── instrumentation.test.ts
 │   │   │   ├── metrics.test.ts
-│   │   │   ├── semconv.test.ts
 │   │   │   └── trace.test.ts
 │   │   └── types/
 │   │       └── guards.test.ts

@@ -45,25 +45,23 @@ Capture: tool count, resource count, prompt count, service count, required env v
 
 ### 2. README.md
 
-Create or rewrite `README.md`. This is the face of the project.
-
-Read `references/readme.md` for structure and conventions, then generate the README from the audit above. Key sections: overview, features (tool/resource table), installation, configuration, development commands.
+Read `references/readme.md` for structure and conventions. If `README.md` doesn't exist, create it from scratch. If it exists, diff the current content against the audit — update tool/resource/prompt tables, env var lists, and descriptions to match the actual surface area. Don't rewrite sections that are already accurate.
 
 ### 3. Agent Protocol (CLAUDE.md / AGENTS.md)
 
 Update the project's agent protocol file to reflect the actual server.
 
-Read `references/agent-protocol.md` for the update checklist, then:
+Read `references/agent-protocol.md` for the full update checklist, then review the current file and address what's stale or missing:
 
-- Strip the "First Session" onboarding block (it's one-time only)
-- Replace example patterns with real tool/resource/prompt examples from this server
-- Update the skills table if server-specific skills were added
-- Verify the structure diagram matches reality
-- Update commands table if custom scripts were added
+- If a "First Session" onboarding block is still present, remove it
+- If example patterns still use generic/template names (e.g., `searchItems`, `itemData`), replace with real definitions from this server
+- If server-specific skills were added, update the skills table
+- Verify the structure diagram matches the actual directory layout
+- If custom scripts were added to `package.json`, update the commands table
 
 ### 4. `.env.example`
 
-Merge server-specific env vars into `.env.example`. For each var in the server config Zod schema, add a commented line with description and default (if any). Group by category. Preserve the existing framework vars.
+Compare `.env.example` against the server config Zod schema. Add any missing server-specific vars with a comment and default (if any). Remove vars for features that no longer exist. Group by category. Preserve existing framework vars that are still relevant.
 
 ### 5. `package.json` Metadata
 
