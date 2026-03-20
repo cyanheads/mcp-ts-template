@@ -20,4 +20,6 @@ export const echoTool = tool('template_echo_message', {
   handler(input) {
     return { message: input.message };
   },
+
+  format: (result) => [{ type: 'text', text: result.message }],
 });

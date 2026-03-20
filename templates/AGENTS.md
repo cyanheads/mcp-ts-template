@@ -1,7 +1,7 @@
 # Agent Protocol
 
 **Server:** {{PACKAGE_NAME}}
-**Version:** 0.1.2
+**Version:** 0.1.0
 **Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core)
 
 > **Read the framework docs first:** `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` contains the full API reference — builders, Context, error codes, exports, patterns. This file covers server-specific conventions only.
@@ -203,7 +203,9 @@ Available skills:
 | `add-resource` | Scaffold a new resource definition |
 | `add-prompt` | Scaffold a new prompt definition |
 | `add-service` | Scaffold a new service integration |
+| `add-test` | Scaffold test file for a tool, resource, or service |
 | `devcheck` | Lint, format, typecheck, audit |
+| `polish` | Finalize docs, README, metadata, and agent protocol for shipping |
 | `maintenance` | Sync skills and dependencies after updates |
 | `migrate-mcp-ts-template` | Migrate legacy template fork to package dependency |
 | `api-auth` | Auth modes, scopes, JWT/OAuth |
