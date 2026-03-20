@@ -138,9 +138,12 @@ export function createToolHandler(
         validatedInput,
       );
 
+      // Validate output against schema when defined (matches resourceHandlerFactory behavior)
+      const validatedResult = def.output ? def.output.parse(result) : result;
+
       return {
-        ...(def.output && { structuredContent: result }),
-        content: formatter(result),
+        ...(def.output && { structuredContent: validatedResult }),
+        content: formatter(validatedResult),
       };
     } catch (error: unknown) {
       const handled = ErrorHandler.handleError(error, {

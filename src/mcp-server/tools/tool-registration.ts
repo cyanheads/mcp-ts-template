@@ -275,12 +275,13 @@ export class ToolRegistry {
       });
 
       const result = await Promise.resolve(tool.handler(input as Record<string, unknown>, ctx));
+      const validatedResult = tool.output ? tool.output.parse(result) : result;
 
       clearInterval(cancelInterval);
 
       await taskStore.storeTaskResult(taskId, 'completed', {
-        content: formatter(result),
-        ...(tool.output && { structuredContent: result }),
+        content: formatter(validatedResult),
+        ...(tool.output && { structuredContent: validatedResult }),
       });
     } catch (error: unknown) {
       clearInterval(cancelInterval);
