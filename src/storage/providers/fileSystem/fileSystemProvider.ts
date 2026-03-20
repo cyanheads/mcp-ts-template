@@ -222,8 +222,11 @@ export class FileSystemProvider implements IStorageProvider {
         const allKeys = await this.listFilesRecursively(tenantPath, tenantPath);
         const candidateKeys = allKeys.filter((k) => k.startsWith(prefix));
 
-        // TTL-aware filtering: best-effort; expensive on large stores.
+        // TTL-aware filtering: reads each file to check expiration.
+        // Retains parsed values to populate ListResult.values, avoiding
+        // a redundant getMany() in ContextState.list().
         const validKeys: string[] = [];
+        const validValues = new Map<string, unknown>();
         for (const k of candidateKeys) {
           const filePath = this.getFilePath(tenantId, k);
           try {
@@ -231,6 +234,7 @@ export class FileSystemProvider implements IStorageProvider {
             const value = await this.parseAndValidate<unknown>(raw, tenantId, k, filePath, context);
             if (value !== null) {
               validKeys.push(k);
+              validValues.set(k, value);
             }
           } catch (_e) {}
         }
@@ -261,9 +265,17 @@ export class FileSystemProvider implements IStorageProvider {
             ? encodeCursor(paginatedKeys[paginatedKeys.length - 1] as string, tenantId)
             : undefined;
 
+        // Build a values map for the paginated slice only.
+        const paginatedValues = new Map<string, unknown>();
+        for (const k of paginatedKeys) {
+          const v = validValues.get(k);
+          if (v !== undefined) paginatedValues.set(k, v);
+        }
+
         return {
           keys: paginatedKeys,
           nextCursor,
+          values: paginatedValues,
         };
       },
       {

@@ -179,7 +179,7 @@ export function createContext(deps: ContextDeps): Context {
       : appContext;
 
   const log = createContextLogger(pinoLogger, effectiveContext);
-  const state = createContextState(storage, effectiveContext);
+  const state = createContextState(storage, effectiveContext, signal);
   const progress = deps.taskCtx
     ? createContextProgress(deps.taskCtx.store, deps.taskCtx.taskId)
     : undefined;
@@ -239,7 +239,11 @@ function createContextLogger(appLogger: Logger, appContext: RequestContext): Con
 // ContextState implementation
 // ---------------------------------------------------------------------------
 
-function createContextState(storage: StorageService, appContext: RequestContext): ContextState {
+function createContextState(
+  storage: StorageService,
+  appContext: RequestContext,
+  signal: AbortSignal,
+): ContextState {
   const requireContext = (): RequestContext => {
     if (!appContext.tenantId) {
       throw invalidRequest(
@@ -251,11 +255,13 @@ function createContextState(storage: StorageService, appContext: RequestContext)
 
   return {
     async get(key: string, schema?: ZodType) {
+      signal.throwIfAborted();
       const result = await storage.get<unknown>(key, requireContext());
       if (result === null || result === undefined) return null;
       return schema ? schema.parse(result) : result;
     },
     async set(key, value, opts) {
+      signal.throwIfAborted();
       await storage.set(
         key,
         value,
@@ -264,15 +270,19 @@ function createContextState(storage: StorageService, appContext: RequestContext)
       );
     },
     async delete(key) {
+      signal.throwIfAborted();
       await storage.delete(key, requireContext());
     },
     deleteMany(keys) {
+      signal.throwIfAborted();
       return storage.deleteMany(keys, requireContext());
     },
     getMany(keys) {
+      signal.throwIfAborted();
       return storage.getMany(keys, requireContext());
     },
     async setMany(entries, opts) {
+      signal.throwIfAborted();
       await storage.setMany(
         entries,
         requireContext(),
@@ -280,18 +290,25 @@ function createContextState(storage: StorageService, appContext: RequestContext)
       );
     },
     async list(prefix, opts) {
+      signal.throwIfAborted();
       const ctx = requireContext();
       const result = await storage.list(prefix ?? '', ctx, {
         ...(opts?.cursor ? { cursor: opts.cursor } : {}),
         ...(opts?.limit !== undefined ? { limit: opts.limit } : {}),
       });
 
-      // StorageService.list() returns keys only. Fetch values via getMany.
       const keys = result.keys;
       const items: Array<{ key: string; value: unknown }> = [];
 
       if (keys.length > 0) {
-        const values = await storage.getMany<unknown>(keys, ctx);
+        // Use pre-fetched values when the provider supplies them, otherwise fetch.
+        let values: Map<string, unknown>;
+        if (result.values) {
+          values = result.values;
+        } else {
+          signal.throwIfAborted();
+          values = await storage.getMany<unknown>(keys, ctx);
+        }
         for (const key of keys) {
           const value = values.get(key);
           if (value !== undefined) {

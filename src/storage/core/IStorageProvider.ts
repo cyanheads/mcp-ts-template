@@ -59,6 +59,13 @@ export interface ListResult {
    * Undefined if there are no more results.
    */
   nextCursor?: string | undefined;
+  /**
+   * Optional pre-fetched values keyed by key name. When present, callers
+   * can use these directly instead of issuing a separate getMany() call.
+   * Providers that already read file/record contents during list (e.g. for
+   * TTL validation) should populate this to avoid redundant I/O.
+   */
+  values?: Map<string, unknown>;
 }
 
 /**
