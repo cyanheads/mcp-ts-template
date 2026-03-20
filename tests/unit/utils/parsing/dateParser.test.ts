@@ -14,7 +14,10 @@ vi.mock('chrono-node', () => ({
 
 // Import after mock is set up
 import * as chrono from 'chrono-node';
-import { parseDateString, parseDateStringDetailed } from '../../../../src/utils/parsing/dateParser.js';
+import {
+  parseDateString,
+  parseDateStringDetailed,
+} from '../../../../src/utils/parsing/dateParser.js';
 
 const context = {
   requestId: 'date-parser-test',
