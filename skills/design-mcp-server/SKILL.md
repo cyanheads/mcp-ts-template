@@ -240,6 +240,7 @@ For each resource:
 ### 6. Design Prompts (if needed)
 
 Optional. Use when the server has recurring interaction patterns worth structuring:
+
 - Analysis frameworks, report templates, multi-step workflows
 
 Skip for purely data/action-oriented servers.

@@ -156,7 +156,7 @@ Plain `Error` is fine for most cases. Use factories when the error code matters.
 
 ## Structure
 
-```
+```text
 src/
   index.ts                              # createApp() entry point
   config/

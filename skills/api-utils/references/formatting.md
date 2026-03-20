@@ -24,7 +24,7 @@ import { markdown, MarkdownBuilder, diffFormatter, tableFormatter, treeFormatter
 | `codeBlock` | `(content, language?) -> this` | Fenced block; `language` defaults to `''` |
 | `inlineCode` | `(code) -> this` | Backtick-wrapped; no trailing newline |
 | `paragraph` | `(text) -> this` | Text + `\n\n` |
-| `blockquote` | `(text) -> this` | Each line prefixed with `> ` |
+| `blockquote` | `(text) -> this` | Each line prefixed with `>` + space |
 | `hr` | `() -> this` | `---` |
 | `link` | `(text, url) -> this` | `[text](url)`; no trailing newline |
 | `table` | `(headers, rows) -> this` | GFM table; no-ops if headers or rows empty |
@@ -150,7 +150,7 @@ interface TableFormatterOptions {
 | Style | Description |
 |:------|:------------|
 | `markdown` | GFM pipes with alignment indicators in separator row |
-| `ascii` | `+`/`-`/`|` box drawing |
+| `ascii` | `+`/`-`/`\|` box drawing |
 | `grid` | Unicode box drawing (`┌─┬─┐` / `│` / `├─┼─┤` / `└─┴─┘`) |
 | `compact` | Space-separated, no borders |
 
@@ -211,7 +211,7 @@ interface TreeFormatterOptions {
 | Style | Connectors |
 |:------|:-----------|
 | `unicode` | `├──` / `└──` / `│` |
-| `ascii` | `+--` / `\--` / `|` |
+| `ascii` | `+--` / `\--` / `\|` |
 | `compact` | Indented list, no connectors |
 
 ### Usage

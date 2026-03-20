@@ -32,7 +32,7 @@ Read that file once per session. It contains the exports catalog, tool/resource/
 
 What `init` actually creates:
 
-```
+```text
 CLAUDE.md                                       # Agent protocol (project-specific)
 AGENTS.md                                       # Same content — delete whichever you don't use
 skills/                                         # Project skills (source of truth)
@@ -49,7 +49,7 @@ src/
 
 Add these as needed:
 
-```
+```text
 src/
   worker.ts                                     # createWorkerHandler() — only for Cloudflare Workers
   config/

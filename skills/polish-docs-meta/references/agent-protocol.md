@@ -27,6 +27,7 @@ The scaffolded template includes a `## First Session` section with one-time onbo
 Check the Patterns section for generic template examples (e.g., `searchItems`, `itemData`, `reviewCode`). If still present, replace them with actual tool/resource/prompt definitions from the server — or the most representative ones if there are many. If the examples already reflect real definitions, verify they're still accurate.
 
 Pick examples that:
+
 - Show the most common or important capability
 - Demonstrate any non-trivial patterns the server uses (e.g., `ctx.state`, `ctx.elicit`, `task: true`, services)
 - Include a handler with real business logic, not just passthrough

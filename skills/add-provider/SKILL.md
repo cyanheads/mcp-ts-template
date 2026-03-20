@@ -49,6 +49,7 @@ Provider file location and naming differ by domain:
 2. **Create the provider file** following the file convention for its domain (see above).
 3. **Implement the interface** — all methods must be implemented.
 4. **Lazy-load dependencies** if Tier 3:
+
    ```typescript
    let _client: SomeClient | undefined;
    async function getClient(): Promise<SomeClient> {
@@ -59,6 +60,7 @@ Provider file location and naming differ by domain:
      return _client;
    }
    ```
+
 5. **Register the provider** — the registration point differs by domain:
 
    - **Storage** — add a `case` to the `switch` in `src/storage/core/storageFactory.ts`
@@ -79,10 +81,12 @@ Provider file location and naming differ by domain:
 6. **Update the Worker-compatible provider list** if the new storage provider runs in
    Cloudflare Workers. The list is an inline array in `storageFactory.ts` at the
    `isServerless()` guard:
+
    ```typescript
    // src/storage/core/storageFactory.ts ~line 112
    !['in-memory', 'cloudflare-r2', 'cloudflare-kv', 'cloudflare-d1'].includes(providerType)
    ```
+
    Add the new provider string to this array. Non-storage providers have no equivalent
    gate.
 

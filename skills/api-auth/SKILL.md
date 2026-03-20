@@ -50,6 +50,7 @@ handler: async (input, ctx) => {
 **Signature:** `checkScopes(ctx: Context, requiredScopes: string[]): void`
 
 **Throws:**
+
 - `McpError(Forbidden)` — auth is active and one or more required scopes are missing
 - `McpError(Unauthorized)` — auth is enabled but no auth context exists on the request
 - No-ops when `MCP_AUTH_MODE=none`

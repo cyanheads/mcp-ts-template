@@ -7,6 +7,7 @@ import { yamlParser, xmlParser, csvParser, jsonParser, pdfParser, dateParser, fr
 All parsers are **Tier 3** — lazy-load their peer dependency on first call. All methods are **async** unless noted.
 
 **Common behavior:**
+
 - Singleton instances exported alongside classes
 - `<think>...</think>` blocks at the start of input are automatically stripped and logged at `debug` level (except `dateParser` and `pdfParser`)
 - All `context?: RequestContext` parameters are optional (synthetic context created if omitted)

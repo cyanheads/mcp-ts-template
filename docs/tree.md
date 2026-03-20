@@ -1,8 +1,8 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-20 13:05:59
+Generated on: 2026-03-20 13:39:26
 
-```
+```text
 mcp-ts-core/
 ├── .agents/
 ├── .claude/
@@ -301,6 +301,7 @@ mcp-ts-core/
 │   ├── AGENTS.md
 │   ├── biome.template.json
 │   ├── CLAUDE.md
+│   ├── Dockerfile
 │   ├── package.json
 │   └── vitest.config.ts
 ├── tests/
@@ -482,6 +483,7 @@ mcp-ts-core/
 ├── .env.example
 ├── .gitattributes
 ├── .gitignore
+├── .markdownlint.jsonc
 ├── AGENTS.md
 ├── biome.json
 ├── bun.lock

@@ -241,7 +241,7 @@ function buildOutputContent(projectName: string, treeContent: string, maxDepth: 
   const timestamp = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
   const header = `# ${projectName} - Directory Structure\n\nGenerated on: ${timestamp}\n`;
   const depthInfo = maxDepth !== Infinity ? `\n_Depth limited to ${maxDepth} levels_\n\n` : '\n';
-  const treeBlock = `\`\`\`\n${projectName}/\n${treeContent}\`\`\`\n`;
+  const treeBlock = `\`\`\`text\n${projectName}/\n${treeContent}\`\`\`\n`;
   const footer = `\n_Note: This tree excludes files and directories matched by .gitignore and default patterns._\n`;
   return header + depthInfo + treeBlock + footer;
 }

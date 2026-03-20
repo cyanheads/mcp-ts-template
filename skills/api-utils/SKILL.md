@@ -56,7 +56,7 @@ Utility exports from `@cyanheads/mcp-ts-core/utils`. Utilities with complex APIs
 
 | Export | API | Notes |
 |:-------|:----|:------|
-| `schedulerService` | `.schedule(id, schedule, taskFunction, description) -> Promise<Job>` `.start(id) -> void` `.stop(id) -> void` `.remove(id) -> void` `.listJobs() -> Job[]` | **Async** `schedule()` — Tier 3 peer: `node-cron`. **Node-only** (throws `ConfigurationError` in Workers). Jobs start in stopped state; call `start(id)` to activate. Skips overlapping executions. Each tick gets fresh `RequestContext`. `Job: { id, schedule, description, isRunning, task }`. `taskFunction: (context: RequestContext) => void | Promise<void>`. |
+| `schedulerService` | `.schedule(id, schedule, taskFunction, description) -> Promise<Job>` `.start(id) -> void` `.stop(id) -> void` `.remove(id) -> void` `.listJobs() -> Job[]` | **Async** `schedule()` — Tier 3 peer: `node-cron`. **Node-only** (throws `ConfigurationError` in Workers). Jobs start in stopped state; call `start(id)` to activate. Skips overlapping executions. Each tick gets fresh `RequestContext`. `Job: { id, schedule, description, isRunning, task }`. `taskFunction: (context: RequestContext) => void` \| `Promise<void>`. |
 
 ---
 

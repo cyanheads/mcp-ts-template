@@ -1,0 +1,14 @@
+{
+  // Line length — prose wraps naturally, tables/URLs can't be shortened
+  "MD013": false,
+  // Duplicate headings — changelogs reuse ### Added, ### Changed, etc.
+  "MD024": false,
+  // Inline HTML — GitHub README centering, badges, sponsor links
+  "MD033": false,
+  // First line h1 — README starts with <div align="center">
+  "MD041": false,
+  // Code block style — we use fenced (```), not indented
+  "MD046": false,
+  // Table column style — compact pipes in dense reference tables
+  "MD060": false
+}

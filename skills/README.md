@@ -14,7 +14,7 @@ Skills flow through three locations. Each tier has a distinct role:
 
 ### Flow
 
-```
+```text
 npm publish                    init CLI                    agent sync
 [package skills/] ──────────> [project skills/] ──────────> [.claude/skills/]
                                      │

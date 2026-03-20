@@ -34,6 +34,7 @@ If these aren't met, address them first.
 Read all tool, resource, and prompt definitions. Build a mental model of what the server actually does — names, descriptions, input/output shapes, auth scopes. This inventory drives every document below.
 
 Read:
+
 - `src/index.ts` (what's registered in `createApp()`)
 - All files in `src/mcp-server/tools/definitions/`
 - All files in `src/mcp-server/resources/definitions/`

@@ -82,7 +82,7 @@ bun run build
 
 ### 9. Commit
 
-```
+```text
 chore: release v{{VERSION}}
 ```
 
@@ -96,7 +96,7 @@ git tag -a v{{VERSION}} -m "v{{VERSION}}: <one-line summary of key changes>"
 
 The tag message should capture the most important change(s) — not the full changelog, just enough to orient someone browsing tags. Examples:
 
-```
+```text
 v0.2.0: Cloudflare Workers support, task tools, Graph service
 v0.1.7: OTel instrumentation refactor, lighter semconv
 v0.1.6: Error factory functions, auto-classification patterns
