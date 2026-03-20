@@ -62,10 +62,10 @@ describe('ErrorHandler', () => {
       );
     });
 
-    it('should not misclassify "Invalid auth token format" as Unauthorized', () => {
-      // Regression: bare "auth" substring previously matched Unauthorized
-      expect(ErrorHandler.determineErrorCode(new Error('Invalid auth token format'))).not.toBe(
-        JsonRpcErrorCode.Unauthorized,
+    it('should classify "Invalid auth token format" as ValidationError not Unauthorized', () => {
+      // Regression: bare "auth" substring previously matched Unauthorized before ValidationError
+      expect(ErrorHandler.determineErrorCode(new Error('Invalid auth token format'))).toBe(
+        JsonRpcErrorCode.ValidationError,
       );
     });
 

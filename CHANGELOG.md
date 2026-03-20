@@ -14,10 +14,10 @@ Security hardening, reliability improvements, public API surface refinement, and
 - **Auth-gated server metadata** — `GET /mcp` returns minimal `{ status: 'ok' }` when auth is enabled, hiding server name, version, environment, and capability details from unauthenticated callers.
 - **OTel scope redaction** — Auth middleware logs scope count instead of scope values in OTel span attributes, preventing authorization model exposure to tracing backends.
 - **JWT issuer/audience validation** — `JwtStrategy` validates `iss` and `aud` claims when `MCP_JWT_EXPECTED_ISSUER` / `MCP_JWT_EXPECTED_AUDIENCE` are configured. Explicit `algorithms: ['HS256']` constraint on token verification.
-- **Dev bypass guard tightened** — `DEV_MCP_AUTH_BYPASS` rejected in all non-development environments (testing, staging, production), not just production.
+- **Dev bypass guard** — `DEV_MCP_AUTH_BYPASS` rejected in production (`NODE_ENV=production`). Allowed in development and testing environments.
 - **Session capacity limits** — `SessionStore` enforces a configurable maximum session count (default 10,000), preventing unbounded memory growth from session exhaustion.
 - **Atomic identity binding** — Session identity fields (tenantId, clientId, subject) bound atomically as a snapshot, preventing chimeric identities from per-field races across requests.
-- **Error data restricted to development** — `McpError.data` in HTTP JSON-RPC error responses only included when `NODE_ENV=development`.
+- **Error data sanitization** — HTTP error handler captures `McpError.data` before `ErrorHandler` enrichment, preventing internal details (stack traces, cause chains) from leaking while preserving developer-intentional error context.
 
 ### Added
 
@@ -44,7 +44,7 @@ Security hardening, reliability improvements, public API surface refinement, and
 ### Changed
 
 - **TypeError no longer mapped to ValidationError** — Runtime TypeErrors (e.g., "Cannot read properties of undefined") are programming errors, not validation failures. They now fall through to message-pattern matching or `InternalError` fallback.
-- **Narrowed validation error pattern** — The `invalid` keyword pattern now requires a qualifying noun (`invalid input`, `invalid parameter`, etc.) to prevent misclassification of messages like "Invalid auth token format".
+- **Validation error pattern** — Restored broad `invalid` keyword matching. The pattern relies on ordering (Unauthorized patterns are checked first) rather than a restrictive noun list, so messages like "Invalid email" correctly classify as ValidationError.
 - **R2 provider: idempotent delete** — Removed pre-delete `head()` check. R2 `delete()` is idempotent; the extra round-trip added latency under eventual consistency.
 - **R2 provider: consistent pagination** — Switched from R2 native cursor to limit+1 pagination with `startAfter`, matching D1/Supabase providers.
 - **D1 provider: strict JSON parsing** — `getMany()` throws `McpError(SerializationError)` on parse failure instead of silently skipping corrupted values.

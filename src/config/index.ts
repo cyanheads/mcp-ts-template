@@ -265,13 +265,13 @@ const ConfigSchema = z
       .optional(),
   })
   .superRefine((data, ctx) => {
-    // Guard: reject dev bypass in any non-development environment (production, testing, staging)
-    if (data.environment !== 'development' && data.devMcpAuthBypass) {
+    // Production guard: reject dev bypass in production regardless of auth mode
+    if (data.environment === 'production' && data.devMcpAuthBypass) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['devMcpAuthBypass'],
         message:
-          'DEV_MCP_AUTH_BYPASS can only be enabled in development (NODE_ENV=development). This flag is not allowed in production or testing environments.',
+          'DEV_MCP_AUTH_BYPASS cannot be enabled in production (NODE_ENV=production). This flag is for development only.',
       });
     }
 

@@ -125,7 +125,7 @@ const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
   },
   {
     pattern:
-      /invalid\s+(?:input|param(?:eter)?|argument|field|format|value|request|schema|payload|type|syntax)|validation|malformed|bad request|wrong format|missing\s+(?:required|param|field|input|value|arg)/i,
+      /invalid|validation|malformed|bad request|wrong format|missing\s+(?:required|param|field|input|value|arg)/i,
     errorCode: JsonRpcErrorCode.ValidationError,
   },
   {

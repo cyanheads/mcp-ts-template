@@ -109,8 +109,8 @@ describe('Error Handler Mappings', () => {
       expect(match?.errorCode).not.toBe(JsonRpcErrorCode.Unauthorized);
     });
 
-    it('should not classify "Invalid auth token format" as Unauthorized', () => {
-      // Regression: bare "auth" substring must not trigger Unauthorized
+    it('should classify "Invalid auth token format" as ValidationError not Unauthorized', () => {
+      // Simulates the full resolution chain: first match wins across all patterns
       const msg = 'Invalid auth token format';
       let matchedCode: JsonRpcErrorCode | undefined;
       for (const p of COMPILED_ERROR_PATTERNS) {
@@ -119,7 +119,7 @@ describe('Error Handler Mappings', () => {
           break;
         }
       }
-      expect(matchedCode).not.toBe(JsonRpcErrorCode.Unauthorized);
+      expect(matchedCode).toBe(JsonRpcErrorCode.ValidationError);
     });
 
     it('should match "permission denied" as Forbidden', () => {
