@@ -65,13 +65,13 @@ Compare `.env.example` against the server config Zod schema. Add any missing ser
 
 ### 5. `package.json` Metadata
 
-Fill in fields that `init` left empty. Read `references/package-meta.md` for which fields matter and why.
+Check for empty or placeholder metadata fields. Read `references/package-meta.md` for which fields matter and why. Fill in anything still missing — skip fields that are already correct.
 
 Key fields: `description`, `repository`, `author`, `homepage`, `bugs`, `keywords`.
 
 ### 6. `CHANGELOG.md`
 
-Create `CHANGELOG.md` with an initial entry if it doesn't exist:
+If `CHANGELOG.md` doesn't exist, create it with an initial entry. If it exists, verify the latest entry reflects the current state:
 
 ```markdown
 # Changelog
