@@ -95,6 +95,7 @@ const gitBranch = tool('git_branch', {
     name: z.string().optional().describe('Branch name (required for create/delete/rename).'),
     newName: z.string().optional().describe('New name (required for rename).'),
   }),
+  output: z.object({ /* branch info */ }),
   // ...
 });
 ```

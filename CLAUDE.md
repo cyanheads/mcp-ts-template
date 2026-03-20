@@ -192,6 +192,10 @@ const asyncCountdown = tool('async_countdown', {
     count: z.number().int().positive().describe('Count down from'),
     delayMs: z.number().default(1000).describe('Delay between counts in ms'),
   }),
+  output: z.object({
+    finalCount: z.number().describe('Final count value'),
+    message: z.string().describe('Completion message'),
+  }),
   async handler(input, ctx) {
     await ctx.progress!.setTotal(input.count);
     for (let i = input.count; i > 0; i--) {
@@ -446,6 +450,8 @@ Inline `auth` on definitions (primary pattern):
 
 ```ts
 const myTool = tool('my_tool', {
+  input: z.object({ query: z.string().describe('Search query') }),
+  output: z.object({ result: z.string().describe('Search result') }),
   auth: ['tool:my_tool:read'],
   async handler(input, ctx) { ... },
 });

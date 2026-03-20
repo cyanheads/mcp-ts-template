@@ -23,6 +23,8 @@ Declare required scopes directly on the tool or resource definition via the `aut
 import { tool } from '@cyanheads/mcp-ts-core';
 
 const myTool = tool('my_tool', {
+  input: z.object({ query: z.string().describe('Search query') }),
+  output: z.object({ result: z.string().describe('Search result') }),
   auth: ['tool:my_tool:read'],
   async handler(input, ctx) {
     // Only reached if caller has 'tool:my_tool:read' scope

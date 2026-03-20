@@ -277,6 +277,10 @@ const asyncCountdown = tool('async_countdown', {
     count: z.number().int().positive().describe('Number to count down from'),
     delayMs: z.number().default(1000).describe('Delay between counts in ms'),
   }),
+  output: z.object({
+    finalCount: z.number().describe('Final count value'),
+    message: z.string().describe('Completion message'),
+  }),
 
   async handler(input, ctx) {
     await ctx.progress!.setTotal(input.count);

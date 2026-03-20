@@ -202,6 +202,7 @@ import { notFound } from '@cyanheads/mcp-ts-core/errors';
 
 export const myTool = tool('my_tool', {
   input: z.object({ id: z.string().describe('Item ID') }),
+  output: z.object({ id: z.string(), name: z.string(), status: z.string() }),
   async handler(input, ctx) {
     const item = await db.find(input.id);
     if (!item) {

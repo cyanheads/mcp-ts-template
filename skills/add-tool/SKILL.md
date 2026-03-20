@@ -68,6 +68,7 @@ export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
   description: '{{TOOL_DESCRIPTION}}',
   task: true,
   input: z.object({ /* ... */ }),
+  output: z.object({ /* ... */ }),
 
   async handler(input, ctx) {
     await ctx.progress!.setTotal(totalSteps);
