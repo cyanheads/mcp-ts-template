@@ -1,10 +1,10 @@
 {
   "name": "@cyanheads/mcp-ts-core",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "TypeScript framework for building Model Context Protocol (MCP) servers. Declarative tool/resource/prompt definitions, pluggable auth, multi-backend storage, OpenTelemetry observability, and support for both local (stdio/HTTP) and edge (Cloudflare Workers) runtimes.",
-  "main": "dist/core/app.js",
-  "types": "dist/core/app.d.ts",
+  "main": "dist/core/index.js",
+  "types": "dist/core/index.d.ts",
   "files": [
     "dist/",
     "scripts/build.ts",
@@ -23,8 +23,8 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/core/app.d.ts",
-      "import": "./dist/core/app.js"
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
     },
     "./worker": {
       "types": "./dist/core/worker.d.ts",
@@ -247,10 +247,10 @@
     "dotenv": "^17.3.1",
     "hono": "^4.12.8",
     "jose": "^6.2.2",
-    "pino": "^10.3.1"
+    "pino": "^10.3.1",
+    "zod": "^4.3.6"
   },
   "peerDependencies": {
-    "zod": "^4.3.6",
     "@hono/otel": "^1.1.1",
     "@opentelemetry/instrumentation-http": "^0.213.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.213.0",
