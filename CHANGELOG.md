@@ -4,6 +4,55 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.11] - 2026-03-20
+
+Security hardening, reliability improvements, public API surface refinement, and storage provider consistency.
+
+### Security
+
+- **HMAC-signed pagination cursors** — Cursors now include a truncated HMAC-SHA256 signature using a per-process random key, preventing cursor forgery for key enumeration within tenant namespaces. Cursors are ephemeral — they don't survive process restarts.
+- **Auth-gated server metadata** — `GET /mcp` returns minimal `{ status: 'ok' }` when auth is enabled, hiding server name, version, environment, and capability details from unauthenticated callers.
+- **OTel scope redaction** — Auth middleware logs scope count instead of scope values in OTel span attributes, preventing authorization model exposure to tracing backends.
+- **JWT issuer/audience validation** — `JwtStrategy` validates `iss` and `aud` claims when `MCP_JWT_EXPECTED_ISSUER` / `MCP_JWT_EXPECTED_AUDIENCE` are configured. Explicit `algorithms: ['HS256']` constraint on token verification.
+- **Dev bypass guard tightened** — `DEV_MCP_AUTH_BYPASS` rejected in all non-development environments (testing, staging, production), not just production.
+- **Session capacity limits** — `SessionStore` enforces a configurable maximum session count (default 10,000), preventing unbounded memory growth from session exhaustion.
+- **Atomic identity binding** — Session identity fields (tenantId, clientId, subject) bound atomically as a snapshot, preventing chimeric identities from per-field races across requests.
+- **Error data restricted to development** — `McpError.data` in HTTP JSON-RPC error responses only included when `NODE_ENV=development`.
+
+### Added
+
+- **Public API barrel** — New `src/core/index.ts` selectively re-exports only the public API, keeping internal types (`ComposedApp`, `composeServices`, `TaskManager`) out of the consumer-facing surface. Package entry points updated from `dist/core/app.js` to `dist/core/index.js`.
+- **`zod` as direct dependency** — Moved from `peerDependencies` to `dependencies`. Consumers no longer need to install `zod` separately.
+- **Duplicate tool name detection** — `ToolRegistry` throws at startup if two tools share the same name.
+- **Auto-task timeout enforcement** — Background task handlers aborted after the task entry TTL expires, preventing leaked resources from hung handlers.
+- **`ErrorHandler.classifyOnly()`** — Classifies errors without logging, OTel side effects, or wrapping. Used by resource handler factory to avoid double-logging.
+- **`SchedulerService.destroyAll()`** — Stops and removes all cron jobs during shutdown, preventing timers from keeping the event loop alive.
+- **In-memory provider capacity limits** — Configurable `maxEntries` (default 10,000) with automatic TTL sweep when capacity is reached. New `size` getter for monitoring.
+- **Walk-based JSON size estimator** — `estimateJsonSize()` fallback in performance module handles circular references and BigInt without throwing.
+
+### Fixed
+
+- **Fatal shutdown backstop** — Uncaught exceptions and unhandled rejections trigger a 10-second backstop timer guaranteeing process exit, preventing hung shutdowns.
+- **Signal handler ordering** — `SIGTERM`/`SIGINT` handlers registered before transport start, so signals during HTTP bind still trigger graceful shutdown.
+- **Non-SSE transport cleanup** — Per-request `McpServer`/transport instances closed via microtask after non-SSE responses, preventing resource leaks in stateless HTTP mode.
+- **OTel shutdown race** — No-op catch on `sdk.shutdown()` promise prevents unhandled rejection when the timeout timer wins the race.
+- **Task ownership cleanup** — `SessionAwareTaskStore` removes ownership entries when tasks reach terminal state (completed/failed).
+- **Formatter error isolation** — Tool handler factory catches formatter errors separately from handler errors, providing clearer error messages.
+- **Lazy dotenv loading** — Deferred to first `parseConfig()` call. Avoids wasted filesystem syscall in Workers and prevents stale `.env` from loading before test setup.
+- **Config name/version overrides** — Persisted directly to `process.env` for process-lifetime visibility to OTEL/logger/transport, replacing the env-override parameter approach.
+
+### Changed
+
+- **TypeError no longer mapped to ValidationError** — Runtime TypeErrors (e.g., "Cannot read properties of undefined") are programming errors, not validation failures. They now fall through to message-pattern matching or `InternalError` fallback.
+- **Narrowed validation error pattern** — The `invalid` keyword pattern now requires a qualifying noun (`invalid input`, `invalid parameter`, etc.) to prevent misclassification of messages like "Invalid auth token format".
+- **R2 provider: idempotent delete** — Removed pre-delete `head()` check. R2 `delete()` is idempotent; the extra round-trip added latency under eventual consistency.
+- **R2 provider: consistent pagination** — Switched from R2 native cursor to limit+1 pagination with `startAfter`, matching D1/Supabase providers.
+- **D1 provider: strict JSON parsing** — `getMany()` throws `McpError(SerializationError)` on parse failure instead of silently skipping corrupted values.
+- **Resource handler error path** — Uses `classifyOnly()` instead of full `handleError()` to avoid double-logging when the SDK catches the re-thrown error.
+- **Auto-task handler refactored** — Extracted `AutoTaskOptions` interface, configurable TTL from config, proper `finally` block for cleanup, error classification via `ErrorHandler`.
+
+---
+
 ## [0.1.10] - 2026-03-20
 
 Security hardening, concurrency-safe config overrides, cancellation support in context state and LLM provider, and filesystem list optimization.
