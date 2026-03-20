@@ -408,7 +408,7 @@ const ALL_CHECKS: Check[] = [
     slowCheck: true,
     getCommand: (ctx) => [
       path.join(ctx.rootDir, 'node_modules', '.bin', 'depcheck'),
-      '--ignores=@types/*,pino-pretty,typescript,bun-types,@vitest/coverage-istanbul,repomix,bun,tsc-alias,@cyanheads/mcp-ts-core,@modelcontextprotocol/ext-apps',
+      '--ignores=@types/*,pino-pretty,typescript,bun-types,@vitest/coverage-istanbul,repomix,bun,tsc-alias,@cyanheads/mcp-ts-core,@modelcontextprotocol/ext-apps,typedoc',
       '--ignore-patterns=examples',
     ],
     tip: (c) =>
