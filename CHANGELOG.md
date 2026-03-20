@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.13] - 2026-03-20
+
+Test suite reorganization into a structured directory layout.
+
+### Changed
+
+- **Test directory restructure** — Reorganized flat `tests/` into `tests/unit/`, `tests/integration/`, `tests/compliance/`, `tests/smoke/`, and `tests/helpers/`. Clear separation of test tiers with dedicated directories for each category.
+- **Vitest config updates** — `vitest.config.ts` uses explicit `include` globs (`tests/unit/**`, `tests/compliance/**`, `tests/smoke/**`) instead of exclusion-based patterns. `vitest.integration.ts` includes both `*.test.ts` and `*.int.test.ts` patterns.
+- **Test helper consolidation** — Merged `tests/fixtures/`, `tests/mocks/`, and `tests/integration/helpers/` into a single `tests/helpers/` directory with renamed files (`fixtures.ts`, `mock-handlers.ts`, `mock-server.ts`, `http-helpers.ts`, `server-process.ts`).
+- All test import paths updated to match new directory depths.
+- Regenerated `docs/tree.md` to reflect new structure.
+
+---
+
 ## [0.1.12] - 2026-03-20
 
 Required output schemas, OAuth hardening, and metric cardinality fix.
