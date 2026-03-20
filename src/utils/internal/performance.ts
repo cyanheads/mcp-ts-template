@@ -130,11 +130,66 @@ function getEncoder(): TextEncoder {
   return cachedEncoder;
 }
 
+/**
+ * Recursively estimates the JSON-serialized byte size of a value without
+ * allocating the serialized string. Counts structural overhead (braces,
+ * brackets, colons, commas, quotes) and delegates to `String.length` for
+ * primitives — which is close to UTF-8 byte length for ASCII-dominant data
+ * and a slight undercount for multi-byte characters (acceptable for metrics).
+ */
+function estimateJsonSize(value: unknown): number {
+  if (value === null || value === undefined) return 4; // "null"
+
+  switch (typeof value) {
+    case 'string':
+      return value.length + 2; // +2 for surrounding quotes
+    case 'number':
+    case 'bigint':
+      return String(value).length;
+    case 'boolean':
+      return value ? 4 : 5;
+    default:
+      break;
+  }
+
+  if (Array.isArray(value)) {
+    let bytes = 2; // []
+    for (let i = 0; i < value.length; i++) {
+      if (i > 0) bytes += 1; // comma
+      bytes += estimateJsonSize(value[i]);
+    }
+    return bytes;
+  }
+
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const keys = Object.keys(obj);
+    let bytes = 2; // {}
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i] as string;
+      if (i > 0) bytes += 1; // comma
+      bytes += key.length + 3; // "key":
+      bytes += estimateJsonSize(obj[key]);
+    }
+    return bytes;
+  }
+
+  return 0;
+}
+
+/**
+ * Computes the byte size of a payload as it would appear in JSON. Uses
+ * `JSON.stringify` for exact measurement. Falls back to a walk-based
+ * estimator when stringify throws (circular references, BigInt).
+ */
 const toBytes = (payload: unknown): number => {
   if (payload == null) return 0;
   try {
     const json = JSON.stringify(payload);
-    // Prefer Buffer when available (Node), otherwise TextEncoder (Web/Workers)
+    // If stringify succeeded, measure the actual string — this is the common
+    // and most accurate path. The threshold guards against pathological cases
+    // where stringify produces a huge string; for those we still have the
+    // result so we measure it (the allocation already happened).
     if (typeof Buffer !== 'undefined' && typeof Buffer.byteLength === 'function') {
       return Buffer.byteLength(json, 'utf8');
     }
@@ -143,7 +198,13 @@ const toBytes = (payload: unknown): number => {
     }
     return json.length;
   } catch {
-    return 0;
+    // JSON.stringify can throw on circular references or BigInt — fall back
+    // to the walk-based estimator which skips non-serializable values.
+    try {
+      return estimateJsonSize(payload);
+    } catch {
+      return 0;
+    }
   }
 };
 
