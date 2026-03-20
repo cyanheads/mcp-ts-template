@@ -126,18 +126,31 @@ export class SessionStore {
     } else {
       session.lastAccessedAt = new Date();
 
-      // Bind identity on first authenticated request (lazy binding)
-      // This handles sessions created before authentication
-      if (identity && !session.tenantId) {
-        if (identity.tenantId) session.tenantId = identity.tenantId;
-        if (identity.clientId) session.clientId = identity.clientId;
-        if (identity.subject) session.subject = identity.subject;
-        const context = requestContextService.createRequestContext({
-          operation: 'SessionStore.bindIdentity',
-          sessionId,
-          tenantId: identity.tenantId,
-        });
-        logger.debug('Session identity bound on authenticated request', context);
+      // Bind identity fields individually on first authenticated request.
+      // Per-field gating ensures all fields get bound even if they arrive
+      // across separate requests (e.g. tenantId first, clientId later).
+      if (identity) {
+        let bound = false;
+        if (identity.tenantId && !session.tenantId) {
+          session.tenantId = identity.tenantId;
+          bound = true;
+        }
+        if (identity.clientId && !session.clientId) {
+          session.clientId = identity.clientId;
+          bound = true;
+        }
+        if (identity.subject && !session.subject) {
+          session.subject = identity.subject;
+          bound = true;
+        }
+        if (bound) {
+          const context = requestContextService.createRequestContext({
+            operation: 'SessionStore.bindIdentity',
+            sessionId,
+            tenantId: identity.tenantId,
+          });
+          logger.debug('Session identity bound on authenticated request', context);
+        }
       }
     }
 

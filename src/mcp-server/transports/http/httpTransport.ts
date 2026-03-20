@@ -206,6 +206,19 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     logger.info('Authentication is disabled; MCP endpoint is unprotected.', transportContext);
   }
 
+  /** Extract session identity from the current auth context (ALS). */
+  function extractSessionIdentity(): SessionIdentity | undefined {
+    const authInfo = authContext.getStore()?.authInfo;
+    if (!authInfo) return;
+    return Object.fromEntries(
+      Object.entries({
+        tenantId: authInfo.tenantId,
+        clientId: authInfo.clientId,
+        subject: authInfo.subject,
+      }).filter(([, v]) => v != null),
+    ) as SessionIdentity;
+  }
+
   // MCP Spec 2025-06-18: DELETE endpoint for session termination
   // Clients SHOULD send DELETE to explicitly terminate sessions
   // https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management
@@ -228,16 +241,7 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     }
 
     // SECURITY: Validate session ownership before termination
-    const authInfo = authContext.getStore()?.authInfo;
-    const sessionIdentity: SessionIdentity | undefined = authInfo
-      ? Object.fromEntries(
-          Object.entries({
-            tenantId: authInfo.tenantId,
-            clientId: authInfo.clientId,
-            subject: authInfo.subject,
-          }).filter(([, v]) => v != null),
-        )
-      : undefined;
+    const sessionIdentity = extractSessionIdentity();
 
     if (!sessionStore.isValidForIdentity(sessionId, sessionIdentity)) {
       logger.warning('Session termination rejected - ownership validation failed', {
@@ -294,16 +298,7 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
 
     // Extract identity from auth context (if auth is enabled)
     // This MUST happen before session validation for security
-    const authInfo = authContext.getStore()?.authInfo;
-    const sessionIdentity: SessionIdentity | undefined = authInfo
-      ? Object.fromEntries(
-          Object.entries({
-            tenantId: authInfo.tenantId,
-            clientId: authInfo.clientId,
-            subject: authInfo.subject,
-          }).filter(([, v]) => v != null),
-        )
-      : undefined;
+    const sessionIdentity = extractSessionIdentity();
 
     // MCP Spec 2025-06-18: Return 404 for invalid/terminated sessions
     // https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management
@@ -506,6 +501,9 @@ export async function startHttpTransport(
   };
 }
 
+/** Max time (ms) to wait for in-flight connections (e.g. SSE streams) to drain. */
+const DRAIN_TIMEOUT_MS = 5_000;
+
 function stopHttpTransport(
   server: ServerType,
   sessionStore: SessionStore | null,
@@ -521,7 +519,18 @@ function stopHttpTransport(
   sessionStore?.destroy();
 
   return new Promise((resolve, reject) => {
+    // Force-close all connections (including pre-existing SSE streams) after a
+    // grace period. server.closeAllConnections() (Node 18.2+) covers sockets
+    // that were already alive before server.close() — unlike the `connection`
+    // event which only fires for new arrivals.
+    const drainTimer = setTimeout(() => {
+      logger.warning('Drain timeout reached — force-closing all connections.', operationContext);
+      (server as http.Server).closeAllConnections();
+    }, DRAIN_TIMEOUT_MS);
+    drainTimer.unref();
+
     server.close((err) => {
+      clearTimeout(drainTimer);
       if (err) {
         logger.error('Error closing HTTP server.', err, operationContext);
         return reject(err);
