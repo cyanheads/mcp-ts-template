@@ -70,6 +70,7 @@ export const search = tool('search', {
     query: z.string().describe('Search query'),
     limit: z.number().default(10).describe('Max results'),
   }),
+  output: z.object({ items: z.array(z.string()).describe('Search results') }),
   async handler(input) {
     const results = await doSearch(input.query, input.limit);
     return { items: results };
