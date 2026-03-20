@@ -50,8 +50,12 @@ export const ATTR_MCP_TOOL_ERROR_CODE = 'mcp.tool.error_code';
 
 /**
  * Full URI identifying the MCP resource being accessed (e.g., `myscheme://items/123`).
+ * Use on spans only — not on metrics, where unbounded cardinality is a concern.
  */
 export const ATTR_MCP_RESOURCE_URI = 'mcp.resource.uri';
+
+/** Bounded resource identifier (name or URI template) for metric attributes. */
+export const ATTR_MCP_RESOURCE_NAME = 'mcp.resource.name';
 
 /** MIME type of the resource content (e.g., `application/json`, `text/plain`). */
 export const ATTR_MCP_RESOURCE_MIME_TYPE = 'mcp.resource.mime_type';

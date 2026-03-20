@@ -19,6 +19,7 @@ import {
   ATTR_MCP_RESOURCE_DURATION_MS,
   ATTR_MCP_RESOURCE_ERROR_CODE,
   ATTR_MCP_RESOURCE_MIME_TYPE,
+  ATTR_MCP_RESOURCE_NAME,
   ATTR_MCP_RESOURCE_SIZE_BYTES,
   ATTR_MCP_RESOURCE_SUCCESS,
   ATTR_MCP_RESOURCE_URI,
@@ -400,10 +401,13 @@ export async function measureResourceExecution<T>(
       span.end();
 
       const m = getResourceMetrics();
-      const metricAttrs = { [ATTR_MCP_RESOURCE_URI]: meta.uri, [ATTR_MCP_RESOURCE_SUCCESS]: ok };
+      const metricAttrs = {
+        [ATTR_MCP_RESOURCE_NAME]: resourceName,
+        [ATTR_MCP_RESOURCE_SUCCESS]: ok,
+      };
       m.resourceReadCounter.add(1, metricAttrs);
       m.resourceReadDuration.record(durationMs, metricAttrs);
-      if (!ok) m.resourceReadErrors.add(1, { [ATTR_MCP_RESOURCE_URI]: meta.uri });
+      if (!ok) m.resourceReadErrors.add(1, { [ATTR_MCP_RESOURCE_NAME]: resourceName });
 
       logger.info('Resource read finished.', {
         ...context,
