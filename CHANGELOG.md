@@ -28,6 +28,8 @@ Output validation for tools, HTTP transport hardening, new skills, and template 
 - **HTTP transport** — Extracted `extractSessionIdentity()` helper to deduplicate identity extraction across DELETE and POST handlers.
 - **`rateLimiter.dispose()`** — Called during graceful shutdown to clean up interval timers.
 - **Storage validation** — Removed redundant path traversal check (already covered by the regex pattern) and redundant `isFinite` check on list limit (already a `number` type).
+- **`polish` skill renamed to `polish-docs-meta`** — More descriptive name. Updated all references in CLAUDE.md, templates, and changelog. Refined reference doc wording.
+- **VSCode workspace config** — Added Biome as default formatter, markdownlint for markdown files, TypeScript SDK path, format-on-save. Added extension recommendations for Biome and markdownlint.
 - **Templates** — Expanded `.env.example` with HTTP endpoint path, Cloudflare storage options, and OTEL vars. Added common gitignore patterns. Added `bin` field to `package.json`. Added `format` function to echo tool. Fixed template version from 0.1.2 to 0.1.0. Added `add-test` and `polish-docs-meta` skills to agent protocol.
 - Updated dependencies: `@biomejs/biome` 2.4.7→2.4.8, `@supabase/supabase-js` ^2.99.2→^2.99.3, `@types/bun` ^1.3.10→^1.3.11, `bun-types` ^1.3.10→^1.3.11, `msw` ^2.12.12→^2.12.13, `openai` ^6.31.0→^6.32.0, `sanitize-html` ^2.17.1→^2.17.2, `vite` 8.0.0→8.0.1, `jose` ^6.2.1→^6.2.2.
 
