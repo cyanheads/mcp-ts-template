@@ -114,11 +114,11 @@ Both must pass clean.
 ## Checklist
 
 - [ ] Surface area audited — tool/resource/prompt/service inventory built
-- [ ] `README.md` created/updated (see `references/readme.md`)
-- [ ] Agent protocol file updated — onboarding stripped, real examples, accurate structure (see `references/agent-protocol.md`)
-- [ ] `.env.example` includes all server-specific env vars
-- [ ] `package.json` metadata filled (`description`, `repository`, `author`, `keywords`)
-- [ ] `CHANGELOG.md` exists with initial entry
+- [ ] `README.md` accurate — tool/resource tables, config, descriptions match actual code
+- [ ] Agent protocol file accurate — no stale template content, real examples, structure matches reality
+- [ ] `.env.example` in sync with server config schema
+- [ ] `package.json` metadata complete (`description`, `repository`, `author`, `keywords`)
+- [ ] `CHANGELOG.md` exists with current entry
 - [ ] `LICENSE` file present
 - [ ] `docs/tree.md` regenerated
 - [ ] `bun run devcheck` passes
