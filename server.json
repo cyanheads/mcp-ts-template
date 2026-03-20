@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.cyanheads/mcp-ts-core",
-  "description": "TypeScript framework for building MCP servers with declarative definitions, pluggable auth, multi-backend storage, and OpenTelemetry observability.",
+  "description": "TypeScript framework for building MCP servers with declarative definitions and observability.",
   "repository": {
     "url": "https://github.com/cyanheads/mcp-ts-core",
     "source": "github"
