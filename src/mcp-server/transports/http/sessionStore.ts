@@ -6,7 +6,7 @@
  */
 
 import { validateSessionIdFormat } from '@/mcp-server/transports/http/sessionIdUtils.js';
-import { invalidParams } from '@/types-global/errors.js';
+import { invalidParams, serviceUnavailable } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 import { ATTR_MCP_SESSION_EVENT } from '@/utils/telemetry/attributes.js';
@@ -44,6 +44,8 @@ interface Session {
   clientId?: string;
   createdAt: Date;
   id: string;
+  /** Whether identity fields have been bound (atomic snapshot on first write). */
+  identityBound: boolean;
   lastAccessedAt: Date;
   subject?: string;
 
@@ -55,13 +57,18 @@ interface Session {
  * Simple in-memory session store for stateful MCP sessions.
  * In production, consider using Redis or another persistent store.
  */
+/** Default maximum number of concurrent sessions before new ones are rejected. */
+const DEFAULT_MAX_SESSIONS = 10_000;
+
 export class SessionStore {
   private sessions: Map<string, Session> = new Map();
   private staleTimeout: number;
+  private maxSessions: number;
   private cleanupInterval: ReturnType<typeof setInterval>;
 
-  constructor(staleTimeoutMs: number) {
+  constructor(staleTimeoutMs: number, maxSessions: number = DEFAULT_MAX_SESSIONS) {
     this.staleTimeout = staleTimeoutMs;
+    this.maxSessions = maxSessions;
     // Clean up stale sessions every minute. unref() prevents blocking graceful shutdown.
     this.cleanupInterval = setInterval(() => this.cleanupStaleSessions(), 60_000);
     this.cleanupInterval.unref?.();
@@ -102,11 +109,29 @@ export class SessionStore {
     let session = this.sessions.get(sessionId);
 
     if (!session) {
-      // Build session object conditionally to satisfy exactOptionalPropertyTypes
+      // Enforce maximum session capacity to prevent unbounded memory growth
+      if (this.sessions.size >= this.maxSessions) {
+        const context = requestContextService.createRequestContext({
+          operation: 'SessionStore.getOrCreate',
+          currentSessions: this.sessions.size,
+          maxSessions: this.maxSessions,
+        });
+        logger.warning('Session capacity reached, rejecting new session', context);
+        throw serviceUnavailable(
+          `Maximum session capacity reached (${this.maxSessions}). Try again later.`,
+          context,
+        );
+      }
+
+      // Build session object conditionally to satisfy exactOptionalPropertyTypes.
+      // Identity is bound atomically as a snapshot on creation.
+      const hasIdentity = !!(identity?.tenantId || identity?.clientId || identity?.subject);
+      const now = new Date();
       const newSession: Session = {
         id: sessionId,
-        createdAt: new Date(),
-        lastAccessedAt: new Date(),
+        createdAt: now,
+        lastAccessedAt: now,
+        identityBound: hasIdentity,
       };
 
       // Only set identity fields if they have actual values (not undefined)
@@ -126,30 +151,22 @@ export class SessionStore {
     } else {
       session.lastAccessedAt = new Date();
 
-      // Bind identity fields individually on first authenticated request.
-      // Per-field gating ensures all fields get bound even if they arrive
-      // across separate requests (e.g. tenantId first, clientId later).
-      if (identity) {
-        let bound = false;
-        if (identity.tenantId && !session.tenantId) {
-          session.tenantId = identity.tenantId;
-          bound = true;
-        }
-        if (identity.clientId && !session.clientId) {
-          session.clientId = identity.clientId;
-          bound = true;
-        }
-        if (identity.subject && !session.subject) {
-          session.subject = identity.subject;
-          bound = true;
-        }
-        if (bound) {
+      // Bind identity atomically on first authenticated request after an
+      // unauthenticated session creation. All fields are snapshotted together
+      // to prevent chimeric identities from per-field races.
+      if (identity && !session.identityBound) {
+        const hasIdentity = !!(identity.tenantId || identity.clientId || identity.subject);
+        if (hasIdentity) {
+          if (identity.tenantId) session.tenantId = identity.tenantId;
+          if (identity.clientId) session.clientId = identity.clientId;
+          if (identity.subject) session.subject = identity.subject;
+          session.identityBound = true;
           const context = requestContextService.createRequestContext({
             operation: 'SessionStore.bindIdentity',
             sessionId,
             tenantId: identity.tenantId,
           });
-          logger.debug('Session identity bound on authenticated request', context);
+          logger.debug('Session identity bound atomically on authenticated request', context);
         }
       }
     }

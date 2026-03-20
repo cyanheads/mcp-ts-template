@@ -18,10 +18,18 @@
  *
  * @module src/storage/core/storageValidation
  */
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+
 import { invalidParams, McpError, validationError } from '@/types-global/errors.js';
 import { base64ToString, stringToBase64 } from '@/utils/internal/encoding.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import type { ListOptions, StorageOptions } from './IStorageProvider.js';
+
+/**
+ * Per-process HMAC key for cursor integrity. Generated once at module load.
+ * Does not need to survive restarts — cursors are ephemeral pagination tokens.
+ */
+const CURSOR_HMAC_KEY = randomBytes(32);
 
 /**
  * Maximum length for tenant IDs and keys to prevent abuse.
@@ -309,9 +317,10 @@ export function validateListOptions(
       });
     }
 
-    // Basic base64 validation (more thorough check happens in decodeCursor)
-    if (!/^[A-Za-z0-9+/=]+$/.test(options.cursor)) {
-      throw validationError('Cursor contains invalid characters for base64.', {
+    // Basic format validation: base64 chars plus '.' separator (payload.signature)
+    // More thorough HMAC verification happens in decodeCursor
+    if (!/^[A-Za-z0-9+/=.]+$/.test(options.cursor)) {
+      throw validationError('Cursor contains invalid characters.', {
         ...context,
         operation: 'validateListOptions',
       });
@@ -322,7 +331,34 @@ export function validateListOptions(
 /**
  * Cursor encoding/decoding utilities for pagination.
  * Cursors are opaque strings that should not be constructed or parsed by clients.
+ *
+ * Format: `<base64-payload>.<base64-hmac>` where:
+ * - payload is JSON `{ k: lastKey, t: tenantId }`
+ * - hmac is a truncated HMAC-SHA256 of the payload using a per-process random key
+ *
+ * The HMAC prevents cursor forgery for key enumeration within a tenant namespace.
+ * The key is ephemeral (per-process) so cursors do not survive restarts, which is
+ * fine — they are short-lived pagination tokens.
  */
+
+const CURSOR_HMAC_ALGO = 'sha256';
+const CURSOR_HMAC_BYTES = 16; // 128-bit truncated tag — sufficient for pagination tokens
+
+/** Computes a truncated HMAC tag for the given payload string. */
+function signCursor(payload: string): string {
+  const mac = createHmac(CURSOR_HMAC_ALGO, CURSOR_HMAC_KEY)
+    .update(payload)
+    .digest()
+    .subarray(0, CURSOR_HMAC_BYTES);
+  return stringToBase64(mac.toString('binary'));
+}
+
+/** Verifies the HMAC tag for a cursor payload. Returns true if valid. */
+function verifyCursorSignature(payload: string, signature: string): boolean {
+  const expected = signCursor(payload);
+  if (expected.length !== signature.length) return false;
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+}
 
 interface CursorData {
   /** The last key from the previous page */
@@ -332,29 +368,50 @@ interface CursorData {
 }
 
 /**
- * Encodes pagination cursor data into an opaque string.
- * Uses runtime-agnostic base64 encoding for Worker compatibility.
+ * Encodes pagination cursor data into an opaque, HMAC-signed string.
  * @param lastKey The last key from the current page.
  * @param tenantId The tenant ID for validation.
- * @returns An opaque cursor string.
+ * @returns An opaque cursor string in the format `payload.signature`.
  */
 export function encodeCursor(lastKey: string, tenantId: string): string {
   const data: CursorData = { k: lastKey, t: tenantId };
-  return stringToBase64(JSON.stringify(data));
+  const payload = stringToBase64(JSON.stringify(data));
+  const signature = signCursor(payload);
+  return `${payload}.${signature}`;
 }
 
 /**
- * Decodes and validates an opaque cursor string.
- * Uses runtime-agnostic base64 decoding for Worker compatibility.
+ * Decodes and validates an opaque, HMAC-signed cursor string.
  * @param cursor The cursor string to decode.
  * @param tenantId The expected tenant ID for validation.
  * @param context The request context for error reporting.
  * @returns The last key from the cursor.
- * @throws {McpError} If the cursor is invalid or tampered with.
+ * @throws {McpError} If the cursor is invalid, tampered with, or has a bad signature.
  */
 export function decodeCursor(cursor: string, tenantId: string, context: RequestContext): string {
   try {
-    const decoded = base64ToString(cursor);
+    const dotIndex = cursor.lastIndexOf('.');
+    if (dotIndex === -1) {
+      throw invalidParams('Invalid cursor format: missing signature.', {
+        ...context,
+        operation: 'decodeCursor',
+      });
+    }
+
+    const payload = cursor.substring(0, dotIndex);
+    const signature = cursor.substring(dotIndex + 1);
+
+    if (!verifyCursorSignature(payload, signature)) {
+      throw invalidParams(
+        'Cursor signature verification failed. The cursor may be expired (e.g. server restart or isolate change) or tampered with.',
+        {
+          ...context,
+          operation: 'decodeCursor',
+        },
+      );
+    }
+
+    const decoded = base64ToString(payload);
     const data = JSON.parse(decoded) as CursorData;
 
     if (!data || typeof data !== 'object' || !('k' in data) || !('t' in data)) {

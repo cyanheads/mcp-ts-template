@@ -122,11 +122,12 @@ export function createAuthMiddleware(
     };
     logger.info('Authentication successful. Auth context populated.', authLogContext);
 
-    // Add authentication identity to OpenTelemetry span for distributed tracing
+    // Add authentication identity to OpenTelemetry span for distributed tracing.
+    // Scope values are redacted to avoid exposing the authorization model to tracing backends.
     activeSpan?.setAttributes({
       [ATTR_MCP_CLIENT_ID]: authInfo.clientId,
       [ATTR_MCP_TENANT_ID]: authInfo.tenantId ?? 'none',
-      [ATTR_MCP_AUTH_SCOPES]: authInfo.scopes.join(','),
+      [ATTR_MCP_AUTH_SCOPES]: String(authInfo.scopes.length),
       [ATTR_MCP_AUTH_SUBJECT]: authInfo.subject ?? 'unknown',
     });
 

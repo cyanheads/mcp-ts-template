@@ -164,10 +164,22 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
 
   // MCP Spec 2025-06-18: GET with Accept: text/event-stream opens an SSE stream
   // for server-initiated messages. Plain GET (browser, health check) returns info.
+  //
+  // Security: When auth is enabled, unauthenticated plain-GET callers receive only
+  // { status: 'ok' }. Full server metadata is gated behind authentication to
+  // avoid leaking server name, version, environment, and capability details.
+  // SSE requests always fall through to the auth middleware + transport handler.
   app.get(config.mcpHttpEndpointPath, (c, next) => {
     if (c.req.header('accept')?.includes('text/event-stream')) {
       return next(); // Fall through to transport handler for SSE
     }
+
+    // When auth is enabled, this handler runs before auth middleware.
+    // Return minimal info to avoid leaking server metadata to unauthenticated callers.
+    if (config.mcpAuthMode !== 'none') {
+      return c.json({ status: 'ok' });
+    }
+
     return c.json({
       status: 'ok',
       server: {
@@ -352,6 +364,30 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
           });
         }
 
+        // For non-SSE responses (standard JSON-RPC POST), close the per-request
+        // server/transport in a microtask so the Response is returned first.
+        // SSE streams must stay open — closing would abort the ReadableStream
+        // before Hono can consume it (see GHSA-345p-7cg4-v4c7 comment above).
+        const isSSE = response.headers.get('content-type')?.includes('text/event-stream');
+        if (!isSSE) {
+          queueMicrotask(() => {
+            transport.close().catch((closeErr: unknown) => {
+              logger.debug('Failed to close transport after non-SSE response', {
+                ...transportContext,
+                sessionId,
+                error: closeErr instanceof Error ? closeErr.message : String(closeErr),
+              });
+            });
+            server.close().catch((closeErr: unknown) => {
+              logger.debug('Failed to close server after non-SSE response', {
+                ...transportContext,
+                sessionId,
+                error: closeErr instanceof Error ? closeErr.message : String(closeErr),
+              });
+            });
+          });
+        }
+
         return response;
       }
       return c.body(null, 204);
@@ -362,11 +398,9 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     try {
       return await handleRpc();
     } catch (err) {
-      // Close transport only on error — success path must keep the SSE stream
-      // alive for Hono to consume. streamSSE returns a Response wrapping a
-      // ReadableStream; closing the transport aborts the stream before Hono
-      // can read it, producing an empty-message Error on the client.
-      await transport.close?.().catch((closeErr: unknown) => {
+      // On error, close transport immediately (success-path cleanup is handled
+      // inside handleRpc — non-SSE via microtask, SSE left open for the stream).
+      await transport.close().catch((closeErr: unknown) => {
         logger.debug('Failed to close transport after error', {
           ...transportContext,
           sessionId,

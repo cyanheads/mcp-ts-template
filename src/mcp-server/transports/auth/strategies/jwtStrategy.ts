@@ -22,6 +22,8 @@ export class JwtStrategy implements AuthStrategy {
   private readonly secretKey: Uint8Array | null;
   private readonly devMcpClientId: string;
   private readonly devMcpScopes: string[];
+  private readonly expectedIssuer: string | undefined;
+  private readonly expectedAudience: string | undefined;
 
   constructor(
     private config: typeof ConfigType,
@@ -33,6 +35,8 @@ export class JwtStrategy implements AuthStrategy {
     this.logger.debug('Initializing JwtStrategy...', context);
     this.devMcpClientId = this.config.devMcpClientId || 'dev-client-id';
     this.devMcpScopes = this.config.devMcpScopes || ['dev-scope'];
+    this.expectedIssuer = this.config.mcpJwtExpectedIssuer;
+    this.expectedAudience = this.config.mcpJwtExpectedAudience;
     const secretKey = this.config.mcpAuthSecretKey;
 
     if (!secretKey && !this.config.devMcpAuthBypass) {
@@ -74,7 +78,11 @@ export class JwtStrategy implements AuthStrategy {
     }
 
     try {
-      const { payload: decoded } = await jwtVerify(token, this.secretKey);
+      const verifyOptions: Parameters<typeof jwtVerify>[2] = { algorithms: ['HS256'] };
+      if (this.expectedIssuer) verifyOptions.issuer = this.expectedIssuer;
+      if (this.expectedAudience) verifyOptions.audience = this.expectedAudience;
+
+      const { payload: decoded } = await jwtVerify(token, this.secretKey, verifyOptions);
       this.logger.debug('JWT signature verified successfully.', {
         ...context,
         claims: {

@@ -29,8 +29,10 @@ const packageManifest = packageJson as PackageManifest;
 export const FRAMEWORK_NAME = '@cyanheads/mcp-ts-core';
 export const FRAMEWORK_VERSION = packageManifest.version ?? '0.0.0';
 
-// Suppress dotenv's noisy initial log message as suggested by its output.
-dotenv.config({ quiet: true });
+// Lazy dotenv loading — deferred to first parseConfig() call.
+// Top-level execution wastes a filesystem syscall in Workers and loads stale
+// .env before test setup can configure the environment.
+let _dotenvLoaded = false;
 
 // --- Helper Functions ---
 const emptyStringAsUndefined = (val: unknown) => {
@@ -113,6 +115,8 @@ const ConfigSchema = z
     mcpStatefulSessionStaleTimeoutMs: z.coerce.number().default(1_800_000),
     mcpAllowedOrigins: z.array(z.string()).optional(),
     mcpAuthSecretKey: z.string().optional(),
+    mcpJwtExpectedIssuer: z.string().optional(),
+    mcpJwtExpectedAudience: z.string().optional(),
     mcpAuthMode: z.preprocess(
       emptyStringAsUndefined,
       z.enum(['jwt', 'oauth', 'none']).default('none'),
@@ -261,13 +265,13 @@ const ConfigSchema = z
       .optional(),
   })
   .superRefine((data, ctx) => {
-    // Production guard: reject dev bypass in production regardless of auth mode
-    if (data.environment === 'production' && data.devMcpAuthBypass) {
+    // Guard: reject dev bypass in any non-development environment (production, testing, staging)
+    if (data.environment !== 'development' && data.devMcpAuthBypass) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['devMcpAuthBypass'],
         message:
-          'DEV_MCP_AUTH_BYPASS cannot be enabled in production (NODE_ENV=production). This flag is for development only.',
+          'DEV_MCP_AUTH_BYPASS can only be enabled in development (NODE_ENV=development). This flag is not allowed in production or testing environments.',
       });
     }
 
@@ -309,6 +313,12 @@ const ConfigSchema = z
 
 // --- Parsing Logic ---
 const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
+  // Lazy dotenv loading — only in Node.js, only once, only when not using overrides
+  if (!_dotenvLoaded && runtimeCaps.isNode && !envOverrides) {
+    dotenv.config({ quiet: true });
+    _dotenvLoaded = true;
+  }
+
   const env = envOverrides ? { ...process.env, ...envOverrides } : process.env;
 
   const rawConfig = {
@@ -333,6 +343,8 @@ const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
       .map((o) => o.trim())
       .filter(Boolean),
     mcpAuthSecretKey: env.MCP_AUTH_SECRET_KEY,
+    mcpJwtExpectedIssuer: env.MCP_JWT_EXPECTED_ISSUER,
+    mcpJwtExpectedAudience: env.MCP_JWT_EXPECTED_AUDIENCE,
     mcpAuthMode: env.MCP_AUTH_MODE,
     oauthIssuerUrl: env.OAUTH_ISSUER_URL,
     oauthJwksUri: env.OAUTH_JWKS_URI,

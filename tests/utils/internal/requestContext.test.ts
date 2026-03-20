@@ -182,7 +182,6 @@ describe('requestContextService', () => {
       expect(context.auth?.sub).toBe('user-42');
       expect(context.auth?.scopes).toEqual(['read', 'write']);
       expect(context.auth?.clientId).toBe('client-abc');
-      expect(context.auth?.token).toBe('jwt-token-xyz');
       expect(context.auth?.tenantId).toBe('tenant-1');
     });
 

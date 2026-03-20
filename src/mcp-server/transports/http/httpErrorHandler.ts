@@ -129,7 +129,9 @@ export const httpErrorHandler = async <TBindings extends object = HonoNodeBindin
     error: {
       code: errorCode,
       message: handledError.message,
-      ...(originalData !== undefined && { data: originalData }),
+      // Only include McpError.data in development to avoid leaking internal details
+      ...(originalData !== undefined &&
+        config.environment === 'development' && { data: originalData }),
     },
     id: requestId,
   };
