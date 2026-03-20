@@ -1,24 +1,24 @@
 # package.json Metadata
 
-Fields that the `init` scaffold leaves empty or generic. Fill these during polish.
+Fields that may still be empty or generic from scaffolding. Check each one and fill in anything that's missing or placeholder.
 
-## Fields to Update
+## Fields to Check
 
-| Field | Scaffolded Value | What to Set |
-|:------|:----------------|:------------|
+| Field | Default / Scaffolded | What It Should Be |
+|:------|:---------------------|:------------------|
 | `name` | `{{PACKAGE_NAME}}` (substituted by init) | Verify it's correct. Use scoped name if publishing (`@org/my-server`). |
 | `version` | `0.1.0` | Keep for initial development. Bump via the `release` skill. |
 | `description` | `""` (empty) | One sentence: what the server does and what it wraps. Appears on npm and in `npm search`. |
-| `repository` | _(missing)_ | `{ "type": "git", "url": "https://github.com/org/repo.git" }` |
-| `homepage` | _(missing)_ | Repository URL or docs URL. |
-| `bugs` | _(missing)_ | `{ "url": "https://github.com/org/repo/issues" }` |
-| `author` | _(missing)_ | `"Name <email>"` or `{ "name": "...", "email": "..." }` |
+| `repository` | _(often missing)_ | `{ "type": "git", "url": "https://github.com/org/repo.git" }` |
+| `homepage` | _(often missing)_ | Repository URL or docs URL. |
+| `bugs` | _(often missing)_ | `{ "url": "https://github.com/org/repo/issues" }` |
+| `author` | _(often missing)_ | `"Name <email>"` or `{ "name": "...", "email": "..." }` |
 | `keywords` | `["mcp", "mcp-server", "model-context-protocol"]` | Add domain-specific keywords. Keep the MCP ones. |
 | `license` | `Apache-2.0` | Change if using a different license. Must match the LICENSE file. |
 
-## Fields to Leave Alone
+## Fields That Should Be Correct
 
-These are set correctly by `init` and should not need changes:
+These are set by `init` and generally don't need changes. Verify they're present and correct:
 
 | Field | Value | Why |
 |:------|:------|:----|
@@ -53,7 +53,7 @@ Example:
 
 ## Publishing Checklist
 
-If publishing to npm, also verify:
+If publishing to npm, also verify these (skip for private/internal servers):
 
 - `name` doesn't conflict with an existing package
 - `publishConfig.access` is `"public"` (already set by init for scoped packages)

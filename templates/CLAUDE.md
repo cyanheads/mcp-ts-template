@@ -205,7 +205,7 @@ Available skills:
 | `add-service` | Scaffold a new service integration |
 | `add-test` | Scaffold test file for a tool, resource, or service |
 | `devcheck` | Lint, format, typecheck, audit |
-| `polish` | Finalize docs, README, metadata, and agent protocol for shipping |
+| `polish-docs-meta` | Finalize docs, README, metadata, and agent protocol for shipping |
 | `maintenance` | Sync skills and dependencies after updates |
 | `migrate-mcp-ts-template` | Migrate legacy template fork to package dependency |
 | `api-auth` | Auth modes, scopes, JWT/OAuth |

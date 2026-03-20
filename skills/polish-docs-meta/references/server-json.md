@@ -5,6 +5,7 @@ Optional metadata file that describes the server for MCP registries, clients, an
 ## When to Create
 
 Create `server.json` if:
+
 - Publishing to npm or a registry
 - The server will be listed in an MCP client's server catalog
 - You want machine-readable metadata beyond what `package.json` provides
@@ -121,20 +122,21 @@ Derive from the server config Zod schema and `.env.example`.
 
 Lightweight summaries — just `name` and `description`. Derive directly from the definition files. Don't include full schemas; this is for discovery, not invocation.
 
-## Generating
+## Generating / Updating
 
-Build `server.json` from the audit in step 1 of the polish skill:
+If `server.json` doesn't exist, create it from the audit in step 1 of the `polish-docs-meta` skill. If it exists, diff it against current state and update stale fields.
 
-1. Copy `name`, `version`, `description`, `author`, `license`, `repository` from `package.json`
+1. Sync `name`, `version`, `description`, `author`, `license`, `repository` from `package.json`
 2. Set `transport.stdio.command` to `npx` and `args` to `[packageName]` (or `node dist/index.js` for non-published servers)
-3. List env vars from server config schema
-4. List tools/resources/prompts from the definition barrels
+3. Sync env vars from server config schema — add missing, remove stale
+4. Sync tools/resources/prompts from the definition barrels
 
 ## Keeping in Sync
 
 `server.json` is a snapshot. Update it when:
+
 - Adding or removing tools/resources/prompts
 - Bumping the version
 - Changing required env vars
 
-The `polish` skill covers the initial creation. For subsequent updates, treat it like any other metadata file in the release checklist.
+The `polish-docs-meta` skill handles both creation and updates. Between polish runs, treat it like any other metadata file in the release checklist.

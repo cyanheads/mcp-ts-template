@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-20 12:32:44
+Generated on: 2026-03-20 13:05:59
 
 ```
 mcp-ts-core/
@@ -12,6 +12,7 @@ mcp-ts-core/
 │   └── pre-commit
 ├── .storage/
 ├── .vscode/
+│   ├── extensions.json
 │   └── settings.json
 ├── claude-plans/
 ├── docs/
@@ -108,7 +109,7 @@ mcp-ts-core/
 │   │   └── SKILL.md
 │   ├── migrate-mcp-ts-template/
 │   │   └── SKILL.md
-│   ├── polish/
+│   ├── polish-docs-meta/
 │   │   ├── references/
 │   │   │   ├── agent-protocol.md
 │   │   │   ├── package-meta.md

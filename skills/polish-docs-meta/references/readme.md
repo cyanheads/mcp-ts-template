@@ -1,12 +1,12 @@
 # README.md Conventions for MCP Servers
 
-Structure and content guide for writing a README for an MCP server built on `@cyanheads/mcp-ts-core`.
+Structure and content guide for creating or updating a README for an MCP server built on `@cyanheads/mcp-ts-core`. If a README already exists, use this as a reference to audit and improve it — don't blindly rewrite sections that are already accurate.
 
 ## Structure
 
 Use this section order. Omit sections that don't apply (e.g., skip Docker if the server doesn't ship a container image).
 
-```
+```text
 # {Server Name}
 
 One-line description of what the server does.
@@ -164,4 +164,4 @@ Apache-2.0 — see [LICENSE](LICENSE) for details.
 - **Tables over prose** for structured data (tools, config, commands). Scannable and diff-friendly.
 - **Real names from code.** Tool names, env vars, and URIs should match the source exactly. Copy from the definitions, don't paraphrase.
 - **No badges unless publishing.** Badges for unpublished packages are noise.
-- **Keep it current.** The README should be updated whenever tools are added or removed. The polish skill is for the initial pass; maintenance is ongoing.
+- **Keep it current.** The README should be updated whenever tools are added or removed. The `polish-docs-meta` skill handles both initial creation and subsequent updates.

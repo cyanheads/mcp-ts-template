@@ -1,5 +1,5 @@
 ---
-name: polish
+name: polish-docs-meta
 description: >
   Finalize documentation and project metadata for a ship-ready MCP server. Use after implementation is complete, tests pass, and devcheck is clean. Safe to run at any stage — each step checks current state and only acts on what still needs work.
 metadata:
@@ -14,7 +14,7 @@ metadata:
 - Server implementation is functionally complete (tools, resources, prompts, services all working)
 - `bun run devcheck` passes, tests pass
 - You're preparing for first commit, first release, or making the repo public
-- User says "polish", "finalize", "make it ship-ready", "clean up docs", or similar
+- User says "polish", "polish docs", "finalize", "make it ship-ready", "clean up docs", or similar
 - Re-running after adding/removing tools, resources, or other surface area changes
 
 Prefer running after implementation is complete, but safe to re-run at any point — steps are idempotent.

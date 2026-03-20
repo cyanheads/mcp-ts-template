@@ -548,7 +548,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 | `design-mcp-server` | `skills/design-mcp-server/SKILL.md` | Design tool surface, resources, and service layer for a new server |
 | `setup` | `skills/setup/SKILL.md` | Initialize a new consumer server from the template |
 | `devcheck` | `skills/devcheck/SKILL.md` | Run lint, format, typecheck, security checks |
-| `polish` | `skills/polish/SKILL.md` | Finalize docs, README, metadata, and agent protocol for shipping |
+| `polish-docs-meta` | `skills/polish-docs-meta/SKILL.md` | Finalize docs, README, metadata, and agent protocol for shipping |
 | `release` | `skills/release/SKILL.md` | Version bump, changelog, publish workflow |
 | `maintenance` | `skills/maintenance/SKILL.md` | Dependency updates, housekeeping tasks |
 | `migrate-mcp-ts-template` | `skills/migrate-mcp-ts-template/SKILL.md` | Migrate legacy template fork to package dependency |

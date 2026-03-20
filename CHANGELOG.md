@@ -11,7 +11,7 @@ Output validation for tools, HTTP transport hardening, new skills, and template 
 ### Added
 
 - **`add-test` skill** — Scaffolds colocated test files for tools, resources, and services with `createMockContext` patterns.
-- **`polish` skill** — Finalizes docs, README, metadata, and agent protocol for ship-ready servers. Includes reference guides for README conventions, agent protocol updates, package.json metadata, and server.json manifests.
+- **`polish-docs-meta` skill** — Finalizes docs, README, metadata, and agent protocol for ship-ready servers. Includes reference guides for README conventions, agent protocol updates, package.json metadata, and server.json manifests.
 - **`design-mcp-server` v2.0** — Major rewrite of tool design guidance: consolidation via operation/mode enums, description and parameter writing principles, output design for LLM chaining, error messages as recovery guidance.
 - **`release` skill v1.1** — Expanded with README review step, template version sync, skill version bumping, annotated git tags, and structured checklist.
 
@@ -28,7 +28,7 @@ Output validation for tools, HTTP transport hardening, new skills, and template 
 - **HTTP transport** — Extracted `extractSessionIdentity()` helper to deduplicate identity extraction across DELETE and POST handlers.
 - **`rateLimiter.dispose()`** — Called during graceful shutdown to clean up interval timers.
 - **Storage validation** — Removed redundant path traversal check (already covered by the regex pattern) and redundant `isFinite` check on list limit (already a `number` type).
-- **Templates** — Expanded `.env.example` with HTTP endpoint path, Cloudflare storage options, and OTEL vars. Added common gitignore patterns. Added `bin` field to `package.json`. Added `format` function to echo tool. Fixed template version from 0.1.2 to 0.1.0. Added `add-test` and `polish` skills to agent protocol.
+- **Templates** — Expanded `.env.example` with HTTP endpoint path, Cloudflare storage options, and OTEL vars. Added common gitignore patterns. Added `bin` field to `package.json`. Added `format` function to echo tool. Fixed template version from 0.1.2 to 0.1.0. Added `add-test` and `polish-docs-meta` skills to agent protocol.
 - Updated dependencies: `@biomejs/biome` 2.4.7→2.4.8, `@supabase/supabase-js` ^2.99.2→^2.99.3, `@types/bun` ^1.3.10→^1.3.11, `bun-types` ^1.3.10→^1.3.11, `msw` ^2.12.12→^2.12.13, `openai` ^6.31.0→^6.32.0, `sanitize-html` ^2.17.1→^2.17.2, `vite` 8.0.0→8.0.1, `jose` ^6.2.1→^6.2.2.
 
 ---
