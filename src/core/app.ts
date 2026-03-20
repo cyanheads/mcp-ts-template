@@ -40,7 +40,7 @@ import {
 import { createObservableGauge } from '@/utils/telemetry/metrics.js';
 import { withSpan } from '@/utils/telemetry/trace.js';
 
-/** Options for {@link createApp}. All arrays default to the template's built-in definitions. */
+/** Options for {@link createApp}. All arrays default to empty. */
 export interface CreateAppOptions {
   /** Server name — overrides package.json and MCP_SERVER_NAME env var. */
   name?: string;
@@ -96,15 +96,13 @@ export interface ComposedApp {
 export async function composeServices(options: CreateAppOptions = {}): Promise<ComposedApp> {
   const { tools = [], resources = [], prompts = [], setup } = options;
 
-  // Apply name/version overrides to env before config is parsed.
-  // Save previous values so we don't permanently contaminate process.env
-  // for later composeServices() / createApp() calls in the same process.
-  const prevName = process.env.MCP_SERVER_NAME;
-  const prevVersion = process.env.MCP_SERVER_VERSION;
+  // Apply name/version overrides without mutating process.env — avoids
+  // concurrency races in Workers and parallel test suites.
   if (options.name || options.version) {
-    if (options.name) process.env.MCP_SERVER_NAME = options.name;
-    if (options.version) process.env.MCP_SERVER_VERSION = options.version;
-    resetConfig();
+    const envOverrides: Record<string, string> = {};
+    if (options.name) envOverrides.MCP_SERVER_NAME = options.name;
+    if (options.version) envOverrides.MCP_SERVER_VERSION = options.version;
+    resetConfig(envOverrides);
   }
 
   // --- Core services ---
@@ -191,14 +189,8 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
       toolRegistry,
     });
 
-  // Restore previous env values so subsequent composeServices() / createApp()
-  // calls in the same process aren't contaminated by this call's overrides.
-  // Reset the cached config so the next access re-parses from the restored env.
+  // Clear overridden config so subsequent proxy accesses re-parse from env.
   if (options.name || options.version) {
-    if (prevName === undefined) delete process.env.MCP_SERVER_NAME;
-    else process.env.MCP_SERVER_NAME = prevName;
-    if (prevVersion === undefined) delete process.env.MCP_SERVER_VERSION;
-    else process.env.MCP_SERVER_VERSION = prevVersion;
     resetConfig();
   }
 
@@ -238,7 +230,7 @@ function suppressColors(): void {
  * for a Node.js MCP server process.
  *
  * @param options - Definition arrays, name/version overrides, and setup callback.
- *                  All arrays default to the template's built-in definitions.
+ *                  All arrays default to empty.
  * @returns A {@link ServerHandle} with `shutdown()` and `services`.
  * @throws {McpError} If config parsing or service construction fails.
  */

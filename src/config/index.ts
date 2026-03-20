@@ -308,8 +308,8 @@ const ConfigSchema = z
   });
 
 // --- Parsing Logic ---
-const parseConfig = () => {
-  const env = process.env;
+const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
+  const env = envOverrides ? { ...process.env, ...envOverrides } : process.env;
 
   const rawConfig = {
     pkg: {
@@ -480,12 +480,16 @@ const parseConfig = () => {
 let _config: AppConfig | undefined;
 
 /**
- * Resets the cached config, forcing re-parse on next access.
+ * Resets the cached config. Without arguments, clears the cache so the next
+ * proxy access re-parses from `process.env`. With `envOverrides`, immediately
+ * parses and caches config with the overrides applied — avoiding `process.env`
+ * mutation and the concurrency races that come with it.
+ *
  * Used in Cloudflare Workers (env vars injected at request time, after ESM
- * static imports) and for test isolation.
+ * static imports), `composeServices` (name/version overrides), and test isolation.
  */
-const resetConfig = (): void => {
-  _config = undefined;
+const resetConfig = (envOverrides?: Record<string, string | undefined>): void => {
+  _config = envOverrides ? parseConfig(envOverrides) : undefined;
 };
 
 /**
