@@ -11,7 +11,8 @@ import type {
   ServerNotification,
   ServerRequest,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { ZodObject, ZodRawShape, z } from 'zod';
+
+import type { ZodObject, ZodRawShape } from 'zod';
 
 import type { Context, SamplingOpts } from '@/core/context.js';
 import { createContext } from '@/core/context.js';
@@ -30,10 +31,6 @@ import type { AnyToolDefinition } from './toolDefinition.js';
 
 type SdkExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 
-/**
- * The SDK context at runtime may include elicitInput/createMessage when the
- * client advertises support. These aren't in RequestHandlerExtra's static type.
- */
 interface SdkRuntimeCapabilities {
   createMessage?: (params: Record<string, unknown>) => Promise<unknown>;
   elicitInput?: (params: { message: string; requestedSchema: unknown }) => Promise<unknown>;
@@ -91,7 +88,7 @@ function wrapSample(sdkContext: SdkRuntimeCapabilities): Context['sample'] {
 export function createToolHandler(
   def: AnyToolDefinition,
   services: HandlerFactoryServices,
-): (input: z.input<typeof def.input>, extra: SdkExtra) => Promise<CallToolResult> {
+): (input: Record<string, unknown>, extra: SdkExtra) => Promise<CallToolResult> {
   const formatter = def.format ?? defaultResponseFormatter;
 
   return async (input, callContext): Promise<CallToolResult> => {
@@ -141,9 +138,19 @@ export function createToolHandler(
       // Validate output against schema when defined (matches resourceHandlerFactory behavior)
       const validatedResult = def.output ? def.output.parse(result) : result;
 
+      // Isolate formatter errors from handler errors so they get classified correctly
+      let content: ContentBlock[];
+      try {
+        content = formatter(validatedResult);
+      } catch (formatError) {
+        throw new Error(
+          `Output formatting failed: ${formatError instanceof Error ? formatError.message : String(formatError)}`,
+        );
+      }
+
       return {
         ...(def.output && { structuredContent: validatedResult }),
-        content: formatter(validatedResult),
+        content,
       };
     } catch (error: unknown) {
       const handled = ErrorHandler.handleError(error, {

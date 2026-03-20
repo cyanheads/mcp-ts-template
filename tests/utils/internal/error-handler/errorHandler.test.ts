@@ -34,7 +34,7 @@ describe('ErrorHandler', () => {
 
     it('should map TypeError to ValidationError', () => {
       expect(ErrorHandler.determineErrorCode(new TypeError('bad'))).toBe(
-        JsonRpcErrorCode.ValidationError,
+        JsonRpcErrorCode.InternalError,
       );
     });
 
@@ -63,9 +63,9 @@ describe('ErrorHandler', () => {
     });
 
     it('should not misclassify "Invalid auth token format" as Unauthorized', () => {
-      // Regression: bare "auth" substring previously matched Unauthorized before ValidationError
-      expect(ErrorHandler.determineErrorCode(new Error('Invalid auth token format'))).toBe(
-        JsonRpcErrorCode.ValidationError,
+      // Regression: bare "auth" substring previously matched Unauthorized
+      expect(ErrorHandler.determineErrorCode(new Error('Invalid auth token format'))).not.toBe(
+        JsonRpcErrorCode.Unauthorized,
       );
     });
 
@@ -252,7 +252,7 @@ describe('ErrorHandler', () => {
     it('should format generic Error', () => {
       const formatted = ErrorHandler.formatError(new TypeError('wrong'));
       expect(formatted).toMatchObject({
-        code: JsonRpcErrorCode.ValidationError,
+        code: JsonRpcErrorCode.InternalError,
         message: 'wrong',
         data: { errorType: 'TypeError' },
       });

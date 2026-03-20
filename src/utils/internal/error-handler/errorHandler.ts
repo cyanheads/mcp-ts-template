@@ -58,8 +58,8 @@ export class ErrorHandler {
    * ErrorHandler.determineErrorCode(new McpError(JsonRpcErrorCode.NotFound, 'missing'));
    * // → JsonRpcErrorCode.NotFound
    *
-   * ErrorHandler.determineErrorCode(new TypeError('bad input'));
-   * // → JsonRpcErrorCode.ValidationError
+   * ErrorHandler.determineErrorCode(new TypeError('Cannot read properties of undefined'));
+   * // → JsonRpcErrorCode.InternalError (falls through to default)
    *
    * ErrorHandler.determineErrorCode(new Error('status code 429'));
    * // → JsonRpcErrorCode.RateLimited
@@ -269,6 +269,22 @@ export class ErrorHandler {
       throw finalError;
     }
     return finalError;
+  }
+
+  /**
+   * Classifies an error and returns its JSON-RPC error code and message without
+   * logging, OTel side effects, or error wrapping. Use this when you need error
+   * classification but the caller handles logging/rethrowing (e.g., resource
+   * handler factory where the SDK logs the re-thrown error).
+   *
+   * @param error - The error instance or value to classify.
+   * @returns `{ code, message }` — the classified error code and extracted message.
+   */
+  public static classifyOnly(error: unknown): { code: JsonRpcErrorCode; message: string } {
+    return {
+      code: error instanceof McpError ? error.code : ErrorHandler.determineErrorCode(error),
+      message: getErrorMessage(error),
+    };
   }
 
   /**

@@ -80,21 +80,23 @@ interface CompiledErrorMapping extends BaseErrorMapping {
  * | Constructor | Mapped Code |
  * |-------------|-------------|
  * | `SyntaxError` | `ValidationError` |
- * | `TypeError` | `ValidationError` |
  * | `RangeError` | `ValidationError` |
  * | `URIError` | `ValidationError` |
  * | `ReferenceError` | `InternalError` |
  * | `EvalError` | `InternalError` |
  * | `AggregateError` | `InternalError` |
  *
+ * Note: `TypeError` is intentionally excluded. Runtime TypeErrors (e.g. "Cannot read
+ * properties of undefined") are programming errors, not validation failures. Letting them
+ * fall through to message-pattern matching or the `InternalError` fallback is more accurate.
+ *
  * @example
  * ```ts
- * ERROR_TYPE_MAPPINGS['TypeError']; // → JsonRpcErrorCode.ValidationError
+ * ERROR_TYPE_MAPPINGS['SyntaxError']; // → JsonRpcErrorCode.ValidationError
  * ```
  */
 export const ERROR_TYPE_MAPPINGS: Readonly<Record<string, JsonRpcErrorCode>> = {
   SyntaxError: JsonRpcErrorCode.ValidationError,
-  TypeError: JsonRpcErrorCode.ValidationError,
   ReferenceError: JsonRpcErrorCode.InternalError,
   RangeError: JsonRpcErrorCode.ValidationError,
   URIError: JsonRpcErrorCode.ValidationError,
@@ -123,7 +125,7 @@ const COMMON_ERROR_PATTERNS: ReadonlyArray<Readonly<BaseErrorMapping>> = [
   },
   {
     pattern:
-      /invalid|validation|malformed|bad request|wrong format|missing\s+(?:required|param|field|input|value|arg)/i,
+      /invalid\s+(?:input|param(?:eter)?|argument|field|format|value|request|schema|payload|type|syntax)|validation|malformed|bad request|wrong format|missing\s+(?:required|param|field|input|value|arg)/i,
     errorCode: JsonRpcErrorCode.ValidationError,
   },
   {

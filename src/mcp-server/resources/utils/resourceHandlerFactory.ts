@@ -13,11 +13,12 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape } from 'zod';
 
-import type { SamplingOpts } from '@/core/context.js';
+import type { Context, SamplingOpts } from '@/core/context.js';
 import { createContext } from '@/core/context.js';
 import type { AnyResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
+import { McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { Logger } from '@/utils/internal/logger.js';
 import { measureResourceExecution } from '@/utils/internal/performance.js';
@@ -61,25 +62,18 @@ function defaultResponseFormatter(
 // Capability detection helpers
 // ---------------------------------------------------------------------------
 
-function wrapElicit(sdkContext: SdkRuntimeCapabilities) {
+function wrapElicit(sdkContext: SdkRuntimeCapabilities): Context['elicit'] {
   if (typeof sdkContext.elicitInput !== 'function') return;
   const fn = sdkContext.elicitInput;
   return (msg: string, schema: ZodObject<ZodRawShape>) =>
-    fn({ message: msg, requestedSchema: schema }) as ReturnType<
-      NonNullable<import('@/core/context.js').Context['elicit']>
-    >;
+    fn({ message: msg, requestedSchema: schema }) as ReturnType<NonNullable<Context['elicit']>>;
 }
 
-function wrapSample(sdkContext: SdkRuntimeCapabilities) {
+function wrapSample(sdkContext: SdkRuntimeCapabilities): Context['sample'] {
   if (typeof sdkContext.createMessage !== 'function') return;
   const fn = sdkContext.createMessage;
-  return (
-    msgs: Parameters<NonNullable<import('@/core/context.js').Context['sample']>>[0],
-    opts?: SamplingOpts,
-  ) =>
-    fn({ messages: msgs, ...opts }) as ReturnType<
-      NonNullable<import('@/core/context.js').Context['sample']>
-    >;
+  return (msgs: Parameters<NonNullable<Context['sample']>>[0], opts?: SamplingOpts) =>
+    fn({ messages: msgs, ...opts }) as ReturnType<NonNullable<Context['sample']>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -159,11 +153,17 @@ export function createResourceHandler(
       const contents = formatter(validatedResult, { uri, mimeType });
       return { contents };
     } catch (error: unknown) {
-      throw ErrorHandler.handleError(error, {
-        operation: `resource:${def.name ?? def.uriTemplate}:readHandler`,
-        context: appContext,
-        input: { uri: uri.href, variables },
-      });
+      // Classify without logging — the SDK logs when it catches the thrown error.
+      if (error instanceof McpError) {
+        throw error;
+      }
+      const { code, message } = ErrorHandler.classifyOnly(error);
+      throw new McpError(
+        code,
+        `Error in resource:${def.name ?? def.uriTemplate}: ${message}`,
+        undefined,
+        { cause: error },
+      );
     }
   };
 }
