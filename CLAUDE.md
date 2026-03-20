@@ -128,7 +128,7 @@ interface ServerHandle {
 
 ## Server Structure
 
-```
+```text
 src/
   index.ts                              # createApp() entry point
   worker.ts                             # createWorkerHandler() (if using Workers)

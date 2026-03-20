@@ -107,7 +107,7 @@ It also works on Cloudflare Workers with `createWorkerHandler()` — same defini
 
 ## Server structure
 
-```
+```text
 my-mcp-server/
   src/
     index.ts                              # createApp() entry point
