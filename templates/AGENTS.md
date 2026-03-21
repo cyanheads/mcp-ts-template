@@ -14,7 +14,8 @@
 
 1. **Read the framework API** — `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`
 2. **Run the `setup` skill** — read `skills/setup/SKILL.md` and follow its checklist (project orientation, agent protocol file selection, echo definition cleanup, skill sync)
-3. **Design the server** — read `skills/design-mcp-server/SKILL.md` and work through it with the user to map the domain into tools, resources, and services before scaffolding
+3. **Check for Bun** — run `bun --version`. If [Bun](https://bun.sh) is available, it's the recommended runtime: update `package.json` scripts to use `bun` instead of `tsx` (e.g., `"devcheck": "bun scripts/devcheck.ts"`), prefer `bun run` over `npm run` for all commands, and update the Commands table and Checklist in this file to match.
+4. **Design the server** — read `skills/design-mcp-server/SKILL.md` and work through it with the user to map the domain into tools, resources, and services before scaffolding
 
 ---
 
@@ -189,9 +190,9 @@ src/
 
 ## Skills
 
-Skills are modular instructions in `skills/`. They guide you through common tasks.
+Skills are modular instructions in `skills/` at the project root. Read them directly when a task matches — e.g., `skills/add-tool/SKILL.md` when adding a tool.
 
-**Sync:** Keep your agent skill directory (e.g., `.claude/skills/`) in sync with `skills/`. Copy any missing or updated skills from `skills/` to your directory.
+**Agent skill directory:** Copy skills into the directory your agent discovers (Claude Code: `.claude/skills/`, others: equivalent). This makes skills available as context without needing to reference `skills/` paths manually. After framework updates, re-copy to pick up changes.
 
 Available skills:
 
@@ -207,7 +208,6 @@ Available skills:
 | `devcheck` | Lint, format, typecheck, audit |
 | `polish-docs-meta` | Finalize docs, README, metadata, and agent protocol for shipping |
 | `maintenance` | Sync skills and dependencies after updates |
-| `migrate-mcp-ts-template` | Migrate legacy template fork to package dependency |
 | `api-auth` | Auth modes, scopes, JWT/OAuth |
 | `api-config` | AppConfig, parseConfig, env vars |
 | `api-context` | Context interface, logger, state, progress |
@@ -226,17 +226,16 @@ When you complete a skill's checklist, check the boxes and add a completion time
 | Command | Purpose |
 |:--------|:--------|
 | `npm run build` | Compile TypeScript |
+| `npm run rebuild` | Clean + build |
 | `npm run clean` | Remove build artifacts |
-| `bun run devcheck` | Lint + format + typecheck + security |
-| `bun run tree` | Generate directory structure doc |
+| `npm run devcheck` | Lint + format + typecheck + security |
+| `npm run tree` | Generate directory structure doc |
 | `npm run format` | Auto-fix formatting |
 | `npm test` | Run tests |
 | `npm run dev:stdio` | Dev mode (stdio) |
 | `npm run dev:http` | Dev mode (HTTP) |
 | `npm run start:stdio` | Production mode (stdio) |
 | `npm run start:http` | Production mode (HTTP) |
-
-**Bun requirement:** `devcheck` and `tree` scripts use Bun-specific APIs (`spawn` from `'bun'`). Install [Bun](https://bun.sh) to run them. All other commands work with any Node-compatible package manager.
 
 ---
 
@@ -261,4 +260,4 @@ import { getMyService } from '@/services/my-domain/my-service.js';
 - [ ] Handlers throw on failure — error factories or plain `Error`, no try/catch
 - [ ] Registered in `createApp()` arrays (directly or via barrel exports)
 - [ ] Tests use `createMockContext()` from `@cyanheads/mcp-ts-core/testing`
-- [ ] `bun run devcheck` passes
+- [ ] `npm run devcheck` passes

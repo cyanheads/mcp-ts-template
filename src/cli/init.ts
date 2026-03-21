@@ -13,7 +13,7 @@ const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TEMPLATES_DIR = join(PACKAGE_ROOT, 'templates');
 const SKILLS_DIR = join(PACKAGE_ROOT, 'skills');
 const SCRIPTS_DIR = join(PACKAGE_ROOT, 'scripts');
-const SCAFFOLD_SCRIPTS = ['build.ts', 'clean.ts', 'devcheck.ts', 'tree.ts'];
+const SCAFFOLD_SCRIPTS = ['build.ts', 'clean.ts', 'devcheck.ts', 'lint-mcp.ts', 'tree.ts'];
 const TEXT_EXTENSIONS = new Set([
   '.md',
   '.ts',

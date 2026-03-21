@@ -94,9 +94,9 @@ After the initial copy, use the `maintenance` skill to keep them in sync after p
 
 ## Project Scaffolding
 
-After `bun install`, complete these one-time setup tasks:
+After installing dependencies (`npm install`, or `bun install` if using Bun), complete these one-time setup tasks:
 
-1. **Update dependencies to latest** — `bun update --latest` (or `npm update` / `npx npm-check-updates -u && npm install` for npm). The scaffolded `package.json` pins minimum versions from when the framework was published; updating ensures you start with the latest compatible releases.
+1. **Update dependencies to latest** — `npx npm-check-updates -u && npm install` (or `bun update --latest` if using Bun). The scaffolded `package.json` pins minimum versions from when the framework was published; updating ensures you start with the latest compatible releases.
 2. **Initialize git** — `git init && git add -A && git commit -m "chore: scaffold from @cyanheads/mcp-ts-core"`
 3. **Verify agent protocol placeholders** — if the `init` CLI was run without a `[name]` argument, `{{PACKAGE_NAME}}` may remain as a literal in `CLAUDE.md`/`AGENTS.md` and `package.json`. Replace it with the actual server name.
 
@@ -108,5 +108,5 @@ After `bun install`, complete these one-time setup tasks:
 - [ ] Unused echo definitions cleaned up (and unregistered from `src/index.ts`)
 - [ ] Skills copied to agent directory (`cp -R skills/* .claude/skills/` or equivalent)
 - [ ] Project structure understood (definitions directories, entry point)
-- [ ] `bun run devcheck` passes
+- [ ] `npm run devcheck` passes
 - [ ] If new server: proceed to `design-mcp-server` skill to plan the tool surface
