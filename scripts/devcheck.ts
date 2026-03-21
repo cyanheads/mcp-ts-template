@@ -618,10 +618,16 @@ const UI = {
         UI.log('');
       }
 
-      // Display output only for failed checks
-      if (result.exitCode !== 0 && !result.skipped) {
+      // Display check output (dimmed for passing, red stderr for failures)
+      if (!result.skipped && (result.stdout || result.stderr)) {
         if (result.stdout) UI.log(c.dim(result.stdout.replace(/^/gm, '   | ')));
-        if (result.stderr) UI.log(c.red(result.stderr.replace(/^/gm, '   | ')));
+        if (result.stderr) {
+          UI.log(
+            result.exitCode !== 0
+              ? c.red(result.stderr.replace(/^/gm, '   | '))
+              : c.dim(result.stderr.replace(/^/gm, '   | ')),
+          );
+        }
         UI.log('');
       }
     }
