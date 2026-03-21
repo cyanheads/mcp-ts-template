@@ -57,6 +57,13 @@ export type {
 export { tool } from '@/mcp-server/tools/utils/toolDefinition.js';
 
 // ---------------------------------------------------------------------------
+// Linter
+// ---------------------------------------------------------------------------
+
+export type { LintDiagnostic, LintInput, LintReport, LintSeverity } from '@/linter/types.js';
+export { validateDefinitions } from '@/linter/validate.js';
+
+// ---------------------------------------------------------------------------
 // SDK type re-exports — saves consumers from depending on @modelcontextprotocol/sdk directly
 // ---------------------------------------------------------------------------
 
