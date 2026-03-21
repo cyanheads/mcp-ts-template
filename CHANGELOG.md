@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.16] - 2026-03-21
+
+Security patch and agent protocol cleanup.
+
+### Security
+
+- **CVE-2026-33228** — Pinned `flatted` to `3.4.2` via `overrides` to fix prototype pollution vulnerability in `flatted <= 3.4.1` (transitive dep via `@vitest/ui`).
+
+### Changed
+
+- **CLAUDE.md** — Condensed agent protocol: removed inline code examples duplicated in skills, merged Checklist into Code Style section, shortened Context/Error/Auth sections with skill cross-references.
+
+---
+
 ## [0.1.15] - 2026-03-21
 
 MCP definition linter, Bun-free devcheck, and template portability.
