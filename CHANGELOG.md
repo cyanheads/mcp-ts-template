@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.15] - 2026-03-21
+
+MCP definition linter, Bun-free devcheck, and template portability.
+
+### Added
+
+- **MCP definition linter** — New `src/linter/` module validates tool, resource, and prompt definitions against MCP spec and framework conventions at startup. Checks name format/uniqueness, description presence, handler existence, Zod schema structure, `.describe()` on fields, URI template validity, and annotation types. Errors (MUST violations) block startup; warnings (SHOULD/quality) are logged.
+- **`./linter` subpath export** — `validateDefinitions()` and lint types available via `@cyanheads/mcp-ts-core/linter` for standalone use.
+- **`lint:mcp` script** — `scripts/lint-mcp.ts` discovers definitions from conventional paths and runs the linter as a standalone CLI or devcheck step.
+- **Duplicate name detection for prompts and resources** — `PromptRegistry` and `ResourceRegistry` now throw at startup on duplicate names, matching existing `ToolRegistry` behavior.
+- **Linter test suite** — 370-line test file covering all lint rules, edge cases, and report structure.
+
+### Changed
+
+- **`devcheck` is now runtime-agnostic** — Migrated from `Bun.spawn` to Node.js `child_process.spawn`. Auto-detects bun for package management commands, falls back to npm. Shebang changed from `bun` to `tsx`. Removed "slowest check" summary line.
+- **Templates default to npm/tsx** — `AGENTS.md`, `CLAUDE.md`, and `package.json` templates use `tsx` for scripts and `npm run` for commands. Bun is documented as an optional upgrade. Removed "Bun requirement" note and `migrate-mcp-ts-template` skill reference. Added `rebuild` and `lint:mcp` commands.
+- **Skills section wording** — Templates clarify that skills live at `skills/` and should be copied to agent directories, replacing the "sync" language.
+- **`init` CLI** — Now copies `lint-mcp.ts` to scaffolded projects.
+- **`setup` skill** — Updated to recommend npm as default with bun as alternative.
+
+---
+
 ## [0.1.14] - 2026-03-21
 
 Skill documentation overhaul and dependency updates.

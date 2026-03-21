@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-20 20:40:46
+Generated on: 2026-03-21 12:06:29
 
 ```text
 mcp-ts-core/
@@ -59,6 +59,7 @@ mcp-ts-core/
 │   ├── devcheck.ts
 │   ├── devdocs.ts
 │   ├── fetch-openapi-spec.ts
+│   ├── lint-mcp.ts
 │   ├── make-executable.ts
 │   ├── tree.ts
 │   └── update-coverage.ts
@@ -133,6 +134,17 @@ mcp-ts-core/
 │   │   ├── context.ts
 │   │   ├── index.ts
 │   │   └── worker.ts
+│   ├── linter/
+│   │   ├── rules/
+│   │   │   ├── index.ts
+│   │   │   ├── name-rules.ts
+│   │   │   ├── prompt-rules.ts
+│   │   │   ├── resource-rules.ts
+│   │   │   ├── schema-rules.ts
+│   │   │   └── tool-rules.ts
+│   │   ├── index.ts
+│   │   ├── types.ts
+│   │   └── validate.ts
 │   ├── mcp-server/
 │   │   ├── prompts/
 │   │   │   ├── utils/
@@ -337,6 +349,8 @@ mcp-ts-core/
 │   ├── unit/
 │   │   ├── config/
 │   │   │   └── index.test.ts
+│   │   ├── linter/
+│   │   │   └── validate.test.ts
 │   │   ├── mcp-server/
 │   │   │   ├── prompts/
 │   │   │   │   ├── utils/

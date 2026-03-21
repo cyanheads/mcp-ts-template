@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.14
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.15
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -35,6 +35,7 @@
 | `/storage/types` | `IStorageProvider` | Provider interface |
 | `/utils` | formatting, encoding, network, pagination, logging, runtime, telemetry, token counting, parsers†, sanitization†, scheduling† | All utilities (†optional peer deps — see below) |
 | `/services` | `OpenRouterProvider`, `SpeechService`, `createSpeechProvider`, `ElevenLabsProvider`, `WhisperProvider`, `GraphService`, provider interfaces and types | LLM, Speech (TTS/STT), Graph services |
+| `/linter` | `validateDefinitions`, `LintReport`, `LintDiagnostic`, `LintInput`, `LintSeverity` | Definition validation |
 | `/testing` | `createMockContext` | Test helpers |
 
 All subpaths prefixed with `@cyanheads/mcp-ts-core`. **†Tier 3 modules** require optional peer dependencies — install as needed. Tier 3 methods that lazy-load deps are **async**. Specifically: **parsers** (CSV → `papaparse`, YAML → `js-yaml`, XML → `fast-xml-parser`, PDF → `pdf-lib`/`unpdf`, date → `chrono-node`, frontmatter → `js-yaml`; JSON parser has no peer dep), **sanitization** (`sanitize-html`, `validator` — other security utils like `RateLimiter` and `IdGenerator` have no peer deps), **scheduling** (`node-cron`).
