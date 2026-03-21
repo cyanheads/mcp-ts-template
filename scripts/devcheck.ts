@@ -243,7 +243,9 @@ interface DevcheckConfig {
 
 function loadDevcheckConfig(rootDir: string): DevcheckConfig {
   try {
-    return JSON.parse(readFileSync(path.join(rootDir, 'devcheck.config.json'), 'utf-8')) as DevcheckConfig;
+    return JSON.parse(
+      readFileSync(path.join(rootDir, 'devcheck.config.json'), 'utf-8'),
+    ) as DevcheckConfig;
   } catch {
     return {};
   }
