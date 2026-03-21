@@ -14,6 +14,7 @@
 - **Unified Context.** Handlers receive `ctx` with logging (`ctx.log`), tenant-scoped storage (`ctx.state`), optional protocol capabilities (`ctx.elicit`, `ctx.sample`), and cancellation (`ctx.signal`).
 - **Decoupled storage.** `ctx.state` for tenant-scoped KV. Never access persistence backends directly.
 - **Runtime parity.** All features work with `stdio`/`http` and Worker bundle. Guard non-portable deps via `runtimeCaps`. Prefer runtime-agnostic abstractions (Hono + `@hono/mcp`, Fetch APIs).
+- **Startup validation.** `createApp()` runs the definition linter before proceeding — errors (spec violations) throw `ConfigurationError` and block startup; warnings are logged. Also available standalone via `bun run lint:mcp` and as a devcheck step.
 - **Elicitation for missing input.** Use `ctx.elicit` when the client supports it.
 
 ---
@@ -589,6 +590,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 |:--------|:--------|
 | `bun run build` | Build library output (`tsc && tsc-alias`) |
 | `bun run devcheck` | **Use often.** Lint, format, typecheck, security |
+| `bun run lint:mcp` | Validate MCP definitions against spec |
 | `bun run test` | Unit/integration tests |
 | `bun run dev:stdio` | Development mode (stdio) |
 | `bun run dev:http` | Development mode (HTTP) |
@@ -646,5 +648,5 @@ When used: `model: "opus"` (preferred) or `"sonnet"` (never `haiku`). Always `ru
 - [ ] Secrets only in server config
 - [ ] Registered in `definitions/index.ts` barrel
 - [ ] Tests added — `createMockContext()`, `.handler()` tested directly
-- [ ] **`bun run devcheck` passes**
+- [ ] **`bun run devcheck` passes** (includes MCP definition linting)
 - [ ] Smoke-tested with `dev:stdio`/`dev:http`
