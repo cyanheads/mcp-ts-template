@@ -10,6 +10,7 @@
     "scripts/build.ts",
     "scripts/clean.ts",
     "scripts/devcheck.ts",
+    "scripts/lint-mcp.ts",
     "scripts/tree.ts",
     "skills/",
     "templates/",
