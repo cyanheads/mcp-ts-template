@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.20] - 2026-03-21
+
+Template scaffolding improvements: dynamic framework version pinning, slimmed gitignore, and new server.json template.
+
+### Added
+
+- **`server.json` template** — Scaffolded projects now include a pre-configured MCP server manifest with stdio and streamable-http transport entries, using `{{PACKAGE_NAME}}` placeholder.
+- **Dynamic `{{FRAMEWORK_VERSION}}` placeholder** — `init` CLI reads the current framework version from its own `package.json` and injects it into templates. Scaffolded `package.json` now pins `@cyanheads/mcp-ts-core` to the exact version that generated the project, replacing the hardcoded `^0.1.0`.
+
+### Changed
+
+- **Template `_.gitignore` slimmed** — Removed Python, Java, Ruby, and other language-specific sections. Focused exclusively on TypeScript/Node.js patterns (OS files, IDE, build output, coverage, logs, env, MCP-specific). Added trailing newline.
+- **Template `package.json` enhanced** — Added `README.md`, `LICENSE`, `CLAUDE.md`, `AGENTS.md`, `Dockerfile`, and `server.json` to `files` array. Added empty `repository` field for consumers to fill in.
+- **Template `.env.example`** — Default HTTP port changed from 3000 to 3010.
+- **Template `.vscode/settings.json`** — Removed unused `ruff.enable: false` setting.
+- **`CLAUDE.md`** — Added `templates/` directory documentation explaining the scaffolding source and file naming conventions.
+
+---
+
 ## [0.1.19] - 2026-03-21
 
 Devcheck config externalization, template guidance, and field-test skill.
