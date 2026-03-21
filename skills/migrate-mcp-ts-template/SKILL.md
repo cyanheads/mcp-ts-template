@@ -4,7 +4,7 @@ description: >
   Migrate an existing mcp-ts-template fork to use @cyanheads/mcp-ts-core as a package dependency. Use when a project was cloned/forked from github.com/cyanheads/mcp-ts-template and carries framework source code in its own src/ — this skill rewrites those internal imports to package subpath imports and removes the bundled framework files.
 metadata:
   author: cyanheads
-  version: "2.0"
+  version: "2.1"
   audience: external
   type: workflow
 ---
@@ -22,11 +22,14 @@ For the full exports catalog, see `CLAUDE.md` → Exports Reference.
 1. **Install the package**: `bun add @cyanheads/mcp-ts-core`
 2. **Search for all `@/` imports** across `src/` that reference framework internals
 3. **Rewrite each import** using the mapping table below
-4. **Remove migrated framework source files** that now live in `node_modules`
+4. **Identify framework source files** now provided by the package (see candidates below) — review each for server-specific additions before cleaning up
 5. **Update entry point** (`src/index.ts`) to use `createApp()` from the package
-6. **Update build configs**: `tsconfig.json` extends `@cyanheads/mcp-ts-core/tsconfig.base.json`, `biome.json` extends `@cyanheads/mcp-ts-core/biome.json`
+6. **Update build configs**:
+   - `tsconfig.json` extends `@cyanheads/mcp-ts-core/tsconfig.base.json`
+   - `biome.json` extends `@cyanheads/mcp-ts-core/biome`
+   - `vitest.config.ts` spreads from `@cyanheads/mcp-ts-core/vitest.config`
 7. **Run `bun run devcheck`** to verify no broken imports remain
-8. **Verify no `@/` imports** point to files that were removed
+8. **Verify no `@/` imports** point to framework files that are no longer local
 
 ## Import mapping
 
@@ -38,6 +41,7 @@ These are the actual `@/` import paths used in framework source. Rewrite any tha
 |:----------------|:-------------------|
 | `@/config/index.js` | `@cyanheads/mcp-ts-core/config` |
 | `@/context.js` or `@/core/context.js` | `@cyanheads/mcp-ts-core` |
+| `@/core/worker.js` | `@cyanheads/mcp-ts-core/worker` |
 | `@/types-global/errors.js` | `@cyanheads/mcp-ts-core/errors` |
 | `@/storage/core/StorageService.js` | `@cyanheads/mcp-ts-core/storage` |
 | `@/storage/core/IStorageProvider.js` | `@cyanheads/mcp-ts-core/storage/types` |
@@ -61,6 +65,7 @@ These are the actual `@/` import paths used in framework source. Rewrite any tha
 | `@/utils/internal/requestContext.js` | `@cyanheads/mcp-ts-core/utils` |
 | `@/utils/internal/error-handler/errorHandler.js` | `@cyanheads/mcp-ts-core/utils` |
 | `@/utils/internal/runtime.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/internal/encoding.js` | `@cyanheads/mcp-ts-core/utils` |
 | `@/utils/formatting/*.js` | `@cyanheads/mcp-ts-core/utils` |
 | `@/utils/parsing/*.js` | `@cyanheads/mcp-ts-core/utils` |
 | `@/utils/security/*.js` | `@cyanheads/mcp-ts-core/utils` |
@@ -68,29 +73,43 @@ These are the actual `@/` import paths used in framework source. Rewrite any tha
 | `@/utils/pagination/pagination.js` | `@cyanheads/mcp-ts-core/utils` |
 | `@/utils/types/guards.js` | `@cyanheads/mcp-ts-core/utils` |
 | `@/utils/scheduling/*.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/telemetry/*.js` | `@cyanheads/mcp-ts-core/utils` |
+| `@/utils/metrics/*.js` | `@cyanheads/mcp-ts-core/utils` |
 
-## Files to remove
+### Services
 
-After rewriting imports, remove these framework directories/files. **Do not remove** server-specific code under `mcp-server/tools/definitions/`, `mcp-server/resources/definitions/`, `mcp-server/prompts/definitions/`, `services/` (server's own), or `config/server-config.ts`.
+| Old `@/` import | New package import |
+|:----------------|:-------------------|
+| `@/services/llm/*.js` | `@cyanheads/mcp-ts-core/services` |
+| `@/services/speech/*.js` | `@cyanheads/mcp-ts-core/services` |
+| `@/services/graph/*.js` | `@cyanheads/mcp-ts-core/services` |
 
-Framework files to delete:
+## Framework file candidates
 
-- `src/core/` (`app.ts`, `context.ts`, `worker.ts`)
-- `src/config/index.ts` (keep `server-config.ts` if it exists)
+After rewriting imports, these directories and files are candidates for cleanup — they contain framework code now provided by the package. **Review each before acting**: the server may have added custom files alongside framework code in any of these directories. Preserve anything server-specific.
+
+**Preserve:** server-specific code under `mcp-server/tools/definitions/`, `mcp-server/resources/definitions/`, `mcp-server/prompts/definitions/`, the server's own `services/`, and `config/server-config.ts`.
+
+Framework directories (typically safe to clean up in full — verify no server-specific files were added):
+
+- `src/core/` (app, context, worker)
+- `src/cli/`
 - `src/types-global/`
 - `src/storage/`
-- `src/mcp-server/server.ts`
-- `src/mcp-server/transports/`
-- `src/mcp-server/roots/`
-- `src/mcp-server/tasks/` (core task infra — not tool definitions)
-- `src/mcp-server/tools/utils/`, `tool-registration.ts`
-- `src/mcp-server/resources/utils/`, `resource-registration.ts`
-- `src/mcp-server/prompts/utils/`, `prompt-registration.ts`
-- `src/utils/internal/`
-- `src/utils/telemetry/`
-- `src/utils/metrics/`
+- `src/utils/`
 - `src/testing/`
-- `src/services/llm/`, `src/services/speech/`, `src/services/graph/` (framework services)
+- `src/services/llm/`, `src/services/speech/`, `src/services/graph/` (framework-provided services — the server's own service directories are separate)
+
+Framework files within directories that contain server code:
+
+- `src/config/index.ts` (the framework config loader — `server-config.ts` is server-specific, keep it)
+- `src/mcp-server/server.ts`
+- `src/mcp-server/transports/` (entire directory)
+- `src/mcp-server/roots/` (entire directory)
+- `src/mcp-server/tasks/` (core task infra — tool definitions using `task: true` are server code)
+- `src/mcp-server/tools/utils/`, `src/mcp-server/tools/tool-registration.ts`
+- `src/mcp-server/resources/utils/`, `src/mcp-server/resources/resource-registration.ts`
+- `src/mcp-server/prompts/utils/`, `src/mcp-server/prompts/prompt-registration.ts`
 
 ## Entry point rewrite
 
@@ -110,14 +129,28 @@ await createApp({
 });
 ```
 
+Add `setup()` if the server initializes services:
+
+```ts
+await createApp({
+  tools: allToolDefinitions,
+  resources: allResourceDefinitions,
+  prompts: allPromptDefinitions,
+  setup(core) {
+    initMyService(core.config, core.storage);
+  },
+});
+```
+
 ## Checklist
 
 - [ ] `@cyanheads/mcp-ts-core` installed as a dependency
 - [ ] All framework `@/` imports rewritten to `@cyanheads/mcp-ts-core/*` subpaths
-- [ ] No `@/` imports point to removed framework files
+- [ ] No `@/` imports point to framework files that are no longer local
 - [ ] `src/index.ts` uses `createApp()` from the package
 - [ ] `tsconfig.json` extends `@cyanheads/mcp-ts-core/tsconfig.base.json`
-- [ ] `biome.json` extends `@cyanheads/mcp-ts-core/biome.json`
-- [ ] Framework source files removed from `src/`
+- [ ] `biome.json` extends `@cyanheads/mcp-ts-core/biome`
+- [ ] `vitest.config.ts` spreads from `@cyanheads/mcp-ts-core/vitest.config`
+- [ ] Framework source files cleaned up from `src/`
 - [ ] Server-specific `@/` imports (own tools, services) still work
 - [ ] `bun run devcheck` passes
