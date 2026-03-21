@@ -12,7 +12,7 @@
  * // Custom directories:
  * // bun run scripts/clean.ts temp coverage
  */
-import { rm } from 'node:fs/promises';
+import { readdir, rm } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 
 interface CleanResult {
@@ -46,7 +46,8 @@ const clean = async (): Promise<void> => {
   try {
     const root = process.cwd();
     const args = process.argv.slice(2);
-    const dirsToClean = [...new Set(args.length > 0 ? args : ['dist', 'logs', '.tsbuildinfo'])];
+    const buildInfoFiles = (await readdir(root)).filter((f) => f.endsWith('.tsbuildinfo'));
+    const dirsToClean = [...new Set(args.length > 0 ? args : ['dist', 'logs', ...buildInfoFiles])];
 
     console.log(`Cleaning directories: ${dirsToClean.join(', ')}`);
 
