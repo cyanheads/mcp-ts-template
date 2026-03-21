@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.19] - 2026-03-21
+
+Devcheck config externalization, template guidance, and field-test skill.
+
+### Added
+
+- **`devcheck.config.json`** — Devcheck now reads depcheck ignores, ignore patterns, and outdated allowlist from a project-local JSON config file instead of hardcoded values in `scripts/devcheck.ts`. Consumer template includes a starter config.
+- **"What's Next?" section in templates** — `AGENTS.md` and `CLAUDE.md` templates now include a prioritized list of suggested next steps, helping agents guide users through the server development workflow.
+- **`field-test` skill reference** — Added to skill tables in `CLAUDE.md`, `templates/AGENTS.md`, and `templates/CLAUDE.md`.
+- **`MCP_SESSION_MODE` env var** — Documented in `templates/.env.example` (`stateful` | `stateless`).
+
+### Changed
+
+- **Template Dockerfile** — Simplified production install step; removed manual cleanup of platform-specific `@oven`/`@rollup` binaries (no longer needed).
+
+---
+
 ## [0.1.18] - 2026-03-21
 
 Template and devcheck improvements.
