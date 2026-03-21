@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-21 12:06:29
+Generated on: 2026-03-21 15:28:30
 
 ```text
 mcp-ts-core/
@@ -105,6 +105,8 @@ mcp-ts-core/
 │   ├── design-mcp-server/
 │   │   └── SKILL.md
 │   ├── devcheck/
+│   │   └── SKILL.md
+│   ├── field-test/
 │   │   └── SKILL.md
 │   ├── maintenance/
 │   │   └── SKILL.md
@@ -296,6 +298,9 @@ mcp-ts-core/
 │   │   └── index.ts
 │   └── index.ts
 ├── templates/
+│   ├── .vscode/
+│   │   ├── extensions.json
+│   │   └── settings.json
 │   ├── src/
 │   │   ├── mcp-server/
 │   │   │   ├── prompts/
@@ -309,11 +314,13 @@ mcp-ts-core/
 │   │   │           └── echo.tool.ts
 │   │   └── index.ts
 │   ├── _.gitignore
+│   ├── _tsconfig.build.json
 │   ├── _tsconfig.json
 │   ├── .env.example
 │   ├── AGENTS.md
 │   ├── biome.template.json
 │   ├── CLAUDE.md
+│   ├── devcheck.config.json
 │   ├── Dockerfile
 │   ├── package.json
 │   └── vitest.config.ts
@@ -505,6 +512,7 @@ mcp-ts-core/
 ├── bunfig.toml
 ├── CHANGELOG.md
 ├── CLAUDE.md
+├── devcheck.config.json
 ├── Dockerfile
 ├── LICENSE
 ├── package.json
@@ -519,7 +527,7 @@ mcp-ts-core/
 ├── tsconfig.test.json
 ├── tsdoc.json
 ├── typedoc.json
-├── vitest.config.base.js
+├── vitest.config.base.ts
 ├── vitest.config.ts
 ├── vitest.integration.ts
 └── wrangler.toml
