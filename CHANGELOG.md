@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.17] - 2026-03-21
+
+Three bug fixes affecting consumer projects scaffolded via `mcp-ts-core init` and HTTP transport mode.
+
+### Fixed
+
+- **Duplicate registration in HTTP mode** — Shared `ToolRegistry`, `ResourceRegistry`, and `PromptRegistry` instances now clear their `registeredNames` Set at the top of `registerAll()`, preventing duplicate-name errors when per-request `McpServer` instances are created (GHSA-345p-7cg4-v4c7 security pattern).
+- **Stale `.tsbuildinfo` not cleaned** — `scripts/clean.ts` now dynamically globs for all `*.tsbuildinfo` files in the project root instead of hardcoding a single `.tsbuildinfo` filename. Prevents silent 0-file builds when tsc names buildinfo after the tsconfig (e.g., `tsconfig.build.tsbuildinfo`).
+- **Missing `tsconfig.build.json` in scaffold** — Added `templates/_tsconfig.build.json` so `init` creates the file consumers need for `scripts/build.ts` (which defaults to `-p tsconfig.build.json`).
+
+---
+
 ## [0.1.16] - 2026-03-21
 
 Security patch and agent protocol cleanup.
