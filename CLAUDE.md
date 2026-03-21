@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.18
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.19
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -400,6 +400,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 | `add-prompt` | `skills/add-prompt/SKILL.md` | Scaffold a new MCP prompt definition |
 | `add-service` | `skills/add-service/SKILL.md` | Scaffold a new domain service |
 | `add-test` | `skills/add-test/SKILL.md` | Scaffold test file for a tool, resource, or service |
+| `field-test` | `skills/field-test/SKILL.md` | Exercise tools/resources/prompts with real inputs, verify behavior, report issues |
 | `add-provider` | `skills/add-provider/SKILL.md` | Add a new provider implementation |
 | `add-export` | `skills/add-export/SKILL.md` | Add a new subpath export |
 | `design-mcp-server` | `skills/design-mcp-server/SKILL.md` | Design tool surface, resources, and service layer for a new server |
