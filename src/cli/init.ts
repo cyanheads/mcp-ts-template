@@ -72,13 +72,17 @@ function init(): void {
     mkdirSync(dest, { recursive: true });
   }
 
+  const pkg = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf-8')) as {
+    version: string;
+  };
+
   console.log(`\n  Scaffolding${name ? ` ${name}` : ''} in ${dest}\n`);
 
   const created: string[] = [];
   const skipped: string[] = [];
 
   // Step 1: Copy templates
-  copyTemplates(dest, packageName, created, skipped);
+  copyTemplates(dest, packageName, pkg.version, created, skipped);
 
   // Step 2: Copy scripts
   copyScripts(dest, created, skipped);
@@ -92,7 +96,13 @@ function init(): void {
 
 // ── Template copying ──────────────────────────────────────────────────
 
-function copyTemplates(dest: string, name: string, created: string[], skipped: string[]): void {
+function copyTemplates(
+  dest: string,
+  name: string,
+  frameworkVersion: string,
+  created: string[],
+  skipped: string[],
+): void {
   const entries = walkDir(TEMPLATES_DIR);
 
   for (const srcPath of entries) {
@@ -112,7 +122,9 @@ function copyTemplates(dest: string, name: string, created: string[], skipped: s
         continue;
       }
       mkdirSync(dirname(destPath), { recursive: true });
-      const content = readFileSync(srcPath, 'utf-8').replace(/\{\{PACKAGE_NAME\}\}/g, name);
+      const content = readFileSync(srcPath, 'utf-8')
+        .replace(/\{\{PACKAGE_NAME\}\}/g, name)
+        .replace(/\{\{FRAMEWORK_VERSION\}\}/g, frameworkVersion);
       writeFileSync(destPath, content);
       created.push(relPath);
     } else {
