@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.18] - 2026-03-21
+
+Template and devcheck improvements.
+
+### Changed
+
+- **Devcheck output visibility** — `scripts/devcheck.ts` now shows stdout for all checks (dimmed), not just failures. Stderr is dimmed for passing checks, red for failures. Makes it easier to verify what ran.
+- **Template `.gitignore` rewrite** — Expanded from a minimal Node.js gitignore to a comprehensive multi-language template covering OS files, IDE files, Node/Python/Java/Ruby, build artifacts, logs, coverage, environment files, and MCP-specific patterns.
+- **Template `.vscode/` config** — Added `extensions.json` (recommends Biome + markdownlint) and `settings.json` (Biome as default formatter, markdownlint config, format-on-save) to scaffolded projects.
+
+### Fixed
+
+- **`docs/tree.md`** — Corrected `vitest.config.base.ts` → `vitest.config.base.js` filename.
+
+---
+
 ## [0.1.17] - 2026-03-21
 
 Three bug fixes affecting consumer projects scaffolded via `mcp-ts-core init` and HTTP transport mode.
