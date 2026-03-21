@@ -1,6 +1,6 @@
 <div align="center">
   <h1>@cyanheads/mcp-ts-core</h1>
-  <p><b>TypeScript framework for building Model Context Protocol (MCP) servers. Declarative tool/resource/prompt definitions, pluggable auth, multi-backend storage, OpenTelemetry observability, and support for both local (stdio/HTTP) and edge (Cloudflare Workers) runtimes.</b></p>
+  <p><b>Agent-native TypeScript framework for building MCP servers. Build tools, not infrastructure. Declarative definitions with auth, multi-backend storage, OpenTelemetry, and first-class support for Node.js and Cloudflare Workers.</b></p>
 </div>
 
 <div align="center">

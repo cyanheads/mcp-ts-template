@@ -14,6 +14,7 @@ Security patch and agent protocol cleanup.
 
 ### Changed
 
+- **Project description** — Rebranded to "Agent-native TypeScript framework for building MCP servers." Updated `package.json` description, keywords, and README tagline.
 - **CLAUDE.md** — Condensed agent protocol: removed inline code examples duplicated in skills, merged Checklist into Code Style section, shortened Context/Error/Auth sections with skill cross-references.
 
 ---
