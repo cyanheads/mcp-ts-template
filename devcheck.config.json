@@ -1,0 +1,21 @@
+{
+  "depcheck": {
+    "ignores": [
+      "@types/*",
+      "pino-pretty",
+      "typescript",
+      "bun-types",
+      "@vitest/coverage-istanbul",
+      "repomix",
+      "bun",
+      "tsc-alias",
+      "@cyanheads/mcp-ts-core",
+      "@modelcontextprotocol/ext-apps",
+      "typedoc"
+    ],
+    "ignorePatterns": ["examples"]
+  },
+  "outdated": {
+    "allowlist": []
+  }
+}

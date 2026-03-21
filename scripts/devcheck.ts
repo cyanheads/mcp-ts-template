@@ -229,9 +229,29 @@ const Shell = {
 
 const ROOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-// Packages allowed to be outdated without failing the check.
-// zod is pinned due to the MCP SDK's hard version requirement.
-const OUTDATED_ALLOWLIST = new Set(['zod']);
+// ── Project-local config (devcheck.config.json) ─────────────────────
+
+interface DevcheckConfig {
+  depcheck?: {
+    ignores?: string[];
+    ignorePatterns?: string[];
+  };
+  outdated?: {
+    allowlist?: string[];
+  };
+}
+
+function loadDevcheckConfig(rootDir: string): DevcheckConfig {
+  try {
+    return JSON.parse(readFileSync(path.join(rootDir, 'devcheck.config.json'), 'utf-8')) as DevcheckConfig;
+  } catch {
+    return {};
+  }
+}
+
+const DEVCHECK_CONFIG = loadDevcheckConfig(ROOT_DIR);
+
+const OUTDATED_ALLOWLIST = new Set(DEVCHECK_CONFIG.outdated?.allowlist ?? []);
 
 /** Use bun for package management commands if available, otherwise npm. */
 const PM_CMD = spawnSync('bun', ['--version'], { stdio: 'ignore' }).status === 0 ? 'bun' : 'npm';
@@ -433,13 +453,16 @@ const ALL_CHECKS: Check[] = [
     flag: '--no-depcheck',
     canFix: false,
     slowCheck: true,
-    getCommand: (ctx) => [
-      path.join(ctx.rootDir, 'node_modules', '.bin', 'depcheck'),
-      '--ignores=@types/*,pino-pretty,typescript,bun-types,@vitest/coverage-istanbul,repomix,bun,tsc-alias,@cyanheads/mcp-ts-core,@modelcontextprotocol/ext-apps,typedoc',
-      '--ignore-patterns=examples',
-    ],
+    getCommand: (ctx) => {
+      const cmd = [path.join(ctx.rootDir, 'node_modules', '.bin', 'depcheck')];
+      const ignores = DEVCHECK_CONFIG.depcheck?.ignores ?? ['@types/*'];
+      if (ignores.length > 0) cmd.push(`--ignores=${ignores.join(',')}`);
+      const patterns = DEVCHECK_CONFIG.depcheck?.ignorePatterns ?? [];
+      if (patterns.length > 0) cmd.push(`--ignore-patterns=${patterns.join(',')}`);
+      return cmd;
+    },
     tip: (c) =>
-      `Remove unused packages with ${c.bold(`${PM_CMD} remove <pkg>`)} or add to depcheck ignores.`,
+      `Remove unused packages with ${c.bold(`${PM_CMD} remove <pkg>`)} or add to ${c.bold('devcheck.config.json')} ignores.`,
   },
   // Slow checks last (network-bound operations)
   {
@@ -519,7 +542,7 @@ const ALL_CHECKS: Check[] = [
       return unexpected.length === 0;
     },
     tip: (c) =>
-      `Run ${c.bold(`${PM_CMD} update`)} to upgrade dependencies. Allowlisted packages: ${[...OUTDATED_ALLOWLIST].join(', ')}.`,
+      `Run ${c.bold(`${PM_CMD} update`)} to upgrade dependencies. Configure allowlist in ${c.bold('devcheck.config.json')}.`,
   },
 ];
 

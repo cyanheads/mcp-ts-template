@@ -1,0 +1,15 @@
+{
+  "depcheck": {
+    "ignores": [
+      "@types/*",
+      "pino-pretty",
+      "typescript",
+      "tsc-alias",
+      "@cyanheads/mcp-ts-core"
+    ],
+    "ignorePatterns": []
+  },
+  "outdated": {
+    "allowlist": []
+  }
+}
