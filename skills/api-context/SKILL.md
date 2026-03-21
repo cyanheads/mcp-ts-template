@@ -99,7 +99,7 @@ ctx.log.debug('Cache miss', { key, ttl });
 | `ctx.log` | Inside tool/resource handlers — auto-correlated to the request |
 | `core.logger` / `logger` | In `setup()`, service constructors, background tasks — no request context available |
 
-The global `logger` is imported from `@cyanheads/mcp-ts-core/utils`. In handlers, always prefer `ctx.log`.
+The global `logger` is imported from `@cyanheads/mcp-ts-core/utils`. In handlers, prefer `ctx.log`.
 
 ---
 
@@ -160,7 +160,7 @@ if (page.cursor) { /* more pages available */ }
 
 ## `ctx.elicit` / `ctx.sample`
 
-Both are optional — `undefined` when the connected client doesn't support the capability. Always check for presence before calling. A simple truthiness check is enough; no type guards needed.
+Both are optional — `undefined` when the connected client doesn't support the capability. Check for presence before calling. A simple truthiness check is enough; no type guards needed.
 
 ### `ctx.elicit` — ask the user for structured input
 

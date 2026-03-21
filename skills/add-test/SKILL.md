@@ -32,7 +32,7 @@ Read the handler and identify:
 
 | Aspect | Test Strategy |
 |:-------|:-------------|
-| **Happy path** | Valid input → expected output. Always include at least one. |
+| **Happy path** | Valid input → expected output. Include at least one. |
 | **Input variations** | Optional fields omitted, defaults applied, boundary values |
 | **Error paths** | Invalid state, missing resources, service failures → correct error thrown |
 | **`ctx.state` usage** | Use `createMockContext({ tenantId: 'test' })` to enable storage |

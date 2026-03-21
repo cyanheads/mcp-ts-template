@@ -15,10 +15,10 @@ This skill assumes `@cyanheads/mcp-ts-core init` has already run. The CLI create
 
 ## Agent Protocol File
 
-The init CLI generates both `CLAUDE.md` and `AGENTS.md` with identical content. Keep the one your agent uses and delete the other:
+The init CLI generates both `CLAUDE.md` and `AGENTS.md` with identical content. Keep the one your agent uses, discard the other:
 
-- **Claude Code** — keep `CLAUDE.md`, delete `AGENTS.md`
-- **All other agents** (Codex, Cursor, Windsurf, etc.) — keep `AGENTS.md`, delete `CLAUDE.md`
+- **Claude Code** — keep `CLAUDE.md`, discard `AGENTS.md`
+- **All other agents** (Codex, Cursor, Windsurf, etc.) — keep `AGENTS.md`, discard `CLAUDE.md`
 
 Both files serve the same purpose: project-specific agent instructions. Only one should exist in the committed project.
 
@@ -34,17 +34,17 @@ What `init` actually creates:
 
 ```text
 CLAUDE.md                                       # Agent protocol (project-specific)
-AGENTS.md                                       # Same content — delete whichever you don't use
+AGENTS.md                                       # Same content — discard whichever you don't use
 skills/                                         # Project skills (source of truth)
 src/
   index.ts                                      # createApp() entry point
   mcp-server/
     tools/definitions/
-      echo.tool.ts                              # Echo tool (starter — replace or delete)
+      echo.tool.ts                              # Echo tool (starter — replace when ready)
     resources/definitions/
-      echo.resource.ts                          # Echo resource (starter — replace or delete)
+      echo.resource.ts                          # Echo resource (starter — replace when ready)
     prompts/definitions/
-      echo.prompt.ts                            # Echo prompt (starter — replace or delete)
+      echo.prompt.ts                            # Echo prompt (starter — replace when ready)
 ```
 
 Add these as needed:
@@ -64,7 +64,7 @@ src/
 
 The init creates echo definitions for tools, resources, and prompts. They're functional examples with inline comments explaining conventions. After init:
 
-1. Delete what you don't need. If your server has no prompts, delete `echo.prompt.ts` and remove its import/registration from `src/index.ts`. Same for resources.
+1. Clean up what you don't need. If your server has no prompts, the echo prompt definition and its registration in `src/index.ts` can go. Same for resources.
 2. Rename and replace what you keep. The echo definitions show the pattern — swap them out for your real tools/resources/prompts.
 3. Definitions register directly in `src/index.ts`. No barrel files, just import and add to the arrays.
 
@@ -102,10 +102,10 @@ After `bun install`, complete these one-time setup tasks:
 
 ## Checklist
 
-- [ ] Agent protocol file selected — keep `CLAUDE.md` or `AGENTS.md`, delete the other
+- [ ] Agent protocol file selected — keep `CLAUDE.md` or `AGENTS.md`, discard the other
 - [ ] `{{PACKAGE_NAME}}` placeholders replaced in agent protocol file (if not auto-substituted by init)
 - [ ] Core framework CLAUDE.md read (`node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`)
-- [ ] Unused echo definitions deleted (and unregistered from `src/index.ts`)
+- [ ] Unused echo definitions cleaned up (and unregistered from `src/index.ts`)
 - [ ] Skills copied to agent directory (`cp -R skills/* .claude/skills/` or equivalent)
 - [ ] Project structure understood (definitions directories, entry point)
 - [ ] `bun run devcheck` passes
