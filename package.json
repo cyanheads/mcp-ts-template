@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/mcp-ts-core",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "TypeScript framework for building Model Context Protocol (MCP) servers. Declarative tool/resource/prompt definitions, pluggable auth, multi-backend storage, OpenTelemetry observability, and support for both local (stdio/HTTP) and edge (Cloudflare Workers) runtimes.",
   "main": "dist/core/index.js",
@@ -169,7 +169,7 @@
     "execa": "^9.6.1",
     "fast-check": "^4.6.0",
     "ignore": "^7.0.5",
-    "msw": "^2.12.13",
+    "msw": "^2.12.14",
     "node-cron": "^4.2.1",
     "openai": "^6.32.0",
     "papaparse": "^5.5.3",
