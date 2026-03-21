@@ -519,7 +519,7 @@ mcp-ts-core/
 ├── tsconfig.test.json
 ├── tsdoc.json
 ├── typedoc.json
-├── vitest.config.base.ts
+├── vitest.config.base.js
 ├── vitest.config.ts
 ├── vitest.integration.ts
 └── wrangler.toml
