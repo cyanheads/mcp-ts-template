@@ -108,7 +108,9 @@ describe('PromptRegistry', () => {
       const firstRun = mockServer.registerPrompt.mock.calls.map((call: any[]) => call[0]);
 
       mockServer.registerPrompt.mockClear();
-      await registry.registerAll(mockServer);
+      // Create a fresh registry — duplicate name detection prevents re-registration on the same instance
+      const freshRegistry = new PromptRegistry(testDefinitions, logger);
+      await freshRegistry.registerAll(mockServer);
       const secondRun = mockServer.registerPrompt.mock.calls.map((call: any[]) => call[0]);
 
       expect(firstRun).toEqual(secondRun);

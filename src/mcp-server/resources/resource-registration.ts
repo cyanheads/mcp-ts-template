@@ -15,6 +15,9 @@ import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
 export class ResourceRegistry {
+  /** Tracks registered resource names to detect duplicates at startup. */
+  private readonly registeredNames = new Set<string>();
+
   constructor(
     private resourceDefs: AnyResourceDefinition[],
     private services: ResourceHandlerFactoryServices,
@@ -35,6 +38,17 @@ export class ResourceRegistry {
     }
   }
 
+  /** Throws at startup if a resource with the same name was already registered. */
+  private assertUniqueName(name: string): void {
+    if (this.registeredNames.has(name)) {
+      throw new Error(
+        `Duplicate resource name '${name}': a resource with this name is already registered. ` +
+          'Each resource must have a unique name.',
+      );
+    }
+    this.registeredNames.add(name);
+  }
+
   private async registerResource(server: McpServer, def: AnyResourceDefinition): Promise<void> {
     const resourceName = def.name ?? def.uriTemplate;
     const registrationContext = requestContextService.createRequestContext({
@@ -43,6 +57,8 @@ export class ResourceRegistry {
     });
 
     logger.debug(`Registering resource: '${resourceName}'`, registrationContext);
+
+    this.assertUniqueName(resourceName);
 
     await ErrorHandler.tryCatch(
       () => {

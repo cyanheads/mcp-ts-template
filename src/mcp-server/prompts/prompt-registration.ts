@@ -15,6 +15,9 @@ import { measurePromptGeneration } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
 export class PromptRegistry {
+  /** Tracks registered prompt names to detect duplicates at startup. */
+  private readonly registeredNames = new Set<string>();
+
   constructor(
     private promptDefs: AnyPromptDefinition[],
     private logger: typeof defaultLogger,
@@ -37,12 +40,25 @@ export class PromptRegistry {
     this.logger.info(`Successfully registered ${this.promptDefs.length} prompts`, context);
   }
 
+  /** Throws at startup if a prompt with the same name was already registered. */
+  private assertUniqueName(name: string): void {
+    if (this.registeredNames.has(name)) {
+      throw new Error(
+        `Duplicate prompt name '${name}': a prompt with this name is already registered. ` +
+          'Each prompt must have a unique name.',
+      );
+    }
+    this.registeredNames.add(name);
+  }
+
   private async registerPrompt(
     server: McpServer,
     promptDef: AnyPromptDefinition,
     context: ReturnType<typeof requestContextService.createRequestContext>,
   ): Promise<void> {
     this.logger.debug(`Registering prompt: ${promptDef.name}`, context);
+
+    this.assertUniqueName(promptDef.name);
 
     await ErrorHandler.tryCatch(
       () => {
