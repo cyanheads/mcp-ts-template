@@ -1,78 +1,73 @@
 ---
 name: release
 description: >
-  Prepare and publish a core package release. Use when bumping the version, updating the changelog, and publishing to npm/Docker/GitHub. Stops before publish commands for user confirmation.
+  Verify release readiness and publish. The git wrapup protocol handles version bumps, changelog, README, commits, and tagging during the coding session. This skill verifies nothing was missed, runs final checks, and presents the irreversible publish commands.
 metadata:
   author: cyanheads
-  version: "1.1"
+  version: "1.2"
   audience: internal
   type: workflow
 ---
 
 ## Context
 
-Publishing is a multi-step process with irreversible actions (npm publish, Docker push). This skill handles preparation but stops before destructive commands, requiring the user to execute them manually.
+By the time this skill runs, the git wrapup protocol should have already handled: changelog entry, version bumps, README updates, atomic commits, and an annotated tag. This skill is the **final verification gate** before irreversible publish commands. Its job is to catch anything the wrapup missed or got wrong — not to redo the work.
 
 ## Steps
 
-### 1. Determine Version Bump
+### 1. Confirm the Target Version
 
-Ask the user: patch, minor, or major? Use the CHANGELOG diff to guide the recommendation — breaking changes → major, new features → minor, fixes only → patch.
+Read `package.json` to get the version. This is the source of truth. If the user hasn't decided on the bump level yet (patch/minor/major), ask now — but usually this was already set during wrapup.
 
-### 2. Update Version Strings
+### 2. Verify Version Consistency
 
-Update the version in **all** of these locations:
+The wrapup protocol bumps versions, but sometimes a file gets missed. **Search for the old version string** across the repo and verify the new version appears in all required locations:
 
-| File | What to Update |
+| File | What to Verify |
 |:-----|:---------------|
 | `package.json` | `version` field |
 | `server.json` | Root `version` + `version` in each `packages[]` entry (3 total) |
 | `CLAUDE.md` | Version in the header (`**Version:** X.Y.Z`) |
 | `README.md` | Version badge (`Version-X.Y.Z-blue`) and any other version references |
-
-Search for the old version string across the repo to catch anything else.
-
-### 3. Update README.md
-
-Beyond the version badge, review and update:
-
-- Feature counts (tool count, resource count, etc.) if the surface area changed
-- Descriptions and capability lists if new features were added
-- MCP SDK version badge if the SDK dependency was bumped
-- Code examples if APIs changed
-
-### 4. Update Template Files
-
-Update version in scaffolded templates so new projects start with the correct version:
-
-| File | What to Update |
-|:-----|:---------------|
 | `templates/CLAUDE.md` | `**Version:** X.Y.Z` in the header |
 | `templates/AGENTS.md` | Same — these files are identical |
 
-### 5. Bump Modified Skill Versions
+Fix any mismatches. A grep for the **old** version is the fastest way to find stragglers.
 
-For any skills whose `SKILL.md` was modified in this release cycle, bump `metadata.version` in their YAML frontmatter. This is how the `maintenance` skill detects updates — if the version doesn't bump, consumers won't get the new content on `bun update`.
+### 3. Verify CHANGELOG.md
 
-### 6. Update CHANGELOG.md
+Confirm the changelog entry:
 
-Add a new entry with:
+- Uses a **concrete version number and date** (never `[Unreleased]`)
+- Groups changes correctly: Added, Changed, Fixed, Removed
+- Accurately reflects what actually shipped — cross-reference with `git log` since the last tag
 
-- Concrete version number and date (NEVER use `[Unreleased]`)
-- Grouped changes: Added, Changed, Fixed, Removed
-- Reference relevant PRs or commits
+### 4. Verify README.md
 
-### 7. Regenerate `docs/tree.md`
+Beyond the version badge, confirm:
+
+- Feature counts (tool count, resource count, etc.) match reality if the surface area changed
+- Descriptions and capability lists reflect new features
+- MCP SDK version badge is current if the dependency was bumped
+- Code examples still match current APIs
+
+### 5. Verify Skill Versions
+
+For any skills whose `SKILL.md` was modified in this release cycle, confirm `metadata.version` in their YAML frontmatter was bumped. This is how the `maintenance` skill detects updates — if the version didn't bump, consumers won't get the new content on `bun update`.
+
+### 6. Verify `docs/tree.md`
+
+If the file structure changed, regenerate and confirm it's current:
 
 ```bash
 bun run tree
 ```
 
-Review the output for accuracy. Skip if no structural changes occurred.
+Skip if no structural changes occurred.
 
-### 8. Verify
+### 7. Run Final Checks
 
-Run all checks — all must pass:
+All must pass:
 
 ```bash
 bun run devcheck
@@ -80,21 +75,16 @@ bun run test
 bun run build
 ```
 
-### 9. Commit
+### 8. Verify Commit and Tag
 
-```text
-chore: release v{{VERSION}}
-```
+Confirm a clean release commit and annotated tag exist:
 
-### 10. Tag
+- Commit message: `chore: release v{{VERSION}}`
+- Annotated tag: `v{{VERSION}}` with a concise summary of key changes
 
-Create an **annotated** git tag with a concise summary of the release:
+If the wrapup created the commit and tag already, verify they're correct. If not, create them now.
 
-```bash
-git tag -a v{{VERSION}} -m "v{{VERSION}}: <one-line summary of key changes>"
-```
-
-The tag message should capture the most important change(s) — not the full changelog, just enough to orient someone browsing tags. Examples:
+Tag message examples:
 
 ```text
 v0.2.0: Cloudflare Workers support, task tools, Graph service
@@ -102,9 +92,9 @@ v0.1.7: OTel instrumentation refactor, lighter semconv
 v0.1.6: Error factory functions, auto-classification patterns
 ```
 
-### 11. Stop and Inform the User
+### 9. Stop and Present Publish Commands
 
-The following commands are irreversible and require manual execution:
+The following commands are irreversible. Present them to the user for manual execution:
 
 ```bash
 # Push commit and tag
@@ -123,17 +113,17 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 mcp-publisher publish
 ```
 
-## Checklist
+## Pre-Publish Checklist
 
-- [ ] Version bumped in all locations (package.json, server.json ×3, CLAUDE.md, README.md)
-- [ ] README.md reviewed — feature counts, badges, descriptions current
-- [ ] Template files updated (templates/CLAUDE.md, templates/AGENTS.md)
+- [ ] Version consistent across all files (package.json, server.json ×3, CLAUDE.md, README.md, templates)
+- [ ] No stale old-version references found in repo
+- [ ] CHANGELOG.md has concrete version and date, content matches actual changes
+- [ ] README.md current — feature counts, badges, descriptions, examples
 - [ ] Modified skill versions bumped in YAML frontmatter
-- [ ] CHANGELOG.md updated with concrete version and date
-- [ ] `docs/tree.md` regenerated (if structure changed)
+- [ ] `docs/tree.md` current (if structure changed)
 - [ ] `bun run devcheck` passes
 - [ ] `bun run test` passes
 - [ ] `bun run build` succeeds
-- [ ] Release commit created
-- [ ] Annotated git tag created: `v{{VERSION}}`
-- [ ] User informed of publish commands (push, npm, Docker, mcp-publisher)
+- [ ] Clean release commit exists
+- [ ] Annotated git tag exists with summary message
+- [ ] User presented with publish commands (push, npm, Docker, mcp-publisher)
