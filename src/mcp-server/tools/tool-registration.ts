@@ -59,6 +59,10 @@ export class ToolRegistry {
    * and escape-hatch TaskToolDefinitions.
    */
   public async registerAll(server: McpServer): Promise<void> {
+    // Reset per-server uniqueness tracking — registries are shared across
+    // per-request McpServer instances in HTTP mode (GHSA-345p-7cg4-v4c7).
+    this.registeredNames.clear();
+
     const context = requestContextService.createRequestContext({
       operation: 'ToolRegistry.registerAll',
     });

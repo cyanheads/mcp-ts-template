@@ -27,6 +27,8 @@ export class ResourceRegistry {
    * Registers all resolved resource definitions with the provided McpServer instance.
    */
   public async registerAll(server: McpServer): Promise<void> {
+    this.registeredNames.clear();
+
     const context = requestContextService.createRequestContext({
       operation: 'ResourceRegistry.registerAll',
     });

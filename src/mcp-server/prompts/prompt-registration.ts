@@ -27,6 +27,8 @@ export class PromptRegistry {
    * Registers all prompts on the given MCP server.
    */
   async registerAll(server: McpServer): Promise<void> {
+    this.registeredNames.clear();
+
     const context = requestContextService.createRequestContext({
       operation: 'PromptRegistry.registerAll',
     });
