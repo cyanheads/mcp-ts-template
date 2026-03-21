@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.19
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.20
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -144,6 +144,8 @@ src/
 ```
 
 **File suffixes:** `.tool.ts` (standard or task), `.resource.ts`, `.prompt.ts`, `.app-tool.ts` (UI-enabled), `.app-resource.ts` (UI resource linked to app tool).
+
+**`templates/` directory:** Scaffolding source for the CLI init script (`setup` skill). Contents are copied into new consumer servers — includes starter `package.json`, `tsconfig`, `biome.json`, `vitest.config.ts`, `.env.example`, `Dockerfile`, `CLAUDE.md`/`AGENTS.md`, and example tool/resource/prompt definitions. Files prefixed with `_` (e.g. `_.gitignore`, `_tsconfig.json`) are renamed on copy (strip `_` prefix). Changes here affect every newly scaffolded server.
 
 ---
 
