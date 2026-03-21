@@ -46,10 +46,7 @@ COPY package.json bun.lock ./
 
 # Install only production dependencies, ignoring any lifecycle scripts (like 'prepare')
 # that are not needed in the final production image.
-# Remove platform-specific bun/rollup binaries pulled as optionalDependencies
-# by @modelcontextprotocol/ext-apps — only needed for its build toolchain, not runtime.
-RUN bun install --production --frozen-lockfile --ignore-scripts \
-    && rm -rf node_modules/@oven node_modules/@rollup
+RUN bun install --production --frozen-lockfile --ignore-scripts
 
 # Copy the compiled application code from the build stage
 COPY --from=build /usr/src/app/dist ./dist

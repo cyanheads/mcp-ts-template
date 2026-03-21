@@ -19,6 +19,24 @@
 
 ---
 
+## What's Next?
+
+When the user asks what to do next, what's left, or needs direction, suggest relevant options based on the current project state:
+
+1. **Re-run the `setup` skill** — ensures CLAUDE.md, skills, structure, and metadata are populated and up to date with the current codebase
+2. **Run the `design-mcp-server` skill** — if the tool/resource surface hasn't been mapped yet, work through domain design
+3. **Add tools/resources/prompts** — scaffold new definitions using the `add-tool`, `add-resource`, `add-prompt` skills
+4. **Add services** — scaffold domain service integrations using the `add-service` skill
+5. **Add tests** — scaffold tests for existing definitions using the `add-test` skill
+6. **Field-test definitions** — exercise tools/resources/prompts with real inputs using the `field-test` skill, get a report of issues and pain points
+7. **Run `devcheck`** — lint, format, typecheck, and security audit
+8. **Run the `polish-docs-meta` skill** — finalize README, CHANGELOG, metadata, and agent protocol for shipping
+9. **Run the `maintenance` skill** — sync skills and dependencies after framework updates
+
+Tailor suggestions to what's actually missing or stale — don't recite the full list every time.
+
+---
+
 ## Core Rules
 
 - **Logic throws, framework catches.** Tool/resource handlers are pure — throw on failure, no `try/catch`. Plain `Error` is fine; the framework catches, classifies, and formats. Use error factories (`notFound()`, `validationError()`, etc.) when the error code matters.
@@ -205,6 +223,7 @@ Available skills:
 | `add-prompt` | Scaffold a new prompt definition |
 | `add-service` | Scaffold a new service integration |
 | `add-test` | Scaffold test file for a tool, resource, or service |
+| `field-test` | Exercise tools/resources/prompts with real inputs, verify behavior, report issues |
 | `devcheck` | Lint, format, typecheck, audit |
 | `polish-docs-meta` | Finalize docs, README, metadata, and agent protocol for shipping |
 | `maintenance` | Sync skills and dependencies after updates |
