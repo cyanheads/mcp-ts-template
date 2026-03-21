@@ -1,9 +1,10 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-/// <reference types="bun-types" />
+
 /**
  * @fileoverview Comprehensive development script for quality and security checks.
  * @module scripts/devcheck
@@ -37,10 +38,8 @@ import { fileURLToPath } from 'node:url';
  * // Run only a single check (case-insensitive partial match):
  * // bun run scripts/devcheck.ts --only lint
  */
-import { type Subprocess, spawn } from 'bun';
-
 /** Track active child processes for clean shutdown on SIGINT/SIGTERM. */
-const activeProcs = new Set<Subprocess>();
+const activeProcs = new Set<ChildProcess>();
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
@@ -148,39 +147,56 @@ interface Check {
 
 const Shell = {
   /**
-   * Executes a shell command using Bun.spawn and returns a structured result.
+   * Executes a shell command using child_process.spawn and returns a structured result.
    */
-  async exec(cmd: string[], options: { cwd: string }): Promise<ShellResult> {
-    try {
-      // Use 'pipe' to capture output for the summary.
-      const proc = spawn(cmd, {
-        cwd: options.cwd,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
+  exec(cmd: string[], options: { cwd: string }): Promise<ShellResult> {
+    const [command = '', ...args] = cmd;
+    return new Promise((resolve) => {
+      let proc: ChildProcess;
+      try {
+        proc = spawn(command, args, {
+          cwd: options.cwd,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        resolve({
+          exitCode: 127,
+          stdout: '',
+          stderr: `Failed to execute command: ${command}\nError: ${errorMessage}`,
+        });
+        return;
+      }
+
       activeProcs.add(proc);
 
-      const [stdout, stderr] = await Promise.all([
-        new Response(proc.stdout).text(),
-        new Response(proc.stderr).text(),
-      ]);
+      const stdoutChunks: Buffer[] = [];
+      const stderrChunks: Buffer[] = [];
+      let spawnError: Error | undefined;
 
-      const exitCode = await proc.exited;
-      activeProcs.delete(proc);
+      proc.stdout?.on('data', (chunk: Buffer) => stdoutChunks.push(chunk));
+      proc.stderr?.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
+      proc.on('error', (err) => {
+        spawnError = err;
+      });
 
-      return {
-        exitCode,
-        stdout: stdout.trim(),
-        stderr: stderr.trim(),
-      };
-    } catch (error: unknown) {
-      // Handle cases where the command itself fails to spawn (e.g., command not found)
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      return {
-        exitCode: 127,
-        stdout: '',
-        stderr: `Failed to execute command: ${cmd[0]}\nError: ${errorMessage}`,
-      };
-    }
+      proc.on('close', (code) => {
+        activeProcs.delete(proc);
+        if (spawnError) {
+          resolve({
+            exitCode: 127,
+            stdout: '',
+            stderr: `Failed to execute command: ${command}\nError: ${spawnError.message}`,
+          });
+        } else {
+          resolve({
+            exitCode: code ?? 1,
+            stdout: Buffer.concat(stdoutChunks).toString('utf-8').trim(),
+            stderr: Buffer.concat(stderrChunks).toString('utf-8').trim(),
+          });
+        }
+      });
+    });
   },
 
   /**
@@ -216,6 +232,9 @@ const ROOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 // Packages allowed to be outdated without failing the check.
 // zod is pinned due to the MCP SDK's hard version requirement.
 const OUTDATED_ALLOWLIST = new Set(['zod']);
+
+/** Use bun for package management commands if available, otherwise npm. */
+const PM_CMD = spawnSync('bun', ['--version'], { stdio: 'ignore' }).status === 0 ? 'bun' : 'npm';
 
 /**
  * Direct dependencies from package.json, used to classify audit vulnerabilities
@@ -365,6 +384,14 @@ const ALL_CHECKS: Check[] = [
       `Add sensitive files to ${c.bold('.gitignore')} and run ${c.bold('git rm --cached <file>')}.`,
   },
   {
+    name: 'MCP Definitions',
+    flag: '--no-mcp-lint',
+    canFix: false,
+    getCommand: () => ['bun', 'run', 'scripts/lint-mcp.ts'],
+    tip: (c) =>
+      `Fix definition errors reported above. See ${c.bold('validateDefinitions()')} docs for rule details.`,
+  },
+  {
     name: 'Biome',
     flag: '--no-lint',
     canFix: true,
@@ -412,15 +439,15 @@ const ALL_CHECKS: Check[] = [
       '--ignore-patterns=examples',
     ],
     tip: (c) =>
-      `Remove unused packages with ${c.bold('bun remove <pkg>')} or add to depcheck ignores.`,
+      `Remove unused packages with ${c.bold(`${PM_CMD} remove <pkg>`)} or add to depcheck ignores.`,
   },
   // Slow checks last (network-bound operations)
   {
     name: 'Security Audit',
     flag: '--no-audit',
-    canFix: false, // 'bun audit --fix' exists but often requires manual review.
+    canFix: false, // audit --fix exists but often requires manual review.
     slowCheck: true,
-    getCommand: () => ['bun', 'audit'],
+    getCommand: () => [PM_CMD, 'audit'],
     isSuccess: (result, _mode) => {
       // If the command exits 0, no vulnerabilities were found.
       if (result.exitCode === 0) return true;
@@ -456,14 +483,14 @@ const ALL_CHECKS: Check[] = [
       return true;
     },
     tip: (c) =>
-      `Direct dependency vulnerabilities found. Run ${c.bold('bun update')} or ${c.bold('bun audit --fix')} to resolve.`,
+      `Direct dependency vulnerabilities found. Run ${c.bold(`${PM_CMD} update`)} or ${c.bold(`${PM_CMD} audit --fix`)} to resolve.`,
   },
   {
     name: 'Dependencies (Outdated)',
     flag: '--no-deps',
     canFix: false,
     slowCheck: true,
-    getCommand: () => ['bun', 'outdated'],
+    getCommand: () => [PM_CMD, 'outdated'],
     isSuccess: (result) => {
       // Exit 0 with empty output = everything up to date
       if (result.exitCode === 0 && result.stdout.trim() === '') return true;
@@ -492,7 +519,7 @@ const ALL_CHECKS: Check[] = [
       return unexpected.length === 0;
     },
     tip: (c) =>
-      `Run ${c.bold('bun update')} to upgrade dependencies. Allowlisted packages: ${[...OUTDATED_ALLOWLIST].join(', ')}.`,
+      `Run ${c.bold(`${PM_CMD} update`)} to upgrade dependencies. Allowlisted packages: ${[...OUTDATED_ALLOWLIST].join(', ')}.`,
   },
 ];
 
@@ -597,13 +624,6 @@ const UI = {
         if (result.stderr) UI.log(c.red(result.stderr.replace(/^/gm, '   | ')));
         UI.log('');
       }
-    }
-
-    // Highlight the slowest check to help identify bottlenecks
-    const ranChecks = results.filter((r) => !r.skipped);
-    if (ranChecks.length > 1) {
-      const slowest = ranChecks.reduce((a, b) => (a.duration > b.duration ? a : b));
-      UI.log(c.dim(`\n  Slowest: ${slowest.checkName} (${slowest.duration}ms)`));
     }
 
     UI.log('\n------------------------------------------------');

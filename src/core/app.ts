@@ -10,6 +10,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { config, resetConfig } from '@/config/index.js';
+import { validateDefinitions } from '@/linter/validate.js';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import type { AnyPromptDefinition } from '@/mcp-server/prompts/utils/promptDefinition.js';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
@@ -96,6 +97,21 @@ export interface ComposedApp {
  */
 export async function composeServices(options: CreateAppOptions = {}): Promise<ComposedApp> {
   const { tools = [], resources = [], prompts = [], setup } = options;
+
+  // Validate definitions against MCP spec before proceeding
+  const lintReport = validateDefinitions({ tools, resources, prompts });
+  if (lintReport.warnings.length > 0) {
+    for (const w of lintReport.warnings) {
+      console.warn(`[mcp-lint] ${w.rule}: ${w.message}`);
+    }
+  }
+  if (!lintReport.passed) {
+    const summary = lintReport.errors.map((e) => `  - [${e.rule}] ${e.message}`).join('\n');
+    throw configurationError(
+      `MCP definition validation failed with ${lintReport.errors.length} error(s):\n${summary}`,
+      { errors: lintReport.errors },
+    );
+  }
 
   // Persist name/version overrides to process.env so they survive resetConfig()
   // and are visible to OTEL, logger, and transport throughout the process lifetime.

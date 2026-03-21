@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/mcp-ts-core",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "TypeScript framework for building Model Context Protocol (MCP) servers. Declarative tool/resource/prompt definitions, pluggable auth, multi-backend storage, OpenTelemetry observability, and support for both local (stdio/HTTP) and edge (Cloudflare Workers) runtimes.",
   "main": "dist/core/index.js",
@@ -74,6 +74,10 @@
       "types": "./dist/services/index.d.ts",
       "import": "./dist/services/index.js"
     },
+    "./linter": {
+      "types": "./dist/linter/index.d.ts",
+      "import": "./dist/linter/index.js"
+    },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing/index.js"
@@ -115,6 +119,7 @@
     "docs:generate": "bunx typedoc",
     "depcheck": "bunx depcheck",
     "lint": "biome check",
+    "lint:mcp": "bun run scripts/lint-mcp.ts",
     "format": "biome check --write --unsafe",
     "typecheck": "bunx tsc --noEmit",
     "typecheck:scripts": "bunx tsc --project tsconfig.scripts.json --noEmit",
