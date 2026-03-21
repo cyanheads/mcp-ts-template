@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.21] - 2026-03-21
+
+Template testing, dependency updates, and transport defaults.
+
+### Added
+
+- **Template test files** — Scaffolded projects now include starter tests for the echo tool, resource, and prompt (`templates/tests/`), demonstrating `createMockContext` usage and handler testing patterns.
+
+### Changed
+
+- **Template stdio scripts** — `dev:stdio` and `start:stdio` now explicitly set `MCP_TRANSPORT_TYPE=stdio`, matching the `dev:http`/`start:http` pattern. Prevents ambiguity when the default transport changes.
+- **`js-yaml` peer dependency** — Upgraded from `^3.14.2` to `^4.1.0`. v4 drops unsafe `safeLoad`/`safeDump` aliases and uses safe parsing by default.
+
+---
+
 ## [0.1.20] - 2026-03-21
 
 Template scaffolding improvements: dynamic framework version pinning, slimmed gitignore, and new server.json template.
