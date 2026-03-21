@@ -1,6 +1,5 @@
 {
 	"files.exclude": {},
-	"ruff.enable": false,
 	"editor.defaultFormatter": "biomejs.biome",
 	"editor.formatOnSave": true,
 	"[markdown]": {
