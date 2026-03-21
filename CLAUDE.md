@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.15
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.16
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -34,12 +34,12 @@
 | `/auth` | `checkScopes` | Dynamic scope checking |
 | `/storage` | `StorageService` | Storage abstraction |
 | `/storage/types` | `IStorageProvider` | Provider interface |
-| `/utils` | formatting, encoding, network, pagination, logging, runtime, telemetry, token counting, parsers†, sanitization†, scheduling† | All utilities (†optional peer deps — see below) |
+| `/utils` | formatting, encoding, network, pagination, logging, runtime, telemetry, token counting, parsers†, sanitization†, scheduling† | All utilities (†optional peer deps) |
 | `/services` | `OpenRouterProvider`, `SpeechService`, `createSpeechProvider`, `ElevenLabsProvider`, `WhisperProvider`, `GraphService`, provider interfaces and types | LLM, Speech (TTS/STT), Graph services |
 | `/linter` | `validateDefinitions`, `LintReport`, `LintDiagnostic`, `LintInput`, `LintSeverity` | Definition validation |
 | `/testing` | `createMockContext` | Test helpers |
 
-All subpaths prefixed with `@cyanheads/mcp-ts-core`. **†Tier 3 modules** require optional peer dependencies — install as needed. Tier 3 methods that lazy-load deps are **async**. Specifically: **parsers** (CSV → `papaparse`, YAML → `js-yaml`, XML → `fast-xml-parser`, PDF → `pdf-lib`/`unpdf`, date → `chrono-node`, frontmatter → `js-yaml`; JSON parser has no peer dep), **sanitization** (`sanitize-html`, `validator` — other security utils like `RateLimiter` and `IdGenerator` have no peer deps), **scheduling** (`node-cron`).
+All subpaths prefixed with `@cyanheads/mcp-ts-core`. **†Tier 3 modules** require optional peer dependencies — see `package.json` `peerDependencies`. Tier 3 methods that lazy-load deps are **async**.
 
 ### Import conventions
 
@@ -94,22 +94,13 @@ export default createWorkerHandler({
 });
 ```
 
-Key design: per-request `McpServer` factory (security: SDK GHSA-345p-7cg4-v4c7), env bindings refreshed per-request. OTEL `NodeSDK` unavailable in Workers — no telemetry flush needed. Requires `compatibility_flags = ["nodejs_compat"]` and `compatibility_date >= "2025-09-01"` in `wrangler.toml` (unlocks `node:fs`, `node:http` server, `process.env`). Only `in-memory`, `cloudflare-r2`, `cloudflare-kv`, `cloudflare-d1` storage providers in Workers.
+Per-request `McpServer` factory (security: SDK GHSA-345p-7cg4-v4c7). Requires `compatibility_flags = ["nodejs_compat"]` and `compatibility_date >= "2025-09-01"` in `wrangler.toml`. Only `in-memory`, `cloudflare-r2`, `cloudflare-kv`, `cloudflare-d1` storage in Workers. See `api-workers` skill for full details.
 
 ### Interfaces
 
 `createApp()` returns `Promise<ServerHandle>`. `createWorkerHandler()` returns an `ExportedHandler`.
 
 ```ts
-interface CreateAppOptions {
-  name?: string;
-  version?: string;
-  tools?: AnyToolDefinition[];
-  resources?: AnyResourceDefinition[];
-  prompts?: PromptDefinition[];
-  setup?: (core: CoreServices) => void | Promise<void>;
-}
-
 interface CoreServices {
   config: AppConfig;
   logger: Logger;
@@ -182,36 +173,7 @@ export const myTool = tool('my_tool', {
 
 **`format`**: Maps output to `ContentBlock[]`. Omit for JSON stringify default. Additional formatters: `markdown()` (builder), `diffFormatter` (async), `tableFormatter`, `treeFormatter` from `/utils`.
 
-### Task tools
-
-Add `task: true` for long-running async operations. The framework manages the full lifecycle.
-
-```ts
-const asyncCountdown = tool('async_countdown', {
-  description: 'Count down with progress updates.',
-  task: true,
-  input: z.object({
-    count: z.number().int().positive().describe('Count down from'),
-    delayMs: z.number().default(1000).describe('Delay between counts in ms'),
-  }),
-  output: z.object({
-    finalCount: z.number().describe('Final count value'),
-    message: z.string().describe('Completion message'),
-  }),
-  async handler(input, ctx) {
-    await ctx.progress!.setTotal(input.count);
-    for (let i = input.count; i > 0; i--) {
-      if (ctx.signal.aborted) break;
-      await ctx.progress!.update(`Counting: ${i}`);
-      await new Promise(resolve => setTimeout(resolve, input.delayMs));
-      await ctx.progress!.increment();
-    }
-    return { finalCount: 0, message: 'Countdown complete' };
-  },
-});
-```
-
-With `task: true`: creates task → returns task ID immediately → runs handler in background with `ctx.progress` → returns status on poll → stores result/error → signals `ctx.signal` on cancellation. **Escape hatch:** `TaskToolDefinition` from `/tasks` for custom lifecycle.
+**Task tools:** Add `task: true` for long-running async operations. Framework manages lifecycle: creates task → returns ID immediately → runs handler in background with `ctx.progress` → stores result/error → `ctx.signal` for cancellation. See `add-tool` skill for full example.
 
 ---
 
@@ -234,7 +196,7 @@ export const myResource = resource('myscheme://{itemId}/data', {
 });
 ```
 
-Handler receives `(params, ctx)` — URI on `ctx.uri` if needed. Large lists must use `extractCursor`/`paginateArray` from `/utils`. Opaque cursors; invalid → `InvalidParams` (-32602).
+Handler receives `(params, ctx)` — URI on `ctx.uri` if needed. Large lists must use `extractCursor`/`paginateArray` from `/utils`.
 
 ---
 
@@ -264,11 +226,6 @@ Prompts are pure message templates — no `Context`, no auth, no side effects.
 Init/accessor pattern — initialized in `setup()`, accessed at request time.
 
 ```ts
-// src/services/my-domain/my-service.ts
-import type { AppConfig } from '@cyanheads/mcp-ts-core/config';
-import type { StorageService } from '@cyanheads/mcp-ts-core/storage';
-import type { Context } from '@cyanheads/mcp-ts-core';
-
 export class MyService {
   constructor(private readonly config: AppConfig, private readonly storage: StorageService) {}
   async doWork(input: string, ctx: Context): Promise<string> {
@@ -287,7 +244,7 @@ export function getMyService(): MyService {
 }
 ```
 
-Usage: `getMyService().doWork(input.query, ctx)`. Service methods receive `Context` for correlated logging and tenant-scoped storage. Convention: `ctx.elicit`/`ctx.sample` only from tool handlers, not services.
+Usage: `getMyService().doWork(input.query, ctx)`. Convention: `ctx.elicit`/`ctx.sample` only from tool handlers, not services.
 
 ---
 
@@ -313,36 +270,23 @@ interface Context {
 
 ### `ctx.log`
 
-**Automatic instrumentation (no code needed):** The handler factory wraps every tool/resource call with an OTel span, duration histogram, call/error counters, input/output byte sizes, memory usage, and a structured completion log. This happens transparently — handlers get full observability for free.
-
-**`ctx.log` is opt-in, for domain-specific logging.** Use it when the handler does meaningful work worth tracing beyond the automatic metrics — external API calls, multi-step processing, business-significant events. Trivial handlers (echo, passthrough) don't need it.
-
-Methods: `debug`, `info`, `notice`, `warning`, `error`. All calls auto-include `requestId`, `traceId`, `tenantId`, `spanId`. Use `ctx.log` in handlers; global `logger` for startup/shutdown/background.
+Opt-in domain-specific logging. Methods: `debug`, `info`, `notice`, `warning`, `error`. Auto-includes `requestId`, `traceId`, `tenantId`, `spanId`. Use `ctx.log` in handlers; global `logger` for startup/shutdown/background.
 
 ### `ctx.state`
 
-Tenant-scoped KV storage. Accepts any serializable value — no manual `JSON.stringify`/`JSON.parse` needed.
+Tenant-scoped KV. Accepts any serializable value — no manual `JSON.stringify`/`JSON.parse` needed.
 
 ```ts
-// Single operations
-await ctx.state.set('item:123', { name: 'Widget', count: 42 }); // any serializable value
+await ctx.state.set('item:123', { name: 'Widget', count: 42 });
 await ctx.state.set('item:123', data, { ttl: 3600 });           // with TTL (seconds)
 const item = await ctx.state.get<Item>('item:123');              // T | null
 const safe = await ctx.state.get('item:123', ItemSchema);        // Zod-validated T | null
 await ctx.state.delete('item:123');
-
-// Batch operations
 const values = await ctx.state.getMany<Item>(['item:1', 'item:2']); // Map<string, T>
-await ctx.state.setMany(new Map([['a', 1], ['b', 2]]));             // void
-const deleted = await ctx.state.deleteMany(['item:1', 'item:2']);    // number
-
-// Pagination
 const page = await ctx.state.list('item:', { cursor, limit: 20 });  // { items, cursor? }
 ```
 
-Throws `McpError(InvalidRequest)` if `tenantId` missing. Stdio defaults to `'default'`. Workers with `in-memory` lose data between cold starts — use `cloudflare-kv`/`cloudflare-r2`/`cloudflare-d1` for persistence.
-
-**Tenant ID** comes from JWT `'tid'` claim (HTTP) or `'default'` (stdio). Validation: max 128 chars, alphanumeric/hyphens/underscores/dots, start/end alphanumeric, no `../`, no consecutive dots.
+Throws `McpError(InvalidRequest)` if `tenantId` missing. Tenant ID from JWT `'tid'` claim (HTTP) or `'default'` (stdio).
 
 ### `ctx.elicit` / `ctx.sample`
 
@@ -355,16 +299,13 @@ if (ctx.elicit) {
   }));
   if (result.action === 'accept') useFormat(result.data.format);
 }
-if (ctx.sample) {
-  const result = await ctx.sample([
-    { role: 'user', content: { type: 'text', text: `Summarize: ${data}` } },
-  ], { maxTokens: 500 });
-}
 ```
 
 ### `ctx.progress`
 
 Present when `task: true`. Methods: `setTotal(n)`, `increment(amount?)`, `update(message)`.
+
+See `api-context` skill for full details.
 
 ---
 
@@ -372,102 +313,29 @@ Present when `task: true`. Methods: `setTotal(n)`, `increment(amount?)`, `update
 
 **Default: just throw.** The framework catches all errors from handlers, classifies them by type/message, and returns `isError: true` with an appropriate JSON-RPC error code. Plain `Error`, `ZodError`, and any other thrown value are handled automatically.
 
-```ts
-// Simple — framework classifies automatically
-throw new Error('Thing not found');
+**Auto-classification:** Resolution order: `McpError` code (preserved as-is) → JS constructor name (`TypeError` → `ValidationError`) → provider patterns (HTTP status codes, AWS errors, DB errors) → common message patterns → `AbortError` name → `InternalError` fallback.
 
-// Zod .parse() failures are caught and mapped to ValidationError
-const data = MySchema.parse(rawData);
-```
-
-**Auto-classification:** The framework maps plain `Error` messages to JSON-RPC codes via pattern matching. Resolution order: `McpError` code (preserved as-is) → JS constructor name (`TypeError` → `ValidationError`) → provider patterns (HTTP status codes, AWS errors, DB errors) → common message patterns → `AbortError` name → `InternalError` fallback.
-
-Common message patterns match these keywords (first match wins):
-
-| Pattern | Code | Example messages |
-|:--------|:-----|:-----------------|
-| `unauthorized`, `unauthenticated`, `not authorized`, `invalid[_\s-]token`, `expired[_\s-]token` | Unauthorized | "unauthorized access", "invalid_token" |
-| `permission`, `forbidden`, `access denied`, `not allowed` | Forbidden | "permission denied" |
-| `not found`, `no such`, `doesn't exist`, `couldn't find` | NotFound | "resource not found" |
-| `invalid`, `validation`, `malformed`, `bad request`, `wrong format`, `missing required/param/field/…` | ValidationError | "invalid input", "missing required field", "wrong format" |
-| `conflict`, `already exists`, `duplicate`, `unique constraint` | Conflict | "already exists", "unique constraint" |
-| `rate limit`, `too many requests`, `throttled` | RateLimited | "rate limit exceeded" |
-| `timeout`, `timed out`, `deadline exceeded` | Timeout | "request timed out" |
-| `abort`, `aborted`, `cancelled`, `canceled` | Timeout | "request aborted", "operation cancelled" |
-| `service unavailable`, `bad gateway`, `gateway timeout`, `upstream error` | ServiceUnavailable | "service unavailable" |
-| `zod`, `zoderror`, `schema validation` | ValidationError | "ZodError", "schema validation failed" |
-
-Patterns are intentionally narrow to avoid misclassification. If your error message doesn't match a pattern, it falls through to `InternalError`. **Use error factories or `McpError` when the code matters** — they bypass all pattern matching.
-
-**Error factories (preferred):** Shorter than `new McpError(...)` and self-documenting. Available from `@cyanheads/mcp-ts-core/errors`:
+**When you need a specific code**, use error factories (preferred) or `McpError`:
 
 ```ts
-import { notFound, validationError, serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
-
+import { notFound, validationError } from '@cyanheads/mcp-ts-core/errors';
 throw notFound('Item not found', { itemId: '123' });
 throw validationError('Missing required field: name', { field: 'name' });
-
-// With cause for error chaining
-throw serviceUnavailable('API call failed', { url }, { cause: error });
 ```
 
-Available factories: `invalidParams`, `invalidRequest`, `notFound`, `forbidden`, `unauthorized`, `validationError`, `conflict`, `rateLimited`, `timeout`, `serviceUnavailable`, `configurationError`. All accept `(message, data?, options?)` where `options` is `{ cause?: unknown }`. All return `McpError` instances.
+Available factories: `invalidParams`, `invalidRequest`, `notFound`, `forbidden`, `unauthorized`, `validationError`, `conflict`, `rateLimited`, `timeout`, `serviceUnavailable`, `configurationError`. All accept `(message, data?, options?)` where `options` is `{ cause?: unknown }`.
 
-**`McpError` (full control):** For codes not covered by factories (InternalError, DatabaseError, etc.):
+For codes not covered by factories, use `new McpError(JsonRpcErrorCode.DatabaseError, message, data)`.
 
-```ts
-import { McpError, JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
-
-throw new McpError(JsonRpcErrorCode.DatabaseError, 'Connection pool exhausted', {
-  pool: 'primary',
-});
-```
-
-| Code | Value | When to Use |
-|:-----|------:|:------------|
-| `InvalidParams` | -32602 | Bad input, missing fields, schema validation |
-| `InvalidRequest` | -32600 | Unsupported operation, missing client capability |
-| `NotFound` | -32001 | Resource/entity doesn't exist |
-| `Forbidden` | -32005 | Authenticated but insufficient scopes |
-| `Unauthorized` | -32006 | No auth, invalid/expired token |
-| `RateLimited` | -32003 | Rate limit exceeded |
-| `ServiceUnavailable` | -32000 | External dependency down |
-| `Timeout` | -32004 | Operation exceeded time limit |
-| `ConfigurationError` | -32008 | Missing env var, invalid config |
-| `ValidationError` | -32007 | Business rule violation (not schema) |
-| `Conflict` | -32002 | Duplicate key, version mismatch |
-| `InitializationFailed` | -32009 | Startup failure |
-| `DatabaseError` | -32010 | Storage layer failure |
-| `SerializationError` | -32070 | Data serialization/deserialization failed |
-| `InternalError` | -32603 | Catch-all for programmer errors |
-| `UnknownError` | -32099 | Generic fallback (rare) |
-
-**Where handled:** Handlers throw (no try/catch) → handler factory catches, classifies (`ZodError` → `ValidationError`, message pattern matching for common cases, `McpError` preserved as-is), normalizes to `isError: true` → services use `ErrorHandler.tryCatch` for recovery.
+See `api-errors` skill for the full pattern-matching table, error code reference, and detailed examples.
 
 ---
 
 ## Auth
 
-Inline `auth` on definitions (primary pattern):
+Inline `auth` on definitions (primary pattern): `auth: ['tool:my_tool:read']`. Handler factory checks scopes before calling handler. Dynamic scopes via `checkScopes(ctx, [...])` from `/auth`.
 
-```ts
-const myTool = tool('my_tool', {
-  input: z.object({ query: z.string().describe('Search query') }),
-  output: z.object({ result: z.string().describe('Search result') }),
-  auth: ['tool:my_tool:read'],
-  async handler(input, ctx) { ... },
-});
-```
-
-Handler factory checks auth scopes before calling handler. Dynamic scopes via `/auth`:
-
-```ts
-import { checkScopes } from '@cyanheads/mcp-ts-core/auth';
-
-checkScopes(ctx, [`team:${input.teamId}:write`]);
-```
-
-**Modes** (`MCP_AUTH_MODE`): `none` (default) | `jwt` (local secret via `MCP_AUTH_SECRET_KEY`) | `oauth` (JWKS via `OAUTH_ISSUER_URL`, `OAUTH_AUDIENCE`). Claims: `clientId` (cid/client_id), `scopes` (scp/scope), `sub`, `tenantId` (tid). Unprotected endpoints: `/healthz`, `GET /mcp`. CORS: `MCP_ALLOWED_ORIGINS` or `*`. Stdio: no HTTP auth.
+**Modes** (`MCP_AUTH_MODE`): `none` (default) | `jwt` (local secret via `MCP_AUTH_SECRET_KEY`) | `oauth` (JWKS via `OAUTH_ISSUER_URL`, `OAUTH_AUDIENCE`). See `api-auth` skill for claims, CORS, and detailed config.
 
 ---
 
@@ -487,28 +355,14 @@ Managed by `@cyanheads/mcp-ts-core`. Validated via Zod. Precedence: `createApp()
 
 ### Server config (separate schema)
 
-Own Zod schema for domain-specific env vars. **Never merge with core's schema.** Lazy-parse — do not eagerly parse `process.env` at top-level (Workers inject env at request time via `injectEnvVars()`).
-
-```ts
-// src/config/server-config.ts
-const ServerConfigSchema = z.object({
-  myApiKey: z.string().describe('External API key'),
-  maxResults: z.coerce.number().default(100),
-});
-type ServerConfig = z.infer<typeof ServerConfigSchema>;
-let _config: ServerConfig | undefined;
-export function getServerConfig(): ServerConfig {
-  _config ??= ServerConfigSchema.parse({ myApiKey: process.env.MY_API_KEY, maxResults: process.env.MY_MAX_RESULTS });
-  return _config;
-}
-```
+Own Zod schema for domain-specific env vars. **Never merge with core's schema.** Lazy-parse — do not eagerly parse `process.env` at top-level (Workers inject env at request time via `injectEnvVars()`). See `api-config` skill for example.
 
 ---
 
 ## Testing
 
 ```ts
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { myTool } from '@/mcp-server/tools/definitions/my-tool.tool.js';
 
@@ -518,17 +372,12 @@ describe('myTool', () => {
     const result = await myTool.handler(myTool.input.parse({ query: 'hello' }), ctx);
     expect(result.result).toBe('Found: hello');
   });
-  it('throws on invalid state', async () => {
-    await expect(myTool.handler(myTool.input.parse({ query: 'BAD' }), createMockContext())).rejects.toThrow();
-  });
 });
 ```
 
 **`createMockContext` options:** `createMockContext()` (minimal), `{ tenantId: 'test-tenant' }` (enables state), `{ sample: vi.fn() }`, `{ elicit: vi.fn() }`, `{ progress: true }` (task progress).
 
-**Vitest config:** Extend core config, add `@/` alias: `resolve: { alias: { '@/': new URL('./src/', import.meta.url).pathname } }`.
-
-**Isolation:** Construct deps in `beforeEach`. Re-init services per suite. Vitest runs files in separate workers.
+**Vitest config:** Extend core config, add `@/` alias: `resolve: { alias: { '@/': new URL('./src/', import.meta.url).pathname } }`. Construct deps in `beforeEach`. Re-init services per suite.
 
 ---
 
@@ -564,7 +413,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 
 ---
 
-## Code Style
+## Code Style & Checklist
 
 - **Validation:** Zod schemas, all fields need `.describe()`
 - **Logging:** Framework auto-instruments all handler calls. `ctx.log` for domain-specific logging in handlers, global `logger` for lifecycle/background
@@ -573,6 +422,15 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 - **Naming:** kebab-case files, snake_case tool/resource/prompt names, correct suffix
 - **JSDoc:** `@fileoverview` + `@module` required on every file
 - **No fabricated signal:** Don't invent synthetic scores or arbitrary "confidence percentages." Surface real signal.
+- **Builders:** `tool()`/`resource()`/`prompt()` with correct fields (`handler`, `input`, `output`, `format`, `auth`, `args`)
+- **Auth:** via `auth: ['scope']` on definitions (not HOF wrapper)
+- **Presence checks:** `ctx.elicit`/`ctx.sample` checked before use
+- **Task tools:** use `task: true` flag
+- **Pagination:** large resource lists use `extractCursor`/`paginateArray`
+- **Registration:** definitions exported in `definitions/index.ts` barrel
+- **Tests:** `createMockContext()`, `.handler()` tested directly
+- **Gate:** `bun run devcheck` passes (includes MCP definition linting)
+- **Smoke-test:** with `dev:stdio`/`dev:http`
 
 ---
 
@@ -631,22 +489,3 @@ mcp-publisher publish
 When used: `model: "opus"` (preferred) or `"sonnet"` (never `haiku`). Always `run_in_background: true`. Non-overlapping file scope per agent. Agent output not visible to user — orchestrator reports findings. No git commands that modify state.
 
 **Required agent preamble:** "CRITICAL: Do NOT run any git commands that modify state. No commits, stashes, resets, checkouts, or clean. Git is handled by the orchestrator. Read-only commands (status, diff, log, show) are acceptable."
-
----
-
-## Checklist
-
-- [ ] `tool()`/`resource()`/`prompt()` builders with correct fields (`handler`, `input`, `output`, `format`, `auth`, `args`)
-- [ ] Zod schemas: all fields have `.describe()`
-- [ ] JSDoc `@fileoverview` + `@module` on every new/modified file
-- [ ] Auth via `auth: ['scope']` on definitions (not HOF wrapper)
-- [ ] `ctx.log` for domain-specific logging (external calls, business events), `ctx.state` for storage
-- [ ] `ctx.elicit`/`ctx.sample` checked for presence before use
-- [ ] Naming: kebab-case files, snake_case names, correct suffixes
-- [ ] Task tools use `task: true` flag
-- [ ] Large resource lists: `extractCursor`/`paginateArray`
-- [ ] Secrets only in server config
-- [ ] Registered in `definitions/index.ts` barrel
-- [ ] Tests added — `createMockContext()`, `.handler()` tested directly
-- [ ] **`bun run devcheck` passes** (includes MCP definition linting)
-- [ ] Smoke-tested with `dev:stdio`/`dev:http`
