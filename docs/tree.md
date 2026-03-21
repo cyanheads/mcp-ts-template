@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-21 15:28:30
+Generated on: 2026-03-21 16:17:29
 
 ```text
 mcp-ts-core/
@@ -313,6 +313,13 @@ mcp-ts-core/
 │   │   │       └── definitions/
 │   │   │           └── echo.tool.ts
 │   │   └── index.ts
+│   ├── tests/
+│   │   ├── prompts/
+│   │   │   └── echo.prompt.test.ts
+│   │   ├── resources/
+│   │   │   └── echo.resource.test.ts
+│   │   └── tools/
+│   │       └── echo.tool.test.ts
 │   ├── _.gitignore
 │   ├── _tsconfig.build.json
 │   ├── _tsconfig.json
@@ -323,6 +330,7 @@ mcp-ts-core/
 │   ├── devcheck.config.json
 │   ├── Dockerfile
 │   ├── package.json
+│   ├── server.json
 │   └── vitest.config.ts
 ├── tests/
 │   ├── compliance/
