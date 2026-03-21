@@ -4,7 +4,7 @@ description: >
   Finalize documentation and project metadata for a ship-ready MCP server. Use after implementation is complete, tests pass, and devcheck is clean. Safe to run at any stage — each step checks current state and only acts on what still needs work.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.1"
   audience: external
   type: workflow
 ---
@@ -54,7 +54,7 @@ Update the project's agent protocol file to reflect the actual server.
 
 Read `references/agent-protocol.md` for the full update checklist, then review the current file and address what's stale or missing:
 
-- If a "First Session" onboarding block is still present, remove it
+- If a "First Session" onboarding block is still present and onboarding is complete, it can go
 - If example patterns still use generic/template names (e.g., `searchItems`, `itemData`), replace with real definitions from this server
 - If server-specific skills were added, update the skills table
 - Verify the structure diagram matches the actual directory layout
@@ -70,7 +70,32 @@ Check for empty or placeholder metadata fields. Read `references/package-meta.md
 
 Key fields: `description`, `repository`, `author`, `homepage`, `bugs`, `keywords`.
 
-### 6. `CHANGELOG.md`
+### 6. `server.json`
+
+Read `references/server-json.md` for the official MCP server manifest schema. If `server.json` doesn't exist, create it from the surface area audit. If it exists, diff against current state and update stale fields.
+
+Key sync points:
+- `$schema` set to `https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json`
+- `name` matches `mcpName` from `package.json` (reverse-domain: `io.github.{owner}/{repo}`)
+- `version` matches `package.json` version (in all three places: top-level + each package entry)
+- `description` matches `package.json` description
+- `environmentVariables` reflect the server config Zod schema — server-specific required vars in both entries, transport vars only in HTTP entry
+- Two package entries: one for stdio, one for HTTP (if both transports supported)
+
+### 7. `bunfig.toml`
+
+Verify a `bunfig.toml` exists at the project root. If not, create one:
+
+```toml
+[install]
+auto = "fallback"
+frozenLockfile = false
+
+[run]
+bun = true
+```
+
+### 8. `CHANGELOG.md`
 
 If `CHANGELOG.md` doesn't exist, create it with an initial entry. If it exists, verify the latest entry reflects the current state:
 
@@ -87,11 +112,11 @@ Initial release.
 
 Use a concrete version and date. Never `[Unreleased]`.
 
-### 7. `LICENSE`
+### 9. `LICENSE`
 
 Confirm a license file exists. If not, ask the user which license to use (default: Apache-2.0, matching the scaffolded `package.json`). Create the file.
 
-### 8. `Dockerfile`
+### 10. `Dockerfile`
 
 If a `Dockerfile` exists, verify the OCI labels and runtime config match the actual server:
 
@@ -102,7 +127,7 @@ If a `Dockerfile` exists, verify the OCI labels and runtime config match the act
 
 If no `Dockerfile` exists and the server is deployed via HTTP transport, consider scaffolding one — the template is available via `npx @cyanheads/mcp-ts-core init`.
 
-### 9. `docs/tree.md`
+### 11. `docs/tree.md`
 
 Regenerate the directory structure:
 
@@ -112,7 +137,7 @@ bun run tree
 
 Review the output for anything unexpected (leftover files, missing directories).
 
-### 10. Final Verification
+### 12. Final Verification
 
 Run the full check suite one last time:
 
@@ -129,7 +154,9 @@ Both must pass clean.
 - [ ] `README.md` accurate — tool/resource tables, config, descriptions match actual code
 - [ ] Agent protocol file accurate — no stale template content, real examples, structure matches reality
 - [ ] `.env.example` in sync with server config schema
-- [ ] `package.json` metadata complete (`description`, `repository`, `author`, `keywords`)
+- [ ] `package.json` metadata complete (`description`, `mcpName`, `repository`, `author`, `keywords`, `engines`, `packageManager`)
+- [ ] `server.json` matches official MCP schema, versions synced, env vars current
+- [ ] `bunfig.toml` present
 - [ ] `CHANGELOG.md` exists with current entry
 - [ ] `LICENSE` file present
 - [ ] `Dockerfile` OCI labels and runtime config accurate (if present)

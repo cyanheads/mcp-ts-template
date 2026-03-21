@@ -4,63 +4,120 @@ Structure and content guide for creating or updating a README for an MCP server 
 
 ## Structure
 
-Use this section order. Omit sections that don't apply (e.g., skip Docker if the server doesn't ship a container image).
+Use this section order. Omit sections that don't apply (e.g., skip Docker/Workers if the server doesn't deploy there).
 
 ```text
-# {Server Name}
-
-One-line description of what the server does.
-
-## Overview
-## Features (tool/resource table)
-## Installation
-## Configuration
-## Usage
-## Docker (if Dockerfile present)
-## Development
-## License
+# {Server Name}                        ← centered HTML block
+Badges row                             ← npm, Docker, Version, MCP Spec, SDK, License, Status, TS, Bun, Coverage
+---
+## Tools                               ← summary table, then per-tool subsections
+## Resources (if any)                  ← summary table
+## Prompts (if any)                    ← summary table
+## Features                            ← framework + domain-specific bullets
+## Getting Started                     ← hosted instance (if any), MCP client config, prerequisites, install
+## Configuration                       ← env var table
+## Running the Server                  ← dev, production, Workers/Docker
+## Project Structure                   ← directory/purpose table
+## Development Guide                   ← link to CLAUDE.md, key rules
+## Contributing                        ← brief
+## License                             ← one line
 ```
 
 ## Section Guide
 
-### Title + Description
+### Title Block
 
-The `h1` is the server name. Follow it with a single sentence or short paragraph explaining what the server wraps and who it's for. Include badges if publishing to npm.
+Centered HTML. The `<h1>` is the server name (package name). The `<p>` is a bold one-liner: what the server wraps, key capabilities, transport/deployment options. Follow with a badge row.
 
-```markdown
-# my-mcp-server
+```html
+<div align="center">
+  <h1>my-mcp-server</h1>
+  <p><b>MCP server for the Acme API. Search projects, manage tasks, track teams. Runs over stdio or HTTP.</b></p>
+</div>
 
-MCP server for the Acme API — exposes project management, task tracking, and team operations to LLM clients.
+<div align="center">
 
-[![npm](https://img.shields.io/npm/v/my-mcp-server)](https://www.npmjs.com/package/my-mcp-server)
+[![npm](https://img.shields.io/npm/v/my-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/my-mcp-server) [![Version](https://img.shields.io/badge/Version-1.0.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.27.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/)
+
+</div>
 ```
 
-### Overview
+**Badge selection:** All badges use `style=flat-square`. Include what applies — don't add badges for things the server doesn't have:
 
-2-4 sentences expanding on the description. What system does it wrap? What can the LLM do through it? What's the value proposition?
+| Badge | When to include |
+|:------|:----------------|
+| npm | Published to npm |
+| Docker | Published to ghcr.io or Docker Hub |
+| Version | Always — link to CHANGELOG.md |
+| MCP Spec | Always — link to the spec version implemented |
+| MCP SDK | Always — show the `@modelcontextprotocol/sdk` version |
+| License | Always |
+| Status | Optional — Stable, Beta, etc. |
+| TypeScript | Always |
+| Bun | If using Bun |
+| Code Coverage | If coverage is tracked |
 
-Avoid marketing language. State what it does, not why it's amazing.
+Add a `---` horizontal rule after the badge block.
 
-### Features
-
-A table of tools and resources is the most useful thing a README can provide. It tells both humans and LLMs exactly what the server exposes.
-
-**Tools table:**
-
-```markdown
 ### Tools
 
-| Tool | Description | Key Inputs |
-|:-----|:------------|:-----------|
-| `search_projects` | Search projects by name or status | `query`, `status?` |
-| `create_task` | Create a new task in a project | `projectId`, `title`, `description?` |
-| `update_task` | Update task status or assignment | `taskId`, `status?`, `assignee?` |
-```
+This is the most important section — it tells humans and LLMs exactly what the server exposes. Two layers: summary table, then per-tool subsections for tools with non-trivial behavior.
 
-**Resources table (if any):**
+**Summary table:**
 
 ```markdown
-### Resources
+## Tools
+
+Seven tools for working with Acme data:
+
+| Tool Name | Description |
+|:----------|:------------|
+| `search_projects` | Search projects by name, status, or team. |
+| `create_task` | Create a new task in a project. |
+| `get_task` | Fetch one or more tasks by ID, with full or summary data. |
+```
+
+Lead with a one-line count: "Seven tools for working with X data:" (or "Three tools", etc.).
+
+**Per-tool subsections:**
+
+Below the table, add a `### tool_name` subsection for each tool that has meaningful detail beyond its one-line description. Include:
+
+- Bullet list of key capabilities (what inputs it accepts, what filtering/pagination it supports, edge cases it handles)
+- Link to example file if one exists: `[View detailed examples](./examples/tool_name.md)`
+- Separate subsections with `---` horizontal rules
+
+```markdown
+### `search_projects`
+
+Search for projects using free-text queries and filters.
+
+- Full-text search plus typed status/phase filters
+- Geographic proximity filtering by coordinates and distance
+- Pagination (up to 100 per page) and sorting
+- Field selection to limit response size
+
+[View detailed examples](./examples/search_projects.md)
+
+---
+
+### `get_task`
+
+Fetch one or more tasks by ID, with full data or concise summaries.
+
+- Batch fetch up to 5 tasks at once
+- Full data includes subtasks, comments, attachments, and history
+- Partial success reporting when some tasks in a batch fail
+
+[View detailed examples](./examples/get_task.md)
+```
+
+Skip the per-tool subsection for simple tools where the table description says everything (e.g., a `get_field_values` lookup tool).
+
+### Resources (if any)
+
+```markdown
+## Resources
 
 | URI Pattern | Description |
 |:------------|:------------|
@@ -68,30 +125,63 @@ A table of tools and resources is the most useful thing a README can provide. It
 | `acme://tasks/{taskId}` | Task details by ID |
 ```
 
-**Prompts table (if any):**
+### Prompts (if any)
 
 ```markdown
-### Prompts
+## Prompts
 
 | Prompt | Description |
 |:-------|:------------|
 | `project_summary` | Summarize a project's status and open tasks |
 ```
 
-Derive these tables directly from the actual tool/resource/prompt definitions. Use the real names and descriptions from the Zod schemas.
+Derive all tool/resource/prompt tables directly from the actual definitions. Use the real names and descriptions from the Zod schemas.
 
-### Installation
+### Features
 
-Show the install command and minimum viable configuration.
+Two subsection groups: framework capabilities, then domain-specific capabilities. Bullet lists, not prose.
 
 ```markdown
-## Installation
+## Features
 
-\`\`\`bash
-npm install my-mcp-server
+Built on [`@cyanheads/mcp-ts-core`](https://github.com/cyanheads/mcp-ts-core):
+
+- Declarative tool definitions — single file per tool, framework handles registration and validation
+- Unified error handling across all tools
+- Pluggable auth (`none`, `jwt`, `oauth`)
+- Swappable storage backends: `in-memory`, `filesystem`, `Supabase`, `Cloudflare KV/R2/D1`
+- Structured logging with optional OpenTelemetry tracing
+- Runs locally (stdio/HTTP) or on Cloudflare Workers from the same codebase
+
+Acme-specific:
+
+- Type-safe client for the Acme v2 API
+- Automatic cleaning and simplification of API responses for agent consumption
+```
+
+### Getting Started
+
+Lead with the lowest-friction option. If a public hosted instance exists, show that first. Then self-hosted via `bunx`/`npx`. Then manual clone/install.
+
+```markdown
+## Getting Started
+
+### Public Hosted Instance
+
+A public instance is available at `https://my-server.example.com/mcp` — no installation required:
+
+\`\`\`json
+{
+  "mcpServers": {
+    "my-server": {
+      "type": "streamable-http",
+      "url": "https://my-server.example.com/mcp"
+    }
+  }
+}
 \`\`\`
 
-### MCP Client Configuration
+### Self-Hosted / Local
 
 Add to your MCP client config (e.g., `claude_desktop_config.json`):
 
@@ -99,18 +189,41 @@ Add to your MCP client config (e.g., `claude_desktop_config.json`):
 {
   "mcpServers": {
     "my-mcp-server": {
-      "command": "npx",
-      "args": ["my-mcp-server"],
+      "type": "stdio",
+      "command": "bunx",
+      "args": ["my-mcp-server@latest"],
       "env": {
-        "ACME_API_KEY": "your-api-key"
+        "ACME_API_KEY": "your-api-key",
+        "MCP_TRANSPORT_TYPE": "stdio"
       }
     }
   }
 }
 \`\`\`
+
+### Prerequisites
+
+- [Bun v1.2.0](https://bun.sh/) or higher.
+
+### Installation
+
+1. **Clone the repository:**
+\`\`\`sh
+git clone https://github.com/cyanheads/my-mcp-server.git
+\`\`\`
+
+2. **Navigate into the directory:**
+\`\`\`sh
+cd my-mcp-server
+\`\`\`
+
+3. **Install dependencies:**
+\`\`\`sh
+bun install
+\`\`\`
 ```
 
-If the server supports HTTP transport, show that config too.
+Omit the hosted instance subsection if there isn't one. Omit the clone/install steps if the server is npm-only (not meant to be cloned).
 
 ### Configuration
 
@@ -119,50 +232,98 @@ Table of environment variables. Include framework vars only if the server uses n
 ```markdown
 ## Configuration
 
-| Variable | Required | Default | Description |
-|:---------|:---------|:--------|:------------|
-| `ACME_API_KEY` | Yes | — | API key for the Acme service |
-| `ACME_BASE_URL` | No | `https://api.acme.com` | API base URL |
-| `MCP_TRANSPORT_TYPE` | No | `stdio` | Transport: `stdio` or `http` |
-| `MCP_LOG_LEVEL` | No | `info` | Log level |
+| Variable | Description | Default |
+|:---------|:------------|:--------|
+| `ACME_API_KEY` | **Required.** API key for the Acme service. | — |
+| `ACME_BASE_URL` | API base URL. | `https://api.acme.com` |
+| `MCP_TRANSPORT_TYPE` | Transport: `stdio` or `http`. | `stdio` |
+| `MCP_HTTP_PORT` | Port for HTTP server. | `3010` |
+| `MCP_AUTH_MODE` | Auth mode: `none`, `jwt`, or `oauth`. | `none` |
+| `MCP_LOG_LEVEL` | Log level (RFC 5424). | `info` |
+| `STORAGE_PROVIDER_TYPE` | Storage backend. | `in-memory` |
+| `OTEL_ENABLED` | Enable OpenTelemetry. | `false` |
 ```
 
-Source this from the server config Zod schema and `.env.example`.
+Source from the server config Zod schema and `.env.example`. Mark required vars with bold **Required.** in the description rather than a separate column.
 
-### Usage
+### Running the Server
 
-Brief examples of how an LLM (or human via MCP client) would use the server. Show 1-2 tool calls with example inputs/outputs if it helps understanding. Keep it short — the tool descriptions should be self-explanatory.
-
-### Development
-
-Commands table for contributors.
+Separate from Getting Started. Show build + run commands, and Workers/Docker deployment if applicable.
 
 ```markdown
-## Development
+## Running the Server
 
-| Command | Purpose |
-|:--------|:--------|
-| `npm run build` | Compile TypeScript |
-| `npm run dev:stdio` | Dev mode (stdio, watch) |
-| `npm run dev:http` | Dev mode (HTTP, watch) |
-| `bun run devcheck` | Lint + format + typecheck |
-| `npm test` | Run tests |
-```
+### Local Development
 
-### Docker
+- **Build and run the production version:**
+  \`\`\`sh
+  bun run build
+  bun run start:http   # or start:stdio
+  \`\`\`
 
-Include only if a `Dockerfile` exists. Show how to build and run the image.
+- **Run checks and tests:**
+  \`\`\`sh
+  bun run devcheck     # Lints, formats, type-checks
+  bun run test         # Runs test suite
+  \`\`\`
 
-```markdown
-## Docker
+### Cloudflare Workers
 
-\`\`\`bash
-docker build -t my-mcp-server .
-docker run -p 3010:3010 -e MY_API_KEY=your-key my-mcp-server
+1. **Build the Worker bundle:**
+\`\`\`sh
+bun run build:worker
+\`\`\`
+
+2. **Deploy:**
+\`\`\`sh
+bun run deploy:prod
 \`\`\`
 ```
 
-Keep it minimal — the Dockerfile's defaults handle transport, port, and log config. Only document env vars the user must provide.
+Include the Docker or Workers subsection only if the server supports it.
+
+### Project Structure
+
+Directory/purpose table orienting contributors to the codebase.
+
+```markdown
+## Project Structure
+
+| Directory | Purpose |
+|:----------|:--------|
+| `src/mcp-server/tools` | Tool definitions (`*.tool.ts`). |
+| `src/mcp-server/resources` | Resource definitions (`*.resource.ts`). |
+| `src/services` | Domain service integrations. |
+| `src/config` | Environment variable parsing and validation with Zod. |
+| `tests/` | Unit and integration tests mirroring `src/`. |
+```
+
+### Development Guide
+
+Brief — link to CLAUDE.md for full details. State 2-3 key rules.
+
+```markdown
+## Development Guide
+
+See [`CLAUDE.md`](./CLAUDE.md) for development guidelines and architectural rules. The short version:
+
+- Handlers throw, framework catches — no `try/catch` in tool logic
+- Use `ctx.log` for domain-specific logging, `ctx.state` for storage
+- Register new tools and resources in the `index.ts` barrel files
+```
+
+### Contributing
+
+```markdown
+## Contributing
+
+Issues and pull requests are welcome. Run checks before submitting:
+
+\`\`\`sh
+bun run devcheck
+bun run test
+\`\`\`
+```
 
 ### License
 
@@ -177,7 +338,10 @@ Apache-2.0 — see [LICENSE](LICENSE) for details.
 ## Principles
 
 - **Accuracy over aspiration.** Only document what exists. Don't describe planned features as if they're implemented.
-- **Tables over prose** for structured data (tools, config, commands). Scannable and diff-friendly.
-- **Real names from code.** Tool names, env vars, and URIs should match the source exactly. Copy from the definitions, don't paraphrase.
+- **Tools first.** The tool surface is the most important content. Lead with it.
+- **Tables over prose** for structured data (tools, config, directories). Scannable and diff-friendly.
+- **Two-layer tool docs.** Summary table for quick scanning, per-tool subsections for detail. Skip subsections for trivial tools.
+- **Real names from code.** Tool names, env vars, and URIs must match the source exactly. Copy from the definitions, don't paraphrase.
+- **Lowest friction first.** In Getting Started, lead with the easiest option (hosted instance > bunx > clone).
 - **No badges unless publishing.** Badges for unpublished packages are noise.
-- **Keep it current.** The README should be updated whenever tools are added or removed. The `polish-docs-meta` skill handles both initial creation and subsequent updates.
+- **Keep it current.** Update the README whenever tools are added or removed.

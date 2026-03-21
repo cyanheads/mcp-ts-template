@@ -8,11 +8,12 @@ Fields that may still be empty or generic from scaffolding. Check each one and f
 |:------|:---------------------|:------------------|
 | `name` | `{{PACKAGE_NAME}}` (substituted by init) | Verify it's correct. Use scoped name if publishing (`@org/my-server`). |
 | `version` | `0.1.0` | Keep for initial development. Bump via the `release` skill. |
+| `mcpName` | _(often missing)_ | Reverse-domain identifier: `"io.github.{owner}/{repo}"`. Used in `server.json` `name` field and Dockerfile OCI labels. |
 | `description` | `""` (empty) | One sentence: what the server does and what it wraps. Appears on npm and in `npm search`. |
-| `repository` | _(often missing)_ | `{ "type": "git", "url": "https://github.com/org/repo.git" }` |
+| `repository` | _(often missing)_ | `{ "type": "git", "url": "git+https://github.com/org/repo.git" }` |
 | `homepage` | _(often missing)_ | Repository URL or docs URL. |
 | `bugs` | _(often missing)_ | `{ "url": "https://github.com/org/repo/issues" }` |
-| `author` | _(often missing)_ | `"Name <email>"` or `{ "name": "...", "email": "..." }` |
+| `author` | _(often missing)_ | `"Name <email> (https://github.com/org/repo#readme)"` |
 | `keywords` | `["mcp", "mcp-server", "model-context-protocol"]` | Add domain-specific keywords. Keep the MCP ones. |
 | `license` | `Apache-2.0` | Change if using a different license. Must match the LICENSE file. |
 
@@ -26,9 +27,10 @@ These are set by `init` and generally don't need changes. Verify they're present
 | `main` | `"dist/index.js"` | Entry point after build |
 | `types` | `"dist/index.d.ts"` | TypeScript declarations |
 | `files` | `["dist/"]` | What npm publishes |
-| `engines` | `{ "node": ">=22.0.0" }` | Minimum Node version |
+| `engines` | `{ "node": ">=22.0.0" }` | Add `"bun": ">=1.2.0"` alongside Node |
+| `packageManager` | _(often missing)_ | `"bun@1.3.2"` (or current Bun version). Signals the intended package manager. |
 | `scripts` | _(various)_ | Build, dev, test scripts |
-| `dependencies` | `@cyanheads/mcp-ts-core`, `pino-pretty` | Core framework + log formatting |
+| `dependencies` | `@cyanheads/mcp-ts-core` | Core framework |
 
 ## Keywords
 

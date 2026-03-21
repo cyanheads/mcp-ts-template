@@ -4,9 +4,9 @@ Guide for updating the project's `CLAUDE.md` or `AGENTS.md` to reflect the actua
 
 ## What to Update
 
-### 1. Strip the "First Session" Block (if present)
+### 1. Clean Up the "First Session" Block (if present)
 
-The scaffolded template includes a `## First Session` section with one-time onboarding steps. If this section is still present, delete it entirely (header through the `---` separator after it). If it's already been removed, skip this step.
+The scaffolded template includes a `## First Session` section with one-time onboarding steps. If this section is still present and the onboarding is complete, it can be safely removed (header through the `---` separator after it). If it's already gone, skip this step.
 
 **What it looks like:**
 
@@ -22,9 +22,11 @@ The scaffolded template includes a `## First Session` section with one-time onbo
 ---
 ```
 
-### 2. Replace Example Patterns with Real Definitions
+### 2. Replace Example Patterns and Stale Framework References
 
 Check the Patterns section for generic template examples (e.g., `searchItems`, `itemData`, `reviewCode`). If still present, replace them with actual tool/resource/prompt definitions from the server — or the most representative ones if there are many. If the examples already reflect real definitions, verify they're still accurate.
+
+Also check for stale framework references — servers migrated from `mcp-ts-template` may still reference the old package name. Replace with `@cyanheads/mcp-ts-core`. Check the "Built on" line, import examples, and any framework pointers.
 
 Pick examples that:
 
@@ -67,7 +69,7 @@ Review the checklist for completeness. Add server-specific items that are missin
 These sections should remain intact unless you have a specific reason to change them:
 
 - **Core Rules** — universal to all servers built on the framework
-- **Errors section** — the three-level escalation pattern is universal
+- **Errors section** — "handlers throw, framework catches" is universal
 - **Imports section** — keep unless the alias convention was changed
 - **Framework reference pointer** — the line directing agents to `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`
 
