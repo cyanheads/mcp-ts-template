@@ -51,7 +51,7 @@ RUN bun install --production --frozen-lockfile --ignore-scripts
 # Conditionally install OpenTelemetry optional peer dependencies (Tier 3).
 # These are not bundled by default to keep the base image lean. Enable at build time
 # with: docker build --build-arg OTEL_ENABLED=true
-ARG OTEL_ENABLED=false
+ARG OTEL_ENABLED=true
 RUN if [ "$OTEL_ENABLED" = "true" ]; then \
       bun add @hono/otel \
         @opentelemetry/instrumentation-http \
