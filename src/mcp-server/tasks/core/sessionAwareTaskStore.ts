@@ -42,9 +42,9 @@ export class SessionAwareTaskStore implements TaskStore {
     return task;
   }
 
-  getTask(taskId: string, sessionId?: string): Promise<Task | null> {
+  async getTask(taskId: string, sessionId?: string): Promise<Task | null> {
     this.assertOwnership(taskId, sessionId);
-    return this.inner.getTask(taskId, sessionId);
+    return await this.inner.getTask(taskId, sessionId);
   }
 
   async storeTaskResult(
@@ -59,9 +59,9 @@ export class SessionAwareTaskStore implements TaskStore {
     this.ownership.delete(taskId);
   }
 
-  getTaskResult(taskId: string, sessionId?: string): Promise<Result> {
+  async getTaskResult(taskId: string, sessionId?: string): Promise<Result> {
     this.assertOwnership(taskId, sessionId);
-    return this.inner.getTaskResult(taskId, sessionId);
+    return await this.inner.getTaskResult(taskId, sessionId);
   }
 
   async updateTaskStatus(

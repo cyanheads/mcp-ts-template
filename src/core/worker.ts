@@ -158,6 +158,7 @@ export function createWorkerHandler(options: WorkerHandlerOptions = {}) {
       try {
         if (typeof process !== 'undefined' && process.env) {
           process.env.IS_SERVERLESS = 'true';
+          process.env.MCP_TRANSPORT_TYPE = 'http'; // Workers are always HTTP — context.ts reads this for tenant isolation
         } else {
           Object.assign(globalThis, { IS_SERVERLESS: true });
         }
