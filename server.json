@@ -1,19 +1,19 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.cyanheads/mcp-ts-core",
-  "description": "TypeScript framework for building MCP servers with declarative definitions and observability.",
+  "description": "Agent-native TypeScript framework for building MCP servers. Build tools, not infrastructure. Declarative definitions with auth, multi-backend storage, OpenTelemetry, and first-class support for Node.js and Cloudflare Workers.",
   "repository": {
     "url": "https://github.com/cyanheads/mcp-ts-core",
     "source": "github"
   },
-  "version": "0.1.22",
+  "version": "0.1.23",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@cyanheads/mcp-ts-core",
       "runtimeHint": "bun",
-      "version": "0.1.22",
+      "version": "0.1.23",
       "packageArguments": [
         {
           "type": "positional",
@@ -42,7 +42,7 @@
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@cyanheads/mcp-ts-core",
       "runtimeHint": "bun",
-      "version": "0.1.22",
+      "version": "0.1.23",
       "packageArguments": [
         {
           "type": "positional",
