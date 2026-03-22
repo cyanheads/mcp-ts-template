@@ -1,10 +1,12 @@
 /**
- * @fileoverview Lint rules for Zod schema validation: type checking, `.describe()` presence.
+ * @fileoverview Lint rules for Zod schema validation: type checking, `.describe()` presence,
+ * and JSON Schema serializability.
  * Covers MCP spec rules T3-T5 and framework convention for field descriptions.
  * @module src/linter/rules/schema-rules
  */
 
 import type { ZodObject, ZodRawShape } from 'zod';
+import { toJSONSchema } from 'zod/v4/core';
 
 import type { LintDiagnostic } from '../types.js';
 
@@ -65,6 +67,37 @@ export function checkFieldDescriptions(
   }
 
   return diagnostics;
+}
+
+/**
+ * Checks that a Zod schema can be converted to JSON Schema.
+ * The MCP SDK serializes schemas via `toJSONSchema()` when handling `tools/list`.
+ * Types like `z.custom()`, `z.date()`, `z.transform()`, etc. throw at serialization
+ * time, causing a hard runtime failure for any client that enumerates tools.
+ */
+export function checkSchemaSerializable(
+  schema: unknown,
+  fieldName: string,
+  definitionType: LintDiagnostic['definitionType'],
+  definitionName: string,
+): LintDiagnostic | null {
+  if (!isZodObject(schema)) return null;
+
+  try {
+    toJSONSchema(schema as ZodObject<ZodRawShape>);
+    return null;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Schema contains non-serializable types';
+    return {
+      rule: 'schema-serializable',
+      severity: 'error',
+      message:
+        `${definitionType} '${definitionName}' ${fieldName} cannot be converted to JSON Schema: ${message}. ` +
+        'Replace non-serializable types (z.custom(), z.date(), z.transform(), z.bigint(), etc.) with structural Zod types.',
+      definitionType,
+      definitionName,
+    };
+  }
 }
 
 /** Runtime check for ZodObject via Zod 4's `_zod.def.type`. */

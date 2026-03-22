@@ -38,10 +38,10 @@ export function checkToolNameFormat(name: string): LintDiagnostic | null {
   if (!TOOL_NAME_RE.test(name)) {
     return {
       rule: 'name-format',
-      severity: 'warning',
+      severity: 'error',
       message:
         `Tool name '${name}' does not match MCP spec format [A-Za-z0-9._-]{1,128}. ` +
-        'This may cause issues with some MCP clients.',
+        'The spec requires (MUST) this format. Non-conforming names may break clients.',
       definitionType: 'tool',
       definitionName: name,
     };

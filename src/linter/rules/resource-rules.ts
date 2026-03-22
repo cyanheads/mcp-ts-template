@@ -4,9 +4,16 @@
  * @module src/linter/rules/resource-rules
  */
 
+import type { ZodObject, ZodRawShape } from 'zod';
+
 import type { LintDiagnostic } from '../types.js';
 import { checkNameRequired } from './name-rules.js';
-import { checkFieldDescriptions, checkIsZodObject } from './schema-rules.js';
+import {
+  checkFieldDescriptions,
+  checkIsZodObject,
+  checkSchemaSerializable,
+} from './schema-rules.js';
+import { lintAuthScopes } from './tool-rules.js';
 
 /**
  * Runs all lint rules against a single resource definition.
@@ -81,13 +88,78 @@ export function lintResourceDefinition(def: unknown): LintDiagnostic[] {
       diagnostics.push(paramsCheck);
     } else {
       diagnostics.push(...checkFieldDescriptions(d.params, 'params', 'resource', displayName));
+      const paramsSerial = checkSchemaSerializable(d.params, 'params', 'resource', displayName);
+      if (paramsSerial) diagnostics.push(paramsSerial);
+
+      // Cross-reference: template variables must match params schema keys
+      if (uriTemplate) {
+        diagnostics.push(...checkTemplateParamsAlignment(uriTemplate, d.params, displayName));
+      }
     }
+  }
+
+  // Auth scopes validation
+  if (d?.auth !== undefined) {
+    diagnostics.push(...lintAuthScopes(d.auth, 'resource', displayName));
   }
 
   // Output schema (optional, but must be ZodObject when present)
   if (d?.output !== undefined) {
     const outputCheck = checkIsZodObject(d.output, 'output', 'resource', displayName);
-    if (outputCheck) diagnostics.push(outputCheck);
+    if (outputCheck) {
+      diagnostics.push(outputCheck);
+    } else {
+      const outputSerial = checkSchemaSerializable(d.output, 'output', 'resource', displayName);
+      if (outputSerial) diagnostics.push(outputSerial);
+    }
+  }
+
+  return diagnostics;
+}
+
+/** Extracts variable names from an RFC 6570 URI template (strips operators like +, #, ?, &, etc.). */
+function extractTemplateVariables(template: string): string[] {
+  const vars: string[] = [];
+  for (const match of template.matchAll(/\{(?:[+#./;?&]?)([^}]+)\}/g)) {
+    // match[1] contains comma-separated variable names, each optionally with :maxLength or *
+    const varList = match[1] ?? '';
+    for (const part of varList.split(',')) {
+      const name = part.replace(/:[0-9]+$|\*$/g, '').trim();
+      if (name) vars.push(name);
+    }
+  }
+  return vars;
+}
+
+/**
+ * Checks that URI template variables align with params schema keys.
+ * A mismatch causes hard failures: the SDK extracts variables from the URI
+ * and passes them to the params schema for validation.
+ */
+function checkTemplateParamsAlignment(
+  template: string,
+  params: unknown,
+  resourceName: string,
+): LintDiagnostic[] {
+  const templateVars = extractTemplateVariables(template);
+  if (templateVars.length === 0) return [];
+
+  const shape = (params as ZodObject<ZodRawShape>).shape;
+  const schemaKeys = new Set(Object.keys(shape));
+
+  const diagnostics: LintDiagnostic[] = [];
+  for (const varName of templateVars) {
+    if (!schemaKeys.has(varName)) {
+      diagnostics.push({
+        rule: 'template-params-align',
+        severity: 'error',
+        message:
+          `Resource '${resourceName}' URI template variable '{${varName}}' has no matching key in params schema. ` +
+          `Params schema has: [${[...schemaKeys].join(', ')}]. This will cause every resource read to fail.`,
+        definitionType: 'resource',
+        definitionName: resourceName,
+      });
+    }
   }
 
   return diagnostics;

@@ -6,7 +6,11 @@
 
 import type { LintDiagnostic } from '../types.js';
 import { checkNameRequired } from './name-rules.js';
-import { checkFieldDescriptions, checkIsZodObject } from './schema-rules.js';
+import {
+  checkFieldDescriptions,
+  checkIsZodObject,
+  checkSchemaSerializable,
+} from './schema-rules.js';
 
 /**
  * Runs all lint rules against a single prompt definition.
@@ -50,6 +54,8 @@ export function lintPromptDefinition(def: unknown): LintDiagnostic[] {
       diagnostics.push(argsCheck);
     } else {
       diagnostics.push(...checkFieldDescriptions(d.args, 'args', 'prompt', displayName));
+      const argsSerial = checkSchemaSerializable(d.args, 'args', 'prompt', displayName);
+      if (argsSerial) diagnostics.push(argsSerial);
     }
   }
 
