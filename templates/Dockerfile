@@ -48,6 +48,23 @@ COPY package.json bun.lock ./
 # that are not needed in the final production image.
 RUN bun install --production --frozen-lockfile --ignore-scripts
 
+# Conditionally install OpenTelemetry optional peer dependencies (Tier 3).
+# These are not bundled by default to keep the base image lean. Enable at build time
+# with: docker build --build-arg OTEL_ENABLED=true
+ARG OTEL_ENABLED=false
+RUN if [ "$OTEL_ENABLED" = "true" ]; then \
+      bun add @hono/otel \
+        @opentelemetry/instrumentation-http \
+        @opentelemetry/exporter-metrics-otlp-http \
+        @opentelemetry/exporter-trace-otlp-http \
+        @opentelemetry/instrumentation-pino \
+        @opentelemetry/resources \
+        @opentelemetry/sdk-metrics \
+        @opentelemetry/sdk-node \
+        @opentelemetry/sdk-trace-node \
+        @opentelemetry/semantic-conventions; \
+    fi
+
 # Copy the compiled application code from the build stage
 COPY --from=build /usr/src/app/dist ./dist
 
