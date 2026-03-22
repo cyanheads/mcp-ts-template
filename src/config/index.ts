@@ -42,6 +42,12 @@ const emptyStringAsUndefined = (val: unknown) => {
   return val;
 };
 
+/** Parses string booleans from env vars correctly (`"false"` → `false`). */
+const envBoolean = z.preprocess((val) => {
+  if (typeof val === 'string') return val.toLowerCase() === 'true' || val === '1';
+  return val;
+}, z.boolean());
+
 // --- Schema Definition ---
 const ConfigSchema = z
   .object({
@@ -213,7 +219,7 @@ const ConfigSchema = z
       defaultTtlMs: z.coerce.number().nullable().optional(),
     }),
     openTelemetry: z.object({
-      enabled: z.coerce.boolean().default(false),
+      enabled: envBoolean.default(false),
       serviceName: z.string(),
       serviceVersion: z.string(),
       tracesEndpoint: z.url().optional(),
@@ -242,7 +248,7 @@ const ConfigSchema = z
       .object({
         tts: z
           .object({
-            enabled: z.coerce.boolean().default(false),
+            enabled: envBoolean.default(false),
             provider: z.enum(['elevenlabs']).default('elevenlabs'),
             apiKey: z.string().optional(),
             baseUrl: z.url().optional(),
@@ -253,7 +259,7 @@ const ConfigSchema = z
           .optional(),
         stt: z
           .object({
-            enabled: z.coerce.boolean().default(false),
+            enabled: envBoolean.default(false),
             provider: z.enum(['openai-whisper']).default('openai-whisper'),
             apiKey: z.string().optional(),
             baseUrl: z.url().optional(),
