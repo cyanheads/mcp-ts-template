@@ -13,6 +13,10 @@ Config correctness, transport resilience, and example cleanup.
 - **String boolean coercion** — Added `envBoolean` preprocessor for OpenTelemetry and Speech config booleans. `z.coerce.boolean()` treats `"false"` as `true` (non-empty string); the new preprocessor correctly parses `"true"`/`"1"` as `true` and everything else as `false`.
 - **Missing `@hono/otel` handling** — HTTP transport now logs a warning instead of throwing `configurationError` when `@hono/otel` is not installed with OTel enabled. Prevents hard startup failures for optional instrumentation.
 
+### Added
+
+- **Docker OTel opt-in** — `OTEL_ENABLED=true` build arg conditionally installs OpenTelemetry peer dependencies in the production image. Base image stays lean by default.
+
 ### Changed
 
 - **Example annotations** — Removed redundant `idempotentHint` from all example tool definitions (flagged by 0.1.22 linter as redundant when `readOnlyHint: true`).
