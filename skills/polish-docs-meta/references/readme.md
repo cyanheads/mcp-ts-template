@@ -27,17 +27,18 @@ Badges row                             ← npm, Docker, Version, MCP Spec, SDK, 
 
 ### Title Block
 
-Centered HTML. The `<h1>` is the server name (package name). The `<p>` is a bold one-liner: what the server wraps, key capabilities, transport/deployment options. Follow with a badge row.
+Centered HTML. The `<h1>` is the server name — use the scoped package name if published under a scope (e.g., `@cyanheads/my-mcp-server`). The `<p>` is a bold one-liner: what the server wraps, key capabilities, transport/deployment options. Follow with a count line summarizing the MCP surface (tools, resources, prompts) separated by ` · `, then a badge row.
 
 ```html
 <div align="center">
-  <h1>my-mcp-server</h1>
-  <p><b>MCP server for the Acme API. Search projects, manage tasks, track teams. Runs over stdio or HTTP.</b></p>
+  <h1>@cyanheads/my-mcp-server</h1>
+  <p><b>MCP server for the Acme API. Search projects, manage tasks, track teams. STDIO & Streamable HTTP</b></p>
+  <p><b>7 Tools · 2 Resources · 1 Prompt</b></p>
 </div>
 
 <div align="center">
 
-[![npm](https://img.shields.io/npm/v/my-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/my-mcp-server) [![Version](https://img.shields.io/badge/Version-1.0.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.27.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/)
+[![npm](https://img.shields.io/npm/v/my-mcp-server?style=flat-square&logo=npm&logoColor=white)](https://www.npmjs.com/package/my-mcp-server) [![Version](https://img.shields.io/badge/Version-1.0.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![Framework](https://img.shields.io/badge/Built%20on-@cyanheads/mcp--ts--core-259?style=flat-square)](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.27.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-^5.9.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/)
 
 </div>
 ```
@@ -49,6 +50,7 @@ Centered HTML. The `<h1>` is the server name (package name). The `<p>` is a bold
 | npm | Published to npm |
 | Docker | Published to ghcr.io or Docker Hub |
 | Version | Always — link to CHANGELOG.md |
+| Framework | Always — links to `@cyanheads/mcp-ts-core` on npm |
 | MCP Spec | Always — link to the spec version implemented |
 | MCP SDK | Always — show the `@modelcontextprotocol/sdk` version |
 | License | Always |
