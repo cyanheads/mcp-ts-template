@@ -42,10 +42,10 @@ export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
   description: '{{TOOL_DESCRIPTION}}',
   annotations: { readOnlyHint: true },
   input: z.object({
-    // All fields need .describe()
+    // All fields need .describe(). Only JSON-Schema-serializable Zod types allowed.
   }),
   output: z.object({
-    // All fields need .describe()
+    // All fields need .describe(). Only JSON-Schema-serializable Zod types allowed.
   }),
   // auth: ['tool:{{tool_name}}:read'],
 
@@ -100,6 +100,7 @@ export const allToolDefinitions = [
 
 - [ ] File created at `src/mcp-server/tools/definitions/{{tool-name}}.tool.ts`
 - [ ] All Zod schema fields have `.describe()` annotations
+- [ ] Schemas use only JSON-Schema-serializable types (no `z.custom()`, `z.date()`, `z.transform()`, `z.bigint()`, `z.symbol()`, `z.void()`, `z.map()`, `z.set()`)
 - [ ] JSDoc `@fileoverview` and `@module` header present
 - [ ] `handler(input, ctx)` is pure — throws on failure, no try/catch
 - [ ] `auth` scopes declared if the tool needs authorization

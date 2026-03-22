@@ -89,7 +89,7 @@ Cross-cutting observations that aren't tied to a single definition:
 - Inconsistent error message patterns across tools
 - Missing format functions (raw JSON returned to user)
 - Description quality issues (vague, missing, or misleading)
-- Schema design issues (required fields that should be optional, missing defaults, overly broad types)
+- Schema design issues (required fields that should be optional, missing defaults, overly broad types, non-JSON-Schema-serializable types like `z.custom()` or `z.date()`)
 - Performance observations (unexpectedly slow responses)
 
 ---

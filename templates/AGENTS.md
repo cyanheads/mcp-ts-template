@@ -273,7 +273,7 @@ import { getMyService } from '@/services/my-domain/my-service.js';
 
 ## Checklist
 
-- [ ] Zod schemas: all fields have `.describe()`
+- [ ] Zod schemas: all fields have `.describe()`, only JSON-Schema-serializable types (no `z.custom()`, `z.date()`, `z.transform()`, etc.)
 - [ ] JSDoc `@fileoverview` + `@module` on every file
 - [ ] `ctx.log` for logging, `ctx.state` for storage
 - [ ] Handlers throw on failure — error factories or plain `Error`, no try/catch

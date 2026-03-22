@@ -147,6 +147,7 @@ Context-dependent: a simple read-only tool needs a one-line description. A tool 
 Every `.describe()` is prompt text the LLM reads. Parameters should convey: what the value is, what it affects, and (where non-obvious) how to use it well.
 
 - **Constrain the type.** Enums and literals over free strings. Regex validation for formatted IDs. Ranges for numeric bounds.
+- **Use JSON-Schema-serializable types only.** The MCP SDK serializes schemas to JSON Schema for `tools/list`. Types like `z.custom()`, `z.date()`, `z.transform()`, `z.bigint()`, `z.symbol()`, `z.void()`, `z.map()`, `z.set()` throw at runtime. Use structural equivalents (e.g., `z.string().describe('ISO 8601 date')` instead of `z.date()`).
 - **Explain costs and tradeoffs** when a parameter choice has meaningful consequences.
 - **Name alternative approaches** when a simpler path exists.
 - **Include format patterns** for structured values, but don't pad descriptions with redundant examples.
