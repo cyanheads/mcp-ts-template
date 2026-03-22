@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.23] - 2026-03-21
+
+Config correctness, transport resilience, and example cleanup.
+
+### Fixed
+
+- **String boolean coercion** — Added `envBoolean` preprocessor for OpenTelemetry and Speech config booleans. `z.coerce.boolean()` treats `"false"` as `true` (non-empty string); the new preprocessor correctly parses `"true"`/`"1"` as `true` and everything else as `false`.
+- **Missing `@hono/otel` handling** — HTTP transport now logs a warning instead of throwing `configurationError` when `@hono/otel` is not installed with OTel enabled. Prevents hard startup failures for optional instrumentation.
+
+### Changed
+
+- **Example annotations** — Removed redundant `idempotentHint` from all example tool definitions (flagged by 0.1.22 linter as redundant when `readOnlyHint: true`).
+- **`js-yaml` dev dependency** — Bumped from `^4.1.0` to `^4.1.1`.
+- **`server.json` description** — Expanded to describe core capabilities.
+
+---
+
 ## [0.1.22] - 2026-03-21
 
 Linter hardening: new rules catch schema serializability failures, auth scope issues, annotation contradictions, and URI template mismatches before they become runtime errors.
