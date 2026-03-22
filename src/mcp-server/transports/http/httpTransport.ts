@@ -24,7 +24,6 @@ import type { DefinitionCounts, HonoNodeBindings } from '@/mcp-server/transports
 import { protectedResourceMetadataHandler } from '@/mcp-server/transports/http/protectedResourceMetadata.js';
 import { generateSecureSessionId } from '@/mcp-server/transports/http/sessionIdUtils.js';
 import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
-import { configurationError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { logStartupBanner } from '@/utils/internal/startupBanner.js';
@@ -90,18 +89,21 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
   // On Bun, Node.js HTTP auto-instrumentation is a no-op; this fills that gap.
   // @hono/otel is a Tier 3 optional peer — lazy import inside the guard.
   if (config.openTelemetry.enabled) {
-    const { httpInstrumentationMiddleware } = await import('@hono/otel').catch(() => {
-      throw configurationError(
-        'Install "@hono/otel" to use OpenTelemetry HTTP instrumentation: bun add @hono/otel',
+    try {
+      const { httpInstrumentationMiddleware } = await import('@hono/otel');
+      app.use(
+        config.mcpHttpEndpointPath,
+        httpInstrumentationMiddleware({
+          captureRequestHeaders: ['mcp-session-id'],
+        }),
       );
-    });
-    app.use(
-      config.mcpHttpEndpointPath,
-      httpInstrumentationMiddleware({
-        captureRequestHeaders: ['mcp-session-id'],
-      }),
-    );
-    logger.debug('OTel request tracing middleware enabled for MCP endpoint.', transportContext);
+      logger.debug('OTel request tracing middleware enabled for MCP endpoint.', transportContext);
+    } catch {
+      logger.warning(
+        '@hono/otel not installed — HTTP instrumentation disabled. Install with: bun add @hono/otel',
+        transportContext,
+      );
+    }
   }
 
   // CORS (with permissive fallback)
