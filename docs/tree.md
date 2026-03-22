@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-21 16:17:29
+Generated on: 2026-03-22 01:06:14
 
 ```text
 mcp-ts-core/
@@ -320,6 +320,7 @@ mcp-ts-core/
 │   │   │   └── echo.resource.test.ts
 │   │   └── tools/
 │   │       └── echo.tool.test.ts
+│   ├── _.dockerignore
 │   ├── _.gitignore
 │   ├── _tsconfig.build.json
 │   ├── _tsconfig.json
