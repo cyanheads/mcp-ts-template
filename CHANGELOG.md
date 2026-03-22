@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.24] - 2026-03-21
+
+Docker OTel default, Worker transport fix, and task store async correctness.
+
+### Changed
+
+- **Docker OTel default** — `OTEL_ENABLED` build arg now defaults to `true` in both the framework and template Dockerfiles. Docker images ship with OpenTelemetry instrumentation enabled out of the box.
+
+### Fixed
+
+- **Worker transport type** — `createWorkerHandler()` now sets `MCP_TRANSPORT_TYPE=http` in the Worker environment. Workers are always HTTP; without this, `context.ts` could not determine the correct transport for tenant isolation.
+- **`SessionAwareTaskStore` async correctness** — `getTask()` and `getTaskResult()` are now properly `async` with explicit `await` on inner delegate calls. Previously returned bare promises without the `async` keyword, which could mask exceptions thrown by `assertOwnership()`.
+
+---
+
 ## [0.1.23] - 2026-03-21
 
 Config correctness, transport resilience, and example cleanup.
