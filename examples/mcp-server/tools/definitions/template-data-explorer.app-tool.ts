@@ -87,7 +87,6 @@ export const dataExplorerAppTool = tool('template_data_explorer', {
   auth: ['tool:data-explorer:read'],
   annotations: {
     readOnlyHint: true,
-    idempotentHint: false,
     openWorldHint: false,
   },
   _meta: {

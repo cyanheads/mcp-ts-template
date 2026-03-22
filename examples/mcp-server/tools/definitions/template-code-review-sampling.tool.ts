@@ -60,7 +60,6 @@ export const codeReviewSamplingTool = tool('template_code_review_sampling', {
   auth: ['tool:code-review:use'],
   annotations: {
     readOnlyHint: true,
-    idempotentHint: false,
     openWorldHint: true,
   },
 

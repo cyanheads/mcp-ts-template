@@ -32,7 +32,6 @@ export const imageTestTool = tool('template_image_test', {
   auth: ['tool:image_test:read'],
   annotations: {
     readOnlyHint: true,
-    idempotentHint: true,
     openWorldHint: true,
   },
 

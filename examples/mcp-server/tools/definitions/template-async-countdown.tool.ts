@@ -48,7 +48,6 @@ export const asyncCountdownTool = tool('template_async_countdown', {
   output: OutputSchema,
   annotations: {
     readOnlyHint: true,
-    idempotentHint: false,
     openWorldHint: false,
   },
 

@@ -57,7 +57,6 @@ export const echoTool = tool('template_echo_message', {
   auth: ['tool:echo:read'],
   annotations: {
     readOnlyHint: true,
-    idempotentHint: true,
     openWorldHint: false,
   },
 

@@ -52,7 +52,6 @@ export const madlibsElicitationTool = tool('template_madlibs_elicitation', {
   auth: ['tool:madlibs:play'],
   annotations: {
     readOnlyHint: true,
-    idempotentHint: false,
     openWorldHint: false,
   },
 
