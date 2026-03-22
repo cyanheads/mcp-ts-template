@@ -90,17 +90,18 @@ describe('validateDefinitions', () => {
       expect(report.errors).toContainEqual(expect.objectContaining({ rule: 'name-required' }));
     });
 
-    it('warns on invalid tool name format', () => {
+    it('errors on invalid tool name format', () => {
       const report = validateDefinitions({ tools: [validTool({ name: 'my tool!' })] });
-      expect(report.warnings).toContainEqual(expect.objectContaining({ rule: 'name-format' }));
+      expect(report.passed).toBe(false);
+      expect(report.errors).toContainEqual(expect.objectContaining({ rule: 'name-format' }));
     });
 
     it('accepts valid tool name characters', () => {
       const report = validateDefinitions({
         tools: [validTool({ name: 'my_tool.v2-beta' })],
       });
-      const nameWarnings = report.warnings.filter((w) => w.rule === 'name-format');
-      expect(nameWarnings).toHaveLength(0);
+      const nameErrors = report.errors.filter((e) => e.rule === 'name-format');
+      expect(nameErrors).toHaveLength(0);
     });
 
     it('errors on duplicate tool names', () => {
@@ -193,6 +194,133 @@ describe('validateDefinitions', () => {
       });
       expect(report.warnings).toContainEqual(expect.objectContaining({ rule: 'annotation-type' }));
     });
+
+    it('warns on contradictory annotations (readOnly + destructive)', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ annotations: { readOnlyHint: true, destructiveHint: true } })],
+      });
+      expect(report.warnings).toContainEqual(
+        expect.objectContaining({
+          rule: 'annotation-coherence',
+          message: expect.stringContaining('destructiveHint'),
+        }),
+      );
+    });
+
+    it('warns on redundant annotations (readOnly + idempotent)', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ annotations: { readOnlyHint: true, idempotentHint: true } })],
+      });
+      expect(report.warnings).toContainEqual(
+        expect.objectContaining({
+          rule: 'annotation-coherence',
+          message: expect.stringContaining('idempotentHint'),
+        }),
+      );
+    });
+
+    it('does not warn on annotations when readOnlyHint is false', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+          }),
+        ],
+      });
+      const coherenceWarnings = report.warnings.filter((w) => w.rule === 'annotation-coherence');
+      expect(coherenceWarnings).toHaveLength(0);
+    });
+
+    it('errors on non-array auth', () => {
+      const report = validateDefinitions({ tools: [validTool({ auth: 'scope:read' })] });
+      expect(report.errors).toContainEqual(expect.objectContaining({ rule: 'auth-type' }));
+    });
+
+    it('errors on empty string in auth scopes', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ auth: ['tool:read', ''] })],
+      });
+      expect(report.errors).toContainEqual(expect.objectContaining({ rule: 'auth-scope-format' }));
+    });
+
+    it('passes with valid auth scopes', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ auth: ['tool:my_tool:read', 'admin'] })],
+      });
+      const authErrors = report.errors.filter(
+        (e) => e.rule === 'auth-type' || e.rule === 'auth-scope-format',
+      );
+      expect(authErrors).toHaveLength(0);
+    });
+
+    it('errors on non-serializable input schema (z.custom)', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            input: z.object({ data: z.custom<unknown>().describe('Opaque data') }),
+          }),
+        ],
+      });
+      expect(report.passed).toBe(false);
+      expect(report.errors).toContainEqual(
+        expect.objectContaining({
+          rule: 'schema-serializable',
+          message: expect.stringContaining('input'),
+        }),
+      );
+    });
+
+    it('errors on non-serializable output schema (z.custom)', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            output: z.object({ result: z.custom<unknown>().describe('Opaque result') }),
+          }),
+        ],
+      });
+      expect(report.passed).toBe(false);
+      expect(report.errors).toContainEqual(
+        expect.objectContaining({
+          rule: 'schema-serializable',
+          message: expect.stringContaining('output'),
+        }),
+      );
+    });
+
+    it('errors on non-serializable schema (z.date)', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            input: z.object({ when: z.date().describe('Timestamp') }),
+          }),
+        ],
+      });
+      expect(report.passed).toBe(false);
+      expect(report.errors).toContainEqual(
+        expect.objectContaining({ rule: 'schema-serializable' }),
+      );
+    });
+
+    it('passes with serializable schema types', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            input: z.object({
+              name: z.string().describe('Name'),
+              count: z.number().optional().describe('Count'),
+              tags: z.array(z.string()).describe('Tags'),
+              status: z.enum(['active', 'inactive']).describe('Status'),
+            }),
+            output: z.object({
+              id: z.string().describe('ID'),
+              ok: z.boolean().describe('Success'),
+            }),
+          }),
+        ],
+      });
+      const serialErrors = report.errors.filter((e) => e.rule === 'schema-serializable');
+      expect(serialErrors).toHaveLength(0);
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -262,6 +390,60 @@ describe('validateDefinitions', () => {
           message: expect.stringContaining('params'),
         }),
       );
+    });
+
+    it('errors when template variables do not match params schema keys', () => {
+      const report = validateDefinitions({
+        resources: [
+          validResource({
+            uriTemplate: 'test://{itemId}/data',
+            params: z.object({ item_id: z.string().describe('Item ID') }),
+          }),
+        ],
+      });
+      expect(report.passed).toBe(false);
+      expect(report.errors).toContainEqual(
+        expect.objectContaining({
+          rule: 'template-params-align',
+          message: expect.stringContaining('itemId'),
+        }),
+      );
+    });
+
+    it('passes when template variables match params schema keys', () => {
+      const report = validateDefinitions({
+        resources: [
+          validResource({
+            uriTemplate: 'test://{itemId}/data',
+            params: z.object({ itemId: z.string().describe('Item ID') }),
+          }),
+        ],
+      });
+      const alignErrors = report.errors.filter((e) => e.rule === 'template-params-align');
+      expect(alignErrors).toHaveLength(0);
+    });
+
+    it('handles multiple template variables', () => {
+      const report = validateDefinitions({
+        resources: [
+          validResource({
+            uriTemplate: 'test://{orgId}/items/{itemId}',
+            params: z.object({
+              orgId: z.string().describe('Org ID'),
+              itemId: z.string().describe('Item ID'),
+            }),
+          }),
+        ],
+      });
+      const alignErrors = report.errors.filter((e) => e.rule === 'template-params-align');
+      expect(alignErrors).toHaveLength(0);
+    });
+
+    it('errors on auth with empty scope strings', () => {
+      const report = validateDefinitions({
+        resources: [validResource({ auth: [''] })],
+      });
+      expect(report.errors).toContainEqual(expect.objectContaining({ rule: 'auth-scope-format' }));
     });
   });
 
