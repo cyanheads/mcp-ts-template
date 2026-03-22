@@ -117,8 +117,14 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
   // and are visible to OTEL, logger, and transport throughout the process lifetime.
   if (options.name || options.version) {
     if (typeof process !== 'undefined' && process.env) {
-      if (options.name) process.env.MCP_SERVER_NAME = options.name;
-      if (options.version) process.env.MCP_SERVER_VERSION = options.version;
+      if (options.name) {
+        process.env.MCP_SERVER_NAME = options.name;
+        process.env.OTEL_SERVICE_NAME ??= options.name;
+      }
+      if (options.version) {
+        process.env.MCP_SERVER_VERSION = options.version;
+        process.env.OTEL_SERVICE_VERSION ??= options.version;
+      }
     }
     resetConfig();
   }

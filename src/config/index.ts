@@ -7,6 +7,7 @@
  *
  * @module src/config/index
  */
+import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,11 +24,33 @@ type PackageManifest = {
   description?: string;
 };
 
-const packageManifest = packageJson as PackageManifest;
+const frameworkPkg = packageJson as PackageManifest;
 
 /** Framework identity — sourced from the package's own package.json. */
 export const FRAMEWORK_NAME = '@cyanheads/mcp-ts-core';
-export const FRAMEWORK_VERSION = packageManifest.version ?? '0.0.0';
+export const FRAMEWORK_VERSION = frameworkPkg.version ?? '0.0.0';
+
+/**
+ * Lazily reads the consumer project's package.json from process.cwd().
+ * Cached after first call — the consumer's identity doesn't change at runtime.
+ * Returns an empty object in Workers or if the file can't be read.
+ */
+let _consumerPkg: PackageManifest | null = null;
+function resolveConsumerPackage(): PackageManifest {
+  if (_consumerPkg !== null) return _consumerPkg;
+  const pkg: PackageManifest = {};
+  try {
+    const raw = readFileSync(join(process.cwd(), 'package.json'), 'utf-8');
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof parsed.name === 'string') pkg.name = parsed.name;
+    if (typeof parsed.version === 'string') pkg.version = parsed.version;
+    if (typeof parsed.description === 'string') pkg.description = parsed.description;
+  } catch {
+    // No consumer package.json found — will fall through to framework defaults
+  }
+  _consumerPkg = pkg;
+  return pkg;
+}
 
 // Lazy dotenv loading — deferred to first parseConfig() call.
 // Top-level execution wastes a filesystem syscall in Workers and loads stale
@@ -326,12 +349,13 @@ const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
   }
 
   const env = envOverrides ? { ...process.env, ...envOverrides } : process.env;
+  const consumerPkg = resolveConsumerPackage();
 
   const rawConfig = {
     pkg: {
-      name: env.PACKAGE_NAME ?? packageManifest.name,
-      version: env.PACKAGE_VERSION ?? packageManifest.version,
-      description: env.PACKAGE_DESCRIPTION ?? packageManifest.description,
+      name: env.PACKAGE_NAME ?? consumerPkg.name ?? frameworkPkg.name,
+      version: env.PACKAGE_VERSION ?? consumerPkg.version ?? frameworkPkg.version,
+      description: env.PACKAGE_DESCRIPTION ?? consumerPkg.description ?? frameworkPkg.description,
     },
     logLevel: env.MCP_LOG_LEVEL,
     logsPath: env.LOGS_DIR,
