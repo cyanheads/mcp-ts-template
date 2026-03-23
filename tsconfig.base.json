@@ -36,9 +36,8 @@
     "resolveJsonModule": true,
     "allowJs": false,
 
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   }
 }
