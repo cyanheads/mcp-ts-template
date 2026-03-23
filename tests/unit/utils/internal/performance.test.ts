@@ -4,21 +4,31 @@
  */
 
 import { SpanStatusCode, trace } from '@opentelemetry/api';
-import {
-  afterAll,
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  type MockInstance,
-  vi,
-} from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 
 import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
 import { logger } from '../../../../src/utils/internal/logger.js';
-import { measureToolExecution } from '../../../../src/utils/internal/performance.js';
-import * as metricsModule from '../../../../src/utils/telemetry/metrics.js';
+import {
+  measureResourceExecution,
+  measureToolExecution,
+} from '../../../../src/utils/internal/performance.js';
+
+// Shared OTel metric mocks (hoisted for vi.mock factory)
+const { mockCounterAdd, mockErrorCounterAdd, mockHistogramRecord, mockUpDownCounterAdd } =
+  vi.hoisted(() => ({
+    mockCounterAdd: vi.fn(),
+    mockErrorCounterAdd: vi.fn(),
+    mockHistogramRecord: vi.fn(),
+    mockUpDownCounterAdd: vi.fn(),
+  }));
+
+vi.mock('../../../../src/utils/telemetry/metrics.js', () => ({
+  createCounter: vi.fn((name: string) => ({
+    add: name.endsWith('.errors') ? mockErrorCounterAdd : mockCounterAdd,
+  })),
+  createHistogram: vi.fn(() => ({ record: mockHistogramRecord })),
+  createUpDownCounter: vi.fn(() => ({ add: mockUpDownCounterAdd })),
+}));
 
 describe('measureToolExecution', () => {
   const span = {
@@ -31,34 +41,18 @@ describe('measureToolExecution', () => {
   const tracer = {
     startActiveSpan: vi.fn(async (_name, callback) => callback(span as never)),
   };
-  const tracerSpy = vi.spyOn(trace, 'getTracer');
+  let tracerSpy: MockInstance;
   let infoSpy: MockInstance;
 
-  // Mock OTel metric instruments
-  const mockCounterAdd = vi.fn();
-  const mockHistogramRecord = vi.fn();
-  const mockErrorCounterAdd = vi.fn();
   beforeEach(() => {
     vi.clearAllMocks();
-    tracerSpy.mockReturnValue(tracer as never);
+    tracerSpy = vi.spyOn(trace, 'getTracer').mockReturnValue(tracer as never);
     infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
-
-    // Track which metric name maps to which mock
-    vi.spyOn(metricsModule, 'createCounter').mockImplementation((name) => {
-      if (name === 'mcp.tool.errors') return { add: mockErrorCounterAdd } as any;
-      return { add: mockCounterAdd } as any;
-    });
-    vi.spyOn(metricsModule, 'createHistogram').mockReturnValue({
-      record: mockHistogramRecord,
-    } as any);
   });
 
   afterEach(() => {
-    infoSpy.mockRestore();
-  });
-
-  afterAll(() => {
     tracerSpy.mockRestore();
+    infoSpy.mockRestore();
   });
 
   it('records success metrics and returns the tool result', async () => {
@@ -269,5 +263,147 @@ describe('measureToolExecution', () => {
       localInfoSpy.mockRestore();
       infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
     }
+  });
+});
+
+describe('measureResourceExecution', () => {
+  const span = {
+    setAttributes: vi.fn(),
+    setAttribute: vi.fn(),
+    setStatus: vi.fn(),
+    recordException: vi.fn(),
+    end: vi.fn(),
+  };
+  const tracer = {
+    startActiveSpan: vi.fn(async (_name, callback) => callback(span as never)),
+  };
+  let tracerSpy: MockInstance;
+  let infoSpy: MockInstance;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tracerSpy = vi.spyOn(trace, 'getTracer').mockReturnValue(tracer as never);
+    infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    tracerSpy.mockRestore();
+    infoSpy.mockRestore();
+  });
+
+  it('records success metrics and returns the resource result', async () => {
+    const result = await measureResourceExecution(
+      async () => ({ data: 'hello' }),
+      { resourceName: 'test-resource', requestId: 'req-r1', timestamp: new Date().toISOString() },
+      { uri: 'test://items/1', mimeType: 'application/json' },
+    );
+
+    expect(result).toEqual({ data: 'hello' });
+    expect(span.setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.OK });
+    expect(span.setAttributes).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        'mcp.resource.duration_ms': expect.any(Number),
+        'mcp.resource.success': true,
+      }),
+    );
+    expect(span.end).toHaveBeenCalled();
+  });
+
+  it('records OTel counter and histogram on success', async () => {
+    await measureResourceExecution(
+      async () => ({ ok: true }),
+      { resourceName: 'metric-resource', requestId: 'req-r2', timestamp: new Date().toISOString() },
+      { uri: 'test://items/2', mimeType: 'application/json' },
+    );
+
+    expect(mockCounterAdd).toHaveBeenCalledWith(1, {
+      'mcp.resource.name': 'metric-resource',
+      'mcp.resource.success': true,
+    });
+    expect(mockHistogramRecord).toHaveBeenCalledWith(expect.any(Number), {
+      'mcp.resource.name': 'metric-resource',
+      'mcp.resource.success': true,
+    });
+    expect(mockErrorCounterAdd).not.toHaveBeenCalled();
+  });
+
+  it('records output bytes histogram on success', async () => {
+    await measureResourceExecution(
+      async () => ({ items: [1, 2, 3] }),
+      { resourceName: 'bytes-resource', requestId: 'req-r3', timestamp: new Date().toISOString() },
+      { uri: 'test://items/3', mimeType: 'application/json' },
+    );
+
+    // Output bytes histogram should be recorded (at least one call with resource name attr)
+    expect(mockHistogramRecord).toHaveBeenCalledWith(expect.any(Number), {
+      'mcp.resource.name': 'bytes-resource',
+    });
+  });
+
+  it('records OTel error counter on failure', async () => {
+    await expect(
+      measureResourceExecution(
+        async () => {
+          throw new McpError(JsonRpcErrorCode.NotFound, 'not found');
+        },
+        { resourceName: 'err-resource', requestId: 'req-r4', timestamp: new Date().toISOString() },
+        { uri: 'test://items/404', mimeType: 'application/json' },
+      ),
+    ).rejects.toThrow();
+
+    expect(mockCounterAdd).toHaveBeenCalledWith(1, {
+      'mcp.resource.name': 'err-resource',
+      'mcp.resource.success': false,
+    });
+    expect(mockHistogramRecord).toHaveBeenCalledWith(expect.any(Number), {
+      'mcp.resource.name': 'err-resource',
+      'mcp.resource.success': false,
+    });
+    expect(mockErrorCounterAdd).toHaveBeenCalledWith(1, { 'mcp.resource.name': 'err-resource' });
+  });
+
+  it('increments and decrements active requests gauge', async () => {
+    await measureResourceExecution(
+      async () => 'ok',
+      { resourceName: 'gauge-resource', requestId: 'req-r5', timestamp: new Date().toISOString() },
+      { uri: 'test://items/5', mimeType: 'text/plain' },
+    );
+
+    expect(mockUpDownCounterAdd).toHaveBeenCalledWith(1);
+    expect(mockUpDownCounterAdd).toHaveBeenCalledWith(-1);
+  });
+
+  it('sets span attributes for URI and MIME type', async () => {
+    await measureResourceExecution(
+      async () => null,
+      { resourceName: 'attr-resource', requestId: 'req-r6', timestamp: new Date().toISOString() },
+      { uri: 'myscheme://items/6', mimeType: 'text/html' },
+    );
+
+    expect(span.setAttributes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        'mcp.resource.uri': 'myscheme://items/6',
+        'mcp.resource.mime_type': 'text/html',
+      }),
+    );
+  });
+
+  it('captures McpError code on failure', async () => {
+    const failure = new McpError(JsonRpcErrorCode.NotFound, 'gone');
+
+    await expect(
+      measureResourceExecution(
+        async () => {
+          throw failure;
+        },
+        { resourceName: 'code-resource', requestId: 'req-r7', timestamp: new Date().toISOString() },
+        { uri: 'test://items/7', mimeType: 'application/json' },
+      ),
+    ).rejects.toBe(failure);
+
+    expect(span.setAttribute).toHaveBeenCalledWith(
+      'mcp.resource.error_code',
+      String(JsonRpcErrorCode.NotFound),
+    );
   });
 });
