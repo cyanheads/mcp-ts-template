@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.28] - 2026-03-23
+
+TypeScript 6 migration and dependency updates.
+
+### Changed
+
+- **TypeScript 6** — upgraded from `^5.9.3` to `^6.0.2`; removed `baseUrl` from tsconfigs, switched path mappings to relative `./src/*` syntax.
+- **Removed duplicate `typescript`** from `dependencies` (remains in `devDependencies`).
+- **`@vitest/coverage-istanbul`** — 4.1.0 → 4.1.1 (dev)
+- **`@vitest/ui`** — 4.1.0 → 4.1.1 (dev)
+- **`fast-xml-parser`** — ^5.5.8 → ^5.5.9 (peer)
+
+---
+
 ## [0.1.27] - 2026-03-23
 
 Expanded OTel metrics instrumentation, eager metric initialization, and app lifecycle improvements.
