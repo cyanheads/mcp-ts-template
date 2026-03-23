@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.27] - 2026-03-23
+
+Expanded OTel metrics instrumentation, eager metric initialization, and app lifecycle improvements.
+
+### Added
+
+- **Tool I/O byte histograms** — `mcp.tool.input_bytes` and `mcp.tool.output_bytes` histograms record payload sizes per tool invocation.
+- **Tool parameter usage counter** — `mcp.tool.param.usage` tracks which parameters are supplied per tool call (top-level keys).
+- **Resource output bytes histogram** — `mcp.resource.output_bytes` records payload size for successful resource reads.
+- **HTTP client duration histogram** — `http.client.request.duration` (seconds) in `fetchWithTimeout`, with `http.request.method`, `server.address`, and `http.response.status_code` attributes.
+- **Rate limit rejection counter** — `mcp.ratelimit.rejections` with `mcp.rate_limit.key` attribute fires on every rate-limited request.
+- **Error classification counter** — `mcp.errors.classified` exposed via `initErrorMetrics()` for eager initialization.
+- **Event loop utilization gauge** — `process.event_loop.utilization` (0–1 ratio) complements the existing p99 delay gauge.
+- **Eager metric initialization** — `initSessionMetrics()`, `initErrorMetrics()`, `initRateLimitMetrics()`, `initHttpClientMetrics()`, `initHandlerMetrics()` called at startup so all metric series exist from the first export cycle.
+- **Comprehensive metrics test suite** — 10 new test files covering OTel metric recording for tools, resources, tasks, sessions, auth, storage, graph, LLM, speech, error handler, HTTP client, and rate limiter subsystems.
+
+### Changed
+
+- **Lint warnings use logger** — `composeServices()` collects lint warnings and defers logging until after logger initialization. No more `console.warn` at startup.
+- **Session gauge unconditional** — `mcp.sessions.active` observable gauge registered regardless of transport type (reports 0 for stdio/stateless).
+- **Shutdown cleanup** — Extracted `flushTelemetryAndLogger()` helper, added `taskManager.cleanup()`, fatal error handlers now create proper request contexts.
+- **`repomix`** — ^1.12.0 → ^1.13.0 (dev)
+- **`vitest`** — ^4.1.0 → ^4.1.1 (dev)
+- **`hono`** — ^4.12.8 → ^4.12.9
+- **`diff`** — ^8.0.3 → ^8.0.4
+
+---
+
 ## [0.1.26] - 2026-03-23
 
 Resource notification support and dependency updates.

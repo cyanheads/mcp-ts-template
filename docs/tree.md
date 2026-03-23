@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-22 01:06:14
+Generated on: 2026-03-23 16:40:25
 
 ```text
 mcp-ts-core/
@@ -32,7 +32,8 @@ mcp-ts-core/
 │   │           ├── pagination.md
 │   │           ├── ping.md
 │   │           └── progress.md
-│   └── conformance-test-plan.md
+│   ├── conformance-test-plan.md
+│   └── resource-notifications.md
 ├── examples/
 │   ├── mcp-server/
 │   │   ├── prompts/
@@ -365,6 +366,7 @@ mcp-ts-core/
 │   ├── unit/
 │   │   ├── config/
 │   │   │   └── index.test.ts
+│   │   ├── core/
 │   │   ├── linter/
 │   │   │   └── validate.test.ts
 │   │   ├── mcp-server/
@@ -383,8 +385,9 @@ mcp-ts-core/
 │   │   │   │   ├── core/
 │   │   │   │   │   ├── storageBackedTaskStore.test.ts
 │   │   │   │   │   └── taskManager.test.ts
-│   │   │   │   └── utils/
-│   │   │   │       └── taskToolDefinition.test.ts
+│   │   │   │   ├── utils/
+│   │   │   │   │   └── taskToolDefinition.test.ts
+│   │   │   │   └── taskManager.metrics.test.ts
 │   │   │   ├── tools/
 │   │   │   │   ├── utils/
 │   │   │   │   │   ├── toolDefinition.test.ts
@@ -402,12 +405,14 @@ mcp-ts-core/
 │   │   │   │   │   │   ├── jwtStrategy.test.ts
 │   │   │   │   │   │   └── oauthStrategy.test.ts
 │   │   │   │   │   ├── authFactory.test.ts
+│   │   │   │   │   ├── authMiddleware.metrics.test.ts
 │   │   │   │   │   └── authMiddleware.test.ts
 │   │   │   │   ├── http/
 │   │   │   │   │   ├── httpErrorHandler.test.ts
 │   │   │   │   │   ├── httpTransport.test.ts
 │   │   │   │   │   ├── httpTypes.test.ts
 │   │   │   │   │   ├── sessionIdUtils.test.ts
+│   │   │   │   │   ├── sessionStore.metrics.test.ts
 │   │   │   │   │   └── sessionStore.test.ts
 │   │   │   │   ├── stdio/
 │   │   │   │   │   └── stdioTransport.test.ts
@@ -419,17 +424,20 @@ mcp-ts-core/
 │   │   ├── services/
 │   │   │   ├── graph/
 │   │   │   │   ├── core/
+│   │   │   │   │   ├── GraphService.metrics.test.ts
 │   │   │   │   │   └── GraphService.test.ts
 │   │   │   │   └── types.test.ts
 │   │   │   ├── llm/
 │   │   │   │   ├── core/
 │   │   │   │   ├── providers/
+│   │   │   │   │   ├── openrouter.provider.metrics.test.ts
 │   │   │   │   │   ├── openrouter.provider.test.ts
 │   │   │   │   │   └── openrouter.provider.test.ts.disabled
 │   │   │   │   └── types.test.ts
 │   │   │   └── speech/
 │   │   │       ├── core/
 │   │   │       │   ├── ISpeechProvider.test.ts
+│   │   │       │   ├── speechMetrics.test.ts
 │   │   │       │   └── SpeechService.test.ts
 │   │   │       ├── providers/
 │   │   │       │   ├── elevenlabs.provider.test.ts
@@ -452,6 +460,7 @@ mcp-ts-core/
 │   │   │   │   └── supabase/
 │   │   │   │       ├── supabase.types.test.ts
 │   │   │   │       └── supabaseProvider.test.ts
+│   │   │   ├── StorageService.metrics.test.ts
 │   │   │   └── StorageService.test.ts
 │   │   ├── testing/
 │   │   │   └── mockContextFidelity.test.ts
@@ -470,6 +479,7 @@ mcp-ts-core/
 │   │   │   │   │   ├── mappings.test.ts
 │   │   │   │   │   └── types.test.ts
 │   │   │   │   ├── encoding.test.ts
+│   │   │   │   ├── errorHandler.metrics.test.ts
 │   │   │   │   ├── errorHandler.unit.test.ts
 │   │   │   │   ├── health.test.ts
 │   │   │   │   ├── logger.test.ts
@@ -481,6 +491,7 @@ mcp-ts-core/
 │   │   │   ├── metrics/
 │   │   │   │   └── tokenCounter.test.ts
 │   │   │   ├── network/
+│   │   │   │   ├── fetchWithTimeout.metrics.test.ts
 │   │   │   │   └── fetchWithTimeout.test.ts
 │   │   │   ├── pagination/
 │   │   │   │   └── index.test.ts
@@ -496,6 +507,7 @@ mcp-ts-core/
 │   │   │   │   └── scheduler.test.ts
 │   │   │   ├── security/
 │   │   │   │   ├── idGenerator.test.ts
+│   │   │   │   ├── rateLimiter.metrics.test.ts
 │   │   │   │   ├── rateLimiter.test.ts
 │   │   │   │   ├── sanitization.property.test.ts
 │   │   │   │   └── sanitization.test.ts
