@@ -39,6 +39,8 @@ interface SdkRuntimeCapabilities {
 /** Services required by the handler factory to construct Context. */
 export interface HandlerFactoryServices {
   logger: Logger;
+  notifyResourceListChanged?: () => void;
+  notifyResourceUpdated?: (uri: string) => void;
   storage: StorageService;
 }
 
@@ -125,6 +127,8 @@ export function createToolHandler(
         signal: sdkContext.signal,
         elicit: wrapElicit(sdkCaps),
         sample: wrapSample(sdkCaps),
+        notifyResourceListChanged: services.notifyResourceListChanged,
+        notifyResourceUpdated: services.notifyResourceUpdated,
       });
 
       // Execute handler with performance measurement.

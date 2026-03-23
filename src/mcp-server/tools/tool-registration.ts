@@ -63,6 +63,14 @@ export class ToolRegistry {
     // per-request McpServer instances in HTTP mode (GHSA-345p-7cg4-v4c7).
     this.registeredNames.clear();
 
+    // Bind resource notification functions to this server instance so
+    // tool handlers can notify clients of resource changes via ctx.
+    if (this.services) {
+      this.services.notifyResourceListChanged = () => server.sendResourceListChanged();
+      this.services.notifyResourceUpdated = (uri: string) =>
+        server.server.sendResourceUpdated({ uri });
+    }
+
     const context = requestContextService.createRequestContext({
       operation: 'ToolRegistry.registerAll',
     });
@@ -308,6 +316,8 @@ export class ToolRegistry {
         storage: services.storage,
         signal: abortController.signal,
         taskCtx: { store: taskStore, taskId },
+        notifyResourceListChanged: services.notifyResourceListChanged,
+        notifyResourceUpdated: services.notifyResourceUpdated,
       });
 
       const result = await Promise.resolve(tool.handler(input as Record<string, unknown>, ctx));

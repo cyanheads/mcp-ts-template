@@ -29,6 +29,10 @@ export interface MockContextOptions {
   auth?: AuthContext;
   /** Mock elicitation handler. */
   elicit?: (message: string, schema: z.ZodObject<z.ZodRawShape>) => Promise<ElicitResult>;
+  /** Mock resource list changed notifier. */
+  notifyResourceListChanged?: () => void;
+  /** Mock resource updated notifier. */
+  notifyResourceUpdated?: (uri: string) => void;
   /** Enable task progress (creates a mock ContextProgress). */
   progress?: boolean;
   /** Request ID override. Defaults to 'test-request-id'. */
@@ -209,6 +213,8 @@ export function createMockContext(options: MockContextOptions = {}): Context {
     auth: options.auth,
     elicit: options.elicit,
     sample: options.sample,
+    notifyResourceListChanged: options.notifyResourceListChanged,
+    notifyResourceUpdated: options.notifyResourceUpdated,
     progress,
     uri: options.uri,
   };

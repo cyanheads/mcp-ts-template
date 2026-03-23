@@ -29,6 +29,12 @@ export class ResourceRegistry {
   public async registerAll(server: McpServer): Promise<void> {
     this.registeredNames.clear();
 
+    // Bind resource notification functions to this server instance so
+    // resource handlers can notify clients of resource changes via ctx.
+    this.services.notifyResourceListChanged = () => server.sendResourceListChanged();
+    this.services.notifyResourceUpdated = (uri: string) =>
+      server.server.sendResourceUpdated({ uri });
+
     const context = requestContextService.createRequestContext({
       operation: 'ResourceRegistry.registerAll',
     });

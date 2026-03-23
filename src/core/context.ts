@@ -112,6 +112,12 @@ export interface Context {
   /** Logger scoped to this request. Auto-includes requestId, traceId, tenantId. */
   readonly log: ContextLogger;
 
+  // --- Resource notifications ---
+  /** Notify clients that the resource list has changed (resources added/removed). */
+  readonly notifyResourceListChanged?: (() => void) | undefined;
+  /** Send a resource-updated notification to subscribed clients. */
+  readonly notifyResourceUpdated?: ((uri: string) => void) | undefined;
+
   // --- Task progress (present when task: true) ---
   /** Progress reporting for background tasks. Undefined for non-task tools. */
   readonly progress?: ContextProgress | undefined;
@@ -153,6 +159,8 @@ export interface ContextDeps {
   appContext: RequestContext;
   elicit?: Context['elicit'];
   logger: Logger;
+  notifyResourceListChanged?: Context['notifyResourceListChanged'];
+  notifyResourceUpdated?: Context['notifyResourceUpdated'];
   sample?: Context['sample'];
   signal: AbortSignal;
   storage: StorageService;
@@ -196,6 +204,8 @@ export function createContext(deps: ContextDeps): Context {
     auth: appContext.auth,
     elicit: deps.elicit,
     sample: deps.sample,
+    notifyResourceListChanged: deps.notifyResourceListChanged,
+    notifyResourceUpdated: deps.notifyResourceUpdated,
     progress,
     uri: deps.uri,
   };

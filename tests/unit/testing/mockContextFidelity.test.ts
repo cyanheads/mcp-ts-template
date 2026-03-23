@@ -270,6 +270,24 @@ describe('createMockContext fidelity', () => {
       expect(mock.uri).toBe(uri);
     });
 
+    it('notifyResourceUpdated should pass through when provided', () => {
+      const notifyResourceUpdated = vi.fn();
+      const real = makeRealContext({ notifyResourceUpdated });
+      const mock = createMockContext({ notifyResourceUpdated });
+
+      expect(real.notifyResourceUpdated).toBe(notifyResourceUpdated);
+      expect(mock.notifyResourceUpdated).toBe(notifyResourceUpdated);
+    });
+
+    it('notifyResourceListChanged should pass through when provided', () => {
+      const notifyResourceListChanged = vi.fn();
+      const real = makeRealContext({ notifyResourceListChanged });
+      const mock = createMockContext({ notifyResourceListChanged });
+
+      expect(real.notifyResourceListChanged).toBe(notifyResourceListChanged);
+      expect(mock.notifyResourceListChanged).toBe(notifyResourceListChanged);
+    });
+
     it('progress should be available when requested', async () => {
       const mockStore = { updateTaskStatus: vi.fn() };
       const real = makeRealContext({

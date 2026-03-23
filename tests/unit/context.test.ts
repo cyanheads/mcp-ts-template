@@ -591,6 +591,27 @@ describe('createContext', () => {
 
       expect(ctx.uri).toBe(uri);
     });
+
+    it('should include notifyResourceUpdated when provided', () => {
+      const notifyResourceUpdated = vi.fn();
+      const ctx = createContext(makeDeps({ notifyResourceUpdated }));
+
+      expect(ctx.notifyResourceUpdated).toBe(notifyResourceUpdated);
+    });
+
+    it('should include notifyResourceListChanged when provided', () => {
+      const notifyResourceListChanged = vi.fn();
+      const ctx = createContext(makeDeps({ notifyResourceListChanged }));
+
+      expect(ctx.notifyResourceListChanged).toBe(notifyResourceListChanged);
+    });
+
+    it('should leave notification methods undefined when not provided', () => {
+      const ctx = createContext(makeDeps());
+
+      expect(ctx.notifyResourceUpdated).toBeUndefined();
+      expect(ctx.notifyResourceListChanged).toBeUndefined();
+    });
   });
 
   // -----------------------------------------------------------------------
