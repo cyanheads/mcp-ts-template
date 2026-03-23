@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.26] - 2026-03-23
+
+Resource notification support and dependency updates.
+
+### Added
+
+- **Resource notifications on Context** — `ctx.notifyResourceUpdated(uri)` and `ctx.notifyResourceListChanged()` let tool and resource handlers notify subscribed clients when dynamic resources change. Optional (like `elicit`/`sample`), presence-checked before use. Threaded through `ContextDeps`, handler factories, and both tool/resource registries.
+- **`createMockContext` notification support** — `MockContextOptions` accepts `notifyResourceUpdated` and `notifyResourceListChanged` for testing handlers that fire resource notifications.
+- **Resource notifications design doc** — `docs/resource-notifications.md` documents the gap, SDK surface, API design, and alternatives considered.
+
+### Changed
+
+- **`diff`** — 8.0.3 → 8.0.4
+- **`hono`** — 4.12.8 → 4.12.9
+- **`@supabase/supabase-js`** — ^2.99.3 → ^2.100.0
+- **`typedoc`** — ^0.28.17 → ^0.28.18
+- **`vite`** — 8.0.1 → 8.0.2
+
+---
+
 ## [0.1.25] - 2026-03-21
 
 Consumer identity resolution and OTEL service identity propagation.

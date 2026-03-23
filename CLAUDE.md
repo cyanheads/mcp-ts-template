@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.25
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.26
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -266,6 +266,8 @@ interface Context {
   readonly state: ContextState;               // tenant-scoped KV storage
   readonly elicit?: (message: string, schema: z.ZodObject<any>) => Promise<ElicitResult>;
   readonly sample?: (messages: SamplingMessage[], opts?: SamplingOpts) => Promise<CreateMessageResult>;
+  readonly notifyResourceListChanged?: (() => void) | undefined;   // resource list changed
+  readonly notifyResourceUpdated?: ((uri: string) => void) | undefined; // resource content changed
   readonly signal: AbortSignal;               // cancellation
   readonly progress?: ContextProgress;        // present when task: true
   readonly uri?: URL;                         // present for resource handlers
