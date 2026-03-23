@@ -21,6 +21,7 @@ import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import type { AnyToolDef } from '@/mcp-server/tools/tool-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import type { DefinitionCounts } from '@/mcp-server/transports/http/httpTypes.js';
+import { initSessionMetrics } from '@/mcp-server/transports/http/sessionStore.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
 import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
 import { OpenRouterProvider } from '@/services/llm/providers/openrouter.provider.js';
@@ -30,11 +31,13 @@ import { StorageService } from '@/storage/core/StorageService.js';
 import { createStorageProvider } from '@/storage/core/storageFactory.js';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
 import { configurationError } from '@/types-global/errors.js';
+import { initErrorMetrics } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger, type McpLogLevel } from '@/utils/internal/logger.js';
-import { initHighResTimer } from '@/utils/internal/performance.js';
+import { initHandlerMetrics, initHighResTimer } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
+import { initHttpClientMetrics } from '@/utils/network/fetchWithTimeout.js';
 import { schedulerService } from '@/utils/scheduling/scheduler.js';
-import { RateLimiter } from '@/utils/security/rateLimiter.js';
+import { initRateLimitMetrics, RateLimiter } from '@/utils/security/rateLimiter.js';
 import {
   initializeOpenTelemetry,
   shutdownOpenTelemetry,
@@ -86,6 +89,8 @@ export interface ComposedApp {
   coreServices: CoreServices;
   createServer: () => Promise<McpServer>;
   definitionCounts: DefinitionCounts;
+  /** Lint warnings from definition validation (callers should log after logger init). */
+  lintWarnings: string[];
   taskManager: TaskManager;
 }
 
@@ -100,11 +105,7 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
 
   // Validate definitions against MCP spec before proceeding
   const lintReport = validateDefinitions({ tools, resources, prompts });
-  if (lintReport.warnings.length > 0) {
-    for (const w of lintReport.warnings) {
-      console.warn(`[mcp-lint] ${w.rule}: ${w.message}`);
-    }
-  }
+  const lintWarnings = lintReport.warnings.map((w) => `[mcp-lint] ${w.rule}: ${w.message}`);
   if (!lintReport.passed) {
     const summary = lintReport.errors.map((e) => `  - [${e.rule}] ${e.message}`).join('\n');
     throw configurationError(
@@ -221,6 +222,7 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
       resources: resources.length,
       tools: tools.length,
     },
+    lintWarnings,
     taskManager,
   };
 }
@@ -257,7 +259,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   suppressColors();
 
   // --- Compose services (handles env overrides internally for config parsing) ---
-  const { coreServices, createServer, definitionCounts, taskManager } =
+  const { coreServices, createServer, definitionCounts, lintWarnings, taskManager } =
     await composeServices(options);
 
   // --- Initialize OTEL + high-res timer (independent, run in parallel) ---
@@ -267,6 +269,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
     }),
     initHighResTimer(),
   ]);
+
+  // --- Eager-init universal metrics so series exist from first export cycle ---
+  initSessionMetrics();
+  initErrorMetrics();
+  initRateLimitMetrics();
+  initHttpClientMetrics();
+  initHandlerMetrics();
 
   // --- Process-level observable gauges (registered once after OTEL init) ---
   if (typeof process !== 'undefined' && typeof process.memoryUsage === 'function') {
@@ -311,10 +320,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
     );
   }
 
-  // --- Event loop delay gauge (best single signal for Node.js health) ---
+  // --- Event loop gauges (delay + utilization) ---
   if (typeof process !== 'undefined') {
     try {
-      const { monitorEventLoopDelay } = await import('node:perf_hooks');
+      const { monitorEventLoopDelay, performance } = await import('node:perf_hooks');
       const eld = monitorEventLoopDelay({ resolution: 20 });
       eld.enable();
       createObservableGauge(
@@ -323,6 +332,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
         () => eld.percentile(99) / 1e6, // ns → ms
         'ms',
       );
+      let prevELU = performance.eventLoopUtilization();
+      createObservableGauge(
+        'process.event_loop.utilization',
+        'Event loop utilization ratio (0 = idle, 1 = saturated)',
+        () => {
+          const current = performance.eventLoopUtilization();
+          const delta = performance.eventLoopUtilization(prevELU, current);
+          prevELU = current;
+          return delta.utilization;
+        },
+        '1',
+      );
     } catch {
       // perf_hooks unavailable in this runtime — skip silently
     }
@@ -330,6 +351,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
 
   // --- Initialize logger ---
   await logger.initialize(config.logLevel as McpLogLevel, config.mcpTransportType);
+
+  for (const warning of lintWarnings) {
+    logger.warning(warning);
+  }
 
   logger.info('Core services constructed.');
   logger.info(
@@ -356,28 +381,17 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
 
   logger.info(`Starting ${config.mcpServerName} (v${config.mcpServerVersion})...`, startupContext);
 
-  // --- Named handlers (stored for cleanup in shutdown) ---
-
-  // Attempt graceful shutdown but guarantee termination via backstop timer.
-  const fatalShutdown = (signal: string) => {
-    const backstop = setTimeout(() => process.exit(1), 10_000);
-    backstop.unref();
-    void shutdown(signal).finally(() => process.exit(1));
-  };
-  const onUncaughtException = (error: Error) => {
-    logger.fatal('FATAL: Uncaught exception detected.', error, startupContext);
-    fatalShutdown('uncaughtException');
-  };
-  const onUnhandledRejection = (reason: unknown) => {
-    const err = reason instanceof Error ? reason : new Error(String(reason));
-    logger.fatal('FATAL: Unhandled promise rejection detected.', err, startupContext);
-    fatalShutdown('unhandledRejection');
-  };
-  const onSigterm = () => void shutdown('SIGTERM');
-  const onSigint = () => void shutdown('SIGINT');
-
   // --- Shutdown ---
   let isShuttingDown = false;
+
+  const flushTelemetryAndLogger = async (): Promise<void> => {
+    try {
+      await shutdownOpenTelemetry();
+      await logger.close();
+    } catch {
+      // Ignore errors during final cleanup
+    }
+  };
 
   const shutdown = async (signal = 'SHUTDOWN'): Promise<void> => {
     if (isShuttingDown) return;
@@ -404,25 +418,46 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
           await transportManager.stop(signal);
         });
 
+        taskManager.cleanup();
         coreServices.rateLimiter.dispose();
         schedulerService.destroyAll();
 
         logger.info('Graceful shutdown completed successfully.', shutdownContext);
       });
-      // Flush telemetry after shutdown span is recorded
-      await shutdownOpenTelemetry();
-      await logger.close();
+      await flushTelemetryAndLogger();
     } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));
       logger.error('Critical error during shutdown process.', err, shutdownContext);
-      try {
-        await shutdownOpenTelemetry();
-        await logger.close();
-      } catch {
-        // Ignore errors during final cleanup
-      }
+      await flushTelemetryAndLogger();
     }
   };
+
+  // --- Named signal/error handlers (stored for cleanup in shutdown) ---
+
+  const fatalShutdown = (signal: string) => {
+    const backstop = setTimeout(() => process.exit(1), 10_000);
+    backstop.unref();
+    void shutdown(signal).finally(() => process.exit(1));
+  };
+  const onUncaughtException = (error: Error) => {
+    const fatalContext = requestContextService.createRequestContext({
+      operation: 'FatalError',
+      triggerEvent: 'uncaughtException',
+    });
+    logger.fatal('FATAL: Uncaught exception detected.', error, fatalContext);
+    fatalShutdown('uncaughtException');
+  };
+  const onUnhandledRejection = (reason: unknown) => {
+    const err = reason instanceof Error ? reason : new Error(String(reason));
+    const fatalContext = requestContextService.createRequestContext({
+      operation: 'FatalError',
+      triggerEvent: 'unhandledRejection',
+    });
+    logger.fatal('FATAL: Unhandled promise rejection detected.', err, fatalContext);
+    fatalShutdown('unhandledRejection');
+  };
+  const onSigterm = () => void shutdown('SIGTERM');
+  const onSigint = () => void shutdown('SIGINT');
 
   // --- Register error/signal handlers (before transport start so a SIGTERM
   //     during HTTP bind still triggers graceful shutdown) ---

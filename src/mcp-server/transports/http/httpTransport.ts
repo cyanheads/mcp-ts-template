@@ -74,15 +74,14 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     ? new SessionStore(config.mcpStatefulSessionStaleTimeoutMs)
     : null;
 
-  // Wire session count to OTel observable gauge for durable metrics
-  if (sessionStore && config.openTelemetry.enabled) {
-    createObservableGauge(
-      'mcp.sessions.active',
-      'Number of active MCP sessions',
-      () => sessionStore.getSessionCount(),
-      '{sessions}',
-    );
-  }
+  // Wire session count to OTel observable gauge for durable metrics.
+  // Registered unconditionally so the series exists from startup (reports 0 when stateless/stdio).
+  createObservableGauge(
+    'mcp.sessions.active',
+    'Number of active MCP sessions',
+    () => sessionStore?.getSessionCount() ?? 0,
+    '{sessions}',
+  );
 
   // OpenTelemetry request tracing — outermost middleware on the MCP endpoint
   // so the span captures the full lifecycle (CORS, auth, handler).
