@@ -8,6 +8,23 @@ import type { config as ConfigType } from '@/config/index.js';
 import { rateLimited } from '@/types-global/errors.js';
 import type { logger as LoggerType } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
+import { createCounter } from '@/utils/telemetry/metrics.js';
+
+let rejectionCounter: ReturnType<typeof createCounter> | undefined;
+
+function getRateLimitMetrics() {
+  rejectionCounter ??= createCounter(
+    'mcp.ratelimit.rejections',
+    'Rate limit rejections',
+    '{rejections}',
+  );
+  return { rejectionCounter };
+}
+
+/** Eagerly creates the rate limit rejection counter so the series exists from startup. */
+export function initRateLimitMetrics(): void {
+  getRateLimitMetrics();
+}
 
 /**
  * Defines configuration options for the {@link RateLimiter}.
@@ -293,6 +310,8 @@ export class RateLimiter {
       activeSpan?.addEvent('rate_limit_exceeded', {
         'mcp.rate_limit.wait_time_seconds': waitTime,
       });
+
+      getRateLimitMetrics().rejectionCounter.add(1, { 'mcp.rate_limit.key': limitKey });
 
       throw rateLimited(errorMessage, {
         waitTimeSeconds: waitTime,

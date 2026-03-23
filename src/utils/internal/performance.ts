@@ -36,13 +36,37 @@ import { createCounter, createHistogram, createUpDownCounter } from '@/utils/tel
 let toolCallCounter: ReturnType<typeof createCounter> | undefined;
 let toolCallDuration: ReturnType<typeof createHistogram> | undefined;
 let toolCallErrors: ReturnType<typeof createCounter> | undefined;
+let toolInputBytes: ReturnType<typeof createHistogram> | undefined;
+let toolOutputBytes: ReturnType<typeof createHistogram> | undefined;
+let toolParamUsage: ReturnType<typeof createCounter> | undefined;
 let activeRequests: ReturnType<typeof createUpDownCounter> | undefined;
 
 function getToolMetrics() {
   toolCallCounter ??= createCounter('mcp.tool.calls', 'Total MCP tool invocations', '{calls}');
   toolCallDuration ??= createHistogram('mcp.tool.duration', 'MCP tool execution duration', 'ms');
   toolCallErrors ??= createCounter('mcp.tool.errors', 'Total MCP tool errors', '{errors}');
-  return { toolCallCounter, toolCallDuration, toolCallErrors };
+  toolInputBytes ??= createHistogram('mcp.tool.input_bytes', 'Tool input payload size', 'bytes');
+  toolOutputBytes ??= createHistogram('mcp.tool.output_bytes', 'Tool output payload size', 'bytes');
+  toolParamUsage ??= createCounter(
+    'mcp.tool.param.usage',
+    'Per-parameter usage count for tool calls',
+    '{uses}',
+  );
+  return {
+    toolCallCounter,
+    toolCallDuration,
+    toolCallErrors,
+    toolInputBytes,
+    toolOutputBytes,
+    toolParamUsage,
+  };
+}
+
+/** Eagerly creates tool and resource metric instruments so series exist from startup. */
+export function initHandlerMetrics(): void {
+  getToolMetrics();
+  getResourceMetrics();
+  getActiveRequestsGauge();
 }
 
 function getActiveRequestsGauge() {
@@ -287,9 +311,19 @@ export async function measureToolExecution<T>(
       // Record to OTel metric instruments (durable across restarts)
       const m = getToolMetrics();
       const metricAttrs = { [ATTR_MCP_TOOL_NAME]: toolName, [ATTR_MCP_TOOL_SUCCESS]: ok };
+      const toolAttrs = { [ATTR_MCP_TOOL_NAME]: toolName };
       m.toolCallCounter.add(1, metricAttrs);
       m.toolCallDuration.record(durationMs, metricAttrs);
-      if (!ok) m.toolCallErrors.add(1, { [ATTR_MCP_TOOL_NAME]: toolName });
+      m.toolInputBytes.record(inputBytes, toolAttrs);
+      if (ok) m.toolOutputBytes.record(outputBytes, toolAttrs);
+      if (!ok) m.toolCallErrors.add(1, toolAttrs);
+
+      // Record which parameters were supplied (top-level keys only)
+      if (inputPayload && typeof inputPayload === 'object') {
+        for (const param of Object.keys(inputPayload as Record<string, unknown>)) {
+          m.toolParamUsage.add(1, { [ATTR_MCP_TOOL_NAME]: toolName, 'mcp.tool.param': param });
+        }
+      }
 
       logger.info('Tool execution finished.', {
         ...context,
@@ -313,6 +347,8 @@ let resourceReadCounter: ReturnType<typeof createCounter> | undefined;
 let resourceReadDuration: ReturnType<typeof createHistogram> | undefined;
 let resourceReadErrors: ReturnType<typeof createCounter> | undefined;
 
+let resourceOutputBytes: ReturnType<typeof createHistogram> | undefined;
+
 function getResourceMetrics() {
   resourceReadCounter ??= createCounter(
     'mcp.resource.reads',
@@ -329,7 +365,12 @@ function getResourceMetrics() {
     'Total MCP resource read errors',
     '{errors}',
   );
-  return { resourceReadCounter, resourceReadDuration, resourceReadErrors };
+  resourceOutputBytes ??= createHistogram(
+    'mcp.resource.output_bytes',
+    'Resource output payload size',
+    'bytes',
+  );
+  return { resourceReadCounter, resourceReadDuration, resourceReadErrors, resourceOutputBytes };
 }
 
 /**
@@ -405,9 +446,11 @@ export async function measureResourceExecution<T>(
         [ATTR_MCP_RESOURCE_NAME]: resourceName,
         [ATTR_MCP_RESOURCE_SUCCESS]: ok,
       };
+      const resourceAttrs = { [ATTR_MCP_RESOURCE_NAME]: resourceName };
       m.resourceReadCounter.add(1, metricAttrs);
       m.resourceReadDuration.record(durationMs, metricAttrs);
-      if (!ok) m.resourceReadErrors.add(1, { [ATTR_MCP_RESOURCE_NAME]: resourceName });
+      if (ok) m.resourceOutputBytes.record(outputBytes, resourceAttrs);
+      if (!ok) m.resourceReadErrors.add(1, resourceAttrs);
 
       logger.info('Resource read finished.', {
         ...context,

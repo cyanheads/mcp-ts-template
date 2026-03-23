@@ -13,6 +13,23 @@ import {
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { runtimeCaps } from '@/utils/internal/runtime.js';
+import { createHistogram } from '@/utils/telemetry/metrics.js';
+
+let clientDurationHistogram: ReturnType<typeof createHistogram> | undefined;
+
+function getHttpClientMetrics() {
+  clientDurationHistogram ??= createHistogram(
+    'http.client.request.duration',
+    'Duration of outbound HTTP requests',
+    's',
+  );
+  return { clientDurationHistogram };
+}
+
+/** Eagerly creates the HTTP client duration histogram so the series exists from startup. */
+export function initHttpClientMetrics(): void {
+  getHttpClientMetrics();
+}
 
 /**
  * Options for the `fetchWithTimeout` utility.
@@ -275,6 +292,11 @@ export async function fetchWithTimeout(
     }
   }
 
+  const startTime = performance.now();
+  const parsedUrl = new URL(urlString);
+  const method = (fetchInit.method ?? 'GET').toUpperCase();
+  let statusCode = 0;
+
   try {
     let currentUrl: string | URL = url;
     let redirectCount = 0;
@@ -311,6 +333,8 @@ export async function fetchWithTimeout(
         currentUrl = redirectUrl;
         continue;
       }
+
+      statusCode = response.status;
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => 'Could not read response body');
@@ -385,5 +409,14 @@ export async function fetchWithTimeout(
     });
   } finally {
     clearTimeout(timeoutId);
+    const durationS = (performance.now() - startTime) / 1000;
+    const attrs: Record<string, string | number> = {
+      'http.request.method': method,
+      'server.address': parsedUrl.hostname,
+    };
+    if (statusCode > 0) {
+      attrs['http.response.status_code'] = statusCode;
+    }
+    getHttpClientMetrics().clientDurationHistogram.record(durationS, attrs);
   }
 }

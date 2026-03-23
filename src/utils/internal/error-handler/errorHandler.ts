@@ -22,7 +22,6 @@ import {
 } from './mappings.js';
 import type { ErrorHandlerOptions, ErrorMapping } from './types.js';
 
-// OTel error classification counter (lazy-initialized)
 let errorClassifiedCounter: ReturnType<typeof createCounter> | undefined;
 
 function getErrorMetrics() {
@@ -32,6 +31,11 @@ function getErrorMetrics() {
     '{errors}',
   );
   return { errorClassifiedCounter };
+}
+
+/** Eagerly creates the error classification counter so the series exists from startup. */
+export function initErrorMetrics(): void {
+  getErrorMetrics();
 }
 
 /**

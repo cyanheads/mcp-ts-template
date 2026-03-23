@@ -23,6 +23,11 @@ function getSessionMetrics() {
   return { sessionEventCounter };
 }
 
+/** Eagerly creates the session event counter so the series exists from startup. */
+export function initSessionMetrics(): void {
+  getSessionMetrics();
+}
+
 /**
  * Identity information for binding sessions to authenticated users.
  * Used to prevent session hijacking across tenants/clients.
