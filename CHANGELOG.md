@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.1.29] - 2026-03-24
+
+Linter fix, skill doc improvements, and dependency updates.
+
+### Fixed
+
+- **Linter annotation-coherence** — removed `idempotentHint` redundancy warning for `readOnlyHint: true` tools. Explicit `idempotentHint` is valid and correct, not redundant.
+
+### Changed
+
+- **`design-mcp-server` skill** — added tool audit step, convenience shortcuts pattern, expanded naming convention (`{domain}_{verb}_{noun}`), optional design doc sections.
+- **`polish-docs-meta` skill** — added GitHub repo metadata sync step, description-as-canonical-source guidance, Dockerfile OCI label alignment.
+- **`@modelcontextprotocol/ext-apps`** — ^1.2.2 → ^1.3.1
+- **`fast-xml-parser`** — ^5.5.9 → latest (peer dep)
+
+---
+
 ## [0.1.28] - 2026-03-23
 
 TypeScript 6 migration and dependency updates.
