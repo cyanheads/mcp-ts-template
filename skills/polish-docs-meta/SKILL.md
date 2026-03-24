@@ -4,7 +4,7 @@ description: >
   Finalize documentation and project metadata for a ship-ready MCP server. Use after implementation is complete, tests pass, and devcheck is clean. Safe to run at any stage — each step checks current state and only acts on what still needs work.
 metadata:
   author: cyanheads
-  version: "1.1"
+  version: "1.2"
   audience: external
   type: workflow
 ---
@@ -48,6 +48,8 @@ Capture: tool count, resource count, prompt count, service count, required env v
 
 Read `references/readme.md` for structure and conventions. If `README.md` doesn't exist, create it from scratch. If it exists, diff the current content against the audit — update tool/resource/prompt tables, env var lists, and descriptions to match the actual surface area. Don't rewrite sections that are already accurate.
 
+The header tagline (`<p><b>...</b></p>`) must match the `package.json` `description`.
+
 ### 3. Agent Protocol (CLAUDE.md / AGENTS.md)
 
 Update the project's agent protocol file to reflect the actual server.
@@ -70,6 +72,8 @@ Check for empty or placeholder metadata fields. Read `references/package-meta.md
 
 Key fields: `description`, `repository`, `author`, `homepage`, `bugs`, `keywords`.
 
+**`description` is the canonical source.** Every other surface (README header, `server.json`, Dockerfile OCI label, GitHub repo description) derives from it. Write it here first, then propagate.
+
 ### 6. `server.json`
 
 Read `references/server-json.md` for the official MCP server manifest schema. If `server.json` doesn't exist, create it from the surface area audit. If it exists, diff against current state and update stale fields.
@@ -82,7 +86,26 @@ Key sync points:
 - `environmentVariables` reflect the server config Zod schema — server-specific required vars in both entries, transport vars only in HTTP entry
 - Two package entries: one for stdio, one for HTTP (if both transports supported)
 
-### 7. `bunfig.toml`
+### 7. GitHub Repository Metadata
+
+Sync the GitHub repo with `package.json` using the `gh` CLI. Skip if the repo isn't hosted on GitHub or `gh` isn't available.
+
+**Description:**
+
+```bash
+gh repo edit <owner>/<repo> --description "<package.json description>"
+```
+
+**Topics ↔ Keywords:**
+
+Compare GitHub topics (`gh repo view --json repositoryTopics`) against `package.json` `keywords`. They should be the union — add any that exist in one but not the other:
+
+- Missing from GitHub → `gh repo edit --add-topic <topic>`
+- Missing from `package.json` → add to `keywords` array
+
+Common keywords shared across MCP servers (e.g., `mcp`, `mcp-server`, `model-context-protocol`, `typescript`) should appear in both. Domain-specific keywords should also be present in both.
+
+### 8. `bunfig.toml`
 
 Verify a `bunfig.toml` exists at the project root. If not, create one:
 
@@ -95,7 +118,7 @@ frozenLockfile = false
 bun = true
 ```
 
-### 8. `CHANGELOG.md`
+### 9. `CHANGELOG.md`
 
 If `CHANGELOG.md` doesn't exist, create it with an initial entry. If it exists, verify the latest entry reflects the current state:
 
@@ -112,22 +135,22 @@ Initial release.
 
 Use a concrete version and date. Never `[Unreleased]`.
 
-### 9. `LICENSE`
+### 10. `LICENSE`
 
 Confirm a license file exists. If not, ask the user which license to use (default: Apache-2.0, matching the scaffolded `package.json`). Create the file.
 
-### 10. `Dockerfile`
+### 11. `Dockerfile`
 
 If a `Dockerfile` exists, verify the OCI labels and runtime config match the actual server:
 
 - `org.opencontainers.image.title` matches the package name
-- `org.opencontainers.image.description` is filled in (not empty placeholder)
+- `org.opencontainers.image.description` matches `package.json` `description`
 - `org.opencontainers.image.source` points to the real repository URL (add if missing)
 - Log directory path in `mkdir` and `LOGS_DIR` uses the correct server name
 
 If no `Dockerfile` exists and the server is deployed via HTTP transport, consider scaffolding one — the template is available via `npx @cyanheads/mcp-ts-core init`.
 
-### 11. `docs/tree.md`
+### 12. `docs/tree.md`
 
 Regenerate the directory structure:
 
@@ -137,7 +160,7 @@ bun run tree
 
 Review the output for anything unexpected (leftover files, missing directories).
 
-### 12. Final Verification
+### 13. Final Verification
 
 Run the full check suite one last time:
 
@@ -156,6 +179,7 @@ Both must pass clean.
 - [ ] `.env.example` in sync with server config schema
 - [ ] `package.json` metadata complete (`description`, `mcpName`, `repository`, `author`, `keywords`, `engines`, `packageManager`)
 - [ ] `server.json` matches official MCP schema, versions synced, env vars current
+- [ ] GitHub repo description matches `package.json` description; topics ↔ keywords in sync
 - [ ] `bunfig.toml` present
 - [ ] `CHANGELOG.md` exists with current entry
 - [ ] `LICENSE` file present

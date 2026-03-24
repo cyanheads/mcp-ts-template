@@ -120,6 +120,8 @@ const findEligibleStudies = tool('clinicaltrials_find_eligible_studies', {
 
 There is no fixed ceiling on tool count — tools need to earn their keep, but don't artificially limit the surface. If the domain genuinely has 20 distinct workflows, expose 20 tools.
 
+**Audit: does each tool earn its keep?** After mapping tools, review the full list critically. A tool that covers a niche use case, serves a tiny fraction of agents, or duplicates what another tool already handles is a candidate for deferral. Drop it from the design and note it as a future addition if demand warrants. Every tool in the surface is cognitive load for tool selection — a tight surface outperforms a comprehensive one.
+
 #### Tool descriptions
 
 The description is the LLM's primary signal for tool selection. It must answer: *what does this do, and when should I use it?*
@@ -193,6 +195,22 @@ output: z.object({
 - **Truncate large output with counts.** When a list exceeds a reasonable display size, show the top N and append "...and X more". Don't silently drop results.
 - **Use the `format` function for readable summaries** while keeping the full structured data in the output object for programmatic use.
 
+#### Convenience shortcuts for complex inputs
+
+When a tool wraps a complex query language or filter system, provide a simple shortcut parameter for the 80% case alongside the full-power escape hatch. This keeps simple queries simple while preserving full expressiveness.
+
+```ts
+// text_search handles the common case; query handles everything else
+text_search: z.string().optional()
+  .describe('Convenience shortcut: full-text search across title and abstract. '
+    + 'Equivalent to {"_or":[{"_text_any":{"title":"..."}},{"_text_any":{"abstract":"..."}}]}. '
+    + 'For more control, use the query parameter directly.'),
+query: z.record(z.unknown()).optional()
+  .describe('Full query object for structured filters. Supports operators: _eq, _gt, _and, _or, ...'),
+```
+
+The pattern: name the shortcut for what it does (`text_search`, `name_search`), document what it expands to, and point to the full parameter for advanced use. Validate that at least one of the two is provided.
+
 #### Error messages as LLM guidance
 
 When a tool throws, the error message is the agent's only signal for recovery. A good error message tells the LLM *what happened and what to do next*.
@@ -219,7 +237,7 @@ Summarize each tool:
 
 | Aspect | Decision |
 |:-------|:---------|
-| **Name** | `snake_case`, verb-noun: `search_papers`, `create_task`. Prefix with server domain if ambiguous. |
+| **Name** | `snake_case`, `{domain}_{verb}_{noun}` — aim for 3 words: `patentsview_search_patents`, `clinicaltrials_find_studies`. Use the **canonical platform/brand name** as prefix (not abbreviations — `patentsview_` not `patents_`, `clinicaltrials_` not `ct_`). The verb+noun pair should be unambiguous within the server — if two tools could plausibly share a name, the noun isn't specific enough (e.g., `read_fulltext` not `read_text` when structured metadata is a separate concept). |
 | **Granularity** | One tool per user-meaningful workflow, not per API call. Consolidate related operations with `operation`/`mode` enum. |
 | **Description** | Concrete capability statement. Add operational guidance (prerequisites, constraints, gotchas) when non-obvious. |
 | **Input schema** | `.describe()` on every field. Constrained types (enums, literals, regex). Explain costs/tradeoffs of parameter choices. |
@@ -301,6 +319,13 @@ What this server does, what system it wraps, who it's for.
 6. Prompts
 
 Each step is independently testable.
+
+<!-- Optional sections for API-wrapping servers: -->
+## Domain Mapping          <!-- nouns × operations → API endpoints -->
+## Workflow Analysis        <!-- how tools chain for real tasks -->
+## Design Decisions         <!-- rationale for consolidation, naming, tradeoffs -->
+## Known Limitations        <!-- inherent API/data constraints the server can't solve -->
+## API Reference            <!-- query language, pagination, rate limits -->
 ```
 
 Keep it concise. The design doc is a working reference, not a spec document — enough to orient a developer (or agent) implementing the server, not more.
