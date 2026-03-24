@@ -207,16 +207,14 @@ describe('validateDefinitions', () => {
       );
     });
 
-    it('warns on redundant annotations (readOnly + idempotent)', () => {
+    it('does not warn on idempotentHint with readOnlyHint (explicit is correct)', () => {
       const report = validateDefinitions({
         tools: [validTool({ annotations: { readOnlyHint: true, idempotentHint: true } })],
       });
-      expect(report.warnings).toContainEqual(
-        expect.objectContaining({
-          rule: 'annotation-coherence',
-          message: expect.stringContaining('idempotentHint'),
-        }),
+      const idempotentWarnings = report.warnings.filter(
+        (w) => w.rule === 'annotation-coherence' && w.message.includes('idempotentHint'),
       );
+      expect(idempotentWarnings).toHaveLength(0);
     });
 
     it('does not warn on annotations when readOnlyHint is false', () => {

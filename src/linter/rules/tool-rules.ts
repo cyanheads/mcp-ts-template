@@ -148,30 +148,17 @@ function lintToolAnnotations(
     }
   }
 
-  // Semantic coherence: destructiveHint and idempotentHint are meaningless when readOnlyHint is true
-  if (annotations.readOnlyHint === true) {
-    if ('destructiveHint' in annotations) {
-      diagnostics.push({
-        rule: 'annotation-coherence',
-        severity: 'warning',
-        message:
-          `Tool '${toolName}' sets destructiveHint while readOnlyHint is true. ` +
-          'destructiveHint is meaningless for read-only tools.',
-        definitionType: 'tool',
-        definitionName: toolName,
-      });
-    }
-    if ('idempotentHint' in annotations) {
-      diagnostics.push({
-        rule: 'annotation-coherence',
-        severity: 'warning',
-        message:
-          `Tool '${toolName}' sets idempotentHint while readOnlyHint is true. ` +
-          'Read-only tools are inherently idempotent — this hint is redundant.',
-        definitionType: 'tool',
-        definitionName: toolName,
-      });
-    }
+  // Semantic coherence: destructiveHint is meaningless when readOnlyHint is true
+  if (annotations.readOnlyHint === true && 'destructiveHint' in annotations) {
+    diagnostics.push({
+      rule: 'annotation-coherence',
+      severity: 'warning',
+      message:
+        `Tool '${toolName}' sets destructiveHint while readOnlyHint is true. ` +
+        'destructiveHint is meaningless for read-only tools.',
+      definitionType: 'tool',
+      definitionName: toolName,
+    });
   }
 
   return diagnostics;
