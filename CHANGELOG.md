@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.1] - 2026-03-25
+
+Docker build fix for optional peer dependencies.
+
+### Fixed
+
+- **`xmlParser` Docker build** — Replaced static `typeof import('fast-xml-parser')` type reference with a local `FxpModule` interface. TypeScript no longer requires the optional peer dep's type declarations at compile time, fixing Docker multi-platform builds where `fast-xml-parser` isn't installed in the build stage.
+
+---
+
 ## [0.2.0] - 2026-03-24
 
 Fuzz testing framework, retry utility, GitHub issue templates, and issue reporting skills.
