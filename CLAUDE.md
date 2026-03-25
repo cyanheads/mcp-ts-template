@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.1.29
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.2.0
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -38,6 +38,7 @@
 | `/services` | `OpenRouterProvider`, `SpeechService`, `createSpeechProvider`, `ElevenLabsProvider`, `WhisperProvider`, `GraphService`, provider interfaces and types | LLM, Speech (TTS/STT), Graph services |
 | `/linter` | `validateDefinitions`, `LintReport`, `LintDiagnostic`, `LintInput`, `LintSeverity` | Definition validation |
 | `/testing` | `createMockContext` | Test helpers |
+| `/testing/fuzz` | `fuzzTool`, `fuzzResource`, `fuzzPrompt`, `zodToArbitrary`, `adversarialArbitrary`, `ADVERSARIAL_STRINGS` | Fuzz testing |
 
 All subpaths prefixed with `@cyanheads/mcp-ts-core`. **†Tier 3 modules** require optional peer dependencies — see `package.json` `peerDependencies`. Tier 3 methods that lazy-load deps are **async**.
 
@@ -383,6 +384,21 @@ describe('myTool', () => {
 
 **`createMockContext` options:** `createMockContext()` (minimal), `{ tenantId: 'test-tenant' }` (enables state), `{ sample: vi.fn() }`, `{ elicit: vi.fn() }`, `{ progress: true }` (task progress).
 
+**Fuzz testing:** `fuzzTool`/`fuzzResource`/`fuzzPrompt` from `/testing/fuzz` generate valid and adversarial inputs from Zod schemas via `fast-check`, then assert handler invariants (no crashes, no prototype pollution, no stack trace leaks). Returns a `FuzzReport` for custom assertions.
+
+```ts
+import { fuzzTool } from '@cyanheads/mcp-ts-core/testing/fuzz';
+
+it('survives fuzz testing', async () => {
+  const report = await fuzzTool(myTool, { numRuns: 100 });
+  expect(report.crashes).toHaveLength(0);
+  expect(report.leaks).toHaveLength(0);
+  expect(report.prototypePollution).toBe(false);
+});
+```
+
+Options: `numRuns` (valid inputs, default 50), `numAdversarial` (adversarial inputs, default 30), `seed` (reproducibility), `timeout` (per-call ms, default 5000), `ctx` (`MockContextOptions` for stateful handlers). Also exports `zodToArbitrary(schema)` for custom property-based tests and `ADVERSARIAL_STRINGS` for targeted injection testing.
+
 **Vitest config:** Extend core config, add `@/` alias: `resolve: { alias: { '@/': new URL('./src/', import.meta.url).pathname } }`. Construct deps in `beforeEach`. Re-init services per suite.
 
 ---
@@ -413,6 +429,8 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 | `setup` | `skills/setup/SKILL.md` | Initialize a new consumer server from the template |
 | `devcheck` | `skills/devcheck/SKILL.md` | Run lint, format, typecheck, security checks |
 | `polish-docs-meta` | `skills/polish-docs-meta/SKILL.md` | Finalize docs, README, metadata, and agent protocol for shipping |
+| `report-issue-framework` | `skills/report-issue-framework/SKILL.md` | File a bug or feature request against `@cyanheads/mcp-ts-core` via `gh` CLI |
+| `report-issue-local` | `skills/report-issue-local/SKILL.md` | File a bug or feature request against this server's own repo via `gh` CLI |
 | `release` | `skills/release/SKILL.md` | Version bump, changelog, publish workflow |
 | `maintenance` | `skills/maintenance/SKILL.md` | Dependency updates, housekeeping tasks |
 | `migrate-mcp-ts-template` | `skills/migrate-mcp-ts-template/SKILL.md` | Migrate legacy template fork to package dependency |

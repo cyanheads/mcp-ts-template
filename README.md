@@ -5,7 +5,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.1.29-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.27.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.2.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.27.1-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.2-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
@@ -191,6 +191,7 @@ import { markdown, fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils';
 import { OpenRouterProvider, GraphService } from '@cyanheads/mcp-ts-core/services';
 import { validateDefinitions } from '@cyanheads/mcp-ts-core/linter';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { fuzzTool, fuzzResource, fuzzPrompt } from '@cyanheads/mcp-ts-core/testing/fuzz';
 ```
 
 See [CLAUDE.md](CLAUDE.md) for the complete exports reference.
@@ -222,6 +223,21 @@ const result = await myTool.handler(input, ctx);
 
 `createMockContext()` provides stubbed `log`, `state`, and `signal`. Pass `{ tenantId }` for state operations, `{ sample }` for LLM mocking, `{ elicit }` for elicitation mocking, `{ progress: true }` for task tools.
 
+### Fuzz testing
+
+Schema-aware fuzz testing via `fast-check`. Generates valid inputs from Zod schemas and adversarial payloads (prototype pollution, injection strings, type confusion) to verify handler invariants.
+
+```ts
+import { fuzzTool } from '@cyanheads/mcp-ts-core/testing/fuzz';
+
+const report = await fuzzTool(myTool, { numRuns: 100 });
+expect(report.crashes).toHaveLength(0);
+expect(report.leaks).toHaveLength(0);
+expect(report.prototypePollution).toBe(false);
+```
+
+Also exports `fuzzResource`, `fuzzPrompt`, `zodToArbitrary`, and `ADVERSARIAL_STRINGS` for custom property-based tests.
+
 ## Documentation
 
 - **[CLAUDE.md](CLAUDE.md)** — Complete API reference: exports catalog, patterns, Context interface, error codes, auth, config, testing. Ships in the npm package.
@@ -232,6 +248,7 @@ const result = await myTool.handler(input, ctx);
 ```bash
 bun run build          # tsc && tsc-alias
 bun run devcheck       # lint, format, typecheck, security
+bun run lint:mcp       # validate MCP definitions against spec
 bun run test           # vitest
 bun run dev:stdio      # dev mode (stdio)
 bun run dev:http       # dev mode (HTTP)

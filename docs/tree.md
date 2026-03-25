@@ -1,12 +1,16 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-23 16:40:25
+Generated on: 2026-03-25 06:43:02
 
 ```text
 mcp-ts-core/
 ├── .agents/
 ├── .claude/
 ├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.yml
+│   │   ├── config.yml
+│   │   └── feature_request.yml
 │   └── FUNDING.yml
 ├── .husky/
 │   └── pre-commit
@@ -14,6 +18,8 @@ mcp-ts-core/
 ├── .vscode/
 │   ├── extensions.json
 │   └── settings.json
+├── agent-feedback/
+├── announcements/
 ├── claude-plans/
 ├── docs/
 │   ├── mcp-specification/
@@ -121,6 +127,10 @@ mcp-ts-core/
 │   │   │   └── server-json.md
 │   │   └── SKILL.md
 │   ├── release/
+│   │   └── SKILL.md
+│   ├── report-issue-framework/
+│   │   └── SKILL.md
+│   ├── report-issue-local/
 │   │   └── SKILL.md
 │   ├── setup/
 │   │   └── SKILL.md
@@ -241,6 +251,7 @@ mcp-ts-core/
 │   │           ├── supabase.types.ts
 │   │           └── supabaseProvider.ts
 │   ├── testing/
+│   │   ├── fuzz.ts
 │   │   └── index.ts
 │   ├── types-global/
 │   │   └── errors.ts
@@ -267,7 +278,8 @@ mcp-ts-core/
 │   │   ├── metrics/
 │   │   │   └── tokenCounter.ts
 │   │   ├── network/
-│   │   │   └── fetchWithTimeout.ts
+│   │   │   ├── fetchWithTimeout.ts
+│   │   │   └── retry.ts
 │   │   ├── pagination/
 │   │   │   └── pagination.ts
 │   │   ├── parsing/
@@ -299,6 +311,11 @@ mcp-ts-core/
 │   │   └── index.ts
 │   └── index.ts
 ├── templates/
+│   ├── .github/
+│   │   └── ISSUE_TEMPLATE/
+│   │       ├── bug_report.yml
+│   │       ├── config.yml
+│   │       └── feature_request.yml
 │   ├── .vscode/
 │   │   ├── extensions.json
 │   │   └── settings.json
@@ -337,6 +354,10 @@ mcp-ts-core/
 ├── tests/
 │   ├── compliance/
 │   │   └── storage-provider.test.ts
+│   ├── fuzz/
+│   │   ├── definition-fuzz.test.ts
+│   │   ├── error-handler.fuzz.test.ts
+│   │   └── tool-handler-pipeline.fuzz.test.ts
 │   ├── helpers/
 │   │   ├── fixtures.ts
 │   │   ├── http-helpers.ts

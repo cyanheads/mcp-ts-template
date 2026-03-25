@@ -188,6 +188,8 @@ ideas/
 .mcp.json
 .claude/
 .agents/
+announcements/
+agent-feedback/
 
 # =============================================================================
 # MCP REGISTRY
