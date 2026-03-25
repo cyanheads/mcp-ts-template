@@ -173,7 +173,7 @@ nctIds: z.union([z.string(), z.array(z.string()).max(5)])
 
 #### Output design
 
-The output schema and `format` function control what the LLM reads back. Design for the agent's *next decision*, not for a UI or an API consumer.
+The output schema and `format` function control what the LLM reads back. Design for the agent's *next decision*, not for a UI or an API consumer. See the `add-tool` skill's **Tool Response Design** section for implementation-level patterns (partial success, empty results, metadata, context budget).
 
 **Principles:**
 
