@@ -33,15 +33,7 @@ gh issue list -R cyanheads/mcp-ts-core --search "your error message or keyword"
 
 ## Redact Before Posting
 
-GitHub issues are **public and permanent**. Before submitting any issue, scrub the title, body, logs, and code snippets for:
-
-- **Secrets** — API keys, tokens, passwords, `MCP_AUTH_SECRET_KEY`, `OPENROUTER_API_KEY`, JWT values
-- **Credentials** — auth headers (`Authorization: Bearer ...`), session IDs, cookie values
-- **PII** — names, emails, IP addresses, user IDs tied to real people
-- **Internal URLs** — private API endpoints, internal hostnames, database connection strings
-- **Env dumps** — `process.env` output, `.env` file contents, Cloudflare Worker bindings
-
-Replace sensitive values with obvious placeholders: `REDACTED`, `sk-...REDACTED`, `https://internal.example.com`, `user-id-123`. Do not rely on partial masking (`sk-abc...xyz`) — partial keys can still be exploited.
+GitHub issues are **public**. Do not include secrets, credentials, API keys, or tokens. Redact sensitive values from env vars, headers, and logs before submitting. Replace with obvious placeholders: `REDACTED`, `sk-...REDACTED`. Do not rely on partial masking — partial keys can still be exploited.
 
 ## Filing a Bug
 
@@ -227,5 +219,5 @@ gh issue list -R cyanheads/mcp-ts-core --author @me
 - [ ] Confirmed bug is in `@cyanheads/mcp-ts-core`, not server code
 - [ ] Running latest (or documented) framework version
 - [ ] Searched existing issues — no duplicate found
-- [ ] All secrets, credentials, PII, and internal URLs redacted
+- [ ] All secrets, credentials, and tokens redacted
 - [ ] Issue filed with: version, runtime, repro code, actual vs expected behavior

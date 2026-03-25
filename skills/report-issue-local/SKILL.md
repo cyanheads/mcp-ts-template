@@ -42,15 +42,7 @@ gh issue list --search "your error message or keyword"
 
 ## Redact Before Posting
 
-GitHub issues are **public and permanent**. Before submitting any issue, scrub the title, body, logs, and code snippets for:
-
-- **Secrets** — API keys, tokens, passwords, env var values from `.env` or server config
-- **Credentials** — auth headers (`Authorization: Bearer ...`), session IDs, cookie values
-- **PII** — names, emails, IP addresses, user IDs tied to real people
-- **Internal URLs** — private API endpoints, internal hostnames, database connection strings
-- **Env dumps** — `process.env` output, `.env` file contents, Worker bindings
-
-Replace sensitive values with obvious placeholders: `REDACTED`, `sk-...REDACTED`, `https://internal.example.com`, `user-id-123`. Do not rely on partial masking (`sk-abc...xyz`) — partial keys can still be exploited.
+GitHub issues are **public**. Do not include secrets, credentials, API keys, or tokens. Redact sensitive values from env vars, headers, and logs before submitting. Replace with obvious placeholders: `REDACTED`, `sk-...REDACTED`. Do not rely on partial masking — partial keys can still be exploited.
 
 ## Filing a Bug
 
@@ -221,5 +213,5 @@ gh issue close <number> --reason completed --comment "Fixed in <commit or PR>"
 
 - [ ] Confirmed bug is in server code, not the framework
 - [ ] Searched existing issues — no duplicate found
-- [ ] All secrets, credentials, PII, and internal URLs redacted
+- [ ] All secrets, credentials, and tokens redacted
 - [ ] Issue filed with: version, runtime, repro steps, actual vs expected behavior
