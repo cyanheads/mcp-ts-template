@@ -20,9 +20,11 @@ interface FxpModule {
 let _fxp: FxpModule | undefined;
 let _xmlParserInstance: { parse(data: string): unknown } | undefined;
 
+const FXP_MODULE = 'fast-xml-parser';
+
 async function getFxp(): Promise<FxpModule> {
   if (_fxp) return _fxp;
-  _fxp = await (import('fast-xml-parser') as Promise<FxpModule>).catch(() => {
+  _fxp = await (import(FXP_MODULE) as Promise<FxpModule>).catch(() => {
     throw configurationError(
       'Install "fast-xml-parser" to use XML parsing: bun add fast-xml-parser',
     );
