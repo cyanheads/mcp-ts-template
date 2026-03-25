@@ -38,7 +38,10 @@ For every tool, resource, and prompt, run through these categories:
 | **Happy path** | Realistic input that should succeed. Verify output shape matches the output schema. Verify format function produces sensible content blocks. |
 | **Variations** | Different valid input combinations — optional fields omitted, optional fields included, different enum values, min/max boundaries. |
 | **Edge cases** | Empty strings, zero values, very long inputs, special characters, Unicode. |
-| **Error paths** | Missing required fields, wrong types, nonexistent IDs, inputs that should trigger domain errors. Verify errors are clear and actionable. |
+| **Error paths** | Missing required fields, wrong types, nonexistent IDs, inputs that should trigger domain errors. Verify errors are clear and actionable — they should name what went wrong, why, and what to do next. |
+| **Empty results** | Inputs that match nothing. Verify the response explains *why* (echoes criteria, suggests broadening) rather than returning a bare empty array. |
+| **Partial success** | For tools that operate on multiple items, test cases where some succeed and some fail. Verify both outcomes are reported — not just the successes. |
+| **Response quality** | Inspect successful responses for: (1) chaining IDs needed for follow-up calls, (2) operational metadata (counts, applied filters, truncation notices), (3) filtering transparency (if anything was excluded, does the response say what and how to include it?), (4) reasonable response size (not dumping unbounded data into context). See the `add-tool` skill's **Tool Response Design** section for the full set of patterns. |
 | **Descriptions** | Read every field's `.describe()` — would a user/LLM understand what to provide? Flag vague or missing descriptions. |
 
 #### Resources
@@ -90,16 +93,20 @@ Cross-cutting observations that aren't tied to a single definition:
 - Missing format functions (raw JSON returned to user)
 - Description quality issues (vague, missing, or misleading)
 - Schema design issues (required fields that should be optional, missing defaults, overly broad types, non-JSON-Schema-serializable types like `z.custom()` or `z.date()`)
+- Response quality issues (empty results with no context, silent filtering, missing chaining IDs, oversized payloads, no operational metadata)
+- Error messages that don't guide recovery (generic "not found" instead of naming alternatives)
 - Performance observations (unexpectedly slow responses)
 
 ---
 
 ## Checklist
 
-- [ ] All registered tools tested (happy path + edge cases)
+- [ ] All registered tools tested (happy path + edge cases + empty results)
 - [ ] All registered resources tested (happy path + not found)
 - [ ] All registered prompts tested (happy path + defaults)
-- [ ] Error messages reviewed for clarity and actionability
+- [ ] Error messages reviewed for clarity and recovery guidance
+- [ ] Empty-result responses reviewed for context (criteria echo, suggestions)
+- [ ] Response quality reviewed (chaining IDs, metadata, filtering transparency, payload size)
 - [ ] Descriptions reviewed for completeness and accuracy
 - [ ] Format functions verified (or absence noted)
 - [ ] Summary report presented to user
