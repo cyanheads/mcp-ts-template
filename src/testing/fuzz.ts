@@ -327,6 +327,29 @@ function checkErrorLeaks(errorText: string): { leakedStack: boolean; leakedInter
 }
 
 // ---------------------------------------------------------------------------
+// Prototype pollution detection
+// ---------------------------------------------------------------------------
+
+/** Snapshot Object.prototype keys, returns a checker that detects and cleans pollution. */
+function createProtoPollutionGuard(): {
+  before: Set<string>;
+  check: (report: FuzzReport) => void;
+} {
+  const before = new Set(Object.keys(Object.prototype));
+  return {
+    before,
+    check(report: FuzzReport) {
+      for (const key of Object.keys(Object.prototype)) {
+        if (!before.has(key)) {
+          report.prototypePollution = true;
+          delete (Object.prototype as any)[key];
+        }
+      }
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // FuzzReport
 // ---------------------------------------------------------------------------
 
@@ -392,7 +415,7 @@ export async function fuzzTool(
     prototypePollution: false,
   };
 
-  const protoKeysBefore = new Set(Object.keys(Object.prototype));
+  const protoGuard = createProtoPollutionGuard();
 
   // Phase 1: Valid inputs
   const validArb = zodToArbitrary(def.input) as fc.Arbitrary<Record<string, unknown>>;
@@ -468,15 +491,7 @@ export async function fuzzTool(
     // Expected
   }
 
-  // Check prototype pollution
-  const protoKeysAfter = new Set(Object.keys(Object.prototype));
-  for (const key of protoKeysAfter) {
-    if (!protoKeysBefore.has(key)) {
-      report.prototypePollution = true;
-      delete (Object.prototype as any)[key];
-    }
-  }
-
+  protoGuard.check(report);
   return report;
 }
 
@@ -512,7 +527,7 @@ export async function fuzzResource(
     prototypePollution: false,
   };
 
-  const protoKeysBefore = new Set(Object.keys(Object.prototype));
+  const protoGuard = createProtoPollutionGuard();
   const paramsSchema = def.params;
 
   if (paramsSchema) {
@@ -570,14 +585,7 @@ export async function fuzzResource(
     }
   }
 
-  const protoKeysAfter = new Set(Object.keys(Object.prototype));
-  for (const key of protoKeysAfter) {
-    if (!protoKeysBefore.has(key)) {
-      report.prototypePollution = true;
-      delete (Object.prototype as any)[key];
-    }
-  }
-
+  protoGuard.check(report);
   return report;
 }
 
@@ -613,7 +621,7 @@ export async function fuzzPrompt(
     prototypePollution: false,
   };
 
-  const protoKeysBefore = new Set(Object.keys(Object.prototype));
+  const protoGuard = createProtoPollutionGuard();
   const argsSchema = def.args;
 
   if (argsSchema) {
@@ -662,14 +670,7 @@ export async function fuzzPrompt(
     }
   }
 
-  const protoKeysAfter = new Set(Object.keys(Object.prototype));
-  for (const key of protoKeysAfter) {
-    if (!protoKeysBefore.has(key)) {
-      report.prototypePollution = true;
-      delete (Object.prototype as any)[key];
-    }
-  }
-
+  protoGuard.check(report);
   return report;
 }
 

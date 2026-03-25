@@ -5,6 +5,7 @@
  * @module tests/fuzz/definition-fuzz.test
  */
 
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { prompt } from '@/mcp-server/prompts/utils/promptDefinition.js';
@@ -266,6 +267,3 @@ describe('zodToArbitrary', () => {
     );
   });
 });
-
-// Need to import fc for zodToArbitrary tests
-import fc from 'fast-check';
