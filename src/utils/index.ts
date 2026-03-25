@@ -52,6 +52,7 @@ export {
 } from './metrics/tokenCounter.js';
 // Network
 export { type FetchWithTimeoutOptions, fetchWithTimeout } from './network/fetchWithTimeout.js';
+export { type RetryOptions, withRetry } from './network/retry.js';
 // Pagination
 export {
   DEFAULT_PAGINATION_CONFIG,

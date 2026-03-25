@@ -98,6 +98,58 @@ handler: async (input, ctx) => {
 },
 ```
 
+## Resilience (External API Services)
+
+When a service wraps an external API, apply these patterns. See `docs/service-resilience.md` for full rationale.
+
+### Retry wraps the full pipeline
+
+Place retry at the service method level — covering both HTTP fetch and response parsing/validation. The HTTP client should be single-attempt; the service owns retry. Use `withRetry` from `@cyanheads/mcp-ts-core/utils`:
+
+```typescript
+import { withRetry, fetchWithTimeout } from '@cyanheads/mcp-ts-core/utils';
+import type { Context } from '@cyanheads/mcp-ts-core';
+
+async fetchItem(id: string, ctx: Context): Promise<Item> {
+  return withRetry(
+    async () => {
+      const response = await fetchWithTimeout(
+        `${this.baseUrl}/items/${id}`,
+        10_000,
+        ctx,
+      );
+      const text = await response.text();
+      return this.parseResponse<Item>(text);
+    },
+    {
+      operation: 'fetchItem',
+      context: ctx,
+      baseDelayMs: 1000,    // calibrate to upstream recovery time
+      signal: ctx.signal,
+    },
+  );
+}
+```
+
+### Key principles
+
+1. **Calibrate backoff to the upstream.** 200–500ms for ephemeral failures, 1–2s for rate-limited APIs, 2–5s for service degradation. The default `baseDelayMs: 1000` suits most APIs.
+2. **Check HTTP status before parsing.** `fetchWithTimeout` already throws `ServiceUnavailable` on non-OK responses — this prevents feeding HTML error pages into XML/JSON parsers.
+3. **Classify parse failures by content.** If the upstream returns HTTP 200 with an HTML error page, detect it and throw `ServiceUnavailable` (transient) instead of `SerializationError` (non-transient).
+4. **Exhausted retries say so.** `withRetry` automatically enriches the final error with attempt count — callers know retries were already attempted.
+
+### Response handler pattern
+
+```typescript
+parseResponse<T>(text: string): T {
+  // Detect HTML error pages masquerading as successful responses
+  if (/^\s*<(!DOCTYPE\s+html|html[\s>])/i.test(text)) {
+    throw serviceUnavailable('API returned HTML instead of expected format — likely rate-limited.');
+  }
+  // Parse and validate...
+}
+```
+
 ## Checklist
 
 - [ ] Directory created at `src/services/{{domain}}/`
@@ -106,4 +158,5 @@ handler: async (input, ctx) => {
 - [ ] Service methods accept `Context` for logging and storage
 - [ ] `init` function registered in `setup()` callback in `src/index.ts`
 - [ ] Accessor throws `Error` if not initialized
+- [ ] If wrapping external API: retry covers full pipeline (fetch + parse), backoff calibrated
 - [ ] `bun run devcheck` passes

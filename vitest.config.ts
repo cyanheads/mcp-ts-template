@@ -10,7 +10,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
-    include: ['tests/unit/**/*.test.ts', 'tests/compliance/**/*.test.ts', 'tests/smoke/**/*.test.ts'],
+    include: ['tests/unit/**/*.test.ts', 'tests/compliance/**/*.test.ts', 'tests/smoke/**/*.test.ts', 'tests/fuzz/**/*.test.ts'],
     exclude: ['node_modules/**'],
     // Run tests in parallel with proper isolation to prevent mock pollution
     pool: 'forks',

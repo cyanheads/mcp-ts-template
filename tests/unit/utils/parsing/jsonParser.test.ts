@@ -92,13 +92,14 @@ describe('JsonParser', () => {
 
   it('should throw an McpError if the string contains only whitespace after the <think> block', async () => {
     const stringWithWhitespace = '<think>thoughts</think>   ';
-    await expect(parser.parse(stringWithWhitespace, Allow.ALL, context)).rejects.toThrow(
-      new McpError(
-        JsonRpcErrorCode.ValidationError,
-        'JSON string is empty after removing <think> block and trimming.',
-        context,
-      ),
-    );
+    try {
+      await parser.parse(stringWithWhitespace, Allow.ALL, context);
+      expect.unreachable('Expected McpError to be thrown');
+    } catch (error) {
+      const mcpError = error as McpError;
+      expect(mcpError.code).toBe(JsonRpcErrorCode.ValidationError);
+      expect(mcpError.message).toContain('JSON string is empty');
+    }
   });
 
   it('should handle leading/trailing whitespace in the JSON string', async () => {

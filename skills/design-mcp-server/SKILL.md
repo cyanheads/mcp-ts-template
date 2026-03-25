@@ -269,6 +269,16 @@ Skip for purely data/action-oriented servers.
 
 **Services** — one per external dependency. Init/accessor pattern. Skip if all tools are thin wrappers with no shared state.
 
+For services wrapping external APIs, plan the resilience layer. See `docs/service-resilience.md` for full rationale.
+
+| Concern | Decision |
+|:--------|:---------|
+| **Retry boundary** | Service method wraps full pipeline (fetch + parse), not just the network call. Use `withRetry` from `/utils`. |
+| **Backoff calibration** | Match base delay to upstream recovery time: 200–500ms (ephemeral), 1–2s (rate-limited), 2–5s (degraded). |
+| **HTTP status check** | `fetchWithTimeout` already handles this — non-OK → `ServiceUnavailable`. |
+| **Parse failure classification** | Response handler detects HTML error pages and throws transient errors, not `SerializationError`. |
+| **Exhausted retry messaging** | `withRetry` enriches the final error with attempt count automatically. |
+
 **Config** — list env vars (API keys, base URLs). Goes in `src/config/server-config.ts` as a separate Zod schema.
 
 ### 8. Write the Design Doc
@@ -358,6 +368,7 @@ Execute the plan using the scaffolding skills:
 - [ ] Annotations set correctly (`readOnlyHint`, `destructiveHint`, etc.)
 - [ ] Resource URIs use `{param}` templates, pagination planned for large lists
 - [ ] Service layer planned (or explicitly skipped with reasoning)
+- [ ] Resilience planned for external API services (retry boundary, backoff, parse classification)
 - [ ] Server config env vars identified
 - [ ] Design doc written to `docs/design.md`
 - [ ] Design confirmed with user (or user pre-authorized implementation)

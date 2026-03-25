@@ -30,6 +30,7 @@ Utility exports from `@cyanheads/mcp-ts-core/utils`. Utilities with complex APIs
 | Export | API | Notes |
 |:-------|:----|:------|
 | `fetchWithTimeout` | `(url, timeoutMs, context: RequestContext, options?: FetchWithTimeoutOptions) -> Promise<Response>` | Wraps `fetch` with `AbortController` timeout. `FetchWithTimeoutOptions` extends `RequestInit` (minus `signal`) and adds `rejectPrivateIPs?: boolean` and `signal?: AbortSignal` (external cancellation). SSRF protection: blocks RFC 1918, loopback, link-local, CGNAT, cloud metadata. DNS validation on Node; hostname-only on Workers. Manual redirect following (max 5) with per-hop SSRF check. |
+| `withRetry` | `<T>(fn: () => Promise<T>, options?: RetryOptions) -> Promise<T>` | Executes `fn` with exponential backoff. Retries on transient errors (`ServiceUnavailable`, `Timeout`, `RateLimited`); non-transient errors fail immediately. On exhaustion, enriches the final error with attempt count in message and `data.retryAttempts`. **Place the retry boundary around the full pipeline** (fetch + parse), not just the network call. See `docs/service-resilience.md`. `RetryOptions`: `maxRetries` (default `3`), `baseDelayMs` (default `1000`), `maxDelayMs` (default `30000`), `jitter` (default `0.25`), `operation` (log label), `context` (RequestContext), `signal` (AbortSignal), `isTransient` (custom predicate). |
 
 ---
 
