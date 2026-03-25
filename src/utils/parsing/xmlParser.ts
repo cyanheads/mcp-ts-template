@@ -13,10 +13,16 @@ import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { thinkBlockRegex } from './thinkBlock.js';
 
-let _fxp: typeof import('fast-xml-parser') | undefined;
+interface FxpModule {
+  XMLParser: new (opts?: Record<string, unknown>) => { parse(data: string): unknown };
+}
+
+let _fxp: FxpModule | undefined;
 let _xmlParserInstance: { parse(data: string): unknown } | undefined;
-async function getFxp() {
-  _fxp ??= await import('fast-xml-parser').catch(() => {
+
+async function getFxp(): Promise<FxpModule> {
+  if (_fxp) return _fxp;
+  _fxp = await (import('fast-xml-parser') as Promise<FxpModule>).catch(() => {
     throw configurationError(
       'Install "fast-xml-parser" to use XML parsing: bun add fast-xml-parser',
     );
