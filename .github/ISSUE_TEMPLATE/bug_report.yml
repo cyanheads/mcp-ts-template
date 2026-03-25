@@ -1,0 +1,113 @@
+name: Bug Report
+description: Report a bug in @cyanheads/mcp-ts-core
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please confirm this is a framework issue, not a server-specific bug — if you're unsure, see the [triage guide](https://github.com/cyanheads/mcp-ts-core/blob/main/skills/report-issue-framework/SKILL.md#before-filing).
+
+        **Do not include secrets, credentials, API keys, tokens, PII, or other sensitive data.** Redact env vars, auth headers, user-identifying information, and internal URLs from all code snippets, logs, and stack traces before submitting. GitHub issues are public and permanent.
+
+  - type: input
+    id: version
+    attributes:
+      label: mcp-ts-core version
+      placeholder: "0.1.29"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Bun
+        - Node.js
+        - Cloudflare Workers
+    validations:
+      required: true
+
+  - type: input
+    id: runtime-version
+    attributes:
+      label: Runtime version
+      placeholder: "Bun 1.2.x / Node 22.x"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport
+      options:
+        - stdio
+        - HTTP (Streamable HTTP)
+        - Worker (Cloudflare)
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "macOS 15.x / Ubuntu 24.04 / etc."
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened and what you expected instead.
+      placeholder: "Omitting an optional output field causes a validation error, but it should pass."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal code to reproduce the issue. Strip server-specific services and config.
+      render: typescript
+      placeholder: |
+        import { tool, z } from '@cyanheads/mcp-ts-core';
+
+        export const broken = tool('broken_example', {
+          description: 'Minimal repro.',
+          input: z.object({ id: z.string().describe('ID') }),
+          output: z.object({
+            name: z.string().describe('Name'),
+            extra: z.string().optional().describe('Optional field'),
+          }),
+          async handler(input, ctx) {
+            return { name: 'test' };
+          },
+        });
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Error messages, stack traces, or incorrect output.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Workarounds, related issues, logs, or anything else relevant.
+    validations:
+      required: false

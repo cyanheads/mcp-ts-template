@@ -35,6 +35,7 @@ What `init` actually creates:
 ```text
 CLAUDE.md                                       # Agent protocol (project-specific)
 AGENTS.md                                       # Same content — discard whichever you don't use
+.github/ISSUE_TEMPLATE/                         # GitHub issue templates (bug report, feature request)
 skills/                                         # Project skills (source of truth)
 src/
   index.ts                                      # createApp() entry point

@@ -1,0 +1,44 @@
+name: Feature Request
+description: Suggest a new feature or improvement for @cyanheads/mcp-ts-core
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: What problem does this solve? Who benefits?
+      placeholder: "When building tools that call flaky external APIs, there's no built-in way to retry with backoff..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-api
+    attributes:
+      label: Proposed API
+      description: How would this look from a consumer's perspective? Include example code if possible.
+      render: typescript
+      placeholder: |
+        import { withRetry } from '@cyanheads/mcp-ts-core/utils';
+
+        const result = await withRetry(() => fetchExternal(url), {
+          maxAttempts: 3,
+          backoff: 'exponential',
+        });
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What you tried or considered instead, and why it fell short.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Related issues, prior art, links, or anything else relevant.
+    validations:
+      required: false

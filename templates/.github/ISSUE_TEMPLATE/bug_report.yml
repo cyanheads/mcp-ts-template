@@ -1,0 +1,106 @@
+name: Bug Report
+description: Report a bug in {{PACKAGE_NAME}}
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not include secrets, credentials, API keys, tokens, PII, or other sensitive data.** Redact env vars, auth headers, user-identifying information, and internal URLs from all code snippets, logs, and stack traces before submitting. GitHub issues are public and permanent.
+
+  - type: input
+    id: version
+    attributes:
+      label: Server version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: framework-version
+    attributes:
+      label: mcp-ts-core version
+      placeholder: "0.1.29"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Bun
+        - Node.js
+        - Cloudflare Workers
+    validations:
+      required: true
+
+  - type: input
+    id: runtime-version
+    attributes:
+      label: Runtime version
+      placeholder: "Bun 1.2.x / Node 22.x"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Transport
+      options:
+        - stdio
+        - HTTP (Streamable HTTP)
+        - Worker (Cloudflare)
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "macOS 15.x / Ubuntu 24.04 / etc."
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Exact inputs, tool calls, or sequence of actions to trigger the bug.
+      placeholder: |
+        1. Call `tool_name` with input: `{ "key": "value" }`
+        2. Observe error / wrong output
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Error messages, stack traces, or incorrect output.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Workarounds, related issues, logs, or anything else relevant.
+    validations:
+      required: false
