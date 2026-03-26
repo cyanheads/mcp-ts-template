@@ -41,7 +41,7 @@ export function withRequiredScopes(requiredScopes: string[], parentContext?: Req
   const store = authContext.getStore();
 
   // Auth is enabled but no context exists — fail closed.
-  if (!store || !store.authInfo) {
+  if (!store?.authInfo) {
     logger.warning(
       'Auth enabled but no authentication context found. Denying request.',
       initialContext,

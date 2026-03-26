@@ -84,7 +84,7 @@ export function extractTraceparent(
 
   // W3C traceparent format: 00-{traceId}-{spanId}-{flags}
   const match = /^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/.exec(headerValue);
-  if (!match || !match[1] || !match[2] || !match[3]) return;
+  if (!match?.[1] || !match[2] || !match[3]) return;
 
   return {
     traceId: match[1],
