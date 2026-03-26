@@ -262,3 +262,38 @@ export const COMPILED_PROVIDER_PATTERNS: ReadonlyArray<Readonly<CompiledErrorMap
     ...mapping,
     compiledPattern: getCompiledPattern(mapping.pattern),
   }));
+
+// ============================================================================
+// Error categories
+// ============================================================================
+
+/** Broad error category derived from a classified JSON-RPC error code. */
+export type ErrorCategory = 'upstream' | 'server' | 'client';
+
+const UPSTREAM_CODES: ReadonlySet<JsonRpcErrorCode> = new Set([
+  JsonRpcErrorCode.ServiceUnavailable,
+  JsonRpcErrorCode.RateLimited,
+  JsonRpcErrorCode.Timeout,
+]);
+
+const SERVER_CODES: ReadonlySet<JsonRpcErrorCode> = new Set([
+  JsonRpcErrorCode.InternalError,
+  JsonRpcErrorCode.UnknownError,
+  JsonRpcErrorCode.DatabaseError,
+  JsonRpcErrorCode.ConfigurationError,
+  JsonRpcErrorCode.InitializationFailed,
+  JsonRpcErrorCode.SerializationError,
+]);
+
+/**
+ * Maps a classified JSON-RPC error code to a broad error category.
+ *
+ * - `upstream` — external API failures: service unavailable, rate-limited, timeout.
+ * - `server` — internal bugs or infrastructure issues.
+ * - `client` — bad input, auth failures, not-found: problems with the request itself.
+ */
+export function getErrorCategory(code: JsonRpcErrorCode): ErrorCategory {
+  if (UPSTREAM_CODES.has(code)) return 'upstream';
+  if (SERVER_CODES.has(code)) return 'server';
+  return 'client';
+}

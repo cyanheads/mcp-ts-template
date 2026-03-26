@@ -44,6 +44,9 @@ export const ATTR_MCP_TOOL_SUCCESS = 'mcp.tool.success';
 /** JSON-RPC error code from the thrown `McpError`, present when `mcp.tool.success` is `false`. */
 export const ATTR_MCP_TOOL_ERROR_CODE = 'mcp.tool.error_code';
 
+/** Broad error category: 'upstream' (external API), 'server' (internal bug), or 'client' (bad input). */
+export const ATTR_MCP_TOOL_ERROR_CATEGORY = 'mcp.tool.error_category';
+
 // ============================================================================
 // MCP Resource Attributes
 // ============================================================================

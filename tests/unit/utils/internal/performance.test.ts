@@ -124,7 +124,10 @@ describe('measureToolExecution', () => {
       'mcp.tool.name': 'err-tool',
       'mcp.tool.success': false,
     });
-    expect(mockErrorCounterAdd).toHaveBeenCalledWith(1, { 'mcp.tool.name': 'err-tool' });
+    expect(mockErrorCounterAdd).toHaveBeenCalledWith(1, {
+      'mcp.tool.name': 'err-tool',
+      'mcp.tool.error_category': 'server',
+    });
   });
 
   it('captures error metadata and rethrows the original McpError', async () => {

@@ -11,6 +11,7 @@ import { SpanStatusCode, trace } from '@opentelemetry/api';
 
 import { config } from '@/config/index.js';
 import { McpError } from '@/types-global/errors.js';
+import { type ErrorCategory, getErrorCategory } from '@/utils/internal/error-handler/mappings.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import {
@@ -24,6 +25,7 @@ import {
   ATTR_MCP_RESOURCE_SUCCESS,
   ATTR_MCP_RESOURCE_URI,
   ATTR_MCP_TOOL_DURATION_MS,
+  ATTR_MCP_TOOL_ERROR_CATEGORY,
   ATTR_MCP_TOOL_ERROR_CODE,
   ATTR_MCP_TOOL_INPUT_BYTES,
   ATTR_MCP_TOOL_NAME,
@@ -276,6 +278,7 @@ export async function measureToolExecution<T>(
 
     let ok = false;
     let errorCode: string | undefined;
+    let errorCategory: ErrorCategory | undefined;
     let outputBytes = 0;
 
     try {
@@ -286,9 +289,13 @@ export async function measureToolExecution<T>(
       span.setAttribute(ATTR_MCP_TOOL_OUTPUT_BYTES, outputBytes);
       return result;
     } catch (err) {
-      if (err instanceof McpError) errorCode = String(err.code);
-      else if (err instanceof Error) errorCode = 'UNHANDLED_ERROR';
-      else errorCode = 'UNKNOWN_ERROR';
+      if (err instanceof McpError) {
+        errorCode = String(err.code);
+        errorCategory = getErrorCategory(err.code);
+      } else {
+        errorCode = err instanceof Error ? 'UNHANDLED_ERROR' : 'UNKNOWN_ERROR';
+        errorCategory = 'server';
+      }
 
       if (err instanceof Error) span.recordException(err);
       span.setStatus({
@@ -316,7 +323,12 @@ export async function measureToolExecution<T>(
       m.toolCallDuration.record(durationMs, metricAttrs);
       m.toolInputBytes.record(inputBytes, toolAttrs);
       if (ok) m.toolOutputBytes.record(outputBytes, toolAttrs);
-      if (!ok) m.toolCallErrors.add(1, toolAttrs);
+      if (!ok) {
+        m.toolCallErrors.add(1, {
+          ...toolAttrs,
+          ...(errorCategory && { [ATTR_MCP_TOOL_ERROR_CATEGORY]: errorCategory }),
+        });
+      }
 
       // Record which parameters were supplied (top-level keys only)
       if (inputPayload && typeof inputPayload === 'object') {
