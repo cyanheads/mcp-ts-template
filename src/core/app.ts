@@ -20,6 +20,7 @@ import { createMcpServerInstance } from '@/mcp-server/server.js';
 import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import type { AnyToolDef } from '@/mcp-server/tools/tool-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
+import { initHeartbeatMetrics } from '@/mcp-server/transports/heartbeat.js';
 import type { DefinitionCounts } from '@/mcp-server/transports/http/httpTypes.js';
 import { initSessionMetrics } from '@/mcp-server/transports/http/sessionStore.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
@@ -271,6 +272,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   ]);
 
   // --- Eager-init universal metrics so series exist from first export cycle ---
+  initHeartbeatMetrics();
   initSessionMetrics();
   initErrorMetrics();
   initRateLimitMetrics();
@@ -279,8 +281,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
 
   // --- Process-level observable gauges (registered once after OTEL init) ---
   if (typeof process !== 'undefined' && typeof process.memoryUsage === 'function') {
-    // Share a single memoryUsage() syscall across the three gauge callbacks per
-    // collection cycle. The snapshot is refreshed at most once per 100 ms.
+    // Share a single memoryUsage() syscall across the three gauge callbacks per collection cycle. The snapshot is refreshed at most once per 100 ms.
     let memSnapshot: NodeJS.MemoryUsage | undefined;
     let memSnapshotTs = 0;
     const getMemSnapshot = (): NodeJS.MemoryUsage => {

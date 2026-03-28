@@ -142,6 +142,8 @@ const ConfigSchema = z
     mcpHttpMaxPortRetries: z.coerce.number().default(15),
     mcpHttpPortRetryDelayMs: z.coerce.number().default(50),
     mcpStatefulSessionStaleTimeoutMs: z.coerce.number().default(1_800_000),
+    mcpHeartbeatIntervalMs: z.coerce.number().min(0).default(30_000),
+    mcpHeartbeatMissThreshold: z.coerce.number().min(1).default(3),
     mcpAllowedOrigins: z.array(z.string()).optional(),
     mcpAuthSecretKey: z.string().optional(),
     mcpJwtExpectedIssuer: z.string().optional(),
@@ -369,6 +371,8 @@ const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
     mcpHttpMaxPortRetries: env.MCP_HTTP_MAX_PORT_RETRIES,
     mcpHttpPortRetryDelayMs: env.MCP_HTTP_PORT_RETRY_DELAY_MS,
     mcpStatefulSessionStaleTimeoutMs: env.MCP_STATEFUL_SESSION_STALE_TIMEOUT_MS,
+    mcpHeartbeatIntervalMs: env.MCP_HEARTBEAT_INTERVAL_MS,
+    mcpHeartbeatMissThreshold: env.MCP_HEARTBEAT_MISS_THRESHOLD,
     mcpAllowedOrigins: env.MCP_ALLOWED_ORIGINS?.split(',')
       .map((o) => o.trim())
       .filter(Boolean),

@@ -10,9 +10,10 @@ import { invalidParams, serviceUnavailable } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 import { ATTR_MCP_SESSION_EVENT } from '@/utils/telemetry/attributes.js';
-import { createCounter } from '@/utils/telemetry/metrics.js';
+import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 
 let sessionEventCounter: ReturnType<typeof createCounter> | undefined;
+let sessionDuration: ReturnType<typeof createHistogram> | undefined;
 
 function getSessionMetrics() {
   sessionEventCounter ??= createCounter(
@@ -20,7 +21,12 @@ function getSessionMetrics() {
     'Session lifecycle events',
     '{events}',
   );
-  return { sessionEventCounter };
+  sessionDuration ??= createHistogram(
+    'mcp.session.duration',
+    'Session duration from creation to termination',
+    's',
+  );
+  return { sessionEventCounter, sessionDuration };
 }
 
 /** Eagerly creates the session event counter so the series exists from startup. */
@@ -265,9 +271,12 @@ export class SessionStore {
    * @param sessionId - The session identifier
    */
   terminate(sessionId: string): void {
-    const deleted = this.sessions.delete(sessionId);
-    if (deleted) {
-      getSessionMetrics().sessionEventCounter.add(1, { [ATTR_MCP_SESSION_EVENT]: 'terminated' });
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      this.sessions.delete(sessionId);
+      const metrics = getSessionMetrics();
+      metrics.sessionEventCounter.add(1, { [ATTR_MCP_SESSION_EVENT]: 'terminated' });
+      metrics.sessionDuration.record((Date.now() - session.createdAt.getTime()) / 1000);
       const context = requestContextService.createRequestContext({
         operation: 'SessionStore.terminate',
         sessionId,
@@ -283,15 +292,17 @@ export class SessionStore {
     const now = Date.now();
     let cleanedCount = 0;
 
+    const metrics = getSessionMetrics();
     for (const [id, session] of this.sessions.entries()) {
       if (now - session.lastAccessedAt.getTime() > this.staleTimeout) {
+        metrics.sessionDuration.record((now - session.createdAt.getTime()) / 1000);
         this.sessions.delete(id);
         cleanedCount++;
       }
     }
 
     if (cleanedCount > 0) {
-      getSessionMetrics().sessionEventCounter.add(cleanedCount, {
+      metrics.sessionEventCounter.add(cleanedCount, {
         [ATTR_MCP_SESSION_EVENT]: 'stale_cleanup',
       });
       const context = requestContextService.createRequestContext({

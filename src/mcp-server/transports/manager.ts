@@ -3,9 +3,11 @@
  * @module src/mcp-server/transports/manager
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { EmptyResultSchema } from '@modelcontextprotocol/sdk/types.js';
 
 import type { AppConfig as AppConfigType } from '@/config/index.js';
 import type { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
+import { HeartbeatMonitor } from '@/mcp-server/transports/heartbeat.js';
 import { startHttpTransport } from '@/mcp-server/transports/http/httpTransport.js';
 import type { DefinitionCounts } from '@/mcp-server/transports/http/httpTypes.js';
 import type { TransportServer } from '@/mcp-server/transports/ITransport.js';
@@ -20,6 +22,7 @@ import { requestContextService } from '@/utils/internal/requestContext.js';
 export class TransportManager {
   private serverInstance: TransportServer | null = null;
   private shutdown: ((context: RequestContext) => Promise<void>) | null = null;
+  private heartbeat: HeartbeatMonitor | null = null;
 
   constructor(
     private config: AppConfigType,
@@ -47,7 +50,32 @@ export class TransportManager {
       // Stdio: single client, single connection — one server instance is correct
       const mcpServer = await this.createMcpServer();
       this.serverInstance = await startStdioTransport(mcpServer, context);
-      this.shutdown = (ctx) => stopStdioTransport(mcpServer, ctx);
+
+      // Start heartbeat for stdio transport — periodically pings the client
+      // to detect dead connections (orphaned child processes, crashed hosts).
+      if (this.config.mcpHeartbeatIntervalMs > 0) {
+        const timeoutMs = Math.min(this.config.mcpHeartbeatIntervalMs, 10_000);
+        this.heartbeat = new HeartbeatMonitor(
+          {
+            intervalMs: this.config.mcpHeartbeatIntervalMs,
+            missThreshold: this.config.mcpHeartbeatMissThreshold,
+            sendPing: () =>
+              mcpServer.server.request({ method: 'ping' }, EmptyResultSchema, {
+                timeout: timeoutMs,
+              }),
+            onDead: () => void this.stop('heartbeat_timeout'),
+            transport: 'stdio',
+          },
+          context,
+        );
+        this.heartbeat.start();
+      }
+
+      this.shutdown = async (ctx) => {
+        this.heartbeat?.stop();
+        this.heartbeat = null;
+        await stopStdioTransport(mcpServer, ctx);
+      };
     } else {
       const transportType = String(this.config.mcpTransportType);
       const error = new Error(`Unsupported transport type: ${transportType}`);

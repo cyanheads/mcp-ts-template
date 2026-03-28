@@ -220,6 +220,13 @@ export const ATTR_MCP_TASK_STATUS = 'mcp.task.status';
 export const ATTR_MCP_TASK_STORE_TYPE = 'mcp.task.store_type';
 
 // ============================================================================
+// MCP Heartbeat / Connection Attributes
+// ============================================================================
+
+/** Transport type for heartbeat and connection metrics: `stdio`, `http`. */
+export const ATTR_MCP_CONNECTION_TRANSPORT = 'mcp.connection.transport';
+
+// ============================================================================
 // MCP Error Classification Attributes
 // ============================================================================
 
