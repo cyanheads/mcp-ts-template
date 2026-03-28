@@ -43,6 +43,20 @@ describe.skipIf(!SERVER_EXISTS)('HTTP session management integration', () => {
     expect(sessionId!.length).toBeGreaterThan(0);
   });
 
+  it('rejects DELETE requests without a session ID header', async () => {
+    const res = await fetch(`http://localhost:${handle.port}/mcp`, {
+      headers: {
+        'MCP-Protocol-Version': PROTOCOL_VERSION,
+      },
+      method: 'DELETE',
+    });
+
+    expect(res.status).toBe(400);
+
+    const body = (await res.json()) as { error?: string | undefined };
+    expect(body.error).toBe('Mcp-Session-Id header required');
+  });
+
   it('accepts subsequent requests with a valid session ID', async () => {
     // Step 1: Initialize to get a session ID
     const initRes = await fetch(`http://localhost:${handle.port}/mcp`, {

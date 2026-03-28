@@ -9,6 +9,13 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  expectDefaultServerCapabilities,
+  expectDefaultServerDiscoverySurface,
+  expectDefaultServerProtocolErrors,
+  expectDefaultServerTaskSurface,
+} from '../helpers/default-server-mcp.js';
+
 const DIST_INDEX = resolve(process.cwd(), 'dist/index.js');
 const SERVER_EXISTS = existsSync(DIST_INDEX);
 
@@ -49,6 +56,22 @@ describe.skipIf(!SERVER_EXISTS)('Stdio transport integration', () => {
     // Core server has no tools — just verify the transport is functional
     const result = await client.ping();
     expect(result).toBeDefined();
+  });
+
+  it('advertises the expected MCP capabilities', () => {
+    expectDefaultServerCapabilities(client);
+  });
+
+  it('returns empty tool, resource, and prompt lists for the default server', async () => {
+    await expectDefaultServerDiscoverySurface(client);
+  });
+
+  it('returns MCP not-found behavior for missing tools, resources, and prompts', async () => {
+    await expectDefaultServerProtocolErrors(client);
+  });
+
+  it('supports empty task and logging operations', async () => {
+    await expectDefaultServerTaskSurface(client);
   });
 
   it('shuts down cleanly without hanging', async () => {

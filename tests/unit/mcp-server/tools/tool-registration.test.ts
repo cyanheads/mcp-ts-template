@@ -31,6 +31,9 @@ vi.mock('@/config/index.js', () => ({
     mcpServerVersion: '1.0.0-test',
     mcpAuthMode: 'none',
     openTelemetry: { serviceName: 'test', serviceVersion: '0.0.0' },
+    tasks: {
+      defaultTtlMs: 60_000,
+    },
   },
 }));
 
@@ -77,6 +80,12 @@ describe('ToolRegistry', () => {
     vi.clearAllMocks();
     mockServer = {
       registerTool: vi.fn(() => {}),
+      setToolRequestHandlers: vi.fn(() => {}),
+      experimental: {
+        tasks: {
+          registerToolTask: vi.fn(() => {}),
+        },
+      },
     };
   });
 
@@ -125,6 +134,24 @@ describe('ToolRegistry', () => {
       await registry.registerAll(mockServer);
 
       expect(mockServer.registerTool).toHaveBeenCalledTimes(0);
+      expect(mockServer.setToolRequestHandlers).toHaveBeenCalledTimes(1);
+    });
+
+    it('should initialize MCP tool handlers for task-only tool registries', async () => {
+      const taskOnlyTool = tool('task_only_tool', {
+        description: 'Task-only tool',
+        input: z.object({ query: z.string().describe('query') }),
+        output: z.object({ result: z.string().describe('result') }),
+        task: true,
+        handler: async (input) => ({ result: input.query.toUpperCase() }),
+      });
+
+      const registry = new ToolRegistry([taskOnlyTool], services);
+      await registry.registerAll(mockServer);
+
+      expect(mockServer.setToolRequestHandlers).toHaveBeenCalledTimes(1);
+      expect(mockServer.experimental.tasks.registerToolTask).toHaveBeenCalledTimes(1);
+      expect(mockServer.registerTool).not.toHaveBeenCalled();
     });
   });
 

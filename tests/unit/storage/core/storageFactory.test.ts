@@ -2,10 +2,13 @@
  * @fileoverview Unit tests for storage provider factory.
  * @module tests/storage/core/storageFactory
  */
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AppConfig } from '@/config/index.js';
 
 import { createStorageProvider } from '@/storage/core/storageFactory.js';
+import { D1Provider } from '@/storage/providers/cloudflare/d1Provider.js';
+import { KvProvider } from '@/storage/providers/cloudflare/kvProvider.js';
+import { R2Provider } from '@/storage/providers/cloudflare/r2Provider.js';
 import { FileSystemProvider } from '@/storage/providers/fileSystem/fileSystemProvider.js';
 import { InMemoryProvider } from '@/storage/providers/inMemory/inMemoryProvider.js';
 import { SupabaseProvider } from '@/storage/providers/supabase/supabaseProvider.js';
@@ -22,6 +25,20 @@ vi.mock('@supabase/supabase-js', () => ({
     }),
   }),
 }));
+
+const originalIsServerless = process.env.IS_SERVERLESS;
+
+afterEach(() => {
+  if (originalIsServerless === undefined) {
+    delete process.env.IS_SERVERLESS;
+  } else {
+    process.env.IS_SERVERLESS = originalIsServerless;
+  }
+
+  delete (globalThis as Record<string, unknown>).DB;
+  delete (globalThis as Record<string, unknown>).KV_NAMESPACE;
+  delete (globalThis as Record<string, unknown>).R2_BUCKET;
+});
 
 describe('createStorageProvider', () => {
   describe('in-memory provider', () => {
@@ -139,6 +156,23 @@ describe('createStorageProvider', () => {
 
       expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
     });
+
+    it('should throw when supabase config is present but no client is injected', () => {
+      const mockConfig = {
+        storage: {
+          providerType: 'supabase' as const,
+        },
+        supabase: {
+          serviceRoleKey: 'test-key',
+          url: 'https://test.supabase.co',
+        },
+      } as AppConfig;
+
+      expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
+      expect(() => createStorageProvider(mockConfig)).toThrow(
+        /Supabase client must be provided via deps/,
+      );
+    });
   });
 
   describe('cloudflare providers', () => {
@@ -179,6 +213,109 @@ describe('createStorageProvider', () => {
       expect(() => createStorageProvider(mockConfig)).toThrow(
         /Cloudflare D1 storage is only available in a Cloudflare Worker environment/,
       );
+    });
+
+    it('should create R2 provider from injected deps in serverless mode', () => {
+      process.env.IS_SERVERLESS = 'true';
+
+      const provider = createStorageProvider(
+        {
+          storage: {
+            providerType: 'cloudflare-r2' as const,
+          },
+        } as AppConfig,
+        {
+          r2Bucket: {} as any,
+        },
+      );
+
+      expect(provider).toBeInstanceOf(R2Provider);
+    });
+
+    it('should create R2 provider from global binding in serverless mode', () => {
+      process.env.IS_SERVERLESS = 'true';
+      (globalThis as Record<string, unknown>).R2_BUCKET = {};
+
+      const provider = createStorageProvider({
+        storage: {
+          providerType: 'cloudflare-r2' as const,
+        },
+      } as AppConfig);
+
+      expect(provider).toBeInstanceOf(R2Provider);
+    });
+
+    it('should throw when the R2 global binding is missing in serverless mode', () => {
+      process.env.IS_SERVERLESS = 'true';
+
+      const mockConfig = {
+        storage: {
+          providerType: 'cloudflare-r2' as const,
+        },
+      } as AppConfig;
+
+      expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
+      expect(() => createStorageProvider(mockConfig)).toThrow(/R2_BUCKET binding not available/);
+    });
+
+    it('should create KV provider from injected deps in serverless mode', () => {
+      process.env.IS_SERVERLESS = 'true';
+
+      const provider = createStorageProvider(
+        {
+          storage: {
+            providerType: 'cloudflare-kv' as const,
+          },
+        } as AppConfig,
+        {
+          kvNamespace: {} as any,
+        },
+      );
+
+      expect(provider).toBeInstanceOf(KvProvider);
+    });
+
+    it('should create KV provider from global binding in serverless mode', () => {
+      process.env.IS_SERVERLESS = 'true';
+      (globalThis as Record<string, unknown>).KV_NAMESPACE = {};
+
+      const provider = createStorageProvider({
+        storage: {
+          providerType: 'cloudflare-kv' as const,
+        },
+      } as AppConfig);
+
+      expect(provider).toBeInstanceOf(KvProvider);
+    });
+
+    it('should create D1 provider from injected deps in serverless mode', () => {
+      process.env.IS_SERVERLESS = 'true';
+
+      const provider = createStorageProvider(
+        {
+          storage: {
+            providerType: 'cloudflare-d1' as const,
+          },
+        } as AppConfig,
+        {
+          d1Database: {} as any,
+        },
+      );
+
+      expect(provider).toBeInstanceOf(D1Provider);
+    });
+
+    it('should create D1 provider from global binding in serverless mode', () => {
+      process.env.IS_SERVERLESS = 'true';
+      (globalThis as Record<string, unknown>).DB = {};
+
+      const provider = createStorageProvider({
+        storage: {
+          providerType: 'cloudflare-d1' as const,
+        },
+      } as AppConfig);
+
+      expect(provider).toBeInstanceOf(D1Provider);
     });
   });
 
@@ -293,6 +430,22 @@ describe('createStorageProvider', () => {
       } as AppConfig;
 
       expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
+    });
+
+    it('should reject filesystem provider in serverless mode before path validation', () => {
+      process.env.IS_SERVERLESS = 'true';
+
+      const mockConfig = {
+        storage: {
+          filesystemPath: '/tmp/test-storage',
+          providerType: 'filesystem' as const,
+        },
+      } as AppConfig;
+
+      expect(() => createStorageProvider(mockConfig)).toThrow(McpError);
+      expect(() => createStorageProvider(mockConfig)).toThrow(
+        /not supported in serverless environments/,
+      );
     });
   });
 });

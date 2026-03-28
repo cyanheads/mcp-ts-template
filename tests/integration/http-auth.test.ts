@@ -98,7 +98,40 @@ describe.skipIf(!SERVER_EXISTS)('HTTP auth integration', () => {
     const res = await fetch(`http://localhost:${handle.port}/mcp`);
     expect(res.status).toBe(200);
 
-    const body = (await res.json()) as { status?: string | undefined };
-    expect(body.status).toBe('ok');
+    const body = (await res.json()) as {
+      auth?: unknown;
+      capabilities?: unknown;
+      framework?: unknown;
+      server?: unknown;
+      status?: string | undefined;
+    };
+    expect(body).toEqual({ status: 'ok' });
+  });
+
+  it('rejects unauthenticated SSE GET /mcp requests', async () => {
+    const res = await fetch(`http://localhost:${handle.port}/mcp`, {
+      headers: { Accept: 'text/event-stream' },
+    });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('serves protected resource metadata without requiring auth', async () => {
+    const res = await fetch(`http://localhost:${handle.port}/.well-known/oauth-protected-resource`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=3600');
+
+    const body = (await res.json()) as {
+      authorization_servers?: unknown;
+      bearer_methods_supported?: string[] | undefined;
+      resource?: string | undefined;
+    };
+
+    expect(body).toMatchObject({
+      bearer_methods_supported: ['header'],
+      resource: `http://localhost:${handle.port}/mcp`,
+    });
+    expect(body.authorization_servers).toBeUndefined();
   });
 });

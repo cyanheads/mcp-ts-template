@@ -10,6 +10,13 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  expectDefaultServerCapabilities,
+  expectDefaultServerDiscoverySurface,
+  expectDefaultServerProtocolErrors,
+  expectDefaultServerTaskSurface,
+} from '../helpers/default-server-mcp.js';
+import { initializeBody, MCP_HEADERS } from '../helpers/http-helpers.js';
 import { assertServerBuilt, type ServerHandle, startServer } from '../helpers/server-process.js';
 
 const SERVER_EXISTS = existsSync(resolve(process.cwd(), 'dist/index.js'));
@@ -19,7 +26,7 @@ describe.skipIf(!SERVER_EXISTS)('HTTP transport integration', () => {
 
   beforeAll(async () => {
     assertServerBuilt();
-    handle = await startServer('http', { MCP_ALLOWED_ORIGINS: '' });
+    handle = await startServer('http', { MCP_ALLOWED_ORIGINS: 'http://example.com' });
   });
 
   afterAll(async () => {
@@ -56,6 +63,22 @@ describe.skipIf(!SERVER_EXISTS)('HTTP transport integration', () => {
       const result = await client.ping();
       expect(result).toBeDefined();
     });
+
+    it('advertises the expected MCP capabilities', () => {
+      expectDefaultServerCapabilities(client);
+    });
+
+    it('returns empty tool, resource, and prompt lists for the default server', async () => {
+      await expectDefaultServerDiscoverySurface(client);
+    });
+
+    it('returns MCP not-found behavior for missing tools, resources, and prompts', async () => {
+      await expectDefaultServerProtocolErrors(client);
+    });
+
+    it('supports empty task and logging operations', async () => {
+      await expectDefaultServerTaskSurface(client);
+    });
   });
 
   describe('Raw HTTP endpoints', () => {
@@ -78,6 +101,45 @@ describe.skipIf(!SERVER_EXISTS)('HTTP transport integration', () => {
       expect(body.status).toBe('ok');
       expect(body.server?.name).toBeTruthy();
       expect(body.server?.version).toBeTruthy();
+    });
+
+    it('rejects unsupported protocol versions with 400', async () => {
+      const res = await fetch(`http://localhost:${handle.port}/mcp`, {
+        body: initializeBody(),
+        headers: {
+          ...MCP_HEADERS,
+          'MCP-Protocol-Version': '1900-01-01',
+        },
+        method: 'POST',
+      });
+
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as {
+        error?: string | undefined;
+        protocolVersion?: string | undefined;
+        supportedVersions?: string[] | undefined;
+      };
+      expect(body.error).toBe('Unsupported MCP protocol version');
+      expect(body.protocolVersion).toBe('1900-01-01');
+      expect(body.supportedVersions?.length).toBeGreaterThan(0);
+    });
+
+    it('rejects disallowed Origin headers on the MCP endpoint', async () => {
+      const res = await fetch(`http://localhost:${handle.port}/mcp`, {
+        body: initializeBody(),
+        headers: {
+          ...MCP_HEADERS,
+          'MCP-Protocol-Version': '2025-06-18',
+          Origin: 'http://evil.example.com',
+        },
+        method: 'POST',
+      });
+
+      expect(res.status).toBe(403);
+
+      const body = (await res.json()) as { error?: string | undefined };
+      expect(body.error).toBe('Invalid origin. DNS rebinding protection.');
     });
 
     it('OPTIONS /mcp returns CORS headers', async () => {
