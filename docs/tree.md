@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-28 14:59:40
+Generated on: 2026-03-28 15:31:36
 
 ```text
 mcp-ts-core/
@@ -206,6 +206,7 @@ mcp-ts-core/
 │   │   │   │   └── sessionStore.ts
 │   │   │   ├── stdio/
 │   │   │   │   └── stdioTransport.ts
+│   │   │   ├── heartbeat.ts
 │   │   │   ├── ITransport.ts
 │   │   │   └── manager.ts
 │   │   └── server.ts
