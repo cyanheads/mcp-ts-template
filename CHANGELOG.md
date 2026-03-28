@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.3] - 2026-03-28
+
+`format()` content-completeness guidance and minor dependency update.
+
+### Changed
+
+- **`format()` content-completeness** — Clarified across all documentation and scaffolding that `format()` populates MCP `content[]`, which is the only field most LLM clients (Claude Code, VS Code Copilot, Cursor, Windsurf) forward to the model. `structuredContent` (from `output`) is for programmatic/machine use and is not reliably shown to the LLM. Updated `ToolDefinition` JSDoc, `CLAUDE.md`, `templates/CLAUDE.md`, `skills/add-tool`, and `skills/design-mcp-server` with richer example formatters, explicit warnings against thin one-liners, and new checklist items.
+- **`echo.tool.ts` template** — Added clarifying comment about `format()` content-completeness in the scaffolded echo tool.
+- **`polish-docs-meta` reference** — Added `LOGS_DIR` env var to the environment variable reference table.
+- **Dependencies** — `@modelcontextprotocol/ext-apps` ^1.3.1 → ^1.3.2.
+
+---
+
 ## [0.2.2] - 2026-03-26
 
 Error category telemetry, dependency updates, and minor cleanup.
