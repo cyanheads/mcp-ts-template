@@ -4,13 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.8] - 2026-03-28
+
+Heartbeat disabled by default — opt-in only.
+
+### Fixed
+
+- **Heartbeat default changed to disabled** — `MCP_HEARTBEAT_INTERVAL_MS` now defaults to `0` (off). The 30s default caused stdio servers to self-terminate when run without a client (dev mode, manual testing, simple harnesses). Set `MCP_HEARTBEAT_INTERVAL_MS=30000` to enable.
+
+---
+
 ## [0.2.7] - 2026-03-28
 
 Stdio heartbeat monitor for dead connection detection, session duration telemetry.
 
 ### Added
 
-- **Stdio heartbeat monitor** — `HeartbeatMonitor` periodically pings the connected client via the MCP `ping` method to detect dead connections (orphaned child processes, crashed hosts). Configurable via `MCP_HEARTBEAT_INTERVAL_MS` (default 30s) and `MCP_HEARTBEAT_MISS_THRESHOLD` (default 3). Uses recursive `setTimeout` to prevent ping overlap. Triggers graceful shutdown on threshold breach.
+- **Stdio heartbeat monitor** — `HeartbeatMonitor` periodically pings the connected client via the MCP `ping` method to detect dead connections (orphaned child processes, crashed hosts). Configurable via `MCP_HEARTBEAT_INTERVAL_MS` (default 30s, disabled by default since 0.2.8) and `MCP_HEARTBEAT_MISS_THRESHOLD` (default 3). Uses recursive `setTimeout` to prevent ping overlap. Triggers graceful shutdown on threshold breach.
 - **Session duration histogram** — New `mcp.session.duration` metric (seconds) records session lifetime on termination and stale cleanup. Emitted alongside existing session event counters.
 - **`ATTR_MCP_CONNECTION_TRANSPORT`** — New OTel attribute constant for heartbeat and connection metrics.
 - **`mcp.heartbeat.failures`** — New OTel counter tracking individual heartbeat ping failures, attributed by transport type.
