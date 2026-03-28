@@ -142,7 +142,7 @@ const ConfigSchema = z
     mcpHttpMaxPortRetries: z.coerce.number().default(15),
     mcpHttpPortRetryDelayMs: z.coerce.number().default(50),
     mcpStatefulSessionStaleTimeoutMs: z.coerce.number().default(1_800_000),
-    mcpHeartbeatIntervalMs: z.coerce.number().min(0).default(30_000),
+    mcpHeartbeatIntervalMs: z.coerce.number().min(0).default(0),
     mcpHeartbeatMissThreshold: z.coerce.number().min(1).default(3),
     mcpAllowedOrigins: z.array(z.string()).optional(),
     mcpAuthSecretKey: z.string().optional(),
