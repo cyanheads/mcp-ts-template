@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.2.2
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.2.3
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -159,16 +159,32 @@ export const myTool = tool('my_tool', {
   description: 'Does something useful.',
   annotations: { readOnlyHint: true },
   input: z.object({ query: z.string().describe('Search query') }),
-  output: z.object({ result: z.string().describe('Search result') }),
+  output: z.object({
+    items: z.array(z.object({
+      id: z.string().describe('Item ID'),
+      name: z.string().describe('Item name'),
+      status: z.string().describe('Current status'),
+      description: z.string().optional().describe('Item description'),
+    })).describe('Matching items'),
+    totalCount: z.number().describe('Total matches before pagination'),
+  }),
   auth: ['tool:my_tool:read'],
 
   async handler(input, ctx) {
     const data = await fetchFromApi(input.query);
-    ctx.log.info('Query resolved', { query: input.query, resultCount: data.length });
-    return { result: data.summary };
+    ctx.log.info('Query resolved', { query: input.query, resultCount: data.items.length });
+    return data;
   },
 
-  format: (result) => [{ type: 'text', text: result.result }],
+  format: (result) => {
+    const lines = [`**${result.totalCount} results**\n`];
+    for (const item of result.items) {
+      lines.push(`### ${item.name}`);
+      lines.push(`**ID:** ${item.id} | **Status:** ${item.status}`);
+      if (item.description) lines.push(item.description);
+    }
+    return [{ type: 'text', text: lines.join('\n') }];
+  },
 });
 ```
 
@@ -176,7 +192,7 @@ export const myTool = tool('my_tool', {
 
 **Schema constraint:** Input/output schemas must use JSON-Schema-serializable Zod types only. The MCP SDK converts schemas to JSON Schema for `tools/list` — non-serializable types (`z.custom()`, `z.date()`, `z.transform()`, etc.) cause a hard runtime failure. Use structural equivalents instead (e.g., `z.string()` with `.describe('ISO 8601 date')` instead of `z.date()`). The linter validates this at startup.
 
-**`format`**: Maps output to `ContentBlock[]`. Omit for JSON stringify default. Additional formatters: `markdown()` (builder), `diffFormatter` (async), `tableFormatter`, `treeFormatter` from `/utils`.
+**`format`**: Maps output to MCP `content[]` — the only field most LLM clients (Claude Code, VS Code Copilot, Cursor, Windsurf) forward to the model. `structuredContent` (from `output`) is for programmatic use and is not reliably shown to the LLM. **Make `format()` content-complete** — render all data the model needs to reason about the result, not just a count or title. Omit for JSON stringify fallback. Additional formatters: `markdown()` (builder), `diffFormatter` (async), `tableFormatter`, `treeFormatter` from `/utils`.
 
 **Task tools:** Add `task: true` for long-running async operations. Framework manages lifecycle: creates task → returns ID immediately → runs handler in background with `ctx.progress` → stores result/error → `ctx.signal` for cancellation. See `add-tool` skill for full example.
 
@@ -448,6 +464,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 - **JSDoc:** `@fileoverview` + `@module` required on every file
 - **No fabricated signal:** Don't invent synthetic scores or arbitrary "confidence percentages." Surface real signal.
 - **Builders:** `tool()`/`resource()`/`prompt()` with correct fields (`handler`, `input`, `output`, `format`, `auth`, `args`)
+- **`format()` completeness:** `content[]` is the only field most LLM clients forward to the model — `format()` must render all data the LLM needs, not just a count or title
 - **Auth:** via `auth: ['scope']` on definitions (not HOF wrapper)
 - **Presence checks:** `ctx.elicit`/`ctx.sample` checked before use
 - **Task tools:** use `task: true` flag

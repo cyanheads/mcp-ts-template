@@ -55,7 +55,20 @@ export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
     return { /* output */ };
   },
 
-  format: (result) => [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+  // format() populates MCP content[] — the only field most LLM clients forward
+  // to the model. structuredContent (from output) is for programmatic use only.
+  // Render ALL data the LLM needs to reason about the result.
+  format: (result) => {
+    const lines: string[] = [];
+    // Render each item with all relevant fields — not just a count or title.
+    // A thin one-liner (e.g., "Found 5 items") leaves the model blind to the data.
+    for (const item of result.items) {
+      lines.push(`## ${item.name}`);
+      lines.push(`**ID:** ${item.id} | **Status:** ${item.status}`);
+      if (item.description) lines.push(item.description);
+    }
+    return [{ type: 'text', text: lines.join('\n') }];
+  },
 });
 ```
 
@@ -192,6 +205,7 @@ Large payloads burn the agent's context window. Default to curated summaries; of
 - [ ] Schemas use only JSON-Schema-serializable types (no `z.custom()`, `z.date()`, `z.transform()`, `z.bigint()`, `z.symbol()`, `z.void()`, `z.map()`, `z.set()`)
 - [ ] JSDoc `@fileoverview` and `@module` header present
 - [ ] `handler(input, ctx)` is pure — throws on failure, no try/catch
+- [ ] `format()` renders all data the LLM needs (not just a count or title) — `content[]` is the only field most clients forward to the model
 - [ ] `auth` scopes declared if the tool needs authorization
 - [ ] `task: true` added if the tool is long-running
 - [ ] Registered in `definitions/index.ts` barrel and `allToolDefinitions`

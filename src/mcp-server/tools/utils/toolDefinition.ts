@@ -62,8 +62,16 @@ export interface ToolDefinition<
   /** LLM-facing description. */
   description: string;
   /**
-   * Optional formatter mapping output to ContentBlock[].
-   * If omitted, the handler factory JSON-stringifies the output.
+   * Optional formatter mapping output to MCP `content[]` — the field LLM clients
+   * inject into the model's context. `structuredContent` (from `output`) is for
+   * programmatic/machine use and is NOT reliably forwarded to the model by most
+   * clients (Claude Code, VS Code Copilot, Cursor, Windsurf all read `content[]`).
+   *
+   * **Make `format()` content-complete.** If the LLM needs data to reason about
+   * the result, it must appear here — not just in the output schema. A thin
+   * one-liner (e.g., a count or title) leaves the model blind to the actual data.
+   *
+   * If omitted, the handler factory JSON-stringifies the output as a fallback.
    */
   format?: (result: z.infer<TOutput>) => ContentBlock[];
   /**
@@ -98,13 +106,25 @@ export type AnyToolDefinition = ToolDefinition<ZodObject<ZodRawShape>, ZodObject
  * const myTool = tool('my_tool', {
  *   description: 'Does something useful.',
  *   input: z.object({ query: z.string().describe('Search query') }),
- *   output: z.object({ result: z.string().describe('Search result') }),
+ *   output: z.object({
+ *     items: z.array(z.object({
+ *       id: z.string().describe('Item ID'),
+ *       name: z.string().describe('Item name'),
+ *       status: z.string().describe('Current status'),
+ *     })).describe('Matching items'),
+ *   }),
  *   auth: ['tool:my_tool:read'],
  *   annotations: { readOnlyHint: true },
  *   async handler(input, ctx) {
  *     ctx.log.info('Processing', { query: input.query });
- *     return { result: `Found: ${input.query}` };
+ *     return { items: await search(input.query) };
  *   },
+ *   // format() populates content[] — the only field most LLM clients read.
+ *   // Render all data the model needs; structuredContent is not forwarded.
+ *   format: (result) => [{
+ *     type: 'text',
+ *     text: result.items.map(i => `**${i.id}**: ${i.name} (${i.status})`).join('\n'),
+ *   }],
  * });
  * ```
  */

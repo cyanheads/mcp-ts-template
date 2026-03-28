@@ -193,7 +193,7 @@ output: z.object({
 ```
 
 - **Truncate large output with counts.** When a list exceeds a reasonable display size, show the top N and append "...and X more". Don't silently drop results.
-- **Use the `format` function for readable summaries** while keeping the full structured data in the output object for programmatic use.
+- **`format()` is the model-facing output — make it content-complete.** MCP `content[]` (populated by `format()`) is the only field most LLM clients forward to the model. `structuredContent` (from `output`) is for programmatic/machine use and is not reliably shown to the LLM. A thin `format()` that returns only a count or title leaves the model blind to the actual data. Render all fields the LLM needs to reason about or act on the result. Use structured markdown (headers, bold labels, lists) for readability.
 
 #### Convenience shortcuts for complex inputs
 
@@ -364,6 +364,7 @@ Execute the plan using the scaffolding skills:
 - [ ] Parameter `.describe()` text explains what the value is, what it affects, and tradeoffs
 - [ ] Input schemas use constrained types (enums, literals, regex) over free strings
 - [ ] Output schemas designed for LLM's next action — chaining IDs, post-write state, filtering communicated
+- [ ] `format()` renders all data the LLM needs — `content[]` is the only field most clients forward to the model (not just a count or title)
 - [ ] Error messages guide recovery — name what went wrong and what to do next
 - [ ] Annotations set correctly (`readOnlyHint`, `destructiveHint`, etc.)
 - [ ] Resource URIs use `{param}` templates, pagination planned for large lists

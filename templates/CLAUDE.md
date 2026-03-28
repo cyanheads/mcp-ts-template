@@ -75,7 +75,12 @@ export const searchItems = tool('search_items', {
     return { items };
   },
 
-  format: (result) => [{ type: 'text', text: `Found ${result.items.length} items` }],
+  // format() populates content[] — the only field most LLM clients forward to
+  // the model. Render all data the LLM needs, not just a count or title.
+  format: (result) => [{
+    type: 'text',
+    text: result.items.map(i => `**${i.id}**: ${i.name}`).join('\n'),
+  }],
 });
 ```
 
