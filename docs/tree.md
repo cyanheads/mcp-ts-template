@@ -1,10 +1,9 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-25 06:43:02
+Generated on: 2026-03-28 14:59:40
 
 ```text
 mcp-ts-core/
-├── .agents/
 ├── .claude/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/
@@ -154,6 +153,7 @@ mcp-ts-core/
 │   │   │   ├── prompt-rules.ts
 │   │   │   ├── resource-rules.ts
 │   │   │   ├── schema-rules.ts
+│   │   │   ├── server-json-rules.ts
 │   │   │   └── tool-rules.ts
 │   │   ├── index.ts
 │   │   ├── types.ts
@@ -359,6 +359,7 @@ mcp-ts-core/
 │   │   ├── error-handler.fuzz.test.ts
 │   │   └── tool-handler-pipeline.fuzz.test.ts
 │   ├── helpers/
+│   │   ├── default-server-mcp.ts
 │   │   ├── fixtures.ts
 │   │   ├── http-helpers.ts
 │   │   ├── mock-handlers.ts
@@ -404,6 +405,7 @@ mcp-ts-core/
 │   │   │   │   └── roots-registration.test.ts
 │   │   │   ├── tasks/
 │   │   │   │   ├── core/
+│   │   │   │   │   ├── sessionAwareTaskStore.test.ts
 │   │   │   │   │   ├── storageBackedTaskStore.test.ts
 │   │   │   │   │   └── taskManager.test.ts
 │   │   │   │   ├── utils/
@@ -420,6 +422,7 @@ mcp-ts-core/
 │   │   │   │   │   │   ├── authContext.test.ts
 │   │   │   │   │   │   ├── authTypes.test.ts
 │   │   │   │   │   │   ├── authUtils.test.ts
+│   │   │   │   │   │   ├── checkScopes.test.ts
 │   │   │   │   │   │   └── claimParser.test.ts
 │   │   │   │   │   ├── strategies/
 │   │   │   │   │   │   ├── authStrategy.test.ts
@@ -430,8 +433,11 @@ mcp-ts-core/
 │   │   │   │   │   └── authMiddleware.test.ts
 │   │   │   │   ├── http/
 │   │   │   │   │   ├── httpErrorHandler.test.ts
+│   │   │   │   │   ├── httpTransport.lifecycle.test.ts
 │   │   │   │   │   ├── httpTransport.test.ts
 │   │   │   │   │   ├── httpTypes.test.ts
+│   │   │   │   │   ├── protectedResourceMetadata.test.ts
+│   │   │   │   │   ├── sessionIdUtils.runtime.test.ts
 │   │   │   │   │   ├── sessionIdUtils.test.ts
 │   │   │   │   │   ├── sessionStore.metrics.test.ts
 │   │   │   │   │   └── sessionStore.test.ts
@@ -484,6 +490,7 @@ mcp-ts-core/
 │   │   │   ├── StorageService.metrics.test.ts
 │   │   │   └── StorageService.test.ts
 │   │   ├── testing/
+│   │   │   ├── mockContext.test.ts
 │   │   │   └── mockContextFidelity.test.ts
 │   │   ├── types-global/
 │   │   │   └── errors.test.ts
@@ -513,7 +520,8 @@ mcp-ts-core/
 │   │   │   │   └── tokenCounter.test.ts
 │   │   │   ├── network/
 │   │   │   │   ├── fetchWithTimeout.metrics.test.ts
-│   │   │   │   └── fetchWithTimeout.test.ts
+│   │   │   │   ├── fetchWithTimeout.test.ts
+│   │   │   │   └── retry.test.ts
 │   │   │   ├── pagination/
 │   │   │   │   └── index.test.ts
 │   │   │   ├── parsing/
@@ -535,6 +543,7 @@ mcp-ts-core/
 │   │   │   ├── telemetry/
 │   │   │   │   ├── attributes.test.ts
 │   │   │   │   ├── index.test.ts
+│   │   │   │   ├── instrumentation.lifecycle.test.ts
 │   │   │   │   ├── instrumentation.test.ts
 │   │   │   │   ├── metrics.test.ts
 │   │   │   │   └── trace.test.ts
