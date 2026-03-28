@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/mcp-ts-core",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "Agent-native TypeScript framework for building MCP servers. Build tools, not infrastructure. Declarative definitions with auth, multi-backend storage, OpenTelemetry, and first-class support for Node.js and Cloudflare Workers.",
   "main": "dist/core/index.js",
@@ -145,8 +145,11 @@
     "chrono-node": "2.9.0",
     "diff": "8.0.4",
     "dotenv": "17.3.1",
+    "brace-expansion": "1.1.13",
     "flatted": "3.4.2",
+    "handlebars": "4.7.9",
     "hono": "4.12.9",
+    "path-to-regexp": "8.4.0",
     "picomatch": "2.3.2",
     "yaml": "1.10.3",
     "zod": "4.3.6"
