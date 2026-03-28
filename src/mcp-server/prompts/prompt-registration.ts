@@ -14,6 +14,10 @@ import type { logger as defaultLogger } from '@/utils/internal/logger.js';
 import { measurePromptGeneration } from '@/utils/internal/performance.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
+type McpServerWithPromptHandlerInit = {
+  setPromptRequestHandlers: () => void;
+};
+
 export class PromptRegistry {
   /** Tracks registered prompt names to detect duplicates at startup. */
   private readonly registeredNames = new Set<string>();
@@ -34,6 +38,11 @@ export class PromptRegistry {
     });
 
     this.logger.debug(`Registering ${this.promptDefs.length} prompt(s)...`, context);
+
+    // The SDK only initializes prompts/list + prompts/get handlers when a
+    // prompt is first registered. Initialize them up front so empty servers
+    // still expose truthful MCP prompt behavior.
+    (server as unknown as McpServerWithPromptHandlerInit).setPromptRequestHandlers();
 
     for (const promptDef of this.promptDefs) {
       await this.registerPrompt(server, promptDef, context);

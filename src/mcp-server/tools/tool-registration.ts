@@ -44,6 +44,10 @@ export type AnyToolDef =
   | AnyToolDefinition
   | TaskToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>;
 
+type McpServerWithToolHandlerInit = {
+  setToolRequestHandlers: () => void;
+};
+
 export class ToolRegistry {
   /** Tracks registered tool names to detect duplicates at startup. */
   private readonly registeredNames = new Set<string>();
@@ -90,6 +94,11 @@ export class ToolRegistry {
       `Registering ${standardTools.length} regular tool(s) and ${taskTools.length} task tool(s)...`,
       context,
     );
+
+    // The SDK only installs tools/list + tools/call handlers the first time a
+    // non-task tool is registered. Initialize them up front so empty servers
+    // and task-only servers still expose truthful MCP tool behavior.
+    (server as unknown as McpServerWithToolHandlerInit).setToolRequestHandlers();
 
     // Register standard tools (regular and auto-task)
     for (const toolDef of standardTools) {

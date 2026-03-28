@@ -14,6 +14,10 @@ import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
+type McpServerWithResourceHandlerInit = {
+  setResourceRequestHandlers: () => void;
+};
+
 export class ResourceRegistry {
   /** Tracks registered resource names to detect duplicates at startup. */
   private readonly registeredNames = new Set<string>();
@@ -40,6 +44,11 @@ export class ResourceRegistry {
     });
 
     logger.info(`Registering ${this.resourceDefs.length} resource(s)...`, context);
+
+    // The SDK only initializes resources/list + resources/read handlers when a
+    // resource is first registered. Initialize them up front so empty servers
+    // still expose truthful MCP resource behavior.
+    (server as unknown as McpServerWithResourceHandlerInit).setResourceRequestHandlers();
 
     for (const resourceDef of this.resourceDefs) {
       await this.registerResource(server, resourceDef);
