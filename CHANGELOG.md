@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.7] - 2026-03-28
+
+Stdio heartbeat monitor for dead connection detection, session duration telemetry.
+
+### Added
+
+- **Stdio heartbeat monitor** — `HeartbeatMonitor` periodically pings the connected client via the MCP `ping` method to detect dead connections (orphaned child processes, crashed hosts). Configurable via `MCP_HEARTBEAT_INTERVAL_MS` (default 30s) and `MCP_HEARTBEAT_MISS_THRESHOLD` (default 3). Uses recursive `setTimeout` to prevent ping overlap. Triggers graceful shutdown on threshold breach.
+- **Session duration histogram** — New `mcp.session.duration` metric (seconds) records session lifetime on termination and stale cleanup. Emitted alongside existing session event counters.
+- **`ATTR_MCP_CONNECTION_TRANSPORT`** — New OTel attribute constant for heartbeat and connection metrics.
+- **`mcp.heartbeat.failures`** — New OTel counter tracking individual heartbeat ping failures, attributed by transport type.
+
+### Changed
+
+- **Session termination** — `SessionStore.terminate()` and stale cleanup now record duration via the new histogram. Stale cleanup hoists `getSessionMetrics()` outside the loop to avoid repeated lazy-init checks.
+
+### Tests
+
+- Updated prompt and resource registration test mocks to match new SDK handler initialization methods (`setPromptRequestHandlers`, `setResourceRequestHandlers`, `sendResourceListChanged`, `server.sendResourceUpdated`).
+
+---
+
 ## [0.2.6] - 2026-03-28
 
 Handler initialization for empty servers, OTel API moved to peer deps, and comprehensive test coverage expansion.
