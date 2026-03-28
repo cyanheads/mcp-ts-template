@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.4] - 2026-03-28
+
+Server.json manifest linter, API efficiency patterns, and dependency security overrides.
+
+### Added
+
+- **Server.json manifest linter** — New `lintServerJson()` rule set validates `server.json` against the MCP server manifest spec (2025-12-11). Checks name format (reverse-DNS), description length, version (no ranges, semver), repository structure, packages (registryType, identifier, transport, arguments, env vars), remotes (transport constraints), and cross-validates version against `package.json`. Integrated into `validateDefinitions()` pipeline and `lint-mcp` CLI script.
+- **`LintDefinitionType`** — New exported type (`'tool' | 'resource' | 'prompt' | 'server-json'`) for lint diagnostics. Exported from `/linter` and main entry point.
+- **API efficiency guidance** — New section in `add-service` skill covering batch-over-N+1, field selection, and pagination awareness patterns. Added corresponding checklist item.
+- **Live API probing step** — `design-mcp-server` skill now includes a step to hit real API endpoints during research to verify response shapes, batch endpoints, field selection, pagination, and error formats.
+- **API efficiency planning table** — `design-mcp-server` skill gains a service design table for batch, field selection, request consolidation, and pagination decisions.
+
+### Changed
+
+- **`LintInput`** — Now accepts optional `serverJson` and `packageJson` fields for manifest and cross-validation.
+- **`lint-mcp.ts` script** — Discovers and parses `server.json` + `package.json` at project root, passes them to `validateDefinitions()`. Skips lint only when no definitions and no server.json found.
+- **Template `format()` example** — Updated `templates/AGENTS.md` and `templates/CLAUDE.md` with content-complete `format()` example and checklist item.
+- **CLAUDE.md** — Added API efficiency note to service documentation section.
+- **Dependency overrides** — Added `brace-expansion` 1.1.13, `handlebars` 4.7.9, `path-to-regexp` 8.4.0 to resolve security advisories in transitive dependencies.
+
+---
+
 ## [0.2.3] - 2026-03-28
 
 `format()` content-completeness guidance and minor dependency update.
