@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.2.4
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.2.5
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -199,6 +199,8 @@ export const myTool = tool('my_tool', {
 ---
 
 ## Adding a Resource
+
+**Tool coverage.** Not all MCP clients expose resources — many are tool-only. Verify that resource data is also reachable via the tool surface before relying on resources as an access path.
 
 ```ts
 import { resource, z } from '@cyanheads/mcp-ts-core';
