@@ -33,7 +33,7 @@ If the domain has a public API, read its docs before designing. Don't design fro
 
 ### 1. Research External Dependencies
 
-Before designing, verify the APIs and services the server will wrap.
+Before designing, verify the APIs and services the server will wrap. Read the docs, then **hit the API** — real requests reveal what docs omit.
 
 If the Agent tool is available, spawn background agents to research in parallel while you proceed with domain mapping:
 
@@ -42,6 +42,16 @@ If the Agent tool is available, spawn background agents to research in parallel 
 - Note any API quirks, pagination patterns, or data format considerations
 
 If the Agent tool is not available, do this research inline — fetch docs, read SDK readmes, confirm assumptions before committing them to the design.
+
+**Live API probing.** After reading docs, make real requests against the API to verify assumptions:
+
+- **Response shapes** — confirm actual field names, nesting, and types. Docs frequently lag or omit fields.
+- **Batch/filter endpoints** — look for `filter.ids`, bulk GET, or query-by-multiple-IDs patterns. A single batch request replaces N individual fetches and eliminates serial-request bottlenecks and rate-limit accumulation.
+- **Field selection** — check if the API supports `fields` or `select` parameters to request only the data you need. This reduces payload size dramatically for large objects.
+- **Pagination behavior** — verify token format, page size limits, and what happens when results exceed one page.
+- **Error shapes** — trigger real 400/404/429 responses to see the actual error format, not just what docs claim.
+
+This step prevents building a service layer against assumed response shapes that don't match reality.
 
 ### 2. Map the Domain
 
@@ -278,6 +288,15 @@ For services wrapping external APIs, plan the resilience layer. See `docs/servic
 | **HTTP status check** | `fetchWithTimeout` already handles this — non-OK → `ServiceUnavailable`. |
 | **Parse failure classification** | Response handler detects HTML error pages and throws transient errors, not `SerializationError`. |
 | **Exhausted retry messaging** | `withRetry` enriches the final error with attempt count automatically. |
+
+For API efficiency, design the service methods to minimize upstream calls:
+
+| Concern | Decision |
+|:--------|:---------|
+| **Batch over N+1** | If the API supports filter-by-IDs or bulk-GET endpoints, use a single batch request instead of N individual fetches. Cross-reference the response against requested IDs to detect missing items. |
+| **Field selection** | If the API supports `fields`/`select` parameters, request only the fields the tool needs. A full study record might be 70KB; selecting 4 fields might be 5KB. |
+| **Request consolidation** | When a tool needs data from multiple related endpoints, check if a single endpoint with broader field selection can serve the same data in one round trip. |
+| **Pagination awareness** | If a batch request might exceed the API's page size, either paginate internally or assert/throw when results are truncated so callers aren't silently missing data. |
 
 **Config** — list env vars (API keys, base URLs). Goes in `src/config/server-config.ts` as a separate Zod schema.
 

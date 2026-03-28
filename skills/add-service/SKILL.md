@@ -150,6 +150,40 @@ parseResponse<T>(text: string): T {
 }
 ```
 
+## API Efficiency
+
+When a service wraps an external API, design methods to minimize upstream calls. These patterns compound — a tool calling 3 service methods that each make N requests is 3N calls; batching drops it to 3.
+
+### Batch over N+1
+
+If the API supports filter-by-IDs, bulk GET, or batch query endpoints, expose a batch method instead of (or alongside) the single-item method. One request for 20 items beats 20 sequential requests — it eliminates serial latency, avoids rate-limit accumulation, and simplifies error handling.
+
+```typescript
+/** Fetch multiple studies in a single request via filter.ids. */
+async getStudiesBatch(nctIds: string[], ctx: Context): Promise<Study[]> {
+  const response = await this.searchStudies({
+    filterIds: nctIds,
+    fields: ['NCTId', 'BriefTitle', 'HasResults', 'ResultsSection'],
+    pageSize: nctIds.length,
+  }, ctx);
+  return response.studies;
+}
+```
+
+Cross-reference the response against the requested IDs to detect missing items — don't assume the API returns everything you asked for.
+
+### Field selection
+
+If the API supports `fields`, `select`, or `include` parameters, request only what the caller needs. A full record might be 70KB; four fields might be 5KB. Expose field selection as a parameter on the service method, or use sensible defaults per method.
+
+### Pagination awareness
+
+If a batch request might exceed the API's page size limit, either:
+- Paginate internally (loop until all pages consumed), or
+- Assert/throw when the response indicates truncation (e.g., `nextPageToken` present)
+
+Silent truncation is a data integrity bug — the caller thinks it has all results when it doesn't.
+
 ## Checklist
 
 - [ ] Directory created at `src/services/{{domain}}/`
@@ -159,4 +193,5 @@ parseResponse<T>(text: string): T {
 - [ ] `init` function registered in `setup()` callback in `src/index.ts`
 - [ ] Accessor throws `Error` if not initialized
 - [ ] If wrapping external API: retry covers full pipeline (fetch + parse), backoff calibrated
+- [ ] If wrapping external API: batch endpoints used where available, field selection applied, pagination handled
 - [ ] `bun run devcheck` passes

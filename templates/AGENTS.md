@@ -75,7 +75,12 @@ export const searchItems = tool('search_items', {
     return { items };
   },
 
-  format: (result) => [{ type: 'text', text: `Found ${result.items.length} items` }],
+  // format() populates content[] — the only field most LLM clients forward to
+  // the model. Render all data the LLM needs, not just a count or title.
+  format: (result) => [{
+    type: 'text',
+    text: result.items.map(i => `**${i.id}**: ${i.name}`).join('\n'),
+  }],
 });
 ```
 
@@ -279,6 +284,7 @@ import { getMyService } from '@/services/my-domain/my-service.js';
 - [ ] JSDoc `@fileoverview` + `@module` on every file
 - [ ] `ctx.log` for logging, `ctx.state` for storage
 - [ ] Handlers throw on failure — error factories or plain `Error`, no try/catch
+- [ ] `format()` renders all data the LLM needs — `content[]` is the only field most clients forward to the model
 - [ ] Registered in `createApp()` arrays (directly or via barrel exports)
 - [ ] Tests use `createMockContext()` from `@cyanheads/mcp-ts-core/testing`
 - [ ] `npm run devcheck` passes

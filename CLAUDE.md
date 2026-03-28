@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.2.3
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.2.4
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -266,6 +266,8 @@ export function getMyService(): MyService {
 ```
 
 Usage: `getMyService().doWork(input.query, ctx)`. Convention: `ctx.elicit`/`ctx.sample` only from tool handlers, not services.
+
+**API efficiency:** Prefer batch endpoints over N+1 individual requests. Use field selection to minimize payload. Cross-reference batch responses against requested IDs to detect missing items. See `add-service` skill for patterns.
 
 ---
 
