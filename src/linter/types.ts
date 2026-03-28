@@ -8,16 +8,19 @@
 /** Severity of a lint diagnostic. */
 export type LintSeverity = 'error' | 'warning';
 
+/** Definition type that produced a lint diagnostic. */
+export type LintDefinitionType = 'tool' | 'resource' | 'prompt' | 'server-json';
+
 /**
  * A single lint diagnostic produced by a validation rule.
  * Errors represent spec violations that will cause runtime failures.
  * Warnings represent SHOULD-level or quality issues.
  */
 export interface LintDiagnostic {
-  /** Name of the specific definition (tool/resource/prompt name). */
+  /** Name of the specific definition (tool/resource/prompt name, or 'server.json'). */
   definitionName: string;
   /** Which definition type produced this diagnostic. */
-  definitionType: 'tool' | 'resource' | 'prompt';
+  definitionType: LintDefinitionType;
   /** Human-readable message describing the issue. */
   message: string;
   /** Rule identifier (e.g., 'name-format', 'describe-on-fields'). */
@@ -40,10 +43,14 @@ export interface LintReport {
 
 /**
  * Input to `validateDefinitions()`.
- * Mirrors the definition arrays from `CreateAppOptions`.
+ * Mirrors the definition arrays from `CreateAppOptions`, plus optional server.json.
  */
 export interface LintInput {
+  /** Parsed package.json — used for cross-validation (version sync). */
+  packageJson?: { version?: string };
   prompts?: unknown[];
   resources?: unknown[];
+  /** Parsed server.json content. When provided, validated against the MCP server manifest spec. */
+  serverJson?: unknown;
   tools?: unknown[];
 }

@@ -16,7 +16,7 @@
  *
  * @module scripts/lint-mcp
  */
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 // ---------------------------------------------------------------------------
@@ -102,11 +102,26 @@ function discoverFiles(): string[] {
 // Main
 // ---------------------------------------------------------------------------
 
+/** Try to read and parse a JSON file. Returns undefined on failure. */
+function tryReadJson(path: string): unknown {
+  try {
+    if (!existsSync(path)) return;
+    return JSON.parse(readFileSync(path, 'utf-8'));
+  } catch (err) {
+    console.warn(`Warning: Failed to parse ${path}: ${err instanceof Error ? err.message : err}`);
+    return;
+  }
+}
+
 async function main(): Promise<void> {
   const files = discoverFiles();
 
-  if (files.length === 0) {
-    console.log('No MCP definition files found. Skipping lint.');
+  // Discover server.json and package.json at project root
+  const serverJson = tryReadJson(resolve('server.json'));
+  const packageJson = tryReadJson(resolve('package.json')) as { version?: string } | undefined;
+
+  if (files.length === 0 && serverJson == null) {
+    console.log('No MCP definition files or server.json found. Skipping lint.');
     process.exit(0);
   }
 
@@ -129,17 +144,28 @@ async function main(): Promise<void> {
     }
   }
 
-  const total = tools.length + resources.length + prompts.length;
-  if (total === 0) {
+  const defTotal = tools.length + resources.length + prompts.length;
+  if (defTotal === 0 && serverJson == null) {
     console.log(`Scanned ${files.length} files but found no definitions. Skipping lint.`);
     process.exit(0);
   }
 
-  console.log(
-    `Linting ${tools.length} tool(s), ${resources.length} resource(s), ${prompts.length} prompt(s) from ${files.length} file(s)...`,
-  );
+  const parts: string[] = [];
+  if (defTotal > 0) {
+    parts.push(
+      `${tools.length} tool(s), ${resources.length} resource(s), ${prompts.length} prompt(s) from ${files.length} file(s)`,
+    );
+  }
+  if (serverJson != null) parts.push('server.json');
+  console.log(`Linting ${parts.join(' + ')}...`);
 
-  const report = validateDefinitions({ tools, resources, prompts });
+  const report = validateDefinitions({
+    tools,
+    resources,
+    prompts,
+    serverJson,
+    packageJson,
+  });
 
   for (const w of report.warnings) {
     console.warn(`  ⚠ [${w.rule}] ${w.message}`);

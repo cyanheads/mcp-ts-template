@@ -4,5 +4,11 @@
  * @module src/linter/index
  */
 
-export type { LintDiagnostic, LintInput, LintReport, LintSeverity } from './types.js';
+export type {
+  LintDefinitionType,
+  LintDiagnostic,
+  LintInput,
+  LintReport,
+  LintSeverity,
+} from './types.js';
 export { validateDefinitions } from './validate.js';

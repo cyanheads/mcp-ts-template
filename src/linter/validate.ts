@@ -8,6 +8,7 @@
 import { checkDuplicateNames } from './rules/name-rules.js';
 import { lintPromptDefinition } from './rules/prompt-rules.js';
 import { lintResourceDefinition } from './rules/resource-rules.js';
+import { lintServerJson } from './rules/server-json-rules.js';
 import { lintToolDefinition } from './rules/tool-rules.js';
 import type { LintDiagnostic, LintInput, LintReport } from './types.js';
 
@@ -49,6 +50,17 @@ export function validateDefinitions(input: LintInput): LintReport {
   }
   for (const def of prompts) {
     diagnostics.push(...lintPromptDefinition(def));
+  }
+
+  // server.json manifest validation
+  if (input.serverJson != null) {
+    const pkgVersion = input.packageJson?.version;
+    diagnostics.push(
+      ...lintServerJson(
+        input.serverJson,
+        pkgVersion ? { packageJsonVersion: pkgVersion } : undefined,
+      ),
+    );
   }
 
   // Cross-definition duplicate checks

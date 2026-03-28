@@ -11,4 +11,5 @@ export {
   checkIsZodObject,
   checkSchemaSerializable,
 } from './schema-rules.js';
+export { lintServerJson } from './server-json-rules.js';
 export { lintAuthScopes, lintToolDefinition } from './tool-rules.js';
