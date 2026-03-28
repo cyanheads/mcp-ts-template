@@ -4,7 +4,7 @@ description: >
   Design the tool surface, resources, and service layer for a new MCP server. Use when starting a new server, planning a major feature expansion, or when the user describes a domain/API they want to expose via MCP. Produces a design doc at docs/design.md that drives implementation.
 metadata:
   author: cyanheads
-  version: "2.0"
+  version: "2.1"
   audience: external
   type: workflow
 ---
@@ -69,18 +69,21 @@ This is the raw material. Not everything becomes a tool.
 
 ### 3. Classify into MCP Primitives
 
+**Tools are the primary interface.** Not all MCP clients expose resources — many are tool-only (Claude Code, Cursor, most chat UIs). Design the tool surface to be self-sufficient: an agent with only tool access should be able to do everything the server is built for. Resources add convenience for clients that support them (injectable context, stable URIs), but are not a reliable access path.
+
 | Primitive | Use when | Examples |
 |:----------|:---------|:--------|
-| **Tool** | Needs parameters beyond a simple ID, has side effects, or requires LLM decisions about inputs | Search, create, update, analyze, transform |
-| **Resource** | Addressable by stable URI, read-only, useful as injectable context | Config, schemas, status, entity-by-ID lookups |
+| **Tool** | The default. Any operation or data access an agent needs to accomplish the server's purpose. | Search, create, update, analyze, fetch-by-ID, list reference data |
+| **Resource** | *Additionally* expose as a resource when the data is addressable by stable URI, read-only, and useful as injectable context. | Config, schemas, status, entity-by-ID lookups |
 | **Prompt** | Reusable message template that structures how the LLM approaches a task | Analysis framework, report template, review checklist |
 | **Neither** | Internal detail, admin-only, not useful to an LLM | Token refresh, webhook setup, migrations |
 
+What the tool surface needs to cover depends on the server: a read-only research server has different economics than a CRUD project management server. Consider the domain, the expected agent workflows, whether it wraps one API or many, and what data relationships exist. The test is: can a tool-only agent accomplish everything this server is for?
+
 **Common traps:**
 
-- **Everything-is-a-tool**: "Fetch by ID" with no other params is a resource. Resources let clients inject context without a tool call.
+- **Data locked behind resources**: If something an agent needs is only accessible via a resource, it's invisible to tool-only clients. That data might warrant its own tool, or it might already be covered by an existing tool's output — but it needs a tool path somewhere.
 - **CRUD explosion**: Don't map every REST endpoint to a tool. Related operations on the same noun often belong in one tool with an `operation`/`mode` parameter (see Step 4).
-- **Ignoring resources**: If the server has reference data, schemas, or entities the LLM should read — expose them as resources.
 - **1:1 endpoint mirroring**: API endpoints are designed for programmatic consumers. LLM tools should be designed for workflows — what an agent is *trying to accomplish*, not what HTTP calls happen under the hood.
 
 ### 4. Design Tools
@@ -205,6 +208,34 @@ output: z.object({
 - **Truncate large output with counts.** When a list exceeds a reasonable display size, show the top N and append "...and X more". Don't silently drop results.
 - **`format()` is the model-facing output — make it content-complete.** MCP `content[]` (populated by `format()`) is the only field most LLM clients forward to the model. `structuredContent` (from `output`) is for programmatic/machine use and is not reliably shown to the LLM. A thin `format()` that returns only a count or title leaves the model blind to the actual data. Render all fields the LLM needs to reason about or act on the result. Use structured markdown (headers, bold labels, lists) for readability.
 
+#### Batch input design
+
+Some tools naturally operate on multiple items — fetching several entities, updating a set of records, running checks across a list. Decide during design whether a tool accepts single items, arrays, or both.
+
+**When to accept array input:**
+
+| Accept array | Keep single-item | Separate batch tool |
+|:-------------|:-----------------|:--------------------|
+| The upstream API supports batch requests (fetch-by-IDs, bulk update) | The operation is inherently single-target (read a file, run a query) | Batch has fundamentally different output shape or error semantics |
+| Reduces N+1 round trips for a common workflow | Array input adds complexity with no backend efficiency gain | Single-item tool is simple; batch version needs progress, partial failure handling |
+| Agent commonly needs multiple items in one step | The tool already returns a collection (search results) | |
+
+**If a tool accepts arrays, design for partial success.** When 3 of 5 items succeed, the agent needs to know which succeeded, which failed, and why — not just a success/failure boolean. Plan the output schema to report per-item results:
+
+```ts
+output: z.object({
+  succeeded: z.array(ItemResultSchema).describe('Items that completed successfully.'),
+  failed: z.array(z.object({
+    id: z.string().describe('Item ID that failed.'),
+    error: z.string().describe('What went wrong and how to resolve it.'),
+  })).describe('Items that failed with per-item error details.'),
+}),
+```
+
+Single-item tools don't need this — they either succeed or throw. The partial success question only arises when the tool can partially complete.
+
+**Telemetry:** The framework automatically detects partial success — when a handler returns a result with a non-empty `failed` array, the span gets `mcp.tool.partial_success`, `mcp.tool.batch.succeeded_count`, and `mcp.tool.batch.failed_count` attributes. No manual instrumentation needed.
+
 #### Convenience shortcuts for complex inputs
 
 When a tool wraps a complex query language or filter system, provide a simple shortcut parameter for the 80% case alongside the full-power escape hatch. This keeps simple queries simple while preserving full expressiveness.
@@ -221,12 +252,26 @@ query: z.record(z.unknown()).optional()
 
 The pattern: name the shortcut for what it does (`text_search`, `name_search`), document what it expands to, and point to the full parameter for advanced use. Validate that at least one of the two is provided.
 
-#### Error messages as LLM guidance
+#### Error design
 
-When a tool throws, the error message is the agent's only signal for recovery. A good error message tells the LLM *what happened and what to do next*.
+Errors are part of the tool's interface — design them during the design phase, not as an afterthought. Two aspects: **classification** (what error code) and **messaging** (what the LLM reads).
+
+**Classify errors by origin.** Different error sources need different codes and different recovery guidance. Map the failure modes for each tool during design:
+
+| Origin | Examples | Error code | Agent can recover? |
+|:-------|:---------|:-----------|:-------------------|
+| **Client input** | Bad ID format, invalid params, missing required field, out-of-range value | `InvalidParams` | Yes — fix the input and retry |
+| **Upstream API** | 5xx, rate limit (429), timeout, network error | `ServiceUnavailable` | Maybe — retry later, or the upstream is down |
+| **Not found** | Valid ID format but entity doesn't exist | `NotFound` (or `InvalidParams` if ambiguous) | Yes — check the ID, try a search |
+| **Auth/permissions** | Insufficient scopes, expired token | `Forbidden` / `Unauthorized` | Maybe — escalate or re-auth |
+| **Server internal** | Parse failure, missing config, unexpected state | `InternalError` | No — server-side issue |
+
+The framework auto-classifies many of these at runtime (HTTP status codes, JS error types, common patterns), but explicit classification in the handler gives better error messages. Use error factories (`notFound()`, `validationError()`, etc.) when you want a specific code; plain `throw new Error()` when the framework's auto-classification is good enough.
+
+**Write error messages as recovery instructions.** The message is the agent's only signal for what to do next.
 
 ```ts
-// Bad — the LLM has no recovery path
+// Bad — dead end, no recovery path
 throw new Error('Not found');
 
 // Good — names both resolution options
@@ -237,9 +282,12 @@ throw new McpError(JsonRpcErrorCode.Forbidden,
   "Cannot perform 'reset --hard' on protected branch 'main' without explicit confirmation.",
   { branch: 'main', operation: 'reset --hard', hint: 'Set the confirmed parameter to true to proceed.' },
 );
+
+// Good — upstream error with actionable context
+throw notFound(`Paper '${id}' not found on arXiv. Verify the ID format (e.g., '2401.12345' or '2401.12345v2').`);
 ```
 
-Think about the common failure modes for each tool and write error messages that guide recovery. This is part of the tool's interface design, not an afterthought.
+**During design, list the expected failure modes for each tool.** Not every mode needs a custom message, but the common ones should have clear recovery guidance baked in. Include these in the tool's section of the design doc — they inform both the handler implementation and the error factory choices.
 
 #### Design table
 
@@ -258,6 +306,8 @@ Summarize each tool:
 
 ### 5. Design Resources
 
+Resources are supplementary — a convenience for clients that support injectable context via stable URIs. Since many clients are tool-only, verify that any data exposed via resources is also reachable through the tool surface. This doesn't require a 1:1 resource-to-tool mapping — the data might be covered by an existing tool's output, bundled into a broader tool, or warrant its own dedicated tool, depending on the server's purpose and how agents will use it.
+
 For each resource:
 
 | Aspect | Decision |
@@ -266,6 +316,7 @@ For each resource:
 | **Params** | Minimal — typically just an identifier. Complex queries belong in tools. |
 | **Pagination** | Needed if lists exceed ~50 items. Opaque cursors via `extractCursor`/`paginateArray`. |
 | **list()** | Provide if discoverable. Top-level categories or recent items, not exhaustive dumps. |
+| **Tool coverage** | Verify the data is reachable via tools — either a dedicated tool, included in another tool's output, or not needed for tool-only agents. |
 
 ### 6. Design Prompts (if needed)
 
@@ -386,6 +437,7 @@ Execute the plan using the scaffolding skills:
 - [ ] `format()` renders all data the LLM needs — `content[]` is the only field most clients forward to the model (not just a count or title)
 - [ ] Error messages guide recovery — name what went wrong and what to do next
 - [ ] Annotations set correctly (`readOnlyHint`, `destructiveHint`, etc.)
+- [ ] Tool surface is self-sufficient — a tool-only agent can accomplish everything the server is for
 - [ ] Resource URIs use `{param}` templates, pagination planned for large lists
 - [ ] Service layer planned (or explicitly skipped with reasoning)
 - [ ] Resilience planned for external API services (retry boundary, backoff, parse classification)

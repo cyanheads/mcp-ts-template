@@ -4,7 +4,7 @@ description: >
   Scaffold a new MCP tool definition. Use when the user asks to add a tool, create a new tool, or implement a new capability for the server.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.1"
   audience: external
   type: reference
 ---
@@ -126,17 +126,40 @@ output: z.object({
 }),
 ```
 
-### Partial success is not silent success
+### Batch input and partial success
 
-When an operation affects multiple items and some fail, report both. Don't silently return the successes and swallow the failures.
+When a tool accepts an array of items, some may succeed while others fail. Report both — don't silently return successes and swallow failures.
 
 ```typescript
-return {
-  updated: successfulIds,
-  failed: failedItems.map(f => ({ id: f.id, reason: f.error.message })),
-  message: `Updated ${successfulIds.length} of ${total}. ${failedItems.length} failed.`,
-};
+// Output schema — design for per-item results
+output: z.object({
+  succeeded: z.array(ItemResultSchema).describe('Items that completed successfully.'),
+  failed: z.array(z.object({
+    id: z.string().describe('Item ID that failed.'),
+    error: z.string().describe('What went wrong and how to resolve it.'),
+  })).describe('Items that failed with per-item error details.'),
+}),
+
+// Handler — collect results, don't throw on individual failures
+async handler(input, ctx) {
+  const succeeded: ItemResult[] = [];
+  const failed: { id: string; error: string }[] = [];
+
+  for (const id of input.ids) {
+    try {
+      succeeded.push(await processItem(id));
+    } catch (err) {
+      failed.push({ id, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  return { succeeded, failed };
+},
 ```
+
+Single-item tools don't need this — they either succeed or throw. The partial success question only arises with array inputs.
+
+**Telemetry:** The framework automatically detects this pattern — when a handler result contains a non-empty `failed` array, the span gets `mcp.tool.partial_success`, `mcp.tool.batch.succeeded_count`, and `mcp.tool.batch.failed_count` attributes. No manual instrumentation needed.
 
 ### Empty results need context
 
@@ -154,25 +177,34 @@ if (results.length === 0) {
 }
 ```
 
-### Error messages are recovery instructions
+### Error classification and messaging
 
-When a tool throws, the error message is the agent's only signal for what to do next. Name what went wrong, why, and what action to take.
+The framework auto-classifies many errors at runtime (HTTP status codes, JS error types, common patterns). Use explicit error factories when you want a specific code and clear recovery guidance; plain `throw new Error()` when auto-classification is sufficient.
+
+**Classify by origin** — different sources need different codes:
 
 ```typescript
-// Bad — dead end
-throw new Error('Not found');
+// Client input error — agent can fix and retry
+import { validationError, notFound } from '@cyanheads/mcp-ts-core/errors';
+throw validationError(`Invalid date format: "${input.date}". Expected YYYY-MM-DD.`);
 
-// Good — names resolution options
-throw new Error(
+// Not found — valid input but entity doesn't exist
+throw notFound(
   `Project "${input.slug}" not found. Check the slug or use project_list to see available projects.`
 );
 
-// Good — structured hint for programmatic recovery
+// Upstream API — transient, may resolve on retry
+import { serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
+throw serviceUnavailable(`arXiv API returned HTTP ${status}. Retry in a few seconds.`);
+
+// Structured hint for programmatic recovery
 throw new McpError(JsonRpcErrorCode.InvalidParams,
   `Date range exceeds 90-day API limit. Narrow the range or split into multiple queries.`,
   { maxDays: 90, requestedDays: daysBetween },
 );
 ```
+
+**Error messages are recovery instructions.** Name what went wrong, why, and what action to take. The message is the agent's only signal — a bare "Not found" is a dead end.
 
 ### Include operational metadata
 

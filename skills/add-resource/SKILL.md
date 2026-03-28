@@ -4,7 +4,7 @@ description: >
   Scaffold a new MCP resource definition. Use when the user asks to add a resource, expose data via URI, or create a readable endpoint.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.1"
   audience: external
   type: reference
 ---
@@ -12,6 +12,8 @@ metadata:
 ## Context
 
 Resources use the `resource()` builder from `@cyanheads/mcp-ts-core`. Each resource lives in `src/mcp-server/resources/definitions/` with a `.resource.ts` suffix and is registered in the barrel `index.ts`.
+
+**Tool coverage.** Not all MCP clients expose resources — many are tool-only (Claude Code, Cursor, most chat UIs). Before adding a resource, verify the same data is reachable via the tool surface — either through a dedicated tool, included in another tool's output, or bundled into a broader tool. A resource whose data has no tool path is invisible to a large share of agents.
 
 For the full `resource()` API, pagination utilities, and `Context` interface, read:
 
@@ -108,6 +110,7 @@ export const allResourceDefinitions = [
 - [ ] All Zod `params` fields have `.describe()` annotations
 - [ ] JSDoc `@fileoverview` and `@module` header present
 - [ ] `handler(params, ctx)` is pure — throws on failure, no try/catch
+- [ ] Data is reachable via the tool surface (dedicated tool, another tool's output, or not needed for tool-only agents)
 - [ ] `list()` function provided if the resource is discoverable
 - [ ] Pagination used for large result sets (`extractCursor`/`paginateArray`)
 - [ ] Registered in `definitions/index.ts` barrel and `allResourceDefinitions`

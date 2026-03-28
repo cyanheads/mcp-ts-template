@@ -165,6 +165,8 @@ Both functions throw `McpError(InternalError)` only on unexpected heuristic fail
 
 ### `telemetry/attributes`
 
-MCP-specific `ATTR_*` constant exports for span and metric attributes. Covers: code execution (`code.function.name`, `code.namespace`), MCP tool execution (name, input/output bytes, duration, success, error code), MCP resource (URI, MIME type, size, duration, success, error code), MCP request context (tenant ID, client ID), MCP session events, MCP storage, GenAI semantic conventions, speech, graph, auth, task, and error classification attributes.
+MCP-specific `ATTR_*` constant exports for span and metric attributes. Covers: code execution (`code.function.name`, `code.namespace`), MCP tool execution (name, input/output bytes, duration, success, error code, error category, partial success, batch succeeded/failed counts), MCP resource (URI, name, MIME type, size, duration, success, error code), MCP request context (tenant ID, client ID), MCP session events, MCP storage, GenAI semantic conventions, speech, graph, auth, task, and error classification attributes.
+
+Batch/partial success attributes (`mcp.tool.partial_success`, `mcp.tool.batch.succeeded_count`, `mcp.tool.batch.failed_count`) are set automatically by the framework when a tool handler returns a result containing a non-empty `failed` array — matching the batch response pattern from the design skill.
 
 Standard OTel semantic conventions (HTTP, cloud, service, network, etc.) are NOT re-exported — import those directly from `@opentelemetry/semantic-conventions` if needed.
