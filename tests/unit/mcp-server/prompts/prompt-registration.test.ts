@@ -44,6 +44,7 @@ describe('PromptRegistry', () => {
   beforeEach(() => {
     mockServer = {
       registerPrompt: vi.fn(() => {}),
+      setPromptRequestHandlers: vi.fn(),
     };
     registry = new PromptRegistry(testDefinitions, logger);
   });

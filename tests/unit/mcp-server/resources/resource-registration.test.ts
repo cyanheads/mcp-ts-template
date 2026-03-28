@@ -73,6 +73,9 @@ describe('ResourceRegistry', () => {
     vi.clearAllMocks();
     mockServer = {
       resource: vi.fn(() => {}),
+      setResourceRequestHandlers: vi.fn(),
+      sendResourceListChanged: vi.fn(),
+      server: { sendResourceUpdated: vi.fn() },
     };
   });
 
