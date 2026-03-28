@@ -47,6 +47,15 @@ export const ATTR_MCP_TOOL_ERROR_CODE = 'mcp.tool.error_code';
 /** Broad error category: 'upstream' (external API), 'server' (internal bug), or 'client' (bad input). */
 export const ATTR_MCP_TOOL_ERROR_CATEGORY = 'mcp.tool.error_category';
 
+/** Whether the tool returned a result containing partial failures (non-empty `failed` array). */
+export const ATTR_MCP_TOOL_PARTIAL_SUCCESS = 'mcp.tool.partial_success';
+
+/** Number of items in the `succeeded` array of a batch tool result. */
+export const ATTR_MCP_TOOL_BATCH_SUCCEEDED = 'mcp.tool.batch.succeeded_count';
+
+/** Number of items in the `failed` array of a batch tool result. */
+export const ATTR_MCP_TOOL_BATCH_FAILED = 'mcp.tool.batch.failed_count';
+
 // ============================================================================
 // MCP Resource Attributes
 // ============================================================================

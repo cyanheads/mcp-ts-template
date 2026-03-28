@@ -209,6 +209,84 @@ describe('measureToolExecution', () => {
     expect((logMeta as any).metrics.outputBytes).toBe(0);
   });
 
+  it('detects partial success when result contains a non-empty failed array', async () => {
+    const result = await measureToolExecution(
+      async () => ({
+        succeeded: [{ id: '1' }, { id: '2' }],
+        failed: [{ id: '3', error: 'not found' }],
+      }),
+      { toolName: 'batch-tool', requestId: 'req-ps1', timestamp: new Date().toISOString() },
+      { ids: ['1', '2', '3'] },
+    );
+
+    expect(result.succeeded).toHaveLength(2);
+    expect(result.failed).toHaveLength(1);
+
+    // Span attributes
+    expect(span.setAttribute).toHaveBeenCalledWith('mcp.tool.partial_success', true);
+    expect(span.setAttribute).toHaveBeenCalledWith('mcp.tool.batch.failed_count', 1);
+    expect(span.setAttribute).toHaveBeenCalledWith('mcp.tool.batch.succeeded_count', 2);
+
+    // Still treated as success at the call level
+    expect(span.setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.OK });
+    expect(span.setAttributes).toHaveBeenCalledWith(
+      expect.objectContaining({ 'mcp.tool.success': true }),
+    );
+
+    // Structured log includes partial success fields
+    const call = infoSpy.mock.calls[0];
+    if (!call) throw new Error('infoSpy was not called');
+    const [, logMeta] = call;
+    expect((logMeta as any).metrics.partialSuccess).toBe(true);
+    expect((logMeta as any).metrics.batchSucceeded).toBe(2);
+    expect((logMeta as any).metrics.batchFailed).toBe(1);
+  });
+
+  it('does not set partial success when failed array is empty', async () => {
+    await measureToolExecution(
+      async () => ({ succeeded: [{ id: '1' }], failed: [] }),
+      { toolName: 'batch-ok', requestId: 'req-ps2', timestamp: new Date().toISOString() },
+      { ids: ['1'] },
+    );
+
+    expect(span.setAttribute).not.toHaveBeenCalledWith(
+      'mcp.tool.partial_success',
+      expect.anything(),
+    );
+    const call = infoSpy.mock.calls[0];
+    if (!call) throw new Error('infoSpy was not called');
+    const [, logMeta] = call;
+    expect((logMeta as any).metrics.partialSuccess).toBeUndefined();
+  });
+
+  it('handles partial success without a succeeded array', async () => {
+    await measureToolExecution(
+      async () => ({ failed: [{ id: '1', error: 'bad' }] }),
+      { toolName: 'no-succeeded', requestId: 'req-ps3', timestamp: new Date().toISOString() },
+      { ids: ['1'] },
+    );
+
+    expect(span.setAttribute).toHaveBeenCalledWith('mcp.tool.partial_success', true);
+    expect(span.setAttribute).toHaveBeenCalledWith('mcp.tool.batch.failed_count', 1);
+    expect(span.setAttribute).not.toHaveBeenCalledWith(
+      'mcp.tool.batch.succeeded_count',
+      expect.anything(),
+    );
+  });
+
+  it('does not detect partial success on non-object results', async () => {
+    await measureToolExecution(
+      async () => 'plain string',
+      { toolName: 'string-tool', requestId: 'req-ps4', timestamp: new Date().toISOString() },
+      {},
+    );
+
+    expect(span.setAttribute).not.toHaveBeenCalledWith(
+      'mcp.tool.partial_success',
+      expect.anything(),
+    );
+  });
+
   it('uses TextEncoder fallback when Buffer is unavailable but TextEncoder exists', async () => {
     const mutableGlobal = globalThis as {
       Buffer?: typeof Buffer;

@@ -41,6 +41,22 @@ describe('MCP OpenTelemetry Attribute Keys', () => {
     test('should export MCP tool error code attribute', () => {
       expect(attributes.ATTR_MCP_TOOL_ERROR_CODE).toBe('mcp.tool.error_code');
     });
+
+    test('should export MCP tool error category attribute', () => {
+      expect(attributes.ATTR_MCP_TOOL_ERROR_CATEGORY).toBe('mcp.tool.error_category');
+    });
+
+    test('should export MCP tool partial success attribute', () => {
+      expect(attributes.ATTR_MCP_TOOL_PARTIAL_SUCCESS).toBe('mcp.tool.partial_success');
+    });
+
+    test('should export MCP tool batch succeeded count attribute', () => {
+      expect(attributes.ATTR_MCP_TOOL_BATCH_SUCCEEDED).toBe('mcp.tool.batch.succeeded_count');
+    });
+
+    test('should export MCP tool batch failed count attribute', () => {
+      expect(attributes.ATTR_MCP_TOOL_BATCH_FAILED).toBe('mcp.tool.batch.failed_count');
+    });
   });
 
   describe('MCP Resource Attributes', () => {

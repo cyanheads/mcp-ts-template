@@ -24,12 +24,15 @@ import {
   ATTR_MCP_RESOURCE_SIZE_BYTES,
   ATTR_MCP_RESOURCE_SUCCESS,
   ATTR_MCP_RESOURCE_URI,
+  ATTR_MCP_TOOL_BATCH_FAILED,
+  ATTR_MCP_TOOL_BATCH_SUCCEEDED,
   ATTR_MCP_TOOL_DURATION_MS,
   ATTR_MCP_TOOL_ERROR_CATEGORY,
   ATTR_MCP_TOOL_ERROR_CODE,
   ATTR_MCP_TOOL_INPUT_BYTES,
   ATTR_MCP_TOOL_NAME,
   ATTR_MCP_TOOL_OUTPUT_BYTES,
+  ATTR_MCP_TOOL_PARTIAL_SUCCESS,
   ATTR_MCP_TOOL_SUCCESS,
 } from '@/utils/telemetry/attributes.js';
 import { createCounter, createHistogram, createUpDownCounter } from '@/utils/telemetry/metrics.js';
@@ -280,13 +283,34 @@ export async function measureToolExecution<T>(
     let errorCode: string | undefined;
     let errorCategory: ErrorCategory | undefined;
     let outputBytes = 0;
+    let partialSuccess = false;
+    let batchSucceeded: number | undefined;
+    let batchFailed: number | undefined;
 
     try {
       const result = await toolLogicFn();
       ok = true;
       outputBytes = toBytes(result);
+
+      // Detect partial success: handler returned but result contains a non-empty `failed` array.
+      // Convention-based — matches the batch response pattern recommended by the design skill.
+      if (result != null && typeof result === 'object' && !Array.isArray(result)) {
+        const obj = result as Record<string, unknown>;
+        if (Array.isArray(obj.failed) && obj.failed.length > 0) {
+          partialSuccess = true;
+          batchFailed = obj.failed.length;
+          if (Array.isArray(obj.succeeded)) batchSucceeded = obj.succeeded.length;
+        }
+      }
+
       span.setStatus({ code: SpanStatusCode.OK });
       span.setAttribute(ATTR_MCP_TOOL_OUTPUT_BYTES, outputBytes);
+      if (partialSuccess) {
+        span.setAttribute(ATTR_MCP_TOOL_PARTIAL_SUCCESS, true);
+        if (batchFailed !== undefined) span.setAttribute(ATTR_MCP_TOOL_BATCH_FAILED, batchFailed);
+        if (batchSucceeded !== undefined)
+          span.setAttribute(ATTR_MCP_TOOL_BATCH_SUCCEEDED, batchSucceeded);
+      }
       return result;
     } catch (err) {
       if (err instanceof McpError) {
@@ -345,6 +369,7 @@ export async function measureToolExecution<T>(
           errorCode,
           inputBytes,
           outputBytes,
+          ...(partialSuccess && { partialSuccess, batchSucceeded, batchFailed }),
         },
       });
     }
