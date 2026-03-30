@@ -12,7 +12,6 @@ import type { Request, RequestId, Result } from '@modelcontextprotocol/sdk/types
 
 import { forbidden } from '@/types-global/errors.js';
 import type { CreateTaskOptions, Task, TaskStore } from './taskTypes.js';
-import { isTerminal } from './taskTypes.js';
 
 /**
  * Wraps an InMemoryTaskStore to add session ownership enforcement.
@@ -55,8 +54,6 @@ export class SessionAwareTaskStore implements TaskStore {
   ): Promise<void> {
     this.assertOwnership(taskId, sessionId);
     await this.inner.storeTaskResult(taskId, status, result, sessionId);
-    // Both 'completed' and 'failed' are terminal — clean up ownership
-    this.ownership.delete(taskId);
   }
 
   async getTaskResult(taskId: string, sessionId?: string): Promise<Result> {
@@ -72,10 +69,6 @@ export class SessionAwareTaskStore implements TaskStore {
   ): Promise<void> {
     this.assertOwnership(taskId, sessionId);
     await this.inner.updateTaskStatus(taskId, status, statusMessage, sessionId);
-    // Clean up ownership tracking when task reaches terminal state
-    if (isTerminal(status)) {
-      this.ownership.delete(taskId);
-    }
   }
 
   async listTasks(
@@ -83,13 +76,16 @@ export class SessionAwareTaskStore implements TaskStore {
     sessionId?: string,
   ): Promise<{ tasks: Task[]; nextCursor?: string }> {
     const result = await this.inner.listTasks(cursor, sessionId);
-    if (!sessionId) return result;
-    // Filter to only tasks owned by this session (or unowned tasks)
+    // Filter: session-bound tasks are only visible to their owning session.
+    // Sessionless callers see only unowned tasks (consistent with StorageBackedTaskStore).
     const filtered = result.tasks.filter((task) => {
       const owner = this.ownership.get(task.taskId);
-      return !owner || owner === sessionId;
+      if (!owner) return true; // Unowned — visible to everyone
+      return owner === sessionId; // Session-bound — visible only to owner
     });
-    return { tasks: filtered, ...(result.nextCursor ? { nextCursor: result.nextCursor } : {}) };
+    const out: { tasks: Task[]; nextCursor?: string } = { tasks: filtered };
+    if (result.nextCursor) out.nextCursor = result.nextCursor;
+    return out;
   }
 
   /**

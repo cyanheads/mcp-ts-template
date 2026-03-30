@@ -302,10 +302,10 @@ function createContextState(
     async list(prefix, opts) {
       signal.throwIfAborted();
       const ctx = requireContext();
-      const result = await storage.list(prefix ?? '', ctx, {
-        ...(opts?.cursor ? { cursor: opts.cursor } : {}),
-        ...(opts?.limit !== undefined ? { limit: opts.limit } : {}),
-      });
+      const listOpts: { cursor?: string; limit?: number } = {};
+      if (opts?.cursor) listOpts.cursor = opts.cursor;
+      if (opts?.limit !== undefined) listOpts.limit = opts.limit;
+      const result = await storage.list(prefix ?? '', ctx, listOpts);
 
       const keys = result.keys;
       const items: Array<{ key: string; value: unknown }> = [];
@@ -327,10 +327,9 @@ function createContextState(
         }
       }
 
-      return {
-        items,
-        ...(result.nextCursor ? { cursor: result.nextCursor } : {}),
-      };
+      const out: { items: Array<{ key: string; value: unknown }>; cursor?: string } = { items };
+      if (result.nextCursor) out.cursor = result.nextCursor;
+      return out;
     },
   };
 }
