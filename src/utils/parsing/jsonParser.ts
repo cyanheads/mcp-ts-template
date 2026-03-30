@@ -4,20 +4,16 @@
  * optional <think>...</think> blocks often found at the beginning of LLM outputs.
  * @module src/utils/parsing/jsonParser
  */
-import { configurationError, validationError } from '@/types-global/errors.js';
+import { validationError } from '@/types-global/errors.js';
+import { lazyImport } from '@/utils/internal/lazyImport.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { thinkBlockRegex } from './thinkBlock.js';
 
-let _partialJson: typeof import('partial-json') | undefined;
-async function getPartialJson() {
-  _partialJson ??= await import('partial-json').catch(() => {
-    throw configurationError(
-      'Install "partial-json" to use partial JSON parsing: bun add partial-json',
-    );
-  });
-  return _partialJson;
-}
+const getPartialJson = lazyImport(
+  () => import('partial-json'),
+  'Install "partial-json" to use partial JSON parsing: bun add partial-json',
+);
 
 /**
  * Bit flags specifying which partial JSON types are permissible during parsing.

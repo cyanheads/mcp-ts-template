@@ -18,6 +18,7 @@ import type { config as ConfigType } from '@/config/index.js';
 import type { ILlmProvider, OpenRouterChatParams } from '@/services/llm/core/ILlmProvider.js';
 import { configurationError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { lazyImport } from '@/utils/internal/lazyImport.js';
 import type { logger as LoggerType } from '@/utils/internal/logger.js';
 import { nowMs } from '@/utils/internal/performance.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
@@ -39,11 +40,10 @@ import {
 import { createCounter, createHistogram } from '@/utils/telemetry/metrics.js';
 import { withSpan } from '@/utils/telemetry/trace.js';
 
-/**
- * Module-level cache for the lazily-imported `openai` package. Undefined until the
- * first call to `getOpenAI()`. Retained across calls to avoid repeated dynamic imports.
- */
-let _openai: typeof import('openai') | undefined;
+const importOpenAI = lazyImport(
+  () => import('openai'),
+  'Install "openai" to use the OpenRouter LLM provider: bun add openai',
+);
 
 /**
  * Lazily imports and returns the `OpenAI` default export from the `openai` package.
@@ -54,10 +54,8 @@ let _openai: typeof import('openai') | undefined;
  * @throws {McpError} `ConfigurationError` if the `openai` package is not installed.
  */
 async function getOpenAI() {
-  _openai ??= await import('openai').catch(() => {
-    throw configurationError('Install "openai" to use the OpenRouter LLM provider: bun add openai');
-  });
-  return _openai.default;
+  const mod = await importOpenAI();
+  return mod.default;
 }
 
 /**
@@ -359,12 +357,15 @@ export class OpenRouterProvider implements ILlmProvider {
     const operation = 'OpenRouterProvider.chatCompletion';
     const sanitizedParams = sanitization.sanitizeForLogging(params);
 
+    // Resolve client outside tryCatch — ConfigurationError from a missing peer
+    // dep is a static condition and must not inflate mcp.errors.classified.
+    const client = await this.ensureClient();
+
     return await ErrorHandler.tryCatch(
       async () => {
         const rateLimitKey = context.auth?.clientId ?? context.tenantId ?? 'openrouter_global';
         this.rateLimiter.check(rateLimitKey, context);
         const finalApiParams = this._prepareApiParameters(params) as OpenRouterChatParams;
-        const client = await this.ensureClient();
 
         return await withSpan(
           'gen_ai.chat_completion',

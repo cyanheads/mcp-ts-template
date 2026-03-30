@@ -7,21 +7,14 @@
  * @module src/utils/formatting/diffFormatter
  */
 
-import {
-  configurationError,
-  JsonRpcErrorCode,
-  McpError,
-  validationError,
-} from '@/types-global/errors.js';
+import { JsonRpcErrorCode, McpError, validationError } from '@/types-global/errors.js';
+import { lazyImport } from '@/utils/internal/lazyImport.js';
 import { logger } from '@/utils/internal/logger.js';
 
-let _diff: typeof import('diff') | undefined;
-async function getDiff() {
-  _diff ??= await import('diff').catch(() => {
-    throw configurationError('Install "diff" to use diff formatting: bun add diff');
-  });
-  return _diff;
-}
+const getDiff = lazyImport(
+  () => import('diff'),
+  'Install "diff" to use diff formatting: bun add diff',
+);
 
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 

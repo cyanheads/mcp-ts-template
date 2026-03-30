@@ -5,18 +5,16 @@
  */
 import type * as chrono from 'chrono-node';
 
-import { configurationError, JsonRpcErrorCode } from '@/types-global/errors.js';
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { lazyImport } from '@/utils/internal/lazyImport.js';
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 
-let _chrono: typeof import('chrono-node') | undefined;
-async function getChrono() {
-  _chrono ??= await import('chrono-node').catch(() => {
-    throw configurationError('Install "chrono-node" to use date parsing: bun add chrono-node');
-  });
-  return _chrono;
-}
+const getChrono = lazyImport(
+  () => import('chrono-node'),
+  'Install "chrono-node" to use date parsing: bun add chrono-node',
+);
 
 /**
  * Parses a natural language date string into a JavaScript `Date` object.
@@ -40,13 +38,17 @@ export async function parseDateString(
   context: RequestContext,
   refDate?: Date,
 ): Promise<Date | null> {
+  // Resolve dependency outside ErrorHandler.tryCatch — a missing peer dep is a
+  // static configuration issue, not an operational error, and must not inflate
+  // the mcp.errors.classified counter on every call.
+  const chronoMod = await getChrono();
+
   const operation = 'parseDateString';
   const logContext = { ...context, operation, inputText: text, refDate };
   logger.debug(`Attempting to parse date string: "${text}"`, logContext);
 
   return await ErrorHandler.tryCatch(
-    async () => {
-      const chronoMod = await getChrono();
+    () => {
       const parsedDate = chronoMod.parseDate(text, refDate, { forwardDate: true });
       if (parsedDate) {
         logger.debug(`Successfully parsed "${text}" to ${parsedDate.toISOString()}`, logContext);
@@ -92,13 +94,14 @@ export async function parseDateStringDetailed(
   context: RequestContext,
   refDate?: Date,
 ): Promise<chrono.ParsedResult[]> {
+  const chronoMod = await getChrono();
+
   const operation = 'parseDateStringDetailed';
   const logContext = { ...context, operation, inputText: text, refDate };
   logger.debug(`Attempting detailed parse of date string: "${text}"`, logContext);
 
   return await ErrorHandler.tryCatch(
-    async () => {
-      const chronoMod = await getChrono();
+    () => {
       const results = chronoMod.parse(text, refDate, { forwardDate: true });
       logger.debug(
         `Detailed parse of "${text}" resulted in ${results.length} result(s)`,

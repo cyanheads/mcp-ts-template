@@ -7,18 +7,16 @@
  * Peer dependency: `js-yaml` — install with `bun add js-yaml`.
  * @module src/utils/parsing/yamlParser
  */
-import { configurationError, validationError } from '@/types-global/errors.js';
+import { validationError } from '@/types-global/errors.js';
+import { lazyImport } from '@/utils/internal/lazyImport.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { thinkBlockRegex } from './thinkBlock.js';
 
-let _yaml: typeof import('js-yaml') | undefined;
-async function getYaml() {
-  _yaml ??= await import('js-yaml').catch(() => {
-    throw configurationError('Install "js-yaml" to use YAML parsing: bun add js-yaml');
-  });
-  return _yaml;
-}
+const getYaml = lazyImport(
+  () => import('js-yaml'),
+  'Install "js-yaml" to use YAML parsing: bun add js-yaml',
+);
 
 /**
  * Utility class for parsing YAML strings.

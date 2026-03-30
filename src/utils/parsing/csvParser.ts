@@ -9,17 +9,21 @@
  */
 import type Papa from 'papaparse';
 
-import { configurationError, validationError } from '@/types-global/errors.js';
+import { validationError } from '@/types-global/errors.js';
+import { lazyImport } from '@/utils/internal/lazyImport.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 import { thinkBlockRegex } from './thinkBlock.js';
 
+const importPapa = lazyImport(
+  () => import('papaparse'),
+  'Install "papaparse" to use CSV parsing: bun add papaparse',
+);
+
 let _papa: typeof Papa | undefined;
 async function getPapa() {
   if (!_papa) {
-    const mod = await import('papaparse').catch(() => {
-      throw configurationError('Install "papaparse" to use CSV parsing: bun add papaparse');
-    });
+    const mod = await importPapa();
     // Handle CJS/ESM interop — papaparse uses `export =`
     _papa = ('default' in mod ? (mod.default as typeof Papa) : mod) as typeof Papa;
   }

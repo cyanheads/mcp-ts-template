@@ -6,30 +6,20 @@
  */
 import type { PDFDocument, PDFFont, PDFImage, PDFPage, RGB } from 'pdf-lib';
 
-import {
-  configurationError,
-  JsonRpcErrorCode,
-  McpError,
-  validationError,
-} from '@/types-global/errors.js';
+import { JsonRpcErrorCode, McpError, validationError } from '@/types-global/errors.js';
+import { lazyImport } from '@/utils/internal/lazyImport.js';
 import { logger } from '@/utils/internal/logger.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
-let _pdfLib: typeof import('pdf-lib') | undefined;
-async function getPdfLib() {
-  _pdfLib ??= await import('pdf-lib').catch(() => {
-    throw configurationError('Install "pdf-lib" to use PDF operations: bun add pdf-lib');
-  });
-  return _pdfLib;
-}
+const getPdfLib = lazyImport(
+  () => import('pdf-lib'),
+  'Install "pdf-lib" to use PDF operations: bun add pdf-lib',
+);
 
-let _unpdf: typeof import('unpdf') | undefined;
-async function getUnpdf() {
-  _unpdf ??= await import('unpdf').catch(() => {
-    throw configurationError('Install "unpdf" to use PDF text extraction: bun add unpdf');
-  });
-  return _unpdf;
-}
+const getUnpdf = lazyImport(
+  () => import('unpdf'),
+  'Install "unpdf" to use PDF text extraction: bun add unpdf',
+);
 
 /**
  * Options for adding a new page to a PDF document.
