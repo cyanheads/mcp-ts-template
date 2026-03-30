@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [Unreleased]
+
+Comprehensive test coverage expansion across core lifecycle, CLI, auth, tasks, and transport layers.
+
+### Tests
+
+- **`core/app`** — Composition root lifecycle: service composition, name/version overrides, Supabase storage init, signal handler registration, graceful shutdown, OTel init failure resilience, lint warning logging, process gauge callbacks, fatal handler backstops.
+- **`cli/init`** — Scaffold command: `--help` output, unknown subcommand rejection, invalid project name validation, named project scaffolding with templates/scripts/skills, current-directory init with skip-existing behavior.
+- **`tool-registration.lifecycle`** — Task and auto-task registration: resource notification binding, `_meta` forwarding, duplicate name rejection across regular/task tools, missing services guard, experimental task API registration, auth scope enforcement, default/custom formatters, completed/failed result storage, cancellation detection, TTL timeout, task-store polling failure handling.
+- **`heartbeat`** — Monitor start/stop, disabled no-op, failure counting with metric emission, recovery logging and counter reset, dead connection declaration after threshold, early-stop guard.
+- **`jwtStrategy.mocked`** — Non-Error verification failure normalization via mocked `jose`.
+- **`http-authz.e2e`** — End-to-end scoped tool authorization against a fixture server: scoped callers invoke both public and protected tools, missing scope returns MCP authz error.
+- **`prompt-registration`** — Duplicate prompt name rejection, generation failure wrapping as `McpError`.
+- **`authMiddleware.metrics`** — Active span identity attribute recording with tenant/subject fallbacks.
+- **`authUtils`** — Parent request context passthrough for scope checking.
+- **`jwtStrategy`** — Issuer and audience verification when configured, wrong audience rejection.
+- **`oauthStrategy`** — Error and non-Error JWKS init failure wrapping, `aud` claim fallback for resource validation, non-Error verification failure normalization.
+
+### Infrastructure
+
+- **`tests/fixtures/auth-scoped-server.js`** — Minimal HTTP fixture server with one public and one scoped tool for authz e2e tests.
+- **`tests/helpers/server-process.ts`** — `resolveEntrypoint()`, `assertServerEntrypoint()`, and `startServerFromEntrypoint()` for custom fixture server spawning.
+
+---
+
 ## [0.2.9] - 2026-03-29
 
 Cache negative lazy-import results for optional peer deps to prevent metric spam.
