@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.9] - 2026-03-29
+
+Cache negative lazy-import results for optional peer deps to prevent metric spam.
+
+### Fixed
+
+- **Lazy-import metric spam** — Optional peer dependency loaders (`chrono-node`, `diff`, `papaparse`, `partial-json`, `pdf-lib`, `unpdf`, `js-yaml`, `openai`) now cache negative import results via the new `lazyImport()` utility. Previously, every call to a function backed by a missing peer dep would re-attempt the dynamic `import()`, throw a `ConfigurationError` through `ErrorHandler.tryCatch`, and increment the `mcp.errors.classified` counter — producing unbounded metric spam for a static configuration issue. Now: first failure logs a warning once and caches the state; subsequent calls throw immediately without retry or counter increment. Closes #20.
+- **OpenRouter client init outside tryCatch** — Moved `ensureClient()` call in `chatCompletion()` outside the `ErrorHandler.tryCatch` boundary so a missing `openai` peer dep does not inflate the classified error counter on every LLM call.
+
+### Added
+
+- **`lazyImport()` utility** (`src/utils/internal/lazyImport.ts`) — Generic lazy-loader factory for optional peer dependencies that caches both success and failure. Logs a warning on first failure, throws `ConfigurationError` on all subsequent calls without re-importing or touching error metrics.
+
+### Tests
+
+- Unit tests for `lazyImport()` covering success caching, failure caching, single-warning behavior, and instance isolation.
+
+### Changed
+
+- `@cloudflare/workers-types` updated to `^4.20260329.1`.
+
+---
+
 ## [0.2.8] - 2026-03-28
 
 Heartbeat disabled by default — opt-in only.

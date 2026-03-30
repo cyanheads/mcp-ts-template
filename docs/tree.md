@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-28 15:31:36
+Generated on: 2026-03-30 06:54:06
 
 ```text
 mcp-ts-core/
@@ -271,6 +271,7 @@ mcp-ts-core/
 │   │   │   │   └── types.ts
 │   │   │   ├── encoding.ts
 │   │   │   ├── health.ts
+│   │   │   ├── lazyImport.ts
 │   │   │   ├── logger.ts
 │   │   │   ├── performance.ts
 │   │   │   ├── requestContext.ts
@@ -511,6 +512,7 @@ mcp-ts-core/
 │   │   │   │   ├── errorHandler.metrics.test.ts
 │   │   │   │   ├── errorHandler.unit.test.ts
 │   │   │   │   ├── health.test.ts
+│   │   │   │   ├── lazyImport.test.ts
 │   │   │   │   ├── logger.test.ts
 │   │   │   │   ├── performance.init.test.ts
 │   │   │   │   ├── performance.test.ts
