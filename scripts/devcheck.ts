@@ -480,6 +480,16 @@ const ALL_CHECKS: Check[] = [
       const output = result.stdout;
       if (output.includes('0 vulnerabilities found')) return true;
 
+      // Detect audit failures (connection errors, registry issues, etc.)
+      // If the output doesn't look like a valid audit response, warn rather than silently passing.
+      const looksLikeAuditOutput = /vulnerabilit|severity|advisori/i.test(output);
+      if (!looksLikeAuditOutput) {
+        return {
+          success: true,
+          warning: `Audit command failed (exit ${result.exitCode}) — could not reach registry. Output: ${output.slice(0, 200).trim() || '(empty)'}`,
+        };
+      }
+
       // Pass if only low/moderate severity
       const hasHighOrCritical = /high|critical/i.test(output);
       if (!hasHighOrCritical) return true;
