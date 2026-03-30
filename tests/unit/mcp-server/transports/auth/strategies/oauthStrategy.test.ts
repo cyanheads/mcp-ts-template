@@ -128,6 +128,44 @@ describe('OAuth Strategy', () => {
         }),
       );
     });
+
+    it('should wrap Error-based JWKS initialization failures as service unavailable', () => {
+      expect.assertions(1);
+      mockCreateRemoteJWKSet.mockImplementation(() => {
+        throw new Error('JWKS bootstrap failed');
+      });
+
+      try {
+        new OauthStrategy(mockConfig as any, logger);
+      } catch (error) {
+        expect(error).toMatchObject({
+          code: JsonRpcErrorCode.ServiceUnavailable,
+          message: 'Could not initialize JWKS client for OAuth strategy.',
+          data: expect.objectContaining({
+            originalError: 'JWKS bootstrap failed',
+          }),
+        });
+      }
+    });
+
+    it('should wrap non-Error JWKS initialization failures as service unavailable', () => {
+      expect.assertions(1);
+      mockCreateRemoteJWKSet.mockImplementation(() => {
+        throw 'jwks exploded';
+      });
+
+      try {
+        new OauthStrategy(mockConfig as any, logger);
+      } catch (error) {
+        expect(error).toMatchObject({
+          code: JsonRpcErrorCode.ServiceUnavailable,
+          message: 'Could not initialize JWKS client for OAuth strategy.',
+          data: expect.objectContaining({
+            originalError: 'Unknown',
+          }),
+        });
+      }
+    });
   });
 
   describe('verify', () => {
@@ -284,6 +322,24 @@ describe('OAuth Strategy', () => {
       expect(authInfo.clientId).toBe('test-client');
     });
 
+    it('should fall back to the aud claim for resource validation when resource is absent', async () => {
+      mockConfig.mcpServerResourceIdentifier = 'https://mcp.example.com';
+
+      mockJwtVerify.mockResolvedValue({
+        payload: {
+          client_id: 'test-client',
+          scope: 'read',
+          aud: 'https://mcp.example.com',
+        },
+        protectedHeader: { alg: 'RS256' },
+        key: {} as any,
+      } as any);
+
+      const authInfo = await strategy.verify('token');
+
+      expect(authInfo.clientId).toBe('test-client');
+    });
+
     it('should reject token with resource mismatch', async () => {
       mockConfig.mcpServerResourceIdentifier = 'https://mcp.example.com';
 
@@ -389,6 +445,15 @@ describe('OAuth Strategy', () => {
       mockJwtVerify.mockRejectedValue(customMcpError);
 
       await expect(strategy.verify('token')).rejects.toThrow(customMcpError);
+    });
+
+    it('should normalize non-Error verification failures', async () => {
+      mockJwtVerify.mockRejectedValue('oauth exploded');
+
+      await expect(strategy.verify('token')).rejects.toMatchObject({
+        code: JsonRpcErrorCode.Unauthorized,
+        message: 'OAuth token verification failed.',
+      });
     });
 
     it('should call jwtVerify with correct parameters', async () => {

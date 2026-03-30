@@ -16,6 +16,8 @@ const { mockConfig } = vi.hoisted(() => ({
     devMcpAuthBypass: false,
     devMcpClientId: undefined as string | undefined,
     devMcpScopes: undefined as string[] | undefined,
+    mcpJwtExpectedIssuer: undefined as string | undefined,
+    mcpJwtExpectedAudience: undefined as string | undefined,
   } as Record<string, unknown>,
 }));
 
@@ -36,6 +38,8 @@ describe('JwtStrategy', () => {
     mockConfig.devMcpAuthBypass = false;
     mockConfig.devMcpClientId = undefined;
     mockConfig.devMcpScopes = undefined;
+    mockConfig.mcpJwtExpectedIssuer = undefined;
+    mockConfig.mcpJwtExpectedAudience = undefined;
   });
 
   describe('constructor', () => {
@@ -238,6 +242,45 @@ describe('JwtStrategy', () => {
 
       await expect(strategy.verify(token)).rejects.toThrow(McpError);
       await expect(strategy.verify(token)).rejects.toThrow(/non-empty scopes/);
+    });
+
+    it('should verify issuer and audience when configured', async () => {
+      mockConfig.mcpJwtExpectedIssuer = 'https://issuer.example.com';
+      mockConfig.mcpJwtExpectedAudience = 'mcp-ts-core-tests';
+      strategy = new JwtStrategy(mockConfig as never, logger);
+
+      const token = await new SignJWT({
+        cid: 'test-client',
+        scp: ['tool:read'],
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuer('https://issuer.example.com')
+        .setAudience('mcp-ts-core-tests')
+        .setExpirationTime('1h')
+        .sign(testSecretBytes);
+
+      const authInfo = await strategy.verify(token);
+
+      expect(authInfo.clientId).toBe('test-client');
+      expect(authInfo.scopes).toEqual(['tool:read']);
+    });
+
+    it('should reject a token with the wrong configured audience', async () => {
+      mockConfig.mcpJwtExpectedIssuer = 'https://issuer.example.com';
+      mockConfig.mcpJwtExpectedAudience = 'mcp-ts-core-tests';
+      strategy = new JwtStrategy(mockConfig as never, logger);
+
+      const token = await new SignJWT({
+        cid: 'test-client',
+        scp: ['tool:read'],
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuer('https://issuer.example.com')
+        .setAudience('wrong-audience')
+        .setExpirationTime('1h')
+        .sign(testSecretBytes);
+
+      await expect(strategy.verify(token)).rejects.toThrow(McpError);
     });
 
     it('should populate expiresAt from the JWT exp claim', async () => {

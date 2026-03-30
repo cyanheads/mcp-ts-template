@@ -16,6 +16,10 @@ export interface ServerHandle {
 
 const DIST_INDEX = resolve(process.cwd(), 'dist/index.js');
 
+function resolveEntrypoint(entrypoint: string): string {
+  return entrypoint.startsWith('/') ? entrypoint : resolve(process.cwd(), entrypoint);
+}
+
 /**
  * Checks that the built server exists. Call before starting integration tests.
  */
@@ -25,6 +29,17 @@ export function assertServerBuilt(): void {
       `Built server not found at ${DIST_INDEX}. Run "bun run build" before integration tests.`,
     );
   }
+}
+
+/**
+ * Checks that a custom server entrypoint exists.
+ */
+export function assertServerEntrypoint(entrypoint: string): string {
+  const resolvedEntrypoint = resolveEntrypoint(entrypoint);
+  if (!existsSync(resolvedEntrypoint)) {
+    throw new Error(`Server entrypoint not found at ${resolvedEntrypoint}.`);
+  }
+  return resolvedEntrypoint;
 }
 
 /** Finds a free port by briefly binding to port 0 and releasing. */
@@ -53,10 +68,21 @@ export async function startServer(
   env?: Record<string, string>,
 ): Promise<ServerHandle> {
   assertServerBuilt();
+  return startServerFromEntrypoint(DIST_INDEX, transport, env);
+}
 
+/**
+ * Spawns a custom server entrypoint as a subprocess and waits for it to be ready.
+ */
+export async function startServerFromEntrypoint(
+  entrypoint: string,
+  transport: 'http' | 'stdio',
+  env?: Record<string, string>,
+): Promise<ServerHandle> {
+  const resolvedEntrypoint = assertServerEntrypoint(entrypoint);
   const port = transport === 'http' ? await getFreePort() : undefined;
 
-  const proc = spawn('node', [DIST_INDEX], {
+  const proc = spawn('node', [resolvedEntrypoint], {
     env: {
       ...process.env,
       MCP_TRANSPORT_TYPE: transport,

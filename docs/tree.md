@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-30 06:54:06
+Generated on: 2026-03-30 12:35:22
 
 ```text
 mcp-ts-core/
@@ -356,6 +356,8 @@ mcp-ts-core/
 ├── tests/
 │   ├── compliance/
 │   │   └── storage-provider.test.ts
+│   ├── fixtures/
+│   │   └── auth-scoped-server.js
 │   ├── fuzz/
 │   │   ├── definition-fuzz.test.ts
 │   │   ├── error-handler.fuzz.test.ts
@@ -370,7 +372,9 @@ mcp-ts-core/
 │   ├── integration/
 │   │   ├── config.int.test.ts
 │   │   ├── error-handler.int.test.ts
+│   │   ├── http-auth-sessions.test.ts
 │   │   ├── http-auth.test.ts
+│   │   ├── http-authz.e2e.test.ts
 │   │   ├── http-sessions.test.ts
 │   │   ├── http-transport.int.test.ts
 │   │   ├── http.test.ts
@@ -388,9 +392,12 @@ mcp-ts-core/
 │   │       ├── template-echo-message.tool.test.ts
 │   │       └── template-madlibs-elicitation.tool.test.ts
 │   ├── unit/
+│   │   ├── cli/
+│   │   │   └── init.test.ts
 │   │   ├── config/
 │   │   │   └── index.test.ts
 │   │   ├── core/
+│   │   │   └── app.test.ts
 │   │   ├── linter/
 │   │   │   └── validate.test.ts
 │   │   ├── mcp-server/
@@ -417,6 +424,7 @@ mcp-ts-core/
 │   │   │   │   ├── utils/
 │   │   │   │   │   ├── toolDefinition.test.ts
 │   │   │   │   │   └── toolHandlerFactory.test.ts
+│   │   │   │   ├── tool-registration.lifecycle.test.ts
 │   │   │   │   └── tool-registration.test.ts
 │   │   │   ├── transports/
 │   │   │   │   ├── auth/
@@ -428,6 +436,7 @@ mcp-ts-core/
 │   │   │   │   │   │   └── claimParser.test.ts
 │   │   │   │   │   ├── strategies/
 │   │   │   │   │   │   ├── authStrategy.test.ts
+│   │   │   │   │   │   ├── jwtStrategy.mocked.test.ts
 │   │   │   │   │   │   ├── jwtStrategy.test.ts
 │   │   │   │   │   │   └── oauthStrategy.test.ts
 │   │   │   │   │   ├── authFactory.test.ts
@@ -445,6 +454,7 @@ mcp-ts-core/
 │   │   │   │   │   └── sessionStore.test.ts
 │   │   │   │   ├── stdio/
 │   │   │   │   │   └── stdioTransport.test.ts
+│   │   │   │   ├── heartbeat.test.ts
 │   │   │   │   ├── ITransport.test.ts
 │   │   │   │   └── manager.test.ts
 │   │   │   └── server.test.ts

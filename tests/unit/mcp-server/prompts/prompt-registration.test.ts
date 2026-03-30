@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import { prompt } from '@/mcp-server/prompts/utils/promptDefinition.js';
+import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
 
 const testPrompt = prompt('test_prompt', {
@@ -100,6 +101,36 @@ describe('PromptRegistry', () => {
     it('should handle empty prompts list', async () => {
       const emptyRegistry = new PromptRegistry([], logger);
       await expect(emptyRegistry.registerAll(mockServer)).resolves.toBeUndefined();
+    });
+
+    it('should reject duplicate prompt names during registration', async () => {
+      const duplicateRegistry = new PromptRegistry([testPrompt, testPrompt], logger);
+
+      await expect(duplicateRegistry.registerAll(mockServer)).rejects.toThrow(
+        "Duplicate prompt name 'test_prompt'",
+      );
+    });
+
+    it('should wrap prompt generation failures as McpError instances', async () => {
+      const failingPrompt = prompt('failing_prompt', {
+        description: 'A prompt that throws during generation.',
+        generate: () => {
+          throw new Error('boom');
+        },
+      });
+      const failingRegistry = new PromptRegistry([failingPrompt], logger);
+
+      await failingRegistry.registerAll(mockServer);
+
+      const handler = mockServer.registerPrompt.mock.calls[0][2] as (
+        args: Record<string, unknown>,
+      ) => Promise<unknown>;
+
+      await expect(handler({})).rejects.toBeInstanceOf(McpError);
+      await expect(handler({})).rejects.toMatchObject({
+        code: JsonRpcErrorCode.InternalError,
+        message: 'Error in prompt:failing_prompt: boom',
+      });
     });
   });
 

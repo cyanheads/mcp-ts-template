@@ -52,6 +52,19 @@ describe('withRequiredScopes', () => {
       });
     });
 
+    it('passes when a parent request context is provided', () => {
+      mockConfig.mcpAuthMode = 'jwt';
+      const parentContext = {
+        operation: 'parentScopeCheck',
+        requestId: 'req-parent',
+        timestamp: '2026-03-30T00:00:00.000Z',
+      } as never;
+
+      authContext.run({ authInfo: createAuthInfo(['scope:read', 'scope:write']) }, () => {
+        expect(() => withRequiredScopes(['scope:read'], parentContext)).not.toThrow();
+      });
+    });
+
     it('throws Forbidden when a required scope is missing', () => {
       mockConfig.mcpAuthMode = 'jwt';
       authContext.run({ authInfo: createAuthInfo(['scope:read']) }, () => {

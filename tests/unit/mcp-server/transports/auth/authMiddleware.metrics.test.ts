@@ -5,10 +5,18 @@
  */
 import type { Context, Next } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  ATTR_MCP_AUTH_SCOPES,
+  ATTR_MCP_AUTH_SUBJECT,
+  ATTR_MCP_CLIENT_ID,
+  ATTR_MCP_TENANT_ID,
+} from '@/utils/telemetry/attributes.js';
 
 // Shared mock captures — must precede source imports
 const mockCounterAdd = vi.fn();
 const mockHistogramRecord = vi.fn();
+const mockSpanSetAttributes = vi.fn();
+let activeSpanMock: { setAttributes: typeof mockSpanSetAttributes } | undefined;
 
 vi.mock('@/utils/telemetry/metrics.js', () => ({
   createCounter: vi.fn(() => ({ add: mockCounterAdd })),
@@ -16,7 +24,7 @@ vi.mock('@/utils/telemetry/metrics.js', () => ({
 }));
 
 vi.mock('@opentelemetry/api', () => ({
-  trace: { getActiveSpan: vi.fn(() => undefined) },
+  trace: { getActiveSpan: vi.fn(() => activeSpanMock) },
 }));
 
 vi.mock('@/utils/internal/logger.js', () => ({
@@ -70,6 +78,7 @@ describe('Auth Middleware — mcp.auth.attempts counter & mcp.auth.duration hist
   beforeEach(() => {
     vi.clearAllMocks();
     nowMsValue = 1000;
+    activeSpanMock = undefined;
 
     mockStrategy = {
       verify: vi.fn(async () => ({
@@ -177,5 +186,28 @@ describe('Auth Middleware — mcp.auth.attempts counter & mcp.auth.duration hist
     );
     expect(successCall).toBeDefined();
     expect(successCall![1]).not.toHaveProperty('mcp.auth.failure_reason');
+  });
+
+  it('records identity attributes on the active span and falls back when tenant and subject are absent', async () => {
+    activeSpanMock = { setAttributes: mockSpanSetAttributes };
+    mockStrategy = {
+      verify: vi.fn(async () => ({
+        token: 'test-token',
+        clientId: 'client-no-tenant',
+        scopes: ['read', 'write'],
+      })),
+    };
+
+    const middleware = createAuthMiddleware(mockStrategy);
+    const ctx = createMockHonoContext('Bearer valid-token');
+
+    await middleware(ctx, mockNext);
+
+    expect(mockSpanSetAttributes).toHaveBeenLastCalledWith({
+      [ATTR_MCP_CLIENT_ID]: 'client-no-tenant',
+      [ATTR_MCP_TENANT_ID]: 'none',
+      [ATTR_MCP_AUTH_SCOPES]: '2',
+      [ATTR_MCP_AUTH_SUBJECT]: 'unknown',
+    });
   });
 });
