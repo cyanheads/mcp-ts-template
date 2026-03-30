@@ -4,12 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [Unreleased]
+## [0.2.10] - 2026-03-30
 
-Comprehensive test coverage expansion across core lifecycle, CLI, auth, tasks, and transport layers.
+Task ownership, devcheck resilience, and internal cleanup.
+
+### Fixed
+
+- **Task session ownership persistence** — `SessionAwareTaskStore` no longer deletes ownership tracking when a task reaches a terminal state (`completed`/`failed`). Previously, completed tasks became visible to other sessions, violating session isolation. Ownership now persists through the full task lifecycle.
+- **Task list visibility for sessionless callers** — Sessionless `listTasks` calls now correctly return only unowned tasks, consistent with `StorageBackedTaskStore` behavior. Previously returned all tasks regardless of ownership.
+
+### Changed
+
+- **Devcheck audit resilience** — Security audit check now detects connection/registry failures and emits a warning instead of silently passing when the output doesn't resemble a valid audit response.
+- **Internal object construction** — Replaced spread-with-conditionals patterns in `ctx.state.list()` and `SessionAwareTaskStore.listTasks()` with explicit object construction for clarity.
 
 ### Tests
 
+- Updated `SessionAwareTaskStore` tests to assert ownership retention through terminal states and correct sessionless visibility filtering.
 - **`core/app`** — Composition root lifecycle: service composition, name/version overrides, Supabase storage init, signal handler registration, graceful shutdown, OTel init failure resilience, lint warning logging, process gauge callbacks, fatal handler backstops.
 - **`cli/init`** — Scaffold command: `--help` output, unknown subcommand rejection, invalid project name validation, named project scaffolding with templates/scripts/skills, current-directory init with skip-existing behavior.
 - **`tool-registration.lifecycle`** — Task and auto-task registration: resource notification binding, `_meta` forwarding, duplicate name rejection across regular/task tools, missing services guard, experimental task API registration, auth scope enforcement, default/custom formatters, completed/failed result storage, cancellation detection, TTL timeout, task-store polling failure handling.
