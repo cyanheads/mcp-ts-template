@@ -418,7 +418,7 @@ export class Logger {
   private flushSuppressedMessages(): void {
     if (this.suppressedMessages.size === 0) return;
     for (const [message, count] of this.suppressedMessages.entries()) {
-      this.warning(
+      this.debug(
         `Log message suppressed ${count} times due to rate limiting.`,
         requestContextService.createRequestContext({
           operation: 'loggerRateLimitFlush',

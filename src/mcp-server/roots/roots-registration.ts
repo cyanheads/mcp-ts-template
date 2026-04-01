@@ -32,6 +32,6 @@ export class RootsRegistry {
     // This is just a placeholder to demonstrate the capability is enabled.
     // To access roots in your tools, use sdkContext to query the client.
 
-    this.logger.info('Roots capability registered successfully', context);
+    this.logger.debug('Roots capability registered successfully', context);
   }
 }

@@ -48,7 +48,7 @@ export class PromptRegistry {
       await this.registerPrompt(server, promptDef, context);
     }
 
-    this.logger.info(`Successfully registered ${this.promptDefs.length} prompts`, context);
+    this.logger.debug(`Successfully registered ${this.promptDefs.length} prompts`, context);
   }
 
   /** Throws at startup if a prompt with the same name was already registered. */
@@ -104,7 +104,7 @@ export class PromptRegistry {
           },
         );
 
-        this.logger.info(`Registered prompt: ${promptDef.name}`, context);
+        this.logger.debug(`Registered prompt: ${promptDef.name}`, context);
       },
       {
         operation: `RegisteringPrompt_${promptDef.name}`,

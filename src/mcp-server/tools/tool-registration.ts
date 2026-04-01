@@ -90,7 +90,7 @@ export class ToolRegistry {
       }
     }
 
-    logger.info(
+    logger.debug(
       `Registering ${standardTools.length} regular tool(s) and ${taskTools.length} task tool(s)...`,
       context,
     );
@@ -169,7 +169,7 @@ export class ToolRegistry {
           handler as ToolCallback<typeof tool.input>,
         );
 
-        logger.notice(`Tool '${tool.name}' registered successfully.`, registrationContext);
+        logger.debug(`Tool '${tool.name}' registered successfully.`, registrationContext);
       },
       {
         operation: `RegisteringTool_${tool.name}`,
@@ -256,7 +256,7 @@ export class ToolRegistry {
           },
         );
 
-        logger.notice(
+        logger.debug(
           `Auto-task tool '${tool.name}' registered successfully (experimental).`,
           registrationContext,
         );
@@ -410,7 +410,7 @@ export class ToolRegistry {
           tool.taskHandlers,
         );
 
-        logger.notice(
+        logger.debug(
           `Task tool '${tool.name}' registered successfully (experimental).`,
           registrationContext,
         );
