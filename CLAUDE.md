@@ -73,6 +73,9 @@ await createApp({
   tools: allToolDefinitions,
   resources: allResourceDefinitions,
   prompts: allPromptDefinitions,
+  extensions: {                     // SEP-2133 extensions advertised in capabilities
+    'vendor/my-extension': { /* extension config */ },
+  },
   setup(core) {                     // runs after core services init, before transport starts
     initMyService(core.config, core.storage);
   },
@@ -219,7 +222,7 @@ export const myResource = resource('myscheme://{itemId}/data', {
 });
 ```
 
-Handler receives `(params, ctx)` — URI on `ctx.uri` if needed. Large lists must use `extractCursor`/`paginateArray` from `/utils`.
+Handler receives `(params, ctx)` — URI on `ctx.uri` if needed. Optional `size` (bytes) for content size metadata. Large lists must use `extractCursor`/`paginateArray` from `/utils`.
 
 ---
 
