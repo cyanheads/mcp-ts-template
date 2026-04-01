@@ -46,6 +46,7 @@ export default createWorkerHandler({
 | `tools` | `AnyToolDefinition[]` | Tool definitions to register |
 | `resources` | `AnyResourceDefinition[]` | Resource definitions to register |
 | `prompts` | `PromptDefinition[]` | Prompt definitions to register |
+| `extensions` | `Record<string, object>` | SEP-2133 extensions to advertise in server capabilities |
 | `setup` | `(core: CoreServices) => void \| Promise<void>` | Runs after core services are ready, during the first request (lazy init inside the fetch handler) |
 | `extraEnvBindings` | `[bindingKey: string, processEnvKey: string][]` | Maps CF string bindings to `process.env` keys |
 | `extraObjectBindings` | `[bindingKey: string, globalKey: string][]` | Maps CF object bindings (KV, R2, D1, AI) to `globalThis` keys |

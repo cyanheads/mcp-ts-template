@@ -41,6 +41,7 @@ import { resource, z } from '@cyanheads/mcp-ts-core';
 export const {{RESOURCE_EXPORT}} = resource('{{scheme}}://{{{paramName}}}/data', {
   description: '{{RESOURCE_DESCRIPTION}}',
   mimeType: 'application/json',
+  // size: 1024,  // optional: content size in bytes, if known
   params: z.object({
     {{paramName}}: z.string().describe('{{PARAM_DESCRIPTION}}'),
   }),
