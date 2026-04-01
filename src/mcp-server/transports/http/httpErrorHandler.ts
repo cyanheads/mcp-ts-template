@@ -5,7 +5,9 @@
  * formats them into a consistent JSON-RPC error response.
  * @module src/mcp-server/transports/http/httpErrorHandler
  */
+import { SpanStatusCode, trace } from '@opentelemetry/api';
 import type { Context } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import type { StatusCode } from 'hono/utils/http-status';
 
 import { config } from '@/config/index.js';
@@ -32,6 +34,29 @@ export const httpErrorHandler = async <TBindings extends object = HonoNodeBindin
   err: Error,
   c: Context<{ Bindings: TBindings }>,
 ): Promise<Response> => {
+  // @hono/mcp throws HTTPException for protocol errors — honor its pre-built response.
+  // Annotate the active span so traces capture the error detail, then log for debugging.
+  if (err instanceof HTTPException) {
+    const activeSpan = trace.getActiveSpan();
+    if (activeSpan) {
+      activeSpan.recordException(err);
+      activeSpan.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+    }
+    logger.debug(
+      `Protocol error: HTTP ${err.status}`,
+      requestContextService.createRequestContext({
+        operation: 'httpErrorHandler',
+        additionalContext: {
+          status: err.status,
+          message: err.message,
+          path: c.req.path,
+          method: c.req.method,
+        },
+      }),
+    );
+    return err.getResponse();
+  }
+
   const context = requestContextService.createRequestContext({
     operation: 'httpErrorHandler',
     additionalContext: {
