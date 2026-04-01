@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.11] - 2026-04-01
+
+SEP-2133 extensions support, resource size metadata, HTTP protocol error handling, and startup log noise reduction.
+
+### Added
+
+- **SEP-2133 extensions** — `createApp()` and `createWorkerHandler()` accept an `extensions` option (`Record<string, object>`) to advertise SEP-2133 extensions in server capabilities.
+- **Resource `size` field** — `ResourceDefinition` now accepts an optional `size` (bytes) passed through to the SDK's resource metadata.
+
+### Fixed
+
+- **HTTP protocol error handling** — `httpErrorHandler` now detects `HTTPException` from `@hono/mcp` and honors its pre-built response instead of wrapping it in a generic JSON-RPC error. Active OTel span is annotated with the error detail.
+
+### Changed
+
+- **Startup log consolidation** — Replaced multiple info/notice registration logs with a single summary line listing registered tool/resource/prompt names. Individual registration messages downgraded from info/notice to debug across tool, resource, prompt, and roots registries.
+- **Rate limit flush log level** — Suppressed-message flush downgraded from warning to debug.
+
+### Dependencies
+
+- `@biomejs/biome` 2.4.9 → 2.4.10
+- `@cloudflare/workers-types` ^4.20260329.1 → ^4.20260401.1
+- `@modelcontextprotocol/sdk` ^1.28.0 → ^1.29.0
+- `@supabase/supabase-js` ^2.100.1 → ^2.101.1
+
+---
+
 ## [0.2.10] - 2026-03-30
 
 Task ownership, devcheck resilience, and internal cleanup.
