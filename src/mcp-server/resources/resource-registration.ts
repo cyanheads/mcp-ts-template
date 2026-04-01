@@ -43,7 +43,7 @@ export class ResourceRegistry {
       operation: 'ResourceRegistry.registerAll',
     });
 
-    logger.info(`Registering ${this.resourceDefs.length} resource(s)...`, context);
+    logger.debug(`Registering ${this.resourceDefs.length} resource(s)...`, context);
 
     // The SDK only initializes resources/list + resources/read handlers when a
     // resource is first registered. Initialize them up front so empty servers
@@ -94,13 +94,14 @@ export class ResourceRegistry {
             title,
             description: def.description,
             mimeType,
+            ...(def.size != null && { size: def.size }),
             ...(def.examples && { examples: def.examples }),
             ...(def.annotations && { annotations: def.annotations }),
           },
           handler,
         );
 
-        logger.notice(`Resource '${resourceName}' registered successfully.`, registrationContext);
+        logger.debug(`Resource '${resourceName}' registered successfully.`, registrationContext);
       },
       {
         operation: `RegisteringResource_${resourceName}`,

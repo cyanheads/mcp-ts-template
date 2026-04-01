@@ -23,6 +23,8 @@ import { requestContextService } from '@/utils/internal/requestContext.js';
 /** Dependencies required to create an MCP server instance. */
 export interface McpServerDeps {
   config: AppConfig;
+  /** SEP-2133 extensions to advertise in server capabilities. */
+  extensions?: Record<string, object>;
   promptRegistry: PromptRegistry;
   resourceRegistry: ResourceRegistry;
   rootsRegistry: RootsRegistry;
@@ -45,7 +47,7 @@ export async function createMcpServerInstance(deps: McpServerDeps): Promise<McpS
   const context = requestContextService.createRequestContext({
     operation: 'createMcpServerInstance',
   });
-  logger.info('Initializing MCP server instance', context);
+  logger.debug('Initializing MCP server instance', context);
 
   const server = new McpServer(
     {
@@ -66,6 +68,7 @@ export async function createMcpServerInstance(deps: McpServerDeps): Promise<McpS
             tools: { call: {} },
           },
         },
+        ...(deps.extensions && { extensions: deps.extensions }),
       },
       ...(deps.taskStore && { taskStore: deps.taskStore }),
       ...(deps.taskMessageQueue && { taskMessageQueue: deps.taskMessageQueue }),
@@ -83,7 +86,7 @@ export async function createMcpServerInstance(deps: McpServerDeps): Promise<McpS
 
     deps.rootsRegistry.registerAll(server);
 
-    logger.info('All MCP capabilities registered successfully', context);
+    logger.debug('All MCP capabilities registered successfully', context);
   } catch (err) {
     logger.error(
       'Failed to register MCP capabilities',

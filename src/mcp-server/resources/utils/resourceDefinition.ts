@@ -80,6 +80,8 @@ export interface ResourceDefinition<
   output?: TOutput;
   /** Zod schema for route/template params. All fields need `.describe()`. */
   params?: TParams;
+  /** Size of the raw resource content in bytes (before encoding), if known. */
+  size?: number;
   /** Human-readable title for UI display. */
   title?: string;
   /** URI template for resource registration (e.g., 'myscheme://{itemId}/data'). */

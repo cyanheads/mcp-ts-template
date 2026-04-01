@@ -48,6 +48,11 @@ import { withSpan } from '@/utils/telemetry/trace.js';
 
 /** Options for {@link createApp}. All arrays default to empty. */
 export interface CreateAppOptions {
+  /**
+   * SEP-2133 extensions to advertise in server capabilities.
+   * Keys are extension identifiers (`vendor-prefix/extension-name`).
+   */
+  extensions?: Record<string, object>;
   /** Server name — overrides package.json and MCP_SERVER_NAME env var. */
   name?: string;
   /** Prompt definitions. */
@@ -102,7 +107,7 @@ export interface ComposedApp {
  * @internal
  */
 export async function composeServices(options: CreateAppOptions = {}): Promise<ComposedApp> {
-  const { tools = [], resources = [], prompts = [], setup } = options;
+  const { tools = [], resources = [], prompts = [], extensions, setup } = options;
 
   // Validate definitions against MCP spec before proceeding
   const lintReport = validateDefinitions({ tools, resources, prompts });
@@ -207,6 +212,7 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
   const createServer = () =>
     createMcpServerInstance({
       config,
+      ...(extensions && { extensions }),
       promptRegistry,
       resourceRegistry,
       rootsRegistry,
@@ -357,10 +363,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
     logger.warning(warning);
   }
 
-  logger.info('Core services constructed.');
   logger.info(
-    `Storage service initialized with provider: ${config.storage.providerType}`,
-    requestContextService.createRequestContext({ operation: 'StorageInit' }),
+    `Core services constructed — ${definitionCounts.tools} tool(s), ${definitionCounts.resources} resource(s), ${definitionCounts.prompts} prompt(s). Storage: ${config.storage.providerType}.`,
+    requestContextService.createRequestContext({
+      operation: 'ServerInit',
+      additionalContext: {
+        tools: (options.tools ?? []).map((t) => t.name),
+        resources: (options.resources ?? []).map((r) => r.name ?? r.uriTemplate),
+        prompts: (options.prompts ?? []).map((p) => p.name),
+      },
+    }),
   );
 
   // --- Transport ---
