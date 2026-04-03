@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.2.12] - 2026-04-03
+
+OTel deprecation fix, form-client safety guidance, and dependency updates.
+
+### Fixed
+
+- **OTel `metricReader` deprecation** — `NodeSDK` constructor now uses the plural `metricReaders` array option, silencing the deprecation warning introduced in `@opentelemetry/sdk-node@^0.214.0`. Closes #21.
+
+### Added
+
+- **Form-client safety guidance** — Documented the pattern where form-based MCP clients (MCP Inspector, web UIs) send optional object fields with empty-string inner values instead of `undefined`. Added handler guard patterns, test examples, and checklist items to the agent protocol (`CLAUDE.md`), `add-tool` skill, `api-testing` skill, and consumer template. Closes #22.
+
+### Tests
+
+- Aligned log level assertions in `roots-registration` and `server` tests with the startup log downgrade from 0.2.11 (info → debug).
+- Updated OTel lifecycle test to expect `metricReaders` array.
+
+### Dependencies
+
+- `dotenv` 17.3.1 → 17.4.0
+- `hono` 4.12.9 → 4.12.10
+- `@cloudflare/workers-types` ^4.20260401.1 → ^4.20260403.1
+- `@modelcontextprotocol/ext-apps` ^1.3.2 → ^1.5.0
+- `@types/node` ^25.5.0 → ^25.5.2
+- `validator` ^13.15.26 → ^13.15.35
+- Added `lodash` 4.18.1 (pinned override)
+
+---
+
 ## [0.2.11] - 2026-04-01
 
 SEP-2133 extensions support, resource size metadata, HTTP protocol error handling, and startup log noise reduction.
