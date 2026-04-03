@@ -93,11 +93,11 @@ describe('createMcpServerInstance', () => {
 
   it('should log initialization and success messages', async () => {
     await createMcpServerInstance(deps);
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       'Initializing MCP server instance',
       expect.any(Object),
     );
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       'All MCP capabilities registered successfully',
       expect.any(Object),
     );

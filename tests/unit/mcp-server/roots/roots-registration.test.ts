@@ -63,11 +63,11 @@ describe('Roots Registration', () => {
       );
     });
 
-    it('should log info message about successful registration', () => {
+    it('should log debug message about successful registration', () => {
       rootsRegistry.registerAll(mockMcpServer);
 
-      // Verify info log was called
-      expect(mockLogger.info).toHaveBeenCalledWith(
+      // Verify debug log was called for registration success
+      expect(mockLogger.debug).toHaveBeenCalledWith(
         'Roots capability registered successfully',
         expect.objectContaining({
           requestId: expect.any(String),
@@ -81,11 +81,11 @@ describe('Roots Registration', () => {
       expect(() => rootsRegistry.registerAll(mockMcpServer)).not.toThrow();
     });
 
-    it('should call logger debug and info exactly once each', () => {
+    it('should call logger debug exactly twice', () => {
       rootsRegistry.registerAll(mockMcpServer);
 
-      expect(mockLogger.debug).toHaveBeenCalledTimes(1);
-      expect(mockLogger.info).toHaveBeenCalledTimes(1);
+      expect(mockLogger.debug).toHaveBeenCalledTimes(2);
+      expect(mockLogger.info).not.toHaveBeenCalled();
     });
 
     it('should not call error logging methods', () => {
