@@ -197,7 +197,7 @@ export async function initializeOpenTelemetry(): Promise<void> {
       sdk = new NodeSDK({
         resource,
         spanProcessors,
-        ...(metricReader && { metricReader }),
+        ...(metricReader && { metricReaders: [metricReader] }),
         sampler: new TraceIdRatioBasedSampler(config.openTelemetry.samplingRatio),
         instrumentations: [
           new HttpInstrumentation({

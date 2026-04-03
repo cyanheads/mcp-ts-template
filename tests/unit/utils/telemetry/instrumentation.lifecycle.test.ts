@@ -248,7 +248,7 @@ describe('OpenTelemetry instrumentation lifecycle', () => {
 
     const [nodeSdkOptions] = otelState.nodeSdkOptions;
     expect(nodeSdkOptions).toMatchObject({
-      metricReader: expect.any(Object),
+      metricReaders: [expect.any(Object)],
       resource: {
         attrs: expect.objectContaining({
           'cloud.provider': 'aws',
