@@ -222,6 +222,37 @@ return {
 };
 ```
 
+### Defend against empty values from form-based clients
+
+LLM clients (Claude, Cursor, etc.) only send populated fields. **Form-based clients** (MCP Inspector, web UIs) submit the full schema shape — optional object fields arrive with empty-string inner values instead of `undefined`. Zod's `.optional()` only rejects `undefined`, so `{ minDate: "", maxDate: "" }` passes validation and reaches the handler.
+
+**Don't reject empty strings on optional fields** — that punishes form clients for valid MCP behavior. Instead, guard for meaningful values in the handler:
+
+```typescript
+// Schema: keep permissive — accepts empty strings from form clients
+input: z.object({
+  query: z.string().describe('Search terms'),
+  dateRange: z.object({
+    minDate: z.string().describe('Start date (YYYY-MM-DD)'),
+    maxDate: z.string().describe('End date (YYYY-MM-DD)'),
+  }).optional().describe('Restrict results to a date range.'),
+}),
+
+// Handler: check for meaningful values, not just object presence
+async handler(input, ctx) {
+  const params: Record<string, string> = { query: input.query };
+  if (input.dateRange?.minDate && input.dateRange?.maxDate) {
+    params.minDate = input.dateRange.minDate;
+    params.maxDate = input.dateRange.maxDate;
+  }
+  // ...
+},
+```
+
+The same applies to optional arrays — use `?.length` guards so empty arrays are skipped, not passed through.
+
+**Required fields are different.** If a string field is required and must be non-empty to be meaningful, `.min(1)` is correct — the client shouldn't have submitted the form without filling it in.
+
 ### Match response density to context budget
 
 Large payloads burn the agent's context window. Default to curated summaries; offer full data via opt-in parameters.
@@ -236,6 +267,7 @@ Large payloads burn the agent's context window. Default to curated summaries; of
 - [ ] All Zod schema fields have `.describe()` annotations
 - [ ] Schemas use only JSON-Schema-serializable types (no `z.custom()`, `z.date()`, `z.transform()`, `z.bigint()`, `z.symbol()`, `z.void()`, `z.map()`, `z.set()`)
 - [ ] JSDoc `@fileoverview` and `@module` header present
+- [ ] Optional nested objects guarded for empty inner values from form-based clients (check `?.field` truthiness, not just object presence)
 - [ ] `handler(input, ctx)` is pure — throws on failure, no try/catch
 - [ ] `format()` renders all data the LLM needs (not just a count or title) — `content[]` is the only field most clients forward to the model
 - [ ] `auth` scopes declared if the tool needs authorization

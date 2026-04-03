@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.2.11
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.2.12
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -464,6 +464,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 ## Code Style & Checklist
 
 - **Validation:** Zod schemas, all fields need `.describe()`. Schemas must be JSON-Schema-serializable — avoid `z.custom()`, `z.date()`, `z.transform()`, `z.bigint()`, `z.symbol()`, `z.void()`, `z.map()`, `z.set()`, `z.function()`, `z.nan()` (the linter catches these at startup)
+- **Form-client safety:** Form-based MCP clients (MCP Inspector, web UIs) send optional object fields with empty-string inner values instead of `undefined`. Don't reject with `.min(1)` on optional fields — guard for meaningful values in the handler (`if (input.dateRange?.minDate && input.dateRange?.maxDate)`). Test with both omitted and empty-value payloads.
 - **Logging:** Framework auto-instruments all handler calls. `ctx.log` for domain-specific logging in handlers, global `logger` for lifecycle/background
 - **Errors:** handlers throw — error factories (`notFound()`, `validationError()`, etc.) when the code matters, plain `Error` for don't-care cases. Framework catches and classifies. `ErrorHandler.tryCatch` for services only.
 - **Secrets:** server config only — no hardcoded credentials

@@ -168,6 +168,41 @@ it('handles missing elicitation gracefully', async () => {
 
 ---
 
+## Testing with form-based client payloads
+
+LLM clients only send populated fields. **Form-based clients** (MCP Inspector, web UIs) submit the full schema shape — optional object fields arrive with empty-string inner values instead of `undefined`. Both are valid MCP usage. Test that handlers handle both gracefully.
+
+```ts
+describe('form-client payloads', () => {
+  it('skips optional object when inner fields are empty strings', async () => {
+    const ctx = createMockContext();
+    // Form client sends the object with empty values instead of omitting it
+    const input = myTool.input.parse({
+      query: 'test',
+      dateRange: { minDate: '', maxDate: '' },
+    });
+    const result = await myTool.handler(input, ctx);
+    // Should succeed — empty dateRange is ignored, not passed downstream
+    expect(result.items).toBeDefined();
+  });
+
+  it('uses optional object when inner fields have real values', async () => {
+    const ctx = createMockContext();
+    const input = myTool.input.parse({
+      query: 'test',
+      dateRange: { minDate: '2025-01-01', maxDate: '2025-12-31' },
+    });
+    const result = await myTool.handler(input, ctx);
+    // Should apply the date filter
+    expect(result.items).toBeDefined();
+  });
+});
+```
+
+The pattern: parse through the schema (confirms Zod accepts the payload), call the handler, assert the empty-value case produces correct results — no errors, no corrupted downstream queries. Same applies to optional arrays: test with `[]` to verify the handler skips rather than passes through.
+
+---
+
 ## Vitest config
 
 Extend the framework's base config using `mergeConfig`. The base provides `globals: true`, `pool: 'forks'`, `isolate: true`, `tsconfigPaths`, and a Zod SSR compatibility fix. Add only the `@/` alias for your server's source:

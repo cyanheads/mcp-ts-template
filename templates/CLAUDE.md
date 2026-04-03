@@ -281,6 +281,7 @@ import { getMyService } from '@/services/my-domain/my-service.js';
 ## Checklist
 
 - [ ] Zod schemas: all fields have `.describe()`, only JSON-Schema-serializable types (no `z.custom()`, `z.date()`, `z.transform()`, etc.)
+- [ ] Optional nested objects: handler guards for empty inner values from form-based clients (`if (input.obj?.field && ...)`, not just `if (input.obj)`)
 - [ ] JSDoc `@fileoverview` + `@module` on every file
 - [ ] `ctx.log` for logging, `ctx.state` for storage
 - [ ] Handlers throw on failure — error factories or plain `Error`, no try/catch
