@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.3.2] - 2026-04-06
+
+Richer HTTP status response and `mcpServerHomepage` config field.
+
+### Added
+
+- **`mcpServerHomepage` config field** — Opt-in server homepage URL via `MCP_SERVER_HOMEPAGE` env var. Surfaced in the `GET /mcp` status response under `server.homepage`. No automatic fallback from `pkg.homepage` — must be explicitly set.
+- **`protocolVersions` in status response** — `GET /mcp` now includes the list of supported MCP protocol versions.
+- **`extensions` in status response** — `GET /mcp` now reports which SEP-2133 extensions are active (currently advertises `io.modelcontextprotocol/ui` when present).
+- **Framework homepage in status response** — `GET /mcp` `framework` section now includes `homepage` linking to the GitHub repo.
+
+### Changed
+
+- **`DefinitionCounts` → `ServerMeta`** — Internal refactor: `DefinitionCounts` wrapped into a `ServerMeta` interface that carries both definition counts and extensions. Threaded through `composeServices()` → `TransportManager` → `createHttpApp`/`startHttpTransport`. No public API change — `DefinitionCounts` type still exported.
+
+### Dependencies
+
+- `dotenv` 17.4.0 → 17.4.1
+- `hono` 4.12.10 → 4.12.11
+
+---
+
 ## [0.3.1] - 2026-04-06
 
 Promoted `@opentelemetry/api` to a direct dependency and added a structural test to prevent eager imports of optional peer deps.
