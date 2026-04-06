@@ -119,6 +119,11 @@ export const echoAppUiResource = appResource('ui://template-echo-app/app.html', 
   description:
     'Interactive HTML app for the echo app tool. Displayed as a sandboxed iframe ' +
     'by MCP Apps-capable hosts.',
+  _meta: {
+    ui: {
+      csp: { resourceDomains: ['https://unpkg.com'] },
+    },
+  },
   params: ParamsSchema,
   auth: ['resource:echo-app-ui:read'],
 

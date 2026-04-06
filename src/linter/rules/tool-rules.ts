@@ -230,17 +230,25 @@ export function lintAppToolResourcePairing(
 
 /**
  * Converts an RFC 6570 URI template to a regex that matches concrete URIs.
- * Replaces `{var}` (with optional operators) with `[^/]+` for simple matching.
- * This is intentionally permissive — lint-time, not runtime routing.
+ * Respects operators: `{+var}` (reserved) and `{/var}` (path segments) can
+ * expand to values containing `/`, so they match `.+`. All other expressions
+ * match `[^/]+`. Intentionally permissive — lint-time, not runtime routing.
  */
 function uriTemplateToRegex(template: string): RegExp {
-  const escaped = template.replace(/[.*+?^${}()|[\]\\]/g, (ch) => {
-    // Don't escape { and } — we replace template expressions below
-    if (ch === '{' || ch === '}') return ch;
-    return `\\${ch}`;
-  });
-  // Replace {+var}, {#var}, {?var,var2}, {var}, etc. with a permissive segment match
-  const pattern = escaped.replace(/\{[^}]+\}/g, '[^/]+');
+  // Split on template expressions first, then escape only the literal parts.
+  // This avoids escaping operator characters (e.g. +) inside expressions.
+  const parts = template.split(/(\{[^}]+\})/);
+  let pattern = '';
+  for (const part of parts) {
+    if (part.startsWith('{') && part.endsWith('}')) {
+      const expr = part.slice(1, -1);
+      const op = expr.charAt(0);
+      // {+var} (reserved) and {/var} (path segments) can expand to values with slashes
+      pattern += op === '+' || op === '/' ? '.+' : '[^/]+';
+    } else {
+      pattern += part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+  }
   return new RegExp(`^${pattern}$`);
 }
 

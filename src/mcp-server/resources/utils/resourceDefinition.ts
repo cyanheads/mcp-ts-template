@@ -48,7 +48,7 @@ export interface ResourceDefinition<
    * ```ts
    * _meta: {
    *   ui: {
-   *     csp: { resource_domains: ['https://cdn.example.com'] },
+   *     csp: { resourceDomains: ['https://cdn.example.com'] },
    *     permissions: ['microphone'],
    *   },
    * }

@@ -36,8 +36,9 @@ type AppToolOptions<
   TOutput extends ZodObject<ZodRawShape>,
 > = Omit<ToolDefinition<TInput, TOutput>, '_meta' | 'name'> & {
   /**
-   * Additional `_meta` fields beyond the auto-populated `ui` and compat key.
-   * Merged with the generated `_meta.ui` — do not set `ui` or `ui/resourceUri` here.
+   * Additional `_meta` fields. `ui` sub-fields (e.g. `csp`, `visibility`, `permissions`)
+   * are merged with the auto-populated `resourceUri`. The `resourceUri` value from the
+   * top-level option always wins — it cannot be overridden via `extraMeta.ui.resourceUri`.
    */
   extraMeta?: Record<string, unknown>;
   /** URI of the `ui://` resource that hosts will fetch and render as a sandboxed iframe. */
@@ -67,12 +68,18 @@ export function appTool<
   TOutput extends ZodObject<ZodRawShape>,
 >(name: string, options: AppToolOptions<TInput, TOutput>): ToolDefinition<TInput, TOutput> {
   const { resourceUri, extraMeta, ...rest } = options;
+  const { ui: extraUi, ...extraMetaRest } = extraMeta ?? {};
 
   return tool(name, {
     ...rest,
     _meta: {
-      ...extraMeta,
-      ui: { resourceUri },
+      ...extraMetaRest,
+      ui: {
+        ...(typeof extraUi === 'object' && extraUi !== null
+          ? (extraUi as Record<string, unknown>)
+          : {}),
+        resourceUri,
+      },
       [RESOURCE_URI_META_KEY]: resourceUri,
     },
   });

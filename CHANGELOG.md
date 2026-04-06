@@ -18,6 +18,13 @@ MCP Apps integration — `appTool()` and `appResource()` builders, `_meta` passt
 - **Template: echo app** — `templates/src/mcp-server/tools/definitions/echo-app.app-tool.ts` and `templates/src/mcp-server/resources/definitions/echo-app-ui.app-resource.ts` demonstrate the full MCP Apps pattern for scaffolded servers.
 - **`add-app-tool` skill** — Step-by-step guide for scaffolding MCP App tool + UI resource pairs.
 
+### Fixed
+
+- **`appTool()` clobbered `extraMeta.ui` fields** — The builder overwrote caller-supplied `_meta.ui` sub-fields (e.g. `visibility`) with only `{ resourceUri }`. Now merges `extraMeta.ui` fields with the auto-populated `resourceUri` (which still wins over any `extraMeta.ui.resourceUri`).
+- **Linter false positive on `{+path}` URI templates** — `lintAppToolResourcePairing()` replaced all RFC 6570 expressions with `[^/]+`, causing `{+var}` (reserved expansion) and `{/var}` (path segments) to fail matching URIs containing `/`. Now uses `.+` for slash-expanding operators.
+- **Template echo app missing CSP allowlist** — The scaffolded echo app resource imports `@modelcontextprotocol/ext-apps` from `unpkg.com` but did not declare `_meta.ui.csp.resourceDomains`. Hosts enforcing deny-by-default CSP would block the import. Added `resourceDomains: ['https://unpkg.com']` to the template and skill doc.
+- **CSP field name casing** — Corrected `resource_domains` (snake_case) to `resourceDomains` (camelCase) in JSDoc examples and tests to match the `McpUiResourceCsp` interface from `@modelcontextprotocol/ext-apps`.
+
 ### Tests
 
 - `appBuilders.test.ts` — 414 lines covering `appTool()` and `appResource()` field passthrough, `_meta` population, defaults, and edge cases.

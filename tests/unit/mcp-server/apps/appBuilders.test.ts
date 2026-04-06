@@ -75,7 +75,7 @@ describe('appTool()', () => {
     expect(def._meta?.['ui/resourceUri']).toBe('ui://my-app/app.html');
   });
 
-  it('ui key takes precedence over extraMeta.ui (auto-populated wins)', () => {
+  it('auto-populated resourceUri wins over extraMeta.ui.resourceUri', () => {
     const def = appTool('app_tool', {
       resourceUri: 'ui://my-app/app.html',
       description: 'Test',
@@ -85,8 +85,41 @@ describe('appTool()', () => {
       handler: () => ({ result: 'ok' }),
     });
 
-    // Auto-populated value wins because it's spread after extraMeta
-    expect(def._meta?.ui).toEqual({ resourceUri: 'ui://my-app/app.html' });
+    // Auto-populated value wins because it's spread after extraMeta.ui
+    expect((def._meta?.ui as Record<string, unknown>).resourceUri).toBe('ui://my-app/app.html');
+  });
+
+  it('merges extraMeta.ui fields (visibility) with resourceUri', () => {
+    const def = appTool('app_tool', {
+      resourceUri: 'ui://my-app/app.html',
+      description: 'Test',
+      input: minimalInput,
+      output: minimalOutput,
+      extraMeta: {
+        ui: {
+          visibility: ['app'],
+        },
+      },
+      handler: () => ({ result: 'ok' }),
+    });
+
+    const ui = def._meta?.ui as Record<string, unknown>;
+    expect(ui.resourceUri).toBe('ui://my-app/app.html');
+    expect(ui.visibility).toEqual(['app']);
+  });
+
+  it('handles extraMeta.ui as non-object gracefully', () => {
+    const def = appTool('app_tool', {
+      resourceUri: 'ui://my-app/app.html',
+      description: 'Test',
+      input: minimalInput,
+      output: minimalOutput,
+      extraMeta: { ui: 'not-an-object' },
+      handler: () => ({ result: 'ok' }),
+    });
+
+    // Non-object ui is ignored, resourceUri still set
+    expect((def._meta?.ui as Record<string, unknown>).resourceUri).toBe('ui://my-app/app.html');
   });
 
   it('preserves description', () => {
@@ -376,16 +409,16 @@ describe('appResource()', () => {
       description: 'App UI',
       _meta: {
         ui: {
-          csp: { resource_domains: ['https://cdn.example.com'] },
-          permissions: ['microphone'],
+          csp: { resourceDomains: ['https://cdn.example.com'] },
+          permissions: { microphone: {} },
         },
       },
       handler: () => '<html></html>',
     });
 
     expect(def._meta?.ui).toEqual({
-      csp: { resource_domains: ['https://cdn.example.com'] },
-      permissions: ['microphone'],
+      csp: { resourceDomains: ['https://cdn.example.com'] },
+      permissions: { microphone: {} },
     });
   });
 

@@ -250,6 +250,43 @@ describe('lintAppToolResourcePairing', () => {
     expect(diagnostics[0]!.definitionName).toBe('<unnamed>');
   });
 
+  it('matches {+path} operator (reserved expansion with slashes)', () => {
+    const tools = [
+      validTool({
+        name: 'app_dynamic',
+        _meta: { ui: { resourceUri: 'ui://app/a/b/c' } },
+      }),
+    ];
+    const resources = [{ uriTemplate: 'ui://app/{+path}', name: 'app-ui' }];
+
+    expect(lintAppToolResourcePairing(tools, resources)).toHaveLength(0);
+  });
+
+  it('matches {/segments} operator (path segments with slashes)', () => {
+    const tools = [
+      validTool({
+        name: 'app_segments',
+        _meta: { ui: { resourceUri: 'ui://app/x/y' } },
+      }),
+    ];
+    const resources = [{ uriTemplate: 'ui://app{/segments}', name: 'app-ui' }];
+
+    expect(lintAppToolResourcePairing(tools, resources)).toHaveLength(0);
+  });
+
+  it('simple {var} does not match values with slashes', () => {
+    const tools = [
+      validTool({
+        name: 'app_simple',
+        _meta: { ui: { resourceUri: 'ui://app/a/b' } },
+      }),
+    ];
+    const resources = [{ uriTemplate: 'ui://app/{page}', name: 'app-ui' }];
+
+    // {page} only matches single segments — a/b should not match
+    expect(lintAppToolResourcePairing(tools, resources)).toHaveLength(1);
+  });
+
   it('handles mixed app and non-app tools', () => {
     const tools = [
       validTool({ name: 'regular_tool' }),

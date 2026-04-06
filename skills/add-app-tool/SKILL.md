@@ -128,6 +128,12 @@ export const {{RESOURCE_EXPORT}} = appResource('ui://{{tool-name}}/app.html', {
   name: '{{tool-name}}-ui',
   title: '{{TOOL_TITLE}} UI',
   description: 'Interactive HTML app for {{tool_name}}.',
+  // CSP allowlist for external CDN imports (MCP Apps iframes use deny-by-default CSP)
+  _meta: {
+    ui: {
+      csp: { resourceDomains: ['https://unpkg.com'] },
+    },
+  },
   params: ParamsSchema,
   // auth: ['resource:{{tool-name}}-ui:read'],
 
@@ -152,7 +158,7 @@ export const {{RESOURCE_EXPORT}} = appResource('ui://{{tool-name}}/app.html', {
 
 - **Bundling:** The simplest approach is inlining HTML/CSS/JS as a template literal (shown above). For complex UIs, use Vite + `vite-plugin-singlefile` to bundle into a single HTML file and read it from disk in the handler.
 - **Client-side SDK:** Import `App` from `@modelcontextprotocol/ext-apps` via CDN or bundle it. The `App` class provides `connect()`, `ontoolresult`, `callServerTool()`, `sendMessage()`, and `sendOpenLink()`.
-- **CSP:** Inline scripts and styles work by default. External resources need CSP configuration via `_meta.ui.csp` on the resource content items (in `format()`) or on the resource definition's `_meta`.
+- **CSP:** MCP Apps iframes run under deny-by-default CSP. Inline scripts and styles work by default. External resources (CDN imports, API endpoints) require `_meta.ui.csp.resourceDomains` on the resource definition — e.g., `_meta: { ui: { csp: { resourceDomains: ['https://unpkg.com'] } } }`. Without this, hosts that enforce CSP will block the import and the app will not boot.
 - **format() for app tools:** The first `text` content block is typically JSON that the UI parses via `ontoolresult`. Additional blocks provide a human-readable fallback that non-app hosts and LLMs consume.
 
 ## Barrel Registration
