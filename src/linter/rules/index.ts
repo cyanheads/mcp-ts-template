@@ -12,4 +12,4 @@ export {
   checkSchemaSerializable,
 } from './schema-rules.js';
 export { lintServerJson } from './server-json-rules.js';
-export { lintAuthScopes, lintToolDefinition } from './tool-rules.js';
+export { lintAppToolResourcePairing, lintAuthScopes, lintToolDefinition } from './tool-rules.js';

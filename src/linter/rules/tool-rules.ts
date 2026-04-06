@@ -83,6 +83,11 @@ export function lintToolDefinition(def: unknown): LintDiagnostic[] {
     diagnostics.push(...lintToolAnnotations(d.annotations as Record<string, unknown>, name));
   }
 
+  // _meta.ui validation (MCP Apps)
+  if (d?._meta && typeof d._meta === 'object') {
+    diagnostics.push(...lintToolMeta(d._meta as Record<string, unknown>, displayName));
+  }
+
   return diagnostics;
 }
 
@@ -121,6 +126,122 @@ export function lintAuthScopes(
   }
 
   return diagnostics;
+}
+
+/** Validates `_meta.ui` fields for MCP Apps tools. */
+function lintToolMeta(meta: Record<string, unknown>, toolName: string): LintDiagnostic[] {
+  const diagnostics: LintDiagnostic[] = [];
+  const ui = meta.ui;
+
+  if (ui === undefined) return diagnostics;
+
+  if (typeof ui !== 'object' || ui === null) {
+    diagnostics.push({
+      rule: 'meta-ui-type',
+      severity: 'error',
+      message: `Tool '${toolName}' _meta.ui must be an object.`,
+      definitionType: 'tool',
+      definitionName: toolName,
+    });
+    return diagnostics;
+  }
+
+  const uiObj = ui as Record<string, unknown>;
+
+  // resourceUri is required when _meta.ui is present
+  if (typeof uiObj.resourceUri !== 'string' || uiObj.resourceUri.length === 0) {
+    diagnostics.push({
+      rule: 'meta-ui-resource-uri-required',
+      severity: 'error',
+      message:
+        `Tool '${toolName}' _meta.ui is present but missing a valid resourceUri string. ` +
+        'MCP Apps tools must declare _meta.ui.resourceUri pointing to a ui:// resource.',
+      definitionType: 'tool',
+      definitionName: toolName,
+    });
+  } else if (!uiObj.resourceUri.startsWith('ui://')) {
+    diagnostics.push({
+      rule: 'meta-ui-resource-uri-scheme',
+      severity: 'warning',
+      message:
+        `Tool '${toolName}' _meta.ui.resourceUri '${uiObj.resourceUri}' does not use the ui:// scheme. ` +
+        'MCP Apps resources conventionally use the ui:// scheme.',
+      definitionType: 'tool',
+      definitionName: toolName,
+    });
+  }
+
+  return diagnostics;
+}
+
+/**
+ * Cross-definition check: verifies that every tool declaring `_meta.ui.resourceUri`
+ * has a matching resource registered with that URI template.
+ */
+export function lintAppToolResourcePairing(
+  tools: unknown[],
+  resources: unknown[],
+): LintDiagnostic[] {
+  const diagnostics: LintDiagnostic[] = [];
+
+  // Collect registered resource URI templates and compile matchers.
+  // Templates may contain RFC 6570 variables (e.g. ui://app/{page}) that need
+  // to match concrete URIs from tool _meta.ui.resourceUri (e.g. ui://app/dashboard).
+  const resourceTemplates: string[] = [];
+  const resourceMatchers: RegExp[] = [];
+  for (const r of resources) {
+    const rd = r as Record<string, unknown>;
+    if (typeof rd?.uriTemplate === 'string') {
+      resourceTemplates.push(rd.uriTemplate);
+      resourceMatchers.push(uriTemplateToRegex(rd.uriTemplate));
+    }
+  }
+
+  // Check each app tool's resourceUri against registered resources
+  for (const t of tools) {
+    const td = t as Record<string, unknown>;
+    const meta = td?._meta as Record<string, unknown> | undefined;
+    const ui = meta?.ui as Record<string, unknown> | undefined;
+    const resourceUri = ui?.resourceUri;
+    if (typeof resourceUri !== 'string') continue;
+
+    const toolName = typeof td.name === 'string' ? td.name : '<unnamed>';
+    const matched = resourceMatchers.some((re) => re.test(resourceUri));
+
+    if (!matched) {
+      const registered =
+        resourceTemplates.length > 0
+          ? ` Registered resource templates: ${resourceTemplates.join(', ')}`
+          : ' No resources are registered.';
+      diagnostics.push({
+        rule: 'app-tool-resource-pairing',
+        severity: 'warning',
+        message:
+          `Tool '${toolName}' declares _meta.ui.resourceUri '${resourceUri}' but no resource ` +
+          `with a matching URI template is registered. The host will fail to fetch the app UI at runtime.${registered}`,
+        definitionType: 'tool',
+        definitionName: toolName,
+      });
+    }
+  }
+
+  return diagnostics;
+}
+
+/**
+ * Converts an RFC 6570 URI template to a regex that matches concrete URIs.
+ * Replaces `{var}` (with optional operators) with `[^/]+` for simple matching.
+ * This is intentionally permissive — lint-time, not runtime routing.
+ */
+function uriTemplateToRegex(template: string): RegExp {
+  const escaped = template.replace(/[.*+?^${}()|[\]\\]/g, (ch) => {
+    // Don't escape { and } — we replace template expressions below
+    if (ch === '{' || ch === '}') return ch;
+    return `\\${ch}`;
+  });
+  // Replace {+var}, {#var}, {?var,var2}, {var}, etc. with a permissive segment match
+  const pattern = escaped.replace(/\{[^}]+\}/g, '[^/]+');
+  return new RegExp(`^${pattern}$`);
 }
 
 /** Validates that annotation hint values are booleans where expected. */
