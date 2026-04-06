@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.3.1] - 2026-04-06
+
+Promoted `@opentelemetry/api` to a direct dependency and added a structural test to prevent eager imports of optional peer deps.
+
+### Fixed
+
+- **`@opentelemetry/api` promoted to direct dependency** — Moved from optional `peerDependencies` to `dependencies`. The package is eagerly imported in `errorHandler.js` and other source files, causing `ERR_MODULE_NOT_FOUND` crashes for consumers who don't install it (e.g., `bunx` invocations). Removed the corresponding `peerDependenciesMeta` entry. Closes #21.
+
+### Tests
+
+- **Optional peer dep import guard** — New structural test (`tests/unit/packaging/optional-peer-deps.test.ts`) scans all source files and fails if any optional peer dependency is eagerly imported (value import). Only `import type` and dynamic `import()` are allowed for optional deps. Relies on `verbatimModuleSyntax: true` to distinguish type-only from value imports.
+
+---
+
 ## [0.3.0] - 2026-04-06
 
 MCP Apps integration — `appTool()` and `appResource()` builders, `_meta` passthrough, linter rules for app tool/resource pairing, template examples, and comprehensive test coverage.
