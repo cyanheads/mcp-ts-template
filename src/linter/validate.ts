@@ -9,7 +9,7 @@ import { checkDuplicateNames } from './rules/name-rules.js';
 import { lintPromptDefinition } from './rules/prompt-rules.js';
 import { lintResourceDefinition } from './rules/resource-rules.js';
 import { lintServerJson } from './rules/server-json-rules.js';
-import { lintToolDefinition } from './rules/tool-rules.js';
+import { lintAppToolResourcePairing, lintToolDefinition } from './rules/tool-rules.js';
 import type { LintDiagnostic, LintInput, LintReport } from './types.js';
 
 /**
@@ -84,6 +84,9 @@ export function validateDefinitions(input: LintInput): LintReport {
   diagnostics.push(...checkDuplicateNames(resourceNames, 'resource'));
 
   diagnostics.push(...checkDuplicateNames(extractNames(prompts), 'prompt'));
+
+  // Cross-definition: app tool ↔ app resource pairing
+  diagnostics.push(...lintAppToolResourcePairing(tools, resources));
 
   const errors = diagnostics.filter((d) => d.severity === 'error');
   const warnings = diagnostics.filter((d) => d.severity === 'warning');

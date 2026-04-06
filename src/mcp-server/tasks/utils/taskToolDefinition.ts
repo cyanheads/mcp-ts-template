@@ -53,6 +53,9 @@ export interface TaskToolDefinition<
   TInputSchema extends ZodObject<ZodRawShape>,
   TOutputSchema extends ZodObject<ZodRawShape>,
 > {
+  /** Protocol-level metadata (e.g., MCP Apps extension `_meta.ui`). */
+  _meta?: Record<string, unknown>;
+
   /**
    * Optional metadata providing hints about the tool's behavior.
    */

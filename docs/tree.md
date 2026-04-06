@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-03-30 12:35:22
+Generated on: 2026-04-06 15:54:06
 
 ```text
 mcp-ts-core/
@@ -22,21 +22,54 @@ mcp-ts-core/
 ├── claude-plans/
 ├── docs/
 │   ├── mcp-specification/
-│   │   └── 2025-06-18/
-│   │       ├── best-practices/
-│   │       │   └── security.md
+│   │   ├── 2025-06-18/
+│   │   │   ├── best-practices/
+│   │   │   │   └── security.md
+│   │   │   ├── core/
+│   │   │   │   ├── authorization.md
+│   │   │   │   ├── lifecycle.md
+│   │   │   │   ├── overview.md
+│   │   │   │   └── transports.md
+│   │   │   └── utils/
+│   │   │       ├── cancellation.md
+│   │   │       ├── completion.md
+│   │   │       ├── logging.md
+│   │   │       ├── pagination.md
+│   │   │       ├── ping.md
+│   │   │       └── progress.md
+│   │   └── 2025-11-25/
+│   │       ├── client/
+│   │       │   ├── elicitation.md
+│   │       │   ├── roots.md
+│   │       │   └── sampling.md
 │   │       ├── core/
 │   │       │   ├── authorization.md
 │   │       │   ├── lifecycle.md
 │   │       │   ├── overview.md
 │   │       │   └── transports.md
-│   │       └── utils/
-│   │           ├── cancellation.md
-│   │           ├── completion.md
-│   │           ├── logging.md
-│   │           ├── pagination.md
-│   │           ├── ping.md
-│   │           └── progress.md
+│   │       ├── extensions/
+│   │       │   ├── apps-build.md
+│   │       │   ├── apps-overview.md
+│   │       │   ├── auth-enterprise-managed.md
+│   │       │   ├── auth-oauth-client-credentials.md
+│   │       │   ├── auth-overview.md
+│   │       │   ├── client-matrix.md
+│   │       │   └── overview.md
+│   │       ├── server/
+│   │       │   ├── overview.md
+│   │       │   ├── prompts.md
+│   │       │   ├── resources.md
+│   │       │   ├── tools.md
+│   │       │   └── utilities.md
+│   │       ├── utils/
+│   │       │   ├── cancellation.md
+│   │       │   ├── ping.md
+│   │       │   ├── progress.md
+│   │       │   └── tasks.md
+│   │       ├── architecture.md
+│   │       ├── key-changes.md
+│   │       ├── schema-reference.md
+│   │       └── specification.md
 │   ├── conformance-test-plan.md
 │   └── resource-notifications.md
 ├── examples/
@@ -70,6 +103,8 @@ mcp-ts-core/
 │   ├── tree.ts
 │   └── update-coverage.ts
 ├── skills/
+│   ├── add-app-tool/
+│   │   └── SKILL.md
 │   ├── add-export/
 │   │   └── SKILL.md
 │   ├── add-prompt/
@@ -159,6 +194,8 @@ mcp-ts-core/
 │   │   ├── types.ts
 │   │   └── validate.ts
 │   ├── mcp-server/
+│   │   ├── apps/
+│   │   │   └── appBuilders.ts
 │   │   ├── prompts/
 │   │   │   ├── utils/
 │   │   │   │   └── promptDefinition.ts
@@ -328,9 +365,11 @@ mcp-ts-core/
 │   │   │   │       └── echo.prompt.ts
 │   │   │   ├── resources/
 │   │   │   │   └── definitions/
+│   │   │   │       ├── echo-app-ui.app-resource.ts
 │   │   │   │       └── echo.resource.ts
 │   │   │   └── tools/
 │   │   │       └── definitions/
+│   │   │           ├── echo-app.app-tool.ts
 │   │   │           └── echo.tool.ts
 │   │   └── index.ts
 │   ├── tests/
@@ -384,11 +423,13 @@ mcp-ts-core/
 │   │   ├── prompts/
 │   │   │   └── code-review.prompt.test.ts
 │   │   ├── resources/
+│   │   │   ├── echo-app-ui.app-resource.test.ts
 │   │   │   └── echo.resource.test.ts
 │   │   └── tools/
 │   │       ├── template-async-countdown.tool.test.ts
 │   │       ├── template-code-review-sampling.tool.test.ts
 │   │       ├── template-data-explorer.app-tool.test.ts
+│   │       ├── template-echo-app.app-tool.test.ts
 │   │       ├── template-echo-message.tool.test.ts
 │   │       └── template-madlibs-elicitation.tool.test.ts
 │   ├── unit/
@@ -399,8 +440,11 @@ mcp-ts-core/
 │   │   ├── core/
 │   │   │   └── app.test.ts
 │   │   ├── linter/
+│   │   │   ├── tool-rules.test.ts
 │   │   │   └── validate.test.ts
 │   │   ├── mcp-server/
+│   │   │   ├── apps/
+│   │   │   │   └── appBuilders.test.ts
 │   │   │   ├── prompts/
 │   │   │   │   ├── utils/
 │   │   │   │   │   └── promptDefinition.test.ts

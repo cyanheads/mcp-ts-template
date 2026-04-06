@@ -36,6 +36,7 @@ export type {
 // Definition builders & types
 // ---------------------------------------------------------------------------
 
+export { APP_RESOURCE_MIME_TYPE, appResource, appTool } from '@/mcp-server/apps/appBuilders.js';
 export type {
   AnyPromptDefinition,
   PromptDefinition,
@@ -45,7 +46,6 @@ export type {
   AnyResourceDefinition,
   ResourceDefinition,
 } from '@/mcp-server/resources/utils/resourceDefinition.js';
-
 export { resource } from '@/mcp-server/resources/utils/resourceDefinition.js';
 /** Union of all accepted tool definition shapes (standard + task). */
 export type { AnyToolDef } from '@/mcp-server/tools/tool-registration.js';

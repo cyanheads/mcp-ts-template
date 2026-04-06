@@ -183,6 +183,45 @@ describe('ResourceRegistry', () => {
       expect(call[2].annotations).toEqual({ audience: ['user'], priority: 0.8 });
     });
 
+    it('should pass _meta to server.resource', async () => {
+      const testResource = resource('ui://app/app.html', {
+        name: 'app-ui',
+        description: 'App UI resource',
+        mimeType: 'text/html;profile=mcp-app',
+        handler: () => '<html></html>',
+        _meta: {
+          ui: {
+            csp: { resource_domains: ['https://cdn.example.com'] },
+            permissions: ['microphone'],
+          },
+        },
+      });
+
+      const registry = new ResourceRegistry([testResource], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.resource.mock.calls[0];
+      expect(call[2]._meta).toEqual({
+        ui: {
+          csp: { resource_domains: ['https://cdn.example.com'] },
+          permissions: ['microphone'],
+        },
+      });
+    });
+
+    it('should not include _meta when not provided', async () => {
+      const testResource = resource('plain://{id}', {
+        description: 'No meta',
+        handler: () => ({}),
+      });
+
+      const registry = new ResourceRegistry([testResource], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.resource.mock.calls[0];
+      expect(call[2]._meta).toBeUndefined();
+    });
+
     it('should pass examples to server.resource', async () => {
       const testResource = resource('ex://{id}', {
         description: 'With examples',

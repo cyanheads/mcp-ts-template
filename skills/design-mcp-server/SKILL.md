@@ -74,6 +74,7 @@ This is the raw material. Not everything becomes a tool.
 | Primitive | Use when | Examples |
 |:----------|:---------|:--------|
 | **Tool** | The default. Any operation or data access an agent needs to accomplish the server's purpose. | Search, create, update, analyze, fetch-by-ID, list reference data |
+| **App Tool** | Tool whose results benefit from interactive HTML UI (data visualization, forms, rich rendering). Uses `appTool()` + paired `appResource()`. Hosts without MCP Apps support receive the text fallback from `format()`. | Dashboards, data explorers, interactive charts, form-based workflows |
 | **Resource** | *Additionally* expose as a resource when the data is addressable by stable URI, read-only, and useful as injectable context. | Config, schemas, status, entity-by-ID lookups |
 | **Prompt** | Reusable message template that structures how the LLM approaches a task | Analysis framework, report template, review checklist |
 | **Neither** | Internal detail, admin-only, not useful to an LLM | Token refresh, webhook setup, migrations |
@@ -419,10 +420,11 @@ If the user has already authorized implementation (e.g., "build me a ___ server"
 Execute the plan using the scaffolding skills:
 
 1. `add-service` for each service
-2. `add-tool` for each tool
-3. `add-resource` for each resource
-4. `add-prompt` for each prompt
-5. `devcheck` after each addition
+2. `add-tool` for each standard tool
+3. `add-app-tool` for each MCP Apps tool (creates paired tool + UI resource)
+4. `add-resource` for each standalone resource
+5. `add-prompt` for each prompt
+6. `devcheck` after each addition
 
 ## Checklist
 
@@ -438,6 +440,7 @@ Execute the plan using the scaffolding skills:
 - [ ] Error messages guide recovery — name what went wrong and what to do next
 - [ ] Annotations set correctly (`readOnlyHint`, `destructiveHint`, etc.)
 - [ ] Tool surface is self-sufficient — a tool-only agent can accomplish everything the server is for
+- [ ] MCP Apps tools identified where interactive UI adds value (and `format()` provides full text fallback for non-app hosts)
 - [ ] Resource URIs use `{param}` templates, pagination planned for large lists
 - [ ] Service layer planned (or explicitly skipped with reasoning)
 - [ ] Resilience planned for external API services (retry boundary, backoff, parse classification)
