@@ -97,6 +97,7 @@ export class ResourceRegistry {
             ...(def.size != null && { size: def.size }),
             ...(def.examples && { examples: def.examples }),
             ...(def.annotations && { annotations: def.annotations }),
+            ...(def._meta && { _meta: def._meta }),
           },
           handler,
         );

@@ -42,6 +42,19 @@ export interface ResourceDefinition<
   TParams extends ZodObject<ZodRawShape> = ZodObject<ZodRawShape>,
   TOutput extends ZodObject<ZodRawShape> | undefined = undefined,
 > {
+  /**
+   * Protocol-level metadata for the resource.
+   * For MCP Apps UI resources, use `_meta.ui` to declare CSP and permissions:
+   * ```ts
+   * _meta: {
+   *   ui: {
+   *     csp: { resource_domains: ['https://cdn.example.com'] },
+   *     permissions: ['microphone'],
+   *   },
+   * }
+   * ```
+   */
+  _meta?: Record<string, unknown>;
   /** Display/behavior hints. */
   annotations?: ResourceAnnotations;
   /** Required auth scopes. */

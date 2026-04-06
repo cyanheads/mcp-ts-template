@@ -219,6 +219,7 @@ export class ToolRegistry {
             inputSchema: tool.input,
             outputSchema: tool.output,
             ...(tool.annotations && { annotations: tool.annotations }),
+            ...(tool._meta && { _meta: tool._meta }),
             execution: { taskSupport: 'optional' },
           },
           {
@@ -405,6 +406,7 @@ export class ToolRegistry {
             inputSchema: tool.input,
             ...(tool.output && { outputSchema: tool.output }),
             ...(tool.annotations && { annotations: tool.annotations }),
+            ...(tool._meta && { _meta: tool._meta }),
             execution: tool.execution,
           },
           tool.taskHandlers,
