@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.2.12
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.3.0
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -23,7 +23,7 @@
 
 | Subpath | Key Exports | Purpose |
 |:--------|:------------|:--------|
-| `@cyanheads/mcp-ts-core` | `createApp`, `tool`, `resource`, `prompt`, `Context`, `z` | Main entry point |
+| `@cyanheads/mcp-ts-core` | `createApp`, `tool`, `resource`, `prompt`, `appTool`, `appResource`, `APP_RESOURCE_MIME_TYPE`, `Context`, `z` | Main entry point |
 | `/worker` | `createWorkerHandler`, `CloudflareBindings` | Cloudflare Workers entry |
 | `/tools` | `ToolDefinition`, `AnyToolDefinition`, `ToolAnnotations` | Tool definition types |
 | `/resources` | `ResourceDefinition`, `AnyResourceDefinition` | Resource definition types |
@@ -441,6 +441,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 | `api-testing` | `skills/api-testing/SKILL.md` | createMockContext, test patterns, MockContextOptions |
 | `api-workers` | `skills/api-workers/SKILL.md` | createWorkerHandler, CloudflareBindings, Worker runtime |
 | `add-tool` | `skills/add-tool/SKILL.md` | Scaffold a new MCP tool definition |
+| `add-app-tool` | `skills/add-app-tool/SKILL.md` | Scaffold an MCP App tool + UI resource pair |
 | `add-resource` | `skills/add-resource/SKILL.md` | Scaffold a new MCP resource definition |
 | `add-prompt` | `skills/add-prompt/SKILL.md` | Scaffold a new MCP prompt definition |
 | `add-service` | `skills/add-service/SKILL.md` | Scaffold a new domain service |

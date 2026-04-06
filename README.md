@@ -5,7 +5,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.2.12-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.3.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.2-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
@@ -35,7 +35,7 @@ That's a complete MCP server. Every tool call is automatically logged with durat
 
 ## Features
 
-- **Declarative definitions** — `tool()`, `resource()`, `prompt()` builders with Zod schemas. Framework handles registration, validation, and response formatting.
+- **Declarative definitions** — `tool()`, `resource()`, `prompt()` builders with Zod schemas. `appTool()` and `appResource()` for MCP Apps with interactive HTML UIs. Framework handles registration, validation, and response formatting.
 - **Unified Context** — handlers receive a single `ctx` object with `ctx.log` (request-scoped logging), `ctx.state` (tenant-scoped storage), `ctx.elicit` (user prompting), `ctx.sample` (LLM completion), and `ctx.signal` (cancellation).
 - **Inline auth** — `auth: ['scope']` on definitions. No wrapper functions. Framework checks scopes before calling your handler.
 - **Task tools** — `task: true` flag for long-running operations. Framework manages the full lifecycle (create, poll, progress, complete/fail/cancel).
@@ -162,6 +162,8 @@ See [CLAUDE.md](CLAUDE.md) for the full configuration reference.
 | `tool(name, options)` | Define a tool with `handler(input, ctx)` |
 | `resource(uriTemplate, options)` | Define a resource with `handler(params, ctx)` |
 | `prompt(name, options)` | Define a prompt with `generate(args)` |
+| `appTool(name, options)` | Define an MCP Apps tool with auto-populated `_meta.ui` |
+| `appResource(uriTemplate, options)` | Define an MCP Apps HTML resource with correct MIME type |
 
 ### Context
 
@@ -209,6 +211,7 @@ The `examples/` directory contains a reference server consuming core through pub
 | `template_image_test` | Image content blocks |
 | `template_async_countdown` | `task: true` with `ctx.progress` |
 | `template_data_explorer` | MCP Apps with linked UI resource |
+| `template_echo_app` | MCP Apps with `appTool()`/`appResource()` builders |
 
 ## Testing
 
