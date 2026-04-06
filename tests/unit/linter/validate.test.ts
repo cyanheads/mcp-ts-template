@@ -322,6 +322,201 @@ describe('validateDefinitions', () => {
   });
 
   // -------------------------------------------------------------------------
+  // _meta.ui rules (MCP Apps)
+  // -------------------------------------------------------------------------
+
+  describe('_meta.ui rules', () => {
+    it('passes when _meta is absent', () => {
+      const report = validateDefinitions({ tools: [validTool()] });
+      const metaErrors = report.errors.filter((e) => e.rule.startsWith('meta-ui'));
+      expect(metaErrors).toHaveLength(0);
+    });
+
+    it('passes when _meta exists but has no ui key', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ _meta: { version: '1.0' } })],
+      });
+      const metaErrors = report.errors.filter((e) => e.rule.startsWith('meta-ui'));
+      expect(metaErrors).toHaveLength(0);
+    });
+
+    it('errors when _meta.ui is not an object', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ _meta: { ui: 'bad' } })],
+      });
+      expect(report.errors).toContainEqual(expect.objectContaining({ rule: 'meta-ui-type' }));
+    });
+
+    it('errors when _meta.ui is null', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ _meta: { ui: null } })],
+      });
+      expect(report.errors).toContainEqual(expect.objectContaining({ rule: 'meta-ui-type' }));
+    });
+
+    it('errors when _meta.ui.resourceUri is missing', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ _meta: { ui: {} } })],
+      });
+      expect(report.errors).toContainEqual(
+        expect.objectContaining({ rule: 'meta-ui-resource-uri-required' }),
+      );
+    });
+
+    it('errors when _meta.ui.resourceUri is empty string', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ _meta: { ui: { resourceUri: '' } } })],
+      });
+      expect(report.errors).toContainEqual(
+        expect.objectContaining({ rule: 'meta-ui-resource-uri-required' }),
+      );
+    });
+
+    it('errors when _meta.ui.resourceUri is not a string', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ _meta: { ui: { resourceUri: 42 } } })],
+      });
+      expect(report.errors).toContainEqual(
+        expect.objectContaining({ rule: 'meta-ui-resource-uri-required' }),
+      );
+    });
+
+    it('warns when resourceUri does not use ui:// scheme', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ _meta: { ui: { resourceUri: 'https://example.com/app.html' } } })],
+      });
+      expect(report.warnings).toContainEqual(
+        expect.objectContaining({ rule: 'meta-ui-resource-uri-scheme' }),
+      );
+    });
+
+    it('passes with valid ui:// resourceUri', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ _meta: { ui: { resourceUri: 'ui://my-app/app.html' } } })],
+        resources: [validResource({ uriTemplate: 'ui://my-app/app.html' })],
+      });
+      const metaErrors = report.errors.filter((e) => e.rule.startsWith('meta-ui'));
+      expect(metaErrors).toHaveLength(0);
+      const metaWarnings = report.warnings.filter((e) => e.rule.startsWith('meta-ui'));
+      expect(metaWarnings).toHaveLength(0);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // App tool ↔ resource pairing
+  // -------------------------------------------------------------------------
+
+  describe('app tool ↔ resource pairing', () => {
+    it('passes when tool resourceUri matches a registered resource', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            _meta: { ui: { resourceUri: 'ui://my-app/app.html' } },
+          }),
+        ],
+        resources: [validResource({ uriTemplate: 'ui://my-app/app.html', name: 'my-app-ui' })],
+      });
+      const pairingWarnings = report.warnings.filter((w) => w.rule === 'app-tool-resource-pairing');
+      expect(pairingWarnings).toHaveLength(0);
+    });
+
+    it('warns when tool resourceUri has no matching resource', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            _meta: { ui: { resourceUri: 'ui://my-app/app.html' } },
+          }),
+        ],
+        resources: [validResource({ uriTemplate: 'other://resource', name: 'other' })],
+      });
+      expect(report.warnings).toContainEqual(
+        expect.objectContaining({
+          rule: 'app-tool-resource-pairing',
+          message: expect.stringContaining('ui://my-app/app.html'),
+        }),
+      );
+    });
+
+    it('warns when tool resourceUri has no resources at all', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            _meta: { ui: { resourceUri: 'ui://my-app/app.html' } },
+          }),
+        ],
+        resources: [],
+      });
+      expect(report.warnings).toContainEqual(
+        expect.objectContaining({ rule: 'app-tool-resource-pairing' }),
+      );
+    });
+
+    it('skips tools without _meta.ui', () => {
+      const report = validateDefinitions({
+        tools: [validTool()],
+        resources: [],
+      });
+      const pairingWarnings = report.warnings.filter((w) => w.rule === 'app-tool-resource-pairing');
+      expect(pairingWarnings).toHaveLength(0);
+    });
+
+    it('skips tools with _meta but no ui key', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ _meta: { version: '1.0' } })],
+        resources: [],
+      });
+      const pairingWarnings = report.warnings.filter((w) => w.rule === 'app-tool-resource-pairing');
+      expect(pairingWarnings).toHaveLength(0);
+    });
+
+    it('skips tools with non-string resourceUri', () => {
+      const report = validateDefinitions({
+        tools: [validTool({ _meta: { ui: { resourceUri: 42 } } })],
+        resources: [],
+      });
+      const pairingWarnings = report.warnings.filter((w) => w.rule === 'app-tool-resource-pairing');
+      expect(pairingWarnings).toHaveLength(0);
+    });
+
+    it('handles multiple app tools with mixed match results', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            name: 'matched_tool',
+            _meta: { ui: { resourceUri: 'ui://app-a/app.html' } },
+          }),
+          validTool({
+            name: 'unmatched_tool',
+            _meta: { ui: { resourceUri: 'ui://app-b/app.html' } },
+          }),
+        ],
+        resources: [validResource({ uriTemplate: 'ui://app-a/app.html', name: 'app-a-ui' })],
+      });
+
+      const pairingWarnings = report.warnings.filter((w) => w.rule === 'app-tool-resource-pairing');
+      expect(pairingWarnings).toHaveLength(1);
+      expect(pairingWarnings[0]!.definitionName).toBe('unmatched_tool');
+    });
+
+    it('uses <unnamed> for tools without a name', () => {
+      const toolNoName = validTool({
+        _meta: { ui: { resourceUri: 'ui://app/app.html' } },
+      });
+      // Remove name to test fallback
+      delete (toolNoName as Record<string, unknown>).name;
+
+      const report = validateDefinitions({
+        tools: [toolNoName],
+        resources: [],
+      });
+
+      const pairingWarnings = report.warnings.filter((w) => w.rule === 'app-tool-resource-pairing');
+      expect(pairingWarnings).toHaveLength(1);
+      expect(pairingWarnings[0]!.definitionName).toBe('<unnamed>');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Resource rules
   // -------------------------------------------------------------------------
 

@@ -352,6 +352,68 @@ describe('ToolRegistry', () => {
     });
   });
 
+  describe('_meta Passthrough', () => {
+    it('should pass _meta to server.registerTool for standard tools', async () => {
+      const testTool = tool('app_tool', {
+        description: 'App tool with _meta',
+        input: z.object({}),
+        output: z.object({}),
+        handler: () => ({}),
+        _meta: {
+          ui: { resourceUri: 'ui://my-app/app.html' },
+          'ui/resourceUri': 'ui://my-app/app.html',
+        },
+      });
+
+      const registry = new ToolRegistry([testTool], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.registerTool.mock.calls[0];
+      expect(call[1]._meta).toEqual({
+        ui: { resourceUri: 'ui://my-app/app.html' },
+        'ui/resourceUri': 'ui://my-app/app.html',
+      });
+    });
+
+    it('should not include _meta when not provided', async () => {
+      const testTool = tool('plain_tool', {
+        description: 'Tool without _meta',
+        input: z.object({}),
+        output: z.object({}),
+        handler: () => ({}),
+      });
+
+      const registry = new ToolRegistry([testTool], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.registerTool.mock.calls[0];
+      expect(call[1]._meta).toBeUndefined();
+    });
+
+    it('should pass _meta to registerToolTask for auto-task tools', async () => {
+      const taskTool = tool('task_app_tool', {
+        description: 'Task app tool',
+        input: z.object({}),
+        output: z.object({}),
+        task: true,
+        handler: async () => ({}),
+        _meta: {
+          ui: { resourceUri: 'ui://task-app/app.html' },
+          'ui/resourceUri': 'ui://task-app/app.html',
+        },
+      });
+
+      const registry = new ToolRegistry([taskTool], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.experimental.tasks.registerToolTask.mock.calls[0];
+      expect(call[1]._meta).toEqual({
+        ui: { resourceUri: 'ui://task-app/app.html' },
+        'ui/resourceUri': 'ui://task-app/app.html',
+      });
+    });
+  });
+
   describe('Complex Tools', () => {
     it('should handle tool with complex nested schemas', async () => {
       const complexTool = tool('complex_tool', {
