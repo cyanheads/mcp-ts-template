@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/mcp-ts-core",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "Agent-native TypeScript framework for building MCP servers. Build tools, not infrastructure. Declarative definitions with auth, multi-backend storage, OpenTelemetry, and first-class support for Node.js and Cloudflare Workers.",
   "main": "dist/core/index.js",
@@ -256,6 +256,7 @@
     "@hono/node-server": "^1.19.12",
     "@modelcontextprotocol/ext-apps": "^1.5.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@opentelemetry/api": "^1.9.1",
     "dotenv": "^17.4.0",
     "hono": "^4.12.10",
     "jose": "^6.2.2",
@@ -264,7 +265,6 @@
   },
   "peerDependencies": {
     "@hono/otel": "^1.1.1",
-    "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/instrumentation-http": "^0.214.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.214.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.214.0",
@@ -314,9 +314,6 @@
       "optional": true
     },
     "@opentelemetry/sdk-trace-node": {
-      "optional": true
-    },
-    "@opentelemetry/api": {
       "optional": true
     },
     "@opentelemetry/semantic-conventions": {
