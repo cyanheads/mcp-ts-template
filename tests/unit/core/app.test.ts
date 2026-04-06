@@ -482,7 +482,7 @@ describe('core/app', () => {
     expect(setup).toHaveBeenCalledWith(composed.coreServices);
     expect(composed.coreServices.llmProvider).toEqual({ kind: 'llm-provider' });
     expect(composed.coreServices.speechService).toEqual({ kind: 'speech-service' });
-    expect(composed.definitionCounts).toEqual({
+    expect(composed.meta.definitionCounts).toEqual({
       prompts: 1,
       resources: 1,
       tools: 1,
@@ -523,7 +523,7 @@ describe('core/app', () => {
       mockLogger,
       expect.any(Function),
       mockTaskManager.instance,
-      { prompts: 0, resources: 0, tools: 0 },
+      { definitionCounts: { prompts: 0, resources: 0, tools: 0 } },
     );
     expect(mockTransportManager.instance.start).toHaveBeenCalledTimes(1);
     expect(mockCreateObservableGauge.mock.calls.map((call) => call[0])).toEqual(

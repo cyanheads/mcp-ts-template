@@ -10,7 +10,7 @@ import { config } from '@/config/index.js';
 import type { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
 import { logger } from '@/utils/internal/logger.js';
-import { defaultDefinitionCounts as defaultCounts } from '../../../helpers/fixtures.js';
+import { defaultServerMeta as defaultMeta } from '../../../helpers/fixtures.js';
 
 // Mock the transport modules
 vi.mock('@/mcp-server/transports/http/httpTransport.js', () => ({
@@ -55,7 +55,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
 
       await manager.start();
@@ -65,7 +65,7 @@ describe('TransportManager', () => {
       expect(startHttpTransport).toHaveBeenCalledWith(
         mockCreateMcpServer,
         expect.any(Object),
-        defaultCounts,
+        defaultMeta,
       );
     });
 
@@ -75,7 +75,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
 
       await manager.start();
@@ -93,7 +93,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
 
       await expect(manager.start()).rejects.toThrow(
@@ -107,7 +107,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
 
       await manager.start();
@@ -120,7 +120,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
 
       await manager.start();
@@ -134,7 +134,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
       await manager.start();
 
@@ -151,7 +151,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
       await manager.start();
 
@@ -169,7 +169,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
       await manager.start();
 
@@ -187,7 +187,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
 
       await expect(freshManager.stop('SIGTERM')).resolves.toBeUndefined();
@@ -199,7 +199,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
       await manager.start();
       await manager.stop('SIGINT');
@@ -216,7 +216,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
 
       expect(freshManager.getServer()).toBeNull();
@@ -228,7 +228,7 @@ describe('TransportManager', () => {
         logger,
         mockCreateMcpServer,
         mockTaskManager,
-        defaultCounts,
+        defaultMeta,
       );
       await manager.start();
 

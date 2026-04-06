@@ -22,3 +22,10 @@ export interface DefinitionCounts {
   resources: number;
   tools: number;
 }
+
+/** Server metadata surfaced in the GET /mcp status response. */
+export interface ServerMeta {
+  definitionCounts: DefinitionCounts;
+  /** SEP-2133 extensions advertised in server capabilities. */
+  extensions?: Record<string, object>;
+}

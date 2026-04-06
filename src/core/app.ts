@@ -21,7 +21,7 @@ import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import type { AnyToolDef } from '@/mcp-server/tools/tool-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import { initHeartbeatMetrics } from '@/mcp-server/transports/heartbeat.js';
-import type { DefinitionCounts } from '@/mcp-server/transports/http/httpTypes.js';
+import type { ServerMeta } from '@/mcp-server/transports/http/httpTypes.js';
 import { initSessionMetrics } from '@/mcp-server/transports/http/sessionStore.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
 import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
@@ -94,9 +94,10 @@ export interface ServerHandle {
 export interface ComposedApp {
   coreServices: CoreServices;
   createServer: () => Promise<McpServer>;
-  definitionCounts: DefinitionCounts;
   /** Lint warnings from definition validation (callers should log after logger init). */
   lintWarnings: string[];
+  /** Server metadata for the HTTP status response. */
+  meta: ServerMeta;
   taskManager: TaskManager;
 }
 
@@ -224,10 +225,13 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
   return {
     coreServices,
     createServer,
-    definitionCounts: {
-      prompts: prompts.length,
-      resources: resources.length,
-      tools: tools.length,
+    meta: {
+      definitionCounts: {
+        prompts: prompts.length,
+        resources: resources.length,
+        tools: tools.length,
+      },
+      ...(extensions && { extensions }),
     },
     lintWarnings,
     taskManager,
@@ -266,8 +270,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   suppressColors();
 
   // --- Compose services (handles env overrides internally for config parsing) ---
-  const { coreServices, createServer, definitionCounts, lintWarnings, taskManager } =
+  const { coreServices, createServer, meta, lintWarnings, taskManager } =
     await composeServices(options);
+  const { definitionCounts } = meta;
 
   // --- Initialize OTEL + high-res timer (independent, run in parallel) ---
   await Promise.all([
@@ -376,13 +381,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   );
 
   // --- Transport ---
-  const transportManager = new TransportManager(
-    config,
-    logger,
-    createServer,
-    taskManager,
-    definitionCounts,
-  );
+  const transportManager = new TransportManager(config, logger, createServer, taskManager, meta);
 
   // --- Startup context ---
   const startupContext = requestContextService.createRequestContext({

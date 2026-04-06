@@ -3,14 +3,16 @@
  * Consolidates common test setup patterns used across the suite.
  * @module tests/fixtures
  */
-import type { DefinitionCounts } from '@/mcp-server/transports/http/httpTypes.js';
+import type { ServerMeta } from '@/mcp-server/transports/http/httpTypes.js';
 import { type RequestContext, requestContextService } from '@/utils/internal/requestContext.js';
 
-/** Default definition counts for tests that need a {@link DefinitionCounts} value. */
-export const defaultDefinitionCounts: DefinitionCounts = {
-  prompts: 1,
-  resources: 1,
-  tools: 1,
+/** Default server metadata for tests that need a {@link ServerMeta} value. */
+export const defaultServerMeta: ServerMeta = {
+  definitionCounts: {
+    prompts: 1,
+    resources: 1,
+    tools: 1,
+  },
 };
 
 /**

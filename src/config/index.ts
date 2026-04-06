@@ -83,6 +83,7 @@ const ConfigSchema = z
     mcpServerName: z.string(), // Will be derived from pkg.name
     mcpServerVersion: z.string(), // Will be derived from pkg.version
     mcpServerDescription: z.string().optional(), // Will be derived from pkg.description
+    mcpServerHomepage: z.string().optional(), // Will be derived from pkg.homepage
     logLevel: z
       .preprocess(
         (val) => {
@@ -467,6 +468,7 @@ const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
     mcpServerName: env.MCP_SERVER_NAME,
     mcpServerVersion: env.MCP_SERVER_VERSION,
     mcpServerDescription: env.MCP_SERVER_DESCRIPTION,
+    mcpServerHomepage: env.MCP_SERVER_HOMEPAGE,
   };
 
   // Use a temporary schema to parse package info and provide defaults
@@ -474,6 +476,7 @@ const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
     name: z.string(),
     version: z.string(),
     description: z.string().optional(),
+    homepage: z.string().optional(),
   });
   const parsedPkg = pkgSchema.parse(rawConfig.pkg);
 
@@ -496,6 +499,7 @@ const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
     mcpServerName: env.MCP_SERVER_NAME ?? parsedPkg.name,
     mcpServerVersion: env.MCP_SERVER_VERSION ?? parsedPkg.version,
     mcpServerDescription: env.MCP_SERVER_DESCRIPTION ?? parsedPkg.description,
+    mcpServerHomepage: env.MCP_SERVER_HOMEPAGE, // Intentionally no pkg fallback — opt-in only
     openTelemetry: {
       ...rawConfig.openTelemetry,
       serviceName: env.OTEL_SERVICE_NAME ?? parsedPkg.name,

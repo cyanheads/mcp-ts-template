@@ -102,7 +102,7 @@ vi.mock('@/mcp-server/transports/http/httpErrorHandler.js', () => ({
 
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
-import { defaultDefinitionCounts as defaultCounts } from '../helpers/fixtures.js';
+import { defaultServerMeta as defaultMeta } from '../helpers/fixtures.js';
 
 // ---------------------------------------------------------------------------
 // Test suite
@@ -133,7 +133,7 @@ describe('HTTP Transport Integration', () => {
     const { app } = await createHttpApp(
       mockServerFactory as () => Promise<McpServer>,
       mockContext,
-      defaultCounts,
+      defaultMeta,
     );
 
     const res = await app.request('/healthz');
@@ -147,7 +147,7 @@ describe('HTTP Transport Integration', () => {
     const { app } = await createHttpApp(
       mockServerFactory as () => Promise<McpServer>,
       mockContext,
-      defaultCounts,
+      defaultMeta,
     );
 
     const req = new Request('http://localhost/healthz', {
@@ -165,7 +165,7 @@ describe('HTTP Transport Integration', () => {
     const { app } = await createHttpApp(
       mockServerFactory as () => Promise<McpServer>,
       mockContext,
-      defaultCounts,
+      defaultMeta,
     );
 
     const res = await app.request('/nonexistent');
@@ -177,7 +177,7 @@ describe('HTTP Transport Integration', () => {
     const { app } = await createHttpApp(
       mockServerFactory as () => Promise<McpServer>,
       mockContext,
-      defaultCounts,
+      defaultMeta,
     );
 
     const req = new Request('http://localhost/mcp', {

@@ -7,7 +7,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { RequestContext } from '@/utils/internal/requestContext.js';
-import { defaultDefinitionCounts as defaultCounts } from '../../../../helpers/fixtures.js';
+import { defaultServerMeta as defaultMeta } from '../../../../helpers/fixtures.js';
 
 const {
   closeAllConnectionsSpy,
@@ -149,7 +149,7 @@ describe('HTTP Transport lifecycle', () => {
     const handlePromise = startHttpTransport(
       () => Promise.resolve({} as McpServer),
       mockContext,
-      defaultCounts,
+      defaultMeta,
     );
 
     await vi.advanceTimersByTimeAsync(5);
@@ -183,7 +183,7 @@ describe('HTTP Transport lifecycle', () => {
     const handlePromise = startHttpTransport(
       () => Promise.resolve({} as McpServer),
       mockContext,
-      defaultCounts,
+      defaultMeta,
     );
 
     const rejection = expect(handlePromise).rejects.toThrow(
@@ -207,7 +207,7 @@ describe('HTTP Transport lifecycle', () => {
     const handle = await startHttpTransport(
       () => Promise.resolve({} as McpServer),
       mockContext,
-      defaultCounts,
+      defaultMeta,
     );
 
     await handle.stop(mockContext);
