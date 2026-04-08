@@ -131,14 +131,4 @@ export const echoAppUiResource = appResource('ui://template-echo-app/app.html', 
     ctx.log.debug('Serving echo app UI.', { resourceUri: ctx.uri?.href });
     return APP_HTML;
   },
-
-  list: () => ({
-    resources: [
-      {
-        uri: 'ui://template-echo-app/app.html',
-        name: 'Echo App',
-        description: 'Interactive echo UI for the template_echo_app tool.',
-      },
-    ],
-  }),
 });

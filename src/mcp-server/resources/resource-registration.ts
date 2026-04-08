@@ -18,6 +18,10 @@ type McpServerWithResourceHandlerInit = {
   setResourceRequestHandlers: () => void;
 };
 
+function hasUriTemplateVariables(uriTemplate: string): boolean {
+  return /\{[^}]+\}/.test(uriTemplate);
+}
+
 export class ResourceRegistry {
   /** Tracks registered resource names to detect duplicates at startup. */
   private readonly registeredNames = new Set<string>();
@@ -79,28 +83,30 @@ export class ResourceRegistry {
 
     await ErrorHandler.tryCatch(
       () => {
-        const template = new ResourceTemplate(def.uriTemplate, {
-          list: def.list,
-        });
-
         const handler = createResourceHandler(def, this.services);
         const title = def.title ?? resourceName;
         const mimeType = def.mimeType ?? 'application/json';
+        const metadata = {
+          title,
+          description: def.description,
+          mimeType,
+          ...(def.size != null && { size: def.size }),
+          ...(def.examples && { examples: def.examples }),
+          ...(def.annotations && { annotations: def.annotations }),
+          ...(def._meta && { _meta: def._meta }),
+        };
 
-        server.resource(
-          resourceName,
-          template,
-          {
-            title,
-            description: def.description,
-            mimeType,
-            ...(def.size != null && { size: def.size }),
-            ...(def.examples && { examples: def.examples }),
-            ...(def.annotations && { annotations: def.annotations }),
-            ...(def._meta && { _meta: def._meta }),
-          },
-          handler,
-        );
+        if (hasUriTemplateVariables(def.uriTemplate)) {
+          const template = new ResourceTemplate(def.uriTemplate, {
+            list: def.list,
+          });
+
+          server.resource(resourceName, template, metadata, handler);
+        } else {
+          server.resource(resourceName, def.uriTemplate, metadata, (uri, extra) =>
+            handler(uri, {}, extra),
+          );
+        }
 
         logger.debug(`Resource '${resourceName}' registered successfully.`, registrationContext);
       },

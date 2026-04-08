@@ -66,10 +66,6 @@ function createAppResourceDef() {
       ctx.log.debug('Serving test app UI.');
       return '<html><body>Test App</body></html>';
     },
-
-    list: () => ({
-      resources: [{ uri: UI_URI, name: 'Test App', description: 'Test app UI.' }],
-    }),
   });
 }
 
@@ -207,18 +203,9 @@ describe('MCP Apps — end-to-end integration', () => {
       expect(result).toContain('<html>');
     });
 
-    it('app resource list returns discoverable entry', async () => {
+    it('static app resources do not require a manual list callback', () => {
       const resource = createAppResourceDef();
-      const extra = {
-        signal: new AbortController().signal,
-        requestId: 'test',
-        sendNotification: () => Promise.resolve(),
-        sendRequest: () => Promise.resolve({} as never),
-      };
-      const listing = await resource.list!(extra);
-
-      expect(listing.resources).toHaveLength(1);
-      expect(listing.resources[0]!.uri).toBe(UI_URI);
+      expect(resource.list).toBeUndefined();
     });
   });
 
@@ -234,16 +221,9 @@ describe('MCP Apps — end-to-end integration', () => {
       expect(compatUri).toBe(resource.uriTemplate);
     });
 
-    it('resource list URI matches its own uriTemplate', async () => {
+    it('resource uriTemplate stays stable without a manual list callback', () => {
       const resource = createAppResourceDef();
-      const listing = await resource.list!({
-        signal: new AbortController().signal,
-        requestId: 'test',
-        sendNotification: () => Promise.resolve(),
-        sendRequest: () => Promise.resolve({} as never),
-      });
-
-      expect(listing.resources[0]!.uri).toBe(resource.uriTemplate);
+      expect(resource.uriTemplate).toBe(UI_URI);
     });
   });
 });

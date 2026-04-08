@@ -2,6 +2,7 @@
  * @fileoverview Tests for resource registration system.
  * @module tests/mcp-server/resources/resource-registration.test
  */
+import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
@@ -148,6 +149,44 @@ describe('ResourceRegistry', () => {
 
       const call = mockServer.resource.mock.calls[0];
       expect(call[0]).toBe('scheme://{id}');
+    });
+
+    it('registers static URIs through the SDK string overload', async () => {
+      const testResource = resource('ui://app/app.html', {
+        name: 'app-ui',
+        description: 'Static app UI',
+        handler: () => '<html></html>',
+        list: () => ({
+          resources: [{ uri: 'ui://app/app.html', name: 'App UI' }],
+        }),
+      });
+
+      const registry = new ResourceRegistry([testResource], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.resource.mock.calls[0];
+      expect(call[0]).toBe('app-ui');
+      expect(call[1]).toBe('ui://app/app.html');
+    });
+
+    it('registers templated URIs through ResourceTemplate', async () => {
+      const testResource = resource('items://{id}', {
+        name: 'item-resource',
+        description: 'Templated resource',
+        params: z.object({ id: z.string().describe('id') }),
+        handler: () => ({ ok: true }),
+        list: () => ({
+          resources: [{ uri: 'items://123', name: 'Item 123' }],
+        }),
+      });
+
+      const registry = new ResourceRegistry([testResource], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.resource.mock.calls[0];
+      expect(call[0]).toBe('item-resource');
+      expect(call[1]).toBeInstanceOf(ResourceTemplate);
+      expect(call[1]).not.toBe('items://{id}');
     });
   });
 

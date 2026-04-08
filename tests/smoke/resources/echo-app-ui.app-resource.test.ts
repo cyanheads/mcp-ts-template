@@ -24,16 +24,6 @@ const echoAppUiResource = appResource('ui://template-echo-app/app.html', {
     ctx.log.debug('Serving echo app UI.', { resourceUri: ctx.uri?.href });
     return '<!DOCTYPE html><html lang="en"><head><title>Echo App</title></head><body><h1>Echo App</h1><script type="module">import{App}from"https://unpkg.com/@modelcontextprotocol/ext-apps@1/app-with-deps";const app=new App({name:"Echo App",version:"1.0.0"});app.ontoolresult=(r)=>{};await app.connect();</script></body></html>';
   },
-
-  list: () => ({
-    resources: [
-      {
-        uri: 'ui://template-echo-app/app.html',
-        name: 'Echo App',
-        description: 'Interactive echo UI for the template_echo_app tool.',
-      },
-    ],
-  }),
 });
 
 describe('echoAppUiResource (MCP Apps pattern)', () => {
@@ -78,18 +68,7 @@ describe('echoAppUiResource (MCP Apps pattern)', () => {
     expect(result).toContain('app.connect()');
   });
 
-  it('list returns the resource entry', async () => {
-    const extra = {
-      signal: new AbortController().signal,
-      requestId: 'test',
-      sendNotification: () => Promise.resolve(),
-      sendRequest: () => Promise.resolve({} as never),
-    };
-    const listing = await echoAppUiResource.list!(extra);
-    expect(listing.resources).toHaveLength(1);
-    expect(listing.resources[0]).toMatchObject({
-      uri: 'ui://template-echo-app/app.html',
-      name: 'Echo App',
-    });
+  it('does not need a manual list callback for static discovery', () => {
+    expect(echoAppUiResource.list).toBeUndefined();
   });
 });
