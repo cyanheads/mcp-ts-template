@@ -4,7 +4,7 @@ description: >
   Scaffold an MCP App tool + UI resource pair. Use when the user asks to add a tool with interactive UI, create an MCP App, or build a visual/interactive tool.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.2"
   audience: external
   type: reference
 ---
@@ -28,7 +28,7 @@ For the full API, Context interface, and error codes, read:
 2. **Choose a URI** — convention: `ui://{{tool-name}}/app.html`
 3. **Create the app tool** at `src/mcp-server/tools/definitions/{{tool-name}}.app-tool.ts`
 4. **Create the app resource** at `src/mcp-server/resources/definitions/{{tool-name}}-ui.app-resource.ts`
-5. **Register both** in their respective `definitions/index.ts` barrels
+5. **Register both** in the project's existing `createApp()` arrays (directly in `src/index.ts` for fresh scaffolds, or via barrels if the repo already has them)
 6. **Run `bun run devcheck`** — the linter validates `_meta.ui` and cross-checks tool/resource pairing
 7. **Smoke-test** with `bun run dev:stdio` or `dev:http`
 
@@ -64,11 +64,11 @@ export const {{TOOL_EXPORT}} = appTool('{{tool_name}}', {
 
   // format() serves dual purpose for app tools:
   // 1. First text block: JSON for the UI (app.ontoolresult parses it)
-  // 2. Subsequent blocks: human-readable fallback for non-app hosts and LLM context
+  // 2. Subsequent blocks: human-readable, content-complete fallback for non-app hosts and LLM context
   format(result) {
     return [
       { type: 'text', text: JSON.stringify(result) },
-      { type: 'text', text: '/* human-readable summary */' },
+      { type: 'text', text: '/* human-readable summary with all LLM-needed fields */' },
     ];
   },
 });
@@ -98,9 +98,28 @@ const APP_HTML = `<!DOCTYPE html>
   <!-- your UI markup -->
 
   <script type="module">
-    import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@1/app-with-deps";
+    // Prefer a bundled or inlined SDK for the final shipped HTML. Leaving a live
+    // CDN import in the served ui:// resource is not the recommended default.
+    import {
+      App,
+      applyDocumentTheme,
+      applyHostFonts,
+      applyHostStyleVariables,
+    } from "https://unpkg.com/@modelcontextprotocol/ext-apps@1/app-with-deps";
 
     const app = new App({ name: "{{TOOL_TITLE}}", version: "1.0.0" });
+
+    function applyHostContext(hostContext) {
+      if (hostContext?.theme) {
+        applyDocumentTheme(hostContext.theme);
+      }
+      if (hostContext?.styles?.variables) {
+        applyHostStyleVariables(hostContext.styles.variables);
+      }
+      if (hostContext?.styles?.css?.fonts) {
+        applyHostFonts(hostContext.styles.css.fonts);
+      }
+    }
 
     // Receive initial tool result from the host
     app.ontoolresult = (result) => {
@@ -109,6 +128,7 @@ const APP_HTML = `<!DOCTYPE html>
       const data = JSON.parse(text);
       // render data into the DOM
     };
+    app.onhostcontextchanged = applyHostContext;
 
     // Proactively call tools from the UI
     document.getElementById("action-btn").addEventListener("click", async () => {
@@ -119,7 +139,10 @@ const APP_HTML = `<!DOCTYPE html>
       // handle result
     });
 
-    await app.connect();
+    app.connect().then(() => {
+      const hostContext = app.getHostContext();
+      if (hostContext) applyHostContext(hostContext);
+    });
   </script>
 </body>
 </html>`;
@@ -128,14 +151,13 @@ export const {{RESOURCE_EXPORT}} = appResource('ui://{{tool-name}}/app.html', {
   name: '{{tool-name}}-ui',
   title: '{{TOOL_TITLE}} UI',
   description: 'Interactive HTML app for {{tool_name}}.',
-  // CSP allowlist for external CDN imports (MCP Apps iframes use deny-by-default CSP)
+  params: ParamsSchema,
+  // auth: ['resource:{{tool-name}}-ui:read'],
   _meta: {
     ui: {
       csp: { resourceDomains: ['https://unpkg.com'] },
     },
   },
-  params: ParamsSchema,
-  // auth: ['resource:{{tool-name}}-ui:read'],
 
   handler(_params, ctx) {
     ctx.log.debug('Serving app UI.', { resourceUri: ctx.uri?.href });
@@ -156,30 +178,28 @@ export const {{RESOURCE_EXPORT}} = appResource('ui://{{tool-name}}/app.html', {
 
 ## UI Design Notes
 
-- **Bundling:** The simplest approach is inlining HTML/CSS/JS as a template literal (shown above). For complex UIs, use Vite + `vite-plugin-singlefile` to bundle into a single HTML file and read it from disk in the handler.
-- **Client-side SDK:** Import `App` from `@modelcontextprotocol/ext-apps` via CDN or bundle it. The `App` class provides `connect()`, `ontoolresult`, `callServerTool()`, `sendMessage()`, and `sendOpenLink()`.
-- **CSP:** MCP Apps iframes run under deny-by-default CSP. Inline scripts and styles work by default. External resources (CDN imports, API endpoints) require `_meta.ui.csp.resourceDomains` on the resource definition — e.g., `_meta: { ui: { csp: { resourceDomains: ['https://unpkg.com'] } } }`. Without this, hosts that enforce CSP will block the import and the app will not boot.
-- **format() for app tools:** The first `text` content block is typically JSON that the UI parses via `ontoolresult`. Additional blocks provide a human-readable fallback that non-app hosts and LLMs consume.
+- **Bundling:** Prefer Vite + `vite-plugin-singlefile` for any UI that uses `@modelcontextprotocol/ext-apps`. The served `ui://` HTML should ideally be self-contained. The inline template literal pattern is fine for zero-dependency UIs or when you inline the SDK yourself.
+- **Client-side SDK:** Author against `@modelcontextprotocol/ext-apps`, but ship a bundled or inlined artifact when possible. Avoid relying on a live CDN import as the default final pattern for portable host compatibility.
+- **CSP:** MCP Apps iframes run under deny-by-default CSP. With `appResource()`, put `_meta.ui.csp.resourceDomains` on the definition and the builder will mirror it into returned `resources/read` content items. With plain `resource()`, you still need to attach `_meta.ui` yourself in `format()`.
+- **App resource `format()`:** `appResource()` already preserves raw HTML for the default app MIME type and mirrors definition `_meta.ui` into content items. Add a custom `format()` only when you need extra per-read metadata or non-default content shaping.
+- **format() for app tools:** The first `text` content block is typically JSON that the UI parses via `ontoolresult`. Additional blocks provide a human-readable fallback that non-app hosts and LLMs consume. Do not rely on the JSON block alone for model-visible detail; the fallback blocks still need to render the fields the LLM must reason about.
 
-## Barrel Registration
+## Registration
 
 ```typescript
-// src/mcp-server/tools/definitions/index.ts
-import { {{TOOL_EXPORT}} } from './{{tool-name}}.app-tool.js';
+// src/index.ts (fresh scaffold default)
+import { createApp } from '@cyanheads/mcp-ts-core';
+import { {{TOOL_EXPORT}} } from './mcp-server/tools/definitions/{{tool-name}}.app-tool.js';
+import { {{RESOURCE_EXPORT}} } from './mcp-server/resources/definitions/{{tool-name}}-ui.app-resource.js';
 
-export const allToolDefinitions = [
-  // ... existing tools,
-  {{TOOL_EXPORT}},
-];
-
-// src/mcp-server/resources/definitions/index.ts
-import { {{RESOURCE_EXPORT}} } from './{{tool-name}}-ui.app-resource.js';
-
-export const allResourceDefinitions = [
-  // ... existing resources,
-  {{RESOURCE_EXPORT}},
-];
+await createApp({
+  tools: [{{TOOL_EXPORT}}],
+  resources: [{{RESOURCE_EXPORT}}],
+  prompts: [/* existing prompts */],
+});
 ```
+
+If the repo already uses `definitions/index.ts` barrels, update those instead of changing the registration pattern.
 
 ## Checklist
 
@@ -187,8 +207,10 @@ export const allResourceDefinitions = [
 - [ ] App resource created at `src/mcp-server/resources/definitions/{{tool-name}}-ui.app-resource.ts` using `appResource()`
 - [ ] `resourceUri` matches between tool and resource (`ui://{{tool-name}}/app.html`)
 - [ ] Zod schemas: all fields have `.describe()`, only JSON-Schema-serializable types
-- [ ] `format()` renders JSON first block (for UI) + human-readable blocks (for non-app hosts)
-- [ ] UI calls `app.connect()` and handles `app.ontoolresult`
-- [ ] Both registered in their respective `definitions/index.ts` barrels
+- [ ] `format()` renders JSON first block (for UI) + human-readable, content-complete fallback blocks (for non-app hosts and LLMs)
+- [ ] App resource `_meta.ui.csp` covers any external iframe dependencies, or a custom `format()` adds equivalent per-read metadata
+- [ ] UI bundles or inlines the client SDK for the shipped HTML, and handles `app.ontoolresult`
+- [ ] UI applies host context updates via `app.onhostcontextchanged`
+- [ ] Both registered in the project's existing `createApp()` arrays (directly or via barrels)
 - [ ] `bun run devcheck` passes (linter validates `_meta.ui` and tool/resource pairing)
 - [ ] Smoke-tested with `bun run dev:stdio` or `dev:http`

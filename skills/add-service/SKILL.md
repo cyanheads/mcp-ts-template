@@ -4,7 +4,7 @@ description: >
   Scaffold a new service integration. Use when the user asks to add a service, integrate an external API, or create a reusable domain module with its own initialization and state.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.2"
   audience: external
   type: reference
 ---
@@ -25,7 +25,7 @@ For the full service pattern, `CoreServices`, and `Context` interface, read:
 2. **Create the directory** at `src/services/{{domain}}/`
 3. **Create the service file** at `src/services/{{domain}}/{{domain}}-service.ts`
 4. **Create types** at `src/services/{{domain}}/types.ts` if needed
-5. **Register in `setup()`** in the server's entry point (`src/index.ts`)
+5. **Register in `setup()`** in the server's entry point (`src/index.ts`, or `src/worker.ts` for Worker-only servers)
 6. **Run `bun run devcheck`** to verify
 
 ## Template
@@ -79,9 +79,9 @@ import { createApp } from '@cyanheads/mcp-ts-core';
 import { init{{ServiceName}} } from './services/{{domain}}/{{domain}}-service.js';
 
 await createApp({
-  tools: allToolDefinitions,
-  resources: allResourceDefinitions,
-  prompts: allPromptDefinitions,
+  tools: [/* existing tools */],
+  resources: [/* existing resources */],
+  prompts: [/* existing prompts */],
   setup(core) {
     init{{ServiceName}}(core.config, core.storage);
   },
@@ -100,7 +100,7 @@ handler: async (input, ctx) => {
 
 ## Resilience (External API Services)
 
-When a service wraps an external API, apply these patterns. See `docs/service-resilience.md` for full rationale.
+When a service wraps an external API, apply these patterns. For the framework retry contract, see `skills/api-utils/SKILL.md`.
 
 ### Retry wraps the full pipeline
 
@@ -150,6 +150,46 @@ parseResponse<T>(text: string): T {
 }
 ```
 
+### Sparse upstream payloads
+
+Third-party APIs often omit fields entirely instead of returning `null`. If your raw response types, normalized domain types, or tool output schemas are stricter than the real upstream payloads, you'll either fail validation or silently invent facts.
+
+**Guidance:**
+
+1. **Raw upstream types default to optional unless presence is guaranteed.** Trust the docs only after you've verified real payloads.
+2. **Preserve absence when it means "unknown".** Missing data is different from `false`, `0`, `''`, or an empty array.
+3. **Don't fabricate defaults during normalization** unless the upstream contract or your own tool semantics explicitly define them.
+4. **With `exactOptionalPropertyTypes`, omit absent fields instead of returning `undefined`.** Conditional spreads keep the normalized object honest.
+
+```typescript
+type RawRepo = {
+  id: string;
+  name: string;
+  archived?: boolean;
+  star_count?: number;
+  description?: string | null;
+};
+
+type Repo = {
+  id: string;
+  name: string;
+  archived?: boolean;
+  starCount?: number;
+  description?: string;
+};
+
+function normalizeRepo(raw: RawRepo): Repo {
+  const description = raw.description?.trim();
+  return {
+    id: raw.id,
+    name: raw.name,
+    ...(typeof raw.archived === 'boolean' && { archived: raw.archived }),
+    ...(typeof raw.star_count === 'number' && { starCount: raw.star_count }),
+    ...(description ? { description } : {}),
+  };
+}
+```
+
 ## API Efficiency
 
 When a service wraps an external API, design methods to minimize upstream calls. These patterns compound — a tool calling 3 service methods that each make N requests is 3N calls; batching drops it to 3.
@@ -193,5 +233,6 @@ Silent truncation is a data integrity bug — the caller thinks it has all resul
 - [ ] `init` function registered in `setup()` callback in `src/index.ts`
 - [ ] Accessor throws `Error` if not initialized
 - [ ] If wrapping external API: retry covers full pipeline (fetch + parse), backoff calibrated
+- [ ] If wrapping external API: raw/domain types reflect real upstream sparsity; missing values are preserved as unknown, not fabricated into concrete facts
 - [ ] If wrapping external API: batch endpoints used where available, field selection applied, pagination handled
 - [ ] `bun run devcheck` passes

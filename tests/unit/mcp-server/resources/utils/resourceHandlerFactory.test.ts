@@ -169,6 +169,41 @@ describe('createResourceHandler', () => {
 
       expect(result.contents[0]!.mimeType).toBe('application/json');
     });
+
+    it('should pass string handler results through without JSON quote wrapping', async () => {
+      const html = '<!DOCTYPE html><html><body>Hello</body></html>';
+      const def = resource('ui://app/app.html', {
+        description: 'Static app UI.',
+        mimeType: 'text/html;profile=mcp-app',
+        handler: () => html,
+      });
+
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const result = await handler(new URL('ui://app/app.html'), {}, createMockSdkContext());
+
+      expect(result.contents[0]).toMatchObject({
+        uri: 'ui://app/app.html',
+        mimeType: 'text/html;profile=mcp-app',
+        text: html,
+      });
+    });
+
+    it('should JSON-encode string handler results for JSON mime types', async () => {
+      const def = resource('json://app/data', {
+        description: 'String JSON payload.',
+        mimeType: 'application/json',
+        handler: () => 'hello',
+      });
+
+      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const result = await handler(new URL('json://app/data'), {}, createMockSdkContext());
+
+      expect(result.contents[0]).toMatchObject({
+        uri: 'json://app/data',
+        mimeType: 'application/json',
+        text: '"hello"',
+      });
+    });
   });
 
   // -----------------------------------------------------------------------

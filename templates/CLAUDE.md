@@ -286,6 +286,9 @@ import { getMyService } from '@/services/my-domain/my-service.js';
 - [ ] `ctx.log` for logging, `ctx.state` for storage
 - [ ] Handlers throw on failure — error factories or plain `Error`, no try/catch
 - [ ] `format()` renders all data the LLM needs — `content[]` is the only field most clients forward to the model
+- [ ] If wrapping external API: raw/domain/output schemas reviewed against real upstream sparsity/nullability before finalizing required vs optional fields
+- [ ] If wrapping external API: normalization and `format()` preserve uncertainty; do not fabricate facts from missing upstream data
+- [ ] If wrapping external API: tests include at least one sparse payload case with omitted upstream fields
 - [ ] Registered in `createApp()` arrays (directly or via barrel exports)
 - [ ] Tests use `createMockContext()` from `@cyanheads/mcp-ts-core/testing`
 - [ ] `npm run devcheck` passes

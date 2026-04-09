@@ -4,7 +4,7 @@ description: >
   Cloudflare Workers deployment using `createWorkerHandler` from `@cyanheads/mcp-ts-core/worker`. Covers the full handler signature, binding types, CloudflareBindings extensibility, runtime compatibility guards, and wrangler.toml requirements.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.1"
   audience: external
   type: reference
 ---
@@ -19,15 +19,15 @@ metadata:
 
 ```ts
 import { createWorkerHandler } from '@cyanheads/mcp-ts-core/worker';
-import { allToolDefinitions } from './mcp-server/tools/index.js';
-import { allResourceDefinitions } from './mcp-server/resources/index.js';
-import { allPromptDefinitions } from './mcp-server/prompts/index.js';
+import { echoTool } from './mcp-server/tools/definitions/echo.tool.js';
+import { echoResource } from './mcp-server/resources/definitions/echo.resource.js';
+import { echoPrompt } from './mcp-server/prompts/definitions/echo.prompt.js';
 import { initMyService } from './services/my-domain/my-service.js';
 
 export default createWorkerHandler({
-  tools: allToolDefinitions,
-  resources: allResourceDefinitions,
-  prompts: allPromptDefinitions,
+  tools: [echoTool],
+  resources: [echoResource],
+  prompts: [echoPrompt],
   setup(core) {
     initMyService(core.config, core.storage);
   },
@@ -38,6 +38,8 @@ export default createWorkerHandler({
   },
 });
 ```
+
+Fresh scaffolds register definitions directly in the entry point as shown above. If your project later adds barrel files for definitions, importing arrays from those barrels is also fine.
 
 ### Options
 

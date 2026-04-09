@@ -311,7 +311,7 @@ export const dataExplorerUiResource = resource('ui://template-data-explorer/app.
       text: _result as string,
       _meta: {
         ui: {
-          csp: { resource_domains: ['https://unpkg.com'] },
+          csp: { resourceDomains: ['https://unpkg.com'] },
         },
       },
     },

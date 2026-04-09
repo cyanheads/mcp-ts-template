@@ -62,13 +62,30 @@ const APP_HTML = `<!DOCTYPE html>
   </div>
 
   <script type="module">
-    import { App } from "https://unpkg.com/@modelcontextprotocol/ext-apps@1/app-with-deps";
+    import {
+      App,
+      applyDocumentTheme,
+      applyHostFonts,
+      applyHostStyleVariables,
+    } from "https://unpkg.com/@modelcontextprotocol/ext-apps@1/app-with-deps";
 
     const app = new App({ name: "Echo App", version: "1.0.0" });
     const messageEl = document.getElementById("message");
     const timestampEl = document.getElementById("timestamp");
     const inputEl = document.getElementById("input");
     const sendBtn = document.getElementById("send");
+
+    function applyHostContext(hostContext) {
+      if (hostContext?.theme) {
+        applyDocumentTheme(hostContext.theme);
+      }
+      if (hostContext?.styles?.variables) {
+        applyHostStyleVariables(hostContext.styles.variables);
+      }
+      if (hostContext?.styles?.css?.fonts) {
+        applyHostFonts(hostContext.styles.css.fonts);
+      }
+    }
 
     function render(content) {
       const text = content?.find(c => c.type === "text")?.text;
@@ -82,6 +99,7 @@ const APP_HTML = `<!DOCTYPE html>
 
     // Receive initial tool result pushed by the host
     app.ontoolresult = (result) => render(result.content);
+    app.onhostcontextchanged = applyHostContext;
 
     // Send new echo from the UI
     sendBtn.addEventListener("click", async () => {
@@ -106,7 +124,10 @@ const APP_HTML = `<!DOCTYPE html>
       if (e.key === "Enter") sendBtn.click();
     });
 
-    await app.connect();
+    app.connect().then(() => {
+      const hostContext = app.getHostContext();
+      if (hostContext) applyHostContext(hostContext);
+    });
   </script>
 </body>
 </html>`;
@@ -119,13 +140,13 @@ export const echoAppUiResource = appResource('ui://template-echo-app/app.html', 
   description:
     'Interactive HTML app for the echo app tool. Displayed as a sandboxed iframe ' +
     'by MCP Apps-capable hosts.',
+  params: ParamsSchema,
+  auth: ['resource:echo-app-ui:read'],
   _meta: {
     ui: {
       csp: { resourceDomains: ['https://unpkg.com'] },
     },
   },
-  params: ParamsSchema,
-  auth: ['resource:echo-app-ui:read'],
 
   handler(_params, ctx) {
     ctx.log.debug('Serving echo app UI.', { resourceUri: ctx.uri?.href });

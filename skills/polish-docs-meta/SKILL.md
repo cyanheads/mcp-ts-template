@@ -4,7 +4,7 @@ description: >
   Finalize documentation and project metadata for a ship-ready MCP server. Use after implementation is complete, tests pass, and devcheck is clean. Safe to run at any stage — each step checks current state and only acts on what still needs work.
 metadata:
   author: cyanheads
-  version: "1.2"
+  version: "1.3"
   audience: external
   type: workflow
 ---
@@ -23,7 +23,7 @@ Prefer running after implementation is complete, but safe to re-run at any point
 
 - [ ] All tools/resources/prompts implemented and registered
 - [ ] `bun run devcheck` passes
-- [ ] Tests pass (`npm test`)
+- [ ] Tests pass (`bun run test`)
 
 If these aren't met, address them first.
 
@@ -166,7 +166,7 @@ Run the full check suite one last time:
 
 ```bash
 bun run devcheck
-npm test
+bun run test
 ```
 
 Both must pass clean.
@@ -186,4 +186,4 @@ Both must pass clean.
 - [ ] `Dockerfile` OCI labels and runtime config accurate (if present)
 - [ ] `docs/tree.md` regenerated
 - [ ] `bun run devcheck` passes
-- [ ] `npm test` passes
+- [ ] `bun run test` passes

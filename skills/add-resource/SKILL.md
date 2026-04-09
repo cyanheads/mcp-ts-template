@@ -4,14 +4,14 @@ description: >
   Scaffold a new MCP resource definition. Use when the user asks to add a resource, expose data via URI, or create a readable endpoint.
 metadata:
   author: cyanheads
-  version: "1.1"
+  version: "1.2"
   audience: external
   type: reference
 ---
 
 ## Context
 
-Resources use the `resource()` builder from `@cyanheads/mcp-ts-core`. Each resource lives in `src/mcp-server/resources/definitions/` with a `.resource.ts` suffix and is registered in the barrel `index.ts`.
+Resources use the `resource()` builder from `@cyanheads/mcp-ts-core`. Each resource lives in `src/mcp-server/resources/definitions/` with a `.resource.ts` suffix and is registered into `createApp()` in `src/index.ts`. Some repos later add `definitions/index.ts` barrels; follow the pattern already used by the project.
 
 **Tool coverage.** Not all MCP clients expose resources — many are tool-only (Claude Code, Cursor, most chat UIs). Before adding a resource, verify the same data is reachable via the tool surface — either through a dedicated tool, included in another tool's output, or bundled into a broader tool. A resource whose data has no tool path is invisible to a large share of agents.
 
@@ -24,7 +24,7 @@ For the full `resource()` API, pagination utilities, and `Context` interface, re
 1. **Ask the user** for the resource's URI template, purpose, and data shape
 2. **Design the URI** — use `{paramName}` for path parameters (e.g., `myscheme://{itemId}/data`)
 3. **Create the file** at `src/mcp-server/resources/definitions/{{resource-name}}.resource.ts`
-4. **Register** the resource in `src/mcp-server/resources/definitions/index.ts`
+4. **Register** the resource in the project's existing `createApp()` resource list (directly in `src/index.ts` for fresh scaffolds, or via a barrel if the repo already has one)
 5. **Run `bun run devcheck`** to verify
 6. **Smoke-test** with `bun run dev:stdio` or `dev:http`
 
@@ -93,16 +93,21 @@ async handler(params, ctx) {
 },
 ```
 
-### Barrel registration
+### Registration
 
 ```typescript
-// src/mcp-server/resources/definitions/index.ts
-import { {{RESOURCE_EXPORT}} } from './{{resource-name}}.resource.js';
-export const allResourceDefinitions = [
-  // ... existing resources
-  {{RESOURCE_EXPORT}},
-];
+// src/index.ts (fresh scaffold default)
+import { createApp } from '@cyanheads/mcp-ts-core';
+import { {{RESOURCE_EXPORT}} } from './mcp-server/resources/definitions/{{resource-name}}.resource.js';
+
+await createApp({
+  tools: [/* existing tools */],
+  resources: [{{RESOURCE_EXPORT}}],
+  prompts: [/* existing prompts */],
+});
 ```
+
+If the repo already uses `src/mcp-server/resources/definitions/index.ts`, update that barrel instead of changing the registration style.
 
 ## Checklist
 
@@ -114,6 +119,6 @@ export const allResourceDefinitions = [
 - [ ] Data is reachable via the tool surface (dedicated tool, another tool's output, or not needed for tool-only agents)
 - [ ] `list()` function provided if the resource is discoverable
 - [ ] Pagination used for large result sets (`extractCursor`/`paginateArray`)
-- [ ] Registered in `definitions/index.ts` barrel and `allResourceDefinitions`
+- [ ] Registered in the project's existing `createApp()` resource list (directly or via barrel)
 - [ ] `bun run devcheck` passes
 - [ ] Smoke-tested with `bun run dev:stdio` or `dev:http`

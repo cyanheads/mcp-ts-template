@@ -43,15 +43,22 @@ export interface ResourceDefinition<
   TOutput extends ZodObject<ZodRawShape> | undefined = undefined,
 > {
   /**
-   * Protocol-level metadata for the resource.
-   * For MCP Apps UI resources, use `_meta.ui` to declare CSP and permissions:
+   * Protocol-level metadata for the resource registration itself.
+   * For plain `resource()` MCP Apps UI resources, host-consumed UI metadata that
+   * must travel with `resources/read` content (for example `_meta.ui.csp` or
+   * permissions) should be attached to the returned content item from `format()`:
    * ```ts
-   * _meta: {
-   *   ui: {
-   *     csp: { resourceDomains: ['https://cdn.example.com'] },
-   *     permissions: ['microphone'],
+   * format: (html, meta) => [{
+   *   uri: meta.uri.href,
+   *   text: html as string,
+   *   mimeType: meta.mimeType,
+   *   _meta: {
+   *     ui: {
+   *       csp: { resourceDomains: ['https://cdn.example.com'] },
+   *       permissions: { microphone: {} },
+   *     },
    *   },
-   * }
+   * }]
    * ```
    */
   _meta?: Record<string, unknown>;
@@ -65,7 +72,8 @@ export interface ResourceDefinition<
   examples?: { name: string; uri: string }[];
   /**
    * Optional formatter mapping output to ReadResourceResult contents.
-   * If omitted, a default JSON formatter is used.
+   * If omitted, a default formatter is used: string results pass through for
+   * non-JSON MIME types, and JSON MIME types stringify all values.
    */
   format?: (
     result: unknown,

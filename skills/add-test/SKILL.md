@@ -1,17 +1,17 @@
 ---
 name: add-test
 description: >
-  Scaffold a test file for an existing tool, resource, or service. Use when the user asks to add tests, improve coverage, or when a definition exists without a colocated test file.
+  Scaffold a test file for an existing tool, resource, or service. Use when the user asks to add tests, improve coverage, or when a definition exists without a matching test file.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.2"
   audience: external
   type: reference
 ---
 
 ## Context
 
-Tests use Vitest and `createMockContext` from `@cyanheads/mcp-ts-core/testing`. Test files are colocated with their source: `foo.tool.ts` gets `foo.tool.test.ts` in the same directory.
+Tests use Vitest and `createMockContext` from `@cyanheads/mcp-ts-core/testing`. Freshly scaffolded servers place tests under `tests/` (for example `tests/tools/echo.tool.test.ts`), and the default Vitest config also supports `src/**/*.test.ts`. Match the repo's existing layout instead of forcing one.
 
 For the full `createMockContext` API and testing patterns, read:
 
@@ -21,9 +21,9 @@ For the full `createMockContext` API and testing patterns, read:
 
 1. **Identify the target** — which tool, resource, or service needs tests
 2. **Read the source file** — understand the handler's logic, input/output schemas, error paths, and which `ctx` features it uses
-3. **Create the test file** colocated with the source
+3. **Create the test file** in the repo's existing test layout
 4. **Write test cases** covering happy path, error paths, and edge cases
-5. **Run `npm test`** to verify
+5. **Run `bun run test`** to verify
 6. **Run `bun run devcheck`** to verify types
 
 ## Determining What to Test
@@ -38,7 +38,8 @@ Read the handler and identify:
 | **`ctx.state` usage** | Use `createMockContext({ tenantId: 'test' })` to enable storage |
 | **`ctx.elicit` / `ctx.sample`** | Mock with `vi.fn()`, also test the absent case (undefined) |
 | **`ctx.progress`** | Use `createMockContext({ progress: true })` for task tools |
-| **`format` function** | Test separately if defined — it's pure, no ctx needed |
+| **`format` function** | Test separately if defined — it's pure, no ctx needed. Verify it renders the IDs and fields the model needs, not just a count or title. For projection-style tools, test non-default field selections. |
+| **Sparse upstream payloads** | For third-party API integrations, build a fixture with omitted fields. Assert normalized output still validates and `format()` preserves unknown values instead of inventing facts. |
 | **Auth scopes** | Not tested at handler level (framework enforces) — skip |
 
 ## Templates
@@ -48,12 +49,12 @@ Read the handler and identify:
 ```typescript
 /**
  * @fileoverview Tests for {{TOOL_NAME}} tool.
- * @module mcp-server/tools/definitions/{{TOOL_NAME}}.test
+ * @module tests/tools/{{TOOL_NAME}}.tool.test
  */
 
 import { describe, expect, it } from 'vitest';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
-import { {{TOOL_EXPORT}} } from './{{tool-name}}.tool.js';
+import { {{TOOL_EXPORT}} } from '@/mcp-server/tools/definitions/{{tool-name}}.tool.js';
 
 describe('{{TOOL_EXPORT}}', () => {
   it('returns expected output for valid input', async () => {
@@ -75,11 +76,11 @@ describe('{{TOOL_EXPORT}}', () => {
     await expect({{TOOL_EXPORT}}.handler(input, ctx)).rejects.toThrow();
   });
 
-  it('formats output correctly', () => {
+  it('formats output completely', () => {
     const output = { /* mock output matching the output schema */ };
     const blocks = {{TOOL_EXPORT}}.format!(output);
-    expect(blocks).toHaveLength(1);
-    expect(blocks[0].type).toBe('text');
+    expect(blocks.some((block) => block.type === 'text')).toBe(true);
+    // Assert the rendered text includes the IDs/fields the LLM needs to act on.
   });
 });
 ```
@@ -89,12 +90,12 @@ describe('{{TOOL_EXPORT}}', () => {
 ```typescript
 /**
  * @fileoverview Tests for {{RESOURCE_NAME}} resource.
- * @module mcp-server/resources/definitions/{{RESOURCE_NAME}}.test
+ * @module tests/resources/{{RESOURCE_NAME}}.resource.test
  */
 
 import { describe, expect, it } from 'vitest';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
-import { {{RESOURCE_EXPORT}} } from './{{resource-name}}.resource.js';
+import { {{RESOURCE_EXPORT}} } from '@/mcp-server/resources/definitions/{{resource-name}}.resource.js';
 
 describe('{{RESOURCE_EXPORT}}', () => {
   it('returns data for valid params', async () => {
@@ -131,16 +132,16 @@ describe('{{RESOURCE_EXPORT}}', () => {
 ```typescript
 /**
  * @fileoverview Tests for {{SERVICE_NAME}} service.
- * @module services/{{domain}}/{{SERVICE_NAME}}.test
+ * @module tests/services/{{domain}}/{{domain}}-service.test
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
-import { init{{ServiceClass}}, get{{ServiceClass}} } from './{{service-name}}-service.js';
+import { get{{ServiceClass}}, init{{ServiceClass}} } from '@/services/{{domain}}/{{domain}}-service.js';
 
 describe('{{ServiceClass}}', () => {
   beforeEach(() => {
-    // Re-initialize with fresh config/storage per suite
+    // Re-initialize with fresh config/storage for each test
     init{{ServiceClass}}(mockConfig, mockStorage);
   });
 
@@ -150,14 +151,10 @@ describe('{{ServiceClass}}', () => {
     const result = await service.doWork('input', ctx);
     expect(result).toBeDefined();
   });
-
-  it('throws when not initialized', () => {
-    // Reset the singleton — this is the only case where accessing
-    // the module internals is acceptable
-    expect(() => get{{ServiceClass}}()).toThrow(/not initialized/);
-  });
 });
 ```
+
+If you need to test the accessor's "not initialized" guard, do it in a separate isolated-module test (`vi.resetModules()` before importing the service module). Don't mix that assertion into a suite that already calls `init{{ServiceClass}}()` in `beforeEach()`.
 
 ### Task tool test
 
@@ -202,15 +199,17 @@ When scaffolding tests for an existing handler, use the Zod schemas to generate 
 4. **Defaults** — omit optional fields, verify defaults are applied in the output
 5. **Boundaries** — if the schema has `.min()`, `.max()`, `.length()`, test at the boundaries
 6. **Error paths** — trace the handler logic for throw conditions, construct inputs that trigger each
+7. **Sparse upstream fixtures** — if the handler/service wraps a third-party API, add at least one fixture where upstream omits optional fields entirely. Assert that the output still validates and that `format()` renders uncertainty honestly (`Not available`, omitted badge, etc.) instead of fabricating values.
 
 ## Checklist
 
-- [ ] Test file created at `src/.../{{name}}.test.ts` (colocated with source)
+- [ ] Test file created in the repo's existing layout (`tests/...` or colocated with source)
 - [ ] JSDoc `@fileoverview` and `@module` header present
 - [ ] Happy path tested with valid input → expected output
 - [ ] Error paths tested (at least one `.rejects.toThrow()`)
 - [ ] `format` function tested if defined
 - [ ] `createMockContext` options match handler's ctx usage (`tenantId`, `progress`, `elicit`, `sample`)
 - [ ] Service re-initialized in `beforeEach` if handler depends on a service singleton
-- [ ] `npm test` passes
+- [ ] If wrapping external API: sparse-payload case tested (omitted upstream fields still validate; `format()` does not invent facts)
+- [ ] `bun run test` passes
 - [ ] `bun run devcheck` passes

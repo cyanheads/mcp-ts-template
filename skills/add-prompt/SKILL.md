@@ -4,14 +4,14 @@ description: >
   Scaffold a new MCP prompt template. Use when the user asks to add a prompt, create a reusable message template, or define a prompt for LLM interactions.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.1"
   audience: external
   type: reference
 ---
 
 ## Context
 
-Prompts use the `prompt()` builder from `@cyanheads/mcp-ts-core`. Each prompt lives in `src/mcp-server/prompts/definitions/` with a `.prompt.ts` suffix and is registered in the barrel `index.ts`.
+Prompts use the `prompt()` builder from `@cyanheads/mcp-ts-core`. Each prompt lives in `src/mcp-server/prompts/definitions/` with a `.prompt.ts` suffix and is registered into `createApp()` in `src/index.ts`. Some repos later add `definitions/index.ts` barrels; match the project's current pattern.
 
 Prompts are pure message templates — no `Context`, no auth, no side effects.
 
@@ -23,7 +23,7 @@ For the full `prompt()` API, read:
 
 1. **Ask the user** for the prompt's name, purpose, and arguments
 2. **Create the file** at `src/mcp-server/prompts/definitions/{{prompt-name}}.prompt.ts`
-3. **Register** the prompt in `src/mcp-server/prompts/definitions/index.ts`
+3. **Register** the prompt in the project's existing `createApp()` prompt list (directly in `src/index.ts` for fresh scaffolds, or via a barrel if the repo already has one)
 4. **Run `bun run devcheck`** to verify
 
 ## Template
@@ -74,16 +74,21 @@ generate: (args) => [
 ],
 ```
 
-### Barrel registration
+### Registration
 
 ```typescript
-// src/mcp-server/prompts/definitions/index.ts
-import { {{PROMPT_EXPORT}} } from './{{prompt-name}}.prompt.js';
-export const allPromptDefinitions = [
-  // ... existing prompts
-  {{PROMPT_EXPORT}},
-];
+// src/index.ts (fresh scaffold default)
+import { createApp } from '@cyanheads/mcp-ts-core';
+import { {{PROMPT_EXPORT}} } from './mcp-server/prompts/definitions/{{prompt-name}}.prompt.js';
+
+await createApp({
+  tools: [/* existing tools */],
+  resources: [/* existing resources */],
+  prompts: [{{PROMPT_EXPORT}}],
+});
 ```
+
+If the repo already uses `src/mcp-server/prompts/definitions/index.ts`, update that barrel instead.
 
 ## Checklist
 
@@ -92,5 +97,5 @@ export const allPromptDefinitions = [
 - [ ] JSDoc `@fileoverview` and `@module` header present
 - [ ] `generate` function returns valid message array
 - [ ] No side effects — prompts are pure templates
-- [ ] Registered in `definitions/index.ts` barrel and `allPromptDefinitions`
+- [ ] Registered in the project's existing `createApp()` prompt list (directly or via barrel)
 - [ ] `bun run devcheck` passes

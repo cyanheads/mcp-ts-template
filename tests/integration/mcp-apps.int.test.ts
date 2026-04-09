@@ -58,7 +58,7 @@ function createAppResourceDef() {
     auth: ['resource:test-app-ui:read'],
     _meta: {
       ui: {
-        csp: { resource_domains: ['https://cdn.example.com'] },
+        csp: { resourceDomains: ['https://cdn.example.com'] },
       },
     },
 
@@ -201,6 +201,27 @@ describe('MCP Apps — end-to-end integration', () => {
 
       expect(typeof result).toBe('string');
       expect(result).toContain('<html>');
+    });
+
+    it('app resource format preserves raw HTML and content-item CSP metadata', () => {
+      const resource = createAppResourceDef();
+      const html = '<html><body>Test App</body></html>';
+      const contents = resource.format!(html, {
+        uri: new URL(UI_URI),
+        mimeType: APP_RESOURCE_MIME_TYPE,
+      });
+
+      expect(contents).toHaveLength(1);
+      expect(contents[0]).toMatchObject({
+        uri: UI_URI,
+        text: html,
+        mimeType: APP_RESOURCE_MIME_TYPE,
+        _meta: {
+          ui: {
+            csp: { resourceDomains: ['https://cdn.example.com'] },
+          },
+        },
+      });
     });
 
     it('static app resources do not require a manual list callback', () => {

@@ -19,10 +19,15 @@ const echoAppUiResource = appResource('ui://template-echo-app/app.html', {
   description: 'Interactive HTML app for the echo app tool.',
   params: z.object({}).describe('No parameters. Returns the static HTML app.'),
   auth: ['resource:echo-app-ui:read'],
+  _meta: {
+    ui: {
+      csp: { resourceDomains: ['https://unpkg.com'] },
+    },
+  },
 
   handler(_params, ctx) {
     ctx.log.debug('Serving echo app UI.', { resourceUri: ctx.uri?.href });
-    return '<!DOCTYPE html><html lang="en"><head><title>Echo App</title></head><body><h1>Echo App</h1><script type="module">import{App}from"https://unpkg.com/@modelcontextprotocol/ext-apps@1/app-with-deps";const app=new App({name:"Echo App",version:"1.0.0"});app.ontoolresult=(r)=>{};await app.connect();</script></body></html>';
+    return '<!DOCTYPE html><html lang="en"><head><title>Echo App</title></head><body><h1>Echo App</h1><script type="module">import{App,applyDocumentTheme,applyHostFonts,applyHostStyleVariables}from"https://unpkg.com/@modelcontextprotocol/ext-apps@1/app-with-deps";const app=new App({name:"Echo App",version:"1.0.0"});function applyHostContext(ctx){if(ctx?.theme){applyDocumentTheme(ctx.theme)}if(ctx?.styles?.variables){applyHostStyleVariables(ctx.styles.variables)}if(ctx?.styles?.css?.fonts){applyHostFonts(ctx.styles.css.fonts)}}app.ontoolresult=(r)=>{};app.onhostcontextchanged=applyHostContext;app.connect().then(()=>{const ctx=app.getHostContext();if(ctx)applyHostContext(ctx)})</script></body></html>';
   },
 });
 
@@ -65,7 +70,27 @@ describe('echoAppUiResource (MCP Apps pattern)', () => {
     const ctx = createMockContext({ uri: new URL('ui://template-echo-app/app.html') });
     const result = await echoAppUiResource.handler(echoAppUiResource.params!.parse({}), ctx);
     expect(result).toContain('@modelcontextprotocol/ext-apps');
-    expect(result).toContain('app.connect()');
+    expect(result).toContain('onhostcontextchanged');
+    expect(result).toContain('app.connect().then');
+  });
+
+  it('format preserves raw HTML and attaches content-item CSP metadata', () => {
+    const html = '<!DOCTYPE html><html><body>Echo App</body></html>';
+    const contents = echoAppUiResource.format!(html, {
+      uri: new URL('ui://template-echo-app/app.html'),
+      mimeType: APP_RESOURCE_MIME_TYPE,
+    });
+
+    expect(contents[0]).toMatchObject({
+      uri: 'ui://template-echo-app/app.html',
+      text: html,
+      mimeType: APP_RESOURCE_MIME_TYPE,
+      _meta: {
+        ui: {
+          csp: { resourceDomains: ['https://unpkg.com'] },
+        },
+      },
+    });
   });
 
   it('does not need a manual list callback for static discovery', () => {

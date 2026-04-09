@@ -404,10 +404,11 @@ describe('appResource()', () => {
     expect(listing.resources[0]!.uri).toBe('ui://my-app/app.html');
   });
 
-  it('preserves _meta', () => {
+  it('preserves definition _meta and mirrors _meta.ui into read content items', () => {
     const def = appResource('ui://my-app/app.html', {
       description: 'App UI',
       _meta: {
+        vendor: { featureFlag: true },
         ui: {
           csp: { resourceDomains: ['https://cdn.example.com'] },
           permissions: { microphone: {} },
@@ -416,10 +417,93 @@ describe('appResource()', () => {
       handler: () => '<html></html>',
     });
 
-    expect(def._meta?.ui).toEqual({
-      csp: { resourceDomains: ['https://cdn.example.com'] },
-      permissions: { microphone: {} },
+    expect(def._meta).toMatchObject({
+      vendor: { featureFlag: true },
+      ui: {
+        csp: { resourceDomains: ['https://cdn.example.com'] },
+        permissions: { microphone: {} },
+      },
     });
+
+    const contents = def.format!('<html></html>', {
+      uri: new URL('ui://my-app/app.html'),
+      mimeType: APP_RESOURCE_MIME_TYPE,
+    });
+
+    expect(contents[0]).toMatchObject({
+      uri: 'ui://my-app/app.html',
+      text: '<html></html>',
+      mimeType: APP_RESOURCE_MIME_TYPE,
+      _meta: {
+        ui: {
+          csp: { resourceDomains: ['https://cdn.example.com'] },
+          permissions: { microphone: {} },
+        },
+      },
+    });
+  });
+
+  it('lets content-item _meta.ui override app-level defaults', () => {
+    const def = appResource('ui://my-app/app.html', {
+      description: 'App UI',
+      _meta: {
+        ui: {
+          csp: {
+            resourceDomains: ['https://cdn.example.com'],
+            connectDomains: ['https://api.example.com'],
+          },
+          permissions: { microphone: {} },
+        },
+      },
+      format: (html, meta) => [
+        {
+          uri: meta.uri.href,
+          text: html as string,
+          mimeType: meta.mimeType,
+          _meta: {
+            ui: {
+              csp: {
+                resourceDomains: ['https://override.example.com'],
+              },
+            },
+          },
+        },
+      ],
+      handler: () => '<html></html>',
+    });
+
+    const contents = def.format!('<html></html>', {
+      uri: new URL('ui://my-app/app.html'),
+      mimeType: APP_RESOURCE_MIME_TYPE,
+    });
+
+    expect(contents[0]).toMatchObject({
+      _meta: {
+        ui: {
+          csp: {
+            resourceDomains: ['https://override.example.com'],
+            connectDomains: ['https://api.example.com'],
+          },
+          permissions: { microphone: {} },
+        },
+      },
+    });
+  });
+
+  it('preserves _meta when no _meta.ui is present', () => {
+    const def = appResource('ui://my-app/app.html', {
+      description: 'App UI',
+      _meta: {
+        vendor: { featureFlag: true },
+      },
+      handler: () => '<html></html>',
+    });
+
+    expect(def._meta).toEqual({
+      vendor: { featureFlag: true },
+    });
+
+    expect(def.format).toBeUndefined();
   });
 
   it('does not leak mimeType override into a second field', () => {

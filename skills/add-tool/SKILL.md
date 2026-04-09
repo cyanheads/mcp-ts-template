@@ -4,14 +4,14 @@ description: >
   Scaffold a new MCP tool definition. Use when the user asks to add a tool, create a new tool, or implement a new capability for the server.
 metadata:
   author: cyanheads
-  version: "1.1"
+  version: "1.3"
   audience: external
   type: reference
 ---
 
 ## Context
 
-Tools use the `tool()` builder from `@cyanheads/mcp-ts-core`. Each tool lives in `src/mcp-server/tools/definitions/` with a `.tool.ts` suffix and is registered in the barrel `index.ts`.
+Tools use the `tool()` builder from `@cyanheads/mcp-ts-core`. Each tool lives in `src/mcp-server/tools/definitions/` with a `.tool.ts` suffix and is registered into `createApp()` in `src/index.ts`. Some larger repos later add `definitions/index.ts` barrels; match the pattern already used by the project you're editing.
 
 For the full `tool()` API, `Context` interface, and error codes, read:
 
@@ -23,7 +23,7 @@ For the full `tool()` API, `Context` interface, and error codes, read:
 2. **Determine if long-running** — if the tool involves streaming, polling, or
    multi-step async work, it should use `task: true`
 3. **Create the file** at `src/mcp-server/tools/definitions/{{tool-name}}.tool.ts`
-4. **Register** the tool in `src/mcp-server/tools/definitions/index.ts`
+4. **Register** the tool in the project's existing `createApp()` tool list (directly in `src/index.ts` for fresh scaffolds, or via a barrel if the repo already has one)
 5. **Run `bun run devcheck`** to verify
 6. **Smoke-test** with `bun run dev:stdio` or `dev:http`
 
@@ -96,18 +96,22 @@ export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
 });
 ```
 
-### Barrel registration
+### Registration
 
 ```typescript
-// src/mcp-server/tools/definitions/index.ts
-import { existingTool } from './existing-tool.tool.js';
-import { {{TOOL_EXPORT}} } from './{{tool-name}}.tool.js';
+// src/index.ts (fresh scaffold default)
+import { createApp } from '@cyanheads/mcp-ts-core';
+import { existingTool } from './mcp-server/tools/definitions/existing-tool.tool.js';
+import { {{TOOL_EXPORT}} } from './mcp-server/tools/definitions/{{tool-name}}.tool.js';
 
-export const allToolDefinitions = [
-  existingTool,
-  {{TOOL_EXPORT}},
-];
+await createApp({
+  tools: [existingTool, {{TOOL_EXPORT}}],
+  resources: [/* existing resources */],
+  prompts: [/* existing prompts */],
+});
 ```
+
+If the repo already uses `src/mcp-server/tools/definitions/index.ts`, update that barrel instead of switching patterns midstream.
 
 ## Tool Response Design
 
@@ -175,6 +179,43 @@ if (results.length === 0) {
       + `Try a broader status filter or verify the project name.`,
   };
 }
+```
+
+### Sparse upstream data must stay honest
+
+When tool output comes from a third-party API, don't overstate certainty. Upstream systems often omit fields entirely; the tool schema and `format()` should preserve that uncertainty instead of collapsing it into fake `false`, `0`, or empty-string facts.
+
+**Guidance:**
+
+- Use optional output fields when the upstream source is sparse.
+- Render unknown values explicitly (`Not available`, `Unknown`) instead of inventing a concrete value.
+- Only render booleans, badges, counts, and summary facts when they are actually known.
+
+```typescript
+output: z.object({
+  repos: z.array(z.object({
+    id: z.string().describe('Repository ID.'),
+    name: z.string().describe('Repository name.'),
+    archived: z.boolean().optional()
+      .describe('Archived status when provided by the upstream API. Omitted when unknown.'),
+    stars: z.number().optional()
+      .describe('Star count when provided by the upstream API. Omitted when unknown.'),
+  })).describe('Repositories returned by the search.'),
+}),
+
+format: (result) => [{
+  type: 'text',
+  text: result.repos.map((repo) => [
+    `## ${repo.name}`,
+    `**ID:** ${repo.id}`,
+    typeof repo.archived === 'boolean'
+      ? `**Archived:** ${repo.archived ? 'Yes' : 'No'}`
+      : '**Archived:** Not available',
+    repo.stars != null
+      ? `**Stars:** ${repo.stars}`
+      : '**Stars:** Not available',
+  ].join('\n')).join('\n\n'),
+}],
 ```
 
 ### Error classification and messaging
@@ -270,8 +311,9 @@ Large payloads burn the agent's context window. Default to curated summaries; of
 - [ ] Optional nested objects guarded for empty inner values from form-based clients (check `?.field` truthiness, not just object presence)
 - [ ] `handler(input, ctx)` is pure — throws on failure, no try/catch
 - [ ] `format()` renders all data the LLM needs (not just a count or title) — `content[]` is the only field most clients forward to the model
+- [ ] If wrapping external API: output schema and `format()` preserve uncertainty from sparse upstream payloads instead of inventing concrete values
 - [ ] `auth` scopes declared if the tool needs authorization
 - [ ] `task: true` added if the tool is long-running
-- [ ] Registered in `definitions/index.ts` barrel and `allToolDefinitions`
+- [ ] Registered in the project's existing `createApp()` tool list (directly or via barrel)
 - [ ] `bun run devcheck` passes
 - [ ] Smoke-tested with `bun run dev:stdio` or `dev:http`

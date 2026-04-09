@@ -47,14 +47,26 @@ export interface ResourceHandlerFactoryServices {
 // Default formatter
 // ---------------------------------------------------------------------------
 
+function isJsonMimeType(mimeType: string): boolean {
+  const normalizedMimeType = mimeType.split(';', 1)[0]?.trim().toLowerCase() ?? '';
+  return normalizedMimeType === 'application/json' || normalizedMimeType.endsWith('+json');
+}
+
+function formatResourceText(result: unknown, mimeType: string): string {
+  return typeof result === 'string' && !isJsonMimeType(mimeType)
+    ? result
+    : JSON.stringify(result, null, 2);
+}
+
 function defaultResponseFormatter(
   result: unknown,
   meta: { uri: URL; mimeType: string },
 ): ReadResourceResult['contents'] {
+  const text = formatResourceText(result, meta.mimeType);
   return [
     {
       uri: meta.uri.href,
-      text: JSON.stringify(result, null, 2),
+      text,
       mimeType: meta.mimeType,
     },
   ];

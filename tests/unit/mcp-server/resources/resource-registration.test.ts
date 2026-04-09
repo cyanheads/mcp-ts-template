@@ -230,8 +230,8 @@ describe('ResourceRegistry', () => {
         handler: () => '<html></html>',
         _meta: {
           ui: {
-            csp: { resource_domains: ['https://cdn.example.com'] },
-            permissions: ['microphone'],
+            csp: { resourceDomains: ['https://cdn.example.com'] },
+            permissions: { microphone: {} },
           },
         },
       });
@@ -242,8 +242,8 @@ describe('ResourceRegistry', () => {
       const call = mockServer.resource.mock.calls[0];
       expect(call[2]._meta).toEqual({
         ui: {
-          csp: { resource_domains: ['https://cdn.example.com'] },
-          permissions: ['microphone'],
+          csp: { resourceDomains: ['https://cdn.example.com'] },
+          permissions: { microphone: {} },
         },
       });
     });

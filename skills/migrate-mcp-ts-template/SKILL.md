@@ -4,7 +4,7 @@ description: >
   Migrate an existing mcp-ts-template fork to use @cyanheads/mcp-ts-core as a package dependency. Use when a project was cloned/forked from github.com/cyanheads/mcp-ts-template and carries framework source code in its own src/ — this skill rewrites those internal imports to package subpath imports and removes the bundled framework files.
 metadata:
   author: cyanheads
-  version: "2.1"
+  version: "2.2"
   audience: external
   type: workflow
 ---
@@ -23,7 +23,7 @@ For the full exports catalog, see `CLAUDE.md` → Exports Reference.
 2. **Search for all `@/` imports** across `src/` that reference framework internals
 3. **Rewrite each import** using the mapping table below
 4. **Identify framework source files** now provided by the package (see candidates below) — review each for server-specific additions before cleaning up
-5. **Update entry point** (`src/index.ts`) to use `createApp()` from the package
+5. **Update entry point** (`src/index.ts`) to use `createApp()` from the package and the project's chosen registration pattern (fresh scaffold default: direct imports in `src/index.ts`)
 6. **Update build configs**:
    - `tsconfig.json` extends `@cyanheads/mcp-ts-core/tsconfig.base.json`
    - `biome.json` extends `@cyanheads/mcp-ts-core/biome`
@@ -113,19 +113,19 @@ Framework files within directories that contain server code:
 
 ## Entry point rewrite
 
-Replace the fork's `src/index.ts` with:
+Replace the fork's `src/index.ts` with the scaffold-default direct-registration pattern:
 
 ```ts
 #!/usr/bin/env node
 import { createApp } from '@cyanheads/mcp-ts-core';
-import { allToolDefinitions } from './mcp-server/tools/definitions/index.js';
-import { allResourceDefinitions } from './mcp-server/resources/definitions/index.js';
-import { allPromptDefinitions } from './mcp-server/prompts/definitions/index.js';
+import { echoTool } from './mcp-server/tools/definitions/echo.tool.js';
+import { echoResource } from './mcp-server/resources/definitions/echo.resource.js';
+import { echoPrompt } from './mcp-server/prompts/definitions/echo.prompt.js';
 
 await createApp({
-  tools: allToolDefinitions,
-  resources: allResourceDefinitions,
-  prompts: allPromptDefinitions,
+  tools: [echoTool],
+  resources: [echoResource],
+  prompts: [echoPrompt],
 });
 ```
 
@@ -133,14 +133,16 @@ Add `setup()` if the server initializes services:
 
 ```ts
 await createApp({
-  tools: allToolDefinitions,
-  resources: allResourceDefinitions,
-  prompts: allPromptDefinitions,
+  tools: [echoTool],
+  resources: [echoResource],
+  prompts: [echoPrompt],
   setup(core) {
     initMyService(core.config, core.storage);
   },
 });
 ```
+
+If the migrated project already has `definitions/index.ts` barrels and you want to keep them, that is fine. The important part is removing imports from framework internals and registering definitions consistently.
 
 ## Checklist
 

@@ -4,7 +4,7 @@ description: >
   Testing patterns for MCP tool/resource handlers using `createMockContext` and Vitest. Covers mock context options, handler testing, McpError assertions, format testing, Vitest config setup, and test isolation conventions.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.2"
   audience: external
   type: reference
 ---
@@ -13,7 +13,7 @@ metadata:
 
 Tests target handler behavior directly — call `handler(input, ctx)`, assert on the return value or thrown error. The framework's handler factory (try/catch, formatting, telemetry) is not involved. Use `createMockContext` from `@cyanheads/mcp-ts-core/testing` to construct the `ctx` argument.
 
-**Philosophy:** Test behavior, not implementation. Refactors should not break tests. Colocate test files with source (`foo.tool.ts` → `foo.tool.test.ts`). Integration tests at I/O boundaries over unit tests of internals.
+**Philosophy:** Test behavior, not implementation. Refactors should not break tests. Match the repo's existing test layout: fresh scaffolds use `tests/`, while colocated `src/**/*.test.ts` files are also supported. Integration tests at I/O boundaries over unit tests of internals.
 
 ---
 
@@ -28,8 +28,10 @@ createMockContext({ sample: vi.fn().mockResolvedValue(...) }) // with MCP sampli
 createMockContext({ elicit: vi.fn().mockResolvedValue(...) }) // with elicitation
 createMockContext({ progress: true })                        // with task progress (ctx.progress populated)
 createMockContext({ requestId: 'my-id' })                    // override request ID (default: 'test-request-id')
+createMockContext({ notifyResourceListChanged: () => {} })   // with resource-list change notifier
+createMockContext({ notifyResourceUpdated: (_uri) => {} })   // with resource update notifier
 createMockContext({ signal: controller.signal })             // custom AbortSignal
-createMockContext({ auth: { clientId: 'test', scopes: [] } }) // with auth context
+createMockContext({ auth: { clientId: 'test', scopes: [], sub: 'test-user' } }) // with auth context
 createMockContext({ uri: new URL('myscheme://item/123') })   // for resource handler testing
 ```
 
@@ -39,6 +41,8 @@ createMockContext({ uri: new URL('myscheme://item/123') })   // for resource han
 interface MockContextOptions {
   auth?: AuthContext;
   elicit?: (message: string, schema: z.ZodObject<z.ZodRawShape>) => Promise<ElicitResult>;
+  notifyResourceListChanged?: () => void;
+  notifyResourceUpdated?: (uri: string) => void;
   progress?: boolean;
   requestId?: string;
   sample?: (messages: SamplingMessage[], opts?: SamplingOpts) => Promise<CreateMessageResult>;
@@ -53,6 +57,8 @@ interface MockContextOptions {
 | _(none)_ | Minimal context — `ctx.state` operations throw without `tenantId`; `ctx.elicit`/`ctx.sample`/`ctx.progress` are `undefined` |
 | `auth` | Sets `ctx.auth` for scope-checking tests |
 | `elicit` | Assigns a function to `ctx.elicit` for testing elicitation calls |
+| `notifyResourceListChanged` | Assigns `ctx.notifyResourceListChanged` for resource notification tests |
+| `notifyResourceUpdated` | Assigns `ctx.notifyResourceUpdated` for resource update notification tests |
 | `progress` | Populates `ctx.progress` with real state-tracking implementation (see below) |
 | `requestId` | Overrides `ctx.requestId` (default: `'test-request-id'`) |
 | `sample` | Assigns a function to `ctx.sample` for testing sampling calls |
@@ -101,8 +107,8 @@ expect(log.calls.some(c => c.level === 'info' && c.msg.includes('Processing'))).
 ## Full test example
 
 ```ts
-// src/mcp-server/tools/definitions/my-tool.tool.test.ts
-import { describe, expect, it, vi } from 'vitest';
+// tests/tools/my-tool.tool.test.ts
+import { describe, expect, it } from 'vitest';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { myTool } from '@/mcp-server/tools/definitions/my-tool.tool.js';
 
@@ -120,15 +126,16 @@ describe('myTool', () => {
     await expect(myTool.handler(input, ctx)).rejects.toThrow();
   });
 
-  it('formats response correctly', () => {
+  it('formats response completely', () => {
     const result = { result: 'test' };
     const blocks = myTool.format!(result);
     expect(blocks[0].type).toBe('text');
+    expect((blocks[0] as { text?: string }).text).toContain('test');
   });
 });
 ```
 
-Parse input through `myTool.input.parse(...)` to validate against the Zod schema and produce the typed input the handler expects. Call `myTool.handler(input, ctx)` directly, not through the MCP SDK or any framework wrapper. Assert on the return value for happy paths; use `.rejects.toThrow()` for error paths. Test `format` separately if the tool defines one — it's a pure function and needs no `ctx`.
+Parse input through `myTool.input.parse(...)` to validate against the Zod schema and produce the typed input the handler expects. Call `myTool.handler(input, ctx)` directly, not through the MCP SDK or any framework wrapper. Assert on the return value for happy paths; use `.rejects.toThrow()` for error paths. Test `format` separately if the tool defines one — it's a pure function and needs no `ctx`. Verify the rendered text includes the fields the LLM needs, and for projection-style tools, add a case with non-default field selections.
 
 ---
 
@@ -138,7 +145,7 @@ Parse input through `myTool.input.parse(...)` to validate against the Zod schema
 it('uses elicitation when available', async () => {
   const elicit = vi.fn().mockResolvedValue({
     action: 'accept',
-    data: { format: 'json' },
+    content: { format: 'json' },
   });
   const ctx = createMockContext({ elicit });
   const input = myTool.input.parse({ query: 'hello' });
@@ -203,6 +210,45 @@ The pattern: parse through the schema (confirms Zod accepts the payload), call t
 
 ---
 
+## Testing with sparse upstream payloads
+
+This is a different problem from form-client `''` payloads. Here the upstream API omits fields entirely. The risk is either a validation failure from an over-strict schema or a quiet lie where missing data turns into a concrete fact.
+
+```ts
+describe('sparse upstream payloads', () => {
+  it('preserves missing upstream fields as unknown', async () => {
+    const upstream = {
+      id: 'repo-123',
+      name: 'Widget Repo',
+      // archived and star_count omitted entirely
+    };
+
+    const normalized = normalizeRepo(upstream);
+    expect(normalized).toEqual({
+      id: 'repo-123',
+      name: 'Widget Repo',
+    });
+
+    const output = repoSearchTool.output.parse({
+      repos: [normalized],
+    });
+    const blocks = repoSearchTool.format!(output);
+    expect((blocks[0] as { text: string }).text).toContain('Archived:** Not available');
+    expect((blocks[0] as { text: string }).text).not.toContain('Archived:** No');
+  });
+});
+```
+
+**What to verify:**
+
+- Fixtures omit fields entirely, not just set them to `null` or `''`.
+- Normalization/helpers tolerate missing fields without fabricating defaults.
+- Handler output still validates against the declared output schema.
+- `format()` uses explicit unknown-state fallbacks instead of inventing facts.
+- Tool-semantic defaults are tested separately from upstream absence so the distinction stays clear.
+
+---
+
 ## Vitest config
 
 Extend the framework's base config using `mergeConfig`. The base provides `globals: true`, `pool: 'forks'`, `isolate: true`, `tsconfigPaths`, and a Zod SSR compatibility fix. Add only the `@/` alias for your server's source:
@@ -244,8 +290,8 @@ describe('myTool with service', () => {
 });
 ```
 
-- Re-init services with `initMyService()` (or equivalent) per test suite — the module-level singleton must be reset so tests don't share state.
-- Vitest runs test files in separate worker threads — parallel file execution is safe by default.
+- Re-init services with `initMyService()` (or equivalent) in `beforeEach` when tests share a module-level singleton.
+- Vitest runs test files in separate workers — parallel file execution is safe by default.
 - Use `createMockContext({ tenantId })` whenever the handler accesses `ctx.state` — omitting `tenantId` causes `ctx.state` to throw.
 
 ---

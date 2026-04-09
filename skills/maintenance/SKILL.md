@@ -4,7 +4,7 @@ description: >
   Sync skills and dependencies after package updates. Use after running `bun update @cyanheads/mcp-ts-core` to ensure project skills are up to date, or periodically to check for drift.
 metadata:
   author: cyanheads
-  version: "1.1"
+  version: "1.2"
   audience: external
   type: workflow
 ---
@@ -35,7 +35,8 @@ After `bun update @cyanheads/mcp-ts-core`, the package may have newer skills tha
 2. For any major version bumps, review changelogs before proceeding
 3. Run `bun update` to apply updates
 4. Run `bun audit` to check for vulnerabilities introduced by the update
-5. Run `bun run devcheck` to confirm lint, types, security, and tests still pass
+5. Run `bun run devcheck` to confirm lint, definitions, types, and dependency/security checks still pass
+6. Run `bun run test` to confirm runtime behavior still passes
 
 ## Checklist
 
@@ -44,3 +45,4 @@ After `bun update @cyanheads/mcp-ts-core`, the package may have newer skills tha
 - [ ] Dependencies updated (`bun update`)
 - [ ] `bun audit` passes (no new vulnerabilities)
 - [ ] `bun run devcheck` passes
+- [ ] `bun run test` passes
