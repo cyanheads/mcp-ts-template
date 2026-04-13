@@ -1,11 +1,11 @@
 <div align="center">
   <h1>@cyanheads/mcp-ts-core</h1>
-  <p><b>Agent-native TypeScript framework for building MCP servers. Build tools, not infrastructure. Declarative definitions with auth, multi-backend storage, OpenTelemetry, and first-class support for Node.js and Cloudflare Workers.</b></p>
+  <p><b>Agent-native TypeScript framework for building MCP servers. Build tools, not infrastructure. Declarative definitions with auth, multi-backend storage, OpenTelemetry, and first-class support for Bun/Node/Cloudflare Workers.</b></p>
 </div>
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.3.4-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.3.5-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.2-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.2-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
@@ -243,18 +243,16 @@ Also exports `fuzzResource`, `fuzzPrompt`, `zodToArbitrary`, and `ADVERSARIAL_ST
 
 ## Documentation
 
-- **[CLAUDE.md](CLAUDE.md)** — Complete API reference: exports catalog, patterns, Context interface, error codes, auth, config, testing. Ships in the npm package.
+- **[CLAUDE.md](CLAUDE.md)** — Framework reference: exports catalog, patterns, Context interface, error codes, auth, config, testing. Ships in the npm package.
 - **[CHANGELOG.md](CHANGELOG.md)** — Version history
 
 ## Development
 
 ```bash
-bun run build          # tsc && tsc-alias
+bun run rebuild          # tsc && tsc-alias
 bun run devcheck       # lint, format, typecheck, security
 bun run lint:mcp       # validate MCP definitions against spec
-bun run test           # vitest
-bun run dev:stdio      # dev mode (stdio)
-bun run dev:http       # dev mode (HTTP)
+bun run test:all           # vitest
 ```
 
 ## Contributing
@@ -263,7 +261,7 @@ Issues and pull requests welcome. Run checks before submitting:
 
 ```bash
 bun run devcheck
-bun run test
+bun run test:all
 ```
 
 ## License

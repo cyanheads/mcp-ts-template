@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.3.5] - 2026-04-13
+
+Skill doc improvements, template updates for `add-app-tool`, and dependency updates.
+
+### Changed
+
+- **`add-test` skill updated test location guidance** — when a repo has existing tests, match that layout; when no tests exist, default to a root `tests/` directory mirroring `src/` structure.
+- **`design-mcp-server` skill refined description guidance** — consolidated multiline string concatenation into single-line descriptions, added "don't leak implementation details" principle, tightened description length advice.
+- **Consumer templates add `add-app-tool` skill** — CLAUDE.md and AGENTS.md templates now list the `add-app-tool` skill in the workflow steps and skill table.
+- **Consumer template version bumped to 0.1.1.**
+- **README updated** — runtime description now reads "Bun/Node/Cloudflare Workers", development commands updated (`rebuild`, `test:all`), removed `dev:stdio`/`dev:http` from the quick-reference block.
+
+### Dependencies
+
+- `@biomejs/biome` 2.4.10 → 2.4.11
+- `@cloudflare/workers-types` ^4.20260409.1 → ^4.20260413.1
+- `@hono/node-server` 1.19.13 → 1.19.14
+- `@supabase/supabase-js` ^2.102.1 → ^2.103.0
+- `@types/bun` ^1.3.11 → ^1.3.12
+- `@types/node` ^25.5.2 → ^25.6.0
+- `@vitest/coverage-istanbul` 4.1.3 → 4.1.4
+- `@vitest/ui` 4.1.3 → 4.1.4
+- `bun-types` ^1.3.11 → ^1.3.12
+- `dotenv` 17.4.1 → 17.4.2
+- `typedoc` ^0.28.18 → ^0.28.19
+- `unpdf` ^1.4.0 → ^1.5.0
+- `vitest` ^4.1.3 → ^4.1.4
+
+---
+
 ## [0.3.4] - 2026-04-08
 
 MCP Apps resource metadata/read-time formatting fixes, skill/template guidance refresh, and minor dependency updates.
