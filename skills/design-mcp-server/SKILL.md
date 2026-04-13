@@ -4,7 +4,7 @@ description: >
   Design the tool surface, resources, and service layer for a new MCP server. Use when starting a new server, planning a major feature expansion, or when the user describes a domain/API they want to expose via MCP. Produces a design doc at docs/design.md that drives implementation.
 metadata:
   author: cyanheads
-  version: "2.1"
+  version: "2.2"
   audience: external
   type: workflow
 ---
@@ -117,9 +117,7 @@ const gitBranch = tool('git_branch', {
 ```ts
 // Workflow tool — search + local filter pipeline, not a raw API proxy
 const findEligibleStudies = tool('clinicaltrials_find_eligible_studies', {
-  description: 'Matches patient demographics and medical profile to eligible clinical trials. '
-    + 'Filters by age, sex, conditions, location, and healthy volunteer status. '
-    + 'Returns ranked list of matching studies with eligibility explanations.',
+  description: 'Matches patient demographics and medical profile to eligible clinical trials. Filters by age, sex, conditions, location, and healthy volunteer status. Returns ranked list of matching studies with eligibility explanations.',
   // handler: listStudies() → filter by eligibility → rank by location proximity → slice
 });
 ```
@@ -142,21 +140,20 @@ The description is the LLM's primary signal for tool selection. It must answer: 
 
 - **Be concrete about capability.** "Search for clinical trial studies using queries and filters" beats "Interact with studies."
 - **Include operational guidance when it matters.** If the tool has prerequisites, constraints, or gotchas the LLM needs to know, say so in the description. Don't add boilerplate workflow hints when the tool is self-explanatory.
+- **Don't leak implementation details.** Descriptions are for the consumer, not the author. Internal endpoint paths, API call counts, internal parameter name mappings, and routing logic don't belong — describe what the tool does and when to use it, not how it's wired up.
 
 ```ts
 // Good — describes a prerequisite the LLM must know
-description: 'Set the session working directory for all git operations. '
-  + 'This allows subsequent git commands to omit the path parameter.'
+description: 'Set the session working directory for all git operations. This allows subsequent git commands to omit the path parameter.'
 
 // Good — self-explanatory, no workflow hints needed
 description: 'Show the working tree status including staged, unstaged, and untracked files.'
 
 // Good — warns about constraints
-description: 'Fetches trial results data for completed studies. '
-  + 'Only available for studies where hasResults is true.'
+description: 'Fetches trial results data for completed studies. Only available for studies where hasResults is true.'
 ```
 
-Context-dependent: a simple read-only tool needs a one-line description. A tool with prerequisites, modes, or non-obvious behavior needs more. Match depth of description to complexity of tool.
+Descriptions should be as long as needed — concise but complete. Don't artificially truncate, and don't pad with filler.
 
 #### Parameter descriptions
 
@@ -171,14 +168,11 @@ Every `.describe()` is prompt text the LLM reads. Parameters should convey: what
 ```ts
 // Good — explains cost, recommends action, names the alternative
 fields: z.array(z.string()).optional()
-  .describe('Specific fields to return (reduces payload size). '
-    + 'STRONGLY RECOMMENDED — without this, the full study record (~70KB each) is returned. '
-    + 'Use full data only when you need detailed eligibility criteria, locations, or results.'),
+  .describe('Specific fields to return (reduces payload size). Without this, the full study record (~70KB each) is returned. Use full data only when you need detailed eligibility criteria, locations, or results.'),
 
 // Good — explains what the flag does AND how to override
 autoExclude: z.boolean().default(true)
-  .describe('Automatically exclude lock files and generated files from diff output '
-    + 'to reduce context bloat. Set to false if you need to inspect these files.'),
+  .describe('Automatically exclude lock files and generated files from diff output to reduce context bloat. Set to false if you need to inspect these files.'),
 
 // Good — names the format and gives one example
 nctIds: z.union([z.string(), z.array(z.string()).max(5)])
@@ -201,8 +195,7 @@ The output schema and `format` function control what the LLM reads back. Design 
 output: z.object({
   diff: z.string().describe('Unified diff output.'),
   excludedFiles: z.array(z.string()).optional()
-    .describe('Files automatically excluded from the diff (e.g., lock files). '
-      + 'Call again with autoExclude=false to include them.'),
+    .describe('Files automatically excluded from the diff (e.g., lock files). Call again with autoExclude=false to include them.'),
 }),
 ```
 
@@ -244,9 +237,7 @@ When a tool wraps a complex query language or filter system, provide a simple sh
 ```ts
 // text_search handles the common case; query handles everything else
 text_search: z.string().optional()
-  .describe('Convenience shortcut: full-text search across title and abstract. '
-    + 'Equivalent to {"_or":[{"_text_any":{"title":"..."}},{"_text_any":{"abstract":"..."}}]}. '
-    + 'For more control, use the query parameter directly.'),
+  .describe('Convenience shortcut: full-text search across title and abstract. For structured filters or field-specific matching, use the query parameter instead.'),
 query: z.record(z.unknown()).optional()
   .describe('Full query object for structured filters. Supports operators: _eq, _gt, _and, _or, ...'),
 ```

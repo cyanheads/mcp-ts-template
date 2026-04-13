@@ -4,14 +4,14 @@ description: >
   Scaffold a test file for an existing tool, resource, or service. Use when the user asks to add tests, improve coverage, or when a definition exists without a matching test file.
 metadata:
   author: cyanheads
-  version: "1.2"
+  version: "1.3"
   audience: external
   type: reference
 ---
 
 ## Context
 
-Tests use Vitest and `createMockContext` from `@cyanheads/mcp-ts-core/testing`. Freshly scaffolded servers place tests under `tests/` (for example `tests/tools/echo.tool.test.ts`), and the default Vitest config also supports `src/**/*.test.ts`. Match the repo's existing layout instead of forcing one.
+Tests use Vitest and `createMockContext` from `@cyanheads/mcp-ts-core/testing`. If the repo already has tests, match the existing layout. If the repo has no existing tests, create a root `tests/` directory that mirrors the `src/` structure (e.g. `tests/mcp-server/tools/definitions/echo.tool.test.ts` for `src/mcp-server/tools/definitions/echo.tool.ts`).
 
 For the full `createMockContext` API and testing patterns, read:
 
