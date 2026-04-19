@@ -4,7 +4,7 @@ description: >
   Design the tool surface, resources, and service layer for a new MCP server. Use when starting a new server, planning a major feature expansion, or when the user describes a domain/API they want to expose via MCP. Produces a design doc at docs/design.md that drives implementation.
 metadata:
   author: cyanheads
-  version: "2.2"
+  version: "2.3"
   audience: external
   type: workflow
 ---
@@ -140,6 +140,7 @@ The description is the LLM's primary signal for tool selection. It must answer: 
 
 - **Be concrete about capability.** "Search for clinical trial studies using queries and filters" beats "Interact with studies."
 - **Include operational guidance when it matters.** If the tool has prerequisites, constraints, or gotchas the LLM needs to know, say so in the description. Don't add boilerplate workflow hints when the tool is self-explanatory.
+- **Prefer a single cohesive paragraph.** Pack operational guidance into prose sentences (separated by periods or em-dashes) rather than bullet lists or blank-line-separated sections. Descriptions render inline in most clients, and bullet structure reads as visual noise rather than signal. Operation-by-operation bullets also duplicate info that already lives in the `operation` enum's `.describe()`.
 - **Don't leak implementation details.** Descriptions are for the consumer, not the author. Internal endpoint paths, API call counts, internal parameter name mappings, and routing logic don't belong — describe what the tool does and when to use it, not how it's wired up.
 
 ```ts

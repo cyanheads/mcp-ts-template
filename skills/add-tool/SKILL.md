@@ -4,7 +4,7 @@ description: >
   Scaffold a new MCP tool definition. Use when the user asks to add a tool, create a new tool, or implement a new capability for the server.
 metadata:
   author: cyanheads
-  version: "1.3"
+  version: "1.4"
   audience: external
   type: reference
 ---
@@ -39,6 +39,8 @@ import { tool, z } from '@cyanheads/mcp-ts-core';
 
 export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
   title: '{{TOOL_TITLE}}',
+  // Single cohesive paragraph — pack operational guidance into prose sentences,
+  // not bullet lists or blank-line-separated sections. Descriptions render inline.
   description: '{{TOOL_DESCRIPTION}}',
   annotations: { readOnlyHint: true },
   input: z.object({
