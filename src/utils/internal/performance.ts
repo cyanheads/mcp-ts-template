@@ -1,8 +1,8 @@
 /**
  * @fileoverview Performance measurement for tool, resource, and prompt execution.
  * Wraps handler logic with OpenTelemetry spans, metric counters/histograms,
- * and structured logs. Prompts get structured logs only (no spans/metrics)
- * since they are pure synchronous template functions.
+ * payload size capture, and structured logs. All three handler types get
+ * symmetric instrumentation so dashboards and traces cover the full MCP surface.
  * @module src/utils/internal/performance
  */
 
@@ -17,6 +17,14 @@ import type { RequestContext } from '@/utils/internal/requestContext.js';
 import {
   ATTR_CODE_FUNCTION_NAME,
   ATTR_CODE_NAMESPACE,
+  ATTR_MCP_PROMPT_DURATION_MS,
+  ATTR_MCP_PROMPT_ERROR_CATEGORY,
+  ATTR_MCP_PROMPT_ERROR_CODE,
+  ATTR_MCP_PROMPT_INPUT_BYTES,
+  ATTR_MCP_PROMPT_MESSAGE_COUNT,
+  ATTR_MCP_PROMPT_NAME,
+  ATTR_MCP_PROMPT_OUTPUT_BYTES,
+  ATTR_MCP_PROMPT_SUCCESS,
   ATTR_MCP_RESOURCE_DURATION_MS,
   ATTR_MCP_RESOURCE_ERROR_CODE,
   ATTR_MCP_RESOURCE_MIME_TYPE,
@@ -67,17 +75,18 @@ function getToolMetrics() {
   };
 }
 
-/** Eagerly creates tool and resource metric instruments so series exist from startup. */
+/** Eagerly creates tool, resource, and prompt metric instruments so series exist from startup. */
 export function initHandlerMetrics(): void {
   getToolMetrics();
   getResourceMetrics();
+  getPromptMetrics();
   getActiveRequestsGauge();
 }
 
 function getActiveRequestsGauge() {
   activeRequests ??= createUpDownCounter(
     'mcp.requests.active',
-    'Number of in-flight tool and resource handler executions',
+    'Number of in-flight tool, resource, and prompt handler executions',
     '{requests}',
   );
   return activeRequests;
@@ -505,36 +514,164 @@ export async function measureResourceExecution<T>(
 }
 
 // ==========================================================================
-// Prompt generation measurement (structured log only — no spans/metrics)
+// Prompt generation measurement
 // ==========================================================================
 
+let promptGenCounter: ReturnType<typeof createCounter> | undefined;
+let promptGenDuration: ReturnType<typeof createHistogram> | undefined;
+let promptGenErrors: ReturnType<typeof createCounter> | undefined;
+let promptInputBytes: ReturnType<typeof createHistogram> | undefined;
+let promptOutputBytes: ReturnType<typeof createHistogram> | undefined;
+let promptMessageCount: ReturnType<typeof createHistogram> | undefined;
+
+function getPromptMetrics() {
+  promptGenCounter ??= createCounter(
+    'mcp.prompt.generations',
+    'Total MCP prompt generations',
+    '{generations}',
+  );
+  promptGenDuration ??= createHistogram(
+    'mcp.prompt.duration',
+    'MCP prompt generation duration',
+    'ms',
+  );
+  promptGenErrors ??= createCounter('mcp.prompt.errors', 'Total MCP prompt errors', '{errors}');
+  promptInputBytes ??= createHistogram(
+    'mcp.prompt.input_bytes',
+    'Prompt argument payload size',
+    'bytes',
+  );
+  promptOutputBytes ??= createHistogram(
+    'mcp.prompt.output_bytes',
+    'Prompt generated messages payload size',
+    'bytes',
+  );
+  promptMessageCount ??= createHistogram(
+    'mcp.prompt.message_count',
+    'Number of messages returned by a prompt generate call',
+    '{messages}',
+  );
+  return {
+    promptGenCounter,
+    promptGenDuration,
+    promptGenErrors,
+    promptInputBytes,
+    promptOutputBytes,
+    promptMessageCount,
+  };
+}
+
 /**
- * Wraps a prompt generate function with a structured log for duration tracking.
- * Prompts are pure template functions with no I/O, so they don't warrant
- * OTel spans or metric instruments — a structured log is sufficient.
+ * Wraps a prompt generate function with observability: an OpenTelemetry span,
+ * OTel metric counters/histograms, payload size capture, and structured log.
+ *
+ * Prompts can now perform meaningful work (conditional logic, async data fetches,
+ * multi-message assembly), so they get the same instrumentation depth as tools
+ * and resources. Kept symmetric to {@link measureToolExecution} and
+ * {@link measureResourceExecution}.
  *
  * @template T - The resolved type of the prompt generate function's return value.
  * @param promptLogicFn - Zero-argument async function containing the prompt's generate logic.
- * @param context - Request context extended with `promptName`.
+ * @param context - Request context extended with `promptName`; used for span/log correlation.
+ * @param inputPayload - The validated args object passed to the prompt, serialized to compute byte size.
  * @returns A promise that resolves with the generate result or rejects with the original error.
  */
 export async function measurePromptGeneration<T>(
   promptLogicFn: () => Promise<T>,
   context: RequestContext & { promptName: string },
+  inputPayload: unknown,
 ): Promise<T> {
-  const t0 = nowMs();
-  let ok = false;
+  const tracer = trace.getTracer(
+    config.openTelemetry.serviceName,
+    config.openTelemetry.serviceVersion,
+  );
 
-  try {
-    const result = await promptLogicFn();
-    ok = true;
-    return result;
-  } finally {
-    const durationMs = Math.round((nowMs() - t0) * 100) / 100;
-    const logFn = ok ? logger.info : logger.error;
-    logFn.call(logger, `Prompt generation ${ok ? 'finished' : 'failed'}.`, {
-      ...context,
-      metrics: { durationMs, isSuccess: ok },
+  const { promptName } = context;
+
+  return await tracer.startActiveSpan(`prompt_generation:${promptName}` as const, async (span) => {
+    const activeGauge = getActiveRequestsGauge();
+    activeGauge.add(1);
+
+    const t0 = nowMs();
+    const inputBytes = toBytes(inputPayload);
+    span.setAttributes({
+      [ATTR_CODE_FUNCTION_NAME]: promptName,
+      [ATTR_CODE_NAMESPACE]: 'mcp-prompts',
+      [ATTR_MCP_PROMPT_INPUT_BYTES]: inputBytes,
     });
-  }
+
+    let ok = false;
+    let errorCode: string | undefined;
+    let errorCategory: ErrorCategory | undefined;
+    let outputBytes = 0;
+    let messageCount = 0;
+
+    try {
+      const result = await promptLogicFn();
+      ok = true;
+      outputBytes = toBytes(result);
+      if (Array.isArray(result)) messageCount = result.length;
+
+      span.setStatus({ code: SpanStatusCode.OK });
+      span.setAttribute(ATTR_MCP_PROMPT_OUTPUT_BYTES, outputBytes);
+      span.setAttribute(ATTR_MCP_PROMPT_MESSAGE_COUNT, messageCount);
+      return result;
+    } catch (err) {
+      if (err instanceof McpError) {
+        errorCode = String(err.code);
+        errorCategory = getErrorCategory(err.code);
+      } else {
+        errorCode = err instanceof Error ? 'UNHANDLED_ERROR' : 'UNKNOWN_ERROR';
+        errorCategory = 'server';
+      }
+
+      if (err instanceof Error) span.recordException(err);
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    } finally {
+      activeGauge.add(-1);
+      const t1 = nowMs();
+      const durationMs = Math.round((t1 - t0) * 100) / 100;
+
+      span.setAttributes({
+        [ATTR_MCP_PROMPT_DURATION_MS]: durationMs,
+        [ATTR_MCP_PROMPT_SUCCESS]: ok,
+      });
+      if (errorCode) span.setAttribute(ATTR_MCP_PROMPT_ERROR_CODE, errorCode);
+      span.end();
+
+      const m = getPromptMetrics();
+      const metricAttrs = { [ATTR_MCP_PROMPT_NAME]: promptName, [ATTR_MCP_PROMPT_SUCCESS]: ok };
+      const promptAttrs = { [ATTR_MCP_PROMPT_NAME]: promptName };
+      m.promptGenCounter.add(1, metricAttrs);
+      m.promptGenDuration.record(durationMs, metricAttrs);
+      m.promptInputBytes.record(inputBytes, promptAttrs);
+      if (ok) {
+        m.promptOutputBytes.record(outputBytes, promptAttrs);
+        m.promptMessageCount.record(messageCount, promptAttrs);
+      }
+      if (!ok) {
+        m.promptGenErrors.add(1, {
+          ...promptAttrs,
+          ...(errorCategory && { [ATTR_MCP_PROMPT_ERROR_CATEGORY]: errorCategory }),
+        });
+      }
+
+      const logFn = ok ? logger.info : logger.error;
+      logFn.call(logger, `Prompt generation ${ok ? 'finished' : 'failed'}.`, {
+        ...context,
+        metrics: {
+          durationMs,
+          isSuccess: ok,
+          errorCode,
+          inputBytes,
+          outputBytes,
+          messageCount,
+        },
+      });
+    }
+  });
 }

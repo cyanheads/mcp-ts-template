@@ -85,6 +85,34 @@ export const ATTR_MCP_RESOURCE_SUCCESS = 'mcp.resource.success';
 export const ATTR_MCP_RESOURCE_ERROR_CODE = 'mcp.resource.error_code';
 
 // ============================================================================
+// MCP Prompt Attributes
+// ============================================================================
+
+/** Registered name of the MCP prompt being generated (e.g., `code_review`). */
+export const ATTR_MCP_PROMPT_NAME = 'mcp.prompt.name';
+
+/** Serialized byte size of the prompt's argument payload. */
+export const ATTR_MCP_PROMPT_INPUT_BYTES = 'mcp.prompt.input_bytes';
+
+/** Serialized byte size of the generated prompt messages. */
+export const ATTR_MCP_PROMPT_OUTPUT_BYTES = 'mcp.prompt.output_bytes';
+
+/** Number of messages returned by the prompt's `generate` function. */
+export const ATTR_MCP_PROMPT_MESSAGE_COUNT = 'mcp.prompt.message_count';
+
+/** Wall-clock execution duration of the prompt's `generate` function in milliseconds. */
+export const ATTR_MCP_PROMPT_DURATION_MS = 'mcp.prompt.duration_ms';
+
+/** Whether the prompt generate function completed successfully. */
+export const ATTR_MCP_PROMPT_SUCCESS = 'mcp.prompt.success';
+
+/** JSON-RPC error code from the thrown error, present when `mcp.prompt.success` is `false`. */
+export const ATTR_MCP_PROMPT_ERROR_CODE = 'mcp.prompt.error_code';
+
+/** Broad error category: 'upstream', 'server', or 'client'. */
+export const ATTR_MCP_PROMPT_ERROR_CATEGORY = 'mcp.prompt.error_category';
+
+// ============================================================================
 // MCP Request Context Attributes
 // ============================================================================
 

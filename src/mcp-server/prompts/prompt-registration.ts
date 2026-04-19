@@ -90,6 +90,7 @@ export class PromptRegistry {
                     promptDef.generate(validatedArgs as Parameters<typeof promptDef.generate>[0]),
                   ),
                 { ...context, promptName: promptDef.name },
+                validatedArgs,
               );
               return { messages };
             } catch (error: unknown) {

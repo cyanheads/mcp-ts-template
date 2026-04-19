@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } fr
 import { JsonRpcErrorCode, McpError } from '../../../../src/types-global/errors.js';
 import { logger } from '../../../../src/utils/internal/logger.js';
 import {
+  measurePromptGeneration,
   measureResourceExecution,
   measureToolExecution,
 } from '../../../../src/utils/internal/performance.js';
@@ -486,5 +487,201 @@ describe('measureResourceExecution', () => {
       'mcp.resource.error_code',
       String(JsonRpcErrorCode.NotFound),
     );
+  });
+});
+
+describe('measurePromptGeneration', () => {
+  const span = {
+    setAttributes: vi.fn(),
+    setAttribute: vi.fn(),
+    setStatus: vi.fn(),
+    recordException: vi.fn(),
+    end: vi.fn(),
+  };
+  const tracer = {
+    startActiveSpan: vi.fn(async (_name, callback) => callback(span as never)),
+  };
+  let tracerSpy: MockInstance;
+  let infoSpy: MockInstance;
+  let errorSpy: MockInstance;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tracerSpy = vi.spyOn(trace, 'getTracer').mockReturnValue(tracer as never);
+    infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+    errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    tracerSpy.mockRestore();
+    infoSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  const messages = [
+    { role: 'user', content: { type: 'text', text: 'hello' } },
+    { role: 'assistant', content: { type: 'text', text: 'world' } },
+  ];
+
+  it('records success metrics and returns the generated messages', async () => {
+    const result = await measurePromptGeneration(
+      async () => messages,
+      { promptName: 'test-prompt', requestId: 'req-p1', timestamp: new Date().toISOString() },
+      { topic: 'greetings' },
+    );
+
+    expect(result).toEqual(messages);
+    expect(span.setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.OK });
+    expect(span.setAttributes).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        'mcp.prompt.duration_ms': expect.any(Number),
+        'mcp.prompt.success': true,
+      }),
+    );
+    expect(span.setAttribute).toHaveBeenCalledWith('mcp.prompt.message_count', 2);
+    expect(span.end).toHaveBeenCalled();
+
+    const call = infoSpy.mock.calls[0];
+    if (!call) throw new Error('infoSpy was not called');
+    const [, logMeta] = call;
+    expect((logMeta as any).metrics.isSuccess).toBe(true);
+    expect((logMeta as any).metrics.messageCount).toBe(2);
+    expect((logMeta as any).metrics.errorCode).toBeUndefined();
+  });
+
+  it('records OTel counter and histogram on success', async () => {
+    await measurePromptGeneration(
+      async () => messages,
+      { promptName: 'metric-prompt', requestId: 'req-p2', timestamp: new Date().toISOString() },
+      { topic: 'x' },
+    );
+
+    expect(mockCounterAdd).toHaveBeenCalledWith(1, {
+      'mcp.prompt.name': 'metric-prompt',
+      'mcp.prompt.success': true,
+    });
+    expect(mockHistogramRecord).toHaveBeenCalledWith(expect.any(Number), {
+      'mcp.prompt.name': 'metric-prompt',
+      'mcp.prompt.success': true,
+    });
+    expect(mockErrorCounterAdd).not.toHaveBeenCalled();
+  });
+
+  it('records input/output bytes and message count histograms on success', async () => {
+    await measurePromptGeneration(
+      async () => messages,
+      { promptName: 'bytes-prompt', requestId: 'req-p3', timestamp: new Date().toISOString() },
+      { topic: 'x' },
+    );
+
+    expect(mockHistogramRecord).toHaveBeenCalledWith(expect.any(Number), {
+      'mcp.prompt.name': 'bytes-prompt',
+    });
+  });
+
+  it('records OTel error counter and logs via logger.error on failure', async () => {
+    await expect(
+      measurePromptGeneration(
+        async () => {
+          throw new McpError(JsonRpcErrorCode.InvalidParams, 'bad');
+        },
+        { promptName: 'err-prompt', requestId: 'req-p4', timestamp: new Date().toISOString() },
+        { topic: 'x' },
+      ),
+    ).rejects.toThrow();
+
+    expect(mockCounterAdd).toHaveBeenCalledWith(1, {
+      'mcp.prompt.name': 'err-prompt',
+      'mcp.prompt.success': false,
+    });
+    expect(mockHistogramRecord).toHaveBeenCalledWith(expect.any(Number), {
+      'mcp.prompt.name': 'err-prompt',
+      'mcp.prompt.success': false,
+    });
+    expect(mockErrorCounterAdd).toHaveBeenCalledWith(1, {
+      'mcp.prompt.name': 'err-prompt',
+      'mcp.prompt.error_category': 'client',
+    });
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('captures McpError code on failure', async () => {
+    const failure = new McpError(JsonRpcErrorCode.NotFound, 'gone');
+
+    await expect(
+      measurePromptGeneration(
+        async () => {
+          throw failure;
+        },
+        { promptName: 'code-prompt', requestId: 'req-p5', timestamp: new Date().toISOString() },
+        {},
+      ),
+    ).rejects.toBe(failure);
+
+    expect(span.recordException).toHaveBeenCalledWith(failure);
+    expect(span.setStatus).toHaveBeenCalledWith({
+      code: SpanStatusCode.ERROR,
+      message: 'gone',
+    });
+    expect(span.setAttribute).toHaveBeenCalledWith(
+      'mcp.prompt.error_code',
+      String(JsonRpcErrorCode.NotFound),
+    );
+  });
+
+  it('handles generic (non-McpError) errors', async () => {
+    const failure = new Error('boom');
+
+    await expect(
+      measurePromptGeneration(
+        async () => {
+          throw failure;
+        },
+        { promptName: 'generic-prompt', requestId: 'req-p6', timestamp: new Date().toISOString() },
+        {},
+      ),
+    ).rejects.toBe(failure);
+
+    expect(span.setAttribute).toHaveBeenCalledWith('mcp.prompt.error_code', 'UNHANDLED_ERROR');
+    expect(mockErrorCounterAdd).toHaveBeenCalledWith(1, {
+      'mcp.prompt.name': 'generic-prompt',
+      'mcp.prompt.error_category': 'server',
+    });
+  });
+
+  it('increments and decrements active requests gauge', async () => {
+    await measurePromptGeneration(
+      async () => messages,
+      { promptName: 'gauge-prompt', requestId: 'req-p7', timestamp: new Date().toISOString() },
+      {},
+    );
+
+    expect(mockUpDownCounterAdd).toHaveBeenCalledWith(1);
+    expect(mockUpDownCounterAdd).toHaveBeenCalledWith(-1);
+  });
+
+  it('sets code namespace and function name span attributes', async () => {
+    await measurePromptGeneration(
+      async () => messages,
+      { promptName: 'attr-prompt', requestId: 'req-p8', timestamp: new Date().toISOString() },
+      {},
+    );
+
+    expect(span.setAttributes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        'code.function.name': 'attr-prompt',
+        'code.namespace': 'mcp-prompts',
+      }),
+    );
+  });
+
+  it('reports zero message count when generate returns a non-array', async () => {
+    await measurePromptGeneration(
+      async () => ({ not: 'an array' }) as unknown as typeof messages,
+      { promptName: 'non-array', requestId: 'req-p9', timestamp: new Date().toISOString() },
+      {},
+    );
+
+    expect(span.setAttribute).toHaveBeenCalledWith('mcp.prompt.message_count', 0);
   });
 });
