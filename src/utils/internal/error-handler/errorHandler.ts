@@ -212,10 +212,9 @@ export class ErrorHandler {
           });
     } else {
       loggedErrorCode = explicitErrorCode || ErrorHandler.determineErrorCode(error);
-      const message = `Error in ${operation}: ${originalErrorMessage}`;
       finalError = errorMapper
         ? errorMapper(error)
-        : new McpError(loggedErrorCode, message, consolidatedData, {
+        : new McpError(loggedErrorCode, originalErrorMessage, consolidatedData, {
             cause,
           });
     }

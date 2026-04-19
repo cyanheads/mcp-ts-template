@@ -174,12 +174,7 @@ export function createResourceHandler(
         throw error;
       }
       const { code, message } = ErrorHandler.classifyOnly(error);
-      throw new McpError(
-        code,
-        `Error in resource:${def.name ?? def.uriTemplate}: ${message}`,
-        undefined,
-        { cause: error },
-      );
+      throw new McpError(code, message, undefined, { cause: error });
     }
   };
 }

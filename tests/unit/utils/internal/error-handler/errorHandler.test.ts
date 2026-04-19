@@ -169,13 +169,14 @@ describe('ErrorHandler', () => {
       expect((result as McpError).code).toBe(JsonRpcErrorCode.NotFound);
     });
 
-    it('should wrap generic Error as McpError', () => {
+    it('should wrap generic Error as McpError preserving original message', () => {
       const result = ErrorHandler.handleError(new Error('generic'), {
         operation: 'testOp',
       });
       expect(result).toBeInstanceOf(McpError);
-      expect(result.message).toContain('testOp');
-      expect(result.message).toContain('generic');
+      // Message should be the original error message — no `Error in ${operation}:` prefix.
+      // Operation context is preserved in the log line and logContext, not the message.
+      expect(result.message).toBe('generic');
     });
 
     it('should rethrow when rethrow option is true', () => {

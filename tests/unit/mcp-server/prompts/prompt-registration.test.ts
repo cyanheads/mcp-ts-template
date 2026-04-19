@@ -129,7 +129,7 @@ describe('PromptRegistry', () => {
       await expect(handler({})).rejects.toBeInstanceOf(McpError);
       await expect(handler({})).rejects.toMatchObject({
         code: JsonRpcErrorCode.InternalError,
-        message: 'Error in prompt:failing_prompt: boom',
+        message: 'boom',
       });
     });
   });

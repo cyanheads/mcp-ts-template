@@ -88,7 +88,7 @@ describe('parseDateStringDetailed', () => {
 
     await expect(parseDateStringDetailed('tomorrow at 9', context)).rejects.toMatchObject({
       code: JsonRpcErrorCode.ParseError,
-      message: expect.stringContaining('parseDateStringDetailed'),
+      message: 'chrono blew up',
     });
   });
 });
