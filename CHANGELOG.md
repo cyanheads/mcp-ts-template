@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.3.8] - 2026-04-19
+
+Fixes a visible-in-content error formatting bug that surfaces on every non-`McpError` throw from a tool handler.
+
+### Fixed
+
+- **Tool error content no longer has doubled `Error:` prefix** (#34) — previously, `ErrorHandler.handleError` wrapped non-`McpError` messages as `"Error in {operation}: {message}"` and stored that string as the `McpError.message`. The tool handler factory then prepended `"Error: "` when building the content block, producing `"Error: Error in tool:my_tool: something went wrong"`. `ErrorHandler.handleError` now stores the original error message on the `McpError` unchanged; the operation context is still preserved in the log line (`logger.error(\`Error in ${operation}: ...\`)`) and the `operation` field of `logContext`, where it belongs. Tool content now reads `"Error: something went wrong"`.
+- **Resource error `McpError.message` no longer embeds URI-like operation token** — `resourceHandlerFactory` previously wrapped classified errors as `"Error in resource:{name}: {message}"`. The `resource:{name}:` segment read as a URI scheme and added three colons in a row when the resource name contained any separator. Resource errors now surface the original classified message; the SDK still logs with full context when it catches the thrown `McpError`.
+
+### Changed
+
+- **`McpError.message` contract for framework-wrapped errors** — when `ErrorHandler.handleError` wraps a non-`McpError` throw, the resulting `McpError.message` is now the original error's message verbatim (previously prefixed with `"Error in {operation}: "`). Log output is unchanged — the operation-prefixed form still appears in the `logger.error` first argument and `logContext.operation`. Server code that pattern-matched on the old prefix in `McpError.message` (e.g., `err.message.includes('Error in')`) should switch to reading `logContext.operation` or the `operation` from the error data.
+
+### Tests
+
+- Updated three assertions that encoded the old wrapped-message format: `errorHandler.test.ts` (`handleError` wraps generic Error), `prompt-registration.test.ts` (failing prompt generation), and `dateParser.test.ts` (`parseDateStringDetailed` wraps unexpected errors). All 2213 tests pass.
+
+---
+
 ## [0.3.7] - 2026-04-19
 
 Fixes a crash introduced on Node 25+ when passing the handler `Context` object as log bindings to `fetchWithTimeout` / `withRetry` (or any logger call).
