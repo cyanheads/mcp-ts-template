@@ -4,9 +4,10 @@
  * and state management without requiring file I/O.
  * @module tests/utils/internal/logger
  */
+import fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Logger, type McpLogLevel } from '@/utils/internal/logger.js';
+import { Logger, type McpLogLevel, sanitizeLogBindings } from '@/utils/internal/logger.js';
 
 // Mock pino to avoid file I/O in unit tests
 vi.mock('pino', () => {
@@ -314,5 +315,192 @@ describe('Logger', () => {
 
       expect(mockLogger.error.mock.calls.length).toBeGreaterThan(initialErrorCalls);
     });
+  });
+});
+
+describe('sanitizeLogBindings', () => {
+  it('preserves primitives and plain nested objects', () => {
+    const out = sanitizeLogBindings({
+      requestId: 'req-1',
+      count: 42,
+      active: true,
+      missing: null,
+      auth: { sub: 'user-1', scopes: ['a', 'b'] },
+      tags: ['x', 'y'],
+    });
+
+    expect(out).toEqual({
+      requestId: 'req-1',
+      count: 42,
+      active: true,
+      missing: null,
+      auth: { sub: 'user-1', scopes: ['a', 'b'] },
+      tags: ['x', 'y'],
+    });
+  });
+
+  it('strips AbortSignal without invoking its aborted getter', () => {
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    // Trip-wire: replace the aborted getter on a tracking proxy-like wrapper
+    // to prove the sanitizer never touches it.
+    let accessed = false;
+    const trackedSignal = new Proxy(signal, {
+      get(target, prop, receiver) {
+        if (prop === 'aborted') accessed = true;
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+
+    const out = sanitizeLogBindings({
+      requestId: 'req-1',
+      signal: trackedSignal,
+    });
+
+    expect(out).toEqual({ requestId: 'req-1' });
+    expect(accessed).toBe(false);
+  });
+
+  it('strips functions and method handles from framework Context', () => {
+    const out = sanitizeLogBindings({
+      requestId: 'req-1',
+      timestamp: '2026-04-19T00:00:00.000Z',
+      log: { info: () => {}, error: () => {} },
+      state: { get: async () => null, set: async () => {} },
+      elicit: async () => ({}),
+      sample: async () => ({}),
+      notifyResourceListChanged: () => {},
+      notifyResourceUpdated: () => {},
+      progress: { increment: async () => {}, setTotal: async () => {}, update: async () => {} },
+    });
+
+    // Plain objects survive but their function-valued properties are stripped.
+    expect(out).toEqual({
+      requestId: 'req-1',
+      timestamp: '2026-04-19T00:00:00.000Z',
+      log: {},
+      state: {},
+      progress: {},
+    });
+  });
+
+  it('converts Date to ISO string and URL to string', () => {
+    const date = new Date('2026-04-19T12:34:56.000Z');
+    const url = new URL('https://api.example.com/data?x=1');
+
+    const out = sanitizeLogBindings({ at: date, target: url });
+
+    expect(out).toEqual({
+      at: '2026-04-19T12:34:56.000Z',
+      target: 'https://api.example.com/data?x=1',
+    });
+  });
+
+  it('recursively strips nested non-plain objects', () => {
+    const controller = new AbortController();
+    const out = sanitizeLogBindings({
+      requestId: 'req-1',
+      extra: { nested: { signal: controller.signal, value: 7 } },
+    });
+
+    expect(out).toEqual({
+      requestId: 'req-1',
+      extra: { nested: { value: 7 } },
+    });
+  });
+
+  it('drops Map and Set instances', () => {
+    const out = sanitizeLogBindings({
+      requestId: 'req-1',
+      cache: new Map([['a', 1]]),
+      tags: new Set(['x']),
+    });
+
+    expect(out).toEqual({ requestId: 'req-1' });
+  });
+
+  it('preserves Error instances for pino stdSerializers', () => {
+    const err = new Error('boom');
+    const out = sanitizeLogBindings({ requestId: 'req-1', err });
+
+    expect(out.requestId).toBe('req-1');
+    expect(out.err).toBe(err);
+  });
+
+  it('survives circular references without stack overflow', () => {
+    const node: Record<string, unknown> = { requestId: 'req-1', value: 42 };
+    node.self = node;
+    node.nested = { parent: node };
+
+    const out = sanitizeLogBindings(node);
+    expect(out.requestId).toBe('req-1');
+    expect(out.value).toBe(42);
+    // self/nested get truncated at the depth cap but must not hang or throw.
+    expect(JSON.stringify(out)).toBeDefined();
+  });
+
+  it('fuzz: never throws and produces JSON-serializable output for arbitrary bindings', () => {
+    // Arbitrary that mixes safe and unsafe values at varying depths.
+    const unsafe = fc.oneof(
+      fc.constant(new AbortController().signal),
+      fc.constant(new Map([['k', 'v']])),
+      fc.constant(new Set([1, 2])),
+      fc.constant(() => {}),
+      fc.constant(Promise.resolve(1)),
+      fc.constant(new Date('2026-04-19T00:00:00Z')),
+      fc.constant(new URL('https://example.com/path?q=1')),
+      fc.constant(new Error('boom')),
+    );
+    const primitive = fc.oneof(
+      fc.string(),
+      fc.integer(),
+      fc.boolean(),
+      fc.constant(null),
+      fc.constant(undefined),
+    );
+    const leaf = fc.oneof(primitive, unsafe);
+    const tree: fc.Arbitrary<unknown> = fc.letrec((rec) => ({
+      node: fc.oneof(
+        { depthSize: 'small', withCrossShrink: true },
+        leaf,
+        fc.array(rec('node'), { maxLength: 4 }),
+        fc.dictionary(fc.string({ minLength: 1, maxLength: 6 }), rec('node'), { maxKeys: 4 }),
+      ),
+    })).node;
+
+    fc.assert(
+      fc.property(
+        fc.dictionary(fc.string({ minLength: 1, maxLength: 8 }), tree, { maxKeys: 8 }),
+        (bindings) => {
+          const out = sanitizeLogBindings(bindings);
+          // Serialization must succeed — pino will JSON-stringify this.
+          const json = JSON.stringify(out);
+          expect(typeof json).toBe('string');
+        },
+      ),
+      { numRuns: 200 },
+    );
+  });
+
+  it('stops recursion at the depth cap', () => {
+    // Build an object 6 levels deep; cap (4) drops values beyond the limit.
+    let node: Record<string, unknown> = { v: 'leaf' };
+    for (let i = 0; i < 5; i++) {
+      node = { child: node };
+    }
+    // top-level walks at depth=1, so we get `child` nested up to the cap
+    // then drops the deepest `v`.
+    const result = sanitizeLogBindings(node) as Record<string, any>;
+    // Walk down until we find an undefined/missing leaf — confirms truncation.
+    let cursor: any = result;
+    let depth = 0;
+    while (cursor && typeof cursor === 'object' && 'child' in cursor) {
+      cursor = cursor.child;
+      depth++;
+    }
+    expect(depth).toBeGreaterThan(0);
+    // The leaf `{ v: 'leaf' }` is at depth 6, past the cap — so we never reach it.
+    expect(cursor?.v).toBeUndefined();
   });
 });

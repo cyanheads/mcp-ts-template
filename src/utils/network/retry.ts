@@ -33,8 +33,10 @@ export interface RetryOptions {
   baseDelayMs?: number;
 
   /**
-   * Request context for correlated logging. When provided, log entries
-   * include `requestId`, `traceId`, etc.
+   * Log bindings for correlated logging. When provided, retry log entries
+   * include `requestId`, `traceId`, etc. Passing the handler `Context` is
+   * safe — the logger strips non-serializable fields (`signal`, `log`,
+   * `state`, protocol method handles) before pino sees them.
    */
   context?: RequestContext;
 

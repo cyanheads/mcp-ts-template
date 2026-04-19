@@ -70,6 +70,65 @@ const SENSITIVE_PINO_FIELDS: string[] = [
 ].flatMap((field) => [field, `*.${field}`, `*.*.${field}`]);
 
 /**
+ * Depth cap for {@link sanitizeLogBindings}. Matches the deepest path pino-redact
+ * currently traverses (`*.*.field`) plus headroom for nested ad-hoc context.
+ */
+const MAX_SANITIZE_DEPTH = 4;
+
+/**
+ * Recursively sanitizes a value for pino consumption. Returns a JSON-safe
+ * replacement, or `undefined` when the value is unsafe and should be dropped.
+ *
+ * Preserves primitives, plain objects (recursively), and arrays. Converts
+ * `Date` → ISO string, `URL` → string. Keeps `Error` instances (pino's err
+ * serializer handles them). Drops functions and non-plain class instances
+ * such as `AbortSignal`, `Map`, `Set`, `Promise`, storage handles, and any
+ * other object whose prototype exposes getters that enforce receiver checks
+ * — on Node 25, `for..in` traversal inside `@pinojs/redact` triggers those
+ * getters with a non-branded receiver and throws.
+ */
+function sanitizeValue(value: unknown, depth: number): unknown {
+  if (value === null) return null;
+  const t = typeof value;
+  if (t === 'undefined' || t === 'function') return;
+  if (t !== 'object') return value;
+  if (depth >= MAX_SANITIZE_DEPTH) return;
+
+  if (value instanceof Error) return value;
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof URL) return value.toString();
+
+  if (Array.isArray(value)) {
+    return value.map((v) => sanitizeValue(v, depth + 1));
+  }
+
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) {
+    return;
+  }
+
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    const sanitized = sanitizeValue((value as Record<string, unknown>)[key], depth + 1);
+    if (sanitized !== undefined) out[key] = sanitized;
+  }
+  return out;
+}
+
+/**
+ * Pino `formatters.log` hook. Strips values that break pino-redact's wildcard
+ * traversal on Node 25+ — notably `AbortSignal` (via `ctx.signal`) and the
+ * method-bearing handles on the framework `Context` (`log`, `state`, `elicit`,
+ * `sample`, `notifyResource*`, `progress`). Acts as a safety net for every log
+ * call regardless of how callers shaped their bindings.
+ *
+ * @internal Exported only for unit testing. Not part of the public API.
+ */
+export function sanitizeLogBindings(obj: Record<string, unknown>): Record<string, unknown> {
+  return sanitizeValue(obj, 0) as Record<string, unknown>;
+}
+
+/**
  * Singleton structured logger backed by Pino with RFC 5424 level semantics.
  *
  * Features:
@@ -136,6 +195,9 @@ export class Logger {
       redact: {
         paths: SENSITIVE_PINO_FIELDS,
         censor: '[REDACTED]',
+      },
+      formatters: {
+        log: sanitizeLogBindings,
       },
     };
 
@@ -227,6 +289,9 @@ export class Logger {
       redact: {
         paths: SENSITIVE_PINO_FIELDS,
         censor: '[REDACTED]',
+      },
+      formatters: {
+        log: sanitizeLogBindings,
       },
       transport: {
         target: 'pino/file',
@@ -450,7 +515,10 @@ export class Logger {
     if (this.isRateLimited(msg)) return;
 
     const logObject: Record<string, unknown> = { ...context };
-    if (error) logObject.err = pino.stdSerializers.err(error);
+    // Pass the raw Error so pino's `err` serializer (default: `pino.stdSerializers.err`)
+    // runs *after* our `formatters.log` sanitizer. Pre-serializing here would produce
+    // an object whose prototype (`pinoErrProto`) trips the sanitizer's plain-object check.
+    if (error) logObject.err = error;
 
     this.pinoLogger[pinoLevel](logObject, msg);
   }

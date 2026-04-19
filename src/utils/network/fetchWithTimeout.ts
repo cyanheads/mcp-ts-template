@@ -212,7 +212,10 @@ async function assertDnsNotPrivate(hostname: string): Promise<void> {
  *
  * @param url - The URL to fetch (string or `URL` instance).
  * @param timeoutMs - Maximum duration in milliseconds before the request is aborted.
- * @param context - Request context used for structured logging (requestId, operation, etc.).
+ * @param context - Log bindings for correlated logging (`requestId`, `operation`, etc.).
+ *   Passing the handler `Context` is safe — the logger strips non-serializable fields
+ *   such as `signal`, `log`, `state`, and protocol method handles. Pass
+ *   `options.signal = ctx.signal` explicitly to wire cancellation.
  * @param options - Optional fetch configuration extending `RequestInit`.
  *   - `rejectPrivateIPs`: Block requests to private/internal IP space (SSRF protection).
  *   - `signal`: External `AbortSignal` to cancel the request independently of the timeout.

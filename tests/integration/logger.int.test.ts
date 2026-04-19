@@ -4,9 +4,11 @@
  */
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { Logger } from '../../src/utils/internal/logger.js';
+import { fetchWithTimeout } from '../../src/utils/network/fetchWithTimeout.js';
+import { withRetry } from '../../src/utils/network/retry.js';
 
 const LOGS_DIR = path.join(process.cwd(), 'logs', 'logger-test');
 const COMBINED_LOG_PATH = path.join(LOGS_DIR, 'combined.log');
@@ -20,6 +22,11 @@ const mockConfig = vi.hoisted(() => ({
   mcpTransportType: 'stdio',
   mcpServerName: 'test-server',
   mcpServerVersion: '0.0.1',
+  openTelemetry: {
+    enabled: false,
+    serviceName: 'test-server',
+    serviceVersion: '0.0.1',
+  },
 }));
 
 vi.mock('../../src/config/index.js', () => ({ config: mockConfig }));
@@ -242,6 +249,175 @@ describe('Logger Integration (Pino)', () => {
         expect(fatalEntry.level).toBeGreaterThanOrEqual(50);
         resolve();
       }, 100);
+    });
+  });
+
+  it('does not crash when logging a framework Context-like object (issue #32)', async () => {
+    const controller = new AbortController();
+
+    // Mirrors the shape handlers receive: requestId/timestamp plus the
+    // non-serializable handles (signal, log, state) that made @pinojs/redact
+    // throw on Node 25+ before the formatters.log sanitizer was added.
+    const ctxLike = {
+      requestId: 'ctx-like-1',
+      timestamp: new Date().toISOString(),
+      tenantId: 'default',
+      testId: 'context-like-test',
+      signal: controller.signal,
+      log: { info: () => {}, error: () => {} },
+      state: { get: async () => null, set: async () => {} },
+      elicit: async () => ({}),
+      sample: async () => ({}),
+    };
+
+    expect(() =>
+      logger.info('Context-like bindings should not crash', ctxLike as any),
+    ).not.toThrow();
+
+    await vi.waitFor(
+      () => {
+        const combinedLog = readJsonLog(COMBINED_LOG_PATH);
+        const entry = combinedLog.find((log) => log.testId === 'context-like-test');
+        expect(entry).toBeDefined();
+        expect(entry.requestId).toBe('ctx-like-1');
+        expect(entry.signal).toBeUndefined();
+        expect(entry.elicit).toBeUndefined();
+      },
+      { timeout: 2000, interval: 50 },
+    );
+  });
+
+  describe('network utilities + Context-like bindings (issue #32)', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('fetchWithTimeout logs without crashing when context has AbortSignal', async () => {
+      const controller = new AbortController();
+      const ctxLike = {
+        requestId: 'ftx-1',
+        timestamp: new Date().toISOString(),
+        tenantId: 'default',
+        operation: 'fetch-regression',
+        testId: 'fetch-ctx-like',
+        signal: controller.signal,
+        log: { info: () => {}, error: () => {} },
+        state: { get: async () => null },
+      };
+
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response('ok', { status: 200 }) as Response,
+      );
+
+      const res = await fetchWithTimeout('https://example.test/data', 1000, ctxLike as any);
+      expect(res.status).toBe(200);
+
+      await vi.waitFor(
+        () => {
+          const entries = readJsonLog(COMBINED_LOG_PATH);
+          const hit = entries.find((e) => e.testId === 'fetch-ctx-like');
+          expect(hit).toBeDefined();
+          expect(hit.signal).toBeUndefined();
+          expect(hit.log).toEqual({});
+          expect(hit.state).toEqual({});
+          expect(hit.requestId).toBe('ftx-1');
+        },
+        { timeout: 2000, interval: 50 },
+      );
+    });
+
+    it('withRetry logs retry attempts without crashing when context has AbortSignal', async () => {
+      const controller = new AbortController();
+      const ctxLike = {
+        requestId: 'retry-1',
+        timestamp: new Date().toISOString(),
+        tenantId: 'default',
+        operation: 'retry-regression',
+        testId: 'retry-ctx-like',
+        signal: controller.signal,
+        log: { info: () => {} },
+      };
+
+      let attempts = 0;
+      const result = await withRetry(
+        async () => {
+          attempts++;
+          if (attempts < 2) throw new Error('transient');
+          return 'ok';
+        },
+        {
+          context: ctxLike as any,
+          operation: 'retry-regression',
+          baseDelayMs: 1,
+          maxDelayMs: 5,
+          jitter: 0,
+          maxRetries: 2,
+        },
+      );
+
+      expect(result).toBe('ok');
+      expect(attempts).toBe(2);
+
+      await vi.waitFor(
+        () => {
+          const entries = readJsonLog(COMBINED_LOG_PATH);
+          const hit = entries.find((e) => e.testId === 'retry-ctx-like');
+          expect(hit).toBeDefined();
+          expect(hit.signal).toBeUndefined();
+          expect(hit.log).toEqual({});
+          expect(hit.operation).toBe('retry-regression');
+        },
+        { timeout: 2000, interval: 50 },
+      );
+    });
+  });
+
+  describe('sanitizer + pino cross-cutting behavior', () => {
+    it('still redacts sensitive fields after sanitization runs', async () => {
+      logger.info('Redaction with Context-like bindings', {
+        requestId: 'redact-1',
+        timestamp: new Date().toISOString(),
+        testId: 'redact-with-sanitize',
+        signal: new AbortController().signal,
+        token: 'super-secret-token',
+        nested: { apiKey: 'sk-abc123' },
+      } as any);
+
+      await vi.waitFor(
+        () => {
+          const entries = readJsonLog(COMBINED_LOG_PATH);
+          const hit = entries.find((e) => e.testId === 'redact-with-sanitize');
+          expect(hit).toBeDefined();
+          expect(hit.signal).toBeUndefined();
+          expect(hit.token).toBe('[REDACTED]');
+          expect(hit.nested.apiKey).toBe('[REDACTED]');
+        },
+        { timeout: 2000, interval: 50 },
+      );
+    });
+
+    it('serializes Error with cause chain via pino err serializer after sanitization', async () => {
+      const root = new Error('root cause');
+      const wrapped = new Error('outer failure', { cause: root });
+
+      logger.error('Error with cause chain', wrapped, {
+        requestId: 'err-cause-1',
+        timestamp: new Date().toISOString(),
+        testId: 'err-cause-chain',
+      });
+
+      await vi.waitFor(
+        () => {
+          const entries = readJsonLog(COMBINED_LOG_PATH);
+          const hit = entries.find((e) => e.testId === 'err-cause-chain');
+          expect(hit).toBeDefined();
+          expect(hit.err).toBeDefined();
+          expect(hit.err.message).toContain('outer failure');
+          // pino's err serializer threads cause messages into the message/stack.
+          expect(hit.err.message + hit.err.stack).toContain('root cause');
+        },
+        { timeout: 2000, interval: 50 },
+      );
     });
   });
 
