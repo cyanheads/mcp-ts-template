@@ -1,21 +1,21 @@
 /**
  * @fileoverview Global test setup for Vitest.
- * Configures environment, pre-mocks heavy external modules,
- * and provides lifecycle hooks.
+ * Configures environment, pre-mocks heavy external modules, and registers
+ * custom matchers. Only referenced by `vitest.config.ts` (unit suite) — the
+ * integration suite has no setupFiles, so these mocks never apply there.
  * @module tests/setup
  */
-import { afterAll, afterEach, beforeAll, vi } from 'vitest';
+import { vi } from 'vitest';
 
-// Ensure test env so logger suppresses noisy warnings
+// Register MCP-specific matchers (toBeMcpError, toHaveJsonRpcCode).
+import './helpers/matchers.js';
+
+// Ensure test env so logger suppresses noisy warnings.
 if (typeof process !== 'undefined' && process.env && !process.env.NODE_ENV) {
   process.env.NODE_ENV = 'test';
 }
 
 // Pre-mock heavy external modules imported before individual tests call vi.mock.
-// This setup file is only referenced by vitest.config.ts (unit tests).
-// Integration tests use vitest.integration.ts which has no setupFiles, so these
-// mocks never apply there.
-//
 // NOTE: vi.mock calls must be at the top level — Vitest hoists them regardless
 // of nesting, and nested calls produce warnings (future errors).
 //
@@ -46,15 +46,3 @@ vi.mock('chrono-node', () => ({
   parseDate: vi.fn(() => null),
   parse: vi.fn(() => []),
 }));
-
-beforeAll(() => {
-  // Global setup
-});
-
-afterEach(() => {
-  // Clean up between tests
-});
-
-afterAll(() => {
-  // Global cleanup
-});

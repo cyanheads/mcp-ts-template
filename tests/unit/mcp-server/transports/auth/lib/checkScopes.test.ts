@@ -5,11 +5,14 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { createMockContext } from '@/testing/index.js';
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
 
-const mockConfig = { mcpAuthMode: 'none' as string };
+const { mockConfig } = vi.hoisted(() => ({
+  mockConfig: { mcpAuthMode: 'none' as string },
+}));
 vi.mock('@/config/index.js', () => ({ config: mockConfig }));
+
+const { createMockContext } = await import('@/testing/index.js');
 
 const { checkScopes } = await import('@/mcp-server/transports/auth/lib/checkScopes.js');
 

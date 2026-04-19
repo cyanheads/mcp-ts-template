@@ -9,19 +9,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ---------------------------------------------------------------------------
-// Mocks
+// Mocks — `vi.mock` factories are hoisted above imports, so `mockLogger` must
+// be created inside `vi.hoisted` to beat the import evaluation order.
 // ---------------------------------------------------------------------------
 
-const mockLogger = {
-  debug: vi.fn(),
-  info: vi.fn(),
-  notice: vi.fn(),
-  warning: vi.fn(),
-  error: vi.fn(),
-  crit: vi.fn(),
-  emerg: vi.fn(),
-  child: vi.fn(),
-};
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    notice: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    crit: vi.fn(),
+    emerg: vi.fn(),
+    child: vi.fn(),
+  },
+}));
 
 vi.mock('@/config/index.js', () => ({
   config: {
@@ -45,82 +48,14 @@ import { z } from 'zod';
 import type { ContextDeps } from '@/core/context.js';
 import { createContext } from '@/core/context.js';
 import type { Logger } from '@/utils/internal/logger.js';
-import type { RequestContext } from '@/utils/internal/requestContext.js';
+import { createFakeStorage, makeRequestContext } from '../helpers/index.js';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makeRequestContext(overrides: Partial<RequestContext> = {}): RequestContext {
-  return {
-    requestId: 'req-001',
-    timestamp: '2026-01-01T00:00:00.000Z',
-    operation: 'test',
-    ...overrides,
-  };
-}
-
-/**
- * Minimal in-memory StorageService fake that satisfies the interface
- * used by createContextState.
- */
-function createFakeStorage() {
-  const store = new Map<string, Map<string, unknown>>();
-
-  const tenantStore = (tenantId: string) => {
-    if (!store.has(tenantId)) store.set(tenantId, new Map());
-    return store.get(tenantId)!;
-  };
-
-  return {
-    _store: store,
-    get: vi.fn(async <T>(key: string, ctx: RequestContext): Promise<T | null> => {
-      const ts = tenantStore(ctx.tenantId!);
-      return (ts.get(key) as T) ?? null;
-    }),
-    set: vi.fn(async (key: string, value: unknown, ctx: RequestContext) => {
-      tenantStore(ctx.tenantId!).set(key, value);
-    }),
-    delete: vi.fn(async (key: string, ctx: RequestContext) => {
-      tenantStore(ctx.tenantId!).delete(key);
-    }),
-    list: vi.fn(
-      async (prefix: string, ctx: RequestContext, _opts?: { cursor?: string; limit?: number }) => {
-        const ts = tenantStore(ctx.tenantId!);
-        const keys = [...ts.keys()].filter((k) => !prefix || k.startsWith(prefix));
-        return { keys, nextCursor: undefined };
-      },
-    ),
-    getMany: vi.fn(async <T>(keys: string[], ctx: RequestContext) => {
-      const ts = tenantStore(ctx.tenantId!);
-      const result = new Map<string, T>();
-      for (const key of keys) {
-        if (ts.has(key)) result.set(key, ts.get(key) as T);
-      }
-      return result;
-    }),
-    setMany: vi.fn(async (entries: Map<string, unknown>, ctx: RequestContext) => {
-      const ts = tenantStore(ctx.tenantId!);
-      for (const [key, value] of entries) {
-        ts.set(key, value);
-      }
-    }),
-    deleteMany: vi.fn(async (keys: string[], ctx: RequestContext) => {
-      const ts = tenantStore(ctx.tenantId!);
-      let count = 0;
-      for (const key of keys) {
-        if (ts.delete(key)) count++;
-      }
-      return count;
-    }),
-  };
-}
-
+// Local wrapper uses this file's mockLogger so assertions on log calls work.
 function makeDeps(overrides: Partial<ContextDeps> = {}): ContextDeps {
   return {
     appContext: makeRequestContext(),
     logger: mockLogger as unknown as Logger,
-    storage: createFakeStorage() as any,
+    storage: createFakeStorage() as unknown as ContextDeps['storage'],
     signal: new AbortController().signal,
     ...overrides,
   };

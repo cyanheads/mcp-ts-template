@@ -9,19 +9,21 @@ import { describe, expect, it, vi } from 'vitest';
 import { McpError } from '@/types-global/errors.js';
 
 // ---------------------------------------------------------------------------
-// Mocks (for createContext path)
+// Mocks (for createContext path) — see context.test.ts for the hoisting note.
 // ---------------------------------------------------------------------------
 
-const mockLogger = {
-  debug: vi.fn(),
-  info: vi.fn(),
-  notice: vi.fn(),
-  warning: vi.fn(),
-  error: vi.fn(),
-  crit: vi.fn(),
-  emerg: vi.fn(),
-  child: vi.fn(),
-};
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    notice: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    crit: vi.fn(),
+    emerg: vi.fn(),
+    child: vi.fn(),
+  },
+}));
 
 vi.mock('@/config/index.js', () => ({
   config: {
@@ -44,54 +46,17 @@ import type { ContextDeps } from '@/core/context.js';
 import { createContext } from '@/core/context.js';
 import { createMockContext } from '@/testing/index.js';
 import type { Logger } from '@/utils/internal/logger.js';
+import { createFakeStorage, makeRequestContext } from '../../helpers/index.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function createFakeStorage() {
-  const store = new Map<string, Map<string, unknown>>();
-  const tenantStore = (tenantId: string) => {
-    if (!store.has(tenantId)) store.set(tenantId, new Map());
-    return store.get(tenantId)!;
-  };
-
-  return {
-    get: vi.fn(
-      async <T>(key: string, ctx: any): Promise<T | null> =>
-        (tenantStore(ctx.tenantId!).get(key) as T) ?? null,
-    ),
-    set: vi.fn(async (key: string, value: unknown, ctx: any) => {
-      tenantStore(ctx.tenantId!).set(key, value);
-    }),
-    delete: vi.fn(async (key: string, ctx: any) => {
-      tenantStore(ctx.tenantId!).delete(key);
-    }),
-    list: vi.fn(async (prefix: string, ctx: any) => {
-      const keys = [...tenantStore(ctx.tenantId!).keys()].filter(
-        (k) => !prefix || k.startsWith(prefix),
-      );
-      return { keys, nextCursor: undefined };
-    }),
-    getMany: vi.fn(async <T>(keys: string[], ctx: any) => {
-      const ts = tenantStore(ctx.tenantId!);
-      const result = new Map<string, T>();
-      for (const key of keys) if (ts.has(key)) result.set(key, ts.get(key) as T);
-      return result;
-    }),
-  };
-}
-
 function makeRealContext(overrides: Partial<ContextDeps> = {}) {
   return createContext({
-    appContext: {
-      requestId: 'req-001',
-      timestamp: '2026-01-01T00:00:00.000Z',
-      operation: 'test',
-      ...(overrides as any).appContextOverrides,
-    },
+    appContext: makeRequestContext((overrides as any).appContextOverrides),
     logger: mockLogger as unknown as Logger,
-    storage: createFakeStorage() as any,
+    storage: createFakeStorage() as unknown as ContextDeps['storage'],
     signal: new AbortController().signal,
     ...overrides,
   });
