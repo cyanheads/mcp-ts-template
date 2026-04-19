@@ -1,9 +1,10 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-04-06 15:54:06
+Generated on: 2026-04-19 22:47:43
 
 ```text
 mcp-ts-core/
+├── .agents/
 ├── .claude/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/
@@ -402,11 +403,12 @@ mcp-ts-core/
 │   │   ├── error-handler.fuzz.test.ts
 │   │   └── tool-handler-pipeline.fuzz.test.ts
 │   ├── helpers/
+│   │   ├── context-helpers.ts
 │   │   ├── default-server-mcp.ts
 │   │   ├── fixtures.ts
 │   │   ├── http-helpers.ts
-│   │   ├── mock-handlers.ts
-│   │   ├── mock-server.ts
+│   │   ├── index.ts
+│   │   ├── matchers.ts
 │   │   └── server-process.ts
 │   ├── integration/
 │   │   ├── config.int.test.ts
@@ -418,6 +420,7 @@ mcp-ts-core/
 │   │   ├── http-transport.int.test.ts
 │   │   ├── http.test.ts
 │   │   ├── logger.int.test.ts
+│   │   ├── mcp-apps.int.test.ts
 │   │   └── stdio.test.ts
 │   ├── smoke/
 │   │   ├── prompts/
@@ -439,6 +442,8 @@ mcp-ts-core/
 │   │   │   └── index.test.ts
 │   │   ├── core/
 │   │   │   └── app.test.ts
+│   │   ├── helpers/
+│   │   │   └── matchers.test.ts
 │   │   ├── linter/
 │   │   │   ├── tool-rules.test.ts
 │   │   │   └── validate.test.ts
@@ -502,6 +507,8 @@ mcp-ts-core/
 │   │   │   │   ├── ITransport.test.ts
 │   │   │   │   └── manager.test.ts
 │   │   │   └── server.test.ts
+│   │   ├── packaging/
+│   │   │   └── optional-peer-deps.test.ts
 │   │   ├── scripts/
 │   │   │   └── devdocs.test.ts
 │   │   ├── services/
@@ -546,6 +553,7 @@ mcp-ts-core/
 │   │   │   ├── StorageService.metrics.test.ts
 │   │   │   └── StorageService.test.ts
 │   │   ├── testing/
+│   │   │   ├── exports.test.ts
 │   │   │   ├── mockContext.test.ts
 │   │   │   └── mockContextFidelity.test.ts
 │   │   ├── types-global/
