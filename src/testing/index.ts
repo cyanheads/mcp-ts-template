@@ -1,7 +1,8 @@
 /**
  * @fileoverview Test utilities for MCP server development.
  * Provides `createMockContext()` for testing tool and resource handlers
- * against the unified Context interface.
+ * against the unified Context interface, plus `createMockLogger()` and
+ * `createInMemoryStorage()` for unit-testing services in isolation.
  * @module src/testing/index
  */
 
@@ -19,6 +20,11 @@ import type {
   ContextState,
   SamplingOpts,
 } from '@/core/context.js';
+import { StorageService } from '@/storage/core/StorageService.js';
+import {
+  InMemoryProvider,
+  type InMemoryProviderOptions,
+} from '@/storage/providers/inMemory/inMemoryProvider.js';
 
 // ---------------------------------------------------------------------------
 // Options
@@ -51,9 +57,26 @@ export interface MockContextOptions {
 // Mock implementations
 // ---------------------------------------------------------------------------
 
-function createMockLogger(): ContextLogger & {
+/** A `ContextLogger` that records every call to an inspectable `calls` array. */
+export type MockContextLogger = ContextLogger & {
+  /** Every log call in insertion order. `data` is the per-call metadata argument. */
   calls: Array<{ level: string; msg: string; data?: unknown }>;
-} {
+};
+
+/**
+ * Create a `ContextLogger` whose calls are recorded for inspection.
+ * Useful when unit-testing code that accepts a `ContextLogger` directly.
+ *
+ * @example
+ * ```ts
+ * import { createMockLogger } from '@cyanheads/mcp-ts-core/testing';
+ *
+ * const log = createMockLogger();
+ * log.info('started', { step: 1 });
+ * expect(log.calls).toEqual([{ level: 'info', msg: 'started', data: { step: 1 } }]);
+ * ```
+ */
+export function createMockLogger(): MockContextLogger {
   const calls: Array<{ level: string; msg: string; data?: unknown }> = [];
 
   const logFn = (level: string) => (msg: string, data?: Record<string, unknown>) => {
@@ -218,4 +241,30 @@ export function createMockContext(options: MockContextOptions = {}): Context {
     progress,
     uri: options.uri,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Storage helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a real `StorageService` backed by an in-memory provider, suitable for
+ * unit-testing services that accept a `StorageService` dependency.
+ *
+ * Because this uses the production `StorageService` + `InMemoryProvider`, the
+ * behavior (tenant isolation, TTL, validation, list pagination) matches what
+ * you'd see in a running server — no hand-rolled fake required.
+ *
+ * @example
+ * ```ts
+ * import { createInMemoryStorage, createMockContext } from '@cyanheads/mcp-ts-core/testing';
+ *
+ * const storage = createInMemoryStorage();
+ * const svc = new MyService(config, storage);
+ * const ctx = createMockContext({ tenantId: 'test-tenant' });
+ * await svc.doWork(input, ctx);
+ * ```
+ */
+export function createInMemoryStorage(options?: InMemoryProviderOptions): StorageService {
+  return new StorageService(new InMemoryProvider(options));
 }
