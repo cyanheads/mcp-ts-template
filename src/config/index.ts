@@ -579,4 +579,5 @@ const config = new Proxy({} as AppConfig, {
  */
 export type AppConfig = z.infer<typeof ConfigSchema>;
 
+export { parseEnvConfig } from './parseEnvConfig.js';
 export { ConfigSchema, config, parseConfig, resetConfig };
