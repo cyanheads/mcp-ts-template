@@ -4,7 +4,7 @@ description: >
   Finalize documentation and project metadata for a ship-ready MCP server. Use after implementation is complete, tests pass, and devcheck is clean. Safe to run at any stage — each step checks current state and only acts on what still needs work.
 metadata:
   author: cyanheads
-  version: "1.3"
+  version: "1.4"
   audience: external
   type: workflow
 ---
@@ -48,7 +48,7 @@ Capture: tool count, resource count, prompt count, service count, required env v
 
 Read `references/readme.md` for structure and conventions. If `README.md` doesn't exist, create it from scratch. If it exists, diff the current content against the audit — update tool/resource/prompt tables, env var lists, and descriptions to match the actual surface area. Don't rewrite sections that are already accurate.
 
-The header tagline (`<p><b>...</b></p>`) must match the `package.json` `description`.
+The bold header tagline (the `<b>` text inside the first `<p>`) must match the `package.json` `description`. The surface count is a nested `<div>` inside the same `<p>`, separated by `•`.
 
 ### 3. Agent Protocol (CLAUDE.md / AGENTS.md)
 
