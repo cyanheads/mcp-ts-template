@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.5.1] - 2026-04-20
+
+Documentation polish. Rewrites the README conventions reference in the `polish-docs-meta` skill around the shipping house style observed in `@cyanheads/mailchimp-mcp-server` and `@cyanheads/pubmed-mcp-server`, and fixes two missed skill version bumps from the 0.5.0 release so consumer sync picks up the updated content.
+
+### Changed
+
+- **`skills/polish-docs-meta/references/readme.md`** (v1.3 → v1.4) — rewrote the README conventions reference to match the shipping house style. Promoted "Public Hosted Instance" to a top-level callout under the badges; collapsed separate `## Resources` and `## Prompts` sections into a single combined `## Resources and prompts` table with a `Type` column; added the mandatory tool-coverage boilerplate ("All resource data is also reachable via tools…"); standardized the surface count as a nested `<div>` inside the tagline `<p>` using the `•` separator; codified the three-block Getting Started pattern (`bunx` → `npx` → `docker run`) plus HTTP one-liner quickstart; added a tool-grouping framing sentence convention; added the `.env.example` pointer after the Configuration table; added the "validate → normalize → never fabricate" bullet to the Development Guide short-version list; de-prescribed `claude_desktop_config.json` in favor of generic "your MCP client configuration file"; added a Dockerfile-behavior note (log directory + `OTEL_ENABLED` build arg); made the MCP Spec badge optional (SDK badge already encodes the relevant version).
+- **`skills/polish-docs-meta/SKILL.md`** step 2 — clarified that the bold header tagline (the `<b>` text inside the first `<p>`) is what must match `package.json` description, distinct from the nested count `<div>`.
+
+### Fixed
+
+- **`skills/api-config/SKILL.md`** (v1.1 → v1.2) — retroactive version bump. Content was updated in the 0.5.0 release (442a10a, `parseEnvConfig` example in the server-config pattern) but the frontmatter version was not bumped, blocking consumer projects from picking up the change via the skill sync model. No content changes in this release.
+- **`skills/setup/SKILL.md`** (v1.2 → v1.3) — retroactive version bump. Content was updated in the 0.5.0 release (442a10a, added `npx` prefix and clarified bootstrap vs. Phase B refresh) but the frontmatter version was not bumped. No content changes in this release.
+
+---
+
 ## [0.5.0] - 2026-04-20
 
 Fixes the "raw ZodError on startup" UX problem (#35) at the framework level — every consumer server now gets an actionable configuration error banner instead of a JSON dump with a stack trace when env vars are missing. Adds an opt-in `parseEnvConfig` helper for env-var-aware error messages, rewrites the `maintenance` skill around the real workflow, and cleans up package.json resolutions after `bun update --latest`.
