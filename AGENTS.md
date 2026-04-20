@@ -30,7 +30,7 @@
 | `/prompts` | `PromptDefinition` | Prompt definition type |
 | `/tasks` | `TaskToolDefinition`, `isTaskToolDefinition` | Task tool escape hatch |
 | `/errors` | `McpError`, `JsonRpcErrorCode`, `notFound`, `validationError`, `unauthorized`, ... | Error types, codes, and factory functions |
-| `/config` | `AppConfig`, `config`, `parseConfig`, `resetConfig`, `ConfigSchema`, `FRAMEWORK_NAME`, `FRAMEWORK_VERSION` | Zod-validated config, framework identity |
+| `/config` | `AppConfig`, `config`, `parseConfig`, `parseEnvConfig`, `resetConfig`, `ConfigSchema`, `FRAMEWORK_NAME`, `FRAMEWORK_VERSION` | Zod-validated config, framework identity, env-var helper |
 | `/auth` | `checkScopes` | Dynamic scope checking |
 | `/storage` | `StorageService` | Storage abstraction |
 | `/storage/types` | `IStorageProvider` | Provider interface |
@@ -398,7 +398,7 @@ Managed by `@cyanheads/mcp-ts-core`. Validated via Zod. Precedence: `createApp()
 
 ### Server config (separate schema)
 
-Own Zod schema for domain-specific env vars. **Never merge with core's schema.** Lazy-parse — do not eagerly parse `process.env` at top-level (Workers inject env at request time via `injectEnvVars()`). See `api-config` skill for example.
+Own Zod schema for domain-specific env vars. **Never merge with core's schema.** Lazy-parse — do not eagerly parse `process.env` at top-level (Workers inject env at request time via `injectEnvVars()`). Prefer `parseEnvConfig(schema, envMap)` from `/config` over `schema.parse(...)` — it maps schema paths to env var names so errors say `MY_API_KEY is missing` instead of `apiKey: expected string`. Raw `ZodError` thrown from `setup()` is still caught and converted by the framework, but `parseEnvConfig` produces better messages. See `api-config` skill for example.
 
 ---
 
