@@ -420,6 +420,34 @@ describe('core/app', () => {
     expect(mockCreateStorageProvider).not.toHaveBeenCalled();
   });
 
+  it('converts ZodError thrown from setup() into a ConfigurationError', async () => {
+    const { z } = await import('zod');
+    const schema = z.object({ apiKey: z.string() });
+    const setup = () => {
+      schema.parse({ apiKey: undefined });
+    };
+
+    try {
+      await composeServices({ setup });
+      expect.fail('should have thrown');
+    } catch (err) {
+      const { JsonRpcErrorCode, McpError } = await import('@/types-global/errors.js');
+      expect(err).toBeInstanceOf(McpError);
+      expect((err as InstanceType<typeof McpError>).code).toBe(JsonRpcErrorCode.ConfigurationError);
+      expect((err as Error).message).toContain('Server setup failed');
+      expect((err as Error).message).toContain('apiKey');
+    }
+  });
+
+  it('preserves non-Zod errors thrown from setup() without conversion', async () => {
+    const original = new Error('database unreachable');
+    const setup = () => {
+      throw original;
+    };
+
+    await expect(composeServices({ setup })).rejects.toBe(original);
+  });
+
   it('requires Supabase credentials when the Supabase storage provider is selected', async () => {
     mockConfig.storage.providerType = 'supabase';
     mockConfig.supabase = { serviceRoleKey: undefined, url: undefined };

@@ -8,6 +8,7 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { z } from 'zod';
 
 import { config, resetConfig } from '@/config/index.js';
 import { validateDefinitions } from '@/linter/validate.js';
@@ -31,7 +32,7 @@ import type { SpeechProviderConfig } from '@/services/speech/types.js';
 import { StorageService } from '@/storage/core/StorageService.js';
 import { createStorageProvider } from '@/storage/core/storageFactory.js';
 import type { Database } from '@/storage/providers/supabase/supabase.types.js';
-import { configurationError } from '@/types-global/errors.js';
+import { configurationError, JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { initErrorMetrics } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger, type McpLogLevel } from '@/utils/internal/logger.js';
 import { initHandlerMetrics, initHighResTimer } from '@/utils/internal/performance.js';
@@ -191,8 +192,27 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
   };
 
   // --- Server-specific setup ---
+  // If the server's setup() throws a raw ZodError (e.g., from a
+  // ServerConfigSchema.parse() call without framework helpers), convert it to
+  // a ConfigurationError so downstream handlers can format it cleanly instead
+  // of dumping a raw stack trace at process start.
   if (setup) {
-    await setup(coreServices);
+    try {
+      await setup(coreServices);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const lines = err.issues.map((issue) => {
+          const path = issue.path.join('.');
+          return `  - ${path}: ${issue.message}`;
+        });
+        throw configurationError(
+          `Server setup failed — config validation error:\n${lines.join('\n')}`,
+          { issues: err.issues },
+          { cause: err },
+        );
+      }
+      throw err;
+    }
   }
 
   // --- MCP services ---
@@ -257,6 +277,40 @@ function suppressColors(): void {
 }
 
 /**
+ * Writes a user-friendly banner to stderr for startup-time configuration errors,
+ * hiding the framework stack trace behind `DEBUG=true`. Meant to replace the raw
+ * ZodError/stack dump that Node prints for unhandled rejections during `createApp`.
+ */
+function printStartupConfigError(err: McpError): void {
+  const isDebug = !!process.env.DEBUG;
+  const divider = '-'.repeat(60);
+  const lines = [
+    '',
+    divider,
+    ' Configuration error — server failed to start',
+    divider,
+    err.message,
+    '',
+    'Check your .env file or environment variables, then retry.',
+  ];
+  if (!isDebug) {
+    lines.push('Set DEBUG=true for the full stack trace.');
+  }
+  lines.push(divider, '');
+
+  process.stderr.write(`${lines.join('\n')}\n`);
+
+  if (isDebug) {
+    if (err.data) {
+      process.stderr.write(`Data: ${JSON.stringify(err.data, null, 2)}\n`);
+    }
+    if (err.stack) {
+      process.stderr.write(`${err.stack}\n`);
+    }
+  }
+}
+
+/**
  * Composes the application, initializes all services, starts transport,
  * and registers signal/error handlers. This is the complete entry point
  * for a Node.js MCP server process.
@@ -270,8 +324,20 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   suppressColors();
 
   // --- Compose services (handles env overrides internally for config parsing) ---
-  const { coreServices, createServer, meta, lintWarnings, taskManager } =
-    await composeServices(options);
+  // Configuration errors at this stage (from the definition linter, server
+  // setup(), or missing required env vars) are startup-fatal. Print a clean
+  // banner and exit rather than letting the raw error dump to stderr.
+  let composed: ComposedApp;
+  try {
+    composed = await composeServices(options);
+  } catch (err) {
+    if (err instanceof McpError && err.code === JsonRpcErrorCode.ConfigurationError) {
+      printStartupConfigError(err);
+      process.exit(1);
+    }
+    throw err;
+  }
+  const { coreServices, createServer, meta, lintWarnings, taskManager } = composed;
   const { definitionCounts } = meta;
 
   // --- Initialize OTEL + high-res timer (independent, run in parallel) ---
