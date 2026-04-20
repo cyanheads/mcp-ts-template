@@ -189,9 +189,10 @@ Use the lazy init/accessor pattern — do not parse `process.env` at module top-
 ```ts
 // src/config/server-config.ts
 import { z } from '@cyanheads/mcp-ts-core';
+import { parseEnvConfig } from '@cyanheads/mcp-ts-core/config';
 
 const ServerConfigSchema = z.object({
-  myApiKey: z.string().describe('External API key'),
+  apiKey: z.string().describe('External API key'),
   maxResults: z.coerce.number().default(100),
 });
 
@@ -200,12 +201,23 @@ export type ServerConfig = z.infer<typeof ServerConfigSchema>;
 let _config: ServerConfig | undefined;
 
 export function getServerConfig(): ServerConfig {
-  _config ??= ServerConfigSchema.parse({
-    myApiKey: process.env.MY_API_KEY,
-    maxResults: process.env.MY_MAX_RESULTS,
+  _config ??= parseEnvConfig(ServerConfigSchema, {
+    apiKey: 'MY_API_KEY',
+    maxResults: 'MY_MAX_RESULTS',
   });
   return _config;
 }
 ```
+
+**Why `parseEnvConfig`?** It maps Zod schema paths to env var names so validation errors name the actual variable at fault. A missing `MY_API_KEY` produces:
+
+```
+Server config validation failed:
+  - MY_API_KEY (apiKey): Invalid input: expected string, received undefined
+```
+
+Instead of a raw `ZodError` dump at startup. The framework catches the resulting `ConfigurationError` and prints a clean banner (full stack behind `DEBUG=true`).
+
+Direct `ServerConfigSchema.parse(...)` still works — the framework intercepts raw `ZodError` thrown from `setup()` and converts it — but error messages won't know about env var names, so they show the Zod path (`apiKey`) instead of the variable name (`MY_API_KEY`).
 
 **Workers:** Do not parse `process.env` at module top-level. In Workers, env bindings are injected at request time via `injectEnvVars()`, after all static imports. Lazy parsing is required.

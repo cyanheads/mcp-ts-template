@@ -5,7 +5,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.4.1-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.5.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.2-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
@@ -210,8 +210,7 @@ The `examples/` directory contains a reference server consuming core through pub
 | `template_code_review_sampling` | `ctx.sample` for LLM completion |
 | `template_image_test` | Image content blocks |
 | `template_async_countdown` | `task: true` with `ctx.progress` |
-| `template_data_explorer` | MCP Apps with linked UI resource |
-| `template_echo_app` | MCP Apps with `appTool()`/`appResource()` builders |
+| `template_data_explorer` | MCP Apps with linked UI resource via `appTool()`/`appResource()` builders |
 
 ## Testing
 
@@ -249,10 +248,10 @@ Also exports `fuzzResource`, `fuzzPrompt`, `zodToArbitrary`, and `ADVERSARIAL_ST
 ## Development
 
 ```bash
-bun run rebuild          # tsc && tsc-alias
-bun run devcheck       # lint, format, typecheck, security
+bun run rebuild        # clean + build (scripts/clean.ts + scripts/build.ts)
+bun run devcheck       # lint, format, typecheck, MCP defs, audit, outdated
 bun run lint:mcp       # validate MCP definitions against spec
-bun run test:all           # vitest
+bun run test:all       # vitest (unit + integration)
 ```
 
 ## Contributing

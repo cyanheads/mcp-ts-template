@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.4.1
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.5.0
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -13,7 +13,7 @@
 - **Full-stack observability.** The framework automatically instruments every tool/resource call — OTel span, duration/payload/memory metrics, structured completion log. Use `ctx.log` for additional domain-specific logging within handlers (external API calls, multi-step operations, business events). `requestId`, `traceId`, `tenantId` auto-correlated. No `console` calls.
 - **Unified Context.** Handlers receive `ctx` with logging (`ctx.log`), tenant-scoped storage (`ctx.state`), optional protocol capabilities (`ctx.elicit`, `ctx.sample`), and cancellation (`ctx.signal`).
 - **Decoupled storage.** `ctx.state` for tenant-scoped KV. Never access persistence backends directly.
-- **Runtime parity.** All features work with `stdio`/`http` and Worker bundle. Guard non-portable deps via `runtimeCaps`. Prefer runtime-agnostic abstractions (Hono + `@hono/mcp`, Fetch APIs).
+- **Runtime parity.** All features work with `stdio`/`http` and Worker bundle. Guard non-portable deps via `runtimeCaps` from `@cyanheads/mcp-ts-core/utils` — a frozen capability object (`isNode`, `isBun`, `isWorkerLike`, `hasBuffer`, `hasProcess`, etc.) computed once at module load. Prefer runtime-agnostic abstractions (Hono + `@hono/mcp`, Fetch APIs).
 - **Startup validation.** `createApp()` runs the definition linter before proceeding — errors (spec violations) throw `ConfigurationError` and block startup; warnings are logged. Also available standalone via `bun run lint:mcp` and as a devcheck step.
 - **Elicitation for missing input.** Use `ctx.elicit` when the client supports it.
 
@@ -149,7 +149,9 @@ src/
 
 **File suffixes:** `.tool.ts` (standard or task), `.resource.ts`, `.prompt.ts`, `.app-tool.ts` (UI-enabled), `.app-resource.ts` (UI resource linked to app tool).
 
-**`templates/` directory:** Scaffolding source for the CLI init script (`setup` skill). Contents are copied into new consumer servers — includes starter `package.json`, `tsconfig`, `biome.json`, `vitest.config.ts`, `.env.example`, `Dockerfile`, `CLAUDE.md`/`AGENTS.md`, and example tool/resource/prompt definitions. Files prefixed with `_` (e.g. `_.gitignore`, `_tsconfig.json`) are renamed on copy (strip `_` prefix). Changes here affect every newly scaffolded server.
+**Scaffold a new server:** `npx @cyanheads/mcp-ts-core init [name]` copies `templates/` into a new project. After running, consult the `setup` skill.
+
+**`templates/` directory:** Scaffolding source for the init CLI. Contents are copied into new consumer servers — includes starter `package.json`, `tsconfig`, `biome.json`, `vitest.config.ts`, `.env.example`, `Dockerfile`, `CLAUDE.md`/`AGENTS.md`, and example tool/resource/prompt definitions. Files prefixed with `_` (e.g. `_.gitignore`, `_tsconfig.json`) are renamed on copy (strip `_` prefix). Changes here affect every newly scaffolded server.
 
 ---
 
@@ -193,7 +195,9 @@ export const myTool = tool('my_tool', {
 
 **Steps:** Create `src/mcp-server/tools/definitions/[name].tool.ts` (kebab-case) → use `tool('snake_case', {...})` with Zod `.describe()` on all fields → implement `handler(input, ctx)` (pure, throws on failure) → add `auth`/`format` if needed → register in `definitions/index.ts` → `bun run devcheck` → smoke-test with `dev:stdio`/`dev:http`.
 
-**Schema constraint:** Input/output schemas must use JSON-Schema-serializable Zod types only. The MCP SDK converts schemas to JSON Schema for `tools/list` — non-serializable types (`z.custom()`, `z.date()`, `z.transform()`, etc.) cause a hard runtime failure. Use structural equivalents instead (e.g., `z.string()` with `.describe('ISO 8601 date')` instead of `z.date()`). The linter validates this at startup.
+**Schema constraint:** Input/output schemas must use JSON-Schema-serializable Zod types only. The MCP SDK converts schemas to JSON Schema for `tools/list` — non-serializable types (`z.custom()`, `z.date()`, `z.transform()`, `z.bigint()`, `z.symbol()`, `z.void()`, `z.map()`, `z.set()`, `z.function()`, `z.nan()`) cause a hard runtime failure. Use structural equivalents instead (e.g., `z.string()` with `.describe('ISO 8601 date')` instead of `z.date()`). The linter validates this at startup.
+
+**Form-client safety:** Form-based MCP clients (MCP Inspector, web UIs) send optional object fields with empty-string inner values instead of `undefined`. Don't reject with `.min(1)` on optional fields — guard for meaningful values in the handler (`if (input.dateRange?.minDate && input.dateRange?.maxDate)`). Test with both omitted and empty-value payloads.
 
 **`format`**: Maps output to MCP `content[]` — the only field most LLM clients (Claude Code, VS Code Copilot, Cursor, Windsurf) forward to the model. `structuredContent` (from `output`) is for programmatic use and is not reliably shown to the LLM. **Make `format()` content-complete** — render all data the model needs to reason about the result, not just a count or title. Omit for JSON stringify fallback. Additional formatters: `markdown()` (builder), `diffFormatter` (async), `tableFormatter`, `treeFormatter` from `/utils`.
 
@@ -365,6 +369,15 @@ See `api-errors` skill for the full pattern-matching table, error code reference
 
 Inline `auth` on definitions (primary pattern): `auth: ['tool:my_tool:read']`. Handler factory checks scopes before calling handler. Dynamic scopes via `checkScopes(ctx, [...])` from `/auth`.
 
+**Scope naming:** colon-delimited strings. Conventions used in this codebase:
+
+| Surface | Pattern | Example |
+|:--------|:--------|:--------|
+| Tools | `tool:<snake_name>:<verb>` | `tool:inventory_search:read` |
+| Resources | `resource:<kebab-name>:<verb>` *or* domain-led `<domain>:<verb>` | `resource:echo-app-ui:read`, `inventory:read` |
+
+Pick one convention per server and stay consistent. Verbs are typically `read`, `write`, `admin`.
+
 **Modes** (`MCP_AUTH_MODE`): `none` (default) | `jwt` (local secret via `MCP_AUTH_SECRET_KEY`) | `oauth` (JWKS via `OAUTH_ISSUER_URL`, `OAUTH_AUDIENCE`). See `api-auth` skill for claims, CORS, and detailed config.
 
 ---
@@ -373,7 +386,7 @@ Inline `auth` on definitions (primary pattern): `auth: ['tool:my_tool:read']`. H
 
 ### Core config
 
-Managed by `@cyanheads/mcp-ts-core`. Validated via Zod. Precedence: `createApp()` overrides > env vars > `package.json`.
+Managed by `@cyanheads/mcp-ts-core`. Validated via Zod. Precedence: `createApp()` overrides > env vars > `package.json` (reads `name` → `MCP_SERVER_NAME`, `version` → `MCP_SERVER_VERSION`).
 
 | Category | Key Variables |
 |:---------|:-------------|
@@ -464,10 +477,9 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 
 ## Code Style & Checklist
 
-- **Validation:** Zod schemas, all fields need `.describe()`. Schemas must be JSON-Schema-serializable — avoid `z.custom()`, `z.date()`, `z.transform()`, `z.bigint()`, `z.symbol()`, `z.void()`, `z.map()`, `z.set()`, `z.function()`, `z.nan()` (the linter catches these at startup)
-- **Form-client safety:** Form-based MCP clients (MCP Inspector, web UIs) send optional object fields with empty-string inner values instead of `undefined`. Don't reject with `.min(1)` on optional fields — guard for meaningful values in the handler (`if (input.dateRange?.minDate && input.dateRange?.maxDate)`). Test with both omitted and empty-value payloads.
+- **Validation:** Zod schemas, all fields need `.describe()`. See Adding a Tool for the JSON-Schema-serializable constraint and form-client safety.
 - **Logging:** Framework auto-instruments all handler calls. `ctx.log` for domain-specific logging in handlers, global `logger` for lifecycle/background
-- **Errors:** handlers throw — error factories (`notFound()`, `validationError()`, etc.) when the code matters, plain `Error` for don't-care cases. Framework catches and classifies. `ErrorHandler.tryCatch` for services only.
+- **Errors:** handlers throw — error factories (`notFound()`, `validationError()`, etc.) when the code matters, plain `Error` for don't-care cases. Framework catches and classifies.
 - **Secrets:** server config only — no hardcoded credentials
 - **Naming:** kebab-case files, snake_case tool/resource/prompt names, correct suffix
 - **JSDoc:** `@fileoverview` + `@module` required on every file
@@ -497,20 +509,24 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 
 | Command | Purpose |
 |:--------|:--------|
-| `bun run build` | Build library output (`tsc && tsc-alias`) |
-| `bun run devcheck` | **Use often.** Lint, format, typecheck, security |
+| `bun run build` | Build library output (`scripts/build.ts`) |
+| `bun run rebuild` | Clean and rebuild (`scripts/clean.ts` + `build`) |
+| `bun run devcheck` | **Use often.** Lint, format, typecheck, MCP definition linting, `bun audit`, `bun outdated` |
 | `bun run lint:mcp` | Validate MCP definitions against spec |
+| `bun run format` | Auto-fix Biome lint/format issues |
 | `bun run test` | Unit/integration tests |
 | `bun run dev:stdio` | Development mode (stdio) |
 | `bun run dev:http` | Development mode (HTTP) |
 | `bun run start:stdio` | Production mode (stdio, after build) |
 | `bun run start:http` | Production mode (HTTP, after build) |
 
+After `bun update --latest`, run the `maintenance` skill to investigate changelogs, adopt upstream changes, and sync project skills.
+
 ---
 
 ## Publishing
 
-After version bump and final commit:
+Run the `release` skill first — it verifies version consistency across all files, changelog completeness, skill version bumps, and runs the final check suite. It ends by presenting these irreversible publish commands:
 
 ```bash
 bun publish --access public
@@ -523,20 +539,3 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 mcp-publisher publish
 ```
 
----
-
-## Code Navigation
-
-**LSP tools are deferred — load them first.** Run `ToolSearch("select:LSP")` at session start for any code nav/refactoring work.
-
-**Grep/Glob** for file discovery, text patterns, regex. **LSP** for symbol identity, types, structure, references, call chains (`goToDefinition`, `findReferences`, `hover`, `documentSymbol`, `goToImplementation`, `incomingCalls`/`outgoingCalls`).
-
----
-
-## Subagent Rules
-
-**Default: do the work yourself.** Only spawn agents when: (1) work spans 3+ files with independent scopes, (2) you can write precise self-contained prompts, (3) parallelism adds genuine value.
-
-When used: `model: "opus"` (preferred) or `"sonnet"` (never `haiku`). Always `run_in_background: true`. Non-overlapping file scope per agent. Agent output not visible to user — orchestrator reports findings. No git commands that modify state.
-
-**Required agent preamble:** "CRITICAL: Do NOT run any git commands that modify state. No commits, stashes, resets, checkouts, or clean. Git is handled by the orchestrator. Read-only commands (status, diff, log, show) are acceptable."

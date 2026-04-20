@@ -14,8 +14,7 @@
 
 1. **Read the framework API** — `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`
 2. **Run the `setup` skill** — read `skills/setup/SKILL.md` and follow its checklist (project orientation, agent protocol file selection, echo definition cleanup, skill sync)
-3. **Check for Bun** — run `bun --version`. If [Bun](https://bun.sh) is available, it's the recommended runtime: update `package.json` scripts to use `bun` instead of `tsx` (e.g., `"devcheck": "bun scripts/devcheck.ts"`), prefer `bun run` over `npm run` for all commands, and update the Commands table and Checklist in this file to match.
-4. **Design the server** — read `skills/design-mcp-server/SKILL.md` and work through it with the user to map the domain into tools, resources, and services before scaffolding
+3. **Design the server** — read `skills/design-mcp-server/SKILL.md` and work through it with the user to map the domain into tools, resources, and services before scaffolding
 
 ---
 
@@ -25,13 +24,13 @@ When the user asks what to do next, what's left, or needs direction, suggest rel
 
 1. **Re-run the `setup` skill** — ensures CLAUDE.md, skills, structure, and metadata are populated and up to date with the current codebase
 2. **Run the `design-mcp-server` skill** — if the tool/resource surface hasn't been mapped yet, work through domain design
-3. **Add tools/resources/prompts** — scaffold new definitions using the `add-tool`, `add-resource`, `add-prompt` skills
+3. **Add tools/resources/prompts** — scaffold new definitions using the `add-tool`, `add-app-tool`, `add-resource`, `add-prompt` skills
 4. **Add services** — scaffold domain service integrations using the `add-service` skill
 5. **Add tests** — scaffold tests for existing definitions using the `add-test` skill
 6. **Field-test definitions** — exercise tools/resources/prompts with real inputs using the `field-test` skill, get a report of issues and pain points
 7. **Run `devcheck`** — lint, format, typecheck, and security audit
 8. **Run the `polish-docs-meta` skill** — finalize README, CHANGELOG, metadata, and agent protocol for shipping
-9. **Run the `maintenance` skill** — sync skills and dependencies after framework updates
+9. **Run the `maintenance` skill** — investigate changelogs, adopt upstream changes, and sync skills after `bun update --latest`
 
 Tailor suggestions to what's actually missing or stale — don't recite the full list every time.
 
@@ -122,19 +121,25 @@ export const reviewCode = prompt('review_code', {
 
 ```ts
 // src/config/server-config.ts — lazy-parsed, separate from framework config
+import { z } from '@cyanheads/mcp-ts-core';
+import { parseEnvConfig } from '@cyanheads/mcp-ts-core/config';
+
 const ServerConfigSchema = z.object({
-  myApiKey: z.string().describe('External API key'),
+  apiKey: z.string().describe('External API key'),
   maxResults: z.coerce.number().default(100),
 });
+
 let _config: z.infer<typeof ServerConfigSchema> | undefined;
 export function getServerConfig() {
-  _config ??= ServerConfigSchema.parse({
-    myApiKey: process.env.MY_API_KEY,
-    maxResults: process.env.MY_MAX_RESULTS,
+  _config ??= parseEnvConfig(ServerConfigSchema, {
+    apiKey: 'MY_API_KEY',
+    maxResults: 'MY_MAX_RESULTS',
   });
   return _config;
 }
 ```
+
+`parseEnvConfig` maps Zod schema paths → env var names so validation errors name the actual variable (`MY_API_KEY`) rather than the internal path (`apiKey`). It throws a `ConfigurationError` the framework catches and prints as a clean startup banner.
 
 ---
 
@@ -215,7 +220,7 @@ src/
 
 Skills are modular instructions in `skills/` at the project root. Read them directly when a task matches — e.g., `skills/add-tool/SKILL.md` when adding a tool.
 
-**Agent skill directory:** Copy skills into the directory your agent discovers (Claude Code: `.claude/skills/`, others: equivalent). This makes skills available as context without needing to reference `skills/` paths manually. After framework updates, re-copy to pick up changes.
+**Agent skill directory:** Copy skills into the directory your agent discovers (Claude Code: `.claude/skills/`, others: equivalent). This makes skills available as context without needing to reference `skills/` paths manually. After framework updates, run the `maintenance` skill — it re-syncs the agent directory automatically (Phase B).
 
 Available skills:
 
@@ -232,7 +237,7 @@ Available skills:
 | `field-test` | Exercise tools/resources/prompts with real inputs, verify behavior, report issues |
 | `devcheck` | Lint, format, typecheck, audit |
 | `polish-docs-meta` | Finalize docs, README, metadata, and agent protocol for shipping |
-| `maintenance` | Sync skills and dependencies after updates |
+| `maintenance` | Investigate changelogs, adopt upstream changes, sync skills to agent dirs |
 | `report-issue-framework` | File a bug or feature request against `@cyanheads/mcp-ts-core` via `gh` CLI |
 | `report-issue-local` | File a bug or feature request against this server's own repo via `gh` CLI |
 | `api-auth` | Auth modes, scopes, JWT/OAuth |
@@ -249,6 +254,8 @@ When you complete a skill's checklist, check the boxes and add a completion time
 ---
 
 ## Commands
+
+**Runtime:** Scripts use `tsx` — both `npm run <cmd>` and `bun run <cmd>` work. Use whichever package manager you have; `bun` is slightly faster for invoking scripts but not required.
 
 | Command | Purpose |
 |:--------|:--------|
@@ -281,7 +288,7 @@ import { getMyService } from '@/services/my-domain/my-service.js';
 
 ## Checklist
 
-- [ ] Zod schemas: all fields have `.describe()`, only JSON-Schema-serializable types (no `z.custom()`, `z.date()`, `z.transform()`, etc.)
+- [ ] Zod schemas: all fields have `.describe()`, only JSON-Schema-serializable types (no `z.custom()`, `z.date()`, `z.transform()`, `z.bigint()`, `z.symbol()`, `z.void()`, `z.map()`, `z.set()`, `z.function()`, `z.nan()`)
 - [ ] Optional nested objects: handler guards for empty inner values from form-based clients (`if (input.obj?.field && ...)`, not just `if (input.obj)`)
 - [ ] JSDoc `@fileoverview` + `@module` on every file
 - [ ] `ctx.log` for logging, `ctx.state` for storage

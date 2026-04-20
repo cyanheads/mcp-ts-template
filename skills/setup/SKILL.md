@@ -11,7 +11,7 @@ metadata:
 
 ## Context
 
-This skill assumes `@cyanheads/mcp-ts-core init` has already run. The CLI created the project's `CLAUDE.md` and `AGENTS.md` for different agents, copied external skills to `skills/`, and scaffolded the directory structure with echo definitions as starting points. This skill covers what was created and what to do next.
+This skill assumes `npx @cyanheads/mcp-ts-core init [name]` has already run. The CLI created the project's `CLAUDE.md` and `AGENTS.md` for different agents, copied external skills to `skills/`, and scaffolded the directory structure with echo definitions as starting points. This skill covers what was created and what to do next.
 
 ## Agent Protocol File
 
@@ -91,7 +91,7 @@ mkdir -p .claude/skills && cp -R skills/* .claude/skills/
 
 **For other agents** (Codex, Cursor, Windsurf, etc.) — copy to the equivalent directory (e.g., `.codex/skills/`, `.cursor/skills/`).
 
-After the initial copy, use the `maintenance` skill to keep them in sync after package updates.
+This step is the **bootstrap** — it creates the agent directory. From then on, use the `maintenance` skill to refresh it after package updates (Phase B). Maintenance only refreshes directories that already exist; it won't create a new agent directory on your behalf.
 
 ## Project Scaffolding
 
