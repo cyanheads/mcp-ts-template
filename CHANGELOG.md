@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.1](changelog/0.6.x/0.6.1.md) — 2026-04-21
+
+Landing page polish — terminal-chrome connect card with tabbed snippets, envExample config, dot-separated status strip, ambient accent hairline
+
 ## [0.6.0](changelog/0.6.x/0.6.0.md) — 2026-04-21
 
 Landing page + SEP-1649 Server Card at /, unified server manifest, directory-based changelog system
