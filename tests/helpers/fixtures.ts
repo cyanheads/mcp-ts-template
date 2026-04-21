@@ -50,6 +50,7 @@ export const defaultServerManifest: ServerManifest = {
   landing: {
     enabled: true,
     links: [],
+    envExample: [],
     theme: { accent: '#6366f1' },
     requireAuth: false,
     attribution: true,

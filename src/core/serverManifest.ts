@@ -49,6 +49,21 @@ export interface LandingConfig {
   changelogUrl?: string;
   /** Default: true when HTTP transport is active. */
   enabled?: boolean;
+  /**
+   * Example env vars to surface in the connect snippets (STDIO JSON config +
+   * Claude CLI `--env` flags). Values are placeholders shown to the user;
+   * never put real secrets here — the config renders verbatim in the page
+   * HTML. Max 12 entries.
+   *
+   * @example
+   * ```ts
+   * envExample: {
+   *   MAILCHIMP_API_KEY: 'your-api-key',
+   *   MAILCHIMP_SERVER_PREFIX: 'us1',
+   * }
+   * ```
+   */
+  envExample?: Record<string, string>;
   /** Footer link cluster. Max 6 entries. */
   links?: LandingLink[];
   /** Data URI (`data:image/...`) or same-origin path. ≤24KB when data URI. */
@@ -78,6 +93,8 @@ export const LANDING_MAX_TAGLINE_LENGTH = 120;
 export const LANDING_MAX_LOGO_BYTES = 24 * 1024;
 /** Max footer link count. Beyond this the cluster wraps unreadably. */
 export const LANDING_MAX_LINKS = 6;
+/** Max `envExample` entries. Beyond this the connect card grows awkwardly tall. */
+export const LANDING_MAX_ENV_EXAMPLE = 12;
 /** `repoRoot` must match `https://github.com/{owner}/{repo}` with no trailing path. */
 export const GITHUB_REPO_ROOT_PATTERN = /^https:\/\/github\.com\/([^/\s]+)\/([^/\s?#]+?)\/?$/;
 
@@ -206,6 +223,8 @@ export interface ManifestLanding {
   attribution: boolean;
   changelogUrl?: string;
   enabled: boolean;
+  /** Ordered key/value pairs for the STDIO env block and Claude CLI `--env` flags. */
+  envExample: Array<{ key: string; value: string }>;
   links: Array<Required<Pick<LandingLink, 'href' | 'label' | 'external'>>>;
   logo?: string;
   /** Registry / scoped npm package auto-link, when derivable. */
@@ -354,6 +373,26 @@ function detectNpmPackage(pkgName: string | undefined): ManifestLanding['npmPack
     name: pkgName,
     url: `https://www.npmjs.com/package/${encodeURIComponent(pkgName)}`,
   };
+}
+
+/**
+ * Normalize `landing.envExample` into the ordered array shape the renderer
+ * consumes. Preserves insertion order (important for the rendered JSON block),
+ * truncates to {@link LANDING_MAX_ENV_EXAMPLE}, and drops non-string entries
+ * silently — the linter surfaces structural issues separately.
+ */
+function normalizeEnvExample(
+  envExample: Record<string, string> | undefined,
+): ManifestLanding['envExample'] {
+  if (!envExample || typeof envExample !== 'object') return [];
+  const entries: Array<{ key: string; value: string }> = [];
+  for (const [key, value] of Object.entries(envExample)) {
+    if (typeof key !== 'string' || key.length === 0) continue;
+    if (typeof value !== 'string') continue;
+    entries.push({ key, value });
+    if (entries.length >= LANDING_MAX_ENV_EXAMPLE) break;
+  }
+  return entries;
 }
 
 // ---------------------------------------------------------------------------
@@ -528,6 +567,7 @@ function buildManifestLanding(input: {
     ...(landing.tagline && { tagline: landing.tagline }),
     ...(landing.logo && { logo: landing.logo }),
     links: normalizeLinks(landing.links),
+    envExample: normalizeEnvExample(landing.envExample),
     theme: { accent },
     ...(repoRoot && { repoRoot }),
     ...(changelogUrl && { changelogUrl }),

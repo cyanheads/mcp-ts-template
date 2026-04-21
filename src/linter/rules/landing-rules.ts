@@ -8,6 +8,7 @@
 
 import {
   GITHUB_REPO_ROOT_PATTERN,
+  LANDING_MAX_ENV_EXAMPLE,
   LANDING_MAX_LINKS,
   LANDING_MAX_LOGO_BYTES,
   LANDING_MAX_TAGLINE_LENGTH,
@@ -147,6 +148,43 @@ export function lintLandingConfig(landing: unknown): LintDiagnostic[] {
           `landing.repoRoot must match https://github.com/{owner}/{repo} — got "${l.repoRoot}".`,
         ),
       );
+    }
+  }
+
+  // envExample
+  if (l.envExample != null) {
+    if (typeof l.envExample !== 'object' || Array.isArray(l.envExample)) {
+      diagnostics.push(
+        error('landing-env-example-type', 'landing.envExample must be a plain object.'),
+      );
+    } else {
+      const entries = Object.entries(l.envExample as Record<string, unknown>);
+      if (entries.length > LANDING_MAX_ENV_EXAMPLE) {
+        diagnostics.push(
+          warn(
+            'landing-env-example-count',
+            `landing.envExample has ${entries.length} entries; max is ${LANDING_MAX_ENV_EXAMPLE}. Extras will be dropped.`,
+          ),
+        );
+      }
+      for (const [key, value] of entries) {
+        if (!/^[A-Z][A-Z0-9_]*$/.test(key)) {
+          diagnostics.push(
+            warn(
+              'landing-env-example-key',
+              `landing.envExample["${key}"] should be SCREAMING_SNAKE_CASE (env var convention).`,
+            ),
+          );
+        }
+        if (typeof value !== 'string') {
+          diagnostics.push(
+            error(
+              'landing-env-example-value',
+              `landing.envExample["${key}"] must be a string — got ${typeof value}.`,
+            ),
+          );
+        }
+      }
     }
   }
 

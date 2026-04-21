@@ -128,7 +128,7 @@ describe('renderLandingPage — polish derivations', () => {
     });
     const html = renderLandingPage(manifest, 'https://example.com');
     expect(html).toMatch(
-      /<a class="badge badge-version" href="https:\/\/github\.com\/acme\/x\/releases\/tag\/v1\.2\.3">v1\.2\.3<\/a>/,
+      /<a class="badge-version" href="https:\/\/github\.com\/acme\/x\/releases\/tag\/v1\.2\.3"[^>]*>v1\.2\.3<\/a>/,
     );
   });
 
@@ -205,7 +205,7 @@ describe('renderLandingPage — polish derivations', () => {
     };
     const html = renderLandingPage(manifest, 'https://example.com');
     expect(html).toContain('Tools');
-    expect(html).toContain('(3)');
+    expect(html).toMatch(/<span class="section-count"[^>]*>3</);
   });
 
   test('groups tools by shared prefix when 3+ tools have a common prefix', () => {
