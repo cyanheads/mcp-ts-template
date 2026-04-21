@@ -67,7 +67,7 @@ const createColor = (open: string, close: string, closeRe: RegExp) => (str: stri
   return open + `${str}`.replace(closeRe, close + open) + close;
 };
 
-const esc = (code: string) => new RegExp(code.replace('[', '\\['), 'g');
+const esc = (code: string) => new RegExp(code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
 const c = {
   bold: createColor('\x1b[1m', '\x1b[22m', esc('\x1b[22m')),
   dim: createColor('\x1b[2m', '\x1b[22m', esc('\x1b[22m')),

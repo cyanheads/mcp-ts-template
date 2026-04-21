@@ -16,6 +16,7 @@ Closes the "what is this lint rule?" discoverability gap. When `bun run devcheck
 ### Fixed
 
 - **`MCP Definitions` devcheck tip** (`scripts/devcheck.ts`) — replaced the dangling `See validateDefinitions() docs for rule details` with `each diagnostic links to its rule in skills/api-linter/SKILL.md`. The old tip promised docs that never existed.
+- **Incomplete regex escaping in devcheck color helper** (`scripts/devcheck.ts`) — the `esc()` helper used `code.replace('[', '\\[')` with a string literal first arg, which only replaces the first occurrence. Flagged by CodeQL as `js/incomplete-sanitization` (high severity, CWE-20/80/116) in every downstream server scaffolded from this template. Not exploitable in practice — every call site passes a hardcoded ANSI escape code with exactly one `[` — but the pattern is a footgun if `esc()` is ever called with a different input, and the alert was generating noise across the consumer fleet. Fixed to escape all regex metacharacters: `code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')`.
 
 ### Changed
 
