@@ -4,7 +4,7 @@ description: >
   Verify release readiness and publish. The git wrapup protocol handles version bumps, changelog, README, commits, and tagging during the coding session. This skill verifies nothing was missed, runs final checks, and presents the irreversible publish commands.
 metadata:
   author: cyanheads
-  version: "1.4"
+  version: "1.5"
   audience: internal
   type: workflow
 ---
@@ -34,27 +34,26 @@ The wrapup protocol bumps versions, but sometimes a file gets missed. **Search f
 
 Fix any mismatches. A grep for the **old** version is the fastest way to find stragglers.
 
-### 3. Release-ize the Changelog Entry
+### 3. Finalize the Per-Version Changelog File
 
-The changelog is directory-based, grouped by minor series using the `.x` semver-wildcard convention: per-version files live at `changelog/<major.minor>.x/<version>.md` (e.g. `changelog/0.5.x/0.5.4.md`), work-in-progress entries go in `changelog/unreleased.md` at the top level, and `CHANGELOG.md` is an auto-generated rollup (`bun run changelog:build`).
+The changelog is directory-based, grouped by minor series using the `.x` semver-wildcard convention: per-version files live at `changelog/<major.minor>.x/<version>.md` (e.g. `changelog/0.5.x/0.5.4.md`), and `CHANGELOG.md` is an auto-generated rollup (`bun run changelog:build`). `changelog/unreleased.md` is a **pristine format reference** — never edited, never moved, never renamed. At release time, you're authoring (or finalizing) the per-version file for the version being shipped.
 
-If the wrapup already converted `unreleased.md` to the version file, verify it. Otherwise release-ize it now:
+Create or finalize `changelog/<series>/<version>.md`:
 
 1. Determine the series: `0.5.5` → `0.5.x/`. Create the directory if it doesn't exist: `mkdir -p changelog/<series>`
-2. `git mv changelog/unreleased.md changelog/<series>/<version>.md`
-3. Update the H1: `# Unreleased` → `# <version> — <date>` (em-dash, ISO date)
+2. If the file doesn't exist yet, scaffold it by copying the structure of `changelog/unreleased.md` into the new path. Do **not** `git mv` or otherwise rename `unreleased.md` itself — it stays where it is.
+3. Set the H1: `# <version> — <date>` (em-dash, ISO date)
 4. **Fill in the frontmatter** at the top of the file:
    - `summary:` — one-line headline, ≤250 chars, no markdown. Write it like a GitHub Release title. Required.
    - `breaking:` — set to `true` if this release requires consumer code changes (API removal, signature change, config rename). Defaults to `false`. Renders `· ⚠️ Breaking` in the rollup when true.
 5. Verify content:
    - Sections grouped correctly (Added / Changed / Fixed / Removed)
    - Accurately reflects what shipped — cross-reference with `git log` since the last tag
-   - If this release absorbed pre-release versions (e.g., `0.6.0-beta.1`), confirm their sub-headers are preserved in the final file
+   - If this release absorbed pre-release versions (e.g., `0.6.0-beta.1`), consolidate their entries as `##`/`###` sub-headers inside this file (they share this version's frontmatter — no separate files)
    - **Issue/PR references use full URLs**, not bare `#NN`. GitHub's auto-link only renders inside its own UI; these files are read from `node_modules` too, where bare `#NN` is dead text. Use `[#38](https://github.com/<owner>/<repo>/issues/38)` (or `/pull/NN` for PRs). Only link numbers verified via `gh issue view NN` / `gh pr view NN` — never speculate on future numbers, since GitHub will happily resolve `#42` to whatever unrelated item already owns 42 and pull its title into timeline previews.
-6. Create a fresh empty `changelog/unreleased.md` from the template (frontmatter stub with empty `summary`, `breaking: false`)
-7. Regenerate the rollup: `bun run changelog:build` — warnings about missing summaries are expected during the legacy-file backfill period but should not include this release
+6. Regenerate the rollup: `bun run changelog:build` — warnings about missing summaries are expected during the legacy-file backfill period but should not include this release
 
-Never hand-edit `CHANGELOG.md` — it's a build artifact. Devcheck's `Changelog Sync` step will fail if it drifts.
+Never hand-edit `CHANGELOG.md` — it's a build artifact. Devcheck's `Changelog Sync` step will fail if it drifts. Never edit `changelog/unreleased.md` — it's the format reference, not a worksheet.
 
 ### 4. Verify README.md
 
@@ -131,7 +130,7 @@ mcp-publisher publish
 
 - [ ] Version consistent across all files (package.json, server.json ×3, CLAUDE.md, README.md, templates)
 - [ ] No stale old-version references found in repo
-- [ ] `changelog/<major.minor>.x/<version>.md` has concrete version and date; `changelog/unreleased.md` reset; `CHANGELOG.md` regenerated via `bun run changelog:build`
+- [ ] `changelog/<major.minor>.x/<version>.md` created/finalized with concrete version, date, and frontmatter; `CHANGELOG.md` regenerated via `bun run changelog:build`; `changelog/unreleased.md` untouched
 - [ ] README.md current — feature counts, badges, descriptions, examples
 - [ ] Modified skill versions bumped in YAML frontmatter
 - [ ] `docs/tree.md` current (if structure changed)
