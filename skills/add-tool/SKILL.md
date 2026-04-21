@@ -4,7 +4,7 @@ description: >
   Scaffold a new MCP tool definition. Use when the user asks to add a tool, create a new tool, or implement a new capability for the server.
 metadata:
   author: cyanheads
-  version: "1.4"
+  version: "1.5"
   audience: external
   type: reference
 ---
@@ -60,6 +60,7 @@ export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
   // format() populates MCP content[] — the only field most LLM clients forward
   // to the model. structuredContent (from output) is for programmatic use only.
   // Render ALL data the LLM needs to reason about the result.
+  // Enforced at lint time: every field in `output` must appear in the rendered text.
   format: (result) => {
     const lines: string[] = [];
     // Render each item with all relevant fields — not just a count or title.
@@ -312,7 +313,7 @@ Large payloads burn the agent's context window. Default to curated summaries; of
 - [ ] JSDoc `@fileoverview` and `@module` header present
 - [ ] Optional nested objects guarded for empty inner values from form-based clients (check `?.field` truthiness, not just object presence)
 - [ ] `handler(input, ctx)` is pure — throws on failure, no try/catch
-- [ ] `format()` renders all data the LLM needs (not just a count or title) — `content[]` is the only field most clients forward to the model
+- [ ] `format()` renders every field in the output schema — enforced at lint time via sentinel injection, startup fails with `format-parity` errors otherwise. `content[]` is the only field most clients forward to the model; if a field shouldn't be shown, remove it from the output schema rather than skipping it in `format()`
 - [ ] If wrapping external API: output schema and `format()` preserve uncertainty from sparse upstream payloads instead of inventing concrete values
 - [ ] `auth` scopes declared if the tool needs authorization
 - [ ] `task: true` added if the tool is long-running

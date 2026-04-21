@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-04-19 22:47:43
+Generated on: 2026-04-21 00:32:43
 
 ```text
 mcp-ts-core/
@@ -146,8 +146,6 @@ mcp-ts-core/
 │   │   └── SKILL.md
 │   ├── design-mcp-server/
 │   │   └── SKILL.md
-│   ├── devcheck/
-│   │   └── SKILL.md
 │   ├── field-test/
 │   │   └── SKILL.md
 │   ├── maintenance/
@@ -169,14 +167,13 @@ mcp-ts-core/
 │   │   └── SKILL.md
 │   ├── setup/
 │   │   └── SKILL.md
-│   ├── walkthrough-init/
-│   │   └── SKILL.md
 │   └── README.md
 ├── src/
 │   ├── cli/
 │   │   └── init.ts
 │   ├── config/
-│   │   └── index.ts
+│   │   ├── index.ts
+│   │   └── parseEnvConfig.ts
 │   ├── core/
 │   │   ├── app.ts
 │   │   ├── context.ts
@@ -184,6 +181,7 @@ mcp-ts-core/
 │   │   └── worker.ts
 │   ├── linter/
 │   │   ├── rules/
+│   │   │   ├── format-parity-rules.ts
 │   │   │   ├── index.ts
 │   │   │   ├── name-rules.ts
 │   │   │   ├── prompt-rules.ts
@@ -439,12 +437,14 @@ mcp-ts-core/
 │   │   ├── cli/
 │   │   │   └── init.test.ts
 │   │   ├── config/
-│   │   │   └── index.test.ts
+│   │   │   ├── index.test.ts
+│   │   │   └── parseEnvConfig.test.ts
 │   │   ├── core/
 │   │   │   └── app.test.ts
 │   │   ├── helpers/
 │   │   │   └── matchers.test.ts
 │   │   ├── linter/
+│   │   │   ├── format-parity-rules.test.ts
 │   │   │   ├── tool-rules.test.ts
 │   │   │   └── validate.test.ts
 │   │   ├── mcp-server/

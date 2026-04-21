@@ -4,7 +4,7 @@ description: >
   Exercise tools, resources, and prompts with real-world inputs to verify behavior end-to-end. Use after adding or modifying definitions, or when the user asks to test, try out, or verify their MCP surface. Calls each definition with realistic and adversarial inputs and produces a report of issues, pain points, and recommendations.
 metadata:
   author: cyanheads
-  version: "1.1"
+  version: "1.2"
   audience: external
   type: debug
 ---
@@ -36,7 +36,7 @@ For every tool, resource, and prompt, run through these categories:
 | Category | What to test |
 |:---------|:-------------|
 | **Happy path** | Realistic input that should succeed. Verify output shape matches the output schema. Verify format function produces sensible content blocks. |
-| **`structuredContent` parity** | Compare the raw handler return, the data captured in `structuredContent`, and what `format()` renders into `content[]`. Flag fields or records that exist in the handler result or `structuredContent` but are absent from `content[]` unless the omission is explicit and acceptable for the tool's purpose. Most LLM clients only see `content[]`, so silent formatter drops are real bugs. |
+| **`structuredContent` parity** | The `format-parity` lint rule already asserts every terminal field in the output schema appears in `format()`'s rendered text (via sentinel injection at startup). Field testing layers real-data checks on top: are values rendered accurately (not just their labels)? Do conditional-render branches in `format()` still render every field when specific values are present? Does the content look right to a human reading the LLM's view? |
 | **Variations** | Different valid input combinations — optional fields omitted, optional fields included, different enum values, min/max boundaries. |
 | **Field selection / projection** | For tools with `fields`, `include`, `expand`, `view`, or similar parameters, call the tool with non-default selections. Verify the handler returns the requested fields and `format()` renders each requested field rather than a hardcoded summary subset. |
 | **Edge cases** | Empty strings, zero values, very long inputs, special characters, Unicode. |

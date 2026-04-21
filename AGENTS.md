@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.5.1
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.5.2
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -199,7 +199,7 @@ export const myTool = tool('my_tool', {
 
 **Form-client safety:** Form-based MCP clients (MCP Inspector, web UIs) send optional object fields with empty-string inner values instead of `undefined`. Don't reject with `.min(1)` on optional fields — guard for meaningful values in the handler (`if (input.dateRange?.minDate && input.dateRange?.maxDate)`). Test with both omitted and empty-value payloads.
 
-**`format`**: Maps output to MCP `content[]` — the only field most LLM clients (Claude Code, VS Code Copilot, Cursor, Windsurf) forward to the model. `structuredContent` (from `output`) is for programmatic use and is not reliably shown to the LLM. **Make `format()` content-complete** — render all data the model needs to reason about the result, not just a count or title. Omit for JSON stringify fallback. Additional formatters: `markdown()` (builder), `diffFormatter` (async), `tableFormatter`, `treeFormatter` from `/utils`.
+**`format`**: Maps output to MCP `content[]` — the only field most LLM clients (Claude Code, VS Code Copilot, Cursor, Windsurf) forward to the model. `structuredContent` (from `output`) is for programmatic use and is not reliably shown to the LLM. **Make `format()` content-complete** — render all data the model needs to reason about the result, not just a count or title. Enforced at lint time: every terminal field in `output` must appear in `format()`'s rendered text (via sentinel injection), or startup fails with a `format-parity` error. If a field shouldn't be shown to the model, remove it from the output schema. Omit `format` for JSON stringify fallback. Additional formatters: `markdown()` (builder), `diffFormatter` (async), `tableFormatter`, `treeFormatter` from `/utils`.
 
 **Task tools:** Add `task: true` for long-running async operations. Framework manages lifecycle: creates task → returns ID immediately → runs handler in background with `ctx.progress` → stores result/error → `ctx.signal` for cancellation. See `add-tool` skill for full example.
 
@@ -464,14 +464,12 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 | `add-export` | `skills/add-export/SKILL.md` | Add a new subpath export |
 | `design-mcp-server` | `skills/design-mcp-server/SKILL.md` | Design tool surface, resources, and service layer for a new server |
 | `setup` | `skills/setup/SKILL.md` | Initialize a new consumer server from the template |
-| `devcheck` | `skills/devcheck/SKILL.md` | Run lint, format, typecheck, security checks |
 | `polish-docs-meta` | `skills/polish-docs-meta/SKILL.md` | Finalize docs, README, metadata, and agent protocol for shipping |
 | `report-issue-framework` | `skills/report-issue-framework/SKILL.md` | File a bug or feature request against `@cyanheads/mcp-ts-core` via `gh` CLI |
 | `report-issue-local` | `skills/report-issue-local/SKILL.md` | File a bug or feature request against this server's own repo via `gh` CLI |
 | `release` | `skills/release/SKILL.md` | Version bump, changelog, publish workflow |
 | `maintenance` | `skills/maintenance/SKILL.md` | Dependency updates, housekeeping tasks |
 | `migrate-mcp-ts-template` | `skills/migrate-mcp-ts-template/SKILL.md` | Migrate legacy template fork to package dependency |
-| `walkthrough-init` | `skills/walkthrough-init/SKILL.md` | Trace and audit the agent onboarding instruction chain |
 
 ---
 

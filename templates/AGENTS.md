@@ -76,6 +76,7 @@ export const searchItems = tool('search_items', {
 
   // format() populates content[] — the only field most LLM clients forward to
   // the model. Render all data the LLM needs, not just a count or title.
+  // Enforced at lint time: every field in `output` must appear in the rendered text.
   format: (result) => [{
     type: 'text',
     text: result.items.map(i => `**${i.id}**: ${i.name}`).join('\n'),

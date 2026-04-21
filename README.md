@@ -5,7 +5,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.5.1-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.5.2-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.2-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
@@ -39,7 +39,7 @@ That's a complete MCP server. Every tool call is automatically logged with durat
 - **Unified Context** — handlers receive a single `ctx` object with `ctx.log` (request-scoped logging), `ctx.state` (tenant-scoped storage), `ctx.elicit` (user prompting), `ctx.sample` (LLM completion), and `ctx.signal` (cancellation).
 - **Inline auth** — `auth: ['scope']` on definitions. No wrapper functions. Framework checks scopes before calling your handler.
 - **Task tools** — `task: true` flag for long-running operations. Framework manages the full lifecycle (create, poll, progress, complete/fail/cancel).
-- **Definition linter** — `validateDefinitions()` checks tools, resources, and prompts against MCP spec at startup. Name format, schema structure, `.describe()` presence, JSON Schema serializability, auth scope validity, annotation coherence, and URI template–params alignment. Also available as a standalone CLI (`lint:mcp`) and devcheck step.
+- **Definition linter** — `validateDefinitions()` checks tools, resources, and prompts against MCP spec at startup. Name format, schema structure, `.describe()` presence, JSON Schema serializability, auth scope validity, annotation coherence, URI template–params alignment, and **format-parity** (every field in a tool's `output` must be rendered by `format()` — verified via sentinel injection, since most LLM clients only forward `content[]` to the model). Also available as a standalone CLI (`lint:mcp`) and devcheck step.
 - **Structured error handling** — Handlers throw freely; the framework catches, classifies, and formats. Error factories (`notFound()`, `validationError()`, `serviceUnavailable()`, etc.) for precise control when the code matters. Auto-classification from plain `Error` messages when it doesn't.
 - **Multi-backend storage** — `in-memory`, `filesystem`, `Supabase`, `Cloudflare D1/KV/R2`. Swap providers via env var without changing tool logic. Cursor pagination, batch ops, TTL, tenant isolation.
 - **Pluggable auth** — `none`, `jwt`, or `oauth` modes. JWT with local secret or OAuth with JWKS verification.
