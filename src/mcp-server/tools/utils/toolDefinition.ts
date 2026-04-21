@@ -86,6 +86,14 @@ export interface ToolDefinition<
   name: string;
   /** Zod schema for output validation. All fields need `.describe()`. */
   output: TOutput;
+  /**
+   * View-source URL override for the landing page. Bypasses the
+   * `landing.repoRoot`-based auto-derivation, which assumes the file lives at
+   * `<repoRoot>/blob/main/src/mcp-server/tools/definitions/<kebab-name>.tool.ts`.
+   * Set this when the file path diverges from that convention (e.g.,
+   * domain-namespaced subdirectories or a filename that doesn't mirror `name`).
+   */
+  sourceUrl?: string;
   /** When true, the framework manages task lifecycle automatically. */
   task?: boolean;
   /** Human-readable title for UI display. */

@@ -15,6 +15,9 @@ import {
   LANDING_MAX_LINKS,
   snakeToKebab,
 } from '@/core/serverManifest.js';
+import { prompt } from '@/mcp-server/prompts/utils/promptDefinition.js';
+import { resource } from '@/mcp-server/resources/utils/resourceDefinition.js';
+import { tool } from '@/mcp-server/tools/utils/toolDefinition.js';
 
 /**
  * Minimal AppConfig stub — only the fields `buildServerManifest` reads.
@@ -349,20 +352,71 @@ describe('buildServerManifest — auth reflection', () => {
 
 describe('buildServerManifest — per-definition sourceUrl override', () => {
   test('respects sourceUrl override on tool definitions', () => {
-    const fakeTool = {
-      name: 'my_tool',
+    const myTool = tool('my_tool', {
       description: 'x',
       input: z.object({}),
       output: z.object({}),
       handler: async () => ({}),
-      sourceUrl: 'https://gitlab.com/custom/path.ts',
-    };
+      sourceUrl: 'https://gitlab.com/custom/tool.ts',
+    });
     const manifest = buildServerManifest({
       config: stubConfig(),
-      tools: [fakeTool] as Parameters<typeof buildServerManifest>[0]['tools'],
+      tools: [myTool],
       resources: [],
       prompts: [],
     });
-    expect(manifest.definitions.tools[0]?.sourceUrl).toBe('https://gitlab.com/custom/path.ts');
+    expect(manifest.definitions.tools[0]?.sourceUrl).toBe('https://gitlab.com/custom/tool.ts');
+  });
+
+  test('respects sourceUrl override on resource definitions', () => {
+    const myResource = resource('myscheme://{id}/data', {
+      name: 'my_resource',
+      description: 'x',
+      params: z.object({ id: z.string().describe('id') }),
+      handler: async () => ({}),
+      sourceUrl: 'https://gitlab.com/custom/resource.ts',
+    });
+    const manifest = buildServerManifest({
+      config: stubConfig(),
+      tools: [],
+      resources: [myResource],
+      prompts: [],
+    });
+    expect(manifest.definitions.resources[0]?.sourceUrl).toBe(
+      'https://gitlab.com/custom/resource.ts',
+    );
+  });
+
+  test('respects sourceUrl override on prompt definitions', () => {
+    const myPrompt = prompt('my_prompt', {
+      description: 'x',
+      generate: () => [],
+      sourceUrl: 'https://gitlab.com/custom/prompt.ts',
+    });
+    const manifest = buildServerManifest({
+      config: stubConfig(),
+      tools: [],
+      resources: [],
+      prompts: [myPrompt],
+    });
+    expect(manifest.definitions.prompts[0]?.sourceUrl).toBe('https://gitlab.com/custom/prompt.ts');
+  });
+
+  test('falls back to repoRoot-derived URL when override absent', () => {
+    const myTool = tool('plain_tool', {
+      description: 'x',
+      input: z.object({}),
+      output: z.object({}),
+      handler: async () => ({}),
+    });
+    const manifest = buildServerManifest({
+      config: stubConfig({ mcpServerHomepage: 'https://github.com/acme/demo' }),
+      tools: [myTool],
+      resources: [],
+      prompts: [],
+    });
+    expect(manifest.definitions.tools[0]?.sourceUrl).toBe(
+      'https://github.com/acme/demo/blob/main/src/mcp-server/tools/definitions/plain-tool.tool.ts',
+    );
   });
 });

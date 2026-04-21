@@ -29,6 +29,14 @@ export interface PromptDefinition<TArgs extends ZodObject<ZodRawShape> | undefin
   ) => PromptMessage[] | Promise<PromptMessage[]>;
   /** Programmatic unique name (snake_case). */
   name: string;
+  /**
+   * View-source URL override for the landing page. Bypasses the
+   * `landing.repoRoot`-based auto-derivation, which assumes the file lives at
+   * `<repoRoot>/blob/main/src/mcp-server/prompts/definitions/<kebab-name>.prompt.ts`.
+   * Set this when the file path diverges from that convention (e.g.,
+   * domain-namespaced subdirectories or a filename that doesn't mirror `name`).
+   */
+  sourceUrl?: string;
 }
 
 /** Widened type that accepts any `PromptDefinition` regardless of args schema. */

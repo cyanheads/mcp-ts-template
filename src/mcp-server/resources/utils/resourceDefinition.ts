@@ -103,6 +103,14 @@ export interface ResourceDefinition<
   params?: TParams;
   /** Size of the raw resource content in bytes (before encoding), if known. */
   size?: number;
+  /**
+   * View-source URL override for the landing page. Bypasses the
+   * `landing.repoRoot`-based auto-derivation, which assumes the file lives at
+   * `<repoRoot>/blob/main/src/mcp-server/resources/definitions/<kebab-name>.resource.ts`.
+   * Set this when the file path diverges from that convention (e.g.,
+   * domain-namespaced subdirectories or a filename that doesn't mirror `name`).
+   */
+  sourceUrl?: string;
   /** Human-readable title for UI display. */
   title?: string;
   /** URI template for resource registration (e.g., 'myscheme://{itemId}/data'). */

@@ -427,13 +427,12 @@ export function buildServerManifest(input: BuildServerManifestInput): ServerMani
 
   // Source URL resolution order: per-definition override → repo-convention derivation.
   const toolList: ManifestTool[] = tools.map((def) => {
-    const d = def as AnyToolDefinition & { sourceUrl?: string };
+    const d = def as AnyToolDefinition;
     const name = d.name ?? '';
     const inputSchema = safeToJsonSchema(d.input);
     const outputSchema = safeToJsonSchema(d.output);
     const requiredFields = extractRequiredFields(d.input);
-    const override = d.sourceUrl;
-    const sourceUrl = override ?? deriveSourceUrl(repoRoot, 'tools', name);
+    const sourceUrl = d.sourceUrl ?? deriveSourceUrl(repoRoot, 'tools', name);
 
     return {
       name,
@@ -451,34 +450,30 @@ export function buildServerManifest(input: BuildServerManifestInput): ServerMani
   });
 
   const resourceList: ManifestResource[] = resources.map((def) => {
-    const d = def as AnyResourceDefinition & { sourceUrl?: string };
-    const name = d.name ?? d.uriTemplate ?? '';
-    const override = d.sourceUrl;
-    const sourceUrl = override ?? deriveSourceUrl(repoRoot, 'resources', name);
+    const name = def.name ?? def.uriTemplate ?? '';
+    const sourceUrl = def.sourceUrl ?? deriveSourceUrl(repoRoot, 'resources', name);
 
     return {
       name,
-      title: d.title ?? deriveTitleFromName(name),
-      description: d.description ?? '',
-      uriTemplate: d.uriTemplate ?? '',
-      ...(d.mimeType && { mimeType: d.mimeType }),
-      ...(d.annotations && { annotations: d.annotations as Record<string, unknown> }),
-      ...(d.auth && d.auth.length > 0 && { auth: d.auth }),
+      title: def.title ?? deriveTitleFromName(name),
+      description: def.description ?? '',
+      uriTemplate: def.uriTemplate ?? '',
+      ...(def.mimeType && { mimeType: def.mimeType }),
+      ...(def.annotations && { annotations: def.annotations as Record<string, unknown> }),
+      ...(def.auth && def.auth.length > 0 && { auth: def.auth }),
       ...(sourceUrl && { sourceUrl }),
     };
   });
 
   const promptList: ManifestPrompt[] = prompts.map((def) => {
-    const d = def as AnyPromptDefinition & { sourceUrl?: string };
-    const name = d.name ?? '';
-    const override = d.sourceUrl;
-    const sourceUrl = override ?? deriveSourceUrl(repoRoot, 'prompts', name);
-    const args = extractPromptArgs(d.args);
+    const name = def.name ?? '';
+    const sourceUrl = def.sourceUrl ?? deriveSourceUrl(repoRoot, 'prompts', name);
+    const args = extractPromptArgs(def.args);
 
     return {
       name,
       title: deriveTitleFromName(name),
-      description: d.description ?? '',
+      description: def.description ?? '',
       args,
       ...(sourceUrl && { sourceUrl }),
     };
