@@ -93,11 +93,15 @@ export const echoTool = tool('template_echo_message', {
         : result.repeatedMessage;
 
     const md = markdown()
-      .text(`Echo (mode=${result.mode}, repeat=${result.repeatCount})\n`)
-      .text(`${preview}`);
+      .keyValue('mode', result.mode)
+      .keyValue('repeatCount', result.repeatCount)
+      .keyValue('originalMessage', result.originalMessage)
+      .keyValue('formattedMessage', result.formattedMessage)
+      .blankLine()
+      .text(preview);
 
     md.when(!!result.timestamp, () => {
-      md.text(`\ntimestamp=${result.timestamp}`);
+      md.blankLine().keyValue('timestamp', result.timestamp ?? '');
     });
 
     return [{ type: 'text', text: md.build() }];

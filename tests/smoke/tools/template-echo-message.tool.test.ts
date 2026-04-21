@@ -77,6 +77,10 @@ describe('echoTool', () => {
     const blocks = echoTool.format!(result);
     expect(blocks).toHaveLength(1);
     expect(blocks[0]!.type).toBe('text');
-    expect((blocks[0] as { text: string }).text).toContain('Echo');
+    const text = (blocks[0] as { text: string }).text;
+    expect(text).toContain('originalMessage');
+    expect(text).toContain('formattedMessage');
+    expect(text).toContain('repeatCount');
+    expect(text).toContain('hello');
   });
 });

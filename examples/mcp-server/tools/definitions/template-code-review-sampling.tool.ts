@@ -125,6 +125,21 @@ Your review:`;
   },
 
   format(result) {
-    return [{ type: 'text', text: `# Code Review (${result.focus})\n\n${result.review}` }];
+    const lines = [
+      `# Code Review (focus: ${result.focus})`,
+      '',
+      `**language:** ${result.language ?? 'unspecified'}`,
+      `**tokenUsage.requested:** ${result.tokenUsage?.requested ?? 'n/a'}`,
+      `**tokenUsage.actual:** ${result.tokenUsage?.actual ?? 'n/a'}`,
+      '',
+      '## Review',
+      result.review,
+      '',
+      '## Reviewed Code',
+      '```' + (result.language ?? ''),
+      result.code,
+      '```',
+    ];
+    return [{ type: 'text', text: lines.join('\n') }];
   },
 });

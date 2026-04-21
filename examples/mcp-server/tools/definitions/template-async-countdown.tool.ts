@@ -95,12 +95,18 @@ export const asyncCountdownTool = tool('template_async_countdown', {
     } satisfies Output;
   },
 
-  format: (result) => [
-    {
-      type: 'text',
-      text: result.success
-        ? `✓ ${result.message}\n\nDuration: ${result.duration}ms\nStarted: ${result.startedAt}\nCompleted: ${result.completedAt}`
-        : `✗ ${result.message}\n\nProgress: ${result.progress}%\nDuration: ${result.duration}ms`,
-    },
-  ],
+  format: (result) => {
+    const icon = result.success ? '✓' : '✗';
+    const lines = [
+      `${icon} ${result.message}`,
+      '',
+      `**success:** ${result.success}`,
+      `**wasCancelled:** ${result.wasCancelled}`,
+      `**progress:** ${result.progress}%`,
+      `**duration:** ${result.duration}ms`,
+      `**startedAt:** ${result.startedAt}`,
+      `**completedAt:** ${result.completedAt}`,
+    ];
+    return [{ type: 'text', text: lines.join('\n') }];
+  },
 });

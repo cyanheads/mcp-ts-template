@@ -62,7 +62,9 @@ describe('codeReviewSamplingTool', () => {
       review: 'No vulnerabilities found.',
     };
     const blocks = codeReviewSamplingTool.format!(result);
-    expect((blocks[0] as { text: string }).text).toContain('Code Review (security)');
-    expect((blocks[0] as { text: string }).text).toContain('No vulnerabilities found.');
+    const text = (blocks[0] as { text: string }).text;
+    expect(text).toContain('Code Review (focus: security)');
+    expect(text).toContain('No vulnerabilities found.');
+    expect(text).toContain('x = 1');
   });
 });
