@@ -201,7 +201,7 @@ output: z.object({
 ```
 
 - **Truncate large output with counts.** When a list exceeds a reasonable display size, show the top N and append "...and X more". Don't silently drop results.
-- **`format()` is the model-facing output — make it content-complete.** MCP `content[]` (populated by `format()`) is the only field most LLM clients forward to the model. `structuredContent` (from `output`) is for programmatic/machine use and is not reliably shown to the LLM. A thin `format()` that returns only a count or title leaves the model blind to the actual data. Render all fields the LLM needs to reason about or act on the result. Use structured markdown (headers, bold labels, lists) for readability.
+- **`format()` is the markdown twin of `structuredContent` — make both content-complete.** Different MCP clients forward different surfaces to the model: some (e.g., Claude Code) read `structuredContent` from `output`, others (e.g., Claude Desktop) read `content[]` from `format()`. Both must carry the same data so every client sees the same picture — `format()` just dresses it up with markdown. A thin `format()` that returns only a count or title leaves `content[]`-only clients blind to data that `structuredContent` clients can see. Render all fields the LLM needs, with structured markdown (headers, bold labels, lists) for readability.
 
 #### Batch input design
 
@@ -428,7 +428,7 @@ Execute the plan using the scaffolding skills:
 - [ ] Parameter `.describe()` text explains what the value is, what it affects, and tradeoffs
 - [ ] Input schemas use constrained types (enums, literals, regex) over free strings
 - [ ] Output schemas designed for LLM's next action — chaining IDs, post-write state, filtering communicated
-- [ ] `format()` renders all data the LLM needs — `content[]` is the only field most clients forward to the model (not just a count or title)
+- [ ] `format()` renders all data the LLM needs — different clients forward different surfaces (Claude Code → `structuredContent`, Claude Desktop → `content[]`); both must carry the same data, not just a count or title
 - [ ] Error messages guide recovery — name what went wrong and what to do next
 - [ ] Annotations set correctly (`readOnlyHint`, `destructiveHint`, etc.)
 - [ ] Tool surface is self-sufficient — a tool-only agent can accomplish everything the server is for

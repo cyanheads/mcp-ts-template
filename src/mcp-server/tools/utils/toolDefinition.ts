@@ -62,14 +62,15 @@ export interface ToolDefinition<
   /** LLM-facing description. */
   description: string;
   /**
-   * Optional formatter mapping output to MCP `content[]` — the field LLM clients
-   * inject into the model's context. `structuredContent` (from `output`) is for
-   * programmatic/machine use and is NOT reliably forwarded to the model by most
-   * clients (Claude Code, VS Code Copilot, Cursor, Windsurf all read `content[]`).
+   * Optional formatter mapping output to MCP `content[]`. Different MCP clients
+   * forward different surfaces to the model: some (e.g., Claude Code) read
+   * `structuredContent` from `output`, others (e.g., Claude Desktop) read
+   * `content[]` from `format()`. **Both must be content-complete** — `format()`
+   * is the markdown-rendered twin of `structuredContent`, not a separate payload.
    *
-   * **Make `format()` content-complete.** If the LLM needs data to reason about
-   * the result, it must appear here — not just in the output schema. A thin
-   * one-liner (e.g., a count or title) leaves the model blind to the actual data.
+   * **Make `format()` content-complete.** A thin one-liner (e.g., a count or
+   * title) leaves `content[]`-only clients blind to data that `structuredContent`
+   * clients can see. The `format-parity` lint rule enforces this at startup.
    *
    * If omitted, the handler factory JSON-stringifies the output as a fallback.
    */
@@ -119,8 +120,8 @@ export type AnyToolDefinition = ToolDefinition<ZodObject<ZodRawShape>, ZodObject
  *     ctx.log.info('Processing', { query: input.query });
  *     return { items: await search(input.query) };
  *   },
- *   // format() populates content[] — the only field most LLM clients read.
- *   // Render all data the model needs; structuredContent is not forwarded.
+ *   // format() populates content[] — the markdown twin of structuredContent.
+ *   // Different clients read different surfaces; both must be content-complete.
  *   format: (result) => [{
  *     type: 'text',
  *     text: result.items.map(i => `**${i.id}**: ${i.name} (${i.status})`).join('\n'),

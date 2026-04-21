@@ -21,8 +21,9 @@ export const echoTool = tool('template_echo_message', {
     return { message: input.message };
   },
 
-  // format() populates MCP content[] — the only field most LLM clients forward to
-  // the model. Render ALL data the LLM needs here, not just a summary or count.
+  // format() populates MCP content[] — the markdown twin of structuredContent.
+  // Different clients read different surfaces (Claude Code → structuredContent,
+  // Claude Desktop → content[]); both must carry the same data.
   // This echo tool is trivial; real tools should render every relevant field.
   format: (result) => [{ type: 'text', text: result.message }],
 });

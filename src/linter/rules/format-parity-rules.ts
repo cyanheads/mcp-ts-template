@@ -2,10 +2,13 @@
  * @fileoverview Format-parity lint rule. Verifies that every field in a tool's
  * `output` schema is actually rendered by its `format()` function.
  *
- * Most LLM clients (Claude Code, VS Code Copilot, Cursor, Windsurf) only forward
- * `content[]` to the model — not `structuredContent`. A field that exists in
- * `output` but is never rendered is invisible to the model, even though it
- * contributes to the tool's apparent surface area.
+ * Different MCP clients forward different surfaces to the model: some (e.g.,
+ * Claude Code) read `structuredContent` from `output`, others (e.g., Claude
+ * Desktop) read `content[]` from `format()`. For every client to see the same
+ * picture, both surfaces must be content-complete — `format()` is the
+ * markdown-rendered twin of `structuredContent`, not a separate payload.
+ * A field that exists in `output` but is never rendered by `format()` is
+ * invisible to `content[]`-only clients, silently diverging the two surfaces.
  *
  * Approach: sentinel injection.
  *   1. Walk the output schema, build a synthetic value where every leaf is a
@@ -353,10 +356,13 @@ export function lintFormatParity(def: unknown, displayName: string): LintDiagnos
         rule: 'format-parity',
         severity: 'error',
         message:
-          `Tool '${displayName}' format() does not render output field '${displayPath}'. ` +
-          'Every field in the output schema must appear in format() — most LLM clients only ' +
-          'forward content[] to the model, not structuredContent. Either render it in format() ' +
-          'or remove it from the output schema.',
+          `Tool '${displayName}' format() does not render output field '${displayPath}'.\n` +
+          'Different MCP clients forward different surfaces to the model — both must be content-complete:\n' +
+          '  • structuredContent (from `output`)   — forwarded by clients like Claude Code\n' +
+          '  • content[] (from `format()`)         — forwarded by clients like Claude Desktop\n' +
+          'format() is the markdown-rendered twin of structuredContent, not a separate payload. Parity failure means one set of clients sees less than another.\n' +
+          'Primary fix: render the field in format(). For list/detail variants, use z.discriminatedUnion (the linter walks each branch separately).\n' +
+          'Escape hatch: if the output schema was over-typed for a genuinely dynamic upstream API, relax it (z.object({}).passthrough()) rather than maintaining aspirational typing — passthrough still flows data to structuredContent without declaring each field.',
         definitionType: 'tool',
         definitionName: displayName,
       });
