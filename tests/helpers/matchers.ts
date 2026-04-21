@@ -84,7 +84,6 @@ expect.extend({
 // type parameters".
 // ---------------------------------------------------------------------------
 declare module 'vitest' {
-  // biome-ignore lint/suspicious/noExplicitAny: must mirror Vitest's Assertion<T = any>
   interface Assertion<T = any> {
     toBeMcpError(code?: JsonRpcErrorCode): T;
     toHaveJsonRpcCode(code: JsonRpcErrorCode): T;
