@@ -129,6 +129,8 @@ mcp-ts-core/
 │   │   └── SKILL.md
 │   ├── api-errors/
 │   │   └── SKILL.md
+│   ├── api-linter/
+│   │   └── SKILL.md
 │   ├── api-services/
 │   │   ├── references/
 │   │   │   ├── graph.md

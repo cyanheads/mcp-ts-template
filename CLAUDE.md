@@ -14,7 +14,7 @@
 - **Unified Context.** Handlers receive `ctx` with logging (`ctx.log`), tenant-scoped storage (`ctx.state`), optional protocol capabilities (`ctx.elicit`, `ctx.sample`), and cancellation (`ctx.signal`).
 - **Decoupled storage.** `ctx.state` for tenant-scoped KV. Never access persistence backends directly.
 - **Runtime parity.** All features work with `stdio`/`http` and Worker bundle. Guard non-portable deps via `runtimeCaps` from `@cyanheads/mcp-ts-core/utils` — a frozen capability object (`isNode`, `isBun`, `isWorkerLike`, `hasBuffer`, `hasProcess`, etc.) computed once at module load. Prefer runtime-agnostic abstractions (Hono + `@hono/mcp`, Fetch APIs).
-- **Startup validation.** `createApp()` runs the definition linter before proceeding — errors (spec violations) throw `ConfigurationError` and block startup; warnings are logged. Also available standalone via `bun run lint:mcp` and as a devcheck step.
+- **Startup validation.** `createApp()` runs the definition linter before proceeding — errors (spec violations) throw `ConfigurationError` and block startup; warnings are logged. Also available standalone via `bun run lint:mcp` and as a devcheck step. Every diagnostic links to the rule reference in `api-linter` skill; see that skill for the full rule catalog.
 - **Elicitation for missing input.** Use `ctx.elicit` when the client supports it.
 
 ---
@@ -453,6 +453,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 | `api-config` | `skills/api-config/SKILL.md` | AppConfig, parseConfig, env vars |
 | `api-testing` | `skills/api-testing/SKILL.md` | createMockContext, test patterns, MockContextOptions |
 | `api-workers` | `skills/api-workers/SKILL.md` | createWorkerHandler, CloudflareBindings, Worker runtime |
+| `api-linter` | `skills/api-linter/SKILL.md` | Definition lint rules (`format-parity`, `schema-*`, `name-*`, `server-json-*`, …) — look here when devcheck reports a lint diagnostic |
 | `add-tool` | `skills/add-tool/SKILL.md` | Scaffold a new MCP tool definition |
 | `add-app-tool` | `skills/add-app-tool/SKILL.md` | Scaffold an MCP App tool + UI resource pair |
 | `add-resource` | `skills/add-resource/SKILL.md` | Scaffold a new MCP resource definition |

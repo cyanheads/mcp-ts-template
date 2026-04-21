@@ -12,6 +12,27 @@ import { lintServerJson } from './rules/server-json-rules.js';
 import { lintAppToolResourcePairing, lintToolDefinition } from './rules/tool-rules.js';
 import type { LintDiagnostic, LintInput, LintReport } from './types.js';
 
+/** Where the rule reference lives. Appended to every diagnostic message. */
+const SKILL_REFERENCE_PATH = 'skills/api-linter/SKILL.md';
+
+/**
+ * Maps a rule ID to its anchor in the api-linter skill doc. Most rules have
+ * a per-rule sub-header whose auto-generated anchor matches the rule ID. The
+ * server.json family (~40 rules) is documented in a single tabular section,
+ * so every `server-json-*` rule points to that section.
+ */
+function ruleAnchor(rule: string): string {
+  return rule.startsWith('server-json-') ? 'server-json-rules' : rule;
+}
+
+/** Appends a "See: skills/api-linter/SKILL.md#<rule>" breadcrumb to the message. */
+function withBreadcrumb(diagnostic: LintDiagnostic): LintDiagnostic {
+  return {
+    ...diagnostic,
+    message: `${diagnostic.message}\nSee: ${SKILL_REFERENCE_PATH}#${ruleAnchor(diagnostic.rule)}`,
+  };
+}
+
 /**
  * Validates MCP tool, resource, and prompt definitions against the MCP spec
  * and framework conventions. Returns a structured report with errors and warnings.
@@ -88,8 +109,9 @@ export function validateDefinitions(input: LintInput): LintReport {
   // Cross-definition: app tool ↔ app resource pairing
   diagnostics.push(...lintAppToolResourcePairing(tools, resources));
 
-  const errors = diagnostics.filter((d) => d.severity === 'error');
-  const warnings = diagnostics.filter((d) => d.severity === 'warning');
+  const annotated = diagnostics.map(withBreadcrumb);
+  const errors = annotated.filter((d) => d.severity === 'error');
+  const warnings = annotated.filter((d) => d.severity === 'warning');
 
   return {
     errors,
