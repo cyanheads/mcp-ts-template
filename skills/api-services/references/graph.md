@@ -111,7 +111,7 @@ const path = await graphService.shortestPath('user:alice', 'user:charlie', conte
   algorithm: 'bfs',
   maxLength: 4,
 });
-if (path) console.log(`${path.vertices.length} hops`);
+if (path) context.log.info(`${path.vertices.length} hops`);
 
 // Check reachability
 const connected = await graphService.pathExists('user:alice', 'user:charlie', context, 3);

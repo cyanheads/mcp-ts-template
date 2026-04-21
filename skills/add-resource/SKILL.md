@@ -4,7 +4,7 @@ description: >
   Scaffold a new MCP resource definition. Use when the user asks to add a resource, expose data via URI, or create a readable endpoint.
 metadata:
   author: cyanheads
-  version: "1.2"
+  version: "1.3"
   audience: external
   type: reference
 ---
@@ -15,9 +15,7 @@ Resources use the `resource()` builder from `@cyanheads/mcp-ts-core`. Each resou
 
 **Tool coverage.** Not all MCP clients expose resources — many are tool-only (Claude Code, Cursor, most chat UIs). Before adding a resource, verify the same data is reachable via the tool surface — either through a dedicated tool, included in another tool's output, or bundled into a broader tool. A resource whose data has no tool path is invisible to a large share of agents.
 
-For the full `resource()` API, pagination utilities, and `Context` interface, read:
-
-    node_modules/@cyanheads/mcp-ts-core/CLAUDE.md
+For the full `resource()` API, pagination utilities, and `Context` interface, read `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`.
 
 ## Steps
 

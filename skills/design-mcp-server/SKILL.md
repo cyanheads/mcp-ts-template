@@ -4,7 +4,7 @@ description: >
   Design the tool surface, resources, and service layer for a new MCP server. Use when starting a new server, planning a major feature expansion, or when the user describes a domain/API they want to expose via MCP. Produces a design doc at docs/design.md that drives implementation.
 metadata:
   author: cyanheads
-  version: "2.4"
+  version: "2.5"
   audience: external
   type: workflow
 ---
@@ -271,7 +271,7 @@ throw new Error('Not found');
 "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first."
 
 // Good — structured hint in error data
-throw new McpError(JsonRpcErrorCode.Forbidden,
+throw forbidden(
   "Cannot perform 'reset --hard' on protected branch 'main' without explicit confirmation.",
   { branch: 'main', operation: 'reset --hard', hint: 'Set the confirmed parameter to true to proceed.' },
 );

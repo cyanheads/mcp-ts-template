@@ -249,7 +249,7 @@ Matches `--- ... ---` at the very start of the document. An empty `---\n---` blo
 ```ts
 const { frontmatter, content, hasFrontmatter } = await frontmatterParser.parse<SkillMeta>(markdown);
 if (hasFrontmatter) {
-  console.log(frontmatter.name, frontmatter.version);
+  logger.info({ name: frontmatter.name, version: frontmatter.version }, 'parsed frontmatter');
 }
 ```
 
