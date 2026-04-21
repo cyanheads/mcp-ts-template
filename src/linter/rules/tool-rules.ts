@@ -5,6 +5,7 @@
  */
 
 import type { LintDiagnostic } from '../types.js';
+import { lintFormatParity } from './format-parity-rules.js';
 import { checkNameRequired, checkToolNameFormat } from './name-rules.js';
 import {
   checkFieldDescriptions,
@@ -71,6 +72,10 @@ export function lintToolDefinition(def: unknown): LintDiagnostic[] {
     diagnostics.push(...checkFieldDescriptions(d?.output, 'output', 'tool', displayName));
     const outputSerial = checkSchemaSerializable(d?.output, 'output', 'tool', displayName);
     if (outputSerial) diagnostics.push(outputSerial);
+    // Format parity: skip when output isn't serializable (synthetic sample may misbehave).
+    if (!outputSerial && typeof d?.format === 'function') {
+      diagnostics.push(...lintFormatParity(d, displayName));
+    }
   }
 
   // Auth scopes validation
