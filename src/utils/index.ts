@@ -10,8 +10,12 @@ export {
   DiffFormatter,
   type DiffFormatterOptions,
   diffFormatter,
+  escapeHtml,
+  type HtmlInterpolation,
+  html,
   MarkdownBuilder,
   markdown,
+  SafeHtml,
   TableFormatter,
   type TableFormatterOptions,
   type TableStyle,
@@ -21,6 +25,7 @@ export {
   type TreeStyle,
   tableFormatter,
   treeFormatter,
+  unsafeRaw,
 } from './formatting/index.js';
 // Encoding
 export { arrayBufferToBase64, base64ToString, stringToBase64 } from './internal/encoding.js';

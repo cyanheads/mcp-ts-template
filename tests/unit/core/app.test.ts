@@ -232,6 +232,8 @@ const {
 vi.mock('@/config/index.js', () => ({
   config: mockConfig,
   resetConfig: mockResetConfig,
+  FRAMEWORK_NAME: '@cyanheads/mcp-ts-core',
+  FRAMEWORK_VERSION: '0.0.0-test',
 }));
 
 vi.mock('@/linter/validate.js', () => ({
@@ -510,7 +512,7 @@ describe('core/app', () => {
     expect(setup).toHaveBeenCalledWith(composed.coreServices);
     expect(composed.coreServices.llmProvider).toEqual({ kind: 'llm-provider' });
     expect(composed.coreServices.speechService).toEqual({ kind: 'speech-service' });
-    expect(composed.meta.definitionCounts).toEqual({
+    expect(composed.manifest.definitionCounts).toEqual({
       prompts: 1,
       resources: 1,
       tools: 1,
@@ -551,7 +553,10 @@ describe('core/app', () => {
       mockLogger,
       expect.any(Function),
       mockTaskManager.instance,
-      { definitionCounts: { prompts: 0, resources: 0, tools: 0 } },
+      expect.objectContaining({
+        definitionCounts: { prompts: 0, resources: 0, tools: 0 },
+        server: expect.objectContaining({ name: 'mock-server', version: '1.0.0' }),
+      }),
     );
     expect(mockTransportManager.instance.start).toHaveBeenCalledTimes(1);
     expect(mockCreateObservableGauge.mock.calls.map((call) => call[0])).toEqual(

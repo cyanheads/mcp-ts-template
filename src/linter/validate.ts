@@ -5,6 +5,7 @@
  * @module src/linter/validate
  */
 
+import { lintLandingConfig } from './rules/landing-rules.js';
 import { checkDuplicateNames } from './rules/name-rules.js';
 import { lintPromptDefinition } from './rules/prompt-rules.js';
 import { lintResourceDefinition } from './rules/resource-rules.js';
@@ -108,6 +109,11 @@ export function validateDefinitions(input: LintInput): LintReport {
 
   // Cross-definition: app tool ↔ app resource pairing
   diagnostics.push(...lintAppToolResourcePairing(tools, resources));
+
+  // Landing page configuration
+  if (input.landing != null) {
+    diagnostics.push(...lintLandingConfig(input.landing));
+  }
 
   const annotated = diagnostics.map(withBreadcrumb);
   const errors = annotated.filter((d) => d.severity === 'error');

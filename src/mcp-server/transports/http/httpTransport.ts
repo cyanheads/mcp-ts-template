@@ -12,16 +12,18 @@ import http from 'node:http';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { type ServerType, serve } from '@hono/node-server';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { config, FRAMEWORK_NAME, FRAMEWORK_VERSION } from '@/config/index.js';
+import { config } from '@/config/index.js';
+import type { ServerManifest } from '@/core/serverManifest.js';
 import { createAuthStrategy } from '@/mcp-server/transports/auth/authFactory.js';
 import { createAuthMiddleware } from '@/mcp-server/transports/auth/authMiddleware.js';
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
-import type { HonoNodeBindings, ServerMeta } from '@/mcp-server/transports/http/httpTypes.js';
+import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
+import { createLandingPageHandler } from '@/mcp-server/transports/http/landing-page.js';
 import { protectedResourceMetadataHandler } from '@/mcp-server/transports/http/protectedResourceMetadata.js';
+import { createServerCardHandler } from '@/mcp-server/transports/http/serverCard.js';
 import { generateSecureSessionId } from '@/mcp-server/transports/http/sessionIdUtils.js';
 import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http/sessionStore.js';
 import { logger } from '@/utils/internal/logger.js';
@@ -59,9 +61,8 @@ class McpSessionTransport extends StreamableHTTPTransport {
 export async function createHttpApp<TBindings extends object = HonoNodeBindings>(
   serverFactory: () => Promise<McpServer>,
   parentContext: RequestContext,
-  meta: ServerMeta,
+  manifest: ServerManifest,
 ): Promise<{ app: Hono<{ Bindings: TBindings }>; sessionStore: SessionStore | null }> {
-  const { definitionCounts, extensions } = meta;
   const app = new Hono<{ Bindings: TBindings }>();
   const transportContext = {
     ...parentContext,
@@ -164,6 +165,36 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
   // https://datatracker.ietf.org/doc/html/rfc9728
   app.get('/.well-known/oauth-protected-resource', protectedResourceMetadataHandler);
 
+  // SEP-1649 MCP Server Card — machine-readable discovery document.
+  // Collision guard: skip the mount if the MCP endpoint is configured to use
+  // this path (unusual, but avoid shadowing the real transport).
+  const serverCardPath = '/.well-known/mcp.json';
+  if (config.mcpHttpEndpointPath !== serverCardPath) {
+    app.get(serverCardPath, createServerCardHandler(manifest));
+    logger.debug(`SEP-1649 Server Card mounted at ${serverCardPath}.`, transportContext);
+  } else {
+    logger.warning(
+      `MCP endpoint is configured at ${serverCardPath}; Server Card not mounted (would collide).`,
+      transportContext,
+    );
+  }
+
+  // HTML landing page at `/` — unauthenticated by default (`landing.requireAuth`
+  // is honored inside the handler when enabled). Skipped when landing.enabled=false
+  // or when the MCP endpoint is (unusually) configured at `/`.
+  const landingPath = '/';
+  if (manifest.landing.enabled && config.mcpHttpEndpointPath !== landingPath) {
+    app.get(landingPath, createLandingPageHandler(manifest));
+    logger.debug(`Landing page mounted at ${landingPath}.`, transportContext);
+  } else if (!manifest.landing.enabled) {
+    logger.debug('Landing page disabled via landing.enabled=false.', transportContext);
+  } else {
+    logger.warning(
+      `MCP endpoint is configured at ${landingPath}; landing page not mounted (would collide).`,
+      transportContext,
+    );
+  }
+
   // MCP Spec 2025-06-18: GET with Accept: text/event-stream opens an SSE stream
   // for server-initiated messages. Plain GET (browser, health check) returns info.
   //
@@ -185,31 +216,27 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     return c.json({
       status: 'ok',
       server: {
-        name: config.mcpServerName,
-        version: config.mcpServerVersion,
-        description: config.mcpServerDescription,
-        ...(config.mcpServerHomepage && { homepage: config.mcpServerHomepage }),
-        environment: config.environment,
-        transport: config.mcpTransportType,
-        sessionMode: config.mcpSessionMode,
+        name: manifest.server.name,
+        version: manifest.server.version,
+        description: manifest.server.description,
+        ...(manifest.server.homepage && { homepage: manifest.server.homepage }),
+        environment: manifest.server.environment,
+        transport: manifest.transport.type,
+        sessionMode: manifest.transport.sessionMode,
       },
-      protocolVersions: SUPPORTED_PROTOCOL_VERSIONS,
+      protocolVersions: manifest.protocol.supportedVersions,
       capabilities: {
-        logging: true,
-        prompts: definitionCounts.prompts > 0,
-        resources: definitionCounts.resources > 0,
-        tools: definitionCounts.tools > 0,
+        logging: manifest.capabilities.logging,
+        prompts: manifest.capabilities.prompts,
+        resources: manifest.capabilities.resources,
+        tools: manifest.capabilities.tools,
       },
       extensions: {
-        'io.modelcontextprotocol/ui': 'io.modelcontextprotocol/ui' in (extensions ?? {}),
+        'io.modelcontextprotocol/ui': 'io.modelcontextprotocol/ui' in (manifest.extensions ?? {}),
       },
-      framework: {
-        name: FRAMEWORK_NAME,
-        version: FRAMEWORK_VERSION,
-        homepage: 'https://github.com/cyanheads/mcp-ts-core',
-      },
+      framework: manifest.framework,
       auth: {
-        mode: config.mcpAuthMode,
+        mode: manifest.auth.mode,
       },
     });
   });
@@ -297,7 +324,7 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     // Per MCP Spec 2025-06-18: MCP-Protocol-Version header MUST be validated
     // Server MUST respond with 400 Bad Request for unsupported versions
     // We default to 2025-03-26 for backward compatibility if not provided
-    const supportedVersions = SUPPORTED_PROTOCOL_VERSIONS;
+    const supportedVersions = manifest.protocol.supportedVersions;
     if (!supportedVersions.includes(protocolVersion)) {
       logger.warning('Unsupported MCP protocol version requested.', {
         ...transportContext,
@@ -513,7 +540,7 @@ export interface HttpTransportHandle {
 export async function startHttpTransport(
   serverFactory: () => Promise<McpServer>,
   parentContext: RequestContext,
-  meta: ServerMeta,
+  manifest: ServerManifest,
 ): Promise<HttpTransportHandle> {
   const transportContext = {
     ...parentContext,
@@ -521,7 +548,7 @@ export async function startHttpTransport(
   };
   logger.info('Starting HTTP transport.', transportContext);
 
-  const { app, sessionStore } = await createHttpApp(serverFactory, transportContext, meta);
+  const { app, sessionStore } = await createHttpApp(serverFactory, transportContext, manifest);
 
   const server = await startHttpServerWithRetry(
     app,

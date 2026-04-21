@@ -6,10 +6,10 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { EmptyResultSchema } from '@modelcontextprotocol/sdk/types.js';
 
 import type { AppConfig as AppConfigType } from '@/config/index.js';
+import type { ServerManifest } from '@/core/serverManifest.js';
 import type { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { HeartbeatMonitor } from '@/mcp-server/transports/heartbeat.js';
 import { startHttpTransport } from '@/mcp-server/transports/http/httpTransport.js';
-import type { ServerMeta } from '@/mcp-server/transports/http/httpTypes.js';
 import type { TransportServer } from '@/mcp-server/transports/ITransport.js';
 import {
   startStdioTransport,
@@ -29,7 +29,7 @@ export class TransportManager {
     private logger: typeof LoggerType,
     private createMcpServer: () => Promise<McpServer>,
     private taskManager: TaskManager,
-    private meta: ServerMeta,
+    private manifest: ServerManifest,
   ) {}
 
   async start(): Promise<void> {
@@ -43,7 +43,7 @@ export class TransportManager {
     if (this.config.mcpTransportType === 'http') {
       // HTTP: pass factory so each request gets a fresh McpServer+transport pair
       // (SDK 1.26.0 security fix — GHSA-345p-7cg4-v4c7)
-      const handle = await startHttpTransport(this.createMcpServer, context, this.meta);
+      const handle = await startHttpTransport(this.createMcpServer, context, this.manifest);
       this.serverInstance = handle.server;
       this.shutdown = (ctx) => handle.stop(ctx);
     } else if (this.config.mcpTransportType === 'stdio') {

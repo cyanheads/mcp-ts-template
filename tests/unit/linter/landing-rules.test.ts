@@ -1,0 +1,118 @@
+/**
+ * @fileoverview Tests for landing page lint rules.
+ * @module tests/linter/landing-rules.test
+ */
+import { describe, expect, test } from 'vitest';
+
+import { lintLandingConfig } from '@/linter/rules/landing-rules.js';
+
+describe('lintLandingConfig', () => {
+  test('returns no diagnostics for undefined input', () => {
+    expect(lintLandingConfig(undefined)).toEqual([]);
+  });
+
+  test('returns no diagnostics for a valid full config', () => {
+    const diagnostics = lintLandingConfig({
+      enabled: true,
+      tagline: 'Short and punchy',
+      links: [{ href: 'https://example.com', label: 'Docs' }],
+      theme: { accent: '#6366f1' },
+      repoRoot: 'https://github.com/acme/demo',
+      requireAuth: false,
+      attribution: true,
+    });
+    expect(diagnostics).toEqual([]);
+  });
+
+  test('errors when landing is not a plain object', () => {
+    expect(lintLandingConfig('string')).toEqual([
+      expect.objectContaining({ rule: 'landing-shape', severity: 'error' }),
+    ]);
+    expect(lintLandingConfig([])).toEqual([
+      expect.objectContaining({ rule: 'landing-shape', severity: 'error' }),
+    ]);
+  });
+
+  test('errors when tagline exceeds the length limit', () => {
+    const tooLong = 'x'.repeat(121);
+    const diagnostics = lintLandingConfig({ tagline: tooLong });
+    expect(diagnostics).toEqual([
+      expect.objectContaining({ rule: 'landing-tagline-length', severity: 'error' }),
+    ]);
+  });
+
+  test('errors when tagline is not a string', () => {
+    expect(lintLandingConfig({ tagline: 42 })).toEqual([
+      expect.objectContaining({ rule: 'landing-tagline-type', severity: 'error' }),
+    ]);
+  });
+
+  test('errors when data URI logo exceeds byte limit', () => {
+    // 24KB limit; 50KB base64 payload ~ 37.5KB decoded
+    const bigPayload = 'A'.repeat(50_000);
+    const bigLogo = `data:image/png;base64,${bigPayload}`;
+    const diagnostics = lintLandingConfig({ logo: bigLogo });
+    expect(diagnostics).toEqual([
+      expect.objectContaining({ rule: 'landing-logo-size', severity: 'error' }),
+    ]);
+  });
+
+  test('accepts a small data URI logo', () => {
+    const smallLogo = `data:image/png;base64,${'A'.repeat(100)}`;
+    expect(lintLandingConfig({ logo: smallLogo })).toEqual([]);
+  });
+
+  test('accepts a same-origin path as logo without byte check', () => {
+    expect(lintLandingConfig({ logo: '/static/logo.svg' })).toEqual([]);
+  });
+
+  test('warns when links array exceeds max', () => {
+    const links = Array.from({ length: 10 }, (_, i) => ({
+      href: `https://example.com/${i}`,
+      label: `L${i}`,
+    }));
+    const diagnostics = lintLandingConfig({ links });
+    expect(diagnostics).toEqual([
+      expect.objectContaining({ rule: 'landing-links-count', severity: 'warning' }),
+    ]);
+  });
+
+  test('errors when link is missing href or label', () => {
+    const diagnostics = lintLandingConfig({
+      links: [{ href: 'https://example.com' }, { label: 'Missing href' }],
+    });
+    const rules = diagnostics.map((d) => d.rule);
+    expect(rules).toContain('landing-link-label');
+    expect(rules).toContain('landing-link-href');
+  });
+
+  test('errors when repoRoot has trailing path', () => {
+    const diagnostics = lintLandingConfig({
+      repoRoot: 'https://github.com/acme/demo/tree/main',
+    });
+    expect(diagnostics).toEqual([
+      expect.objectContaining({ rule: 'landing-repo-root-shape', severity: 'error' }),
+    ]);
+  });
+
+  test('errors when repoRoot is a non-github URL', () => {
+    const diagnostics = lintLandingConfig({ repoRoot: 'https://gitlab.com/a/b' });
+    expect(diagnostics).toEqual([
+      expect.objectContaining({ rule: 'landing-repo-root-shape', severity: 'error' }),
+    ]);
+  });
+
+  test('errors when theme.accent is not a string', () => {
+    const diagnostics = lintLandingConfig({ theme: { accent: 123 } });
+    expect(diagnostics).toEqual([
+      expect.objectContaining({ rule: 'landing-theme-accent', severity: 'error' }),
+    ]);
+  });
+
+  test('errors when theme is not an object', () => {
+    const diagnostics = lintLandingConfig({ theme: 'red' });
+    expect(diagnostics).toEqual([
+      expect.objectContaining({ rule: 'landing-theme-type', severity: 'error' }),
+    ]);
+  });
+});

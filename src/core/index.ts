@@ -14,6 +14,12 @@ export type { CoreServices, CreateAppOptions, ServerHandle } from '@/core/app.js
 export { createApp } from '@/core/app.js';
 
 // ---------------------------------------------------------------------------
+// Landing page configuration
+// ---------------------------------------------------------------------------
+
+export type { LandingConfig, LandingLink } from '@/core/serverManifest.js';
+
+// ---------------------------------------------------------------------------
 // Zod re-export (consumers use the framework's copy, no separate zod dep)
 // ---------------------------------------------------------------------------
 

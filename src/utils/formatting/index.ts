@@ -9,6 +9,13 @@ export {
   type DiffFormatterOptions,
   diffFormatter,
 } from './diffFormatter.js';
+export {
+  escapeHtml,
+  type HtmlInterpolation,
+  html,
+  SafeHtml,
+  unsafeRaw,
+} from './html.js';
 export { MarkdownBuilder, markdown } from './markdownBuilder.js';
 export {
   type Alignment,

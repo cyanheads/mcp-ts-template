@@ -9,7 +9,7 @@
 export type LintSeverity = 'error' | 'warning';
 
 /** Definition type that produced a lint diagnostic. */
-export type LintDefinitionType = 'tool' | 'resource' | 'prompt' | 'server-json';
+export type LintDefinitionType = 'tool' | 'resource' | 'prompt' | 'server-json' | 'landing';
 
 /**
  * A single lint diagnostic produced by a validation rule.
@@ -43,9 +43,12 @@ export interface LintReport {
 
 /**
  * Input to `validateDefinitions()`.
- * Mirrors the definition arrays from `CreateAppOptions`, plus optional server.json.
+ * Mirrors the definition arrays from `CreateAppOptions`, plus optional server.json
+ * and landing configuration.
  */
 export interface LintInput {
+  /** Landing page configuration (from `CreateAppOptions.landing`). */
+  landing?: unknown;
   /** Parsed package.json — used for cross-validation (version sync). */
   packageJson?: { version?: string };
   prompts?: unknown[];
