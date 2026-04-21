@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.5.3] - 2026-04-20
+
+Two small-but-visible fixes for agent-facing surfaces: the `format-parity` lint diagnostic is reframed around dual-surface parity (some clients read `structuredContent`, others read `content[]`; both must carry the full picture), and `devcheck` now catches `CLAUDE.md` / `AGENTS.md` drift at check-time rather than letting it rot silently between edits.
+
+### Changed
+
+- **`format-parity` diagnostic (#37)** — rewrote the error message and every prose echo across docs, skills, and templates. The old wording ("Either render it in `format()` or remove it from the output schema") framed the two fixes as equal-weight alternatives and claimed `structuredContent` is "programmatic use only." Both are wrong: some MCP clients (e.g., Claude Code) forward `structuredContent` to the model, others (e.g., Claude Desktop) forward `content[]`, and dropping a field from `output` strips it from the first group. The new message names the surface split explicitly, establishes that `format()` is the markdown-rendered twin of `structuredContent` (not a separate payload), makes rendering in `format()` the primary fix, and demotes schema relaxation (`z.object({}).passthrough()`) to a narrow escape hatch for genuinely dynamic upstream APIs. Affected files: `src/linter/rules/format-parity-rules.ts`, `src/mcp-server/tools/utils/toolDefinition.ts`, `CLAUDE.md`, `AGENTS.md`, `README.md`, `templates/CLAUDE.md`, `templates/AGENTS.md`, `templates/src/mcp-server/tools/definitions/echo.tool.ts`.
+- **`skills/add-tool/SKILL.md`** (v1.5 → v1.6) — updated the format completeness checklist item and the inline code comment to match the dual-surface framing.
+- **`skills/design-mcp-server/SKILL.md`** (v2.3 → v2.4) — updated the tool-design section and the final checklist around `format()` completeness to reflect dual-surface parity.
+- **`@hono/node-server`** bumped `^1.19.14` → `^2.0.0` (major). No code changes required on the consumer side; integration tests all green.
+
+### Added
+
+- **`scripts/check-docs-sync.ts` (#36)** — standalone script that verifies `CLAUDE.md` and `AGENTS.md` stay byte-identical. Four-state behavior: both identical (pass), drift (fail with line-numbered divergence and fix hint), only one present (warn, exit 0), neither present (skip). The init CLI ships both files byte-identical since each agent tool reads the file named for it — without a check, they drift silently after edits and only surface when the other agent runs against a stale protocol. Observed in the wild in multiple downstream servers (e.g., `pubmed-mcp-server` had `AGENTS.md` at `Version: 2.3.11` while `CLAUDE.md` was at `2.4.0`).
+- **`Docs Sync` devcheck step** (`scripts/devcheck.ts`) — wires the new script into the standard devcheck flow with the `--no-docs-sync` opt-out flag. Exits non-zero on drift, passes with visible warning when only one file exists. Consumers get the check automatically after `bun update`.
+- **Init CLI registration** (`src/cli/init.ts`) — added `check-docs-sync.ts` to `SCAFFOLD_SCRIPTS` so new consumer projects scaffolded via `npx @cyanheads/mcp-ts-core init` receive the script. Also added to the `package.json` `files` array so it ships in the npm package.
+
+### Tests
+
+- Full suite: **2264 passed** / 10 skipped, 0 regressions. All 16 `format-parity` tests still pass (the lint rule's behavior is unchanged — only the diagnostic text was rewritten). CLI init tests pass.
+- `bun run devcheck` green across all 7 non-network checks including the new `Docs Sync` step (22ms; CLAUDE.md / AGENTS.md confirmed in sync).
+
+---
+
 ## [0.5.2] - 2026-04-20
 
 Closes a recurring class of silent bugs by enforcing format/structuredContent parity at lint time. Every terminal field in a tool's `output` schema must now be rendered by `format()` — since most LLM clients (Claude Code, VS Code Copilot, Cursor, Windsurf) only forward `content[]` to the model, a field that exists in `structuredContent` but never appears in `format()`'s rendered text is invisible to the LLM. The check runs inside `validateDefinitions()` so it's picked up automatically by `createApp()` startup, `bun run lint:mcp`, and `bun run devcheck`.
