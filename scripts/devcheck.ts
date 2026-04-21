@@ -411,7 +411,7 @@ const ALL_CHECKS: Check[] = [
     canFix: false,
     getCommand: () => ['bun', 'run', 'scripts/lint-mcp.ts'],
     tip: (c) =>
-      `Fix definition errors reported above. See ${c.bold('validateDefinitions()')} docs for rule details.`,
+      `Fix definition errors above — each diagnostic links to its rule in ${c.bold('skills/api-linter/SKILL.md')}.`,
   },
   {
     name: 'Docs Sync',
@@ -562,7 +562,7 @@ const ALL_CHECKS: Check[] = [
       return unexpected.length === 0;
     },
     tip: (c) =>
-      `Run ${c.bold(`${PM_CMD} update`)} to upgrade dependencies. Configure allowlist in ${c.bold('devcheck.config.json')}.`,
+      `Run ${c.bold(`${PM_CMD} update`)} to upgrade; the ${c.bold('maintenance')} skill then investigates changelogs and adopts upstream changes. Configure allowlist in ${c.bold('devcheck.config.json')}.`,
   },
 ];
 
