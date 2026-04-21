@@ -74,7 +74,7 @@ function renderTokens(accent: string): SafeHtml {
   --bg-code: #f7f7f9;
   --fg: #09090b;
   --fg-muted: #52525b;
-  --fg-subtle: #a1a1aa;
+  --fg-subtle: #71717a;
   --border: #e4e4e7;
   --border-subtle: #ececf0;
   --border-strong: #d4d4d8;
@@ -92,7 +92,7 @@ function renderTokens(accent: string): SafeHtml {
     --bg-code: #0a0b10;
     --fg: #ededef;
     --fg-muted: #a1a1a8;
-    --fg-subtle: #6b6b73;
+    --fg-subtle: #8a8a93;
     --border: #1f2027;
     --border-subtle: #16171c;
     --border-strong: #2a2b33;
@@ -353,9 +353,22 @@ pre code { background: transparent; padding: 0; border: 0; font-size: inherit; }
 .status-signin {
   color: var(--fg-muted);
   text-decoration: none;
-  border-bottom: 1px dotted var(--border-strong);
+  border-bottom: 1px dotted var(--fg-subtle);
 }
 .status-signin:hover { color: var(--accent); border-color: var(--accent); }
+.status-link {
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.status-link .status-value { transition: color var(--duration-fast) var(--ease-out); }
+.status-link:hover,
+.status-link:hover .status-value { color: var(--accent); }
+.status-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
 
 /* -------------------- Connect card -------------------- */
 
@@ -416,15 +429,19 @@ pre code { background: transparent; padding: 0; border: 0; font-size: inherit; }
   font-weight: 500;
   color: var(--fg-muted);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   margin-bottom: -1px;
   white-space: nowrap;
-  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+  transition: color var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out),
+              background var(--duration-fast) var(--ease-out);
 }
 .connect-tab-label:hover { color: var(--fg); }
 .connect-tab-input:checked + .connect-tab-label {
   color: var(--fg);
+  font-weight: 600;
   border-bottom-color: var(--accent);
+  background: linear-gradient(to top, var(--accent-softer), transparent 70%);
 }
 .connect-tab-input:focus-visible + .connect-tab-label {
   outline: 2px solid var(--accent);
@@ -560,6 +577,7 @@ section { padding: var(--space-12) 0 0; }
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: var(--space-3);
+  align-items: start;
 }
 .card {
   border: 1px solid var(--border-subtle);
@@ -577,7 +595,7 @@ section { padding: var(--space-12) 0 0; }
 .card:hover {
   border-color: var(--accent-edge);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
 }
 .card-head {
   display: flex;
@@ -660,7 +678,7 @@ section { padding: var(--space-12) 0 0; }
 
 .source-link {
   font-size: var(--text-xs);
-  color: var(--fg-subtle);
+  color: var(--fg-muted);
   margin-left: auto;
   font-family: var(--font-mono);
   transition: color var(--duration-fast);
@@ -715,7 +733,7 @@ details > summary {
   padding: 4px 0;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--fg-subtle);
+  color: var(--fg-muted);
   list-style: none;
   user-select: none;
   display: inline-flex;
@@ -729,7 +747,7 @@ details > summary::before {
   display: inline-block;
   width: 10px;
   text-align: center;
-  color: var(--fg-subtle);
+  color: var(--fg-muted);
   font-weight: 600;
   transition: transform var(--duration-fast), color var(--duration-fast);
 }
@@ -948,20 +966,20 @@ function renderStatusStrip(manifest: ServerManifest, degraded: boolean): SafeHtm
 
   return html`
     <div class="status-strip" role="status" aria-label="${authMeta.ariaLabel}">
-      <span class="status-item">
+      <span class="status-item" title="${authMeta.ariaLabel}">
         <span class="status-dot ${authMeta.dotClass}" aria-hidden="true"></span>
         <span class="status-value">${authMeta.label}</span>${signin}
       </span>
       ${counts.map(
         (c) => html`
-          <span class="status-item">
+          <a class="status-item status-link" href="#section-${c.label}">
             <span class="status-value">${String(c.n)}</span>
             <span>${c.label}</span>
-          </span>
+          </a>
         `,
       )}
-      <span class="status-item">
-        <span>MCP</span>
+      <span class="status-item" title="MCP protocol version ${protocol.latestVersion}">
+        <span>protocol</span>
         <span class="status-value">${protocol.latestVersion}</span>
       </span>
     </div>
@@ -1308,8 +1326,12 @@ function renderToolCard(tool: ManifestTool): SafeHtml {
 function renderToolsSection(tools: ManifestTool[]): SafeHtml {
   if (tools.length === 0) return html``;
   const groups = groupToolsByPrefix(tools);
+  // A single group — whether labeled or not — would render as redundant with
+  // the section header. Skip the sub-heading; render a flat grid.
+  const showHeadings = groups.length > 1;
   const body = groups.map((group) => {
-    const heading = group.label ? html`<h4 class="group-heading">${group.label}</h4>` : html``;
+    const heading =
+      showHeadings && group.label ? html`<h4 class="group-heading">${group.label}</h4>` : html``;
     return html`${heading}<div class="card-grid">${group.tools.map(renderToolCard)}</div>`;
   });
 
