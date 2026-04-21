@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [0.5.4] - 2026-04-20
+
+Closes the "what is this lint rule?" discoverability gap. When `bun run devcheck` reports a diagnostic like `format-parity` or `server-json-name-format`, agents were going searching for docs and coming up empty — rule IDs weren't indexed anywhere, and the `MCP Definitions` devcheck tip dangled at a nonexistent `validateDefinitions()` docs target. This release adds a single reference doc covering every rule, wires a breadcrumb into every diagnostic, and fixes the dangling tip.
+
+### Added
+
+- **`skills/api-linter/SKILL.md`** (v1.0) — reference covering every rule ID across the 7 rule families. Per-rule sub-headers for the 20 varied rules (format-parity, schema, name, tool, resource, prompt) so the anchor matches the rule ID exactly; tabular index for the 40 `server-json-*` rules. Includes escape-hatch guidance (when to use `z.object({}).passthrough()` instead of fighting `format-parity`) and an "adding a new rule" workflow for extenders.
+- **Diagnostic breadcrumb** (`src/linter/validate.ts`) — every `LintDiagnostic` now has `See: skills/api-linter/SKILL.md#<rule>` appended to `message`. Applies uniformly across `bun run lint:mcp`, `bun run devcheck`, and `createApp()` startup. Family mapping: `server-json-*` → `#server-json-rules`, everything else → literal rule ID.
+
+### Fixed
+
+- **`MCP Definitions` devcheck tip** (`scripts/devcheck.ts`) — replaced the dangling `See validateDefinitions() docs for rule details` with `each diagnostic links to its rule in skills/api-linter/SKILL.md`. The old tip promised docs that never existed.
+
+### Changed
+
+- **`Dependencies (Outdated)` devcheck tip** (`scripts/devcheck.ts`) — surfaces the `maintenance` skill next to `bun update`. The skill already exists and is purpose-built for post-update changelog investigation, but agents weren't being pointed at it when they hit the check.
+- **`CLAUDE.md` + `AGENTS.md`** — added `api-linter` to the skills reference table and a skill pointer in the Startup validation bullet.
+- **`docs/tree.md`** — listed the new skill directory.
+- **README version badge** — bumped from stale `0.5.2` to `0.5.4`.
+
+### Tests
+
+- Full suite: **2264 passed** / 10 skipped, no regressions. Existing linter tests match messages via `toContain` / `stringContaining`, so the appended breadcrumb is transparent.
+
+---
+
 ## [0.5.3] - 2026-04-20
 
 Two small-but-visible fixes for agent-facing surfaces: the `format-parity` lint diagnostic is reframed around dual-surface parity (some clients read `structuredContent`, others read `content[]`; both must carry the full picture), and `devcheck` now catches `CLAUDE.md` / `AGENTS.md` drift at check-time rather than letting it rot silently between edits.
