@@ -7,7 +7,7 @@
  * Behavior:
  *   • Both exist, identical   → pass
  *   • Both exist, drift       → fail, print first divergent lines + fix hint
- *   • Only one exists         → warn (stdout prefixed with "⚠", exit 0)
+ *   • Only one exists         → pass (report which file is present)
  *   • Neither exists          → skip (not an mcp-ts-core project)
  *
  * Runs as a devcheck step and standalone: `bun run scripts/check-docs-sync.ts`.
@@ -62,9 +62,8 @@ if (!hasClaude && !hasAgents) {
 
 if (hasClaude !== hasAgents) {
   const present = hasClaude ? 'CLAUDE.md' : 'AGENTS.md';
-  const missing = hasClaude ? 'AGENTS.md' : 'CLAUDE.md';
-  console.log(`⚠ ${missing} is missing — ${present} exists but its twin does not.`);
-  console.log(`  The init template ships both. Run: cp ${present} ${missing}`);
+  const absent = hasClaude ? 'AGENTS.md' : 'CLAUDE.md';
+  console.log(`${present} found. No ${absent} found — nothing to sync.`);
   process.exit(0);
 }
 
