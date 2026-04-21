@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.4](changelog/0.6.x/0.6.4.md) — 2026-04-21
+
+Fix landing-page connect snippets for hosted HTTP deployments — drop no-op env block from HTTP config, retarget Claude tab at the HTTP endpoint
+
 ## [0.6.3](changelog/0.6.x/0.6.3.md) — 2026-04-21
 
 Expose sourceUrl override on Tool/Resource/Prompt definitions — closes the type/runtime gap for landing-page view-source links
