@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.3](changelog/0.6.x/0.6.3.md) — 2026-04-21
+
+Expose sourceUrl override on Tool/Resource/Prompt definitions — closes the type/runtime gap for landing-page view-source links
+
 ## [0.6.2](changelog/0.6.x/0.6.2.md) — 2026-04-21
 
 Soften directory-based changelog prescription for downstream; clarify unreleased.md is a pristine format reference; landing page polish
