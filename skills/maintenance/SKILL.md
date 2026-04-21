@@ -4,7 +4,7 @@ description: >
   Investigate, adopt, and verify dependency updates — with special handling for `@cyanheads/mcp-ts-core`. Captures what changed, understands why, cross-references against the codebase, adopts framework improvements, syncs project skills, and runs final checks. Supports two entry modes: run the full flow end-to-end, or review updates you already applied.
 metadata:
   author: cyanheads
-  version: "1.3"
+  version: "1.4"
   audience: external
   type: workflow
 ---
@@ -50,13 +50,18 @@ Do not redo this investigation inline — the `changelog` skill handles tag-form
 
 ### 4. Framework review (`@cyanheads/mcp-ts-core`)
 
-If `@cyanheads/mcp-ts-core` was updated, do a deeper pass beyond what the `changelog` skill covers. Read:
+If `@cyanheads/mcp-ts-core` was updated, do a deeper pass beyond what the `changelog` skill covers. The framework ships a **directory-based changelog** grouped by minor series (`.x` semver-wildcard convention) — one file per released version at `node_modules/@cyanheads/mcp-ts-core/changelog/<major.minor>.x/<version>.md`. Read only the files between old and new rather than scanning a monolithic file.
 
-```bash
-node_modules/@cyanheads/mcp-ts-core/CHANGELOG.md
-```
+Example — `0.5.2 → 0.5.4` means reading two new version files:
 
-Extract entries between the old and new version. Scan specifically for:
+- `node_modules/@cyanheads/mcp-ts-core/changelog/0.5.x/0.5.3.md`
+- `node_modules/@cyanheads/mcp-ts-core/changelog/0.5.x/0.5.4.md`
+
+Cross-series updates span multiple directories — e.g., `0.4.1 → 0.5.2` reads `0.5.x/0.5.0.md`, `0.5.x/0.5.1.md`, `0.5.x/0.5.2.md`. Enumerate the series directories under `node_modules/@cyanheads/mcp-ts-core/changelog/` to find the relevant files.
+
+If the per-version directory isn't present (pre-0.5.5 releases, or downstream package that hasn't adopted the convention), fall back to the monolithic rollup at `node_modules/@cyanheads/mcp-ts-core/CHANGELOG.md` and extract the relevant sections manually.
+
+Scan specifically for:
 
 | Area | Adoption Check |
 |:-----|:---------------|
@@ -70,11 +75,7 @@ Extract entries between the old and new version. Scan specifically for:
 
 Cross-reference each finding against the server's code. Collect adoption opportunities for Step 6.
 
-**Template review.** The framework also ships `templates/CLAUDE.md` and `templates/AGENTS.md` as scaffolding for consumer agent protocol files. The consumer's `CLAUDE.md`/`AGENTS.md` was copied at init time and has since diverged (local customizations, echo replacements, server-specific sections). Read the upstream template fresh:
-
-```bash
-node_modules/@cyanheads/mcp-ts-core/templates/CLAUDE.md
-```
+**Template review.** The framework also ships `templates/CLAUDE.md` and `templates/AGENTS.md` as scaffolding for consumer agent protocol files. The consumer's `CLAUDE.md`/`AGENTS.md` was copied at init time and has since diverged (local customizations, echo replacements, server-specific sections). Read the upstream template fresh at `node_modules/@cyanheads/mcp-ts-core/templates/CLAUDE.md`.
 
 Skip the mechanical diff — consumer customizations create too much noise to filter. Instead, read end-to-end with fresh eyes, mentally comparing against the current `CLAUDE.md`. Look for: new conventions, updated skill references, expanded checklists, new callouts, clearer explanations, restructured sections. Present findings; let the user cherry-pick what to adopt. Never auto-merge — the consumer's file is theirs.
 

@@ -6,7 +6,9 @@
   "main": "dist/core/index.js",
   "types": "dist/core/index.d.ts",
   "files": [
+    "changelog/",
     "dist/",
+    "scripts/build-changelog.ts",
     "scripts/build.ts",
     "scripts/check-docs-sync.ts",
     "scripts/clean.ts",
@@ -142,6 +144,8 @@
     "test:coverage": "bunx vitest run --coverage",
     "audit": "bun audit",
     "audit:fix": "bun audit --fix",
+    "changelog:build": "bun run scripts/build-changelog.ts",
+    "changelog:check": "bun run scripts/build-changelog.ts --check",
     "publish-mcp": "bunx mcp-publisher publish"
   },
   "resolutions": {

@@ -15,6 +15,7 @@ const SKILLS_DIR = join(PACKAGE_ROOT, 'skills');
 const SCRIPTS_DIR = join(PACKAGE_ROOT, 'scripts');
 // Keep in sync with package.json `files` — entries here must also appear there to ship in the npm package.
 const SCAFFOLD_SCRIPTS = [
+  'build-changelog.ts',
   'build.ts',
   'check-docs-sync.ts',
   'clean.ts',
