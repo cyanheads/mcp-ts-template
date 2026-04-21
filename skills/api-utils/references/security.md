@@ -147,7 +147,7 @@ rateLimiter.check(`api:${ctx.tenantId}`, ctx);
 // Check status without consuming a request
 const status = rateLimiter.getStatus('api:tenant-123');
 if (status) {
-  console.log(`${status.remaining} requests left, resets at ${new Date(status.resetTime)}`);
+  logger.info(`${status.remaining} requests left, resets at ${new Date(status.resetTime)}`);
 }
 
 // Runtime reconfiguration

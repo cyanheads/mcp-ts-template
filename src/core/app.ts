@@ -11,6 +11,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
 import { config, resetConfig } from '@/config/index.js';
+import {
+  buildServerManifest,
+  type LandingConfig,
+  type ServerManifest,
+} from '@/core/serverManifest.js';
 import { validateDefinitions } from '@/linter/validate.js';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import type { AnyPromptDefinition } from '@/mcp-server/prompts/utils/promptDefinition.js';
@@ -22,7 +27,6 @@ import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import type { AnyToolDef } from '@/mcp-server/tools/tool-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import { initHeartbeatMetrics } from '@/mcp-server/transports/heartbeat.js';
-import type { ServerMeta } from '@/mcp-server/transports/http/httpTypes.js';
 import { initSessionMetrics } from '@/mcp-server/transports/http/sessionStore.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
 import type { ILlmProvider } from '@/services/llm/core/ILlmProvider.js';
@@ -54,6 +58,12 @@ export interface CreateAppOptions {
    * Keys are extension identifiers (`vendor-prefix/extension-name`).
    */
   extensions?: Record<string, object>;
+  /**
+   * Landing page configuration. Applies to the HTTP transport only.
+   * See {@link LandingConfig} for the full shape — all fields optional,
+   * sane defaults for everything.
+   */
+  landing?: LandingConfig;
   /** Server name — overrides package.json and MCP_SERVER_NAME env var. */
   name?: string;
   /** Prompt definitions. */
@@ -97,8 +107,12 @@ export interface ComposedApp {
   createServer: () => Promise<McpServer>;
   /** Lint warnings from definition validation (callers should log after logger init). */
   lintWarnings: string[];
-  /** Server metadata for the HTTP status response. */
-  meta: ServerMeta;
+  /**
+   * Server manifest — the single source of truth for the `/mcp` status JSON,
+   * the SEP-1649 Server Card at `/.well-known/mcp.json`, and the HTML landing
+   * page at `/`.
+   */
+  manifest: ServerManifest;
   taskManager: TaskManager;
 }
 
@@ -109,10 +123,15 @@ export interface ComposedApp {
  * @internal
  */
 export async function composeServices(options: CreateAppOptions = {}): Promise<ComposedApp> {
-  const { tools = [], resources = [], prompts = [], extensions, setup } = options;
+  const { tools = [], resources = [], prompts = [], extensions, landing, setup } = options;
 
   // Validate definitions against MCP spec before proceeding
-  const lintReport = validateDefinitions({ tools, resources, prompts });
+  const lintReport = validateDefinitions({
+    tools,
+    resources,
+    prompts,
+    ...(landing && { landing }),
+  });
   const lintWarnings = lintReport.warnings.map((w) => `[mcp-lint] ${w.rule}: ${w.message}`);
   if (!lintReport.passed) {
     const summary = lintReport.errors.map((e) => `  - [${e.rule}] ${e.message}`).join('\n');
@@ -242,17 +261,19 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
       toolRegistry,
     });
 
+  const manifest = buildServerManifest({
+    config,
+    tools,
+    resources,
+    prompts,
+    ...(extensions && { extensions }),
+    ...(landing && { landing }),
+  });
+
   return {
     coreServices,
     createServer,
-    meta: {
-      definitionCounts: {
-        prompts: prompts.length,
-        resources: resources.length,
-        tools: tools.length,
-      },
-      ...(extensions && { extensions }),
-    },
+    manifest,
     lintWarnings,
     taskManager,
   };
@@ -337,8 +358,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
     }
     throw err;
   }
-  const { coreServices, createServer, meta, lintWarnings, taskManager } = composed;
-  const { definitionCounts } = meta;
+  const { coreServices, createServer, manifest, lintWarnings, taskManager } = composed;
+  const { definitionCounts } = manifest;
 
   // --- Initialize OTEL + high-res timer (independent, run in parallel) ---
   await Promise.all([
@@ -447,7 +468,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
   );
 
   // --- Transport ---
-  const transportManager = new TransportManager(config, logger, createServer, taskManager, meta);
+  const transportManager = new TransportManager(
+    config,
+    logger,
+    createServer,
+    taskManager,
+    manifest,
+  );
 
   // --- Startup context ---
   const startupContext = requestContextService.createRequestContext({

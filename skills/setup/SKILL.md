@@ -4,7 +4,7 @@ description: >
   Post-init orientation for an MCP server built on @cyanheads/mcp-ts-core. Use after running `@cyanheads/mcp-ts-core init` to understand the project structure, conventions, and skill sync model. Also use when onboarding to an existing project for the first time.
 metadata:
   author: cyanheads
-  version: "1.3"
+  version: "1.4"
   audience: external
   type: workflow
 ---
@@ -22,11 +22,7 @@ The init CLI generates both `CLAUDE.md` and `AGENTS.md` with the same purpose. K
 
 Both files serve the same purpose: project-specific agent instructions. Prefer committing one authoritative copy rather than trying to keep both in sync by hand.
 
-For the full framework API, read:
-
-    node_modules/@cyanheads/mcp-ts-core/CLAUDE.md
-
-Read that file once per session. It contains the exports catalog, tool/resource/prompt contracts, error codes, context API, and common import patterns.
+For the full framework API, read `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` once per session. It contains the exports catalog, tool/resource/prompt contracts, error codes, context API, and common import patterns.
 
 ## Project Structure
 
@@ -95,9 +91,9 @@ This step is the **bootstrap** — it creates the agent directory. From then on,
 
 ## Project Scaffolding
 
-After installing dependencies (prefer `bun install`; `npm install` also works), complete these one-time setup tasks:
+After `bun install`, complete these one-time setup tasks:
 
-1. **Update dependencies to latest** — `bun update --latest` (or `npx npm-check-updates -u && npm install` if using npm). The scaffolded `package.json` pins minimum versions from when the framework was published; updating ensures you start with the latest compatible releases.
+1. **Update dependencies to latest** — `bun update --latest`. The scaffolded `package.json` pins minimum versions from when the framework was published; updating ensures you start with the latest compatible releases.
 2. **Initialize git** — `git init && git add -A && git commit -m "chore: scaffold from @cyanheads/mcp-ts-core"`
 3. **Verify agent protocol placeholders** — if the `init` CLI was run without a `[name]` argument, `{{PACKAGE_NAME}}` may remain as a literal in `CLAUDE.md`/`AGENTS.md` and `package.json`. Replace it with the actual server name.
 

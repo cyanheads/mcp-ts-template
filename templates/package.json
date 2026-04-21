@@ -9,6 +9,7 @@
     "{{PACKAGE_NAME}}": "dist/index.js"
   },
   "files": [
+    "changelog/",
     "dist/",
     "README.md",
     "LICENSE",
@@ -25,6 +26,8 @@
     "tree": "tsx scripts/tree.ts",
     "format": "biome check --write --unsafe .",
     "lint:mcp": "tsx scripts/lint-mcp.ts",
+    "changelog:build": "tsx scripts/build-changelog.ts",
+    "changelog:check": "tsx scripts/build-changelog.ts --check",
     "test": "vitest run",
     "dev:stdio": "MCP_TRANSPORT_TYPE=stdio tsx --watch src/index.ts",
     "dev:http": "MCP_TRANSPORT_TYPE=http tsx --watch src/index.ts",

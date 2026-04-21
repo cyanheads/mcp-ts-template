@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -420,6 +420,21 @@ const ALL_CHECKS: Check[] = [
     getCommand: () => ['bun', 'run', 'scripts/check-docs-sync.ts'],
     tip: (c) =>
       `Edit both files together, or run ${c.bold('cp CLAUDE.md AGENTS.md')} (or reverse) to resync.`,
+  },
+  {
+    name: 'Changelog Sync',
+    flag: '--no-changelog-sync',
+    canFix: false,
+    // --check exits non-zero if CHANGELOG.md drifts from changelog/*.md.
+    // Skipped cleanly when neither CHANGELOG.md nor changelog/ exists (non-mcp-ts-core projects).
+    getCommand: () => {
+      const hasChangelog = existsSync(path.join(ROOT_DIR, 'changelog'));
+      const hasRollup = existsSync(path.join(ROOT_DIR, 'CHANGELOG.md'));
+      if (!hasChangelog && !hasRollup) return null;
+      return ['bun', 'run', 'scripts/build-changelog.ts', '--check'];
+    },
+    tip: (c) =>
+      `Edit the per-version file in ${c.bold('changelog/')} and run ${c.bold('bun run changelog:build')} to regenerate ${c.bold('CHANGELOG.md')}.`,
   },
   {
     name: 'Biome',

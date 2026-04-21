@@ -39,6 +39,9 @@ const DEFAULT_IGNORE_PATTERNS: string[] = [
   'coverage',
   'logs',
   '.husky/_',
+  // Directory-based changelog — keep series dirs visible (0.1.x/, 0.5.x/) for structural
+  // orientation, but collapse out the per-version files. Top-level unreleased.md stays.
+  'changelog/*/*.md',
 ];
 
 interface ParsedArgs {

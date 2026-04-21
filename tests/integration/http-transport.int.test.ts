@@ -102,7 +102,7 @@ vi.mock('@/mcp-server/transports/http/httpErrorHandler.js', () => ({
 
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
-import { defaultServerMeta as defaultMeta } from '../helpers/fixtures.js';
+import { defaultServerManifest as defaultMeta } from '../helpers/fixtures.js';
 
 // ---------------------------------------------------------------------------
 // Test suite

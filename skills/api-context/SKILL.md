@@ -4,7 +4,7 @@ description: >
   Canonical reference for the unified `Context` object passed to every tool and resource handler in `@cyanheads/mcp-ts-core`. Covers the full interface, all sub-APIs (`ctx.log`, `ctx.state`, `ctx.elicit`, `ctx.sample`, `ctx.progress`), and when to use each.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.1"
   audience: external
   type: reference
 ---
@@ -181,7 +181,7 @@ if (ctx.elicit) {
     await produceOutput(result.content?.format as string, result.content?.includeHeaders as boolean);
   } else {
     // 'decline' or 'cancel' — user opted out
-    throw new McpError(JsonRpcErrorCode.InvalidRequest, 'User declined input');
+    throw invalidRequest('User declined input');
   }
 }
 ```

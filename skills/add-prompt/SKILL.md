@@ -4,7 +4,7 @@ description: >
   Scaffold a new MCP prompt template. Use when the user asks to add a prompt, create a reusable message template, or define a prompt for LLM interactions.
 metadata:
   author: cyanheads
-  version: "1.1"
+  version: "1.2"
   audience: external
   type: reference
 ---
@@ -15,9 +15,7 @@ Prompts use the `prompt()` builder from `@cyanheads/mcp-ts-core`. Each prompt li
 
 Prompts are pure message templates — no `Context`, no auth, no side effects.
 
-For the full `prompt()` API, read:
-
-    node_modules/@cyanheads/mcp-ts-core/CLAUDE.md
+For the full `prompt()` API, read `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`.
 
 ## Steps
 

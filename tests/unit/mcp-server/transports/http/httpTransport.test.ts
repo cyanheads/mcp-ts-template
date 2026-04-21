@@ -7,7 +7,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createHttpApp } from '@/mcp-server/transports/http/httpTransport.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
-import { defaultServerMeta as defaultMeta } from '../../../../helpers/fixtures.js';
+import { defaultServerManifest as defaultMeta } from '../../../../helpers/fixtures.js';
 
 // Mock dependencies — factory is hoisted, so all values must be inline.
 vi.mock('@/config/index.js', () => ({
@@ -169,6 +169,60 @@ describe('HTTP Transport', () => {
         transport: 'http',
         sessionMode: 'stateless',
       });
+    });
+
+    test('should serve SEP-1649 Server Card at /.well-known/mcp.json', async () => {
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+        defaultMeta,
+      );
+
+      const response = await app.fetch(
+        new Request('http://localhost:3000/.well-known/mcp.json', { method: 'GET' }),
+      );
+      const data: any = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('application/json');
+      expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(data.server_name).toBe('test-mcp-server');
+      expect(data.mcp_version).toBeDefined();
+      expect(data.endpoints?.streamable_http).toBe('http://localhost:3000/mcp');
+      expect(data.capabilities).toBeDefined();
+    });
+
+    test('should serve HTML landing page at /', async () => {
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+        defaultMeta,
+      );
+
+      const response = await app.fetch(new Request('http://localhost:3000/', { method: 'GET' }));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('text/html');
+      expect(response.headers.get('cache-control')).toContain('public');
+      const body = await response.text();
+      expect(body).toContain('<!DOCTYPE html>');
+      expect(body).toContain('test-mcp-server');
+      expect(body).toContain('/.well-known/mcp.json');
+    });
+
+    test('should skip landing page when landing.enabled=false', async () => {
+      const disabled = {
+        ...defaultMeta,
+        landing: { ...defaultMeta.landing, enabled: false },
+      };
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+        disabled,
+      );
+
+      const response = await app.fetch(new Request('http://localhost:3000/'));
+      expect(response.status).toBe(404);
     });
 
     test('should pass SSE GET requests through to transport handler', async () => {

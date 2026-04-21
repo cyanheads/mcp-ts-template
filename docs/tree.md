@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-04-21 01:56:29
+Generated on: 2026-04-21 08:16:57
 
 ```text
 mcp-ts-core/
@@ -20,6 +20,14 @@ mcp-ts-core/
 │   └── settings.json
 ├── agent-feedback/
 ├── announcements/
+├── changelog/
+│   ├── 0.1.x/
+│   ├── 0.2.x/
+│   ├── 0.3.x/
+│   ├── 0.4.x/
+│   ├── 0.5.x/
+│   ├── 0.6.x/
+│   └── unreleased.md
 ├── claude-plans/
 ├── docs/
 │   ├── mcp-specification/
@@ -94,6 +102,7 @@ mcp-ts-core/
 │   ├── index.ts
 │   └── worker.ts
 ├── scripts/
+│   ├── build-changelog.ts
 │   ├── build.ts
 │   ├── check-docs-sync.ts
 │   ├── clean.ts
@@ -102,6 +111,7 @@ mcp-ts-core/
 │   ├── fetch-openapi-spec.ts
 │   ├── lint-mcp.ts
 │   ├── make-executable.ts
+│   ├── split-changelog.ts
 │   ├── tree.ts
 │   └── update-coverage.ts
 ├── skills/
@@ -181,11 +191,13 @@ mcp-ts-core/
 │   │   ├── app.ts
 │   │   ├── context.ts
 │   │   ├── index.ts
+│   │   ├── serverManifest.ts
 │   │   └── worker.ts
 │   ├── linter/
 │   │   ├── rules/
 │   │   │   ├── format-parity-rules.ts
 │   │   │   ├── index.ts
+│   │   │   ├── landing-rules.ts
 │   │   │   ├── name-rules.ts
 │   │   │   ├── prompt-rules.ts
 │   │   │   ├── resource-rules.ts
@@ -240,7 +252,9 @@ mcp-ts-core/
 │   │   │   │   ├── httpErrorHandler.ts
 │   │   │   │   ├── httpTransport.ts
 │   │   │   │   ├── httpTypes.ts
+│   │   │   │   ├── landing-page.ts
 │   │   │   │   ├── protectedResourceMetadata.ts
+│   │   │   │   ├── serverCard.ts
 │   │   │   │   ├── sessionIdUtils.ts
 │   │   │   │   └── sessionStore.ts
 │   │   │   ├── stdio/
@@ -298,6 +312,7 @@ mcp-ts-core/
 │   ├── utils/
 │   │   ├── formatting/
 │   │   │   ├── diffFormatter.ts
+│   │   │   ├── html.ts
 │   │   │   ├── index.ts
 │   │   │   ├── markdownBuilder.ts
 │   │   │   ├── tableFormatter.ts
@@ -360,6 +375,8 @@ mcp-ts-core/
 │   ├── .vscode/
 │   │   ├── extensions.json
 │   │   └── settings.json
+│   ├── changelog/
+│   │   └── unreleased.md
 │   ├── src/
 │   │   ├── mcp-server/
 │   │   │   ├── prompts/
@@ -443,11 +460,13 @@ mcp-ts-core/
 │   │   │   ├── index.test.ts
 │   │   │   └── parseEnvConfig.test.ts
 │   │   ├── core/
-│   │   │   └── app.test.ts
+│   │   │   ├── app.test.ts
+│   │   │   └── serverManifest.test.ts
 │   │   ├── helpers/
 │   │   │   └── matchers.test.ts
 │   │   ├── linter/
 │   │   │   ├── format-parity-rules.test.ts
+│   │   │   ├── landing-rules.test.ts
 │   │   │   ├── tool-rules.test.ts
 │   │   │   └── validate.test.ts
 │   │   ├── mcp-server/
@@ -499,7 +518,9 @@ mcp-ts-core/
 │   │   │   │   │   ├── httpTransport.lifecycle.test.ts
 │   │   │   │   │   ├── httpTransport.test.ts
 │   │   │   │   │   ├── httpTypes.test.ts
+│   │   │   │   │   ├── landing-page.test.ts
 │   │   │   │   │   ├── protectedResourceMetadata.test.ts
+│   │   │   │   │   ├── serverCard.test.ts
 │   │   │   │   │   ├── sessionIdUtils.runtime.test.ts
 │   │   │   │   │   ├── sessionIdUtils.test.ts
 │   │   │   │   │   ├── sessionStore.metrics.test.ts
@@ -564,6 +585,7 @@ mcp-ts-core/
 │   │   ├── utils/
 │   │   │   ├── formatting/
 │   │   │   │   ├── diffFormatter.test.ts
+│   │   │   │   ├── html.test.ts
 │   │   │   │   ├── markdownBuilder.test.ts
 │   │   │   │   ├── tableFormatter.test.ts
 │   │   │   │   └── treeFormatter.test.ts

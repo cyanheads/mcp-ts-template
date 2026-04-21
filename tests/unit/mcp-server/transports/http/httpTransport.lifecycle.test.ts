@@ -7,7 +7,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { RequestContext } from '@/utils/internal/requestContext.js';
-import { defaultServerMeta as defaultMeta } from '../../../../helpers/fixtures.js';
+import { defaultServerManifest as defaultMeta } from '../../../../helpers/fixtures.js';
 
 const {
   closeAllConnectionsSpy,

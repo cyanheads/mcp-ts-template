@@ -163,7 +163,7 @@ export function createWorkerHandler(options: WorkerHandlerOptions = {}) {
           Object.assign(globalThis, { IS_SERVERLESS: true });
         }
 
-        const { createServer, meta } = await composeServices(appOptions);
+        const { createServer, manifest } = await composeServices(appOptions);
 
         await initHighResTimer();
 
@@ -194,7 +194,11 @@ export function createWorkerHandler(options: WorkerHandlerOptions = {}) {
           storageProvider: env.STORAGE_PROVIDER_TYPE ?? 'in-memory',
         });
 
-        const { app } = await createHttpApp<CloudflareBindings>(createServer, workerContext, meta);
+        const { app } = await createHttpApp<CloudflareBindings>(
+          createServer,
+          workerContext,
+          manifest,
+        );
 
         const initDuration = Date.now() - initStartTime;
         logger.info('Cloudflare Worker initialized successfully.', {

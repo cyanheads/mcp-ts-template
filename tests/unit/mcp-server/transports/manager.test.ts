@@ -10,7 +10,7 @@ import { config } from '@/config/index.js';
 import type { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { TransportManager } from '@/mcp-server/transports/manager.js';
 import { logger } from '@/utils/internal/logger.js';
-import { defaultServerMeta as defaultMeta } from '../../../helpers/fixtures.js';
+import { defaultServerManifest as defaultMeta } from '../../../helpers/fixtures.js';
 
 // Mock the transport modules
 vi.mock('@/mcp-server/transports/http/httpTransport.js', () => ({
