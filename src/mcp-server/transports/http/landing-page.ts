@@ -1075,17 +1075,6 @@ function envFromEntries(
   return Object.fromEntries(entries.map(({ key, value }) => [key, value]));
 }
 
-/** `claude mcp add --transport stdio <name> [--env K=V]* -- bunx <pkg>@latest` */
-function buildClaudeStdioCmd(
-  shortName: string,
-  npmPackage: string,
-  envExample: ReadonlyArray<{ key: string; value: string }>,
-): string {
-  const envFlags = envExample.map(({ key, value }) => `--env ${key}=${value}`).join(' ');
-  const envSegment = envFlags.length > 0 ? ` ${envFlags}` : '';
-  return `claude mcp add --transport stdio ${shortName}${envSegment} -- bunx ${npmPackage}@latest`;
-}
-
 /** `claude mcp add --transport http <name> <url>` */
 function buildClaudeHttpCmd(shortName: string, endpoint: string): string {
   return `claude mcp add --transport http ${shortName} ${endpoint}`;
@@ -1099,18 +1088,20 @@ function renderConnectSnippets(manifest: ServerManifest, baseUrl: string): SafeH
   // command more ergonomic.
   const shortName = deriveShortName(manifest.server.name);
   const envExample = manifest.landing.envExample;
-  const envObject = envExample.length > 0 ? envFromEntries(envExample) : undefined;
+  const stdioEnv = envExample.length > 0 ? envFromEntries(envExample) : undefined;
 
   // STDIO: prefer native `bunx <pkg>@latest` when the server is published;
   // fall back to `mcp-remote` as a stdio → HTTP bridge so the tab is always
-  // useful even for unpublished servers.
+  // useful even for unpublished servers. Env vars belong here — this is the
+  // only transport where the client spawns the server process and can pass
+  // them through.
   const stdioConfig = JSON.stringify(
     {
       mcpServers: {
         [shortName]: {
           command: 'bunx',
           args: npmPackage ? [`${npmPackage}@latest`] : ['mcp-remote', endpoint],
-          ...(envObject && { env: envObject }),
+          ...(stdioEnv && { env: stdioEnv }),
         },
       },
     },
@@ -1118,13 +1109,16 @@ function renderConnectSnippets(manifest: ServerManifest, baseUrl: string): SafeH
     2,
   );
 
+  // HTTP: no `env` block. MCP clients only forward env vars to spawned stdio
+  // child processes; for `type: 'http'` there's no process, so including env
+  // is a silent no-op that misleads visitors of a hosted instance into
+  // thinking they need to supply credentials the server already owns.
   const httpConfig = JSON.stringify(
     {
       mcpServers: {
         [shortName]: {
           type: 'http',
           url: endpoint,
-          ...(envObject && { env: envObject }),
         },
       },
     },
@@ -1132,11 +1126,12 @@ function renderConnectSnippets(manifest: ServerManifest, baseUrl: string): SafeH
     2,
   );
 
-  // `claude mcp add` — published package routes through stdio; otherwise
-  // point it straight at the HTTP endpoint.
-  const claudeCmd = npmPackage
-    ? buildClaudeStdioCmd(shortName, npmPackage, envExample)
-    : buildClaudeHttpCmd(shortName, endpoint);
+  // `claude mcp add` — always target the HTTP endpoint. The landing page is
+  // served over HTTP, so a visitor is already interacting with this
+  // instance; a stdio/bunx command here would install a different (local)
+  // copy and carry env placeholders that HTTP wouldn't forward anyway. The
+  // STDIO tab still carries the JSON for anyone who wants to run locally.
+  const claudeCmd = buildClaudeHttpCmd(shortName, endpoint);
 
   const curl = [
     `curl -X POST ${endpoint} \\`,

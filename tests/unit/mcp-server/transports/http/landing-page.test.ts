@@ -99,6 +99,86 @@ describe('renderLandingPage — structure', () => {
   });
 });
 
+describe('renderLandingPage — connect snippets', () => {
+  function manifestWithEnv(): ServerManifest {
+    return {
+      ...defaultServerManifest,
+      landing: {
+        ...defaultServerManifest.landing,
+        envExample: [
+          { key: 'API_KEY', value: 'your-api-key' },
+          { key: 'ADMIN_EMAIL', value: 'you@example.com' },
+        ],
+        npmPackage: {
+          name: '@acme/my-server',
+          url: 'https://www.npmjs.com/package/@acme/my-server',
+        },
+      },
+    };
+  }
+
+  /**
+   * Extract a single connect-panel's raw snippet content (pre-escape reversal
+   * not needed — we just match on the escaped HTML form).
+   */
+  function extractSnippet(html: string, panelId: string): string {
+    const match = html.match(
+      new RegExp(`<pre id="connect-snippet-${panelId}"><code>([\\s\\S]*?)</code></pre>`),
+    );
+    if (!match) throw new Error(`panel ${panelId} snippet not found`);
+    return match[1] ?? '';
+  }
+
+  test('stdio config includes env block when envExample is set', () => {
+    const html = renderLandingPage(manifestWithEnv(), 'https://example.com');
+    const stdio = extractSnippet(html, 'stdio');
+    expect(stdio).toContain('API_KEY');
+    expect(stdio).toContain('ADMIN_EMAIL');
+    expect(stdio).toContain('&quot;env&quot;');
+  });
+
+  test('http config omits env block even when envExample is set', () => {
+    const html = renderLandingPage(manifestWithEnv(), 'https://example.com');
+    const http = extractSnippet(html, 'http');
+    expect(http).toContain('&quot;type&quot;: &quot;http&quot;');
+    expect(http).toContain('https://example.com/mcp');
+    expect(http).not.toContain('API_KEY');
+    expect(http).not.toContain('ADMIN_EMAIL');
+    expect(http).not.toContain('&quot;env&quot;');
+  });
+
+  test('claude command uses http transport pointing at the endpoint', () => {
+    const html = renderLandingPage(manifestWithEnv(), 'https://example.com');
+    const claude = extractSnippet(html, 'claude');
+    expect(claude).toContain('claude mcp add --transport http');
+    expect(claude).toContain('https://example.com/mcp');
+    expect(claude).not.toContain('--transport stdio');
+    expect(claude).not.toContain('--env');
+    expect(claude).not.toContain('bunx');
+  });
+
+  test('claude command uses http transport even for published packages', () => {
+    // Published package used to route to stdio with env flags; the landing
+    // page is always served over HTTP, so HTTP is the correct target.
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      landing: {
+        ...defaultServerManifest.landing,
+        npmPackage: {
+          name: '@acme/my-server',
+          url: 'https://www.npmjs.com/package/@acme/my-server',
+        },
+      },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    const claude = extractSnippet(html, 'claude');
+    expect(claude).toContain(
+      'claude mcp add --transport http test-mcp-server https://example.com/mcp',
+    );
+    expect(claude).not.toContain('bunx');
+  });
+});
+
 describe('renderLandingPage — polish derivations', () => {
   test('emits GitHub link cluster when repoRoot is set', () => {
     const manifest = buildServerManifest({
