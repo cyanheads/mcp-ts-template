@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.2](changelog/0.6.x/0.6.2.md) — 2026-04-21
+
+Soften directory-based changelog prescription for downstream; clarify unreleased.md is a pristine format reference; landing page polish
+
 ## [0.6.1](changelog/0.6.x/0.6.1.md) — 2026-04-21
 
 Landing page polish — terminal-chrome connect card with tabbed snippets, envExample config, dot-separated status strip, ambient accent hairline
