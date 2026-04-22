@@ -33,7 +33,7 @@ import process from 'node:process';
 
 const CHANGELOG_DIR = resolve('changelog');
 const CHANGELOG_PATH = resolve('CHANGELOG.md');
-const EXCLUDED_FILES = new Set(['unreleased.md', 'README.md']);
+const EXCLUDED_FILES = new Set(['template.md', 'README.md']);
 const SERIES_PATTERN = /^\d+\.\d+\.x$/;
 const SUMMARY_MAX_LENGTH = 250;
 
