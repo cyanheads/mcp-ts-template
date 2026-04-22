@@ -33,33 +33,6 @@ await createApp({ tools: [greet] });
 
 That's a complete MCP server. Every tool call is automatically logged with duration, payload sizes, memory usage, and request correlation — no instrumentation code needed. `createApp()` handles config parsing, logger init, transport startup, signal handlers, and graceful shutdown.
 
-## Let the agent drive
-
-```bash
-bunx @cyanheads/mcp-ts-core init my-mcp-server
-```
-
-The plumbing is already built. Transports, auth, storage, telemetry, lifecycle, linting — all in the framework. What's left is domain: which APIs to wrap, which workflows to expose, how tools should behave.
-
-You bring the domain; your agent does the heavy lifting. The scaffold ships with Agent Skills covering the full build cycle — orienting in the project, designing the tool surface against a live API, scaffolding tools/resources/services, testing, polishing docs, cutting releases. 
-
-Start your coding agent (Claude Code, Codex, Cursor) in the scaffolded project and describe the system you want to expose. It reads the included `CLAUDE.md`/`AGENTS.md`, follows the `setup` → `design-mcp-server` → scaffolding flow, and builds the server while you collaborate as director.
-
-## Features
-
-- **Declarative definitions** — `tool()`, `resource()`, `prompt()` builders with Zod schemas. `appTool()` and `appResource()` for MCP Apps with interactive HTML UIs. Framework handles registration, validation, and response formatting.
-- **Unified Context** — handlers receive a single `ctx` object with `ctx.log` (request-scoped logging), `ctx.state` (tenant-scoped storage), `ctx.elicit` (user prompting), `ctx.sample` (LLM completion), and `ctx.signal` (cancellation).
-- **Inline auth** — `auth: ['scope']` on definitions. No wrapper functions. Framework checks scopes before calling your handler.
-- **Task tools** — `task: true` flag for long-running operations. Framework manages the full lifecycle (create, poll, progress, complete/fail/cancel).
-- **Definition linter** — `validateDefinitions()` checks tools, resources, and prompts against MCP spec at startup. Name format, schema structure, `.describe()` presence, JSON Schema serializability, auth scope validity, annotation coherence, URI template–params alignment, and **format-parity** (every field in a tool's `output` must be rendered by `format()` — verified via sentinel injection, since different MCP clients forward different surfaces to the model and both `structuredContent` and `content[]` must carry the same data). Also available as a standalone CLI (`lint:mcp`) and devcheck step.
-- **Structured error handling** — Handlers throw freely; the framework catches, classifies, and formats. Error factories (`notFound()`, `validationError()`, `serviceUnavailable()`, etc.) for precise control when the code matters. Auto-classification from plain `Error` messages when it doesn't.
-- **Multi-backend storage** — `in-memory`, `filesystem`, `Supabase`, `Cloudflare D1/KV/R2`. Swap providers via env var without changing tool logic. Cursor pagination, batch ops, TTL, tenant isolation.
-- **Pluggable auth** — `none`, `jwt`, or `oauth` modes. JWT with local secret or OAuth with JWKS verification.
-- **Observability** — Pino structured logging with optional OpenTelemetry tracing and metrics. Request IDs, trace correlation, tool execution metrics — all automatic.
-- **Local + edge** — Same code runs on stdio, HTTP (Hono), and Cloudflare Workers. `createApp()` for Node, `createWorkerHandler()` for Workers.
-- **Tiered dependencies** — Core deps always installed. Parsers, sanitization, scheduling, OTEL SDK, Supabase, OpenAI — optional peers. Install what you use.
-- **Agent-first DX** — Ships `CLAUDE.md` with full exports catalog, patterns, and contracts. AI coding agents can build on the framework with zero ramp-up.
-
 ## Quick start
 
 ```bash
@@ -68,7 +41,9 @@ cd my-mcp-server
 bun install
 ```
 
-That gives you a working project with `CLAUDE.md`, skills, config files, and a scaffolded `src/` directory. Open it in your editor, start your coding agent, and tell it what tools to build. The agent learns the framework from the included docs and skills — tool definitions, resources, services, testing patterns, all of it.
+You get a scaffolded project with `CLAUDE.md`, Agent Skills, and a `src/` tree ready for your tools. Infrastructure — transports, auth, storage, telemetry, lifecycle, linting — lives in `node_modules`. What's left is domain: which APIs to wrap, which workflows to expose.
+
+Start your coding agent (Claude Code, Codex, Cursor), describe the system you want to expose, and it drives the build. The included skills cover the full cycle: `setup`, `design-mcp-server`, scaffolding, testing, release.
 
 ### What you get
 
@@ -118,6 +93,21 @@ await createApp({
 ```
 
 It also works on Cloudflare Workers with `createWorkerHandler()` — same definitions, different entry point.
+
+## Features
+
+- **Declarative definitions** — `tool()`, `resource()`, `prompt()` builders with Zod schemas. `appTool()`/`appResource()` add interactive HTML UIs.
+- **Unified Context** — one `ctx` for logging, tenant-scoped storage, elicitation, sampling, cancellation, and task progress.
+- **Inline auth** — `auth: ['scope']` on definitions. Framework checks scopes before dispatch — no wrapper code.
+- **Task tools** — `task: true` for long-running ops; framework manages create/poll/progress/complete/cancel.
+- **Definition linter** — validates names, schemas, auth scopes, annotation coherence, and format-parity at startup. Standalone CLI (`lint:mcp`) and devcheck step.
+- **Structured errors** — handlers throw; framework catches, classifies, and formats. Error factories (`notFound()`, `validationError()`, …) when the code matters.
+- **Multi-backend storage** — `in-memory`, filesystem, Supabase, Cloudflare D1/KV/R2. Swap providers via env var; handlers don't change.
+- **Pluggable auth** — `none`, `jwt`, or `oauth`. Local secret or JWKS verification.
+- **Observability** — Pino logging, optional OpenTelemetry traces and metrics. Request correlation and tool metrics are automatic.
+- **Local + edge** — same definitions run on stdio, HTTP (Hono), and Cloudflare Workers.
+- **Tiered dependencies** — parsers, OTEL SDK, Supabase, and OpenAI are optional peers. Install what you use.
+- **Agent-first DX** — ships `CLAUDE.md` with the full exports catalog so AI agents ramp up without prompting.
 
 ## Server structure
 
