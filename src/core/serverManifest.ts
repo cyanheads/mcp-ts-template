@@ -23,6 +23,7 @@ import type { AnyPromptDefinition } from '@/mcp-server/prompts/utils/promptDefin
 import type { AnyResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import type { AnyToolDef } from '@/mcp-server/tools/tool-registration.js';
 import type { AnyToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
+import { configurationError } from '@/types-global/errors.js';
 
 // ---------------------------------------------------------------------------
 // Public config surface (accepted by createApp({ landing }))
@@ -97,6 +98,25 @@ export const LANDING_MAX_LINKS = 6;
 export const LANDING_MAX_ENV_EXAMPLE = 12;
 /** `repoRoot` must match `https://github.com/{owner}/{repo}` with no trailing path. */
 export const GITHUB_REPO_ROOT_PATTERN = /^https:\/\/github\.com\/([^/\s]+)\/([^/\s?#]+?)\/?$/;
+/** Max length for `landing.theme.accent`. Anything longer is almost certainly an injection attempt. */
+export const LANDING_ACCENT_MAX_LENGTH = 128;
+
+/**
+ * Reject CSS values that could escape the custom-property declaration context
+ * (`--accent: ${value};`). The renderer HTML-escapes the value, but that's the
+ * wrong escape for a CSS context — `;`, `{`, `}`, comment markers, and
+ * backslash escapes all survive HTML escaping and can break out. This is the
+ * real defense; it's a content shape check, not a full CSS color parser, so
+ * new color spaces (`oklch`, `color-mix`, future additions) pass through
+ * without regex churn.
+ */
+export function isSafeCssColor(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed.length > LANDING_ACCENT_MAX_LENGTH) return false;
+  if (/[;{}\\<>]/.test(trimmed)) return false;
+  if (trimmed.includes('/*') || trimmed.includes('*/')) return false;
+  return /^[#a-zA-Z]/.test(trimmed);
+}
 
 // ---------------------------------------------------------------------------
 // Manifest shape (the thing consumed by `/mcp`, Server Card, landing page)
@@ -430,6 +450,12 @@ export function buildServerManifest(input: BuildServerManifestInput): ServerMani
   const repoRoot = detectGitHubRepo(landing.repoRoot ?? config.mcpServerHomepage);
 
   const accent = landing.theme?.accent ?? '#6366f1'; // indigo-500 — used by tokens when unset
+  if (!isSafeCssColor(accent)) {
+    throw configurationError(
+      `landing.theme.accent "${accent}" contains characters that are unsafe to interpolate into CSS. Use a hex color (e.g. "#6366f1"), a named color (e.g. "indigo"), or a functional notation like "rgb(99 102 241)" or "oklch(0.7 0.2 280)".`,
+      { field: 'landing.theme.accent', value: accent },
+    );
+  }
   const attribution = landing.attribution ?? true;
   const requireAuth = landing.requireAuth ?? false;
 

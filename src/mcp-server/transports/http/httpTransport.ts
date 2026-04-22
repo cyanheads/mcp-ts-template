@@ -21,7 +21,7 @@ import { createAuthMiddleware } from '@/mcp-server/transports/auth/authMiddlewar
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import { httpErrorHandler } from '@/mcp-server/transports/http/httpErrorHandler.js';
 import type { HonoNodeBindings } from '@/mcp-server/transports/http/httpTypes.js';
-import { createLandingPageHandler } from '@/mcp-server/transports/http/landing-page.js';
+import { createLandingPageHandler } from '@/mcp-server/transports/http/landing-page/index.js';
 import { protectedResourceMetadataHandler } from '@/mcp-server/transports/http/protectedResourceMetadata.js';
 import { createServerCardHandler } from '@/mcp-server/transports/http/serverCard.js';
 import { generateSecureSessionId } from '@/mcp-server/transports/http/sessionIdUtils.js';

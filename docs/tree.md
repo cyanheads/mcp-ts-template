@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-04-22 15:43:37
+Generated on: 2026-04-22 23:00:55
 
 ```text
 mcp-ts-core/
@@ -248,10 +248,27 @@ mcp-ts-core/
 │   │   │   │   ├── authFactory.ts
 │   │   │   │   └── authMiddleware.ts
 │   │   │   ├── http/
+│   │   │   │   ├── landing-page/
+│   │   │   │   │   ├── assets/
+│   │   │   │   │   │   ├── copy-script.ts
+│   │   │   │   │   │   └── styles.ts
+│   │   │   │   │   ├── sections/
+│   │   │   │   │   │   ├── connect.ts
+│   │   │   │   │   │   ├── extensions.ts
+│   │   │   │   │   │   ├── footer.ts
+│   │   │   │   │   │   ├── head.ts
+│   │   │   │   │   │   ├── hero.ts
+│   │   │   │   │   │   ├── prompts.ts
+│   │   │   │   │   │   ├── resources.ts
+│   │   │   │   │   │   ├── status-strip.ts
+│   │   │   │   │   │   └── tools.ts
+│   │   │   │   │   ├── handler.ts
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── primitives.ts
+│   │   │   │   │   └── render.ts
 │   │   │   │   ├── httpErrorHandler.ts
 │   │   │   │   ├── httpTransport.ts
 │   │   │   │   ├── httpTypes.ts
-│   │   │   │   ├── landing-page.ts
 │   │   │   │   ├── protectedResourceMetadata.ts
 │   │   │   │   ├── serverCard.ts
 │   │   │   │   ├── sessionIdUtils.ts

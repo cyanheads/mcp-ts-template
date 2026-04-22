@@ -7,7 +7,7 @@
  */
 
 import { Hono } from 'hono';
-import { describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 import type { AppConfig } from '@/config/index.js';
 import type { ManifestTool, ServerManifest } from '@/core/serverManifest.js';
@@ -15,8 +15,9 @@ import { buildServerManifest } from '@/core/serverManifest.js';
 import {
   createLandingPageHandler,
   renderLandingPage,
-} from '@/mcp-server/transports/http/landing-page.js';
+} from '@/mcp-server/transports/http/landing-page/index.js';
 import { ADVERSARIAL_STRINGS } from '@/testing/fuzz.js';
+import { logger } from '@/utils/internal/logger.js';
 import { defaultServerManifest } from '../../../../helpers/fixtures.js';
 
 vi.mock('@/utils/internal/logger.js', () => ({
@@ -541,7 +542,11 @@ describe('renderLandingPage — safety', () => {
     expect(html).toContain('</html>');
   });
 
-  test('escapes accent color input', () => {
+  test('sanitizes CSS-injection accent via renderTokens fallback', () => {
+    // Direct ServerManifest construction bypasses buildServerManifest's
+    // validation, so renderTokens is the last line of defense. Expect the
+    // malicious payload to be fully dropped and the default indigo accent
+    // used instead.
     const manifest: ServerManifest = {
       ...defaultServerManifest,
       landing: {
@@ -550,9 +555,16 @@ describe('renderLandingPage — safety', () => {
       },
     };
     const html = renderLandingPage(manifest, 'https://example.com');
-    // The accent is written into a CSS var — content-escaped, not CSS-safe,
-    // but the HTML escape prevents </style> from being injected.
-    expect(html).not.toContain('</style><script>');
+    // Check inside the <style> block only — the raw payload still appears
+    // (escaped) inside `<meta name="theme-color" content="...">` as a
+    // stringly-attribute, which is safe but would false-positive a naive
+    // substring match against the whole document.
+    const styleBlock = html.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? '';
+    expect(styleBlock).not.toContain('red; } body');
+    expect(styleBlock).not.toContain('/* attack */');
+    expect(styleBlock).not.toContain('background: red');
+    // Fallback accent (indigo-500) is used instead.
+    expect(styleBlock).toContain('--accent: #6366f1;');
   });
 });
 
@@ -592,5 +604,197 @@ describe('renderLandingPage — tool schema preview and args', () => {
     // `"q"` → `&quot;q&quot;` after HTML-escaping through html``.
     expect(html).toContain('&quot;q&quot;');
     expect(html).toContain('&quot;limit&quot;');
+  });
+});
+
+describe('buildServerManifest — accent validation', () => {
+  const baseInput = () => ({
+    config: stubConfig(),
+    tools: [],
+    resources: [],
+    prompts: [],
+  });
+
+  test.each([
+    ['hex (short)', '#fff'],
+    ['hex (long)', '#6366f1'],
+    ['hex with alpha', '#6366f1cc'],
+    ['named color', 'indigo'],
+    ['rgb()', 'rgb(99, 102, 241)'],
+    ['rgb() with spaces', 'rgb(99 102 241)'],
+    ['hsl() with slash-alpha', 'hsl(180 50% 50% / 0.5)'],
+    ['oklch()', 'oklch(0.7 0.2 140)'],
+    ['oklab()', 'oklab(0.7 0.1 0.1)'],
+    ['currentcolor', 'currentcolor'],
+  ])('accepts %s: %s', (_label, accent) => {
+    expect(() =>
+      buildServerManifest({
+        ...baseInput(),
+        landing: { theme: { accent } },
+      }),
+    ).not.toThrow();
+  });
+
+  test.each([
+    ['semicolon breakout', 'red; background: url(x)'],
+    ['brace injection', 'red) } body { color: red'],
+    ['angle brackets', '<script>alert(1)</script>'],
+    ['block comment open', 'red /* attack'],
+    ['block comment close', 'red */ x'],
+    ['backslash escape', 'red\\00003b'],
+    ['leading digit', '123'],
+    ['leading at-rule', '@import url(x)'],
+    ['empty string', ''],
+    ['whitespace-only', '   '],
+  ])('rejects %s: %s', (_label, accent) => {
+    expect(() =>
+      buildServerManifest({
+        ...baseInput(),
+        landing: { theme: { accent } },
+      }),
+    ).toThrow(/landing\.theme\.accent/);
+  });
+
+  test('exceeds length cap (>128) is rejected', () => {
+    const long = `#${'a'.repeat(200)}`;
+    expect(() =>
+      buildServerManifest({
+        ...baseInput(),
+        landing: { theme: { accent: long } },
+      }),
+    ).toThrow(/landing\.theme\.accent/);
+  });
+});
+
+describe('createLandingPageHandler — security headers', () => {
+  test('sets a strict Content-Security-Policy', async () => {
+    const app = new Hono();
+    app.get('/', createLandingPageHandler(defaultServerManifest));
+    const response = await app.fetch(new Request('https://example.com/'));
+    const csp = response.headers.get('content-security-policy');
+    expect(csp).toBeTruthy();
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("style-src 'unsafe-inline'");
+    expect(csp).toContain("script-src 'unsafe-inline'");
+    expect(csp).toContain("img-src 'self' data: https:");
+    expect(csp).toContain("form-action 'none'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("base-uri 'none'");
+  });
+
+  test('CSP is present on degraded responses too', async () => {
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      landing: { ...defaultServerManifest.landing, requireAuth: true },
+    };
+    const app = new Hono();
+    app.get('/', createLandingPageHandler(manifest));
+    const response = await app.fetch(new Request('https://example.com/'));
+    expect(response.headers.get('content-security-policy')).toBeTruthy();
+  });
+});
+
+describe('createLandingPageHandler — memoization when publicUrl is set', () => {
+  beforeEach(() => {
+    vi.mocked(logger.debug).mockClear();
+  });
+
+  test('reuses precomputed HTML across requests', async () => {
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      transport: {
+        ...defaultServerManifest.transport,
+        publicUrl: 'https://mcp.example.com',
+      },
+    };
+    const app = new Hono();
+    app.get('/', createLandingPageHandler(manifest));
+
+    const [r1, r2] = await Promise.all([
+      app.fetch(new Request('https://mcp.example.com/')),
+      app.fetch(new Request('http://whatever.internal/')),
+    ]);
+    const [b1, b2] = await Promise.all([r1.text(), r2.text()]);
+
+    expect(b1).toBe(b2);
+    expect(b1).toContain('https://mcp.example.com/mcp');
+    // Debug log records that the cache path was taken.
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ cached: true }),
+    );
+  });
+
+  test('renders per-request when publicUrl is unset', async () => {
+    // defaultServerManifest.transport has no publicUrl, so no override needed.
+    const app = new Hono();
+    app.get('/', createLandingPageHandler(defaultServerManifest));
+    await app.fetch(new Request('https://example.com/'));
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ cached: false }),
+    );
+  });
+
+  test('precomputed degraded body still omits tool inventory', async () => {
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      transport: {
+        ...defaultServerManifest.transport,
+        publicUrl: 'https://mcp.example.com',
+      },
+      landing: { ...defaultServerManifest.landing, requireAuth: true },
+      definitions: {
+        tools: [makeTool('hidden_tool')],
+        resources: [],
+        prompts: [],
+      },
+    };
+    const app = new Hono();
+    app.get('/', createLandingPageHandler(manifest));
+    const response = await app.fetch(new Request('https://mcp.example.com/'));
+    const body = await response.text();
+    expect(body).not.toContain('hidden_tool');
+    expect(body).toContain('authenticated');
+  });
+});
+
+describe('renderLandingPage — accessibility hygiene', () => {
+  test('status strip does not use role="status" (not a live region)', () => {
+    const html = renderLandingPage(defaultServerManifest, 'https://example.com');
+    expect(html).toContain('class="status-strip"');
+    expect(html).not.toMatch(/class="status-strip"[^>]*role="status"/);
+  });
+
+  test('connect tabs do not advertise a partial ARIA tab pattern', () => {
+    const html = renderLandingPage(defaultServerManifest, 'https://example.com');
+    expect(html).not.toContain('role="tablist"');
+    expect(html).not.toContain('role="tab"');
+    expect(html).not.toContain('role="tabpanel"');
+  });
+});
+
+describe('renderLandingPage — warn-token extraction', () => {
+  test('exposes --warn family in :root tokens', () => {
+    const html = renderLandingPage(defaultServerManifest, 'https://example.com');
+    expect(html).toContain('--warn:');
+    expect(html).toContain('--warn-text:');
+    expect(html).toContain('--warn-bg:');
+    expect(html).toContain('--warn-edge:');
+  });
+
+  test('pre-release badge resolves through --warn-* vars, not raw hex', () => {
+    const manifest = buildServerManifest({
+      config: stubConfig({ mcpServerVersion: '1.0.0-beta.1' }),
+      tools: [],
+      resources: [],
+      prompts: [],
+    });
+    const html = renderLandingPage(manifest, 'https://example.com');
+    expect(html).toMatch(/\.badge-pre\s*\{[\s\S]*?color:\s*var\(--warn-text\)/);
+    expect(html).toMatch(/\.badge-pre\s*\{[\s\S]*?background:\s*var\(--warn-bg\)/);
+    expect(html).toMatch(/\.badge-pre\s*\{[\s\S]*?border:\s*1px\s+solid\s+var\(--warn-edge\)/);
+    // The old hardcoded amber hex should no longer appear in the .badge-pre block.
+    expect(html).not.toMatch(/\.badge-pre\s*\{[\s\S]*?color:\s*#b45309/);
   });
 });
