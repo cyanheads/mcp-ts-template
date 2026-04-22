@@ -1652,8 +1652,7 @@ export function createLandingPageHandler(manifest: ServerManifest) {
     const context = requestContextService.createRequestContext({
       operation: 'landingPageHandler',
     });
-    const url = new URL(c.req.url);
-    const baseUrl = url.origin;
+    const baseUrl = manifest.transport.publicUrl ?? new URL(c.req.url).origin;
 
     const requireAuth = manifest.landing.requireAuth;
     const authHeader = c.req.header('authorization');

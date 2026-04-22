@@ -139,4 +139,21 @@ describe('createServerCardHandler', () => {
     expect(body.mcp_version).toBeDefined();
     expect(body.capabilities).toBeDefined();
   });
+
+  test('uses manifest.transport.publicUrl when set (proxied deployment)', async () => {
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      transport: {
+        ...defaultServerManifest.transport,
+        publicUrl: 'https://mcp.example.com',
+      },
+    };
+    const app = new Hono();
+    app.get('/.well-known/mcp.json', createServerCardHandler(manifest));
+
+    // Inbound request arrives over http (simulating proxy → container hop)
+    const response = await app.fetch(new Request('http://internal.container/.well-known/mcp.json'));
+    const body = (await response.json()) as { endpoints: { streamable_http: string } };
+    expect(body.endpoints.streamable_http).toBe('https://mcp.example.com/mcp');
+  });
 });

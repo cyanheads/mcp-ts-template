@@ -464,6 +464,25 @@ describe('createLandingPageHandler — HTTP behavior', () => {
     expect(body).not.toContain('tool-hidden_tool');
     expect(body).not.toContain('Description of hidden_tool');
   });
+
+  test('uses manifest.transport.publicUrl when set (proxied deployment)', async () => {
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      transport: {
+        ...defaultServerManifest.transport,
+        publicUrl: 'https://mcp.example.com',
+      },
+    };
+    const app = new Hono();
+    app.get('/', createLandingPageHandler(manifest));
+
+    // Inbound request arrives over http (simulating proxy → container hop)
+    const response = await app.fetch(new Request('http://internal.container/'));
+    const body = await response.text();
+
+    expect(body).toContain('https://mcp.example.com/mcp');
+    expect(body).not.toContain('http://internal.container');
+  });
 });
 
 describe('renderLandingPage — safety', () => {
