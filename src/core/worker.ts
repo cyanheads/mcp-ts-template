@@ -37,6 +37,7 @@ export interface CloudflareBindings {
   MCP_ALLOWED_ORIGINS?: string;
   MCP_AUTH_MODE?: string;
   MCP_AUTH_SECRET_KEY?: string;
+  MCP_PUBLIC_URL?: string;
   OAUTH_AUDIENCE?: string;
   OAUTH_ISSUER_URL?: string;
   OAUTH_JWKS_URI?: string;
@@ -78,6 +79,7 @@ const CORE_ENV_BINDINGS: ReadonlyArray<[keyof CloudflareBindings, string]> = [
   ['LOG_LEVEL', 'MCP_LOG_LEVEL'],
   ['MCP_AUTH_MODE', 'MCP_AUTH_MODE'],
   ['MCP_AUTH_SECRET_KEY', 'MCP_AUTH_SECRET_KEY'],
+  ['MCP_PUBLIC_URL', 'MCP_PUBLIC_URL'],
   ['OPENROUTER_API_KEY', 'OPENROUTER_API_KEY'],
   ['SUPABASE_URL', 'SUPABASE_URL'],
   ['SUPABASE_ANON_KEY', 'SUPABASE_ANON_KEY'],
