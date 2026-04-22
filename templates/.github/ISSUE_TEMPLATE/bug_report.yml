@@ -19,7 +19,7 @@ body:
     id: framework-version
     attributes:
       label: mcp-ts-core version
-      placeholder: "0.1.29"
+      placeholder: "0.x.y"
     validations:
       required: true
 

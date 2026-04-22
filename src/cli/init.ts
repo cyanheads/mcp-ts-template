@@ -58,8 +58,7 @@ function printUsage(): void {
     mcp-ts-core --help        Show this help message
 
   Examples:
-    npx @cyanheads/mcp-ts-core init my-mcp-server
-    bunx @cyanheads/mcp-ts-core init banking-server
+    bunx @cyanheads/mcp-ts-core init my-mcp-server
 `);
 }
 

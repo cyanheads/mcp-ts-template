@@ -8,8 +8,9 @@ Thumbs.db
 # IDE AND EDITOR FILES
 # =============================================================================
 .idea/
-.vscode/!settings.json
-.vscode/!extensions.json
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 *.swp
 *.swo
 *~

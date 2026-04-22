@@ -1,7 +1,7 @@
 # Agent Protocol
 
 **Server:** {{PACKAGE_NAME}}
-**Version:** 0.1.1
+**Version:** 0.1.0
 **Framework:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core)
 
 > **Read the framework docs first:** `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md` contains the full API reference — builders, Context, error codes, exports, patterns. This file covers server-specific conventions only.

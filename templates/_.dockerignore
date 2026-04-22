@@ -195,3 +195,4 @@ docs/api/
 repomix-output*
 duckdata/
 .claude
+.agents
