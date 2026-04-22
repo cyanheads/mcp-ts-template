@@ -4,7 +4,7 @@ All notable changes to this project. Each entry links to its full per-version fi
 
 ## [0.6.6](changelog/0.6.x/0.6.6.md) — 2026-04-22
 
-MCP_PUBLIC_URL override for deployments behind TLS-terminating proxies; design-mcp-server skill v2.6 formalizes tool archetypes; changelog/unreleased.md renamed to changelog/template.md
+MCP_PUBLIC_URL override for TLS-terminating proxies; design-mcp-server overhaul — 3-word tool naming convention and simpler shape taxonomy; changelog/unreleased.md → template.md
 
 ## [0.6.5](changelog/0.6.x/0.6.5.md) — 2026-04-22
 
