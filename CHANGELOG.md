@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.5](changelog/0.6.x/0.6.5.md) — 2026-04-22
+
+README "Let the agent drive" scaffolding pitch, package description tightened, dependency sweep (ext-apps 1.7, vitest 4.1.5, workers-types)
+
 ## [0.6.4](changelog/0.6.x/0.6.4.md) — 2026-04-21
 
 Fix landing-page connect snippets for hosted HTTP deployments — drop no-op env block from HTTP config, retarget Claude tab at the HTTP endpoint

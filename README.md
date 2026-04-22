@@ -5,7 +5,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.6.4-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.6.5-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.2-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
@@ -32,6 +32,16 @@ await createApp({ tools: [greet] });
 ```
 
 That's a complete MCP server. Every tool call is automatically logged with duration, payload sizes, memory usage, and request correlation — no instrumentation code needed. `createApp()` handles config parsing, logger init, transport startup, signal handlers, and graceful shutdown.
+
+## Let the agent drive
+
+```bash
+bunx @cyanheads/mcp-ts-core init my-mcp-server
+```
+
+The plumbing is already built. Transports, auth, storage, telemetry, lifecycle, linting — all in the framework. What's left is domain: which APIs to wrap, which workflows to expose, how tools should behave.
+
+You bring the domain; your agent does the heavy lifting. The scaffold ships with Agent Skills covering the full build cycle — orienting in the project, designing the tool surface against a live API, scaffolding tools/resources/services, testing, polishing docs, cutting releases. Start your coding agent (Claude Code, Codex, Cursor) in the scaffolded project and describe the system you want to expose. It reads the included `CLAUDE.md`/`AGENTS.md`, follows the `setup` → `design-mcp-server` → scaffolding flow, and builds the server while you collaborate as director.
 
 ## Features
 

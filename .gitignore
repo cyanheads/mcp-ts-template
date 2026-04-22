@@ -190,6 +190,7 @@ ideas/
 .agents/
 announcements/
 agent-feedback/
+claude-plans/
 
 # =============================================================================
 # MCP REGISTRY
