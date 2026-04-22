@@ -12,7 +12,7 @@
  *   • Reads CHANGELOG.md, splits on `## [X.Y.Z] - YYYY-MM-DD` headers
  *   • Groups by minor series: 0.1.4 → changelog/0.1.x/0.1.4.md
  *   • Writes each version block with an H1 heading
- *   • Creates changelog/unreleased.md template if missing
+ *   • Creates changelog/template.md template if missing
  *   • Overwrites existing per-version files (idempotent)
  *   • Drops the preamble (title + description) — that's handled by the build script
  *
@@ -26,9 +26,9 @@ import { resolve } from 'node:path';
 
 const CHANGELOG_PATH = resolve('CHANGELOG.md');
 const CHANGELOG_DIR = resolve('changelog');
-const UNRELEASED_PATH = resolve(CHANGELOG_DIR, 'unreleased.md');
+const TEMPLATE_PATH = resolve(CHANGELOG_DIR, 'template.md');
 
-const UNRELEASED_TEMPLATE = `# Unreleased
+const TEMPLATE_CONTENT = `# <version> — YYYY-MM-DD
 
 <!-- Brief summary of the upcoming release — delete this comment when filled in. -->
 
@@ -120,9 +120,9 @@ function main(): void {
     console.log(`  + changelog/${series}/ (${count} file${count === 1 ? '' : 's'})`);
   }
 
-  if (!existsSync(UNRELEASED_PATH)) {
-    writeFileSync(UNRELEASED_PATH, UNRELEASED_TEMPLATE);
-    console.log('  + changelog/unreleased.md (template)');
+  if (!existsSync(TEMPLATE_PATH)) {
+    writeFileSync(TEMPLATE_PATH, TEMPLATE_CONTENT);
+    console.log('  + changelog/template.md (format reference)');
   }
 
   console.log(`\nSplit ${sections.length} versions into ${seriesCounts.size} series.`);

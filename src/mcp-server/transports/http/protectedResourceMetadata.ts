@@ -28,7 +28,7 @@ export function protectedResourceMetadataHandler(c: Context): Response {
     operation: 'protectedResourceMetadataHandler',
   });
 
-  const origin = new URL(c.req.url).origin;
+  const origin = (config.mcpPublicUrl ?? new URL(c.req.url).origin).replace(/\/$/, '');
   const resource = config.mcpServerResourceIdentifier ?? config.oauthAudience ?? `${origin}/mcp`;
 
   const metadata: Record<string, unknown> = {

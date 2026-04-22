@@ -4,7 +4,7 @@ description: >
   Exercise tools, resources, and prompts with real-world inputs to verify behavior end-to-end. Use after adding or modifying definitions, or when the user asks to test, try out, or verify their MCP surface. Calls each definition with realistic and adversarial inputs and produces a report of issues, pain points, and recommendations.
 metadata:
   author: cyanheads
-  version: "1.2"
+  version: "1.3"
   audience: external
   type: debug
 ---
@@ -78,8 +78,8 @@ After testing everything, present a structured report:
 
 | Definition | Type | Status | Issues |
 |:-----------|:-----|:-------|:-------|
-| `search_items` | tool | pass | — |
-| `get_item` | tool | issues | Error message unhelpful for missing ID |
+| `acme_search_items` | tool | pass | — |
+| `acme_get_item` | tool | issues | Error message unhelpful for missing ID |
 | `item://` | resource | fail | Crashes on nonexistent ID |
 
 #### Detailed findings

@@ -40,7 +40,7 @@ const DEFAULT_IGNORE_PATTERNS: string[] = [
   'logs',
   '.husky/_',
   // Directory-based changelog — keep series dirs visible (0.1.x/, 0.5.x/) for structural
-  // orientation, but collapse out the per-version files. Top-level unreleased.md stays.
+  // orientation, but collapse out the per-version files. Top-level template.md stays.
   'changelog/*/*.md',
 ];
 

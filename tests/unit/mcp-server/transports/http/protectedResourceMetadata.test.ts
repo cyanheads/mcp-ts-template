@@ -11,6 +11,7 @@ const mockConfig = {
   mcpServerResourceIdentifier: undefined as string | undefined,
   oauthAudience: undefined as string | undefined,
   oauthIssuerUrl: 'https://issuer.example.com',
+  mcpPublicUrl: undefined as string | undefined,
 };
 
 const debugSpy = vi.fn();
@@ -101,5 +102,40 @@ describe('protectedResourceMetadataHandler', () => {
       bearer_methods_supported: ['header'],
       resource: 'https://audience.example.com',
     });
+  });
+
+  it('uses MCP_PUBLIC_URL for resource fallback (proxied deployment)', async () => {
+    mockConfig.mcpAuthMode = 'none';
+    mockConfig.mcpServerResourceIdentifier = undefined;
+    mockConfig.oauthAudience = undefined;
+    mockConfig.mcpPublicUrl = 'https://mcp.example.com';
+
+    const app = new Hono();
+    app.get('/.well-known/oauth-protected-resource', protectedResourceMetadataHandler);
+
+    // Inbound request arrives over http (simulating proxy → container hop)
+    const response = await app.request(
+      'http://internal.container/.well-known/oauth-protected-resource',
+    );
+    const data: Record<string, unknown> = await response.json();
+
+    expect(data.resource).toBe('https://mcp.example.com/mcp');
+  });
+
+  it('strips trailing slash from MCP_PUBLIC_URL', async () => {
+    mockConfig.mcpAuthMode = 'none';
+    mockConfig.mcpServerResourceIdentifier = undefined;
+    mockConfig.oauthAudience = undefined;
+    mockConfig.mcpPublicUrl = 'https://mcp.example.com/';
+
+    const app = new Hono();
+    app.get('/.well-known/oauth-protected-resource', protectedResourceMetadataHandler);
+
+    const response = await app.request(
+      'http://internal.container/.well-known/oauth-protected-resource',
+    );
+    const data: Record<string, unknown> = await response.json();
+
+    expect(data.resource).toBe('https://mcp.example.com/mcp');
   });
 });

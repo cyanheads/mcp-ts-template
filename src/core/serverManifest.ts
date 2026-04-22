@@ -112,6 +112,14 @@ export interface ManifestServer {
 
 export interface ManifestTransport {
   endpointPath: string;
+  /**
+   * Public-facing origin override (from `MCP_PUBLIC_URL`). When set, the
+   * landing page and Server Card render this as the base URL instead of
+   * deriving it from the inbound request — required behind TLS-terminating
+   * reverse proxies where the container sees `http://` but users reach it
+   * over `https://`.
+   */
+  publicUrl?: string;
   sessionMode: string;
   type: 'http' | 'stdio';
 }
@@ -491,6 +499,7 @@ export function buildServerManifest(input: BuildServerManifestInput): ServerMani
       type: config.mcpTransportType,
       endpointPath: config.mcpHttpEndpointPath,
       sessionMode: config.mcpSessionMode,
+      ...(config.mcpPublicUrl && { publicUrl: config.mcpPublicUrl }),
     },
     protocol: {
       supportedVersions: protocolVersions,

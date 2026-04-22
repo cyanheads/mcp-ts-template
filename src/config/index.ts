@@ -140,6 +140,16 @@ const ConfigSchema = z
     mcpHttpPort: z.coerce.number().min(0).max(65535).default(3010),
     mcpHttpHost: z.string().default('127.0.0.1'),
     mcpHttpEndpointPath: z.string().default('/mcp'),
+    /**
+     * Public-facing origin of the server (e.g. `https://mcp.example.com`).
+     * Overrides the inbound request URL when rendering self-referential
+     * URLs — the landing page connect snippets, the SEP-1649 Server Card
+     * `endpoints.streamable_http`, and the RFC 9728 `resource` fallback.
+     * Required when running behind a TLS-terminating reverse proxy
+     * (Cloudflare Tunnel, Caddy, nginx, ALB) so emitted URLs carry the
+     * public `https://` scheme instead of the proxy-to-container `http://`.
+     */
+    mcpPublicUrl: z.preprocess(emptyStringAsUndefined, z.url().optional()),
     mcpHttpMaxPortRetries: z.coerce.number().default(15),
     mcpHttpPortRetryDelayMs: z.coerce.number().default(50),
     mcpStatefulSessionStaleTimeoutMs: z.coerce.number().default(1_800_000),
@@ -369,6 +379,7 @@ const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
     mcpHttpPort: env.MCP_HTTP_PORT,
     mcpHttpHost: env.MCP_HTTP_HOST,
     mcpHttpEndpointPath: env.MCP_HTTP_ENDPOINT_PATH,
+    mcpPublicUrl: env.MCP_PUBLIC_URL,
     mcpHttpMaxPortRetries: env.MCP_HTTP_MAX_PORT_RETRIES,
     mcpHttpPortRetryDelayMs: env.MCP_HTTP_PORT_RETRY_DELAY_MS,
     mcpStatefulSessionStaleTimeoutMs: env.MCP_STATEFUL_SESSION_STALE_TIMEOUT_MS,

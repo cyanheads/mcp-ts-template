@@ -97,6 +97,25 @@ describe('config parsing', () => {
     }
   });
 
+  it('parses MCP_PUBLIC_URL when set, defaults to undefined', () => {
+    expect(parseConfig().mcpPublicUrl).toBeUndefined();
+
+    process.env.MCP_PUBLIC_URL = 'https://mcp.example.com';
+    expect(parseConfig().mcpPublicUrl).toBe('https://mcp.example.com');
+
+    process.env.MCP_PUBLIC_URL = '';
+    expect(parseConfig().mcpPublicUrl).toBeUndefined();
+  });
+
+  it('rejects MCP_PUBLIC_URL that is not a valid URL', () => {
+    process.env.MCP_PUBLIC_URL = 'not-a-url';
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.stdout.isTTY = true;
+
+    expect(() => parseConfig()).toThrow(McpError);
+    consoleSpy.mockRestore();
+  });
+
   it('throws a configuration error when validation fails', async () => {
     // Mock console.error BEFORE setting isTTY to suppress output during tests
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

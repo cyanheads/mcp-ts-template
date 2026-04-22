@@ -4,7 +4,7 @@ description: >
   Design the tool surface, resources, and service layer for a new MCP server. Use when starting a new server, planning a major feature expansion, or when the user describes a domain/API they want to expose via MCP. Produces a design doc at docs/design.md that drives implementation.
 metadata:
   author: cyanheads
-  version: "2.5"
+  version: "2.7"
   audience: external
   type: workflow
 ---
@@ -22,26 +22,28 @@ Do NOT use for single-tool additions — use `add-tool` directly.
 
 Gather before designing. Ask the user if not obvious from context:
 
-1. **Domain** — what system, API, or capability is this server wrapping?
-2. **Data sources** — APIs, databases, file systems, external services?
+1. **Domain** — what system, API, or capability is this server wrapping? Or is the server providing internal capability with no external dependency (computation, text/code utilities, in-memory state)?
+2. **Data sources / source of truth** — APIs, databases, file systems, external services? Or is the server itself the source (in-memory state, pure computation, local-only utility, embedded model)?
 3. **Target users** — what will the LLM (and its human) be trying to accomplish?
 4. **Scope constraints** — read-only? write access? admin operations? what's off-limits?
 
-If the domain has a public API, read its docs before designing. Don't design from vibes.
+If the domain has a public API, read its docs before designing. For internal-only servers, skip API research and go straight to user goals. Don't design from vibes either way.
 
 ## Steps
 
 ### 1. Research External Dependencies
 
+**Applies when:** the server wraps an external API or service. Skip for internal-only servers (computation, local file ops, in-memory state, code analysis utilities) and jump to Step 2.
+
 Before designing, verify the APIs and services the server will wrap. Read the docs, then **hit the API** — real requests reveal what docs omit.
 
-If the Agent tool is available, spawn background agents to research in parallel while you proceed with domain mapping:
+Research inline by default — fetch docs, read SDK readmes, confirm assumptions before committing them to the design. For each external dependency:
 
 - Fetch API docs, confirm endpoint availability, auth methods, rate limits
 - Check for official SDKs or client libraries (npm packages)
 - Note any API quirks, pagination patterns, or data format considerations
 
-If the Agent tool is not available, do this research inline — fetch docs, read SDK readmes, confirm assumptions before committing them to the design.
+When research is genuinely parallelizable (multiple independent APIs, several SDKs to evaluate), spawn background agents for the independent legs while you proceed with domain mapping. Skip the overhead for a single API — just read it yourself.
 
 **Live API probing.** After reading docs, make real requests against the API to verify assumptions:
 
@@ -53,11 +55,18 @@ If the Agent tool is not available, do this research inline — fetch docs, read
 
 This step prevents building a service layer against assumed response shapes that don't match reality.
 
-### 2. Map the Domain
+### 2. Map User Goals, Then Domain Operations
 
-List the concrete operations the underlying system supports. Group by domain noun.
+Start with **user goals**, not endpoints. Enumerate the outcomes an agent (and its human) will actually try to accomplish with this server — usually 3–10, scaled to domain size. These drive the workflow tools that form the spine of the surface. Endpoint-inventory-first design produces 1:1 API mirrors; goal-first design produces tools agents reach for. For internal-only servers, goals map to capabilities rather than endpoints — e.g., "format markdown to GFM," "tokenize text by model," "compute file hash."
 
-Example for a project management API:
+Example user goals for a project management server:
+
+- Find tasks I'm assigned to that are due soon
+- Create a task in a project, assign it, and notify the owner
+- Mark a task complete and log the outcome
+- Audit a project's overdue work
+
+Then enumerate the underlying **domain operations** the system supports, grouped by noun. These are the raw material workflow tools compose and single-action tools back-fill where workflows don't cover an edge case.
 
 | Noun | Operations |
 |:-----|:-----------|
@@ -65,7 +74,7 @@ Example for a project management API:
 | Task | list (by project), get, create, update status, assign, comment |
 | User | list, get current |
 
-This is the raw material. Not everything becomes a tool.
+The user-goal list shapes the tool surface; the operation list fills in the gaps. Not every operation becomes a tool.
 
 ### 3. Classify into MCP Primitives
 
@@ -87,9 +96,24 @@ What the tool surface needs to cover depends on the server: a read-only research
 - **CRUD explosion**: Don't map every REST endpoint to a tool. Related operations on the same noun often belong in one tool with an `operation`/`mode` parameter (see Step 4).
 - **1:1 endpoint mirroring**: API endpoints are designed for programmatic consumers. LLM tools should be designed for workflows — what an agent is *trying to accomplish*, not what HTTP calls happen under the hood.
 
+**Irreversible operations stay in the UI.** The "Neither" bucket above covers operations that aren't useful to an LLM. There's a second, sharper reason to exclude something from the tool surface: operations whose failure mode is catastrophic and unrecoverable. Examples span domains — dropping a production database table (data loss across every row), force-emptying a versioned cloud-storage bucket (no recovery once the lifecycle policy fires), revoking the workspace's last admin role (locks everyone out, recovery requires vendor support), GDPR permanent-delete on a customer profile (un-restorable by design), purging an analytics warehouse partition older than the retention window (auditable history gone), or deleting the single audience on a free-plan email platform (nukes every subscriber and historical report in one call). These are useful to an LLM *in principle*, but the blast radius of a mis-call is disproportionate to any agent workflow. Humans do these in the vendor UI, where confirmation dialogs and undo paths exist. Agents shouldn't have the tool at all.
+
+This is distinct from `destructiveHint` — that annotation is for operations that are destructive but recoverable (deleting a task, reverting a commit) and agents should still have them. The "stays in the UI" line applies only to operations whose failure is both catastrophic *and* irreversible.
+
 ### 4. Design Tools
 
 This is the highest-leverage step. Tool definitions — names, descriptions, parameters, output schemas — are the **entire interface contract** the LLM reads to decide whether and how to call a tool. Every field is context. Design accordingly.
+
+#### Tool shapes you'll encounter
+
+Most tools follow the `{server}_{verb}_{noun}` default — one focused responsibility, one clear verb, often (but not always) one upstream call. API-wrapping examples: `pubmed_search_articles`, `pubmed_fetch_articles`. Internal-only examples: `markdown_format_text`, `regex_test_pattern`, `tokens_count_text` — same naming convention, no external dep. Two variants warrant explicit design pressures of their own:
+
+| Shape | Purpose | Typical form | Examples |
+|:------|:--------|:-------------|:---------|
+| **Workflow** | Multi-step orchestration that replaces a common agent chain | N upstream calls (often parallelized); may elicit confirmation; may need mid-flow cleanup | `clinicaltrials_find_studies` (search → filter → rank) |
+| **Instruction** | State-aware procedural guidance — advice, not action | Static markdown + a few live-state fetches, `readOnlyHint: true`, outputs `nextToolSuggestions` pre-filling the recommended follow-up. No writes. | `git_wrapup_instructions` |
+
+These aren't boxes every tool must fit into — some blend shapes — but the design pressures differ enough that naming them helps avoid re-discovering the patterns per server. The subsections below cover considerations specific to each — workflow framing applies broadly, instruction tools and workflow safety are their own subsections.
 
 #### Think in workflows, not endpoints
 
@@ -97,42 +121,84 @@ The unit of a tool is a *useful action*, not an API call. Ask: "What is the agen
 
 A single tool can call multiple APIs internally, apply local filtering, reshape data, and return enriched results. The LLM doesn't know or care about the underlying calls.
 
-**Consolidation via operation/mode enum.** When a domain noun has several related operations that share parameters, consolidate into one tool with a discriminated parameter. This keeps the tool surface small and lets the LLM discover all capabilities in one place.
-
-```ts
-// One tool for all branch operations — not five separate tools
-const gitBranch = tool('git_branch', {
-  description: 'Manage branches: list, show current, create, delete, or rename.',
-  input: z.object({
-    operation: z.enum(['list', 'create', 'delete', 'rename', 'show-current'])
-      .describe('Branch operation to perform.'),
-    name: z.string().optional().describe('Branch name (required for create/delete/rename).'),
-    newName: z.string().optional().describe('New name (required for rename).'),
-  }),
-  output: z.object({ /* branch info */ }),
-  // ...
-});
-```
-
 ```ts
 // Workflow tool — search + local filter pipeline, not a raw API proxy
-const findEligibleStudies = tool('clinicaltrials_find_eligible_studies', {
+const findStudies = tool('clinicaltrials_find_studies', {
   description: 'Matches patient demographics and medical profile to eligible clinical trials. Filters by age, sex, conditions, location, and healthy volunteer status. Returns ranked list of matching studies with eligibility explanations.',
   // handler: listStudies() → filter by eligibility → rank by location proximity → slice
 });
 ```
 
-**When to consolidate vs. split:**
-
-| Consolidate (one tool) | Split (separate tools) |
-|:------------------------|:-----------------------|
-| Operations share the same noun and most parameters | Operations have fundamentally different inputs/outputs |
-| Related CRUD on a single entity | Read-only lookup vs. multi-step workflow |
-| Agent would naturally think of them together | Agent would use them in different contexts |
+> **Tip — mode consolidation.** When a tool has several related operations on the same noun, you can consolidate them under one tool with a `mode`/`operation` enum. This affects both naming (noun-led, e.g., `github_pull_request`) and handler design (dispatch by mode). Use when it tightens the surface; skip when ops diverge enough to warrant separate tools.
 
 There is no fixed ceiling on tool count — tools need to earn their keep, but don't artificially limit the surface. If the domain genuinely has 20 distinct workflows, expose 20 tools.
 
-**Audit: does each tool earn its keep?** After mapping tools, review the full list critically. A tool that covers a niche use case, serves a tiny fraction of agents, or duplicates what another tool already handles is a candidate for deferral. Drop it from the design and note it as a future addition if demand warrants. Every tool in the surface is cognitive load for tool selection — a tight surface outperforms a comprehensive one.
+#### Cut the surface
+
+After mapping tools, review the full list critically. A tool that covers a niche use case, serves a tiny fraction of agents, or duplicates what another tool already handles is a candidate for deferral. Drop it from the design and note it as a future addition if demand warrants. Every tool in the surface is cognitive load for tool selection — a tight surface outperforms a comprehensive one.
+
+#### Instruction tools
+
+**Applies when:** the domain has recurring "how do I do X well given my current state" questions worth merging with static procedural content. Skip otherwise.
+
+Some domains benefit from a tool whose output is **guidance, not data** — a markdown playbook tailored by live account state, with pre-filled next-step tool calls. These sit between Prompts (static templates, client-invokable) and action tools (do work, return data): they return advice, but the advice is worth more than static text because it merges procedural content with the agent's actual situation.
+
+Characteristics:
+
+- **Output is markdown guidance**, not structured data (though the output schema still has fields — typically `guidance`, `diagnostics`, and `nextToolSuggestions`)
+- **Merges static procedural content with live state** — the value is the tailoring. "You have 12 staged files spanning 4 unrelated changes — split them into separate commits before pushing" beats a generic best-practices article. The same shape works in other domains: "Your slowest query is 2.3s on `orders.customer_id` — add the index before tuning the planner" (database advisor), "Error rate spiked 4× at 14:32 UTC, 4 minutes after the `web@a3f9c2` deploy — roll back before chasing the upstream provider" (incident triage).
+- **`readOnlyHint: true`, `openWorldHint: false`** — no writes, deterministic given the same inputs and account state
+- **Outputs `nextToolSuggestions`** — an array of recommended follow-up tool calls with arguments **pre-filled** from the diagnostics, not just tool names. The agent consumes the playbook, then executes steps with other tools.
+- **Consolidate by `topic` enum** — what could be N separate per-topic tools collapses into one
+
+```ts
+const wrapupInstructions = tool('git_wrapup_instructions', {
+  description: 'Procedural guidance tailored to current repo state. Returns best-practice markdown merged with live diagnostics (staged/unstaged files, branch info, recent commits) and pre-filled follow-up tool calls. Read-only; the agent then executes steps with other tools.',
+  annotations: { readOnlyHint: true, openWorldHint: false },
+  input: z.object({
+    topic: z.enum(['review-changes', 'stage-and-commit', 'push-to-remote'])
+      .describe('Playbook topic. Determines which static guidance is returned and which live state is fetched for tailoring.'),
+  }),
+  output: z.object({
+    guidance: z.string()
+      .describe('Markdown playbook content, tailored to current account state.'),
+    diagnostics: z.record(z.unknown())
+      .describe('Live state used to tailor the guidance (e.g., staged file count, branch divergence, recent commit cadence).'),
+    nextToolSuggestions: z.array(z.object({
+      toolName: z.string().describe('Tool to call next.'),
+      reason: z.string().describe('Why this step is recommended given current state.'),
+      args: z.record(z.unknown()).describe('Arguments pre-filled from diagnostics.'),
+    })).describe('Recommended follow-up calls with arguments already populated.'),
+  }),
+});
+```
+
+Prior art: [`git_wrapup_instructions`](https://github.com/cyanheads/git-mcp-server) walks through staging, commit, and push with repo state inspected. If a server has recurring "how do I do X well given my state" questions, an instruction tool typically beats N topic-specific tools and duplicating guidance in tool descriptions.
+
+#### Workflow tool safety
+
+**Applies when:** a tool performs multi-step mutations with destructive modes (`send`/`apply`/`promote`) that benefit from human confirmation before the irreversible step fires. Skip for read-only or idempotent workflows.
+
+Tools that perform multi-step mutations (the Workflow shape) have two safety considerations beyond single-call tools. Both are about giving the agent — and the human behind it — a chance to catch a bad invocation before it commits.
+
+**Elicit-guarded destructive modes with annotation fallback.** When a workflow's `mode` parameter switches between safe and destructive arms (`draft` vs `send`, `plan` vs `apply`), gate the destructive arm behind `ctx.elicit` when the client supports it, so a human confirms before the irreversible step fires. Elicitation isn't universally available — headless stdio sessions and many non-interactive clients don't expose it. Fall back on `destructiveHint: true` in annotations so those clients' approval flows still surface the risk. Document the fallback in the handler so maintainers don't assume elicit always runs:
+
+```ts
+annotations: { destructiveHint: true },        // fallback for clients without elicit
+// ...
+async handler(input, ctx) {
+  if (input.mode === 'apply' && ctx.elicit) {
+    const confirm = await ctx.elicit(
+      `Apply migration affecting ${affectedRowCount} rows in production? Cannot be rolled back automatically.`,
+      z.object({ confirmed: z.literal(true).describe('Type true to apply.') }),
+    );
+    if (confirm.action !== 'accept') throw new Error('Migration cancelled by user.');
+  }
+  // destructive step proceeds; destructiveHint covers clients that skipped elicit
+}
+```
+
+**Safe defaults on parameters that determine blast radius.** When a workflow accepts a parameter that controls how far-reaching a mutation is, default to the safer value. A bulk file-update tool defaulting `mode: 'preview'` (no writes) means a sloppy agent call shows a diff rather than blasting changes; an apply-plan tool defaulting `dryRun: true` means a misread plan previews rather than executes; an object-delete tool requiring an explicit `confirmCount` matching the result-set size means an unscoped query can't silently nuke a million rows. Agents that genuinely want the destructive behavior have to name it explicitly, which surfaces intent in the tool call and in logs.
 
 #### Tool descriptions
 
@@ -188,7 +254,7 @@ The output schema and `format` function control what the LLM reads back. Design 
 
 - **Include IDs and references for chaining.** If the agent might act on a result, return the identifiers it needs for follow-up tool calls.
 - **Curate vs. pass-through depends on domain.** Medical/scientific data — don't trim fields that could alter correctness. CRUD responses — return what the agent needs, not the full API payload. Match fidelity to consequence.
-- **Surface what was done, not just results.** After a write operation, include the new state. (`git_commit` auto-includes post-commit `git status`. The LLM sees the repo state without an extra round trip.)
+- **Surface what was done, not just results.** After a write operation, include the post-state so the LLM can chain without an extra round trip.
 - **Communicate filtering.** If the tool silently excluded content, tell the LLM what was excluded and how to get it back. The agent can't act on what it doesn't know about.
 
 ```ts
@@ -204,6 +270,8 @@ output: z.object({
 - **`format()` is the markdown twin of `structuredContent` — make both content-complete.** Different MCP clients forward different surfaces to the model: some (e.g., Claude Code) read `structuredContent` from `output`, others (e.g., Claude Desktop) read `content[]` from `format()`. Both must carry the same data so every client sees the same picture — `format()` just dresses it up with markdown. A thin `format()` that returns only a count or title leaves `content[]`-only clients blind to data that `structuredContent` clients can see. Render all fields the LLM needs, with structured markdown (headers, bold labels, lists) for readability.
 
 #### Batch input design
+
+**Applies when:** the upstream API supports batch requests (filter-by-IDs, bulk GET) OR agents commonly need multiple items per call. Skip for inherently single-target operations.
 
 Some tools naturally operate on multiple items — fetching several entities, updating a set of records, running checks across a list. Decide during design whether a tool accepts single items, arrays, or both.
 
@@ -232,6 +300,8 @@ Single-item tools don't need this — they either succeed or throw. The partial 
 **Telemetry:** The framework automatically detects partial success — when a handler returns a result with a non-empty `failed` array, the span gets `mcp.tool.partial_success`, `mcp.tool.batch.succeeded_count`, and `mcp.tool.batch.failed_count` attributes. No manual instrumentation needed.
 
 #### Convenience shortcuts for complex inputs
+
+**Applies when:** a tool wraps a structured query language or filter system where the 80% case is a simple string. Skip when the primary input is already simple.
 
 When a tool wraps a complex query language or filter system, provide a simple shortcut parameter for the 80% case alongside the full-power escape hatch. This keeps simple queries simple while preserving full expressiveness.
 
@@ -288,14 +358,14 @@ Summarize each tool:
 
 | Aspect | Decision |
 |:-------|:---------|
-| **Name** | `snake_case`, `{domain}_{verb}_{noun}` — aim for 3 words: `patentsview_search_patents`, `clinicaltrials_find_studies`. Use the **canonical platform/brand name** as prefix (not abbreviations — `patentsview_` not `patents_`, `clinicaltrials_` not `ct_`). The verb+noun pair should be unambiguous within the server — if two tools could plausibly share a name, the noun isn't specific enough (e.g., `read_fulltext` not `read_text` when structured metadata is a separate concept). |
-| **Granularity** | One tool per user-meaningful workflow, not per API call. Consolidate related operations with `operation`/`mode` enum. |
+| **Name** | Lowercase snake_case with a canonical server prefix. **3 segments is the strong default** (`{server}_{verb}_{noun}` — e.g., `pubmed_search_articles`, `clinicaltrials_find_studies`). **2 is fine when the operation name is canonical** and no noun adds signal (`git_pull`, `git_status` — "pull" already implies the remote). Don't invent a word to pad to 3. **4 is fine when the noun is inherently two words** (`patentsview_search_patent_families`) or the prefix is multi-part. Use the canonical platform/brand name as prefix, not abbreviations (`patentsview_` not `patents_`, `clinicaltrials_` not `ct_`). The verb+noun pair should be unambiguous within the server — if two tools could plausibly share a name, the noun isn't specific enough (`read_fulltext` not `read_text` when structured metadata is a separate concept). **Treat name length as a scope smell only when** the extra segment is the *verb* overreaching (e.g., `foo_create_and_send_notification` → split or use modes). |
+| **Granularity** | Scope each tool to one coherent agent action. The implementation can be a single API call (`pubmed_search_articles`), a multi-step workflow, or internal-only — match the unit to the work, don't constrain by call count. |
 | **Description** | Concrete capability statement. Add operational guidance (prerequisites, constraints, gotchas) when non-obvious. |
 | **Input schema** | `.describe()` on every field. Constrained types (enums, literals, regex). Explain costs/tradeoffs of parameter choices. |
 | **Output schema** | Designed for the LLM's next action. Include chaining IDs. Communicate filtering. Post-write state where useful. |
 | **Error messages** | Name what went wrong and what the LLM should do about it. Include hints for common recovery paths. |
 | **Annotations** | `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`. Helps clients auto-approve safely. |
-| **Auth scopes** | `tool:noun:read`, `tool:noun:write`. Skip for read-only or stdio-only servers. |
+| **Auth scopes** | `tool:<snake_tool_name>:<verb>` or `resource:<kebab-resource-name>:<verb>` (e.g., `tool:inventory_search:read`, `resource:echo-app-ui:read`). Domain-led `<domain>:<verb>` (e.g., `inventory:read`) is an acceptable alternative — pick one convention per server and stay consistent. Skip for read-only or stdio-only servers. |
 
 ### 5. Design Resources
 
@@ -322,6 +392,8 @@ Skip for purely data/action-oriented servers.
 ### 7. Plan Services and Config
 
 **Services** — one per external dependency. Init/accessor pattern. Skip if all tools are thin wrappers with no shared state.
+
+**Server-as-service.** When the server IS the source of truth (knowledge graph, in-memory task tracker, local scratchpad, embedded inference wrapper), the resilience table below doesn't apply — there's no upstream to retry. The design questions shift to state management: what's tenant-scoped vs. global, what TTLs apply, what survives a restart, what the storage backend is. Plan persistence via `ctx.state` for tenant-scoped KV (auto-namespaced by `tenantId`), or use a `StorageService` provider directly when data must cross tenants. Service init still happens in `setup()`, accessed via `getMyService()` at request time. Calls within the server are local and synchronous-ish — the API-efficiency table below also doesn't apply.
 
 For services wrapping external APIs, plan the resilience layer. See `docs/service-resilience.md` for full rationale.
 
@@ -403,6 +475,24 @@ Each step is independently testable.
 
 Keep it concise. The design doc is a working reference, not a spec document — enough to orient a developer (or agent) implementing the server, not more.
 
+**Workflow Analysis example.** For multi-step workflow tools, document the upstream call sequence in a table — it drives several downstream decisions during implementation: the service-layer method shape, retry boundaries, where cleanup or elicit belongs, and what post-action state to fetch for the response.
+
+`deploy_release` (5–8 upstream calls, plus elicit):
+
+| # | Call | Purpose | Mode gate |
+|:--|:-----|:--------|:----------|
+| 0 | `ctx.elicit` confirmation | Human approval before promote | `promote` (when available) |
+| 1 | `POST /releases` | Create release record | always |
+| 2 | `PUT /releases/{id}/artifacts` | Attach build artifacts | always |
+| 3 | `GET /releases/{id}/preflight` | Health checks, smoke tests | always |
+| 4 | `POST /releases/{id}/canary` | Deploy to 5% of traffic | `canary` |
+| 5 | `POST /releases/{id}/promote` | Roll out to 100% | `promote` |
+| 6 | `POST /releases/{id}/rollback` | Restore previous version | `rollback` |
+| 7 | `GET /releases/{id}` | Post-action state for response | always |
+| — | `DELETE /releases/{id}/canary-traffic` | Cleanup canary if mid-flow error | on error + `cleanupOnError` |
+
+The table surfaces design questions early: should the elicit happen before or after the artifacts are attached? Does cleanup drop the canary on any failure, or only failures past the promote step? What does the response body need from the final GET — version, traffic percentage, health summary? Answering these during design is far cheaper than mid-implementation.
+
 ### 9. Confirm and Proceed
 
 If the user has already authorized implementation (e.g., "build me a ___ server"), proceed directly to scaffolding using the design doc as the plan. Otherwise, present the design doc to the user for review before implementing.
@@ -420,22 +510,31 @@ Execute the plan using the scaffolding skills:
 
 ## Checklist
 
+Items without an `If …:` prefix apply to every design. Conditional items only apply when the trigger fires — otherwise skip them.
+
 - [ ] External APIs/dependencies researched and verified (docs fetched, SDKs identified)
-- [ ] Domain operations mapped (nouns + verbs)
+- [ ] User goals enumerated first (3–10 outcomes agents will accomplish, scaled to domain size), then domain operations mapped as raw material
 - [ ] Each operation classified as tool, resource, prompt, or excluded
-- [ ] Related operations consolidated (operation/mode enum) — not one tool per endpoint
+- [ ] Catastrophically irreversible operations excluded from the tool surface (stay in vendor UI) — not just `destructiveHint`
+- [ ] Tool surface audited — niche, overlapping, or low-value tools cut or deferred
+- [ ] Tool surface is self-sufficient — a tool-only agent can accomplish everything the server is for
+- [ ] Workflow and Instruction variants considered where they add value (single-action tools are the default)
 - [ ] Tool descriptions are concrete and include operational guidance where non-obvious
 - [ ] Parameter `.describe()` text explains what the value is, what it affects, and tradeoffs
 - [ ] Input schemas use constrained types (enums, literals, regex) over free strings
 - [ ] Output schemas designed for LLM's next action — chaining IDs, post-write state, filtering communicated
 - [ ] `format()` renders all data the LLM needs — different clients forward different surfaces (Claude Code → `structuredContent`, Claude Desktop → `content[]`); both must carry the same data, not just a count or title
 - [ ] Error messages guide recovery — name what went wrong and what to do next
-- [ ] Annotations set correctly (`readOnlyHint`, `destructiveHint`, etc.)
-- [ ] Tool surface is self-sufficient — a tool-only agent can accomplish everything the server is for
-- [ ] MCP Apps tools identified where interactive UI adds value (and `format()` provides full text fallback for non-app hosts)
-- [ ] Resource URIs use `{param}` templates, pagination planned for large lists
-- [ ] Service layer planned (or explicitly skipped with reasoning)
-- [ ] Resilience planned for external API services (retry boundary, backoff, parse classification)
-- [ ] Server config env vars identified
+- [ ] Annotations set correctly (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`)
 - [ ] Design doc written to `docs/design.md`
 - [ ] Design confirmed with user (or user pre-authorized implementation)
+- [ ] **If ops share a noun:** related operations consolidated under one tool with `mode`/`operation` enum
+- [ ] **If the server has workflow tools:** call-flow documented (upstream sequence + mode arms) in design doc's Workflow Analysis
+- [ ] **If state-aware procedural guidance adds value:** instruction tool considered with `nextToolSuggestions` pre-filled from diagnostics
+- [ ] **If workflow tools have destructive modes:** destructive arm guarded by `ctx.elicit` when available, with `destructiveHint` annotation as fallback for non-interactive clients
+- [ ] **If a parameter determines blast radius:** safe default set (e.g., `mode: 'preview'`, `dryRun: true`, `confirmCount` required)
+- [ ] **If interactive UI adds value to results:** MCP Apps tool identified (with `format()` text fallback for non-app hosts)
+- [ ] **If the server exposes resources:** URIs use `{param}` templates, pagination planned for large lists
+- [ ] **If the server has external deps or shared state:** service layer planned (or explicitly skipped with reasoning)
+- [ ] **If services wrap external APIs:** resilience planned (retry boundary, backoff, parse classification)
+- [ ] **If the server needs runtime config:** env vars identified in `server-config.ts`

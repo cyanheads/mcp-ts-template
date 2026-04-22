@@ -123,7 +123,7 @@ export function createServerCardHandler(manifest: ServerManifest) {
       operation: 'serverCardHandler',
     });
 
-    const origin = new URL(c.req.url).origin;
+    const origin = manifest.transport.publicUrl ?? new URL(c.req.url).origin;
     const card = buildServerCard(manifest, origin);
 
     logger.debug('Serving SEP-1649 Server Card.', {
