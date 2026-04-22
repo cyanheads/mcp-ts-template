@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.9](changelog/0.6.x/0.6.9.md) — 2026-04-22
+
+Landing page refactored into a modular directory, CSS-injection guard promoted to manifest-build time, Content-Security-Policy header added, per-request rendering memoized when publicUrl is set, and accessibility hygiene cleanups
+
 ## [0.6.8](changelog/0.6.x/0.6.8.md) — 2026-04-22
 
 Landing page visual polish — dual-accent token system (--accent-2, --accent-glow), animated border beam on the connect card, brighter dark mode, and a new CSS-injection guard on landing.theme.accent
