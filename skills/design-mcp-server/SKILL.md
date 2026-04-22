@@ -4,7 +4,7 @@ description: >
   Design the tool surface, resources, and service layer for a new MCP server. Use when starting a new server, planning a major feature expansion, or when the user describes a domain/API they want to expose via MCP. Produces a design doc at docs/design.md that drives implementation.
 metadata:
   author: cyanheads
-  version: "2.6"
+  version: "2.7"
   audience: external
   type: workflow
 ---
@@ -64,7 +64,7 @@ Example user goals for a project management server:
 - Mark a task complete and log the outcome
 - Audit a project's overdue work
 
-Then enumerate the underlying **domain operations** the system supports, grouped by noun. These are the raw material workflow tools compose and primitive tools back-fill where workflows don't cover an edge case.
+Then enumerate the underlying **domain operations** the system supports, grouped by noun. These are the raw material workflow tools compose and noun tools back-fill where workflows don't cover an edge case.
 
 | Noun | Operations |
 |:-----|:-----------|
@@ -108,11 +108,11 @@ Most servers end up with tools in roughly three shapes. These aren't boxes every
 
 | Shape | Purpose | Typical form | Examples |
 |:------|:--------|:-------------|:---------|
-| **Primitive** | Fine-grained read/write on a domain noun | Consolidated via `operation` enum; usually 1 upstream call per invocation | `git_branch` (list/create/delete/rename), `mailchimp_subscribers` (list/get/create/update/archive) |
+| **Noun** | Fine-grained read/write on a domain noun | Consolidated via `operation` enum; usually 1 upstream call per invocation | `git_branch` (list/create/delete/rename), `mailchimp_subscribers` (list/get/create/update/archive) |
 | **Workflow** | Multi-step orchestration that replaces a common agent chain | N upstream calls (often parallelized); may elicit confirmation; may need mid-flow cleanup | `clinicaltrials_find_eligible_studies` (search → filter → rank), `mailchimp_send_campaign` (create draft → set content → validate → send) |
 | **Instruction** | State-aware procedural guidance — advice, not action | Static markdown + a few live-state fetches, `readOnlyHint: true`, outputs `nextToolSuggestions` pre-filling the recommended follow-up. No writes. | `git_wrapup_instructions`, `mailchimp_playbook` |
 
-Most servers are primitive-heavy with a few workflow tools; content-heavy or process-heavy domains also benefit from one or more instruction tools. The subsections below cover the considerations specific to each shape — workflow framing applies to everything, instruction tools and workflow safety are their own subsections.
+Most servers are noun-heavy with a few workflow tools; content-heavy or process-heavy domains also benefit from one or more instruction tools. The subsections below cover the considerations specific to each shape — workflow framing applies to everything, instruction tools and workflow safety are their own subsections.
 
 #### Think in workflows, not endpoints
 
@@ -155,7 +155,9 @@ const findEligibleStudies = tool('clinicaltrials_find_eligible_studies', {
 
 There is no fixed ceiling on tool count — tools need to earn their keep, but don't artificially limit the surface. If the domain genuinely has 20 distinct workflows, expose 20 tools.
 
-**Audit: does each tool earn its keep?** After mapping tools, review the full list critically. A tool that covers a niche use case, serves a tiny fraction of agents, or duplicates what another tool already handles is a candidate for deferral. Drop it from the design and note it as a future addition if demand warrants. Every tool in the surface is cognitive load for tool selection — a tight surface outperforms a comprehensive one.
+#### Cut the surface
+
+After mapping tools, review the full list critically. A tool that covers a niche use case, serves a tiny fraction of agents, or duplicates what another tool already handles is a candidate for deferral. Drop it from the design and note it as a future addition if demand warrants. Every tool in the surface is cognitive load for tool selection — a tight surface outperforms a comprehensive one.
 
 #### Instruction tools
 
@@ -195,7 +197,7 @@ Prior art: [`git_wrapup_instructions`](https://github.com/cyanheads/git-mcp-serv
 
 #### Workflow tool safety
 
-Tools that perform multi-step mutations (the Workflow shape) have two safety considerations beyond single-call primitives. Both are about giving the agent — and the human behind it — a chance to catch a bad invocation before it commits.
+Tools that perform multi-step mutations (the Workflow shape) have two safety considerations beyond single-call noun tools. Both are about giving the agent — and the human behind it — a chance to catch a bad invocation before it commits.
 
 **Elicit-guarded destructive modes with annotation fallback.** When a workflow's `mode` parameter switches between safe and destructive arms (`draft` vs `send`, `plan` vs `apply`), gate the destructive arm behind `ctx.elicit` when the client supports it, so a human confirms before the irreversible step fires. Elicitation isn't universally available — headless stdio sessions and many non-interactive clients don't expose it. Fall back on `destructiveHint: true` in annotations so those clients' approval flows still surface the risk. Document the fallback in the handler so maintainers don't assume elicit always runs:
 
@@ -375,7 +377,7 @@ Summarize each tool:
 | **Output schema** | Designed for the LLM's next action. Include chaining IDs. Communicate filtering. Post-write state where useful. |
 | **Error messages** | Name what went wrong and what the LLM should do about it. Include hints for common recovery paths. |
 | **Annotations** | `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`. Helps clients auto-approve safely. |
-| **Auth scopes** | `tool:noun:read`, `tool:noun:write`. Skip for read-only or stdio-only servers. |
+| **Auth scopes** | `tool:<snake_tool_name>:<verb>` or `resource:<kebab-resource-name>:<verb>` (e.g., `tool:inventory_search:read`, `resource:echo-app-ui:read`). Domain-led `<domain>:<verb>` (e.g., `inventory:read`) is an acceptable alternative — pick one convention per server and stay consistent. Skip for read-only or stdio-only servers. |
 
 ### 5. Design Resources
 
@@ -522,7 +524,8 @@ Execute the plan using the scaffolding skills:
 - [ ] Each operation classified as tool, resource, prompt, or excluded
 - [ ] Catastrophically irreversible operations excluded from the tool surface (stay in vendor UI) — not just `destructiveHint`
 - [ ] Related operations consolidated (operation/mode enum) — not one tool per endpoint
-- [ ] Tool shapes considered: primitive, workflow, instruction — each with its own design pressures
+- [ ] Tool surface audited — niche, overlapping, or low-value tools cut or deferred
+- [ ] Tool shapes considered: noun, workflow, instruction — each with its own design pressures
 - [ ] Workflow tools have call-flow sketched (upstream sequence + mode arms) in design doc's Workflow Analysis
 - [ ] Instruction tools considered where state-aware procedural guidance adds value (`nextToolSuggestions` pre-filled from diagnostics)
 - [ ] Destructive workflow modes guarded by `ctx.elicit` when available, with `destructiveHint` annotation as fallback for non-interactive clients
