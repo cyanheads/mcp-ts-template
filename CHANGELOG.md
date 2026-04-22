@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.7](changelog/0.6.x/0.6.7.md) — 2026-04-22
+
+Template polish — echo app tool wired up in scaffold, version placeholder/gitignore/dockerignore fixes, stale `unreleased.md` doc references corrected, @types/bun + @types/node patch bumps
+
 ## [0.6.6](changelog/0.6.x/0.6.6.md) — 2026-04-22
 
 MCP_PUBLIC_URL override for TLS-terminating proxies; design-mcp-server v2.7 — flexible tool naming, tiered subsections, server-as-service coverage, diversified examples; changelog/unreleased.md → template.md
