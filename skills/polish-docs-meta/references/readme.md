@@ -101,9 +101,9 @@ Seven tools for working with Acme data:
 
 | Tool Name | Description |
 |:----------|:------------|
-| `search_projects` | Search projects by name, status, or team. |
-| `create_task` | Create a new task in a project. |
-| `get_task` | Fetch one or more tasks by ID, with full or summary data. |
+| `acme_search_projects` | Search projects by name, status, or team. |
+| `acme_create_task` | Create a new task in a project. |
+| `acme_get_task` | Fetch one or more tasks by ID, with full or summary data. |
 ```
 
 **Per-tool subsections:**
@@ -115,7 +115,7 @@ Below the table, add a `### tool_name` subsection for each tool that has meaning
 - Separate subsections with `---` horizontal rules
 
 ```markdown
-### `search_projects`
+### `acme_search_projects`
 
 Search for projects using free-text queries and filters.
 
@@ -124,11 +124,11 @@ Search for projects using free-text queries and filters.
 - Pagination (up to 100 per page) and sorting
 - Field selection to limit response size
 
-[View detailed examples](./examples/search_projects.md)
+[View detailed examples](./examples/acme_search_projects.md)
 
 ---
 
-### `get_task`
+### `acme_get_task`
 
 Fetch one or more tasks by ID, with full data or concise summaries.
 
@@ -137,7 +137,7 @@ Fetch one or more tasks by ID, with full data or concise summaries.
 - Partial success reporting when some tasks in a batch fail
 ```
 
-Skip the per-tool subsection for simple tools where the table description says everything (e.g., a `get_field_values` lookup tool).
+Skip the per-tool subsection for simple tools where the table description says everything (e.g., an `acme_get_field_values` lookup tool).
 
 ### Resources and Prompts (combined)
 

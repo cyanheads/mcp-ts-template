@@ -4,7 +4,7 @@ description: >
   Design the tool surface, resources, and service layer for a new MCP server. Use when starting a new server, planning a major feature expansion, or when the user describes a domain/API they want to expose via MCP. Produces a design doc at docs/design.md that drives implementation.
 metadata:
   author: cyanheads
-  version: "2.7"
+  version: "2.10"
   audience: external
   type: workflow
 ---
@@ -64,7 +64,7 @@ Example user goals for a project management server:
 - Mark a task complete and log the outcome
 - Audit a project's overdue work
 
-Then enumerate the underlying **domain operations** the system supports, grouped by noun. These are the raw material workflow tools compose and noun tools back-fill where workflows don't cover an edge case.
+Then enumerate the underlying **domain operations** the system supports, grouped by noun. These are the raw material workflow tools compose and single-action tools back-fill where workflows don't cover an edge case.
 
 | Noun | Operations |
 |:-----|:-----------|
@@ -104,15 +104,14 @@ This is the highest-leverage step. Tool definitions — names, descriptions, par
 
 #### Tool shapes you'll encounter
 
-Most servers end up with tools in roughly three shapes. These aren't boxes every tool must fit into — some tools blend shapes — but the design pressures differ, and naming them helps you avoid re-discovering the patterns per server.
+Most tools follow the `{server}_{verb}_{noun}` default — one upstream call, one clear verb, one focused responsibility (e.g., `pubmed_search_articles`, `pubmed_fetch_articles`). Two variants warrant explicit design pressures of their own:
 
 | Shape | Purpose | Typical form | Examples |
 |:------|:--------|:-------------|:---------|
-| **Noun** | Fine-grained read/write on a domain noun | Consolidated via `operation` enum; usually 1 upstream call per invocation | `git_branch` (list/create/delete/rename), `mailchimp_subscribers` (list/get/create/update/archive) |
-| **Workflow** | Multi-step orchestration that replaces a common agent chain | N upstream calls (often parallelized); may elicit confirmation; may need mid-flow cleanup | `clinicaltrials_find_eligible_studies` (search → filter → rank), `mailchimp_send_campaign` (create draft → set content → validate → send) |
-| **Instruction** | State-aware procedural guidance — advice, not action | Static markdown + a few live-state fetches, `readOnlyHint: true`, outputs `nextToolSuggestions` pre-filling the recommended follow-up. No writes. | `git_wrapup_instructions`, `mailchimp_playbook` |
+| **Workflow** | Multi-step orchestration that replaces a common agent chain | N upstream calls (often parallelized); may elicit confirmation; may need mid-flow cleanup | `clinicaltrials_find_studies` (search → filter → rank) |
+| **Instruction** | State-aware procedural guidance — advice, not action | Static markdown + a few live-state fetches, `readOnlyHint: true`, outputs `nextToolSuggestions` pre-filling the recommended follow-up. No writes. | `git_wrapup_instructions` |
 
-Most servers are noun-heavy with a few workflow tools; content-heavy or process-heavy domains also benefit from one or more instruction tools. The subsections below cover the considerations specific to each shape — workflow framing applies to everything, instruction tools and workflow safety are their own subsections.
+These aren't boxes every tool must fit into — some blend shapes — but the design pressures differ enough that naming them helps avoid re-discovering the patterns per server. The subsections below cover considerations specific to each — workflow framing applies broadly, instruction tools and workflow safety are their own subsections.
 
 #### Think in workflows, not endpoints
 
@@ -123,23 +122,23 @@ A single tool can call multiple APIs internally, apply local filtering, reshape 
 **Consolidation via operation/mode enum.** When a domain noun has several related operations that share parameters, consolidate into one tool with a discriminated parameter. This keeps the tool surface small and lets the LLM discover all capabilities in one place.
 
 ```ts
-// One tool for all branch operations — not five separate tools
-const gitBranch = tool('git_branch', {
-  description: 'Manage branches: list, show current, create, delete, or rename.',
+// One tool for all subscriber operations — not five separate tools
+const manageSubscribers = tool('acme_manage_subscribers', {
+  description: 'Manage subscribers: list, get, create, update, or archive.',
   input: z.object({
-    operation: z.enum(['list', 'create', 'delete', 'rename', 'show-current'])
-      .describe('Branch operation to perform.'),
-    name: z.string().optional().describe('Branch name (required for create/delete/rename).'),
-    newName: z.string().optional().describe('New name (required for rename).'),
+    operation: z.enum(['list', 'get', 'create', 'update', 'archive'])
+      .describe('Subscriber operation to perform.'),
+    id: z.string().optional().describe('Subscriber ID (required for get/update/archive).'),
+    email: z.string().optional().describe('Email (required for create).'),
   }),
-  output: z.object({ /* branch info */ }),
+  output: z.object({ /* subscriber info */ }),
   // ...
 });
 ```
 
 ```ts
 // Workflow tool — search + local filter pipeline, not a raw API proxy
-const findEligibleStudies = tool('clinicaltrials_find_eligible_studies', {
+const findStudies = tool('clinicaltrials_find_studies', {
   description: 'Matches patient demographics and medical profile to eligible clinical trials. Filters by age, sex, conditions, location, and healthy volunteer status. Returns ranked list of matching studies with eligibility explanations.',
   // handler: listStudies() → filter by eligibility → rank by location proximity → slice
 });
@@ -172,11 +171,11 @@ Characteristics:
 - **Consolidate by `topic` enum** — what could be N separate per-topic tools collapses into one
 
 ```ts
-const mailchimpPlaybook = tool('mailchimp_playbook', {
-  description: 'Procedural guidance tailored to current account state. Returns best-practice markdown merged with live diagnostics (bounce rate, list health, recent campaign stats) and pre-filled follow-up tool calls. Read-only; the agent then executes steps with other tools.',
+const wrapupInstructions = tool('git_wrapup_instructions', {
+  description: 'Procedural guidance tailored to current repo state. Returns best-practice markdown merged with live diagnostics (staged/unstaged files, branch info, recent commits) and pre-filled follow-up tool calls. Read-only; the agent then executes steps with other tools.',
   annotations: { readOnlyHint: true, openWorldHint: false },
   input: z.object({
-    topic: z.enum(['send-first-campaign', 'clean-bounces', 'improve-deliverability'])
+    topic: z.enum(['review-changes', 'stage-and-commit', 'push-to-remote'])
       .describe('Playbook topic. Determines which static guidance is returned and which live state is fetched for tailoring.'),
   }),
   output: z.object({
@@ -193,11 +192,11 @@ const mailchimpPlaybook = tool('mailchimp_playbook', {
 });
 ```
 
-Prior art: [`git_wrapup_instructions`](https://github.com/cyanheads/git-mcp-server) (walks through staging, commit, and push with repo state inspected), `mailchimp_playbook` (campaign and list hygiene). If a server has recurring "how do I do X well given my state" questions, an instruction tool typically beats N topic-specific tools and duplicating guidance in tool descriptions.
+Prior art: [`git_wrapup_instructions`](https://github.com/cyanheads/git-mcp-server) walks through staging, commit, and push with repo state inspected. If a server has recurring "how do I do X well given my state" questions, an instruction tool typically beats N topic-specific tools and duplicating guidance in tool descriptions.
 
 #### Workflow tool safety
 
-Tools that perform multi-step mutations (the Workflow shape) have two safety considerations beyond single-call noun tools. Both are about giving the agent — and the human behind it — a chance to catch a bad invocation before it commits.
+Tools that perform multi-step mutations (the Workflow shape) have two safety considerations beyond single-call tools. Both are about giving the agent — and the human behind it — a chance to catch a bad invocation before it commits.
 
 **Elicit-guarded destructive modes with annotation fallback.** When a workflow's `mode` parameter switches between safe and destructive arms (`draft` vs `send`, `plan` vs `apply`), gate the destructive arm behind `ctx.elicit` when the client supports it, so a human confirms before the irreversible step fires. Elicitation isn't universally available — headless stdio sessions and many non-interactive clients don't expose it. Fall back on `destructiveHint: true` in annotations so those clients' approval flows still surface the risk. Document the fallback in the handler so maintainers don't assume elicit always runs:
 
@@ -270,7 +269,7 @@ The output schema and `format` function control what the LLM reads back. Design 
 
 - **Include IDs and references for chaining.** If the agent might act on a result, return the identifiers it needs for follow-up tool calls.
 - **Curate vs. pass-through depends on domain.** Medical/scientific data — don't trim fields that could alter correctness. CRUD responses — return what the agent needs, not the full API payload. Match fidelity to consequence.
-- **Surface what was done, not just results.** After a write operation, include the new state. (`git_commit` auto-includes post-commit `git status`. The LLM sees the repo state without an extra round trip.)
+- **Surface what was done, not just results.** After a write operation, include the post-state so the LLM can chain without an extra round trip.
 - **Communicate filtering.** If the tool silently excluded content, tell the LLM what was excluded and how to get it back. The agent can't act on what it doesn't know about.
 
 ```ts
@@ -370,7 +369,7 @@ Summarize each tool:
 
 | Aspect | Decision |
 |:-------|:---------|
-| **Name** | `snake_case`, `{domain}_{verb}_{noun}` — aim for 3 words: `patentsview_search_patents`, `clinicaltrials_find_studies`. Use the **canonical platform/brand name** as prefix (not abbreviations — `patentsview_` not `patents_`, `clinicaltrials_` not `ct_`). The verb+noun pair should be unambiguous within the server — if two tools could plausibly share a name, the noun isn't specific enough (e.g., `read_fulltext` not `read_text` when structured metadata is a separate concept). |
+| **Name** | Lowercase snake_case with a canonical server prefix: `{server}_{verb}_{noun}` — 3 words (e.g., `pubmed_search_articles`, `clinicaltrials_find_studies`). Use the canonical platform/brand name as prefix, not abbreviations (`patentsview_` not `patents_`, `clinicaltrials_` not `ct_`). The verb+noun pair should be unambiguous within the server — if two tools could plausibly share a name, the noun isn't specific enough (e.g., `read_fulltext` not `read_text` when structured metadata is a separate concept). **When a name resists the schema** — can't pick a verb, noun feels generic, wants 4+ segments — **that's usually a signal the scope is fuzzy**; split the tool, rename, or reconsider the verb/noun. |
 | **Granularity** | One tool per user-meaningful workflow, not per API call. Consolidate related operations with `operation`/`mode` enum. |
 | **Description** | Concrete capability statement. Add operational guidance (prerequisites, constraints, gotchas) when non-obvious. |
 | **Input schema** | `.describe()` on every field. Constrained types (enums, literals, regex). Explain costs/tradeoffs of parameter choices. |
@@ -488,16 +487,16 @@ Keep it concise. The design doc is a working reference, not a spec document — 
 **Workflow Analysis example.** For multi-step workflow tools, a small ASCII call-flow sketch per tool is cheap to write and drives several downstream decisions during implementation: the service-layer method shape, retry boundaries, where cleanup or elicit belongs, and what post-action state to fetch for the response. Sketch each workflow tool's upstream call sequence with branch arms annotated by the `mode` parameter:
 
 ```text
-mailchimp_send_campaign (5–8 upstream calls, plus elicit):
+acme_send_notification (5–8 upstream calls, plus elicit):
 (if ctx.elicit && mode in send|schedule) → elicit confirmation
-POST   /campaigns                            → create draft
-PUT    /campaigns/{id}/content               → set html/plaintext/template content
-GET    /campaigns/{id}/send-checklist        → validate
-POST   /campaigns/{id}/actions/test          → (if mode=test) send preview
-POST   /campaigns/{id}/actions/send          → (if mode=send)
-POST   /campaigns/{id}/actions/schedule      → (if mode=schedule)
-GET    /campaigns/{id}                       → post-action state for response
-(on mid-flow error + cleanupOnError)         → DELETE /campaigns/{id}
+POST   /notifications                            → create draft
+PUT    /notifications/{id}/content               → set body content
+GET    /notifications/{id}/checklist             → validate
+POST   /notifications/{id}/actions/test          → (if mode=test) send preview
+POST   /notifications/{id}/actions/send          → (if mode=send)
+POST   /notifications/{id}/actions/schedule      → (if mode=schedule)
+GET    /notifications/{id}                       → post-action state for response
+(on mid-flow error + cleanupOnError)             → DELETE /notifications/{id}
 ```
 
 The sketch surfaces design questions early: should the elicit happen before or after the draft is created? Does cleanup delete the draft on any failure, or only failures past a certain step? What does the response body need from the final GET? Answering these during design is far cheaper than mid-implementation.
@@ -525,7 +524,7 @@ Execute the plan using the scaffolding skills:
 - [ ] Catastrophically irreversible operations excluded from the tool surface (stay in vendor UI) — not just `destructiveHint`
 - [ ] Related operations consolidated (operation/mode enum) — not one tool per endpoint
 - [ ] Tool surface audited — niche, overlapping, or low-value tools cut or deferred
-- [ ] Tool shapes considered: noun, workflow, instruction — each with its own design pressures
+- [ ] Workflow and Instruction variants considered where they add value (single-action tools are the default)
 - [ ] Workflow tools have call-flow sketched (upstream sequence + mode arms) in design doc's Workflow Analysis
 - [ ] Instruction tools considered where state-aware procedural guidance adds value (`nextToolSuggestions` pre-filled from diagnostics)
 - [ ] Destructive workflow modes guarded by `ctx.elicit` when available, with `destructiveHint` annotation as fallback for non-interactive clients
