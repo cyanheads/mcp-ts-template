@@ -4,7 +4,7 @@ description: >
   Design the tool surface, resources, and service layer for a new MCP server. Use when starting a new server, planning a major feature expansion, or when the user describes a domain/API they want to expose via MCP. Produces a design doc at docs/design.md that drives implementation.
 metadata:
   author: cyanheads
-  version: "2.5"
+  version: "2.6"
   audience: external
   type: workflow
 ---
@@ -53,11 +53,18 @@ If the Agent tool is not available, do this research inline — fetch docs, read
 
 This step prevents building a service layer against assumed response shapes that don't match reality.
 
-### 2. Map the Domain
+### 2. Map User Goals, Then Domain Operations
 
-List the concrete operations the underlying system supports. Group by domain noun.
+Start with **user goals**, not endpoints. Enumerate the 5–10 outcomes an agent (and its human) will actually try to accomplish with this server — these drive the workflow tools that form the spine of the surface. Endpoint-inventory-first design produces 1:1 API mirrors; goal-first design produces tools agents reach for.
 
-Example for a project management API:
+Example user goals for a project management server:
+
+- Find tasks I'm assigned to that are due soon
+- Create a task in a project, assign it, and notify the owner
+- Mark a task complete and log the outcome
+- Audit a project's overdue work
+
+Then enumerate the underlying **domain operations** the system supports, grouped by noun. These are the raw material workflow tools compose and primitive tools back-fill where workflows don't cover an edge case.
 
 | Noun | Operations |
 |:-----|:-----------|
@@ -65,7 +72,7 @@ Example for a project management API:
 | Task | list (by project), get, create, update status, assign, comment |
 | User | list, get current |
 
-This is the raw material. Not everything becomes a tool.
+The user-goal list shapes the tool surface; the operation list fills in the gaps. Not every operation becomes a tool.
 
 ### 3. Classify into MCP Primitives
 
@@ -87,9 +94,25 @@ What the tool surface needs to cover depends on the server: a read-only research
 - **CRUD explosion**: Don't map every REST endpoint to a tool. Related operations on the same noun often belong in one tool with an `operation`/`mode` parameter (see Step 4).
 - **1:1 endpoint mirroring**: API endpoints are designed for programmatic consumers. LLM tools should be designed for workflows — what an agent is *trying to accomplish*, not what HTTP calls happen under the hood.
 
+**Irreversible operations stay in the UI.** The "Neither" bucket above covers operations that aren't useful to an LLM. There's a second, sharper reason to exclude something from the tool surface: operations whose failure mode is catastrophic and unrecoverable. Think account-level destructive operations — deleting the single audience on a free-plan email platform (nukes every subscriber), GDPR permanent-delete (un-resubscribable forever), campaign delete (destroys historical reports), merge-field / column delete (data loss across every record). These are useful to an LLM *in principle*, but the blast radius of a mis-call is disproportionate to any agent workflow. Humans do these in the vendor UI, where confirmation dialogs and undo paths exist. Agents shouldn't have the tool at all.
+
+This is distinct from `destructiveHint` — that annotation is for operations that are destructive but recoverable (deleting a task, reverting a commit) and agents should still have them. The "stays in the UI" line applies only to operations whose failure is both catastrophic *and* irreversible.
+
 ### 4. Design Tools
 
 This is the highest-leverage step. Tool definitions — names, descriptions, parameters, output schemas — are the **entire interface contract** the LLM reads to decide whether and how to call a tool. Every field is context. Design accordingly.
+
+#### Tool shapes you'll encounter
+
+Most servers end up with tools in roughly three shapes. These aren't boxes every tool must fit into — some tools blend shapes — but the design pressures differ, and naming them helps you avoid re-discovering the patterns per server.
+
+| Shape | Purpose | Typical form | Examples |
+|:------|:--------|:-------------|:---------|
+| **Primitive** | Fine-grained read/write on a domain noun | Consolidated via `operation` enum; usually 1 upstream call per invocation | `git_branch` (list/create/delete/rename), `mailchimp_subscribers` (list/get/create/update/archive) |
+| **Workflow** | Multi-step orchestration that replaces a common agent chain | N upstream calls (often parallelized); may elicit confirmation; may need mid-flow cleanup | `clinicaltrials_find_eligible_studies` (search → filter → rank), `mailchimp_send_campaign` (create draft → set content → validate → send) |
+| **Instruction** | State-aware procedural guidance — advice, not action | Static markdown + a few live-state fetches, `readOnlyHint: true`, outputs `nextToolSuggestions` pre-filling the recommended follow-up. No writes. | `git_wrapup_instructions`, `mailchimp_playbook` |
+
+Most servers are primitive-heavy with a few workflow tools; content-heavy or process-heavy domains also benefit from one or more instruction tools. The subsections below cover the considerations specific to each shape — workflow framing applies to everything, instruction tools and workflow safety are their own subsections.
 
 #### Think in workflows, not endpoints
 
@@ -133,6 +156,63 @@ const findEligibleStudies = tool('clinicaltrials_find_eligible_studies', {
 There is no fixed ceiling on tool count — tools need to earn their keep, but don't artificially limit the surface. If the domain genuinely has 20 distinct workflows, expose 20 tools.
 
 **Audit: does each tool earn its keep?** After mapping tools, review the full list critically. A tool that covers a niche use case, serves a tiny fraction of agents, or duplicates what another tool already handles is a candidate for deferral. Drop it from the design and note it as a future addition if demand warrants. Every tool in the surface is cognitive load for tool selection — a tight surface outperforms a comprehensive one.
+
+#### Instruction tools
+
+Some domains benefit from a tool whose output is **guidance, not data** — a markdown playbook tailored by live account state, with pre-filled next-step tool calls. These sit between Prompts (static templates, client-invokable) and action tools (do work, return data): they return advice, but the advice is worth more than static text because it merges procedural content with the agent's actual situation.
+
+Characteristics:
+
+- **Output is markdown guidance**, not structured data (though the output schema still has fields — typically `guidance`, `diagnostics`, and `nextToolSuggestions`)
+- **Merges static procedural content with live state** — the value is the tailoring. "Your bounce rate is 2.1%, so prioritize list cleanup before tweaking subject lines" beats a generic deliverability article.
+- **`readOnlyHint: true`, `openWorldHint: false`** — no writes, deterministic given the same inputs and account state
+- **Outputs `nextToolSuggestions`** — an array of recommended follow-up tool calls with arguments **pre-filled** from the diagnostics, not just tool names. The agent consumes the playbook, then executes steps with other tools.
+- **Consolidate by `topic` enum** — what could be N separate per-topic tools collapses into one
+
+```ts
+const mailchimpPlaybook = tool('mailchimp_playbook', {
+  description: 'Procedural guidance tailored to current account state. Returns best-practice markdown merged with live diagnostics (bounce rate, list health, recent campaign stats) and pre-filled follow-up tool calls. Read-only; the agent then executes steps with other tools.',
+  annotations: { readOnlyHint: true, openWorldHint: false },
+  input: z.object({
+    topic: z.enum(['send-first-campaign', 'clean-bounces', 'improve-deliverability'])
+      .describe('Playbook topic. Determines which static guidance is returned and which live state is fetched for tailoring.'),
+  }),
+  output: z.object({
+    guidance: z.string()
+      .describe('Markdown playbook content, tailored to current account state.'),
+    diagnostics: z.record(z.unknown())
+      .describe('Live state used to tailor the guidance (e.g., bounce rate, list size, recent send stats).'),
+    nextToolSuggestions: z.array(z.object({
+      toolName: z.string().describe('Tool to call next.'),
+      reason: z.string().describe('Why this step is recommended given current state.'),
+      args: z.record(z.unknown()).describe('Arguments pre-filled from diagnostics.'),
+    })).describe('Recommended follow-up calls with arguments already populated.'),
+  }),
+});
+```
+
+Prior art: [`git_wrapup_instructions`](https://github.com/cyanheads/git-mcp-server) (walks through staging, commit, and push with repo state inspected), `mailchimp_playbook` (campaign and list hygiene). If a server has recurring "how do I do X well given my state" questions, an instruction tool typically beats N topic-specific tools and duplicating guidance in tool descriptions.
+
+#### Workflow tool safety
+
+Tools that perform multi-step mutations (the Workflow shape) have two safety considerations beyond single-call primitives. Both are about giving the agent — and the human behind it — a chance to catch a bad invocation before it commits.
+
+**Elicit-guarded destructive modes with annotation fallback.** When a workflow's `mode` parameter switches between safe and destructive arms (`draft` vs `send`, `plan` vs `apply`), gate the destructive arm behind `ctx.elicit` when the client supports it, so a human confirms before the irreversible step fires. Elicitation isn't universally available — headless stdio sessions and many non-interactive clients don't expose it. Fall back on `destructiveHint: true` in annotations so those clients' approval flows still surface the risk. Document the fallback in the handler so maintainers don't assume elicit always runs:
+
+```ts
+annotations: { destructiveHint: true },        // fallback for clients without elicit
+// ...
+async handler(input, ctx) {
+  if (input.mode === 'send' && ctx.elicit) {
+    const confirm = await ctx.elicit(`Send campaign to ${recipientCount} recipients?`,
+      z.object({ confirmed: z.literal(true).describe('Type true to send.') }));
+    if (confirm.action !== 'accept') throw new Error('Send cancelled by user.');
+  }
+  // destructive step proceeds; destructiveHint covers clients that skipped elicit
+}
+```
+
+**Safe defaults on parameters that determine blast radius.** When a workflow accepts a parameter that controls how far-reaching a mutation is, default to the safer value. A subscriber import tool defaulting `status: 'pending'` (double-opt-in) means a sloppy agent call can't trigger a mass-send; an apply-plan tool defaulting `dryRun: true` means a misread plan previews rather than executes. Agents that genuinely want the destructive behavior have to name it explicitly, which surfaces intent in the tool call and in logs.
 
 #### Tool descriptions
 
@@ -403,6 +483,23 @@ Each step is independently testable.
 
 Keep it concise. The design doc is a working reference, not a spec document — enough to orient a developer (or agent) implementing the server, not more.
 
+**Workflow Analysis example.** For multi-step workflow tools, a small ASCII call-flow sketch per tool is cheap to write and drives several downstream decisions during implementation: the service-layer method shape, retry boundaries, where cleanup or elicit belongs, and what post-action state to fetch for the response. Sketch each workflow tool's upstream call sequence with branch arms annotated by the `mode` parameter:
+
+```text
+mailchimp_send_campaign (5–8 upstream calls, plus elicit):
+(if ctx.elicit && mode in send|schedule) → elicit confirmation
+POST   /campaigns                            → create draft
+PUT    /campaigns/{id}/content               → set html/plaintext/template content
+GET    /campaigns/{id}/send-checklist        → validate
+POST   /campaigns/{id}/actions/test          → (if mode=test) send preview
+POST   /campaigns/{id}/actions/send          → (if mode=send)
+POST   /campaigns/{id}/actions/schedule      → (if mode=schedule)
+GET    /campaigns/{id}                       → post-action state for response
+(on mid-flow error + cleanupOnError)         → DELETE /campaigns/{id}
+```
+
+The sketch surfaces design questions early: should the elicit happen before or after the draft is created? Does cleanup delete the draft on any failure, or only failures past a certain step? What does the response body need from the final GET? Answering these during design is far cheaper than mid-implementation.
+
 ### 9. Confirm and Proceed
 
 If the user has already authorized implementation (e.g., "build me a ___ server"), proceed directly to scaffolding using the design doc as the plan. Otherwise, present the design doc to the user for review before implementing.
@@ -421,16 +518,22 @@ Execute the plan using the scaffolding skills:
 ## Checklist
 
 - [ ] External APIs/dependencies researched and verified (docs fetched, SDKs identified)
-- [ ] Domain operations mapped (nouns + verbs)
+- [ ] User goals enumerated first (5–10 outcomes agents will accomplish), then domain operations mapped as raw material
 - [ ] Each operation classified as tool, resource, prompt, or excluded
+- [ ] Catastrophically irreversible operations excluded from the tool surface (stay in vendor UI) — not just `destructiveHint`
 - [ ] Related operations consolidated (operation/mode enum) — not one tool per endpoint
+- [ ] Tool shapes considered: primitive, workflow, instruction — each with its own design pressures
+- [ ] Workflow tools have call-flow sketched (upstream sequence + mode arms) in design doc's Workflow Analysis
+- [ ] Instruction tools considered where state-aware procedural guidance adds value (`nextToolSuggestions` pre-filled from diagnostics)
+- [ ] Destructive workflow modes guarded by `ctx.elicit` when available, with `destructiveHint` annotation as fallback for non-interactive clients
+- [ ] Safe defaults on parameters that determine blast radius (e.g., `status: 'pending'`, `dryRun: true`)
 - [ ] Tool descriptions are concrete and include operational guidance where non-obvious
 - [ ] Parameter `.describe()` text explains what the value is, what it affects, and tradeoffs
 - [ ] Input schemas use constrained types (enums, literals, regex) over free strings
 - [ ] Output schemas designed for LLM's next action — chaining IDs, post-write state, filtering communicated
 - [ ] `format()` renders all data the LLM needs — different clients forward different surfaces (Claude Code → `structuredContent`, Claude Desktop → `content[]`); both must carry the same data, not just a count or title
 - [ ] Error messages guide recovery — name what went wrong and what to do next
-- [ ] Annotations set correctly (`readOnlyHint`, `destructiveHint`, etc.)
+- [ ] Annotations set correctly (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`)
 - [ ] Tool surface is self-sufficient — a tool-only agent can accomplish everything the server is for
 - [ ] MCP Apps tools identified where interactive UI adds value (and `format()` provides full text fallback for non-app hosts)
 - [ ] Resource URIs use `{param}` templates, pagination planned for large lists
