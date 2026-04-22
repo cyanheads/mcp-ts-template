@@ -39,6 +39,23 @@ function warn(rule: string, message: string): LintDiagnostic {
   };
 }
 
+/**
+ * Reject CSS values that could escape the custom-property declaration context
+ * (`--accent: ${value};`). The renderer HTML-escapes the value, but that's the
+ * wrong escape for a CSS context — `;`, `{`, `}`, comment markers, and backslash
+ * escapes all survive HTML escaping and can break out. This check is the real
+ * defense; it's a content shape check, not a full CSS color parser, so new
+ * color spaces (e.g. `oklch`, `color-mix`, future additions) pass through
+ * without regex churn.
+ */
+function isSafeCssColor(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed.length > 128) return false;
+  if (/[;{}\\<>]/.test(trimmed)) return false;
+  if (trimmed.includes('/*') || trimmed.includes('*/')) return false;
+  return /^[#a-zA-Z]/.test(trimmed);
+}
+
 /** Approximate byte size of a data URI's decoded content, given its raw length. */
 function approximateDataUriBytes(uri: string): number {
   // data:image/png;base64,AAAA...  — base64-encoded payload is ~4/3× the raw bytes.
@@ -194,8 +211,17 @@ export function lintLandingConfig(landing: unknown): LintDiagnostic[] {
       diagnostics.push(error('landing-theme-type', 'landing.theme must be a plain object.'));
     } else {
       const theme = l.theme as Record<string, unknown>;
-      if (theme.accent != null && typeof theme.accent !== 'string') {
-        diagnostics.push(error('landing-theme-accent', 'landing.theme.accent must be a string.'));
+      if (theme.accent != null) {
+        if (typeof theme.accent !== 'string') {
+          diagnostics.push(error('landing-theme-accent', 'landing.theme.accent must be a string.'));
+        } else if (!isSafeCssColor(theme.accent)) {
+          diagnostics.push(
+            error(
+              'landing-theme-accent-format',
+              `landing.theme.accent ${JSON.stringify(theme.accent)} is not a recognized CSS color. Use a hex literal (#6366f1), named color (indigo), or functional form (rgb(...), oklch(...), color-mix(...)). Values containing ; { } < > \\ or CSS comments are rejected.`,
+            ),
+          );
+        }
       }
     }
   }

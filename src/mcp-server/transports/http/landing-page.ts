@@ -67,11 +67,16 @@ function renderTokens(accent: string): SafeHtml {
   --accent-edge: color-mix(in oklab, ${safeAccent}, transparent 65%);
   --accent-soft: color-mix(in oklab, ${safeAccent}, transparent 82%);
   --accent-softer: color-mix(in oklab, ${safeAccent}, transparent 92%);
+  /* Secondary accent — hue-shifted companion for richer gradients. */
+  /* Fallback (lighter tonal variant) first; modern relative-color value overrides on supported engines. */
+  --accent-2: color-mix(in oklab, var(--accent), white 30%);
+  --accent-2: oklch(from var(--accent) l c calc(h + 30));
+  --accent-glow: color-mix(in oklab, var(--accent), transparent 72%);
 
-  --bg: #fcfcfd;
-  --bg-subtle: #f5f5f7;
+  --bg: #fbfbfd;
+  --bg-subtle: #f4f4f7;
   --bg-elevated: #ffffff;
-  --bg-code: #f7f7f9;
+  --bg-code: #f6f7fa;
   --fg: #09090b;
   --fg-muted: #52525b;
   --fg-subtle: #71717a;
@@ -81,25 +86,26 @@ function renderTokens(accent: string): SafeHtml {
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04);
   --shadow-md: 0 4px 20px -8px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
   --grid-dot: rgb(0 0 0 / 0.045);
-  --glow-strength: 0.08;
+  --glow-strength: 0.10;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #08090d;
-    --bg-subtle: #0f1015;
-    --bg-elevated: #0d0e13;
-    --bg-code: #0a0b10;
+    --bg: #0a0b12;
+    --bg-subtle: #11131a;
+    --bg-elevated: #10121a;
+    --bg-code: #0c0d14;
     --fg: #ededef;
     --fg-muted: #a1a1a8;
     --fg-subtle: #8a8a93;
-    --border: #1f2027;
-    --border-subtle: #16171c;
-    --border-strong: #2a2b33;
+    --border: #22232b;
+    --border-subtle: #191a21;
+    --border-strong: #2d2e37;
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
     --shadow-md: 0 4px 24px -8px rgb(0 0 0 / 0.55), 0 1px 2px rgb(0 0 0 / 0.3);
-    --grid-dot: rgb(255 255 255 / 0.028);
-    --glow-strength: 0.12;
+    --grid-dot: rgb(255 255 255 / 0.032);
+    --glow-strength: 0.17;
+    --accent-glow: color-mix(in oklab, var(--accent), transparent 60%);
   }
 }
 
@@ -121,7 +127,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Top accent hairline — spans viewport, brand-variable gradient. */
+/* Top accent hairline — spans viewport, dual-accent gradient. */
 body::before {
   content: "";
   position: fixed;
@@ -129,23 +135,25 @@ body::before {
   height: 1px;
   background: linear-gradient(90deg,
     transparent 0%,
-    color-mix(in oklab, var(--accent), transparent 60%) 15%,
-    var(--accent) 50%,
-    color-mix(in oklab, var(--accent), transparent 60%) 85%,
+    color-mix(in oklab, var(--accent), transparent 60%) 12%,
+    var(--accent) 35%,
+    var(--accent-2) 65%,
+    color-mix(in oklab, var(--accent-2), transparent 60%) 88%,
     transparent 100%);
   z-index: 100;
   pointer-events: none;
 }
 
-/* Ambient background — radial accent glow top-left + fine dot grid. */
+/* Ambient background — dual radial glow (accent top-left, accent-2 top-right) + fine dot grid. */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   background-image:
     radial-gradient(ellipse 70% 55% at 12% -5%, color-mix(in oklab, var(--accent), transparent calc((1 - var(--glow-strength)) * 100%)), transparent 60%),
+    radial-gradient(ellipse 55% 45% at 92% 10%, color-mix(in oklab, var(--accent-2), transparent calc((1 - var(--glow-strength)) * 115%)), transparent 55%),
     radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px);
-  background-size: 100% 100%, 24px 24px;
+  background-size: 100% 100%, 100% 100%, 24px 24px;
   pointer-events: none;
   z-index: -1;
 }
@@ -247,7 +255,10 @@ pre code { background: transparent; padding: 0; border: 0; font-size: inherit; }
 }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .hero-heading {
-    background: linear-gradient(180deg, var(--fg) 0%, color-mix(in oklab, var(--fg), transparent 25%) 100%);
+    background: linear-gradient(180deg,
+      color-mix(in oklab, var(--fg), var(--accent) 10%) 0%,
+      var(--fg) 45%,
+      color-mix(in oklab, var(--fg), transparent 22%) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -350,6 +361,9 @@ pre code { background: transparent; padding: 0; border: 0; font-size: inherit; }
   color: var(--fg);
   font-weight: 500;
 }
+.status-value-accent {
+  color: var(--accent);
+}
 .status-signin {
   color: var(--fg-muted);
   text-decoration: none;
@@ -372,6 +386,16 @@ pre code { background: transparent; padding: 0; border: 0; font-size: inherit; }
 
 /* -------------------- Connect card -------------------- */
 
+/* Registered custom property enables animation of a gradient angle.
+   Without @property the custom-property value would change discretely rather
+   than tweening, so the beam would jump instead of sweep. Widely supported
+   since 2023 — engines without it fall through to the static border. */
+@property --beam-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
 .connect {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -379,6 +403,42 @@ pre code { background: transparent; padding: 0; border: 0; font-size: inherit; }
   overflow: hidden;
   box-shadow: var(--shadow-md);
   position: relative;
+  isolation: isolate;
+}
+
+/* Animated conic-gradient beam sweeping the inside of the card edge. Uses the
+   "mask-composite: exclude" trick to render only the outer ring. Sits just
+   inside the static border so it reads as accent light traveling along the
+   rim; the static border remains as a fallback for engines without
+   mask-composite or @property. */
+.connect::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--beam-angle),
+    transparent 0deg 40deg,
+    var(--accent) 90deg,
+    var(--accent-2) 160deg,
+    transparent 220deg 360deg
+  );
+  mask:
+    linear-gradient(#000, #000) content-box,
+    linear-gradient(#000, #000);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  animation: connect-beam 7s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.9;
+}
+
+@keyframes connect-beam {
+  to {
+    --beam-angle: 360deg;
+  }
 }
 
 /* Chrome header — three dots + endpoint path */
@@ -549,6 +609,18 @@ section { padding: var(--space-12) 0 0; }
   letter-spacing: -0.025em;
   color: var(--fg);
   text-transform: lowercase;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.section-heading h2::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 0.9em;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 .section-count {
   font-family: var(--font-mono);
@@ -595,7 +667,7 @@ section { padding: var(--space-12) 0 0; }
 .card:hover {
   border-color: var(--accent-edge);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 28px -12px var(--accent-glow), var(--shadow-md);
 }
 .card-head {
   display: flex;
@@ -980,7 +1052,7 @@ function renderStatusStrip(manifest: ServerManifest, degraded: boolean): SafeHtm
       )}
       <span class="status-item" title="MCP protocol version ${protocol.latestVersion}">
         <span>protocol</span>
-        <span class="status-value">${protocol.latestVersion}</span>
+        <span class="status-value status-value-accent">${protocol.latestVersion}</span>
       </span>
     </div>
   `;

@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.8](changelog/0.6.x/0.6.8.md) — 2026-04-22
+
+Landing page visual polish — dual-accent token system (--accent-2, --accent-glow), animated border beam on the connect card, brighter dark mode, and a new CSS-injection guard on landing.theme.accent
+
 ## [0.6.7](changelog/0.6.x/0.6.7.md) — 2026-04-22
 
 Template polish — echo app tool wired up in scaffold, version placeholder/gitignore/dockerignore fixes, stale `unreleased.md` doc references corrected, @types/bun + @types/node patch bumps

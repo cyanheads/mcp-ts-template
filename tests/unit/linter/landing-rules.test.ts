@@ -115,4 +115,37 @@ describe('lintLandingConfig', () => {
       expect.objectContaining({ rule: 'landing-theme-type', severity: 'error' }),
     ]);
   });
+
+  test.each([
+    ['#fff'],
+    ['#6366f1'],
+    ['#6366f1aa'],
+    ['red'],
+    ['transparent'],
+    ['currentColor'],
+    ['rgb(99 102 241)'],
+    ['rgba(99, 102, 241, 0.8)'],
+    ['hsl(230 84% 67%)'],
+    ['oklch(0.64 0.18 278)'],
+    ['color-mix(in oklab, red, blue 20%)'],
+  ])('accepts %s as a valid theme.accent', (accent) => {
+    expect(lintLandingConfig({ theme: { accent } })).toEqual([]);
+  });
+
+  test.each([
+    ['red; } body { background: url(evil)'],
+    ['red } * { color: red'],
+    ['red /* injected */'],
+    ['red */ x'],
+    ['<script>alert(1)</script>'],
+    ['red\\00003b'],
+    [''],
+    ['   '],
+    ['x'.repeat(129)],
+    ['123'],
+  ])('rejects %s as an unsafe theme.accent', (accent) => {
+    expect(lintLandingConfig({ theme: { accent } })).toEqual([
+      expect.objectContaining({ rule: 'landing-theme-accent-format', severity: 'error' }),
+    ]);
+  });
 });
