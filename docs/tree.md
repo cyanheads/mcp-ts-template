@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-04-21 08:16:57
+Generated on: 2026-04-22 15:43:37
 
 ```text
 mcp-ts-core/
@@ -27,8 +27,7 @@ mcp-ts-core/
 │   ├── 0.4.x/
 │   ├── 0.5.x/
 │   ├── 0.6.x/
-│   └── unreleased.md
-├── claude-plans/
+│   └── template.md
 ├── docs/
 │   ├── mcp-specification/
 │   │   ├── 2025-06-18/
@@ -376,7 +375,7 @@ mcp-ts-core/
 │   │   ├── extensions.json
 │   │   └── settings.json
 │   ├── changelog/
-│   │   └── unreleased.md
+│   │   └── template.md
 │   ├── src/
 │   │   ├── mcp-server/
 │   │   │   ├── prompts/

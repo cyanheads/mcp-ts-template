@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.6](changelog/0.6.x/0.6.6.md) — 2026-04-22
+
+MCP_PUBLIC_URL override for deployments behind TLS-terminating proxies; design-mcp-server skill v2.6 formalizes tool archetypes; changelog/unreleased.md renamed to changelog/template.md
+
 ## [0.6.5](changelog/0.6.x/0.6.5.md) — 2026-04-22
 
 README "Let the agent drive" scaffolding pitch, package description tightened, dependency sweep (ext-apps 1.7, vitest 4.1.5, workers-types)
