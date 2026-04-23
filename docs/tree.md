@@ -358,6 +358,7 @@ mcp-ts-core/
 │   │   │   ├── csvParser.ts
 │   │   │   ├── dateParser.ts
 │   │   │   ├── frontmatterParser.ts
+│   │   │   ├── htmlExtractor.ts
 │   │   │   ├── index.ts
 │   │   │   ├── jsonParser.ts
 │   │   │   ├── pdfParser.ts
@@ -634,6 +635,7 @@ mcp-ts-core/
 │   │   │   │   ├── csvParser.test.ts
 │   │   │   │   ├── dateParser.test.ts
 │   │   │   │   ├── frontmatterParser.test.ts
+│   │   │   │   ├── htmlExtractor.test.ts
 │   │   │   │   ├── jsonParser.test.ts
 │   │   │   │   ├── pdfParser.test.ts
 │   │   │   │   ├── xmlParser.test.ts

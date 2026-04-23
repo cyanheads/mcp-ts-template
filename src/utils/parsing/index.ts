@@ -12,6 +12,12 @@ export {
   type FrontmatterResult,
   frontmatterParser,
 } from './frontmatterParser.js';
+export {
+  type ExtractArticleOptions,
+  type ExtractArticleResult,
+  HtmlExtractor,
+  htmlExtractor,
+} from './htmlExtractor.js';
 export { Allow, JsonParser, jsonParser } from './jsonParser.js';
 export {
   type AddPageOptions,
