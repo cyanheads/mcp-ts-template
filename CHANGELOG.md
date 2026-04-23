@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.14](changelog/0.6.x/0.6.14.md) — 2026-04-23
+
+New security-pass skill (8-axis MCP server audit) and devcheck Skills Sync step verifying skills/ propagated to local agent mirrors
+
 ## [0.6.13](changelog/0.6.x/0.6.13.md) — 2026-04-23
 
 PdfParser.extractText now accepts raw bytes directly, skipping the pdf-lib round-trip for text-only callers (unpdf-only path)

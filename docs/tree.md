@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-04-23 14:40:35
+Generated on: 2026-04-23 21:40:42
 
 ```text
 mcp-ts-core/
@@ -104,12 +104,12 @@ mcp-ts-core/
 │   ├── build-changelog.ts
 │   ├── build.ts
 │   ├── check-docs-sync.ts
+│   ├── check-skills-sync.ts
 │   ├── clean.ts
 │   ├── devcheck.ts
 │   ├── devdocs.ts
 │   ├── fetch-openapi-spec.ts
 │   ├── lint-mcp.ts
-│   ├── make-executable.ts
 │   ├── split-changelog.ts
 │   ├── tree.ts
 │   └── update-coverage.ts
@@ -176,6 +176,8 @@ mcp-ts-core/
 │   ├── report-issue-framework/
 │   │   └── SKILL.md
 │   ├── report-issue-local/
+│   │   └── SKILL.md
+│   ├── security-pass/
 │   │   └── SKILL.md
 │   ├── setup/
 │   │   └── SKILL.md
