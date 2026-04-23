@@ -461,6 +461,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 | `add-service` | `skills/add-service/SKILL.md` | Scaffold a new domain service |
 | `add-test` | `skills/add-test/SKILL.md` | Scaffold test file for a tool, resource, or service |
 | `field-test` | `skills/field-test/SKILL.md` | Exercise tools/resources/prompts with real inputs, verify behavior, report issues |
+| `security-pass` | `skills/security-pass/SKILL.md` | Review server for MCP-flavored security gaps: output injection, scope blast radius, elicit gaps, upstream auth, input sinks, tenant isolation, leakage, resource bounds |
 | `add-provider` | `skills/add-provider/SKILL.md` | Add a new provider implementation |
 | `add-export` | `skills/add-export/SKILL.md` | Add a new subpath export |
 | `design-mcp-server` | `skills/design-mcp-server/SKILL.md` | Design tool surface, resources, and service layer for a new server |

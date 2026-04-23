@@ -142,8 +142,9 @@ The included skills form a rough progression — not a rigid sequence, but the t
 2. **`add-tool`** / **`add-app-tool`** / **`add-resource`** / **`add-prompt`** / **`add-service`** — scaffold each piece as you go
 3. **`add-test`** — pair tests with each definition (or retrofit later)
 4. **`field-test`** — exercise the built surface with real and adversarial inputs; produces a report of issues and pain points
-5. **`polish-docs-meta`** — finalize README, metadata, and agent protocol before shipping
-6. **`maintenance`** — after `bun update --latest`, investigate upstream changelogs and re-sync skills
+5. **`security-pass`** — audit handlers for MCP-specific security gaps: output injection, scope blast radius, input sinks, tenant isolation
+6. **`polish-docs-meta`** — finalize README, metadata, and agent protocol before shipping
+7. **`maintenance`** — after `bun update --latest`, investigate upstream changelogs and re-sync skills
 
 Skip or reorder as the project calls for it. The agent protocol's "What's Next?" section is the authoritative map once the first session is over.
 

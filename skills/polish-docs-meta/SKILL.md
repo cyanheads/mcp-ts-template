@@ -19,6 +19,8 @@ metadata:
 
 Prefer running after implementation is complete, but safe to re-run at any point — steps are idempotent.
 
+**Companion:** pair with `security-pass` for a full pre-ship review — this skill polishes docs and metadata; `security-pass` audits handlers for MCP-specific security gaps.
+
 ## Prerequisites
 
 - [ ] All tools/resources/prompts implemented and registered

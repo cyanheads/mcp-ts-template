@@ -43,7 +43,7 @@ bun install
 
 You get a scaffolded project with `CLAUDE.md`, Agent Skills, and a `src/` tree ready for your tools. Infrastructure — transports, auth, storage, telemetry, lifecycle, linting — lives in `node_modules`. What's left is domain: which APIs to wrap, which workflows to expose.
 
-Start your coding agent (Claude Code, Codex, Cursor), describe the system you want to expose, and it drives the build. The included skills cover the full cycle: `setup`, `design-mcp-server`, scaffolding, testing, `release-and-publish`.
+Start your coding agent (Claude Code, Codex, Cursor), describe the system you want to expose, and it drives the build. The included skills cover the full cycle: `setup`, `design-mcp-server`, scaffolding, testing, `security-pass`, `release-and-publish`.
 
 ### What you get
 

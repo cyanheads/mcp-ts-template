@@ -13,6 +13,7 @@ metadata:
 
 This skill runs **after** git wrapup. By the time it's invoked:
 
+- Pre-wrapup verification is done (`field-test`, `security-pass`, `polish-docs-meta` as applicable)
 - `package.json` version is bumped
 - `changelog/<major.minor>.x/<version>.md` is authored
 - `CHANGELOG.md` is regenerated
