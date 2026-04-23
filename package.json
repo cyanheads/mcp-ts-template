@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/mcp-ts-core",
-  "version": "0.6.9",
+  "version": "0.6.10",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "Agent-native TypeScript framework for building MCP servers. Declarative definitions with auth, multi-backend storage, OpenTelemetry, and first-class support for Bun/Node/Cloudflare Workers.",
   "main": "dist/core/index.js",
@@ -146,7 +146,7 @@
     "audit:fix": "bun audit --fix",
     "changelog:build": "bun run scripts/build-changelog.ts",
     "changelog:check": "bun run scripts/build-changelog.ts --check",
-    "publish-mcp": "bunx mcp-publisher publish"
+    "publish-mcp": "mcp-publisher login github -token \"$(security find-generic-password -a \"$USER\" -s mcp-publisher-github-pat -w)\" && mcp-publisher publish"
   },
   "resolutions": {
     "brace-expansion": "1.1.14",
@@ -160,7 +160,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.12",
-    "@cloudflare/workers-types": "^4.20260422.1",
+    "@cloudflare/workers-types": "^4.20260423.1",
     "@hono/otel": "^1.1.1",
     "@opentelemetry/instrumentation-http": "^0.215.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.215.0",
@@ -171,7 +171,7 @@
     "@opentelemetry/sdk-node": "^0.215.0",
     "@opentelemetry/sdk-trace-node": "^2.7.0",
     "@opentelemetry/semantic-conventions": "^1.40.0",
-    "@supabase/supabase-js": "^2.104.0",
+    "@supabase/supabase-js": "^2.104.1",
     "@types/bun": "^1.3.13",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.6.0",
@@ -202,7 +202,7 @@
     "typescript": "^6.0.3",
     "unpdf": "^1.6.0",
     "validator": "^13.15.35",
-    "vite": "8.0.9",
+    "vite": "8.0.10",
     "vitest": "^4.1.5"
   },
   "keywords": [

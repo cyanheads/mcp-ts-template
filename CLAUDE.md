@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.6.9
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.6.10
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -468,7 +468,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 | `polish-docs-meta` | `skills/polish-docs-meta/SKILL.md` | Finalize docs, README, metadata, and agent protocol for shipping |
 | `report-issue-framework` | `skills/report-issue-framework/SKILL.md` | File a bug or feature request against `@cyanheads/mcp-ts-core` via `gh` CLI |
 | `report-issue-local` | `skills/report-issue-local/SKILL.md` | File a bug or feature request against this server's own repo via `gh` CLI |
-| `release` | `skills/release/SKILL.md` | Version bump, changelog, publish workflow |
+| `release-and-publish` | `skills/release-and-publish/SKILL.md` | Post-wrapup ship workflow: verification gate, push, publish to npm/MCP Registry/GHCR |
 | `maintenance` | `skills/maintenance/SKILL.md` | Dependency updates, housekeeping tasks |
 | `migrate-mcp-ts-template` | `skills/migrate-mcp-ts-template/SKILL.md` | Migrate legacy template fork to package dependency |
 
@@ -563,7 +563,7 @@ Pre-release versions (`0.6.0-beta.1`, `0.6.0-rc.1`, etc.) are consolidated as `#
 
 ## Publishing
 
-Run the `release` skill first — it verifies version consistency across all files, changelog completeness, skill version bumps, and runs the final check suite. It ends by presenting these irreversible publish commands:
+Run the `release-and-publish` skill — it runs the verification gate (`devcheck`, `rebuild`, `test:all`), pushes commits and tags, and publishes to every applicable destination. The full reference:
 
 ```bash
 bun publish --access public

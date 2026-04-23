@@ -5,7 +5,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.6.9-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.6.10-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.2-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
@@ -43,7 +43,7 @@ bun install
 
 You get a scaffolded project with `CLAUDE.md`, Agent Skills, and a `src/` tree ready for your tools. Infrastructure — transports, auth, storage, telemetry, lifecycle, linting — lives in `node_modules`. What's left is domain: which APIs to wrap, which workflows to expose.
 
-Start your coding agent (Claude Code, Codex, Cursor), describe the system you want to expose, and it drives the build. The included skills cover the full cycle: `setup`, `design-mcp-server`, scaffolding, testing, release.
+Start your coding agent (Claude Code, Codex, Cursor), describe the system you want to expose, and it drives the build. The included skills cover the full cycle: `setup`, `design-mcp-server`, scaffolding, testing, `release-and-publish`.
 
 ### What you get
 

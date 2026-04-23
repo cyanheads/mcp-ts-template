@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-04-22 23:00:55
+Generated on: 2026-04-23 14:40:35
 
 ```text
 mcp-ts-core/
@@ -171,7 +171,7 @@ mcp-ts-core/
 │   │   │   ├── readme.md
 │   │   │   └── server-json.md
 │   │   └── SKILL.md
-│   ├── release/
+│   ├── release-and-publish/
 │   │   └── SKILL.md
 │   ├── report-issue-framework/
 │   │   └── SKILL.md
