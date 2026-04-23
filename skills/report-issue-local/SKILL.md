@@ -4,7 +4,7 @@ description: >
   File a bug or feature request against this MCP server's own repo. Use for server-specific issues — tool logic, service integrations, config problems, or domain bugs that aren't caused by the framework.
 metadata:
   author: cyanheads
-  version: "1.1"
+  version: "1.2"
   audience: external
   type: workflow
 ---
@@ -21,6 +21,8 @@ The bug is in this server's code, not in `@cyanheads/mcp-ts-core`. Typical trigg
 - Missing or incorrect `.describe()` on schema fields causing poor LLM tool use
 
 **If the issue is in the framework itself** (builders, Context, utilities, type exports, linter), use `report-issue-framework` instead.
+
+For general `gh` CLI workflows outside issue filing (PRs, workflows, API access), see the `github-cli` skill.
 
 ## Before Filing
 
@@ -39,6 +41,20 @@ gh issue list --search "your error message or keyword"
 3. **Reproduce the issue** — confirm it's reproducible. Note the exact input, transport mode, and any relevant env vars.
 
 4. **Check logs** — review `ctx.log` output and any framework telemetry for clues. If running HTTP, check the response body for structured error details.
+
+## Writing Well-Structured Issues
+
+Good issues are scannable, concrete, and self-contained. These patterns apply to both bugs and features — the guidance targets any prose block (Description, Additional context, feature proposals).
+
+- **Lead with specifics.** Name the tool, service, resource, or symptom. "Currently `search_docs` returns an empty array for queries containing `&`" beats "Search is broken." A reader should know what's wrong before the end of the first sentence.
+- **Embed library/service links on first mention.** `[Hono](https://hono.dev/)`, `[Supabase](https://supabase.com/)`. Link to the canonical repo or homepage so readers can verify the dependency and reach docs in one click.
+- **Use `owner/repo#N` for cross-repo issue references.** GitHub auto-renders them as linked references (e.g. `cyanheads/mcp-ts-core#46`). Bare `#N` only works for same-repo issues — useful when the bug depends on or relates to a framework issue.
+- **Add a `Related: #N` line** near the top when the issue grows from prior context (discussions, other issues, PRs). Makes provenance clickable.
+- **Lead design sections with a philosophy sentence.** Bold a short principle before the tradeoff details — e.g. "Philosophy: **return best-effort data, don't fail the tool call on parsing edge cases.**" Establishes the lens for the rest of the section.
+- **Prefer Markdown tables for comparisons.** When showing options, data sources, strategies, or tradeoffs — tables are the highest-density format for scanning N rows × M attributes.
+- **Separate `### Scope` from `### Out of scope`.** The latter is as important as the former — it pre-empts scope-creep debates in comments and signals you've thought about the boundaries.
+- **Use `Depends on: owner/repo#N`** to declare ordering explicitly when implementation is blocked on an upstream framework change or another issue landing first.
+- **Skip collaborator-framing sign-offs.** Lines like "Happy to open a PR", "let me know if you'd like", "willing to contribute", "if that's the preferred flow" read as noise. A PR link beats an offer; if you're the maintainer filing against your own repo, the offer is redundant. End the body at the last substantive point.
 
 ## Redact Before Posting
 
@@ -158,22 +174,61 @@ gh issue create --template "Feature Request" --web
 
 ### CLI (non-interactive)
 
+Template below demonstrates the richer structure. Omit sections you don't need — simple requests don't require Flow / Design / Dependencies blocks.
+
 ````bash
 gh issue create \
   --title "feat(scope): concise description" \
   --label "enhancement" \
   --body "$(cat <<'ISSUE'
-### Use case
+Concrete statement of what's currently missing or broken. Name the specific tool, service, resource, or domain area. Two or three sentences — the reader should know the gap before the end of the paragraph.
 
-What problem does this solve? Who benefits?
+Related: #N
+
+## Proposal
+
+What you want the server to do, in one paragraph. Link external libraries or services on first mention: [lib name](https://github.com/owner/repo). Include a short justification — what this gives users that they don't have today.
 
 ### Proposed behavior
 
-Describe the expected behavior or API change.
+Describe the new behavior or surface. For tool/resource changes, show example input/output or the new schema fields:
+
+```ts
+// Example: new input field or output shape
+```
+
+### Flow (optional)
+
+Ordered steps — e.g. `request → lookup → fallback → respond`. Useful when the change spans multiple phases or fallbacks.
+
+### Design / Tradeoffs (optional)
+
+Philosophy: **one-line principle in bold.**
+
+| Option | Strengths | Weaknesses |
+|:---|:---|:---|
+| A | ... | ... |
+| B | ... | ... |
+
+### Scope
+
+- Files or modules touched
+- New env vars, config keys, or service integrations
+- New or modified tools / resources / prompts
+
+### Out of scope
+
+- What we're deliberately not doing
+- Adjacent work that belongs in a separate issue
+
+### Dependencies (optional)
+
+- Depends on: cyanheads/mcp-ts-core#N (upstream framework change)
+- Depends on: owner/repo#N (other server work)
 
 ### Alternatives considered
 
-What you tried or considered instead.
+What you tried or evaluated instead, and why it didn't fit.
 ISSUE
 )"
 ````

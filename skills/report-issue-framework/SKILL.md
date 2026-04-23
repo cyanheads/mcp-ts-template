@@ -4,7 +4,7 @@ description: >
   File a bug or feature request against @cyanheads/mcp-ts-core when you hit a framework issue. Use when a builder, utility, context method, or config behaves contrary to the documented API — not for server-specific application bugs.
 metadata:
   author: cyanheads
-  version: "1.1"
+  version: "1.2"
   audience: external
   type: workflow
 ---
@@ -20,6 +20,8 @@ You've isolated a problem to `@cyanheads/mcp-ts-core` itself — not your server
 - Type exports are incorrect or missing (compile error on documented usage)
 - The definition linter (`bun run lint:mcp`) produces false positives or misses real violations
 
+For general `gh` CLI workflows outside issue filing (PRs, workflows, API access), see the `github-cli` skill.
+
 ## Before Filing
 
 1. **Confirm framework version** — `bun pm ls @cyanheads/mcp-ts-core` or check `node_modules/@cyanheads/mcp-ts-core/package.json`
@@ -30,6 +32,20 @@ You've isolated a problem to `@cyanheads/mcp-ts-core` itself — not your server
 ```bash
 gh issue list -R cyanheads/mcp-ts-core --search "your error message or keyword"
 ```
+
+## Writing Well-Structured Issues
+
+Good issues are scannable, concrete, and self-contained. These patterns apply to both bugs and features — the guidance targets any prose block (Description, Additional context, feature proposals).
+
+- **Lead with specifics.** Name the tool, function, module, or symptom. "Currently `createApp()` throws `ConfigurationError` when `MCP_HTTP_PORT` is set to `0`" beats "There's a problem with the config." A reader should know what's broken or missing before the end of the first sentence.
+- **Embed library/service links on first mention.** `[Hono](https://hono.dev/)`, `[linkedom](https://github.com/WebReflection/linkedom)`. Link to the canonical repo or homepage so readers can verify the dependency and reach docs in one click.
+- **Use `owner/repo#N` for cross-repo issue references.** GitHub auto-renders them as linked references (e.g. `cyanheads/pubmed-mcp-server#34`). Bare `#N` only works for same-repo issues.
+- **Add a `Related: #N` line** near the top when the issue grows from prior context (discussions, other issues, PRs). Makes provenance clickable.
+- **Lead design sections with a philosophy sentence.** Bold a short principle before the tradeoff details — e.g. "Philosophy: **fail fast on config errors, degrade gracefully on runtime errors.**" Establishes the lens for the rest of the section.
+- **Prefer Markdown tables for comparisons.** When showing options, tiers, strategies, or tradeoffs — tables are the highest-density format for scanning N rows × M attributes.
+- **Separate `### Scope` from `### Out of scope`.** The latter is as important as the former — it pre-empts scope-creep debates in comments and signals you've thought about the boundaries.
+- **Use `Depends on: owner/repo#N`** to declare ordering explicitly when implementation is blocked on another issue landing first.
+- **Skip collaborator-framing sign-offs.** Lines like "Happy to open a PR", "let me know if you'd like", "willing to contribute", "if that's the preferred flow" read as noise. A PR link beats an offer; if you're the maintainer filing against your own repo, the offer is redundant. End the body at the last substantive point.
 
 ## Redact Before Posting
 
@@ -174,14 +190,20 @@ gh issue create -R cyanheads/mcp-ts-core --template "Feature Request" --web
 
 ### CLI (non-interactive)
 
+Template below demonstrates the richer structure. Omit sections you don't need — simple requests don't require Flow / Design / Dependencies blocks.
+
 ````bash
 gh issue create -R cyanheads/mcp-ts-core \
   --title "feat(scope): concise description" \
   --label "enhancement" \
   --body "$(cat <<'ISSUE'
-### Use case
+Concrete statement of what's currently missing or broken in the framework. Name the specific builder, utility, context method, or config field. Two or three sentences — the reader should know the gap before the end of the paragraph.
 
-Describe the problem you're solving and why the framework should handle it.
+Related: #N
+
+## Proposal
+
+What you want the framework to do, in one paragraph. Link external libraries on first mention: [lib name](https://github.com/owner/repo). Include a short justification — what this gives us that we don't have today.
 
 ### Proposed API
 
@@ -194,9 +216,37 @@ const result = await withRetry(() => fetchExternal(url), {
 });
 ```
 
+### Flow (optional)
+
+Ordered steps — e.g. `trigger → resolve → fetch → degrade`. Useful when the change spans multiple phases or fallbacks.
+
+### Design / Tradeoffs (optional)
+
+Philosophy: **one-line principle in bold.**
+
+| Option | Strengths | Weaknesses |
+|:---|:---|:---|
+| A | ... | ... |
+| B | ... | ... |
+
+### Scope
+
+- Files or modules touched
+- New exports, env vars, or config keys
+- Tier (Tier 1 core / Tier 2 standard / Tier 3 optional peer dep)
+
+### Out of scope
+
+- What we're deliberately not doing
+- Adjacent work that belongs in a separate issue
+
+### Dependencies (optional)
+
+- Depends on: owner/repo#N
+
 ### Alternatives considered
 
-What you tried or considered instead.
+What you tried or evaluated instead, and why it didn't fit.
 ISSUE
 )"
 ````

@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.12](changelog/0.6.x/0.6.12.md) — 2026-04-23
+
+Enrich report-issue-framework and report-issue-local skills with Writing Well-Structured Issues guidance and an expanded feature-request template
+
 ## [0.6.11](changelog/0.6.x/0.6.11.md) — 2026-04-23
 
 Add HtmlExtractor Tier 3 utility — wraps defuddle + linkedom for extracting main article content and metadata from raw HTML into Markdown or cleaned HTML
