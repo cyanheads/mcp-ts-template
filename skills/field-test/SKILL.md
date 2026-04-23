@@ -1,127 +1,250 @@
 ---
 name: field-test
 description: >
-  Exercise tools, resources, and prompts with real-world inputs to verify behavior end-to-end. Use after adding or modifying definitions, or when the user asks to test, try out, or verify their MCP surface. Calls each definition with realistic and adversarial inputs and produces a report of issues, pain points, and recommendations.
+  Exercise tools, resources, and prompts against a live HTTP server via MCP JSON-RPC over curl. Starts the server, surfaces the catalog, runs real and adversarial inputs, and produces a tight report with concrete findings and numbered follow-up options. Use after adding or modifying definitions, or when the user asks to test, try out, or verify their MCP surface.
 metadata:
   author: cyanheads
-  version: "1.3"
+  version: "2.0"
   audience: external
   type: debug
 ---
 
 ## Context
 
-Unit tests (`add-test` skill) verify handler logic with mocked context. Field testing verifies the full picture: real server, real transport, real inputs, real outputs. It catches issues that unit tests miss — bad descriptions, awkward input shapes, unhelpful error messages, missing format functions, schema mismatches, silent divergence between `structuredContent` and model-visible `content[]`, and surprising edge-case behavior.
+Unit tests (`add-test` skill) verify handler logic with mocked context. Field testing exercises the real HTTP transport with real JSON-RPC: starts the server, calls `initialize`, surfaces the catalog, runs inputs, and checks what a client actually sees. It catches what unit tests miss — awkward input shapes, unhelpful errors, missing format output, drift between `structuredContent` and `content[]`, edge-case surprises.
 
-**Actively use** the tools — don't just read their code.
+**Actively call the tools. Don't read code and guess.**
 
 ---
 
 ## Steps
 
-### 1. Surface available definitions
+### 1. Start the server
 
-List the MCP tools, resources, and prompts available in your environment. This confirms the server is connected and gives you everything you need — names, descriptions, parameter schemas — to plan your tests.
+Write the helper to `/tmp/mcp-field-test.sh` once, then source it in every subsequent Bash call. Helper keeps PID / URL / session id in `/tmp/mcp-field-test.env` so state survives across tool invocations.
 
-If you don't see any MCP tools from this server, ask the user to connect it first (e.g. `claude mcp add` for Claude Code, or the equivalent for their client). Don't proceed until the tools are visible.
+```bash
+cat > /tmp/mcp-field-test.sh <<'HELPER_EOF'
+#!/bin/bash
+# Field-test helper: manage an MCP HTTP server + JSON-RPC session across shell calls.
+STATE_FILE="/tmp/mcp-field-test.env"
+[ -f "$STATE_FILE" ] && . "$STATE_FILE"
 
-Present what you find: each definition's name, parameters (with types and descriptions), and any notable schema details (optional fields, enums, constraints). This is your test surface.
+mcp_start() {
+  local dir="${1:-$PWD}"
+  echo "building $dir ..."
+  (cd "$dir" && bun run rebuild) >/tmp/mcp-build.log 2>&1 \
+    || { echo "BUILD FAILED — see /tmp/mcp-build.log"; return 1; }
+  echo "starting server ..."
+  (cd "$dir" && bun run start:http) >/tmp/mcp-server.log 2>&1 &
+  local pid=$!
+  local line=""
+  for _ in $(seq 1 40); do
+    line=$(grep -Eo 'listening at http://[^" ]+/mcp' /tmp/mcp-server.log | head -1)
+    [ -n "$line" ] && break
+    sleep 0.25
+  done
+  if [ -z "$line" ]; then
+    echo "server failed to start — see /tmp/mcp-server.log"
+    kill "$pid" 2>/dev/null
+    return 1
+  fi
+  local url="${line#listening at }"
+  local port; port=$(echo "$url" | sed -E 's|.*:([0-9]+)/.*|\1|')
+  cat > "$STATE_FILE" <<EOF
+export MCP_PID=$pid
+export MCP_URL=$url
+export MCP_PORT=$port
+EOF
+  . "$STATE_FILE"
+  echo "ready pid=$pid url=$url"
+}
 
-### 2. Test each definition
+mcp_init() {
+  [ -z "$MCP_URL" ] && { echo "run mcp_start first"; return 1; }
+  local hdr="/tmp/mcp-init-headers.txt"
+  curl -sS -D "$hdr" -X POST "$MCP_URL" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"field-test","version":"2.0"}}}' >/dev/null
+  local sid; sid=$(grep -i '^mcp-session-id:' "$hdr" | awk '{print $2}' | tr -d '\r\n')
+  [ -z "$sid" ] && { echo "no session id returned"; return 1; }
+  cat > "$STATE_FILE" <<EOF
+export MCP_PID=$MCP_PID
+export MCP_URL=$MCP_URL
+export MCP_PORT=$MCP_PORT
+export MCP_SID=$sid
+EOF
+  . "$STATE_FILE"
+  curl -sS -X POST "$MCP_URL" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    -H "Mcp-Session-Id: $sid" \
+    -d '{"jsonrpc":"2.0","method":"notifications/initialized"}' >/dev/null
+  echo "session=$sid"
+}
 
-For every tool, resource, and prompt, run through these categories:
+# Usage: mcp_call METHOD [JSON_PARAMS]
+# Prints the JSON-RPC response (SSE framing stripped). Pipe to `jq`.
+mcp_call() {
+  [ -z "$MCP_SID" ] && { echo "run mcp_init first"; return 1; }
+  local method="$1"; local params="${2:-}"
+  local body
+  if [ -z "$params" ]; then
+    body=$(printf '{"jsonrpc":"2.0","id":%d,"method":"%s"}' "$RANDOM" "$method")
+  else
+    body=$(printf '{"jsonrpc":"2.0","id":%d,"method":"%s","params":%s}' "$RANDOM" "$method" "$params")
+  fi
+  curl -sS -X POST "$MCP_URL" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    -H "Mcp-Session-Id: $MCP_SID" \
+    -d "$body" | sed -n 's/^data: //p'
+}
 
-#### Tools
+mcp_stop() {
+  [ -n "$MCP_PID" ] && kill "$MCP_PID" 2>/dev/null
+  rm -f "$STATE_FILE"
+  echo "stopped"
+}
+HELPER_EOF
 
-| Category | What to test |
-|:---------|:-------------|
-| **Happy path** | Realistic input that should succeed. Verify output shape matches the output schema. Verify format function produces sensible content blocks. |
-| **`structuredContent` parity** | The `format-parity` lint rule already asserts every terminal field in the output schema appears in `format()`'s rendered text (via sentinel injection at startup). Field testing layers real-data checks on top: are values rendered accurately (not just their labels)? Do conditional-render branches in `format()` still render every field when specific values are present? Does the content look right to a human reading the LLM's view? |
-| **Variations** | Different valid input combinations — optional fields omitted, optional fields included, different enum values, min/max boundaries. |
-| **Field selection / projection** | For tools with `fields`, `include`, `expand`, `view`, or similar parameters, call the tool with non-default selections. Verify the handler returns the requested fields and `format()` renders each requested field rather than a hardcoded summary subset. |
-| **Edge cases** | Empty strings, zero values, very long inputs, special characters, Unicode. |
-| **Error paths** | Missing required fields, wrong types, nonexistent IDs, inputs that should trigger domain errors. Verify errors are clear and actionable — they should name what went wrong, why, and what to do next. |
-| **Empty results** | Inputs that match nothing. Verify the response explains *why* (echoes criteria, suggests broadening) rather than returning a bare empty array. |
-| **Partial success** | For tools that operate on multiple items, test cases where some succeed and some fail. Verify both outcomes are reported — not just the successes. |
-| **Annotations** | Review tool `annotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) against actual behavior. If a tool is marked read-only, verify it does not mutate state. If it is marked idempotent, verify retries with the same input are safe. If it is marked open-world false, verify it is not silently depending on live external systems. |
-| **Workflow chaining** | For servers with multi-step workflows, execute 1-2 representative chains end-to-end. Example: search → detail → follow-up action. Verify each step returns the IDs, cursors, URIs, tokens, or state needed for the next step without guessing. |
-| **Response quality** | Inspect successful responses for: (1) chaining IDs needed for follow-up calls, (2) operational metadata (counts, applied filters, truncation notices), (3) filtering transparency (if anything was excluded, does the response say what and how to include it?), (4) reasonable response size (not dumping unbounded data into context). See the `add-tool` skill's **Tool Response Design** section for the full set of patterns. |
-| **Resilience** | For tools backed by external APIs or slow subsystems, test or explicitly note rate-limit, timeout, and transient-failure behavior. Verify retries/backoff happen where intended, or at minimum that the error message clearly tells the user whether to retry, wait, or change input. |
-| **Descriptions** | Read every field's `.describe()` — would a user/LLM understand what to provide? Flag vague or missing descriptions. |
+. /tmp/mcp-field-test.sh
+mcp_start /absolute/path/to/server   # replace with the target server
+```
 
-#### Resources
+**Notes**
 
-| Category | What to test |
-|:---------|:-------------|
-| **Happy path** | Valid URI with known params. Verify returned content and MIME type. |
-| **List** | Call `list` if defined. Verify returned resources have names and valid URIs. |
-| **Not found** | URI with nonexistent params. Verify a clear error, not a crash. |
-| **Pagination** | If the resource uses `extractCursor`/`paginateArray`, test with varying limits and cursors. |
+- `MCP_HTTP_PORT` is a *starting* port — the server auto-increments if taken. Helper parses the real URL from the log (`HTTP transport listening at ...`).
+- If `bun run rebuild` fails, stop. Don't field-test broken code — fix the build first.
+- If a server is already listening on the project's port (`lsof -i :<port>`), confirm with the user before killing it; it may be their own session.
 
-#### Prompts
+### 2. Initialize the session
 
-| Category | What to test |
-|:---------|:-------------|
-| **Happy path** | Valid args. Verify generated messages are well-formed. |
-| **Defaults** | Omit optional args. Verify the output still makes sense. |
-| **Content quality** | Read the generated messages — are they clear, well-structured prompts? |
+```bash
+. /tmp/mcp-field-test.sh
+mcp_init
+```
 
-### 3. Track progress
+Runs `initialize`, captures the session id, sends `notifications/initialized`.
 
-Use a todo list to track each definition and its test status. Mark each as you go — don't batch.
+### 3. Surface the catalog
 
-### 4. Produce the report
+```bash
+. /tmp/mcp-field-test.sh
+mcp_call tools/list     | jq '.result.tools[]     | {name, description, inputSchema}'
+mcp_call resources/list | jq '.result.resources[] | {uri, name, mimeType}'
+mcp_call prompts/list   | jq '.result.prompts[]   | {name, description, arguments}'
+```
 
-After testing everything, present a structured report:
+Present a compact catalog to the user: each definition's name + 1-line description. Flag vague or missing descriptions as you go — those feed into the report. Use this to build the test plan.
 
-#### Summary table
+### 4. Plan the test pass
 
-| Definition | Type | Status | Issues |
-|:-----------|:-----|:-------|:-------|
-| `acme_search_items` | tool | pass | — |
-| `acme_get_item` | tool | issues | Error message unhelpful for missing ID |
-| `item://` | resource | fail | Crashes on nonexistent ID |
+**Budget.** Don't run every category against every definition — the cross-product is infeasible. Apply the **universal battery** to everything; apply **situational categories** only when the definition triggers them.
 
-#### Detailed findings
+**Universal battery — run on every tool**
 
-For each definition with issues, include:
+| Category | What to verify |
+|:---------|:---------------|
+| Happy path | One realistic input. Output shape matches schema. `content[]` text reads clearly to a human. |
+| `structuredContent` ↔ `content[]` parity | Every field in `structuredContent` is surfaced in the text. Parity gap = client-specific blindness. |
+| Input error | One invalid input (wrong type or missing required). Error text says *what*, *why*, *how to fix*. |
 
-- **What happened** — the input, the output or error, and what was expected
-- **Severity** — `bug` (broken behavior), `ux` (works but confusing/unhelpful), `nit` (minor polish)
-- **Recommendation** — specific fix suggestion
+**Situational — add only when triggered**
 
-#### Pain points
+| Trigger (look in input schema or `annotations`) | Add category |
+|:------------------------------------------------|:-------------|
+| `include` / `fields` / `expand` / `view` / `projection` parameter | Field selection: non-default value renders requested fields |
+| Array return with `query` / `filter` inputs | Empty result: does response explain *why* (echo criteria, suggest broadening)? |
+| Batch / bulk input (arrays of IDs, multi-item ops) | Partial success: mix valid + invalid items |
+| `annotations.readOnlyHint: true` | Confirm no mutation happened |
+| `annotations.idempotentHint: true` | Call twice with same input — safe? |
+| Hits external API / live upstream | One call that exercises upstream; note rate-limit / timeout / transient-failure behavior |
+| Chained with other tools (search → detail → act) | Run one representative chain end-to-end; does each step return the IDs/cursors the next needs? |
+| `cursor` / `offset` / `limit` params | Pagination: second page, end-of-list |
 
-Cross-cutting observations that aren't tied to a single definition:
+**Resources.** Happy path, not-found URI, `list` if defined, pagination if used.
+**Prompts.** Happy path, defaults omitted, skim message quality.
 
-- Inconsistent error message patterns across tools
-- Missing format functions (raw JSON returned to user)
-- `structuredContent` contains data that `content[]` silently drops
-- Requested projected fields are returned programmatically but not rendered for the model
-- Description quality issues (vague, missing, or misleading)
-- Schema design issues (required fields that should be optional, missing defaults, overly broad types, non-JSON-Schema-serializable types like `z.custom()` or `z.date()`)
-- Annotation hints that do not match real behavior (`readOnlyHint`, `idempotentHint`, `openWorldHint`)
-- Response quality issues (empty results with no context, silent filtering, missing chaining IDs, oversized payloads, no operational metadata)
-- Multi-step workflows that cannot be completed because intermediate outputs omit required IDs, cursors, or URIs
-- Error messages that don't guide recovery (generic "not found" instead of naming alternatives)
-- Resilience issues (rate limits, timeouts, transient upstream failures handled poorly or explained poorly)
-- Performance observations (unexpectedly slow responses)
+**Sampling for large servers.** If more than 15 tools, run the universal battery on all, but pick roughly 30–40% for situational testing. Weight toward: write-shaped tools, complex schemas, external deps. List which ones you skipped in the report.
+
+**Auth & external state.**
+
+- If a tool needs real API keys and they're not set, note `skipped — requires $VAR` and move on. Don't fabricate inputs.
+- Tools that write to real external systems (third-party APIs, shared DBs): confirm with the user before running, or use a dry-run input if one exists.
+
+### 5. Execute
+
+Use `TaskCreate` — one task per definition. Mark complete as you go. Don't batch.
+
+For each call, capture: input sent, response (trim huge payloads to files), whether `isError: true` appeared, anything surprising (slow response, parity drift, unhelpful text, crash).
+
+**Interpreting responses**
+
+- Tool domain errors return `{result: {content: [...], isError: true}}` — they live in `result`, not `error`. Check `isError`, not the JSON-RPC error field.
+- JSON-RPC `error` only appears for protocol issues (bad session, malformed envelope, unknown method).
+- `mcp_call` already strips SSE framing. Pipe to `jq` for readability.
+
+### 6. Tear down
+
+```bash
+. /tmp/mcp-field-test.sh
+mcp_stop
+```
+
+Kills the background server, clears state. Do this *before* writing the report so nothing leaks into the next session.
+
+### 7. Report
+
+Three sections. Tight. The user should be able to skim the summary, read details only for what matters, and act on numbered options.
+
+#### Summary (1 paragraph)
+
+One paragraph. How many definitions exercised, how many passed clean, how many have issues, and the single most important finding. No tables, no lists.
+
+#### Findings
+
+Only include definitions with issues. Group by severity. Each finding is 2–4 lines unless it genuinely needs more.
+
+| Severity | Meaning |
+|:---------|:--------|
+| **bug** | Broken: crash, wrong output, `isError: true` on valid input, data loss, schema violation |
+| **ux** | Works but degrades the user/LLM experience: vague description, unhelpful error text, missing `format()`, parity drift, annotation mismatches behavior |
+| **nit** | Polish: phrasing, inconsistent tone, minor doc gaps |
+
+Format:
+
+```
+**<tool_name> — <bug|ux|nit>**
+Input: `<short input>` → <what happened>
+Expected: <what should happen>
+Fix: <one sentence>
+```
+
+#### Options
+
+Numbered, actionable, cherry-pickable. Each item maps to a concrete change.
+
+```
+1. Fix empty-result message in `pubmed_search_articles` — echo criteria (finding #2)
+2. Add `format()` to `pubmed_lookup_mesh` — currently returns raw JSON (finding #5)
+3. Tighten `ids` description in `pubmed_fetch_articles` — silent on PMID vs DOI (finding #8)
+```
+
+End with:
+
+> Pick by number (e.g. "do 1, 3, 5" or "expand on 2").
 
 ---
 
 ## Checklist
 
-- [ ] All registered tools tested (happy path + edge cases + empty results)
-- [ ] All registered resources tested (happy path + not found)
-- [ ] All registered prompts tested (happy path + defaults)
-- [ ] Error messages reviewed for clarity and recovery guidance
-- [ ] Empty-result responses reviewed for context (criteria echo, suggestions)
-- [ ] `structuredContent` and `content[]` reviewed for parity
-- [ ] Field-selection / projection behavior reviewed where applicable
-- [ ] Response quality reviewed (chaining IDs, metadata, filtering transparency, payload size)
-- [ ] Tool annotations reviewed against actual behavior
-- [ ] Representative multi-step workflows exercised where applicable
-- [ ] External API resilience reviewed where applicable (rate limits, timeouts, transient failures)
-- [ ] Descriptions reviewed for completeness and accuracy
-- [ ] Format functions verified (or absence noted)
-- [ ] Summary report presented to user
+- [ ] Server built and started; real port parsed from log
+- [ ] Session initialized; `notifications/initialized` sent
+- [ ] Catalog surfaced and presented
+- [ ] Universal battery run on every definition
+- [ ] Situational categories applied only when triggered
+- [ ] External-state / auth-gated tools handled explicitly (run, skip, or confirm)
+- [ ] Server stopped; state file removed
+- [ ] Report: summary paragraph → grouped findings → numbered options
