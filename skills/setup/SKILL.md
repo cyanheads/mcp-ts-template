@@ -4,7 +4,7 @@ description: >
   Post-init orientation for an MCP server built on @cyanheads/mcp-ts-core. Use after running `@cyanheads/mcp-ts-core init` to understand the project structure, conventions, and skill sync model. Also use when onboarding to an existing project for the first time.
 metadata:
   author: cyanheads
-  version: "1.4"
+  version: "1.5"
   audience: external
   type: workflow
 ---
@@ -29,19 +29,39 @@ For the full framework API, read `node_modules/@cyanheads/mcp-ts-core/CLAUDE.md`
 What `init` actually creates:
 
 ```text
-CLAUDE.md                                       # Agent protocol (project-specific)
-AGENTS.md                                       # Alternate agent protocol file — keep the one your agent uses
-.github/ISSUE_TEMPLATE/                         # GitHub issue templates (bug report, feature request)
-skills/                                         # Project skills (source of truth)
+CLAUDE.md                                       # Agent protocol — Claude Code
+AGENTS.md                                       # Agent protocol — other agents (Codex, Cursor, etc.)
+package.json                                    # Starter deps + scripts (placeholders substituted on init)
+tsconfig.json                                   # TypeScript config
+tsconfig.build.json                             # Build-only TS config
+vitest.config.ts                                # Test runner config
+biome.json                                      # Lint + format config
+devcheck.config.json                            # Which devcheck steps to run
+Dockerfile                                      # Starter multi-stage image
+.dockerignore
+.env.example                                    # Copy to .env and fill in
+.gitignore
+.github/ISSUE_TEMPLATE/                         # Bug / feature-request issue forms
+.vscode/                                        # Recommended extensions + editor settings
+server.json                                     # MCP Registry publishing metadata
+changelog/template.md                           # Format reference for per-version changelog files
+scripts/                                        # build, clean, devcheck, lint-mcp, build-changelog, tree, check-docs-sync
+skills/                                         # External skills copied from the package (source of truth)
 src/
   index.ts                                      # createApp() entry point
   mcp-server/
     tools/definitions/
-      echo.tool.ts                              # Echo tool (starter — replace when ready)
+      echo.tool.ts                              # Standard tool starter
+      echo-app.app-tool.ts                      # UI-enabled app tool starter (pairs with echo-app-ui resource)
     resources/definitions/
-      echo.resource.ts                          # Echo resource (starter — replace when ready)
+      echo.resource.ts                          # Standard resource starter
+      echo-app-ui.app-resource.ts               # UI resource paired with echo-app app tool
     prompts/definitions/
-      echo.prompt.ts                            # Echo prompt (starter — replace when ready)
+      echo.prompt.ts                            # Prompt starter
+tests/
+  tools/echo.tool.test.ts                       # Starter tests (one per echo definition)
+  resources/echo.resource.test.ts
+  prompts/echo.prompt.test.ts
 ```
 
 Add these as needed:
@@ -59,11 +79,24 @@ src/
 
 ## Scaffolded Echo Definitions
 
-The init creates echo definitions for tools, resources, and prompts. They're functional examples with inline comments explaining conventions. After init:
+The init creates five echo definitions plus matching starter tests:
 
-1. Clean up what you don't need. If your server has no prompts, the echo prompt definition and its registration in `src/index.ts` can go. Same for resources.
-2. Rename and replace what you keep. The echo definitions show the pattern — swap them out for your real tools/resources/prompts.
-3. Definitions register directly in `src/index.ts`. No barrel files, just import and add to the arrays.
+| File | Demonstrates |
+|:--|:--|
+| `echo.tool.ts` | Standard MCP tool: input/output Zod schemas, `handler`, `format` |
+| `echo-app.app-tool.ts` | MCP App tool — same as a tool, but emits a UI (`ui_app://` link) for clients that render MCP Apps |
+| `echo.resource.ts` | Standard MCP resource with a parameterised URI template |
+| `echo-app-ui.app-resource.ts` | UI resource served to MCP App clients; paired with `echo-app.app-tool.ts` |
+| `echo.prompt.ts` | Prompt template (pure message generator) |
+| `tests/**/echo.*.test.ts` | Starter tests using `createMockContext` — edit alongside the definitions |
+
+After init:
+
+1. **Clean up what you don't need.** If your server has no prompts, delete the echo prompt and its registration in `src/index.ts`. Same for resources, or the app-tool pair if you're not targeting UI-capable clients.
+2. **Rename and replace what you keep.** The echo definitions and their tests show the pattern — swap them out for your real tools/resources/prompts.
+3. **Definitions register directly in `src/index.ts`.** No barrel files, just import and add to the `tools` / `resources` / `prompts` arrays.
+
+See the `add-tool`, `add-app-tool`, `add-resource`, `add-prompt`, and `add-test` skills for the scaffolding patterns when you start adding real definitions.
 
 ## Conventions
 
@@ -71,7 +104,7 @@ The init creates echo definitions for tools, resources, and prompts. They're fun
 |:-----------|:-----|
 | File names | kebab-case |
 | Tool/resource/prompt names | snake_case, prefixed with server name (e.g. `tasks_fetch_list`) |
-| File suffixes | `.tool.ts`, `.resource.ts`, `.prompt.ts` |
+| File suffixes | `.tool.ts`, `.resource.ts`, `.prompt.ts`, `.app-tool.ts` (UI-enabled), `.app-resource.ts` (paired UI resource) |
 | Imports (framework) | `@cyanheads/mcp-ts-core` and subpaths |
 | Imports (server code) | `@/` path alias for `src/` |
 
@@ -97,6 +130,23 @@ After `bun install`, complete these one-time setup tasks:
 2. **Initialize git** — `git init && git add -A && git commit -m "chore: scaffold from @cyanheads/mcp-ts-core"`
 3. **Verify agent protocol placeholders** — if the `init` CLI was run without a `[name]` argument, `{{PACKAGE_NAME}}` may remain as a literal in `CLAUDE.md`/`AGENTS.md` and `package.json`. Replace it with the actual server name.
 
+## Changelog Convention
+
+`changelog/template.md` ships as a **format reference** — never edit, rename, or move it. For each release, author a per-version file at `changelog/<major.minor>.x/<version>.md` (e.g. `changelog/0.1.x/0.1.0.md`) with YAML frontmatter (`summary:` + optional `breaking:`) and grouped sections (Added / Changed / Fixed / Removed). Then regenerate the rollup with `bun run changelog:build` — `CHANGELOG.md` is an auto-generated navigation index, never hand-edited. See the `release-and-publish` skill for the full release flow.
+
+## Next Steps
+
+The included skills form a rough progression — not a rigid sequence, but the typical flow through a new server:
+
+1. **`design-mcp-server`** — map the domain into tools, resources, and services before writing any definitions
+2. **`add-tool`** / **`add-app-tool`** / **`add-resource`** / **`add-prompt`** / **`add-service`** — scaffold each piece as you go
+3. **`add-test`** — pair tests with each definition (or retrofit later)
+4. **`field-test`** — exercise the built surface with real and adversarial inputs; produces a report of issues and pain points
+5. **`polish-docs-meta`** — finalize README, metadata, and agent protocol before shipping
+6. **`maintenance`** — after `bun update --latest`, investigate upstream changelogs and re-sync skills
+
+Skip or reorder as the project calls for it. The agent protocol's "What's Next?" section is the authoritative map once the first session is over.
+
 ## Checklist
 
 - [ ] Agent protocol file selected — keep one authoritative file (`CLAUDE.md` or `AGENTS.md`)
@@ -106,4 +156,4 @@ After `bun install`, complete these one-time setup tasks:
 - [ ] Skills copied to agent directory (`cp -R skills/* .claude/skills/` or equivalent)
 - [ ] Project structure understood (definitions directories, entry point)
 - [ ] `bun run devcheck` passes
-- [ ] If new server: proceed to `design-mcp-server` skill to plan the tool surface
+- [ ] Next: if new server, move on to `design-mcp-server` to plan the tool surface
