@@ -1046,8 +1046,8 @@ describe('PdfParser', () => {
       expect(debugSpy).toHaveBeenCalledWith(
         'Extracting text from PDF using unpdf.',
         expect.objectContaining({
-          pageCount: 3,
           mergePages: false,
+          inputKind: 'document',
         }),
       );
 
@@ -1088,6 +1088,72 @@ describe('PdfParser', () => {
           errorDetails: 'Save failed',
         }),
       );
+    });
+  });
+
+  describe('extractText from bytes', () => {
+    let pdfBytes: Uint8Array;
+
+    beforeEach(async () => {
+      const doc = await PDFDocument.create();
+      const font = await doc.embedFont(StandardFonts.Helvetica);
+      const page1 = doc.addPage([600, 400]);
+      const page2 = doc.addPage([600, 400]);
+      page1.drawText('Bytes page 1: scholarly PDF content', {
+        x: 50,
+        y: 350,
+        size: 12,
+        font,
+      });
+      page2.drawText('Bytes page 2: LLM-ready text', { x: 50, y: 350, size: 12, font });
+      pdfBytes = await doc.save();
+    });
+
+    it('should extract text directly from Uint8Array without a PDFDocument', async () => {
+      const result = await parser.extractText(pdfBytes, undefined, context);
+
+      expect(result.totalPages).toBe(2);
+      expect(Array.isArray(result.text)).toBe(true);
+      const pages = result.text as string[];
+      expect(pages[0]).toContain('Bytes page 1');
+      expect(pages[1]).toContain('Bytes page 2');
+    });
+
+    it('should merge bytes extraction when mergePages is true', async () => {
+      const result = await parser.extractText(pdfBytes, { mergePages: true }, context);
+
+      expect(result.totalPages).toBe(2);
+      expect(typeof result.text).toBe('string');
+      const merged = result.text as string;
+      expect(merged).toContain('Bytes page 1');
+      expect(merged).toContain('Bytes page 2');
+    });
+
+    it('should accept an ArrayBuffer', async () => {
+      const ab = new ArrayBuffer(pdfBytes.byteLength);
+      new Uint8Array(ab).set(pdfBytes);
+      const result = await parser.extractText(ab, undefined, context);
+      expect(result.totalPages).toBe(2);
+    });
+
+    it('should log inputKind: "bytes" when bytes are passed', async () => {
+      const debugSpy = vi.spyOn(logger, 'debug');
+      await parser.extractText(pdfBytes, undefined, context);
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        'Extracting text from PDF using unpdf.',
+        expect.objectContaining({
+          inputKind: 'bytes',
+          mergePages: false,
+        }),
+      );
+    });
+
+    it('should not call pdf-lib save() on the bytes path', async () => {
+      const saveSpy = vi.spyOn(PDFDocument.prototype, 'save');
+      const result = await parser.extractText(pdfBytes, undefined, context);
+      expect(result.totalPages).toBe(2);
+      expect(saveSpy).not.toHaveBeenCalled();
     });
   });
 

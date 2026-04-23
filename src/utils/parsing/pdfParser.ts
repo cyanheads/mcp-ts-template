@@ -961,34 +961,37 @@ export class PdfParser {
   }
 
   /**
-   * Extracts text content from all pages of a PDF document using `unpdf`.
+   * Extracts text content from all pages of a PDF using `unpdf`.
    *
-   * Serializes the `PDFDocument` to bytes, then delegates to `unpdf`'s `extractText`,
-   * which is compatible with Cloudflare Workers and other serverless environments.
-   * Async due to lazy loading of both `pdf-lib` and `unpdf`
-   * (`bun add pdf-lib unpdf`).
+   * Accepts either raw PDF bytes (`Uint8Array` | `ArrayBuffer`) or a loaded
+   * `PDFDocument`. When bytes are passed, `pdf-lib` is not required — `unpdf` is
+   * the only peer dep that loads, making this the preferred path for scholarly
+   * / API pipelines that just need text for an LLM. When a `PDFDocument` is
+   * passed, the doc is serialized via `pdf-lib`'s `save()` before extraction.
+   * Compatible with Cloudflare Workers and other serverless environments.
    *
-   * @param doc - The `PDFDocument` to extract text from.
+   * @param input - Raw PDF bytes (`Uint8Array` | `ArrayBuffer`) or a loaded `PDFDocument`.
    * @param options - Optional extraction options. Set `mergePages: true` to get a
    *   single concatenated string instead of one string per page.
    * @param context - Optional `RequestContext` for correlated logging and error metadata.
    * @returns An `ExtractTextResult` with `totalPages` and `text` — a `string[]` (one
    *   per page) by default, or a single `string` when `mergePages` is `true`.
-   * @throws {McpError} With `ConfigurationError` if `pdf-lib` or `unpdf` is not installed.
+   * @throws {McpError} With `ConfigurationError` if `unpdf` is not installed (or
+   *   `pdf-lib` is missing when a `PDFDocument` is passed).
    * @throws {McpError} With `InternalError` if text extraction fails.
    * @example
    * ```typescript
-   * // Per-page array (default)
-   * const result = await pdfParser.extractText(doc);
-   * console.log(result.text[0]); // Text from first page
+   * // Direct from bytes — skips the pdf-lib round-trip (unpdf-only path)
+   * const bytes = await readFile('paper.pdf');
+   * const result = await pdfParser.extractText(bytes, { mergePages: true });
    *
-   * // All pages concatenated into one string
-   * const merged = await pdfParser.extractText(doc, { mergePages: true });
-   * console.log(merged.text); // Full document text
+   * // From a loaded document (when you're also editing / inspecting)
+   * const doc = await pdfParser.loadDocument(bytes);
+   * const perPage = await pdfParser.extractText(doc);
    * ```
    */
   async extractText(
-    doc: PDFDocument,
+    input: PDFDocument | Uint8Array | ArrayBuffer,
     options?: ExtractTextOptions,
     context?: RequestContext,
   ): Promise<ExtractTextResult> {
@@ -999,38 +1002,24 @@ export class PdfParser {
       });
 
     try {
-      const pageCount = doc.getPageCount();
       const mergePages = options?.mergePages ?? false;
+      const isBytes = input instanceof Uint8Array || input instanceof ArrayBuffer;
 
       logger.debug('Extracting text from PDF using unpdf.', {
         ...logContext,
-        pageCount,
         mergePages,
+        inputKind: isBytes ? 'bytes' : 'document',
       });
 
-      // Convert PDFDocument to bytes
-      const pdfBytes = await doc.save();
+      const rawBytes = isBytes ? input : await input.save();
+      const pdfBytes = rawBytes instanceof ArrayBuffer ? new Uint8Array(rawBytes) : rawBytes;
 
       const { getDocumentProxy, extractText: unpdfExtractText } = await getUnpdf();
-
-      // Create document proxy for unpdf
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const pdfProxy = await getDocumentProxy(pdfBytes);
 
-      // Extract text using unpdf with explicit type handling
-      let result: { totalPages: number; text: string | string[] };
-
-      if (mergePages) {
-        // Call with mergePages: true for merged text
-        const merged = await unpdfExtractText(pdfProxy, { mergePages: true });
-        result = merged;
-      } else {
-        // Call with mergePages: false for per-page text
-        const perPage = await unpdfExtractText(pdfProxy, {
-          mergePages: false,
-        });
-        result = perPage;
-      }
+      const result: { totalPages: number; text: string | string[] } = mergePages
+        ? await unpdfExtractText(pdfProxy, { mergePages: true })
+        : await unpdfExtractText(pdfProxy, { mergePages: false });
 
       logger.debug('Successfully extracted text from PDF.', {
         ...logContext,
