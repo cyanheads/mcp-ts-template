@@ -239,6 +239,9 @@ interface DevcheckConfig {
   outdated?: {
     allowlist?: string[];
   };
+  skillsSync?: {
+    ignore?: string[];
+  };
 }
 
 function loadDevcheckConfig(rootDir: string): DevcheckConfig {
@@ -420,6 +423,30 @@ const ALL_CHECKS: Check[] = [
     getCommand: () => ['bun', 'run', 'scripts/check-docs-sync.ts'],
     tip: (c) =>
       `Edit both files together, or run ${c.bold('cp CLAUDE.md AGENTS.md')} (or reverse) to resync.`,
+  },
+  {
+    name: 'Skills Sync',
+    flag: '--no-skills-sync',
+    canFix: false,
+    // Compares canonical skills/ against local mirrors (.agents/skills, .claude/skills).
+    // Skipped when skills/ or both mirrors are absent (non-mirrored projects).
+    // Drift is demoted to a warning via isSuccess — intentional ignores live in
+    // devcheck.config.json `skillsSync.ignore`.
+    getCommand: () => {
+      const hasSkills = existsSync(path.join(ROOT_DIR, 'skills'));
+      const hasMirrors =
+        existsSync(path.join(ROOT_DIR, '.agents/skills')) ||
+        existsSync(path.join(ROOT_DIR, '.claude/skills'));
+      if (!hasSkills || !hasMirrors) return null;
+      return ['bun', 'run', 'scripts/check-skills-sync.ts'];
+    },
+    isSuccess: (result) => {
+      if (result.exitCode === 0) return true;
+      const firstLine = result.stdout.split('\n')[0]?.trim() || 'Skills mirrors have drifted.';
+      return { success: true, warning: firstLine };
+    },
+    tip: (c) =>
+      `Propagate ${c.bold('skills/')} to ${c.bold('.agents/skills/')} and ${c.bold('.claude/skills/')}, or add entries to ${c.bold('devcheck.config.json')} ${c.bold('skillsSync.ignore')}.`,
   },
   {
     name: 'Changelog Sync',

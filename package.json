@@ -11,6 +11,7 @@
     "scripts/build-changelog.ts",
     "scripts/build.ts",
     "scripts/check-docs-sync.ts",
+    "scripts/check-skills-sync.ts",
     "scripts/clean.ts",
     "scripts/devcheck.ts",
     "scripts/lint-mcp.ts",

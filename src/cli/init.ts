@@ -18,6 +18,7 @@ const SCAFFOLD_SCRIPTS = [
   'build-changelog.ts',
   'build.ts',
   'check-docs-sync.ts',
+  'check-skills-sync.ts',
   'clean.ts',
   'devcheck.ts',
   'lint-mcp.ts',
