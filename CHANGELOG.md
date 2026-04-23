@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.11](changelog/0.6.x/0.6.11.md) — 2026-04-23
+
+Add HtmlExtractor Tier 3 utility — wraps defuddle + linkedom for extracting main article content and metadata from raw HTML into Markdown or cleaned HTML
+
 ## [0.6.10](changelog/0.6.x/0.6.10.md) — 2026-04-23
 
 Rename release skill to release-and-publish with an end-to-end ship workflow, expand setup skill scaffolding docs, and bump @cloudflare/workers-types, @supabase/supabase-js, and vite
