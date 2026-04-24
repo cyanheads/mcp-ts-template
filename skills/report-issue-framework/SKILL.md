@@ -4,7 +4,7 @@ description: >
   File a bug or feature request against @cyanheads/mcp-ts-core when you hit a framework issue. Use when a builder, utility, context method, or config behaves contrary to the documented API — not for server-specific application bugs.
 metadata:
   author: cyanheads
-  version: "1.2"
+  version: "1.3"
   audience: external
   type: workflow
 ---
@@ -69,6 +69,7 @@ Structure the `--body` to match the template's form fields:
 gh issue create -R cyanheads/mcp-ts-core \
   --title "bug(scope): concise description" \
   --label "bug" \
+  --assignee "@me" \
   --body "$(cat <<'ISSUE'
 ### mcp-ts-core version
 
@@ -153,15 +154,26 @@ Format: `bug(<scope>): concise description`
 
 ### Labels
 
+Every issue needs exactly one primary label. Stack secondary labels on top when applicable.
+
+**Primary (required — pick one):**
+
 | Label | When |
 |:------|:-----|
 | `bug` | Something broken |
-| `regression` | Worked before, broken after update |
-| `types` | TypeScript type issue |
-| `docs` | Documentation is wrong or misleading |
-| `enhancement` | Feature request or improvement (not a bug) |
+| `enhancement` | Feature request or improvement |
+| `documentation` | Documentation is wrong, missing, or misleading |
 
-Combine labels: `--label "bug" --label "types"`.
+**Secondary (optional — stack on top of primary):**
+
+| Label | When |
+|:------|:-----|
+| `regression` | Worked before, broken after an update |
+| `performance` | Memory, CPU, latency, or resource usage |
+| `security` | Vulnerability, CVE, or hardening work |
+| `breaking-change` | Fix/feature will break public API; requires a major bump |
+
+Combine labels: `--label "bug" --label "regression"`.
 
 ### Attaching logs or stack traces
 
@@ -174,6 +186,7 @@ bun run dev:stdio 2>&1 | head -100 > /tmp/mcp-error.log
 gh issue create -R cyanheads/mcp-ts-core \
   --title "bug(transport): stdio crashes on large payload" \
   --label "bug" \
+  --assignee "@me" \
   --body-file /tmp/mcp-error.log
 
 # Or as a comment on an existing issue
@@ -196,6 +209,7 @@ Template below demonstrates the richer structure. Omit sections you don't need �
 gh issue create -R cyanheads/mcp-ts-core \
   --title "feat(scope): concise description" \
   --label "enhancement" \
+  --assignee "@me" \
   --body "$(cat <<'ISSUE'
 Concrete statement of what's currently missing or broken in the framework. Name the specific builder, utility, context method, or config field. Two or three sentences — the reader should know the gap before the end of the paragraph.
 

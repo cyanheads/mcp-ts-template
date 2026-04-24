@@ -1,7 +1,18 @@
 name: Feature Request
 description: Suggest a new feature or improvement for {{PACKAGE_NAME}}
 labels: ["enhancement"]
+# assignees: ["your-github-username"]  # uncomment to auto-assign new issues
 body:
+  - type: markdown
+    attributes:
+      value: |
+        **Secondary labels.** `enhancement` is applied automatically — also add one or more of the following in the sidebar if they apply:
+        - `performance` — improves memory, CPU, latency, or resource usage
+        - `security` — hardens the security posture
+        - `breaking-change` — will break public API; requires a major bump
+
+        If a label doesn't exist in this repo yet, create it once: `gh label create <name>`.
+
   - type: textarea
     id: use-case
     attributes:
