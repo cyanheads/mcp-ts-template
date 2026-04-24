@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/mcp-ts-core",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "Agent-native TypeScript framework for building MCP servers. Declarative definitions with auth, multi-backend storage, OpenTelemetry, and first-class support for Bun/Node/Cloudflare Workers.",
   "main": "dist/core/index.js",
@@ -11,6 +11,7 @@
     "scripts/build-changelog.ts",
     "scripts/build.ts",
     "scripts/check-docs-sync.ts",
+    "scripts/check-framework-antipatterns.ts",
     "scripts/check-skills-sync.ts",
     "scripts/clean.ts",
     "scripts/devcheck.ts",
@@ -20,7 +21,7 @@
     "templates/",
     "CLAUDE.md",
     "tsconfig.base.json",
-    "vitest.config.base.ts",
+    "vitest.config.base.mjs",
     "biome.json"
   ],
   "bin": {
@@ -92,7 +93,7 @@
       "import": "./dist/testing/fuzz.js"
     },
     "./tsconfig.base.json": "./tsconfig.base.json",
-    "./vitest.config": "./vitest.config.base.ts",
+    "./vitest.config": "./vitest.config.base.mjs",
     "./biome": "./biome.json",
     "./package.json": "./package.json"
   },

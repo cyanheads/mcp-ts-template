@@ -1,5 +1,8 @@
 /**
  * @fileoverview Base Vitest configuration for consumer servers.
+ * Shipped as `.mjs` (not `.ts`) so Node ≥22.7 does not attempt to strip
+ * types under `node_modules/` — `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`.
+ *
  * Extend this in your server's `vitest.config.ts`:
  *
  * ```ts

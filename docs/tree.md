@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-04-23 21:40:42
+Generated on: 2026-04-24 22:00:18
 
 ```text
 mcp-ts-core/
@@ -27,6 +27,7 @@ mcp-ts-core/
 │   ├── 0.4.x/
 │   ├── 0.5.x/
 │   ├── 0.6.x/
+│   ├── 0.7.x/
 │   └── template.md
 ├── docs/
 │   ├── mcp-specification/
@@ -688,7 +689,7 @@ mcp-ts-core/
 ├── tsconfig.test.json
 ├── tsdoc.json
 ├── typedoc.json
-├── vitest.config.base.ts
+├── vitest.config.base.mjs
 ├── vitest.config.ts
 ├── vitest.integration.ts
 └── wrangler.toml

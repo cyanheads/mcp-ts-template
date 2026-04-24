@@ -417,6 +417,14 @@ const ALL_CHECKS: Check[] = [
       `Fix definition errors above — each diagnostic links to its rule in ${c.bold('skills/api-linter/SKILL.md')}.`,
   },
   {
+    name: 'Framework Antipatterns',
+    flag: '--no-framework-antipatterns',
+    canFix: false,
+    getCommand: () => ['bun', 'run', 'scripts/check-framework-antipatterns.ts'],
+    tip: (c) =>
+      `Remove the flagged SDK-coupling shortcut. See ${c.bold('scripts/check-framework-antipatterns.ts')} for rule rationale.`,
+  },
+  {
     name: 'Docs Sync',
     flag: '--no-docs-sync',
     canFix: false,

@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.7.2](changelog/0.7.x/0.7.2.md) — 2026-04-24
+
+Ship vitest.config subpath export as .mjs (fixes Node 22.7+ type-strip failure under node_modules); new devcheck step guards against SDK-coupling antipatterns
+
 ## [0.7.1](changelog/0.7.x/0.7.1.md) — 2026-04-24
 
 Security hardening — fail-closed Origin guard (loopback-only default), validated landing-page bearer check, raw-payload logging removed, opt-in LLM transcripts
