@@ -8,6 +8,7 @@ import type { AnyResourceDefinition } from '@/mcp-server/resources/utils/resourc
 import {
   createResourceHandler,
   type ResourceHandlerFactoryServices,
+  type ResourceHandlerNotifiers,
 } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
@@ -37,11 +38,13 @@ export class ResourceRegistry {
   public async registerAll(server: McpServer): Promise<void> {
     this.registeredNames.clear();
 
-    // Bind resource notification functions to this server instance so
-    // resource handlers can notify clients of resource changes via ctx.
-    this.services.notifyResourceListChanged = () => server.sendResourceListChanged();
-    this.services.notifyResourceUpdated = (uri: string) =>
-      server.server.sendResourceUpdated({ uri });
+    // Per-server notifier closures. Bound once per registerAll() call and
+    // passed through to each handler factory — never mutated on a shared
+    // services object (which would race under concurrent HTTP requests).
+    const notifiers: ResourceHandlerNotifiers = {
+      notifyResourceListChanged: () => server.sendResourceListChanged(),
+      notifyResourceUpdated: (uri: string) => server.server.sendResourceUpdated({ uri }),
+    };
 
     const context = requestContextService.createRequestContext({
       operation: 'ResourceRegistry.registerAll',
@@ -55,7 +58,7 @@ export class ResourceRegistry {
     (server as unknown as McpServerWithResourceHandlerInit).setResourceRequestHandlers();
 
     for (const resourceDef of this.resourceDefs) {
-      await this.registerResource(server, resourceDef);
+      await this.registerResource(server, resourceDef, notifiers);
     }
   }
 
@@ -70,7 +73,11 @@ export class ResourceRegistry {
     this.registeredNames.add(name);
   }
 
-  private async registerResource(server: McpServer, def: AnyResourceDefinition): Promise<void> {
+  private async registerResource(
+    server: McpServer,
+    def: AnyResourceDefinition,
+    notifiers: ResourceHandlerNotifiers,
+  ): Promise<void> {
     const resourceName = def.name ?? def.uriTemplate;
     const registrationContext = requestContextService.createRequestContext({
       operation: 'ResourceRegistry.registerResource',
@@ -83,7 +90,7 @@ export class ResourceRegistry {
 
     await ErrorHandler.tryCatch(
       () => {
-        const handler = createResourceHandler(def, this.services);
+        const handler = createResourceHandler(def, this.services, notifiers);
         const title = def.title ?? resourceName;
         const mimeType = def.mimeType ?? 'application/json';
         const metadata = {

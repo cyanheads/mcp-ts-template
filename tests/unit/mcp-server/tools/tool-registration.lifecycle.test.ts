@@ -157,7 +157,7 @@ describe('ToolRegistry lifecycle coverage', () => {
     vi.useRealTimers();
   });
 
-  it('binds resource notification helpers and forwards _meta during regular tool registration', async () => {
+  it('binds per-server notifiers for each registration and forwards _meta during regular tool registration', async () => {
     const standardTool = tool('meta_tool', {
       _meta: { 'x-test': true },
       annotations: { readOnlyHint: true },
@@ -176,11 +176,25 @@ describe('ToolRegistry lifecycle coverage', () => {
       _meta: { 'x-test': true },
       annotations: { readOnlyHint: true },
     });
-    expect(typeof services.notifyResourceListChanged).toBe('function');
-    expect(typeof services.notifyResourceUpdated).toBe('function');
 
-    services.notifyResourceListChanged?.();
-    services.notifyResourceUpdated?.('memo://updated');
+    // The shared `services` object must not be mutated — that would race under
+    // concurrent HTTP requests. Notifiers are passed as a separate argument.
+    expect(
+      (services as unknown as Record<string, unknown>).notifyResourceListChanged,
+    ).toBeUndefined();
+    expect((services as unknown as Record<string, unknown>).notifyResourceUpdated).toBeUndefined();
+
+    const handlerFactoryCall = mockCreateToolHandler.mock.calls[0];
+    expect(handlerFactoryCall).toBeDefined();
+    const notifiers = handlerFactoryCall![2] as {
+      notifyResourceListChanged: () => void;
+      notifyResourceUpdated: (uri: string) => void;
+    };
+    expect(typeof notifiers.notifyResourceListChanged).toBe('function');
+    expect(typeof notifiers.notifyResourceUpdated).toBe('function');
+
+    notifiers.notifyResourceListChanged();
+    notifiers.notifyResourceUpdated('memo://updated');
 
     expect(mockServer.sendResourceListChanged).toHaveBeenCalledTimes(1);
     expect(mockServer.server.sendResourceUpdated).toHaveBeenCalledWith({
@@ -346,6 +360,7 @@ describe('ToolRegistry lifecycle coverage', () => {
       autoTaskTool,
       { query: 'hello' },
       services,
+      expect.any(Object),
       expect.any(Function),
       expect.objectContaining({
         callerAuth: expect.objectContaining({
@@ -358,7 +373,7 @@ describe('ToolRegistry lifecycle coverage', () => {
 
     const formatterCall = runAutoTaskHandlerSpy.mock.calls[0];
     expect(formatterCall).toBeDefined();
-    const defaultFormatter = formatterCall![3] as (result: unknown) => {
+    const defaultFormatter = formatterCall![4] as (result: unknown) => {
       text: string;
       type: string;
     }[];
@@ -406,7 +421,7 @@ describe('ToolRegistry lifecycle coverage', () => {
     const registry = new ToolRegistry([], services);
     await (
       registry as unknown as { runAutoTaskHandler: (...args: unknown[]) => Promise<void> }
-    ).runAutoTaskHandler(autoTaskTool, { query: 'hello' }, services, autoTaskTool.format!, {
+    ).runAutoTaskHandler(autoTaskTool, { query: 'hello' }, services, {}, autoTaskTool.format!, {
       callerAuth: {
         clientId: 'caller-client',
         scopes: ['tool:read'],
@@ -458,6 +473,7 @@ describe('ToolRegistry lifecycle coverage', () => {
       failingTool,
       { query: 'hello' },
       services,
+      {},
       () => [{ type: 'text', text: 'unreachable' }],
       {
         taskId: 'task-500',
@@ -507,6 +523,7 @@ describe('ToolRegistry lifecycle coverage', () => {
         failingTool,
         { query: 'hello' },
         services,
+        {},
         () => [{ type: 'text', text: 'unused' }],
         {
           taskId: 'task-501',
@@ -545,6 +562,7 @@ describe('ToolRegistry lifecycle coverage', () => {
       cancellableTool,
       { query: 'hello' },
       services,
+      {},
       () => [{ type: 'text', text: 'unused' }],
       {
         taskId: 'task-cancelled',
@@ -588,6 +606,7 @@ describe('ToolRegistry lifecycle coverage', () => {
       cancellableTool,
       { query: 'hello' },
       services,
+      {},
       () => [{ type: 'text', text: 'unused' }],
       {
         taskId: 'task-cleanup',
@@ -629,6 +648,7 @@ describe('ToolRegistry lifecycle coverage', () => {
       slowTool,
       { query: 'hello' },
       services,
+      {},
       () => [{ type: 'text', text: 'unused' }],
       {
         taskId: 'task-timeout',

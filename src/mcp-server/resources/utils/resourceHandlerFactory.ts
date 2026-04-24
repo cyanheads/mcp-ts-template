@@ -38,9 +38,18 @@ interface SdkRuntimeCapabilities {
 /** Services required by the handler factory to construct Context. */
 export interface ResourceHandlerFactoryServices {
   logger: Logger;
+  storage: StorageService;
+}
+
+/**
+ * Per-server notifier closures bound at registration time.
+ * Split from {@link ResourceHandlerFactoryServices} so each per-request
+ * McpServer gets its own notifier closures — preventing a concurrent
+ * registerAll() from overwriting an in-flight handler's notifier target.
+ */
+export interface ResourceHandlerNotifiers {
   notifyResourceListChanged?: () => void;
   notifyResourceUpdated?: (uri: string) => void;
-  storage: StorageService;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +118,7 @@ function wrapSample(sdkContext: SdkRuntimeCapabilities): Context['sample'] {
 export function createResourceHandler(
   def: AnyResourceDefinition,
   services: ResourceHandlerFactoryServices,
+  notifiers: ResourceHandlerNotifiers,
 ): (uri: URL, variables: Variables, extra: SdkExtra) => Promise<ReadResourceResult> {
   const mimeType = def.mimeType ?? 'application/json';
   const formatter = def.format ?? defaultResponseFormatter;
@@ -150,8 +160,8 @@ export function createResourceHandler(
         signal: sdkContext.signal,
         elicit: wrapElicit(sdkCaps),
         sample: wrapSample(sdkCaps),
-        notifyResourceListChanged: services.notifyResourceListChanged,
-        notifyResourceUpdated: services.notifyResourceUpdated,
+        notifyResourceListChanged: notifiers.notifyResourceListChanged,
+        notifyResourceUpdated: notifiers.notifyResourceUpdated,
         uri,
       });
 

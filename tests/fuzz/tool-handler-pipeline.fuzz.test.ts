@@ -68,6 +68,7 @@ import { tool } from '@/mcp-server/tools/utils/toolDefinition.js';
 import {
   createToolHandler,
   type HandlerFactoryServices,
+  type HandlerNotifiers,
 } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
 
 // ---------------------------------------------------------------------------
@@ -96,6 +97,8 @@ const services: HandlerFactoryServices = {
     getMany: vi.fn(async () => new Map()),
   } as any,
 };
+
+const notifiers: HandlerNotifiers = {};
 
 // ---------------------------------------------------------------------------
 // Test definitions with various schema shapes
@@ -166,7 +169,7 @@ describe('Tool Handler Pipeline Fuzz Tests', () => {
 
     for (const [name, def] of toolDefs) {
       it(`${name}: valid inputs always produce non-error response`, async () => {
-        const handler = createToolHandler(def, services);
+        const handler = createToolHandler(def, services, notifiers);
         const arb = zodToArbitrary(def.input) as fc.Arbitrary<Record<string, unknown>>;
 
         await fc.assert(
@@ -191,7 +194,7 @@ describe('Tool Handler Pipeline Fuzz Tests', () => {
 
     for (const [name, def] of toolDefs) {
       it(`${name}: adversarial inputs never crash the handler factory`, async () => {
-        const handler = createToolHandler(def, services);
+        const handler = createToolHandler(def, services, notifiers);
         const arb = adversarialObjectArbitrary(def.input);
 
         await fc.assert(
@@ -207,7 +210,7 @@ describe('Tool Handler Pipeline Fuzz Tests', () => {
       });
 
       it(`${name}: adversarial inputs produce isError responses`, async () => {
-        const handler = createToolHandler(def, services);
+        const handler = createToolHandler(def, services, notifiers);
         const arb = adversarialObjectArbitrary(def.input);
 
         await fc.assert(
@@ -248,7 +251,7 @@ describe('Tool Handler Pipeline Fuzz Tests', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       const modes = ['plain', 'mcp', 'type', 'unknown'];
 
       for (const mode of modes) {
@@ -266,7 +269,7 @@ describe('Tool Handler Pipeline Fuzz Tests', () => {
 
   describe('Prototype pollution resistance', () => {
     it('adversarial __proto__ payloads do not pollute Object.prototype', async () => {
-      const handler = createToolHandler(stringTool as AnyToolDefinition, services);
+      const handler = createToolHandler(stringTool as AnyToolDefinition, services, notifiers);
       const protoKeysBefore = new Set(Object.keys(Object.prototype));
 
       const payloads = [
@@ -293,7 +296,7 @@ describe('Tool Handler Pipeline Fuzz Tests', () => {
 
   describe('Type confusion resistance', () => {
     it('survives completely wrong top-level types', async () => {
-      const handler = createToolHandler(stringTool as AnyToolDefinition, services);
+      const handler = createToolHandler(stringTool as AnyToolDefinition, services, notifiers);
 
       const wrongTypes: unknown[] = [
         null,
@@ -320,7 +323,7 @@ describe('Tool Handler Pipeline Fuzz Tests', () => {
 
   describe('Injection string resistance', () => {
     it('handler processes adversarial strings without crashing', async () => {
-      const handler = createToolHandler(stringTool as AnyToolDefinition, services);
+      const handler = createToolHandler(stringTool as AnyToolDefinition, services, notifiers);
 
       for (const str of ADVERSARIAL_STRINGS) {
         const result = await handler({ value: str }, createSdkContext());
@@ -337,7 +340,7 @@ describe('Tool Handler Pipeline Fuzz Tests', () => {
 
   describe('Aborted signal handling', () => {
     it('pre-aborted signal produces error or result, never hangs', async () => {
-      const handler = createToolHandler(stringTool as AnyToolDefinition, services);
+      const handler = createToolHandler(stringTool as AnyToolDefinition, services, notifiers);
       const controller = new AbortController();
       controller.abort();
 
@@ -353,7 +356,7 @@ describe('Tool Handler Pipeline Fuzz Tests', () => {
 
   describe('Oversized input handling', () => {
     it('handles extremely large string inputs without crashing', async () => {
-      const handler = createToolHandler(stringTool as AnyToolDefinition, services);
+      const handler = createToolHandler(stringTool as AnyToolDefinition, services, notifiers);
       const largeInput = { value: 'x'.repeat(1_000_000) };
 
       const result = await handler(largeInput, createSdkContext());
@@ -362,7 +365,7 @@ describe('Tool Handler Pipeline Fuzz Tests', () => {
     });
 
     it('handles deeply nested objects gracefully', async () => {
-      const handler = createToolHandler(stringTool as AnyToolDefinition, services);
+      const handler = createToolHandler(stringTool as AnyToolDefinition, services, notifiers);
 
       let deep: any = { value: 'leaf' };
       for (let i = 0; i < 100; i++) {

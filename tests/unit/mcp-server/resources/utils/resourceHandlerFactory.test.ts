@@ -62,6 +62,7 @@ import { resource } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import {
   createResourceHandler,
   type ResourceHandlerFactoryServices,
+  type ResourceHandlerNotifiers,
 } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
 
 // ---------------------------------------------------------------------------
@@ -93,6 +94,8 @@ const services: ResourceHandlerFactoryServices = {
   storage: mockStorage as any,
 };
 
+const notifiers: ResourceHandlerNotifiers = {};
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -121,7 +124,7 @@ describe('createResourceHandler', () => {
         },
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
       const uri = new URL('items://item-42/data');
       const result = await handler(uri, { itemId: 'item-42' }, createMockSdkContext());
 
@@ -152,7 +155,7 @@ describe('createResourceHandler', () => {
         ],
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
       const result = await handler(new URL('custom://abc'), { id: 'abc' }, createMockSdkContext());
 
       expect((result.contents[0] as { text: string }).text).toBe('Custom: abc');
@@ -164,7 +167,7 @@ describe('createResourceHandler', () => {
         handler: () => ({ ok: true }),
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
       const result = await handler(new URL('plain://x'), { id: 'x' }, createMockSdkContext());
 
       expect(result.contents[0]!.mimeType).toBe('application/json');
@@ -178,7 +181,7 @@ describe('createResourceHandler', () => {
         handler: () => html,
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
       const result = await handler(new URL('ui://app/app.html'), {}, createMockSdkContext());
 
       expect(result.contents[0]).toMatchObject({
@@ -195,7 +198,7 @@ describe('createResourceHandler', () => {
         handler: () => 'hello',
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
       const result = await handler(new URL('json://app/data'), {}, createMockSdkContext());
 
       expect(result.contents[0]).toMatchObject({
@@ -222,7 +225,7 @@ describe('createResourceHandler', () => {
         },
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
       const uri = new URL('scheme://test-123');
       await handler(uri, { id: 'test-123' }, createMockSdkContext());
 
@@ -240,7 +243,7 @@ describe('createResourceHandler', () => {
         },
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
       await handler(new URL('t://x'), { id: 'x' }, createMockSdkContext());
 
       expect(capturedTenant).toBe('default');
@@ -259,7 +262,7 @@ describe('createResourceHandler', () => {
         },
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
       await handler(
         new URL('cap://x'),
         { id: 'x' },
@@ -283,7 +286,7 @@ describe('createResourceHandler', () => {
         handler: () => ({ ok: true }),
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
 
       await expect(
         handler(new URL('strict://abc'), { count: 'not-a-number' } as any, createMockSdkContext()),
@@ -301,7 +304,7 @@ describe('createResourceHandler', () => {
         },
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
       await handler(new URL('loose://x'), { id: 'x', extra: 'field' }, createMockSdkContext());
 
       expect(capturedParams).toEqual({ id: 'x', extra: 'field' });
@@ -321,7 +324,7 @@ describe('createResourceHandler', () => {
         },
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
 
       await expect(
         handler(new URL('err://x'), { id: 'x' }, createMockSdkContext()),
@@ -336,7 +339,7 @@ describe('createResourceHandler', () => {
         },
       });
 
-      const handler = createResourceHandler(def as AnyResourceDefinition, services);
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
 
       try {
         await handler(new URL('mcperr://x'), { id: 'x' }, createMockSdkContext());

@@ -39,9 +39,19 @@ interface SdkRuntimeCapabilities {
 /** Services required by the handler factory to construct Context. */
 export interface HandlerFactoryServices {
   logger: Logger;
+  storage: StorageService;
+}
+
+/**
+ * Per-server notifier closures bound at registration time.
+ * Split from {@link HandlerFactoryServices} so each per-request McpServer gets
+ * its own notifier closures — preventing a concurrent registerAll() from
+ * overwriting an in-flight handler's notifier target (and potentially
+ * notifying the wrong server).
+ */
+export interface HandlerNotifiers {
   notifyResourceListChanged?: () => void;
   notifyResourceUpdated?: (uri: string) => void;
-  storage: StorageService;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +100,7 @@ function wrapSample(sdkContext: SdkRuntimeCapabilities): Context['sample'] {
 export function createToolHandler(
   def: AnyToolDefinition,
   services: HandlerFactoryServices,
+  notifiers: HandlerNotifiers,
 ): (input: Record<string, unknown>, extra: SdkExtra) => Promise<CallToolResult> {
   const formatter = def.format ?? defaultResponseFormatter;
 
@@ -127,8 +138,8 @@ export function createToolHandler(
         signal: sdkContext.signal,
         elicit: wrapElicit(sdkCaps),
         sample: wrapSample(sdkCaps),
-        notifyResourceListChanged: services.notifyResourceListChanged,
-        notifyResourceUpdated: services.notifyResourceUpdated,
+        notifyResourceListChanged: notifiers.notifyResourceListChanged,
+        notifyResourceUpdated: notifiers.notifyResourceUpdated,
       });
 
       // Execute handler with performance measurement.

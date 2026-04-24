@@ -67,6 +67,7 @@ import { tool } from '@/mcp-server/tools/utils/toolDefinition.js';
 import {
   createToolHandler,
   type HandlerFactoryServices,
+  type HandlerNotifiers,
 } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
 
 // ---------------------------------------------------------------------------
@@ -98,6 +99,8 @@ const services: HandlerFactoryServices = {
   storage: mockStorage as any,
 };
 
+const notifiers: HandlerNotifiers = {};
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -125,7 +128,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       const result = await handler({ message: 'hello' }, createMockSdkContext());
 
       // Response structure
@@ -151,7 +154,7 @@ describe('createToolHandler', () => {
         format: (result) => [{ type: 'text', text: `Result: ${result.doubled}` }],
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       const result = await handler({ n: 5 }, createMockSdkContext());
 
       expect((result.content![0] as { text: string }).text).toBe('Result: 10');
@@ -165,7 +168,7 @@ describe('createToolHandler', () => {
         handler: () => ({ ok: true }),
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       const result = await handler({}, createMockSdkContext());
 
       const text = (result.content![0] as { text: string }).text;
@@ -186,7 +189,7 @@ describe('createToolHandler', () => {
         handler: () => ({ ok: true }),
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       const result = await handler({ name: 123 } as any, createMockSdkContext());
 
       expect(result.isError).toBe(true);
@@ -202,7 +205,7 @@ describe('createToolHandler', () => {
         handler: handlerFn,
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       await handler({} as any, createMockSdkContext());
 
       expect(handlerFn).not.toHaveBeenCalled();
@@ -224,7 +227,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
@@ -245,7 +248,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
@@ -270,7 +273,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
@@ -288,7 +291,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
@@ -316,7 +319,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
@@ -341,7 +344,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       await handler({}, createMockSdkContext());
 
       // Without auth, tenantId should be defaulted to 'default' by createContext
@@ -362,7 +365,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       await handler({}, createMockSdkContext({ signal: controller.signal }));
 
       expect(capturedSignal).toBe(controller.signal);
@@ -391,7 +394,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       await handler({}, createMockSdkContext({ elicitInput: mockElicitInput }));
 
       expect(capturedCtx.elicit).toBeDefined();
@@ -411,7 +414,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       await handler({}, createMockSdkContext());
 
       expect(capturedCtx.elicit).toBeUndefined();
@@ -435,7 +438,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       await handler({}, createMockSdkContext({ createMessage: mockCreateMessage }));
 
       expect(capturedCtx.sample).toBeDefined();
@@ -455,7 +458,7 @@ describe('createToolHandler', () => {
         },
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       await handler({}, createMockSdkContext());
 
       expect(capturedCtx.sample).toBeUndefined();
@@ -477,7 +480,7 @@ describe('createToolHandler', () => {
         handler: () => ({ ok: true }),
       });
 
-      const handler = createToolHandler(def as AnyToolDefinition, services);
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
       await handler({}, createMockSdkContext({ sessionId: 'sess-abc' }));
 
       expect(requestContextService.createRequestContext).toHaveBeenCalledWith(

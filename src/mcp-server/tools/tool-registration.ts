@@ -19,6 +19,7 @@ import type { AnyToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.
 import {
   createToolHandler,
   type HandlerFactoryServices,
+  type HandlerNotifiers,
 } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
@@ -67,13 +68,13 @@ export class ToolRegistry {
     // per-request McpServer instances in HTTP mode (GHSA-345p-7cg4-v4c7).
     this.registeredNames.clear();
 
-    // Bind resource notification functions to this server instance so
-    // tool handlers can notify clients of resource changes via ctx.
-    if (this.services) {
-      this.services.notifyResourceListChanged = () => server.sendResourceListChanged();
-      this.services.notifyResourceUpdated = (uri: string) =>
-        server.server.sendResourceUpdated({ uri });
-    }
+    // Per-server notifier closures. Bound once per registerAll() call and
+    // passed through to each handler factory — never mutated on a shared
+    // services object (which would race under concurrent HTTP requests).
+    const notifiers: HandlerNotifiers = {
+      notifyResourceListChanged: () => server.sendResourceListChanged(),
+      notifyResourceUpdated: (uri: string) => server.server.sendResourceUpdated({ uri }),
+    };
 
     const context = requestContextService.createRequestContext({
       operation: 'ToolRegistry.registerAll',
@@ -103,9 +104,9 @@ export class ToolRegistry {
     // Register standard tools (regular and auto-task)
     for (const toolDef of standardTools) {
       if (toolDef.task) {
-        await this.registerAutoTaskTool(server, toolDef);
+        await this.registerAutoTaskTool(server, toolDef, notifiers);
       } else {
-        await this.registerTool(server, toolDef);
+        await this.registerTool(server, toolDef, notifiers);
       }
     }
 
@@ -134,7 +135,11 @@ export class ToolRegistry {
    * Registers a standard tool definition.
    * Requires `services` to have been passed to the constructor for Context creation.
    */
-  private async registerTool(server: McpServer, tool: AnyToolDefinition): Promise<void> {
+  private async registerTool(
+    server: McpServer,
+    tool: AnyToolDefinition,
+    notifiers: HandlerNotifiers,
+  ): Promise<void> {
     const registrationContext = requestContextService.createRequestContext({
       operation: 'ToolRegistry.registerTool',
       toolName: tool.name,
@@ -152,7 +157,7 @@ export class ToolRegistry {
           );
         }
 
-        const handler = createToolHandler(tool, this.services);
+        const handler = createToolHandler(tool, this.services, notifiers);
         const title = tool.title ?? tool.annotations?.title ?? this.deriveTitleFromName(tool.name);
 
         // Type assertion required: SDK's conditional types don't resolve with erased generics
@@ -185,7 +190,11 @@ export class ToolRegistry {
    * Auto-generates task handlers from the definition's `handler` function.
    * The framework manages the full task lifecycle: create, background run, store result.
    */
-  private async registerAutoTaskTool(server: McpServer, tool: AnyToolDefinition): Promise<void> {
+  private async registerAutoTaskTool(
+    server: McpServer,
+    tool: AnyToolDefinition,
+    notifiers: HandlerNotifiers,
+  ): Promise<void> {
     const registrationContext = requestContextService.createRequestContext({
       operation: 'ToolRegistry.registerAutoTaskTool',
       toolName: tool.name,
@@ -242,7 +251,7 @@ export class ToolRegistry {
               });
 
               // Fire-and-forget: run handler in background
-              void this.runAutoTaskHandler(tool, validatedInput, services, formatter, {
+              void this.runAutoTaskHandler(tool, validatedInput, services, notifiers, formatter, {
                 taskId: task.taskId,
                 taskStore: extra.taskStore,
                 ttlMs: taskTtlMs,
@@ -280,6 +289,7 @@ export class ToolRegistry {
     tool: AnyToolDefinition,
     input: unknown,
     services: HandlerFactoryServices,
+    notifiers: HandlerNotifiers,
     formatter: (result: unknown) => ContentBlock[],
     opts: AutoTaskOptions,
   ): Promise<void> {
@@ -326,8 +336,8 @@ export class ToolRegistry {
         storage: services.storage,
         signal: abortController.signal,
         taskCtx: { store: taskStore, taskId },
-        notifyResourceListChanged: services.notifyResourceListChanged,
-        notifyResourceUpdated: services.notifyResourceUpdated,
+        notifyResourceListChanged: notifiers.notifyResourceListChanged,
+        notifyResourceUpdated: notifiers.notifyResourceUpdated,
       });
 
       const result = await Promise.resolve(tool.handler(input as Record<string, unknown>, ctx));
