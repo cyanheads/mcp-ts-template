@@ -188,6 +188,111 @@ describe('validateDefinitions', () => {
       expect(descWarnings).toHaveLength(0);
     });
 
+    it('warns on nested object fields missing .describe()', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            input: z.object({
+              filter: z
+                .object({
+                  status: z.string().describe('Status filter'),
+                  priority: z.string(),
+                })
+                .describe('Filter criteria'),
+            }),
+          }),
+        ],
+      });
+      const descWarnings = report.warnings.filter((w) => w.rule === 'describe-on-fields');
+      expect(descWarnings).toContainEqual(
+        expect.objectContaining({ message: expect.stringContaining('input.filter.priority') }),
+      );
+      expect(descWarnings.find((w) => w.message.includes('input.filter.status'))).toBeUndefined();
+    });
+
+    it('warns on array element fields missing .describe()', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            output: z.object({
+              items: z
+                .array(
+                  z.object({
+                    id: z.string().describe('Item ID'),
+                    name: z.string(),
+                  }),
+                )
+                .describe('Matching items'),
+            }),
+          }),
+        ],
+      });
+      const descWarnings = report.warnings.filter((w) => w.rule === 'describe-on-fields');
+      expect(descWarnings).toContainEqual(
+        expect.objectContaining({ message: expect.stringContaining('output.items[].name') }),
+      );
+      expect(descWarnings.find((w) => w.message.includes('output.items[].id'))).toBeUndefined();
+    });
+
+    it('does not recurse into primitive array elements', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            output: z.object({
+              tags: z.array(z.string()).describe('Tags'),
+            }),
+          }),
+        ],
+      });
+      const descWarnings = report.warnings.filter((w) => w.rule === 'describe-on-fields');
+      expect(descWarnings).toHaveLength(0);
+    });
+
+    it('warns on discriminatedUnion variant fields missing .describe()', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            input: z.object({
+              action: z
+                .discriminatedUnion('kind', [
+                  z.object({
+                    kind: z.literal('a').describe('Discriminator A'),
+                    aValue: z.string(),
+                  }),
+                  z.object({
+                    kind: z.literal('b').describe('Discriminator B'),
+                    bValue: z.string().describe('Value B'),
+                  }),
+                ])
+                .describe('Action to perform'),
+            }),
+          }),
+        ],
+      });
+      const descWarnings = report.warnings.filter((w) => w.rule === 'describe-on-fields');
+      expect(descWarnings).toContainEqual(
+        expect.objectContaining({ message: expect.stringContaining('input.action|0.aValue') }),
+      );
+      expect(descWarnings.find((w) => w.message.includes('input.action|1.bValue'))).toBeUndefined();
+    });
+
+    it('warns on resource output schema fields missing .describe()', () => {
+      const report = validateDefinitions({
+        resources: [
+          validResource({
+            output: z.object({
+              id: z.string().describe('Resource ID'),
+              content: z.string(),
+            }),
+          }),
+        ],
+      });
+      const descWarnings = report.warnings.filter((w) => w.rule === 'describe-on-fields');
+      expect(descWarnings).toContainEqual(
+        expect.objectContaining({ message: expect.stringContaining('output.content') }),
+      );
+    });
+
     it('warns on non-boolean annotation hints', () => {
       const report = validateDefinitions({
         tools: [validTool({ annotations: { readOnlyHint: 'yes' } })],

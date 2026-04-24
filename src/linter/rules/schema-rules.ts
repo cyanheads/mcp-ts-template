@@ -35,8 +35,14 @@ export function checkIsZodObject(
 }
 
 /**
- * Checks that all top-level fields in a ZodObject have `.describe()` set.
- * Framework convention: all fields need `.describe()` for LLM discoverability.
+ * Checks that all fields in a ZodObject have `.describe()` set, recursing into
+ * nested objects, array element types, and union/discriminatedUnion variants.
+ * Framework convention: every field the LLM reads should carry a description.
+ *
+ * Path syntax in diagnostic messages:
+ *   - `.key` for object properties
+ *   - `[]` for array element types
+ *   - `|<i>` for union / discriminatedUnion variant at index i
  */
 export function checkFieldDescriptions(
   schema: unknown,
@@ -50,23 +56,103 @@ export function checkFieldDescriptions(
   const shape = (schema as ZodObject<ZodRawShape>).shape;
 
   for (const [key, field] of Object.entries(shape)) {
-    const zodField = field as { description?: string; _zod?: { def?: { type?: string } } };
-
-    // Walk through optional/nullable/default wrappers to find the inner description
-    if (!hasDescription(zodField)) {
-      diagnostics.push({
-        rule: 'describe-on-fields',
-        severity: 'warning',
-        message:
-          `${definitionType} '${definitionName}' ${fieldName}.${key} is missing .describe(). ` +
-          'Add .describe() to improve LLM tool-use quality.',
-        definitionType,
-        definitionName,
-      });
-    }
+    walkField(field, `${fieldName}.${key}`, diagnostics, definitionType, definitionName);
   }
 
   return diagnostics;
+}
+
+/**
+ * Emits a diagnostic when the field lacks a description, then recurses into
+ * compound types (object, array, union) so inner fields get the same check.
+ * A described container does NOT suppress checks on its children — each level
+ * is evaluated independently because LLMs read the flattened JSON Schema.
+ */
+function walkField(
+  field: unknown,
+  path: string,
+  diagnostics: LintDiagnostic[],
+  definitionType: LintDiagnostic['definitionType'],
+  definitionName: string,
+): void {
+  if (!hasDescription(field)) {
+    diagnostics.push({
+      rule: 'describe-on-fields',
+      severity: 'warning',
+      message:
+        `${definitionType} '${definitionName}' ${path} is missing .describe(). ` +
+        'Add .describe() to improve LLM tool-use quality.',
+      definitionType,
+      definitionName,
+    });
+  }
+
+  recurseIntoCompound(field, path, diagnostics, definitionType, definitionName);
+}
+
+/**
+ * Strips optional/nullable/default/readonly/nonoptional wrappers to find the
+ * core type, then recurses into object shapes, array elements, and union
+ * options. Non-compound cores (primitives, literals) terminate recursion.
+ * Primitive array elements are skipped — array-level describe is sufficient.
+ */
+function recurseIntoCompound(
+  field: unknown,
+  path: string,
+  diagnostics: LintDiagnostic[],
+  definitionType: LintDiagnostic['definitionType'],
+  definitionName: string,
+): void {
+  const core = unwrapWrappers(field);
+  if (!core || typeof core !== 'object') return;
+
+  const def = (core as { _zod?: { def?: { type?: string } } })._zod?.def;
+  if (!def) return;
+
+  if (def.type === 'object') {
+    const shape = (core as ZodObject<ZodRawShape>).shape;
+    for (const [key, inner] of Object.entries(shape)) {
+      walkField(inner, `${path}.${key}`, diagnostics, definitionType, definitionName);
+    }
+    return;
+  }
+
+  if (def.type === 'array') {
+    const element = (def as { element?: unknown }).element;
+    if (element && isCompound(element)) {
+      walkField(element, `${path}[]`, diagnostics, definitionType, definitionName);
+    }
+    return;
+  }
+
+  if (def.type === 'union') {
+    const options = (def as { options?: unknown[] }).options;
+    if (Array.isArray(options)) {
+      options.forEach((option, i) => {
+        walkField(option, `${path}|${i}`, diagnostics, definitionType, definitionName);
+      });
+    }
+  }
+}
+
+/** Recursively strips optional/nullable/default/readonly/nonoptional wrappers. */
+function unwrapWrappers(field: unknown): unknown {
+  if (!field || typeof field !== 'object') return field;
+  const def = (field as { _zod?: { def?: { type?: string; innerType?: unknown } } })._zod?.def;
+  if (!def) return field;
+  const wrapperTypes = new Set(['optional', 'nullable', 'default', 'readonly', 'nonoptional']);
+  if (def.type && wrapperTypes.has(def.type) && def.innerType) {
+    return unwrapWrappers(def.innerType);
+  }
+  return field;
+}
+
+/** True if the (unwrapped) field is an object, array, or union — a compound type worth recursing into. */
+function isCompound(field: unknown): boolean {
+  const core = unwrapWrappers(field);
+  if (!core || typeof core !== 'object') return false;
+  const type = (core as { _zod?: { def?: { type?: string } } })._zod?.def?.type;
+  return type === 'object' || type === 'array' || type === 'union';
 }
 
 /**

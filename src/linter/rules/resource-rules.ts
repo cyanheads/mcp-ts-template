@@ -109,6 +109,7 @@ export function lintResourceDefinition(def: unknown): LintDiagnostic[] {
     if (outputCheck) {
       diagnostics.push(outputCheck);
     } else {
+      diagnostics.push(...checkFieldDescriptions(d.output, 'output', 'resource', displayName));
       const outputSerial = checkSchemaSerializable(d.output, 'output', 'resource', displayName);
       if (outputSerial) diagnostics.push(outputSerial);
     }

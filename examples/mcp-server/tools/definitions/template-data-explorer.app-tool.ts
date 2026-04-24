@@ -26,14 +26,16 @@ const InputSchema = z.object({
     .describe('Number of sample rows to generate (5-100).'),
 });
 
-const SaleRowSchema = z.object({
-  id: z.number().int().describe('Unique row identifier.'),
-  region: z.string().describe('Sales region name.'),
-  product: z.string().describe('Product name.'),
-  units: z.number().int().describe('Units sold.'),
-  revenue: z.number().describe('Revenue in USD.'),
-  date: z.string().describe('Sale date (YYYY-MM-DD).'),
-});
+const SaleRowSchema = z
+  .object({
+    id: z.number().int().describe('Unique row identifier.'),
+    region: z.string().describe('Sales region name.'),
+    product: z.string().describe('Product name.'),
+    units: z.number().int().describe('Units sold.'),
+    revenue: z.number().describe('Revenue in USD.'),
+    date: z.string().describe('Sale date (YYYY-MM-DD).'),
+  })
+  .describe('A single generated sales record.');
 
 const OutputSchema = z.object({
   rows: z.array(SaleRowSchema).describe('Generated sales data rows.'),
