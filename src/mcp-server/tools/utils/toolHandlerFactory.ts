@@ -111,14 +111,17 @@ export function createToolHandler(
 
     const sessionId = typeof sdkContext?.sessionId === 'string' ? sdkContext.sessionId : undefined;
 
-    // Create internal RequestContext for tracing
+    // Create internal RequestContext for tracing. Raw `input` is intentionally
+    // excluded — it flows into the completion log via context spread and can
+    // contain caller PII or secrets. Input size and top-level parameter names
+    // are captured as OTel metric attributes in measureToolExecution instead.
     const appContext = requestContextService.createRequestContext({
       parentContext: {
         ...(typeof sdkContext?.requestId === 'string' ? { requestId: sdkContext.requestId } : {}),
         ...(sessionId ? { sessionId } : {}),
       },
       operation: 'HandleToolRequest',
-      additionalContext: { toolName: def.name, sessionId, input },
+      additionalContext: { toolName: def.name, sessionId },
     });
 
     try {
@@ -170,7 +173,6 @@ export function createToolHandler(
       const handled = ErrorHandler.handleError(error, {
         operation: `tool:${def.name}`,
         context: appContext,
-        input,
       });
       const mcpError =
         handled instanceof McpError

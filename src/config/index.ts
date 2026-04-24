@@ -107,6 +107,15 @@ const ConfigSchema = z
       )
       .default('debug'),
     logsPath: z.string().optional(), // Made optional as it's Node-specific
+    /**
+     * When `true`, persists full LLM request/response transcripts to
+     * `interactions.log`. Default `false` — transcripts contain user messages
+     * and model completions that can include PII, secrets, or confidential
+     * prompts; persisting them is a data-handling decision that must be
+     * explicitly opted into. When `false`, interaction logs carry metadata
+     * only (model, message count, token usage, duration).
+     */
+    logLlmInteractions: envBoolean.default(false),
     environment: z
       .preprocess(
         (val) => {
@@ -372,6 +381,7 @@ const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
     },
     logLevel: env.MCP_LOG_LEVEL,
     logsPath: env.LOGS_DIR,
+    logLlmInteractions: env.LOG_LLM_INTERACTIONS,
     environment: env.NODE_ENV,
     mcpTransportType: env.MCP_TRANSPORT_TYPE,
     mcpSessionMode: env.MCP_SESSION_MODE,

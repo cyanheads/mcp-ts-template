@@ -428,23 +428,61 @@ describe('createLandingPageHandler — HTTP behavior', () => {
     expect(response.headers.get('vary')).toBe('Authorization');
   });
 
-  test('serves full body to authenticated callers when gated', async () => {
+  test('serves full body only when bearer token validates', async () => {
     const manifest: ServerManifest = {
       ...defaultServerManifest,
       landing: { ...defaultServerManifest.landing, requireAuth: true },
       definitions: {
-        tools: [makeTool('hidden')],
+        tools: [makeTool('hidden_tool')],
         resources: [],
         prompts: [],
       },
     };
+    const authStrategy = {
+      verify: vi.fn(async (token: string) => {
+        if (token !== 'valid-token') throw new Error('invalid token');
+        return { clientId: 'c', scopes: [], subject: 's' } as any;
+      }),
+    };
     const app = new Hono();
-    app.get('/', createLandingPageHandler(manifest));
+    app.get('/', createLandingPageHandler(manifest, authStrategy));
+
     const response = await app.fetch(
-      new Request('https://example.com/', { headers: { Authorization: 'Bearer x' } }),
+      new Request('https://example.com/', {
+        headers: { Authorization: 'Bearer valid-token' },
+      }),
     );
     const body = await response.text();
-    expect(body).toContain('hidden');
+    expect(body).toContain('tool-hidden_tool');
+    expect(authStrategy.verify).toHaveBeenCalledWith('valid-token');
+  });
+
+  test('serves degraded body when bearer token fails verification', async () => {
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      landing: { ...defaultServerManifest.landing, requireAuth: true },
+      definitions: {
+        tools: [makeTool('hidden_tool')],
+        resources: [],
+        prompts: [],
+      },
+    };
+    const authStrategy = {
+      verify: vi.fn(async () => {
+        throw new Error('invalid token');
+      }),
+    };
+    const app = new Hono();
+    app.get('/', createLandingPageHandler(manifest, authStrategy));
+
+    const response = await app.fetch(
+      new Request('https://example.com/', {
+        headers: { Authorization: 'Bearer anything' },
+      }),
+    );
+    const body = await response.text();
+    expect(body).not.toContain('tool-hidden_tool');
+    expect(body).not.toContain('Description of hidden_tool');
   });
 
   test('serves degraded body to unauthenticated callers when gated', async () => {
@@ -462,6 +500,29 @@ describe('createLandingPageHandler — HTTP behavior', () => {
     const response = await app.fetch(new Request('https://example.com/'));
     const body = await response.text();
     // The tool's card anchor shouldn't render when degraded.
+    expect(body).not.toContain('tool-hidden_tool');
+    expect(body).not.toContain('Description of hidden_tool');
+  });
+
+  test('serves degraded body for everyone when requireAuth is set but no auth strategy is configured', async () => {
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      landing: { ...defaultServerManifest.landing, requireAuth: true },
+      definitions: {
+        tools: [makeTool('hidden_tool')],
+        resources: [],
+        prompts: [],
+      },
+    };
+    const app = new Hono();
+    // No auth strategy passed — header-presence alone must not unlock.
+    app.get('/', createLandingPageHandler(manifest));
+    const response = await app.fetch(
+      new Request('https://example.com/', {
+        headers: { Authorization: 'Bearer any-token-here' },
+      }),
+    );
+    const body = await response.text();
     expect(body).not.toContain('tool-hidden_tool');
     expect(body).not.toContain('Description of hidden_tool');
   });

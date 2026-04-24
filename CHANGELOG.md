@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.7.1](changelog/0.7.x/0.7.1.md) — 2026-04-24
+
+Security hardening — fail-closed Origin guard (loopback-only default), validated landing-page bearer check, raw-payload logging removed, opt-in LLM transcripts
+
 ## [0.7.0](changelog/0.7.x/0.7.0.md) — 2026-04-24
 
 Issue-cleanup release — flat ZodError messages with structured issues, locale-aware format-parity, devcheck changelog guard, skill protocol refinements, and GitHub label + template scaffolding

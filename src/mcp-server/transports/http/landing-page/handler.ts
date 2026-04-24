@@ -1,7 +1,8 @@
 /**
  * @fileoverview Hono handler factory for `GET /` — serves the HTML landing
- * page. Cache and body shape depend on `manifest.landing.requireAuth` and
- * whether the caller presents an Authorization header.
+ * page. Cache and body shape depend on `manifest.landing.requireAuth` and,
+ * when an auth strategy is provided, whether the caller presents a valid
+ * bearer token.
  *
  * @module src/mcp-server/transports/http/landing-page/handler
  */
@@ -9,6 +10,7 @@
 import type { Context } from 'hono';
 
 import type { ServerManifest } from '@/core/serverManifest.js';
+import type { AuthStrategy } from '@/mcp-server/transports/auth/strategies/authStrategy.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -42,10 +44,13 @@ const CONTENT_SECURITY_POLICY = [
  * | `false` (default) | full page · `Cache-Control: public, max-age=60` | full page · same |
  * | `true` | full page · `Cache-Control: private, max-age=60` · `Vary: Authorization` | reduced hero-only page · same cache headers |
  *
- * The check is header-presence based — we don't validate the bearer token
- * here (that's the MCP endpoint's job). If a caller presents any Authorization
- * header, the full inventory renders; if not, they see a stub and a pointer
- * to the docs link when available.
+ * When `requireAuth` is `true` the handler validates the bearer token via the
+ * provided {@link AuthStrategy} (the same strategy the MCP endpoint uses). A
+ * missing, malformed, or invalid token produces the degraded page. When no
+ * auth strategy is configured (e.g. `MCP_AUTH_MODE=none`) while `requireAuth`
+ * is on, there is no way to authenticate — every caller gets the degraded
+ * page. This keeps the inventory hidden by default rather than falling back
+ * to a header-presence heuristic that any caller can bypass.
  *
  * When `manifest.transport.publicUrl` is set, the base URL is deterministic,
  * so both page variants (full and degraded) are rendered once at factory
@@ -53,7 +58,10 @@ const CONTENT_SECURITY_POLICY = [
  * only runs when the origin must be derived per-request from
  * `new URL(c.req.url).origin`.
  */
-export function createLandingPageHandler(manifest: ServerManifest) {
+export function createLandingPageHandler(
+  manifest: ServerManifest,
+  authStrategy?: AuthStrategy | null,
+) {
   const { publicUrl } = manifest.transport;
   const precomputed = publicUrl
     ? {
@@ -62,15 +70,37 @@ export function createLandingPageHandler(manifest: ServerManifest) {
       }
     : null;
 
-  return (c: Context): Response => {
+  const requireAuth = manifest.landing.requireAuth;
+  // When requireAuth is on without a strategy, `degraded` stays true on every
+  // request and nobody unlocks the full inventory. Narrow the strategy once
+  // so the per-request closure doesn't need a non-null assertion.
+  const verifier: AuthStrategy | null = requireAuth && authStrategy ? authStrategy : null;
+
+  return async (c: Context): Promise<Response> => {
     const context = requestContextService.createRequestContext({
       operation: 'landingPageHandler',
     });
     const baseUrl = publicUrl ?? new URL(c.req.url).origin;
 
-    const requireAuth = manifest.landing.requireAuth;
-    const authHeader = c.req.header('authorization');
-    const isAuthenticated = Boolean(authHeader && authHeader.trim().length > 0);
+    let isAuthenticated = false;
+    if (verifier) {
+      // Matches authMiddleware's extraction: case-sensitive 'Bearer ' prefix,
+      // token is everything after. Keeps both surfaces consistent on what
+      // counts as a well-formed Authorization header.
+      const authHeader = c.req.header('authorization');
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+      if (token) {
+        try {
+          await verifier.verify(token);
+          isAuthenticated = true;
+        } catch (err) {
+          logger.debug('Landing page bearer validation failed.', {
+            ...context,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+    }
     const degraded = requireAuth && !isAuthenticated;
 
     const html = precomputed

@@ -286,10 +286,18 @@ export class OpenRouterProvider implements ILlmProvider {
 
   /**
    * Dispatches a single chat completion call to the OpenRouter API via the
-   * provided `OpenAI` client. Logs the outbound request via `logInteraction`.
-   * For non-streaming calls, awaits the response and logs it before returning.
-   * For streaming calls, returns the `Stream` immediately; the caller is
-   * responsible for consuming and logging the stream (see `chatCompletionStream`).
+   * provided `OpenAI` client. Emits an interaction log entry for the outbound
+   * request and inbound response. For streaming calls, returns the `Stream`
+   * immediately; the caller consumes and logs the stream (see
+   * `chatCompletionStream`).
+   *
+   * Payload shape depends on `config.logLlmInteractions`:
+   *
+   * - `false` (default) — metadata only: model, message count, streaming flag,
+   *   generation params, token usage.
+   * - `true` — full request body and response body. Only enable when transcript
+   *   persistence is an explicit audit requirement; LLM messages and completions
+   *   can include user PII, secrets, or confidential prompts.
    *
    * @param client - Initialized `OpenAI` client to use for the request.
    * @param params - Fully-prepared API parameters (defaults already merged).
@@ -305,7 +313,16 @@ export class OpenRouterProvider implements ILlmProvider {
   ): Promise<ChatCompletion | Stream<ChatCompletionChunk>> {
     this.logger.logInteraction('OpenRouterRequest', {
       context,
-      request: params,
+      ...(this.config.logLlmInteractions
+        ? { request: params }
+        : {
+            model: params.model,
+            messageCount: params.messages?.length ?? 0,
+            streaming: Boolean(params.stream),
+            maxTokens: params.max_tokens,
+            temperature: params.temperature,
+            topP: params.top_p,
+          }),
     });
     const requestOpts = signal ? { signal } : undefined;
     if (params.stream) {
@@ -315,7 +332,13 @@ export class OpenRouterProvider implements ILlmProvider {
 
       this.logger.logInteraction('OpenRouterResponse', {
         context,
-        response,
+        ...(this.config.logLlmInteractions
+          ? { response }
+          : {
+              model: response.model,
+              finishReasons: response.choices?.map((c) => c.finish_reason),
+              usage: response.usage,
+            }),
       });
       return response;
     }
@@ -490,8 +513,15 @@ export class OpenRouterProvider implements ILlmProvider {
       } finally {
         this.logger.logInteraction('OpenRouterResponse', {
           context,
-          response: chunks,
           streaming: true,
+          ...(this.config.logLlmInteractions
+            ? { response: chunks }
+            : {
+                chunkCount: chunks.length,
+                model: chunks[0]?.model,
+                // Usage chunk is emitted last when `stream_options.include_usage=true`.
+                usage: chunks.findLast((c) => c.usage != null)?.usage,
+              }),
         });
       }
     }.bind(this)();

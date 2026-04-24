@@ -379,4 +379,40 @@ describe('createResourceHandler', () => {
       }
     });
   });
+
+  describe('log payload redaction', () => {
+    it('does not attach raw inputParams to the RequestContext', async () => {
+      const { requestContextService } = await import('@/utils/internal/requestContext.js');
+
+      const def = resource('resource://{itemId}', {
+        description: 'Redaction test.',
+        mimeType: 'application/json',
+        params: z.object({ itemId: z.string().describe('id') }),
+        handler: () => ({ itemId: 'safe' }),
+      });
+
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
+      await handler(
+        new URL('resource://sensitive-item-id-value'),
+        { itemId: 'sensitive-item-id-value' },
+        createMockSdkContext(),
+      );
+
+      const call =
+        vi
+          .mocked(requestContextService.createRequestContext)
+          .mock.calls.find(
+            (args) => (args[0] as any)?.additionalContext?.operation === 'HandleResourceRead',
+          ) ??
+        vi
+          .mocked(requestContextService.createRequestContext)
+          .mock.calls.find((args) =>
+            (args[0] as any)?.additionalContext?.resourceUri?.includes('sensitive'),
+          );
+
+      expect(call).toBeDefined();
+      const additionalContext = (call![0] as any).additionalContext as Record<string, unknown>;
+      expect(additionalContext).not.toHaveProperty('inputParams');
+    });
+  });
 });

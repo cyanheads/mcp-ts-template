@@ -129,6 +129,10 @@ export function createResourceHandler(
 
     const sessionId = typeof sdkContext?.sessionId === 'string' ? sdkContext.sessionId : undefined;
 
+    // Raw `inputParams` is intentionally excluded from the context — it flows
+    // into the completion log via context spread and can contain caller data.
+    // The URI template already captures the named segments; anything else is
+    // query-string / caller-supplied and belongs in metrics, not logs.
     const appContext = requestContextService.createRequestContext({
       parentContext: {
         ...(typeof sdkContext?.requestId === 'string' ? { requestId: sdkContext.requestId } : {}),
@@ -139,7 +143,6 @@ export function createResourceHandler(
         resourceName: def.name ?? def.uriTemplate,
         resourceUri: uri.href,
         sessionId,
-        inputParams: variables,
       },
     });
 

@@ -48,6 +48,13 @@ class McpSessionTransport extends StreamableHTTPTransport {
  * retained closures — bounded wait surfaces the issue as a metric. */
 const PER_REQUEST_CLOSE_TIMEOUT_MS = 5_000;
 
+/** Matches loopback origins (http(s)://localhost|127.0.0.1|[::1] with optional port).
+ * Used as the fail-closed default for the Origin guard when no explicit
+ * MCP_ALLOWED_ORIGINS is configured — an unauthenticated MCP server must not
+ * accept browser Origin headers from arbitrary hosts (MCP Spec 2025-06-18 DNS
+ * rebinding protection). */
+const LOOPBACK_ORIGIN_RE = /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i;
+
 let closeFailureCounter: ReturnType<typeof createCounter> | undefined;
 function getCloseFailureCounter(): ReturnType<typeof createCounter> {
   closeFailureCounter ??= createCounter(
@@ -221,15 +228,35 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     }
   }
 
-  // CORS (with permissive fallback)
-  const allowedOrigin =
+  // CORS + Origin guard. These are two independent concerns:
+  //
+  //   - CORS controls which browsers can read responses cross-origin.
+  //   - The Origin guard (DNS-rebinding protection, MCP Spec 2025-06-18) rejects
+  //     MCP endpoint requests whose Origin header doesn't match the allowlist.
+  //
+  // When MCP_ALLOWED_ORIGINS is unset, CORS falls back to wildcard (so non-browser
+  // CLI clients still work — they send no Origin header, so wildcard CORS is a
+  // no-op for them) while the Origin guard falls back to loopback-only. This
+  // fails closed for browser-CSRF attacks against unauthenticated dev servers.
+  //
+  // Set MCP_ALLOWED_ORIGINS='*' to explicitly disable Origin validation (public
+  // API on an authenticated transport). That is an opt-in, not a default.
+  const explicitOrigins =
     Array.isArray(config.mcpAllowedOrigins) && config.mcpAllowedOrigins.length > 0
       ? config.mcpAllowedOrigins
-      : '*';
+      : undefined;
+  const wildcardExplicitlyAllowed = explicitOrigins?.includes('*') ?? false;
+  const corsOrigin: string | string[] =
+    !explicitOrigins || wildcardExplicitlyAllowed ? '*' : explicitOrigins;
 
-  if (allowedOrigin === '*') {
+  if (!explicitOrigins) {
     logger.warning(
-      'CORS origin set to wildcard (*). Set MCP_ALLOWED_ORIGINS for production deployments.',
+      'MCP_ALLOWED_ORIGINS is not set — CORS is wildcard for CLI clients; browser Origin headers are restricted to loopback. Set MCP_ALLOWED_ORIGINS for production deployments accepting remote browser origins.',
+      transportContext,
+    );
+  } else if (wildcardExplicitlyAllowed) {
+    logger.warning(
+      "MCP_ALLOWED_ORIGINS contains '*' — DNS-rebinding protection is disabled. Rely on MCP_AUTH_MODE for access control.",
       transportContext,
     );
   }
@@ -240,30 +267,36 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
   app.use(
     '*',
     cors({
-      origin: allowedOrigin,
+      origin: corsOrigin,
       allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization', 'Mcp-Session-Id', 'MCP-Protocol-Version'],
       exposeHeaders: ['Mcp-Session-Id'],
-      ...(allowedOrigin !== '*' && { credentials: true }),
+      ...(corsOrigin !== '*' && { credentials: true }),
     }),
   );
 
   // Centralized error handling
   app.onError(httpErrorHandler);
 
-  // MCP Spec 2025-06-18: Origin header validation for DNS rebinding protection
+  // MCP Spec 2025-06-18: Origin header validation for DNS rebinding protection.
   // https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#security-warning
+  //
+  // Requests without an Origin header (CLI clients) pass through. Requests with
+  // an Origin are checked against: the explicit allowlist when set; loopback-only
+  // when unset; or unconditionally accepted when MCP_ALLOWED_ORIGINS='*' is
+  // explicitly configured.
   app.use(config.mcpHttpEndpointPath, async (c, next) => {
     const origin = c.req.header('origin');
     if (origin) {
       const isAllowed =
-        allowedOrigin === '*' || (Array.isArray(allowedOrigin) && allowedOrigin.includes(origin));
+        wildcardExplicitlyAllowed ||
+        (explicitOrigins ? explicitOrigins.includes(origin) : LOOPBACK_ORIGIN_RE.test(origin));
 
       if (!isAllowed) {
         logger.warning('Rejected request with invalid Origin header', {
           ...transportContext,
           origin,
-          allowedOrigins: allowedOrigin,
+          allowedOrigins: explicitOrigins ?? 'loopback-only',
         });
         return c.json({ error: 'Invalid origin. DNS rebinding protection.' }, 403);
       }
@@ -293,12 +326,23 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     );
   }
 
+  // Create the auth strategy once — used by the MCP endpoint's auth middleware
+  // AND by the landing page when `landing.requireAuth=true`, so both surfaces
+  // apply the same token validation (JWT/OAuth) the operator configured.
+  const authStrategy = createAuthStrategy();
+
   // HTML landing page at `/` — unauthenticated by default (`landing.requireAuth`
   // is honored inside the handler when enabled). Skipped when landing.enabled=false
   // or when the MCP endpoint is (unusually) configured at `/`.
   const landingPath = '/';
   if (manifest.landing.enabled && config.mcpHttpEndpointPath !== landingPath) {
-    app.get(landingPath, createLandingPageHandler(manifest));
+    if (manifest.landing.requireAuth && !authStrategy) {
+      logger.warning(
+        'landing.requireAuth=true but MCP_AUTH_MODE=none — the landing page inventory will be hidden for all callers. Configure an auth mode (jwt/oauth) or set landing.requireAuth=false.',
+        transportContext,
+      );
+    }
+    app.get(landingPath, createLandingPageHandler(manifest, authStrategy));
     logger.debug(`Landing page mounted at ${landingPath}.`, transportContext);
   } else if (!manifest.landing.enabled) {
     logger.debug('Landing page disabled via landing.enabled=false.', transportContext);
@@ -355,10 +399,9 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     });
   });
 
-  // Create auth strategy and middleware if auth is enabled
-  // IMPORTANT: Auth middleware must be registered BEFORE route handlers
-  // so Hono applies it to all subsequent routes on this path.
-  const authStrategy = createAuthStrategy();
+  // Auth middleware is registered BEFORE the MCP endpoint route handlers below
+  // so Hono applies it to all subsequent routes on this path. The strategy
+  // itself was created above so the landing page can share it.
   if (authStrategy) {
     const authMiddleware = createAuthMiddleware(authStrategy);
     app.use(config.mcpHttpEndpointPath, authMiddleware);

@@ -195,4 +195,87 @@ describe('OpenRouterProvider metrics', () => {
       expect(mockTokenAdd).not.toHaveBeenCalled();
     });
   });
+
+  describe('interaction logging redaction', () => {
+    beforeEach(() => {
+      mockLogger.logInteraction.mockClear();
+    });
+
+    it('emits metadata-only interaction log when logLlmInteractions is false (default)', async () => {
+      mockCreate.mockResolvedValue({
+        id: 'chatcmpl-redacted',
+        choices: [{ message: { content: 'secret-response' }, finish_reason: 'stop' }],
+        model: 'test/model',
+        usage: { prompt_tokens: 4, completion_tokens: 6, total_tokens: 10 },
+      });
+
+      await provider.chatCompletion(
+        {
+          messages: [{ role: 'user', content: 'sensitive-user-input' }],
+          model: 'test/model',
+          stream: false,
+          max_tokens: 128,
+          temperature: 0.5,
+        },
+        ctx,
+      );
+
+      const calls = mockLogger.logInteraction.mock.calls as Array<
+        [string, Record<string, unknown>]
+      >;
+      const requestCall = calls.find(([name]) => name === 'OpenRouterRequest');
+      const responseCall = calls.find(([name]) => name === 'OpenRouterResponse');
+
+      expect(requestCall).toBeDefined();
+      expect(responseCall).toBeDefined();
+
+      const reqPayload = requestCall![1];
+      expect(reqPayload).not.toHaveProperty('request');
+      expect(reqPayload).toMatchObject({
+        model: 'test/model',
+        messageCount: 1,
+        streaming: false,
+        maxTokens: 128,
+        temperature: 0.5,
+      });
+
+      const respPayload = responseCall![1];
+      expect(respPayload).not.toHaveProperty('response');
+      expect(respPayload).toMatchObject({
+        model: 'test/model',
+        finishReasons: ['stop'],
+        usage: { prompt_tokens: 4, completion_tokens: 6, total_tokens: 10 },
+      });
+
+      // Raw user message and model output must not appear in any log payload.
+      const serialized = JSON.stringify(calls);
+      expect(serialized).not.toContain('sensitive-user-input');
+      expect(serialized).not.toContain('secret-response');
+    });
+
+    it('emits full payloads when logLlmInteractions is true (opt-in)', async () => {
+      const optInConfig = { ...mockConfig, logLlmInteractions: true };
+      const optInProvider = new OpenRouterProvider(mockRateLimiter, optInConfig, mockLogger);
+
+      mockCreate.mockResolvedValue({
+        id: 'chatcmpl-full',
+        choices: [{ message: { content: 'full-response' }, finish_reason: 'stop' }],
+        model: 'test/model',
+      });
+
+      await optInProvider.chatCompletion(
+        { messages: [{ role: 'user', content: 'full-input' }], model: 'test/model', stream: false },
+        ctx,
+      );
+
+      const calls = mockLogger.logInteraction.mock.calls as Array<
+        [string, Record<string, unknown>]
+      >;
+      const requestCall = calls.find(([name]) => name === 'OpenRouterRequest');
+      const responseCall = calls.find(([name]) => name === 'OpenRouterResponse');
+
+      expect(requestCall![1]).toHaveProperty('request');
+      expect(responseCall![1]).toHaveProperty('response');
+    });
+  });
 });

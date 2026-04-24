@@ -490,4 +490,29 @@ describe('createToolHandler', () => {
       );
     });
   });
+
+  describe('log payload redaction', () => {
+    it('does not attach raw input to the RequestContext', async () => {
+      const { requestContextService } = await import('@/utils/internal/requestContext.js');
+
+      const def = tool('redact_tool', {
+        description: 'Input redaction test.',
+        input: z.object({ secret: z.string().describe('secret') }),
+        output: z.object({ ok: z.boolean() }),
+        handler: () => ({ ok: true }),
+      });
+
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
+      await handler({ secret: 'super-sensitive-value' }, createMockSdkContext());
+
+      const call = vi
+        .mocked(requestContextService.createRequestContext)
+        .mock.calls.find((args) => (args[0] as any)?.additionalContext?.toolName === 'redact_tool');
+
+      expect(call).toBeDefined();
+      const additionalContext = (call![0] as any).additionalContext as Record<string, unknown>;
+      expect(additionalContext).not.toHaveProperty('input');
+      expect(JSON.stringify(additionalContext)).not.toContain('super-sensitive-value');
+    });
+  });
 });
