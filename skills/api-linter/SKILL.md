@@ -4,7 +4,7 @@ description: >
   MCP definition linter rules reference. Use when `bun run lint:mcp`, `bun run devcheck`, or `createApp()` startup reports a lint error or warning (`format-parity`, `schema-is-object`, `name-format`, `server-json-*`, etc.) and you need to understand the rule, its severity, and how to fix it. Every rule ID the linter emits has an entry in this doc.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.1"
   audience: external
   type: reference
 ---
@@ -134,7 +134,18 @@ input: z.object({ items: z.array(z.string()).describe('List of items') })
 
 Every field in `input`, `output`, `params`, or `args` needs a `.describe('...')` call. Descriptions ship to the client and the LLM — missing ones make tools harder to use correctly.
 
-**Fix:** add `.describe('...')` to every leaf. The linter reports which path is missing a description (e.g., `input.filters.status`), so it's a mechanical fix.
+**Fix:** add `.describe('...')` to the paths the linter flags. The diagnostic names which path is missing a description (e.g., `input.filters.status`).
+
+**Recursion rules** — the linter walks selectively; primitive array elements are intentionally skipped. Knowing what's walked prevents over-application of describes that end up as noise in the generated JSON Schema.
+
+| Schema position | Walked? | Describe required on inner? |
+|:---|:---|:---|
+| `z.object({ ... })` field | Yes | Yes, on each field |
+| `z.array(compound)` element — object, array, or union | Yes | Yes, on the element |
+| `z.array(primitive)` element — string, number, enum, regex-branded primitive, etc. | **No** | No — outer array describe is sufficient |
+| `z.union([a, b, ...])` option | Yes (every option) | Yes, on each option |
+
+The asymmetry that catches agents: inside `z.union([z.string(), z.array(z.string())])`, the outer `z.string()` option **does** need a describe (unions walk every option), but the `z.string()` inside the inner array does **not** (arrays don't walk primitive elements). If the linter didn't flag a path, don't add a describe there — the redundant describe ships to the JSON Schema as clutter.
 
 ### schema-serializable
 
