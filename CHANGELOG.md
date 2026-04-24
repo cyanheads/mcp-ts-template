@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.7.0](changelog/0.7.x/0.7.0.md) — 2026-04-24
+
+Issue-cleanup release — flat ZodError messages with structured issues, locale-aware format-parity, devcheck changelog guard, skill protocol refinements, and GitHub label + template scaffolding
+
 ## [0.6.17](changelog/0.6.x/0.6.17.md) — 2026-04-24
 
 HTTP transport hardening for issue #50 — per-server notifier race fix, bounded-timeout close with close_failures metric, and FinalizationRegistry diagnostic for per-request McpServer/transport retention
