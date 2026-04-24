@@ -87,6 +87,74 @@ describe('lintFormatParity — happy path', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Numeric separator normalization (toLocaleString / Intl.NumberFormat)
+// ---------------------------------------------------------------------------
+
+describe('lintFormatParity — numeric separator normalization', () => {
+  it('passes when numeric field is rendered with en-US toLocaleString (comma)', () => {
+    const def = tool({
+      output: z.object({ total: z.number().describe('Total') }),
+      format: (r) => [
+        {
+          type: 'text',
+          text: `Total: ${(r as { total: number }).total.toLocaleString('en-US')}`,
+        },
+      ],
+    });
+    expect(parityErrors(def)).toHaveLength(0);
+  });
+
+  it('passes when numeric field is rendered with de-DE toLocaleString (period)', () => {
+    const def = tool({
+      output: z.object({ total: z.number().describe('Total') }),
+      format: (r) => [
+        {
+          type: 'text',
+          text: `Gesamt: ${(r as { total: number }).total.toLocaleString('de-DE')}`,
+        },
+      ],
+    });
+    expect(parityErrors(def)).toHaveLength(0);
+  });
+
+  it('passes when numeric field is rendered with fr-FR Intl.NumberFormat (narrow no-break space)', () => {
+    const fmt = new Intl.NumberFormat('fr-FR');
+    const def = tool({
+      output: z.object({ total: z.number().describe('Total') }),
+      format: (r) => [
+        { type: 'text', text: `Total: ${fmt.format((r as { total: number }).total)}` },
+      ],
+    });
+    expect(parityErrors(def)).toHaveLength(0);
+  });
+
+  it('still flags compact notation (1.5K) — lossy transform', () => {
+    const def = tool({
+      output: z.object({ total: z.number().describe('Total') }),
+      format: (r) => {
+        const t = (r as { total: number }).total;
+        // Compact style collapses digits — information is lost, parity should fail
+        return [
+          {
+            type: 'text',
+            text: `Total: ${new Intl.NumberFormat('en-US', { notation: 'compact' }).format(t)}`,
+          },
+        ];
+      },
+    });
+    expect(parityErrors(def).length).toBeGreaterThan(0);
+  });
+
+  it('still passes when numeric field is rendered as a raw integer', () => {
+    const def = tool({
+      output: z.object({ total: z.number().describe('Total') }),
+      format: (r) => [{ type: 'text', text: `Total: ${(r as { total: number }).total}` }],
+    });
+    expect(parityErrors(def)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Missing field detection
 // ---------------------------------------------------------------------------
 
