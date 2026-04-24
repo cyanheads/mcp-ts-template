@@ -1,10 +1,10 @@
 ---
 name: release-and-publish
 description: >
-  Ship a release end-to-end across every registry the project targets (npm, MCP Registry, GHCR). Runs the final verification gate, pushes commits and tags, then publishes to each applicable destination. Assumes git wrapup (version bumps, changelog, commit, annotated tag) is already complete — this skill is the post-wrapup publish workflow. Halts and alerts the user on the first failure.
+  Ship a release end-to-end across every registry the project targets (npm, MCP Registry, GHCR). Runs the final verification gate, pushes commits and tags, then publishes to each applicable destination. Assumes git wrapup (version bumps, changelog, commit, annotated tag) is already complete — this skill is the post-wrapup publish workflow. Retries transient network failures on publish steps; halts with a partial-state report when retries are exhausted or the failure is terminal.
 metadata:
   author: cyanheads
-  version: "2.0"
+  version: "2.1"
   audience: external
   type: workflow
 ---
@@ -26,13 +26,37 @@ If any are missing, halt and tell the user to finish wrapup first. Do not attemp
 
 ## Failure Protocol
 
-**Stop on the first non-zero exit.** No retries, no remediation from inside the skill. Report to the user:
+Steps 3–6 are network-bound. For those, **retry transient failures up to 2 times** with short backoff (~5 s before the first retry, ~15 s before the second) before halting. All other steps halt on the first non-zero exit — they're deterministic and a second attempt won't change the outcome.
+
+### Retry on transient patterns
+
+Match stderr (case-insensitive) against any of these — if matched, the failure is almost always a network blip; retry:
+
+- `integrity check failed` / `IntegrityCheckFailed` — corrupt tarball during download
+- `ECONNRESET` / `EAI_AGAIN` / `ETIMEDOUT` / `ENOTFOUND` — network layer
+- `connection reset` / `connection refused` — transport blip
+- `timed out` / `request timeout` — server or network timeout
+- HTTP `502` / `503` / `504` — transient registry error
+
+**Before retrying `docker buildx --push` (step 6)**, run `docker builder prune -f` to drop any cached corrupt layer. Skip this extra step for other retries.
+
+### Never retry on idempotent-success signals
+
+These mean the step already succeeded on a prior run — treat as success and proceed to the next step:
+
+- npm (`bun publish`): `version already exists`, `You cannot publish over the previously published versions`
+- MCP Registry (`mcp-publisher publish`): `cannot publish duplicate version`
+
+### Halt fallback
+
+If retries are exhausted, or the failure matches none of the transient patterns, halt and report:
 
 1. Which step failed
 2. The exact error output
-3. Which destinations already received the release (npm published? tag pushed? etc.) so they know the partial state
+3. Retry count attempted (0 for terminal errors, 2 for exhausted retries)
+4. Which destinations already received the release (npm published? tag pushed? MCP Registry? GHCR?) — the partial state across destinations
 
-The user fixes locally and re-invokes, or runs the remaining steps manually. Publishes hard-fail with "version already exists" if replayed — that's the signal the step already succeeded.
+The user fixes locally and re-invokes. On re-invocation, already-published destinations hit the idempotent-success signal and skip naturally — no manual step-skipping required.
 
 ## Steps
 
