@@ -79,8 +79,12 @@ describe('Error Handler Mappings', () => {
       expect(ERROR_TYPE_MAPPINGS.AggregateError).toBe(JsonRpcErrorCode.InternalError);
     });
 
-    it('should have exactly 6 entries', () => {
-      expect(Object.keys(ERROR_TYPE_MAPPINGS)).toHaveLength(6);
+    it('should map ZodError to ValidationError', () => {
+      expect(ERROR_TYPE_MAPPINGS.ZodError).toBe(JsonRpcErrorCode.ValidationError);
+    });
+
+    it('should have exactly 7 entries', () => {
+      expect(Object.keys(ERROR_TYPE_MAPPINGS)).toHaveLength(7);
     });
   });
 

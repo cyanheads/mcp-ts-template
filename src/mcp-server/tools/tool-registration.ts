@@ -26,6 +26,7 @@ import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
+import { getErrorMessage } from '@/utils/internal/error-handler/helpers.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -362,11 +363,7 @@ export class ToolRegistry {
 
       try {
         const isTimeout = abortController.signal.reason === TIMEOUT_SENTINEL;
-        const errorMessage = isTimeout
-          ? `Task timed out after ${ttlMs}ms`
-          : error instanceof Error
-            ? error.message
-            : String(error);
+        const errorMessage = isTimeout ? `Task timed out after ${ttlMs}ms` : getErrorMessage(error);
         await taskStore.storeTaskResult(taskId, 'failed', {
           content: [{ type: 'text', text: `Error: ${errorMessage}` }],
           isError: true,

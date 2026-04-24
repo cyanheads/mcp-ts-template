@@ -293,6 +293,35 @@ describe('createResourceHandler', () => {
       ).rejects.toThrow();
     });
 
+    it('should surface a flat message and structured issues on Zod failure', async () => {
+      const def = resource('clinical://{nctId}', {
+        description: 'NCT-formatted param.',
+        params: z.object({
+          nctId: z.string().regex(/^NCT\d{8}$/, 'NCT IDs must match NCTxxxxxxxx'),
+        }),
+        handler: () => ({ ok: true }),
+      });
+
+      const handler = createResourceHandler(def as AnyResourceDefinition, services, notifiers);
+
+      const err = await handler(
+        new URL('clinical://INVALID'),
+        { nctId: 'INVALID' } as any,
+        createMockSdkContext(),
+      ).catch((e) => e);
+
+      expect(err).toBeInstanceOf(McpError);
+      expect(err.code).toBe(JsonRpcErrorCode.ValidationError);
+      // Flat human-readable message — no JSON blob
+      expect(err.message).not.toContain('[\n');
+      expect(err.message).not.toContain('"code":');
+      expect(err.message).toContain('at nctId');
+      // Structured issues preserved in data
+      expect(err.data).toBeDefined();
+      expect(Array.isArray(err.data.issues)).toBe(true);
+      expect(err.data.issues).toHaveLength(1);
+    });
+
     it('should pass variables through when no params schema is defined', async () => {
       let capturedParams: any;
 

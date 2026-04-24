@@ -4,8 +4,35 @@
  * @module src/utils/internal/error-handler/helpers
  */
 
+import { ZodError } from 'zod';
+
 import { McpError } from '@/types-global/errors.js';
 import { isAggregateError } from '@/utils/types/guards.js';
+
+/**
+ * Formats a ZodError as a human-readable sentence.
+ *
+ * `ZodError.message` is a serialized JSON array of `ZodIssue` objects — useful for
+ * debugging but unreadable in logs, client error messages, and UI surfaces. This
+ * helper extracts the first issue's message (typically the most actionable) and
+ * appends path + overflow count so `error.message` reads as prose.
+ *
+ * Pair with `ErrorHandler.classifyOnly` (which returns `data: { issues }`) to
+ * preserve the structured issue array for clients that can render field-level
+ * errors.
+ *
+ * @param err - The ZodError to format.
+ * @returns A single-line sentence, e.g. `"Expected string at nctId (+2 more)"`.
+ */
+export function formatZodErrorMessage(err: ZodError): string {
+  const issues = err.issues;
+  const first = issues[0];
+  if (!first) return 'Validation failed';
+  const path = first.path.length > 0 ? ` at ${first.path.map(String).join('.')}` : '';
+  const rest = issues.length - 1;
+  const tail = rest > 0 ? ` (+${rest} more)` : '';
+  return `${first.message}${path}${tail}`;
+}
 
 /**
  * Retrieves a descriptive name for an error object or value.
@@ -75,6 +102,9 @@ export function getErrorName(error: unknown): string {
  */
 export function getErrorMessage(error: unknown): string {
   try {
+    if (error instanceof ZodError) {
+      return formatZodErrorMessage(error);
+    }
     if (error instanceof Error) {
       // AggregateError should surface combined messages succinctly
       if (isAggregateError(error)) {
