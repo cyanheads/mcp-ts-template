@@ -12,7 +12,7 @@ import type {
   ServerRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import type { ZodObject, ZodRawShape } from 'zod';
+import { ZodError, type ZodObject, type ZodRawShape } from 'zod';
 
 import type { Context, SamplingOpts } from '@/core/context.js';
 import { createContext } from '@/core/context.js';
@@ -179,8 +179,13 @@ export function createToolHandler(
               originalError: handled.name,
             });
 
-      // Surface error classification via _meta so programmatic clients can distinguish error types (auth, validation, not-found, etc.) without parsing the text message. Only propagate data from explicitly thrown McpError instances — ErrorHandler enrichment contains internal context (stack traces, operation details) that shouldn't be client-visible.
-      const originalData = error instanceof McpError ? error.data : undefined;
+      // Surface error classification via _meta so programmatic clients can distinguish error types (auth, validation, not-found, etc.) without parsing the text message. Only propagate data from explicitly thrown McpError instances and ZodError (structured validation issues) — ErrorHandler enrichment contains internal context (stack traces, operation details) that shouldn't be client-visible.
+      const originalData =
+        error instanceof McpError
+          ? error.data
+          : error instanceof ZodError
+            ? { issues: error.issues }
+            : undefined;
       return {
         isError: true,
         content: [{ type: 'text', text: `Error: ${mcpError.message}` }],

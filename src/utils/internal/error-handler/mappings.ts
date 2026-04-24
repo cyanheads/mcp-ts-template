@@ -102,6 +102,7 @@ export const ERROR_TYPE_MAPPINGS: Readonly<Record<string, JsonRpcErrorCode>> = {
   URIError: JsonRpcErrorCode.ValidationError,
   EvalError: JsonRpcErrorCode.InternalError,
   AggregateError: JsonRpcErrorCode.InternalError,
+  ZodError: JsonRpcErrorCode.ValidationError,
 };
 
 /**

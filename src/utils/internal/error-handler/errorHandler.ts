@@ -5,6 +5,7 @@
  */
 
 import { SpanStatusCode, trace } from '@opentelemetry/api';
+import { ZodError } from 'zod';
 
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';
@@ -281,11 +282,27 @@ export class ErrorHandler {
    * handler factory where the SDK logs the re-thrown error).
    *
    * @param error - The error instance or value to classify.
-   * @returns `{ code, message }` — the classified error code and extracted message.
+   * @returns `{ code, message, data? }` — the classified error code, a human-readable
+   *          message, and optional structured data (populated for `ZodError` with
+   *          the full `issues` array so clients can render field-level errors).
    */
-  public static classifyOnly(error: unknown): { code: JsonRpcErrorCode; message: string } {
+  public static classifyOnly(error: unknown): {
+    code: JsonRpcErrorCode;
+    message: string;
+    data?: Record<string, unknown>;
+  } {
+    if (error instanceof McpError) {
+      return { code: error.code, message: error.message };
+    }
+    if (error instanceof ZodError) {
+      return {
+        code: JsonRpcErrorCode.ValidationError,
+        message: getErrorMessage(error),
+        data: { issues: error.issues },
+      };
+    }
     return {
-      code: error instanceof McpError ? error.code : ErrorHandler.determineErrorCode(error),
+      code: ErrorHandler.determineErrorCode(error),
       message: getErrorMessage(error),
     };
   }

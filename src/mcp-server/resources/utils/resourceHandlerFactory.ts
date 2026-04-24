@@ -183,8 +183,8 @@ export function createResourceHandler(
       if (error instanceof McpError) {
         throw error;
       }
-      const { code, message } = ErrorHandler.classifyOnly(error);
-      throw new McpError(code, message, undefined, { cause: error });
+      const { code, message, data } = ErrorHandler.classifyOnly(error);
+      throw new McpError(code, message, data, { cause: error });
     }
   };
 }

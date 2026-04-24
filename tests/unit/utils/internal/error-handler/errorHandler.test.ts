@@ -5,6 +5,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 
@@ -152,6 +153,38 @@ describe('ErrorHandler', () => {
       expect(ErrorHandler.determineErrorCode('raw string error')).toBe(
         JsonRpcErrorCode.InternalError,
       );
+    });
+  });
+
+  // ─── classifyOnly ────────────────────────────────────────────────────────────
+
+  describe('classifyOnly', () => {
+    it('should preserve McpError code and message without data', () => {
+      const err = new McpError(JsonRpcErrorCode.NotFound, 'gone', { id: 1 });
+      const result = ErrorHandler.classifyOnly(err);
+      expect(result.code).toBe(JsonRpcErrorCode.NotFound);
+      expect(result.message).toBe('gone');
+      expect(result.data).toBeUndefined();
+    });
+
+    it('should flatten ZodError message and surface issues in data', () => {
+      const zodErr = z.object({ name: z.string() }).safeParse({ name: 42 });
+      expect(zodErr.success).toBe(false);
+      if (zodErr.success) return;
+
+      const result = ErrorHandler.classifyOnly(zodErr.error);
+
+      expect(result.code).toBe(JsonRpcErrorCode.ValidationError);
+      expect(result.message).not.toContain('[\n');
+      expect(result.message).not.toContain('"code":');
+      expect(result.data).toBeDefined();
+      expect(Array.isArray((result.data as { issues: unknown[] }).issues)).toBe(true);
+    });
+
+    it('should classify plain Error without data', () => {
+      const result = ErrorHandler.classifyOnly(new Error('boom'));
+      expect(result.message).toBe('boom');
+      expect(result.data).toBeUndefined();
     });
   });
 

@@ -5,9 +5,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import {
   extractErrorCauseChain,
+  formatZodErrorMessage,
   getErrorMessage,
   getErrorName,
 } from '@/utils/internal/error-handler/helpers.js';
@@ -140,6 +142,47 @@ describe('Error Handler Helpers', () => {
     it('should handle empty object', () => {
       const msg = getErrorMessage({});
       expect(msg).toContain('Non-Error object');
+    });
+
+    it('should format ZodError as a single-line sentence (not raw JSON)', () => {
+      const result = z.object({ name: z.string() }).safeParse({ name: 123 });
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      const msg = getErrorMessage(result.error);
+      expect(msg).not.toContain('[\n');
+      expect(msg).not.toContain('"code":');
+      expect(msg).toContain('at name');
+    });
+  });
+
+  // ─── formatZodErrorMessage ───────────────────────────────────────────────────
+
+  describe('formatZodErrorMessage', () => {
+    it('should format single-issue error with path', () => {
+      const result = z.object({ nctId: z.string().regex(/^NCT\d{8}$/) }).safeParse({ nctId: 'X' });
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      const msg = formatZodErrorMessage(result.error);
+      expect(msg).toContain('at nctId');
+      expect(msg).not.toContain('(+');
+    });
+
+    it('should append overflow count when multiple issues', () => {
+      const result = z
+        .object({ a: z.string(), b: z.number(), c: z.boolean() })
+        .safeParse({ a: 1, b: 'x', c: 'y' });
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      const msg = formatZodErrorMessage(result.error);
+      expect(msg).toMatch(/\(\+\d+ more\)/);
+    });
+
+    it('should omit path suffix for root-level issues', () => {
+      const result = z.string().safeParse(42);
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      const msg = formatZodErrorMessage(result.error);
+      expect(msg).not.toContain(' at ');
     });
   });
 
