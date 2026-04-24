@@ -244,10 +244,32 @@ function collectPrimitives(value: unknown, out: string[]): void {
   }
 }
 
+/**
+ * Common digit-group separators across locales, plus underscore (template-literal
+ * style). Stripped from text before numeric sentinel matching so locale-aware
+ * formatting (`toLocaleString`, `Intl.NumberFormat`) passes parity:
+ *   - `,`          — en-US, hi-IN, others
+ *   - `.`          — de-DE, tr-TR, pt-BR, nl-NL, id-ID, es-ES
+ *   - `'` `’`      — de-CH (apostrophe or right single quote)
+ *   - ` ` variants — fr-FR, sv-SE (space, no-break, narrow no-break, thin)
+ *   - `٬`          — Arabic thousands separator (U+066C)
+ *   - `_`          — not a locale separator, but some template literals use it
+ * Compact (`1.5K`), scientific (`9e8`), and other lossy transforms still fail —
+ * their digit sequences don't contain the sentinel's digits in order.
+ */
+const DIGIT_SEPARATOR_PATTERN = /[,._'    ’٬]/g;
+
 function sentinelAppears(sentinel: unknown, text: string): boolean {
   if (sentinel === null || sentinel === undefined) return false;
   const asString = typeof sentinel === 'string' ? sentinel : String(sentinel);
-  return asString.length > 0 && text.includes(asString);
+  if (asString.length === 0) return false;
+  if (text.includes(asString)) return true;
+  // Numeric sentinels may be rendered with locale-aware digit-group separators —
+  // strip separators and retry. Non-numeric sentinels skip this normalization.
+  if (typeof sentinel === 'number' || typeof sentinel === 'bigint') {
+    return text.replace(DIGIT_SEPARATOR_PATTERN, '').includes(asString);
+  }
+  return false;
 }
 
 function escapeRegex(str: string): string {
