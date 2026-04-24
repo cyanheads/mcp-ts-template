@@ -4,7 +4,7 @@ description: >
   Investigate, adopt, and verify dependency updates — with special handling for `@cyanheads/mcp-ts-core`. Captures what changed, understands why, cross-references against the codebase, adopts framework improvements, syncs project skills, and runs final checks. Supports two entry modes: run the full flow end-to-end, or review updates you already applied.
 metadata:
   author: cyanheads
-  version: "1.4"
+  version: "1.5"
   audience: external
   type: workflow
 ---
@@ -77,7 +77,7 @@ Cross-reference each finding against the server's code. Collect adoption opportu
 
 **Template review.** The framework also ships `templates/CLAUDE.md` and `templates/AGENTS.md` as scaffolding for consumer agent protocol files. The consumer's `CLAUDE.md`/`AGENTS.md` was copied at init time and has since diverged (local customizations, echo replacements, server-specific sections). Read the upstream template fresh at `node_modules/@cyanheads/mcp-ts-core/templates/CLAUDE.md`.
 
-Skip the mechanical diff — consumer customizations create too much noise to filter. Instead, read end-to-end with fresh eyes, mentally comparing against the current `CLAUDE.md`. Look for: new conventions, updated skill references, expanded checklists, new callouts, clearer explanations, restructured sections. Present findings; let the user cherry-pick what to adopt. Never auto-merge — the consumer's file is theirs.
+Read the upstream template end-to-end, mentally comparing against the current `CLAUDE.md`/`AGENTS.md`. Apply framework-authored updates directly — new skill references in the skills table, new entries in the "What's Next?" section, updated convention callouts, clarified patterns. These are factual updates, not taste decisions; the consumer's agent protocol file is meant to track the framework's. Only surface a decision when a template change conflicts with a section the consumer has intentionally customized (server-specific domain context, bespoke checklists, etc.) — in that case, note the conflict and ask.
 
 ### 5. Sync project skills and scripts
 
@@ -140,14 +140,25 @@ If the consumer customized a framework script, the overwrite discards those chan
 
 ### 6. Adopt changes in the codebase
 
-Apply the findings from Steps 3 and 4:
+Apply the findings from Steps 3 and 4. Framework changes and third-party library changes have different adoption defaults — the asymmetry is deliberate.
 
-- **Breaking changes** — fix call sites
-- **Deprecations** — migrate now, while context is fresh
-- **New framework features** — refactor targeted spots only; don't cargo-cult everywhere
-- **New configuration** — update `.env.example`, server config schema, README if user-facing
+**Framework changes (`@cyanheads/mcp-ts-core`) — default adopt.**
 
-Keep diffs focused. Don't sweep refactors beyond the update's scope.
+The consumer opted into the framework; its templates, skills, scripts, linter rules, and conventions are authoritative. Adopt directly unless the change genuinely conflicts with a documented local override.
+
+- **Breaking changes** — fix call sites. Not optional.
+- **Deprecations** — migrate now, while context is fresh.
+- **New linter rules** — if the rule now flags existing code, fix the code; don't silence the rule.
+- **New utilities that supersede local code** — swap them in. The point of the framework is to centralize.
+- **New conventions** (template changes, new config keys, renamed env vars) — adopt and update `.env.example`, server config schema, `server.json`, and README if user-facing.
+- **New framework features that don't match existing use cases** — skip; those are for future features, not retroactive refactors.
+
+**Third-party library changes — default cost/benefit.**
+
+- Read the changelog findings from Step 3, assess impact against actual call sites in `src/`.
+- Adopt when the change is a clear win (performance, correctness, removed deprecation warning, smaller surface).
+- Skip when marginal — a new convenience API isn't a reason to touch working code.
+- If the library added a feature the server could use, note it but don't refactor speculatively.
 
 ### 7. Rebuild and verify
 
@@ -171,7 +182,7 @@ Present a concise numbered summary to the user:
 2. **Breaking changes handled** — call sites fixed
 3. **Features adopted** — new framework APIs now in use
 4. **Skills synced** — added/updated with versions (Phase A) and agent directories refreshed (Phase B)
-5. **Needs attention** — anything deferred, flagged for decision, or risky
+5. **Open decisions** — genuinely ambiguous items: breaking changes with multiple migration paths, framework changes that conflict with a documented local override, third-party adoptions where the cost/benefit is close
 6. **Status** — rebuild / devcheck / test results
 
 ## Checklist
