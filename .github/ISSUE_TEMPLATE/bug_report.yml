@@ -1,6 +1,7 @@
 name: Bug Report
 description: Report a bug in @cyanheads/mcp-ts-core
 labels: ["bug"]
+assignees: ["cyanheads"]
 body:
   - type: markdown
     attributes:
@@ -8,6 +9,12 @@ body:
         Thanks for reporting a bug. Please confirm this is a framework issue, not a server-specific bug — if you're unsure, see the [triage guide](https://github.com/cyanheads/mcp-ts-core/blob/main/skills/report-issue-framework/SKILL.md#before-filing).
 
         **Do not include secrets, credentials, API keys, tokens, PII, or other sensitive data.** Redact env vars, auth headers, user-identifying information, and internal URLs from all code snippets, logs, and stack traces before submitting. GitHub issues are public and permanent.
+
+        **Secondary labels.** `bug` is applied automatically — also add one or more of the following in the sidebar if they apply:
+        - `regression` — worked before, broken after an update
+        - `performance` — memory, CPU, latency, or resource usage
+        - `security` — vulnerability, CVE, or hardening work
+        - `breaking-change` — fix will break public API
 
   - type: input
     id: version
