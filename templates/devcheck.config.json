@@ -5,6 +5,7 @@
       "pino-pretty",
       "typescript",
       "tsc-alias",
+      "depcheck",
       "@cyanheads/mcp-ts-core"
     ],
     "ignorePatterns": []
