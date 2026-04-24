@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.6.16](changelog/0.6.x/0.6.16.md) — 2026-04-23
+
+Linter `describe-on-fields` recurses into nested objects, array elements, and union variants and now covers resource outputs; `maintenance` skill adds Phase C to sync framework scripts from package to consumer
+
 ## [0.6.15](changelog/0.6.x/0.6.15.md) — 2026-04-23
 
 Scaffolded devcheck passes green on a fresh `init` (depcheck wired up); security-pass skill v1.1 expands coverage to resources, prompts, HTTP deployment surface, sampling, roots, telemetry, and schema strictness
