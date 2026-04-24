@@ -29,7 +29,7 @@ import { type SessionIdentity, SessionStore } from '@/mcp-server/transports/http
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { logStartupBanner } from '@/utils/internal/startupBanner.js';
-import { createObservableGauge } from '@/utils/telemetry/metrics.js';
+import { createCounter, createObservableGauge } from '@/utils/telemetry/metrics.js';
 
 /**
  * Extends the base StreamableHTTPTransport to include a session ID.
@@ -41,6 +41,120 @@ class McpSessionTransport extends StreamableHTTPTransport {
     super();
     this.sessionId = sessionId;
   }
+}
+
+/** Max time (ms) we wait for per-request transport/server close to complete
+ * before giving up and logging a failure. Silent hangs here accumulate
+ * retained closures — bounded wait surfaces the issue as a metric. */
+const PER_REQUEST_CLOSE_TIMEOUT_MS = 5_000;
+
+let closeFailureCounter: ReturnType<typeof createCounter> | undefined;
+function getCloseFailureCounter(): ReturnType<typeof createCounter> {
+  closeFailureCounter ??= createCounter(
+    'mcp.http.close_failures',
+    'Per-request HTTP close failures (transport or server close threw or timed out)',
+    '{failures}',
+  );
+  return closeFailureCounter;
+}
+
+// ---------------------------------------------------------------------------
+// Finalization-lag diagnostic (issue #50)
+//
+// The HTTP transport constructs a fresh `McpServer` + `McpSessionTransport`
+// per request (SDK 1.26 GHSA-345p-7cg4-v4c7). Production heap graphs show
+// linear growth proportional to request volume, which suggests some of
+// these per-request instances are being retained past their scope.
+//
+// Compare `mcp.http.per_request.created_total` against
+// `mcp.http.per_request.finalized_total` (both tagged with `kind`) to
+// detect retention. A persistent gap that grows with traffic is the
+// signature of the leak; a gap that closes within minutes is just GC
+// timing.
+// ---------------------------------------------------------------------------
+
+let perRequestCreatedCounter: ReturnType<typeof createCounter> | undefined;
+let perRequestFinalizedCounter: ReturnType<typeof createCounter> | undefined;
+function getPerRequestCreatedCounter(): ReturnType<typeof createCounter> {
+  perRequestCreatedCounter ??= createCounter(
+    'mcp.http.per_request.created',
+    'Per-request McpServer/McpSessionTransport instances created',
+    '{instances}',
+  );
+  return perRequestCreatedCounter;
+}
+function getPerRequestFinalizedCounter(): ReturnType<typeof createCounter> {
+  perRequestFinalizedCounter ??= createCounter(
+    'mcp.http.per_request.finalized',
+    'Per-request McpServer/McpSessionTransport instances reclaimed by GC',
+    '{instances}',
+  );
+  return perRequestFinalizedCounter;
+}
+
+/** Held-value payload is a primitive string literal, not a reference — so
+ * registration does not keep the target alive. */
+type PerRequestKind = 'server' | 'transport';
+
+/** Lazy so the registry only exists when HTTP transport is active. The
+ * FinalizationRegistry callback itself does not run during this process's
+ * exit teardown — so we deliberately don't try to drain it. */
+let perRequestFinalizationRegistry: FinalizationRegistry<PerRequestKind> | undefined;
+function getPerRequestFinalizationRegistry(): FinalizationRegistry<PerRequestKind> {
+  perRequestFinalizationRegistry ??= new FinalizationRegistry<PerRequestKind>((kind) => {
+    getPerRequestFinalizedCounter().add(1, { kind });
+  });
+  return perRequestFinalizationRegistry;
+}
+
+function trackPerRequestInstance(obj: object, kind: PerRequestKind): void {
+  getPerRequestCreatedCounter().add(1, { kind });
+  getPerRequestFinalizationRegistry().register(obj, kind);
+}
+
+/** Await a promise with a bounded timeout. Rejects with the timeout error
+ * if the promise doesn't settle first. */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    }),
+  ]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}
+
+/** Closes the per-request transport and server under a bounded timeout.
+ * Runs the two closes in parallel so one hanging close doesn't delay the
+ * other, and records each failure to `mcp.http.close_failures` with a
+ * `surface` tag. */
+async function closePerRequestInstances(
+  transport: McpSessionTransport,
+  server: McpServer,
+  sessionId: string,
+  transportContext: RequestContext,
+): Promise<void> {
+  const tasks: [PerRequestKind, Promise<void>][] = [
+    ['transport', transport.close()],
+    ['server', server.close()],
+  ];
+
+  await Promise.all(
+    tasks.map(async ([surface, closePromise]) => {
+      try {
+        await withTimeout(closePromise, PER_REQUEST_CLOSE_TIMEOUT_MS, `${surface}.close`);
+      } catch (err) {
+        getCloseFailureCounter().add(1, { surface, trigger: 'success' });
+        logger.warning(`Failed to close ${surface} after non-SSE response`, {
+          ...transportContext,
+          sessionId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }),
+  );
 }
 
 /**
@@ -371,12 +485,14 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     const sessionId = providedSessionId ?? generateSecureSessionId();
 
     const transport = new McpSessionTransport(sessionId);
+    trackPerRequestInstance(transport, 'transport');
 
     const handleRpc = async (): Promise<Response> => {
       // SDK 1.26.0: Protocol.connect() throws if already connected.
       // Create a fresh McpServer per request to prevent cross-client data leaks.
       // See GHSA-345p-7cg4-v4c7.
       const server = await serverFactory();
+      trackPerRequestInstance(server, 'server');
       await server.connect(transport);
       const response = await transport.handleRequest(c);
 
@@ -400,26 +516,17 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
         }
 
         // For non-SSE responses (standard JSON-RPC POST), close the per-request
-        // server/transport in a microtask so the Response is returned first.
-        // SSE streams must stay open — closing would abort the ReadableStream
+        // server/transport after the Response is handed back to Hono. SSE
+        // streams must stay open — closing would abort the ReadableStream
         // before Hono can consume it (see GHSA-345p-7cg4-v4c7 comment above).
+        //
+        // Closes run in parallel under a bounded timeout so silent hangs
+        // surface as `mcp.http.close_failures` instead of retaining the
+        // per-request McpServer/McpSessionTransport closures indefinitely.
         const isSSE = response.headers.get('content-type')?.includes('text/event-stream');
         if (!isSSE) {
           queueMicrotask(() => {
-            transport.close().catch((closeErr: unknown) => {
-              logger.debug('Failed to close transport after non-SSE response', {
-                ...transportContext,
-                sessionId,
-                error: closeErr instanceof Error ? closeErr.message : String(closeErr),
-              });
-            });
-            server.close().catch((closeErr: unknown) => {
-              logger.debug('Failed to close server after non-SSE response', {
-                ...transportContext,
-                sessionId,
-                error: closeErr instanceof Error ? closeErr.message : String(closeErr),
-              });
-            });
+            void closePerRequestInstances(transport, server, sessionId, transportContext);
           });
         }
 
@@ -433,15 +540,20 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
     try {
       return await handleRpc();
     } catch (err) {
-      // On error, close transport immediately (success-path cleanup is handled
-      // inside handleRpc — non-SSE via microtask, SSE left open for the stream).
-      await transport.close().catch((closeErr: unknown) => {
-        logger.debug('Failed to close transport after error', {
-          ...transportContext,
-          sessionId,
-          error: closeErr instanceof Error ? closeErr.message : String(closeErr),
-        });
-      });
+      // On error, close transport immediately under the same bounded timeout
+      // + failure-metric contract as the success path. No `server` is in
+      // scope here — creation happens inside handleRpc — so only the transport
+      // is closed.
+      await withTimeout(transport.close(), PER_REQUEST_CLOSE_TIMEOUT_MS, 'transport.close').catch(
+        (closeErr: unknown) => {
+          getCloseFailureCounter().add(1, { surface: 'transport', trigger: 'error' });
+          logger.warning('Failed to close transport after error', {
+            ...transportContext,
+            sessionId,
+            error: closeErr instanceof Error ? closeErr.message : String(closeErr),
+          });
+        },
+      );
       throw err instanceof Error ? err : new Error(String(err));
     }
   });
