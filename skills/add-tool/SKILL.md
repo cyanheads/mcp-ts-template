@@ -277,6 +277,8 @@ return {
 };
 ```
 
+**Seed orientation context when the next moves are predictable.** Piggybacking a compact snapshot alongside the primary result — recent activity, tracked state, a few reference items — does two things: cuts a predictable follow-up call *and* primes the LLM on the project's conventions (recent commits teach the commit-message style the agent should match; recent tags teach the versioning format; reference records teach the naming format). Natural fits include session open/close tools, state-changing verbs where post-action confirmation helps, and entry points that drop the agent into a new scope. Gather sub-operations with `Promise.allSettled` and surface per-component failures as a warnings array rather than failing the outer call. See `design-mcp-server`'s **Output design** for the full principle.
+
 ### Defend against empty values from form-based clients
 
 LLM clients (Claude, Cursor, etc.) only send populated fields. **Form-based clients** (MCP Inspector, web UIs) submit the full schema shape — optional object fields arrive with empty-string inner values instead of `undefined`. Zod's `.optional()` only rejects `undefined`, so `{ minDate: "", maxDate: "" }` passes validation and reaches the handler.

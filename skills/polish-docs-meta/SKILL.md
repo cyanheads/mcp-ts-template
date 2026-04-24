@@ -54,7 +54,7 @@ The bold header tagline (the `<b>` text inside the first `<p>`) must match the `
 
 ### 3. Agent Protocol (CLAUDE.md / AGENTS.md)
 
-Update the project's agent protocol file to reflect the actual server.
+Update the project's agent protocol file to reflect the actual server. Scope is the project-root `CLAUDE.md` / `AGENTS.md` only — **do not edit `skills/*/SKILL.md` or their `references/` files**. Those are external skill files synced from `@cyanheads/mcp-ts-core` and get overwritten on the next `maintenance` refresh.
 
 Read `references/agent-protocol.md` for the full update checklist, then review the current file and address what's stale or missing:
 

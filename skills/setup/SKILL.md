@@ -112,6 +112,8 @@ See the `add-tool`, `add-app-tool`, `add-resource`, `add-prompt`, and `add-test`
 
 Copy all project skills into your agent's skill directory so they're available as context. `skills/` is the source of truth.
 
+**Don't edit `skills/*/SKILL.md` or `skills/*/references/*`.** These are external skill files synced from `@cyanheads/mcp-ts-core` — the `maintenance` skill overwrites them on package updates, so local edits get lost. Project-specific agent context belongs in `CLAUDE.md` / `AGENTS.md`.
+
 **For Claude Code:**
 
 ```bash
