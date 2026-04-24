@@ -27,7 +27,7 @@
  * @module scripts/build-changelog
  */
 
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import process from 'node:process';
 
@@ -194,6 +194,12 @@ function reportMissingSummaries(missing: string[]): void {
 
 function main(): void {
   const checkOnly = process.argv.includes('--check');
+
+  if (!existsSync(CHANGELOG_DIR)) {
+    console.log(`Skipped: ${CHANGELOG_DIR} does not exist (single-file CHANGELOG.md project).`);
+    process.exit(0);
+  }
+
   const { content: generated, missingSummary } = buildRollup();
 
   if (checkOnly) {

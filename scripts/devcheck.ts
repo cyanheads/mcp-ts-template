@@ -453,11 +453,10 @@ const ALL_CHECKS: Check[] = [
     flag: '--no-changelog-sync',
     canFix: false,
     // --check exits non-zero if CHANGELOG.md drifts from changelog/*.md.
-    // Skipped cleanly when neither CHANGELOG.md nor changelog/ exists (non-mcp-ts-core projects).
+    // Skipped cleanly when the directory-based changelog isn't in use — CHANGELOG.md
+    // alone is a supported configuration (runtime-only consumers, opt-out per #41).
     getCommand: () => {
-      const hasChangelog = existsSync(path.join(ROOT_DIR, 'changelog'));
-      const hasRollup = existsSync(path.join(ROOT_DIR, 'CHANGELOG.md'));
-      if (!hasChangelog && !hasRollup) return null;
+      if (!existsSync(path.join(ROOT_DIR, 'changelog'))) return null;
       return ['bun', 'run', 'scripts/build-changelog.ts', '--check'];
     },
     tip: (c) =>
