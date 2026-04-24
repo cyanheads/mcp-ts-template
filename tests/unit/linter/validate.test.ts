@@ -248,6 +248,65 @@ describe('validateDefinitions', () => {
       expect(descWarnings).toHaveLength(0);
     });
 
+    it('does not warn on z.literal variants inside a union (form-client sentinel)', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            input: z.object({
+              variable: z
+                .union([
+                  z.literal(''),
+                  z
+                    .string()
+                    .max(50)
+                    .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
+                    .describe('Identifier matching [a-zA-Z_][a-zA-Z0-9_]*, max 50 chars'),
+                ])
+                .optional()
+                .describe('Variable identifier. Blank values are treated as omitted.'),
+            }),
+          }),
+        ],
+      });
+      const descWarnings = report.warnings.filter((w) => w.rule === 'describe-on-fields');
+      expect(descWarnings.find((w) => w.message.includes('input.variable'))).toBeUndefined();
+    });
+
+    it('skips z.literal even when wrapped in optional/nullable', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            input: z.object({
+              flag: z
+                .union([z.literal('').optional(), z.string().describe('Non-empty value')])
+                .describe('Flag'),
+            }),
+          }),
+        ],
+      });
+      const descWarnings = report.warnings.filter((w) => w.rule === 'describe-on-fields');
+      expect(descWarnings.find((w) => w.message.includes('input.flag|0'))).toBeUndefined();
+    });
+
+    it('still warns on non-literal union variants missing .describe()', () => {
+      const report = validateDefinitions({
+        tools: [
+          validTool({
+            input: z.object({
+              value: z
+                .union([z.string(), z.number().describe('Numeric form')])
+                .describe('Value in either form'),
+            }),
+          }),
+        ],
+      });
+      const descWarnings = report.warnings.filter((w) => w.rule === 'describe-on-fields');
+      expect(descWarnings).toContainEqual(
+        expect.objectContaining({ message: expect.stringContaining('input.value|0') }),
+      );
+      expect(descWarnings.find((w) => w.message.includes('input.value|1'))).toBeUndefined();
+    });
+
     it('warns on discriminatedUnion variant fields missing .describe()', () => {
       const report = validateDefinitions({
         tools: [

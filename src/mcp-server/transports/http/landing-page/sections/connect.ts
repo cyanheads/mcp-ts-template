@@ -26,56 +26,65 @@ export function renderConnectSnippets(manifest: ServerManifest, baseUrl: string)
   const shortName = deriveShortName(manifest.server.name);
   const envExample = manifest.landing.envExample;
   const stdioEnv = envExample.length > 0 ? envFromEntries(envExample) : undefined;
+  // Operator-supplied per-tab overrides win over derivation. Empty object
+  // when unset — falls through to the derived snippets below.
+  const overrides = manifest.landing.connectSnippets;
 
   // STDIO: prefer native `bunx <pkg>@latest` when the server is published;
   // fall back to `mcp-remote` as a stdio → HTTP bridge so the tab is always
   // useful even for unpublished servers. Env vars belong here — this is the
   // only transport where the client spawns the server process and can pass
   // them through.
-  const stdioConfig = JSON.stringify(
-    {
-      mcpServers: {
-        [shortName]: {
-          command: 'bunx',
-          args: npmPackage ? [`${npmPackage}@latest`] : ['mcp-remote', endpoint],
-          ...(stdioEnv && { env: stdioEnv }),
+  const stdioConfig =
+    overrides.stdio ??
+    JSON.stringify(
+      {
+        mcpServers: {
+          [shortName]: {
+            command: 'bunx',
+            args: npmPackage ? [`${npmPackage}@latest`] : ['mcp-remote', endpoint],
+            ...(stdioEnv && { env: stdioEnv }),
+          },
         },
       },
-    },
-    null,
-    2,
-  );
+      null,
+      2,
+    );
 
   // HTTP: no `env` block. MCP clients only forward env vars to spawned stdio
   // child processes; for `type: 'http'` there's no process, so including env
   // is a silent no-op that misleads visitors of a hosted instance into
   // thinking they need to supply credentials the server already owns.
-  const httpConfig = JSON.stringify(
-    {
-      mcpServers: {
-        [shortName]: {
-          type: 'http',
-          url: endpoint,
+  const httpConfig =
+    overrides.http ??
+    JSON.stringify(
+      {
+        mcpServers: {
+          [shortName]: {
+            type: 'http',
+            url: endpoint,
+          },
         },
       },
-    },
-    null,
-    2,
-  );
+      null,
+      2,
+    );
 
   // `claude mcp add` — always target the HTTP endpoint. The landing page is
   // served over HTTP, so a visitor is already interacting with this
   // instance; a stdio/bunx command here would install a different (local)
   // copy and carry env placeholders that HTTP wouldn't forward anyway. The
   // STDIO tab still carries the JSON for anyone who wants to run locally.
-  const claudeCmd = buildClaudeHttpCmd(shortName, endpoint);
+  const claudeCmd = overrides.claude ?? buildClaudeHttpCmd(shortName, endpoint);
 
-  const curl = [
-    `curl -X POST ${endpoint} \\`,
-    `  -H "Content-Type: application/json" \\`,
-    `  -H "MCP-Protocol-Version: ${manifest.protocol.latestVersion}" \\`,
-    `  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"${manifest.protocol.latestVersion}","capabilities":{},"clientInfo":{"name":"curl","version":"1.0.0"}}}'`,
-  ].join('\n');
+  const curl =
+    overrides.curl ??
+    [
+      `curl -X POST ${endpoint} \\`,
+      `  -H "Content-Type: application/json" \\`,
+      `  -H "MCP-Protocol-Version: ${manifest.protocol.latestVersion}" \\`,
+      `  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"${manifest.protocol.latestVersion}","capabilities":{},"clientInfo":{"name":"curl","version":"1.0.0"}}}'`,
+    ].join('\n');
 
   // Chrome label — npm package when published, else the HTTP endpoint (trimmed).
   const chromeLabel = npmPackage ?? endpoint.replace(/^https?:\/\//, '');
@@ -125,12 +134,21 @@ export function renderConnectSnippets(manifest: ServerManifest, baseUrl: string)
   `;
 }
 
-/** Single panel inside the connect card — pre/code + copy button. */
+/**
+ * Single panel inside the connect card — pre/code + copy button.
+ *
+ * The `<!--email_off-->` wrap suppresses Cloudflare's Email Address
+ * Obfuscation edge scanner, which would otherwise rewrite any email-shaped
+ * placeholder in the snippet (`you@example.com` → obfuscated markup) and
+ * break the Copy button's output for visitors behind a CF Tunnel. The
+ * directive is CF-specific but ignored everywhere else — two HTML comments
+ * per panel, zero runtime cost.
+ */
 function renderConnectPanel(id: string, content: string, copyAriaLabel: string): SafeHtml {
   const snippetId = `connect-snippet-${id}`;
   return html`
     <div class="connect-panel panel-${id}">
-      <pre id="${snippetId}"><code>${content}</code></pre>
+      <pre id="${snippetId}"><code><!--email_off-->${content}<!--/email_off--></code></pre>
       <button type="button" class="connect-copy" data-copy data-copy-target="#${snippetId}" aria-label="${copyAriaLabel}">Copy</button>
     </div>
   `;

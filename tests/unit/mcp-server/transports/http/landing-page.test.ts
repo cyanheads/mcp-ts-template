@@ -158,6 +158,39 @@ describe('renderLandingPage — connect snippets', () => {
     expect(claude).not.toContain('bunx');
   });
 
+  test('wraps each connect snippet in Cloudflare email_off comments', () => {
+    const html = renderLandingPage(manifestWithEnv(), 'https://example.com');
+    // One pair per tab (stdio, http, claude, curl) — 4 total.
+    const opens = (html.match(/<!--email_off-->/g) ?? []).length;
+    const closes = (html.match(/<!--\/email_off-->/g) ?? []).length;
+    expect(opens).toBe(4);
+    expect(closes).toBe(4);
+  });
+
+  test('honors operator-supplied connectSnippets overrides per tab', () => {
+    const customStdio = '{"custom":"stdio-shape"}';
+    const customClaude = 'custom-claude-cmd --flag value';
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      landing: {
+        ...defaultServerManifest.landing,
+        connectSnippets: {
+          stdio: customStdio,
+          claude: customClaude,
+        },
+      },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    const stdio = extractSnippet(html, 'stdio');
+    const claude = extractSnippet(html, 'claude');
+    const http = extractSnippet(html, 'http');
+    expect(stdio).toContain('custom&quot;:&quot;stdio-shape');
+    expect(stdio).not.toContain('bunx');
+    expect(claude).toContain('custom-claude-cmd');
+    // Unset tab still derives the default.
+    expect(http).toContain('&quot;type&quot;: &quot;http&quot;');
+  });
+
   test('claude command uses http transport even for published packages', () => {
     // Published package used to route to stdio with env flags; the landing
     // page is always served over HTTP, so HTTP is the correct target.

@@ -7,6 +7,7 @@
  */
 
 import {
+  CONNECT_SNIPPET_TABS,
   GITHUB_REPO_ROOT_PATTERN,
   isSafeCssColor,
   LANDING_MAX_ENV_EXAMPLE,
@@ -182,6 +183,46 @@ export function lintLandingConfig(landing: unknown): LintDiagnostic[] {
             error(
               'landing-env-example-value',
               `landing.envExample["${key}"] must be a string — got ${typeof value}.`,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  // connectSnippets
+  if (l.connectSnippets != null) {
+    if (typeof l.connectSnippets !== 'object' || Array.isArray(l.connectSnippets)) {
+      diagnostics.push(
+        error(
+          'landing-connect-snippets-type',
+          `landing.connectSnippets must be a plain object keyed by tab id (${CONNECT_SNIPPET_TABS.join(', ')}).`,
+        ),
+      );
+    } else {
+      const allowedTabs = new Set<string>(CONNECT_SNIPPET_TABS);
+      for (const [key, value] of Object.entries(l.connectSnippets as Record<string, unknown>)) {
+        if (!allowedTabs.has(key)) {
+          diagnostics.push(
+            warn(
+              'landing-connect-snippets-key',
+              `landing.connectSnippets["${key}"] is not a recognized tab id. Allowed: ${CONNECT_SNIPPET_TABS.join(', ')}. Extra keys will be dropped.`,
+            ),
+          );
+          continue;
+        }
+        if (typeof value !== 'string') {
+          diagnostics.push(
+            error(
+              'landing-connect-snippets-value',
+              `landing.connectSnippets["${key}"] must be a string — got ${typeof value}.`,
+            ),
+          );
+        } else if (value.length === 0) {
+          diagnostics.push(
+            warn(
+              'landing-connect-snippets-empty',
+              `landing.connectSnippets["${key}"] is an empty string; falling back to the derived snippet.`,
             ),
           );
         }

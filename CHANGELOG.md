@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.7.4](changelog/0.7.x/0.7.4.md) — 2026-04-24
+
+linter exempts z.literal union variants from describe-on-fields; landing connect snippets resist Cloudflare email rewriting and accept operator overrides; maintenance skill surfaces new/changed skills
+
 ## [0.7.3](changelog/0.7.x/0.7.3.md) — 2026-04-24
 
 format-parity numeric normalization rejects lossy digit-shift transforms while preserving locale support; fetchWithTimeout SSRF guard documented as best-effort with DNS-rebinding caveat

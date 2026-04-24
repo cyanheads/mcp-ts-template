@@ -148,4 +148,41 @@ describe('lintLandingConfig', () => {
       expect.objectContaining({ rule: 'landing-theme-accent-format', severity: 'error' }),
     ]);
   });
+
+  test('accepts a valid connectSnippets override', () => {
+    const diagnostics = lintLandingConfig({
+      connectSnippets: {
+        stdio: '{"mcpServers":{"my-server":{"command":"docker"}}}',
+        http: '{"mcpServers":{"my-server":{"type":"http","url":"https://example.com/mcp"}}}',
+      },
+    });
+    expect(diagnostics).toEqual([]);
+  });
+
+  test('errors when connectSnippets is not a plain object', () => {
+    expect(lintLandingConfig({ connectSnippets: ['a'] })).toEqual([
+      expect.objectContaining({ rule: 'landing-connect-snippets-type', severity: 'error' }),
+    ]);
+    expect(lintLandingConfig({ connectSnippets: 'raw' })).toEqual([
+      expect.objectContaining({ rule: 'landing-connect-snippets-type', severity: 'error' }),
+    ]);
+  });
+
+  test('errors when a connectSnippets value is not a string', () => {
+    expect(lintLandingConfig({ connectSnippets: { stdio: 42 } })).toEqual([
+      expect.objectContaining({ rule: 'landing-connect-snippets-value', severity: 'error' }),
+    ]);
+  });
+
+  test('warns on unknown connectSnippets tab id', () => {
+    expect(lintLandingConfig({ connectSnippets: { bogus: 'x' } })).toEqual([
+      expect.objectContaining({ rule: 'landing-connect-snippets-key', severity: 'warning' }),
+    ]);
+  });
+
+  test('warns on empty-string connectSnippets value', () => {
+    expect(lintLandingConfig({ connectSnippets: { stdio: '' } })).toEqual([
+      expect.objectContaining({ rule: 'landing-connect-snippets-empty', severity: 'warning' }),
+    ]);
+  });
 });

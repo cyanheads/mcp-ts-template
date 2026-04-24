@@ -4,7 +4,7 @@ description: >
   Investigate, adopt, and verify dependency updates — with special handling for `@cyanheads/mcp-ts-core`. Captures what changed, understands why, cross-references against the codebase, adopts framework improvements, syncs project skills, and runs final checks. Supports two entry modes: run the full flow end-to-end, or review updates you already applied.
 metadata:
   author: cyanheads
-  version: "1.5"
+  version: "1.6"
   audience: external
   type: workflow
 ---
@@ -72,6 +72,7 @@ Scan specifically for:
 | Deprecations | Migrate now, before the next breaking release |
 | Config changes | New env vars, renamed keys, changed defaults |
 | Linter rules | New definition-lint rules that may now flag existing tools/resources |
+| New or materially-changed skills | Note new skills or workflow changes (renamed steps, new checklist items) worth surfacing at end-of-run. Don't auto-invoke — some skills (e.g. `security-pass`) are user-triggered. The per-version changelog entries (e.g. 0.6.14 calling out `skills/security-pass/ (v1.0)`) name what changed. |
 
 Cross-reference each finding against the server's code. Collect adoption opportunities for Step 6.
 
@@ -182,8 +183,9 @@ Present a concise numbered summary to the user:
 2. **Breaking changes handled** — call sites fixed
 3. **Features adopted** — new framework APIs now in use
 4. **Skills synced** — added/updated with versions (Phase A) and agent directories refreshed (Phase B)
-5. **Open decisions** — genuinely ambiguous items: breaking changes with multiple migration paths, framework changes that conflict with a documented local override, third-party adoptions where the cost/benefit is close
-6. **Status** — rebuild / devcheck / test results
+5. **New/changed skills available** — skills that appeared in Phase A for the first time or had materially-changed step sequences. Frame as "consider running when the time is right" rather than immediate actions; the user decides when to invoke them.
+6. **Open decisions** — genuinely ambiguous items: breaking changes with multiple migration paths, framework changes that conflict with a documented local override, third-party adoptions where the cost/benefit is close
+7. **Status** — rebuild / devcheck / test results
 
 ## Checklist
 

@@ -51,6 +51,7 @@ export const defaultServerManifest: ServerManifest = {
     enabled: true,
     links: [],
     envExample: [],
+    connectSnippets: {},
     theme: { accent: '#6366f1' },
     requireAuth: false,
     attribution: true,

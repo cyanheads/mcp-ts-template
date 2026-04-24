@@ -39,6 +39,10 @@ export interface LandingLink {
   label: string;
 }
 
+/** Tab IDs for the connect card; each may have a derived snippet or operator override. */
+export const CONNECT_SNIPPET_TABS = ['stdio', 'http', 'claude', 'curl'] as const;
+export type ConnectSnippetTab = (typeof CONNECT_SNIPPET_TABS)[number];
+
 /** Consumer-supplied landing page configuration. */
 export interface LandingConfig {
   /** When true (default), footer shows "Built on @cyanheads/mcp-ts-core". */
@@ -48,6 +52,29 @@ export interface LandingConfig {
    * when `repoRoot` is known. Override for projects with a non-standard location.
    */
   changelogUrl?: string;
+  /**
+   * Per-tab override for the connect card's snippets. When a tab's value is
+   * set, the renderer uses it verbatim and skips derivation for that tab;
+   * unset tabs fall back to the derived default. Use to express client
+   * shapes the derivation doesn't produce (custom `env` merging, Docker /
+   * in-process launchers, alternate commands).
+   *
+   * @example
+   * ```ts
+   * connectSnippets: {
+   *   stdio: JSON.stringify({
+   *     mcpServers: {
+   *       'my-server': {
+   *         command: 'docker',
+   *         args: ['run', '-i', '--rm', '-e', 'MY_KEY', 'my/image'],
+   *         env: { MY_KEY: 'your-key' },
+   *       },
+   *     },
+   *   }, null, 2),
+   * }
+   * ```
+   */
+  connectSnippets?: Partial<Record<ConnectSnippetTab, string>>;
   /** Default: true when HTTP transport is active. */
   enabled?: boolean;
   /**
@@ -250,6 +277,8 @@ export interface ManifestDefinitions {
 export interface ManifestLanding {
   attribution: boolean;
   changelogUrl?: string;
+  /** Operator-supplied per-tab connect snippet overrides; empty object when unset. */
+  connectSnippets: Partial<Record<ConnectSnippetTab, string>>;
   enabled: boolean;
   /** Ordered key/value pairs for the STDIO env block and Claude CLI `--env` flags. */
   envExample: Array<{ key: string; value: string }>;
@@ -598,6 +627,7 @@ function buildManifestLanding(input: {
     ...(landing.logo && { logo: landing.logo }),
     links: normalizeLinks(landing.links),
     envExample: normalizeEnvExample(landing.envExample),
+    connectSnippets: normalizeConnectSnippets(landing.connectSnippets),
     theme: { accent },
     ...(repoRoot && { repoRoot }),
     ...(changelogUrl && { changelogUrl }),
@@ -606,6 +636,23 @@ function buildManifestLanding(input: {
     ...(npmPackage && { npmPackage }),
     preRelease: classifyPreRelease(version),
   };
+}
+
+/**
+ * Filter operator-supplied connect snippet overrides to known tab IDs with
+ * string values. Unknown keys and non-string values are dropped silently —
+ * the linter surfaces structural issues separately.
+ */
+function normalizeConnectSnippets(
+  overrides: LandingConfig['connectSnippets'],
+): ManifestLanding['connectSnippets'] {
+  if (!overrides || typeof overrides !== 'object') return {};
+  const out: Partial<Record<ConnectSnippetTab, string>> = {};
+  for (const tab of CONNECT_SNIPPET_TABS) {
+    const value = overrides[tab];
+    if (typeof value === 'string' && value.length > 0) out[tab] = value;
+  }
+  return out;
 }
 
 /** Extract prompt args (name/description/required) from a Zod object. */

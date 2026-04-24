@@ -129,10 +129,20 @@ function recurseIntoCompound(
     const options = (def as { options?: unknown[] }).options;
     if (Array.isArray(options)) {
       options.forEach((option, i) => {
+        // Skip z.literal(...) variants — structural markers (e.g. form-client
+        // blank-tolerance sentinels like z.literal('')) carry no independent
+        // semantic content. The outer union describe is sufficient; a describe
+        // on the literal variant would ship to JSON Schema as clutter.
+        if (isLiteralVariant(option)) return;
         walkField(option, `${path}|${i}`, diagnostics, definitionType, definitionName);
       });
     }
   }
+}
+
+/** True when the (unwrapped) field is a `z.literal(...)` — not a compound variant. */
+function isLiteralVariant(field: unknown): boolean {
+  return getCoreDefType(field) === 'literal';
 }
 
 /** Recursively strips optional/nullable/default/readonly/nonoptional wrappers. */
@@ -149,10 +159,15 @@ function unwrapWrappers(field: unknown): unknown {
 
 /** True if the (unwrapped) field is an object, array, or union — a compound type worth recursing into. */
 function isCompound(field: unknown): boolean {
-  const core = unwrapWrappers(field);
-  if (!core || typeof core !== 'object') return false;
-  const type = (core as { _zod?: { def?: { type?: string } } })._zod?.def?.type;
+  const type = getCoreDefType(field);
   return type === 'object' || type === 'array' || type === 'union';
+}
+
+/** Unwrap optional/nullable/default and return the Zod 4 `_zod.def.type` discriminator. */
+function getCoreDefType(field: unknown): string | undefined {
+  const core = unwrapWrappers(field);
+  if (!core || typeof core !== 'object') return;
+  return (core as { _zod?: { def?: { type?: string } } })._zod?.def?.type;
 }
 
 /**
