@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.7.3](changelog/0.7.x/0.7.3.md) — 2026-04-24
+
+format-parity numeric normalization rejects lossy digit-shift transforms while preserving locale support; fetchWithTimeout SSRF guard documented as best-effort with DNS-rebinding caveat
+
 ## [0.7.2](changelog/0.7.x/0.7.2.md) — 2026-04-24
 
 Ship vitest.config subpath export as .mjs (fixes Node 22.7+ type-strip failure under node_modules); new devcheck step guards against SDK-coupling antipatterns

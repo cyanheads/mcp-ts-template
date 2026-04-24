@@ -246,18 +246,47 @@ function collectPrimitives(value: unknown, out: string[]): void {
 
 /**
  * Common digit-group separators across locales, plus underscore (template-literal
- * style). Stripped from text before numeric sentinel matching so locale-aware
- * formatting (`toLocaleString`, `Intl.NumberFormat`) passes parity:
+ * style). Used both inside the `THOUSANDS_GROUP_PATTERN` character class and as
+ * the post-match strip pattern that collapses separators within an identified
+ * thousands-group run:
  *   - `,`          — en-US, hi-IN, others
  *   - `.`          — de-DE, tr-TR, pt-BR, nl-NL, id-ID, es-ES
  *   - `'` `’`      — de-CH (apostrophe or right single quote)
  *   - ` ` variants — fr-FR, sv-SE (space, no-break, narrow no-break, thin)
  *   - `٬`          — Arabic thousands separator (U+066C)
  *   - `_`          — not a locale separator, but some template literals use it
- * Compact (`1.5K`), scientific (`9e8`), and other lossy transforms still fail —
- * their digit sequences don't contain the sentinel's digits in order.
  */
 const DIGIT_SEPARATOR_PATTERN = /[,._'    ’٬]/g;
+
+/**
+ * Matches a thousands-group run: 1-3 leading digits followed by one or more
+ * groups of `(separator + exactly 3 digits)`. Context-aware — only collapses
+ * separators flanked by the canonical digit-grouping shape, leaving decimal marks
+ * and other non-grouping uses of `,` / `.` intact.
+ *
+ * Why context-aware: a global strip of `,` and `.` collapses both thousands
+ * separators (`900,000,001`) and decimal marks (`90,000,000.1` from a lossy
+ * `value / 10` transform) into the same digit run, falsely matching the sentinel.
+ * Restricting collapse to the `\d{1,3}(SEP\d{3})+` shape preserves locale support
+ * while rejecting digit-shift transforms — `90,000,000.1` collapses only the
+ * leading group to `90000000.1`, which does not contain `900000001`.
+ *
+ * Compact (`1.5K`), scientific (`9e8`), and other lossy transforms still fail —
+ * their digit sequences don't contain the sentinel's digits in order.
+ *
+ * Known weakness: non-standard thousands groupings — Indian lakh/crore
+ * (`90,00,00,001` — groups of 2 after the initial 3) — don't fit the `\d{3}`
+ * shape and won't be normalized. `hi-IN` `toLocaleString` output therefore fails
+ * parity. Acceptable tradeoff: mainstream locales are preserved and lossy
+ * transforms are correctly rejected.
+ */
+const THOUSANDS_GROUP_PATTERN = /\b\d{1,3}(?:[,._'    ’٬]\d{3})+\b/g;
+
+function normalizeDigitGroups(text: string): string {
+  return text.replace(THOUSANDS_GROUP_PATTERN, (match) =>
+    match.replace(DIGIT_SEPARATOR_PATTERN, ''),
+  );
+}
 
 function sentinelAppears(sentinel: unknown, text: string): boolean {
   if (sentinel === null || sentinel === undefined) return false;
@@ -265,9 +294,12 @@ function sentinelAppears(sentinel: unknown, text: string): boolean {
   if (asString.length === 0) return false;
   if (text.includes(asString)) return true;
   // Numeric sentinels may be rendered with locale-aware digit-group separators —
-  // strip separators and retry. Non-numeric sentinels skip this normalization.
+  // collapse separators only inside well-formed thousands-group runs and retry.
+  // Context-aware matching avoids false positives from decimal marks (e.g. a
+  // `total / 10` lossy transform rendered as `90,000,000.1` would otherwise
+  // collapse to `900000001` and falsely satisfy the sentinel match).
   if (typeof sentinel === 'number' || typeof sentinel === 'bigint') {
-    return text.replace(DIGIT_SEPARATOR_PATTERN, '').includes(asString);
+    return normalizeDigitGroups(text).includes(asString);
   }
   return false;
 }

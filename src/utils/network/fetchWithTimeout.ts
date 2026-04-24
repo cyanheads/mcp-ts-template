@@ -42,9 +42,9 @@ export interface FetchWithTimeoutOptions extends Omit<RequestInit, 'signal'> {
   /**
    * When `true`, rejects requests to private/reserved IP ranges and localhost.
    *
-   * Use this when fetching user-controlled URLs to prevent SSRF attacks against
-   * internal services (e.g., cloud metadata endpoints, internal APIs). Covered
-   * ranges include RFC 1918, loopback (127.x, ::1), link-local (169.254.x),
+   * Use this when fetching user-controlled URLs to reduce the SSRF blast radius
+   * against internal services (e.g., cloud metadata endpoints, internal APIs).
+   * Covered ranges include RFC 1918, loopback (127.x, ::1), link-local (169.254.x),
    * CGNAT (100.64–127.x), and known internal hostnames (e.g., `metadata.google.internal`).
    *
    * On Node.js, DNS is also resolved and all A/AAAA records are validated against
@@ -53,6 +53,21 @@ export interface FetchWithTimeoutOptions extends Omit<RequestInit, 'signal'> {
    *
    * When enabled, redirects are followed manually (up to {@link MAX_SSRF_REDIRECTS}
    * hops) with SSRF validation applied to each redirect target.
+   *
+   * **Best-effort, not a hard guarantee.** Two structural gaps remain:
+   *   - **DNS rebinding / TOCTOU.** Node's pre-validation lookup and the native
+   *     `fetch` call's own DNS resolution are independent. A malicious authoritative
+   *     DNS server (or a low-TTL record racing with cache eviction) can return a
+   *     public IP at validation time and a private IP at fetch time. This helper
+   *     does not pin the validated address to the connection.
+   *   - **Workers have no DNS API**, so only literal-hostname/IP checks apply.
+   *     A hostname that resolves (at the edge) to a private IP is not detected
+   *     here.
+   *
+   * For strong SSRF isolation, layer this with network egress controls
+   * (Cloudflare egress rules, k8s NetworkPolicy, host firewall), a fetch proxy
+   * that performs DNS pinning, or an HTTP client that resolves once and connects
+   * to the validated address.
    *
    * Default: `false` (no restriction).
    */
@@ -125,6 +140,12 @@ function isPrivateIP(ip: string): boolean {
  * DNS resolution failures (ENOTFOUND, etc.) are swallowed and left for the native
  * `fetch` to handle; only confirmed private IPs cause rejection.
  *
+ * **Best-effort guard, not a hard SSRF boundary.** This validation runs before the
+ * native `fetch` call performs its own DNS resolution. A malicious authoritative
+ * DNS server can return a public IP for this lookup and a private IP for the
+ * fetch's lookup (DNS rebinding / TOCTOU). Strong SSRF isolation requires
+ * out-of-band controls — see {@link FetchWithTimeoutOptions.rejectPrivateIPs}.
+ *
  * @param urlString - The fully-qualified URL string to validate.
  * @throws {McpError} `ValidationError` if the URL is malformed, the hostname is a known
  *   internal name, the literal IP is private, or DNS resolves to a private address.
@@ -166,6 +187,11 @@ async function assertNotPrivateUrl(urlString: string): Promise<void> {
  *
  * DNS resolution errors (e.g., `ENOTFOUND`) are silently swallowed — they are
  * not an SSRF signal and are better handled by the native `fetch` call.
+ *
+ * **TOCTOU caveat:** the resolved addresses are not pinned to the subsequent
+ * `fetch` connection — the native fetch performs its own resolution and may
+ * receive a different answer (DNS rebinding, low-TTL race). This is a guard,
+ * not a guarantee.
  *
  * @param hostname - The bare hostname to resolve (no brackets, no port).
  * @throws {McpError} `ValidationError` if any resolved address is private.

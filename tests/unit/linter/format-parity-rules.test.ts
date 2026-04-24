@@ -145,6 +145,38 @@ describe('lintFormatParity — numeric separator normalization', () => {
     expect(parityErrors(def).length).toBeGreaterThan(0);
   });
 
+  it('flags divide-by-10 lossy transform (sentinel digits shifted across decimal mark)', () => {
+    // Sentinel = 900_000_001. (sentinel / 10).toLocaleString('en-US') → "90,000,000.1".
+    // A global strip of `,` and `.` would collapse this to "900000001" and falsely
+    // match. Context-aware normalization keeps the decimal mark intact, so parity
+    // correctly fails.
+    const def = tool({
+      output: z.object({ total: z.number().describe('Total') }),
+      format: (r) => [
+        {
+          type: 'text',
+          text: `Total: ${((r as { total: number }).total / 10).toLocaleString('en-US')}`,
+        },
+      ],
+    });
+    expect(parityErrors(def).length).toBeGreaterThan(0);
+  });
+
+  it('flags divide-by-100 lossy transform (cents-style decimal)', () => {
+    // Sentinel = 900_000_001. (sentinel / 100).toFixed(2) → "9000000.01".
+    // Two digits past the decimal — also a digit shift, must fail parity.
+    const def = tool({
+      output: z.object({ total: z.number().describe('Total') }),
+      format: (r) => [
+        {
+          type: 'text',
+          text: `Total: ${((r as { total: number }).total / 100).toFixed(2)}`,
+        },
+      ],
+    });
+    expect(parityErrors(def).length).toBeGreaterThan(0);
+  });
+
   it('still passes when numeric field is rendered as a raw integer', () => {
     const def = tool({
       output: z.object({ total: z.number().describe('Total') }),
