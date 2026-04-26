@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.7.5](changelog/0.7.x/0.7.5.md) — 2026-04-25
+
+init scaffold derives script list from package.json files: (closes #73); field-test and design-mcp-server skills audit descriptions for implementation leaks, meta-coaching, and consumer-aware phrasing (closes #74)
+
 ## [0.7.4](changelog/0.7.x/0.7.4.md) — 2026-04-24
 
 linter exempts z.literal union variants from describe-on-fields; landing connect snippets resist Cloudflare email rewriting and accept operator overrides; maintenance skill surfaces new/changed skills

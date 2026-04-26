@@ -207,7 +207,10 @@ The description is the LLM's primary signal for tool selection. It must answer: 
 - **Be concrete about capability.** "Search for clinical trial studies using queries and filters" beats "Interact with studies."
 - **Include operational guidance when it matters.** If the tool has prerequisites, constraints, or gotchas the LLM needs to know, say so in the description. Don't add boilerplate workflow hints when the tool is self-explanatory.
 - **Prefer a single cohesive paragraph.** Pack operational guidance into prose sentences (separated by periods or em-dashes) rather than bullet lists or blank-line-separated sections. Descriptions render inline in most clients, and bullet structure reads as visual noise rather than signal. Operation-by-operation bullets also duplicate info that already lives in the `operation` enum's `.describe()`.
-- **Don't leak implementation details.** Descriptions are for the consumer, not the author. Internal endpoint paths, API call counts, internal parameter name mappings, and routing logic don't belong — describe what the tool does and when to use it, not how it's wired up.
+- **Don't leak.** Descriptions are for the consumer, not the author. Three categories to audit against:
+    - *Implementation details* — endpoint paths, API call counts, internal parameter mappings, routing logic. Describe what the tool does and when to use it, not how it's wired up.
+    - *Meta-coaching* — directives about how to use the output. "Treat X as the canonical Y", "callers should…", "the LLM should…". The description sells the tool; it doesn't coach the reader.
+    - *Consumer-aware phrasing* — references to "LLM", "agent", "Claude", or any specific reader. The description shouldn't name who's reading it.
 
 ```ts
 // Good — describes a prerequisite the LLM must know

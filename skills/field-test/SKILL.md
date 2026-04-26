@@ -132,12 +132,20 @@ Runs `initialize`, captures the session id, sends `notifications/initialized`.
 
 ```bash
 . /tmp/mcp-field-test.sh
-mcp_call tools/list     | jq '.result.tools[]     | {name, description, inputSchema}'
+mcp_call tools/list     | jq '.result.tools[]     | {name, description, inputSchema, outputSchema}'
 mcp_call resources/list | jq '.result.resources[] | {uri, name, mimeType}'
 mcp_call prompts/list   | jq '.result.prompts[]   | {name, description, arguments}'
 ```
 
 Present a compact catalog to the user: each definition's name + 1-line description. Flag vague or missing descriptions as you go — those feed into the report. Use this to build the test plan.
+
+**Audit every description for leaks** — tool description, every parameter `.describe()` in `inputSchema`, and every field `.describe()` in `outputSchema` (the `outputSchema` projection above is what surfaces these; don't skim past it). Three categories:
+
+- **Implementation details** — endpoint paths, API call counts, internal parameter mappings, routing logic. Describe *what the tool does*, not *how it's wired up*.
+- **Meta-coaching** — directives about how to use the output. "Treat X as the canonical Y", "callers should…", "the LLM should…". The description sells the tool; it doesn't coach the reader.
+- **Consumer-aware phrasing** — references to "LLM", "agent", "Claude", or any specific reader. The description shouldn't name who's reading it.
+
+Treat any hit as a `ux` finding in the report. The authoring rule lives under *Tool descriptions* in `design-mcp-server/SKILL.md` — same categories, applied at review time.
 
 ### 4. Plan the test pass
 
@@ -210,7 +218,7 @@ Only include definitions with issues. Group by severity. Each finding is 2–4 l
 | Severity | Meaning |
 |:---------|:--------|
 | **bug** | Broken: crash, wrong output, `isError: true` on valid input, data loss, schema violation |
-| **ux** | Works but degrades the user/LLM experience: vague description, unhelpful error text, missing `format()`, parity drift, annotation mismatches behavior |
+| **ux** | Works but degrades the user/LLM experience: vague description, leaky description (implementation details, meta-coaching, consumer-aware phrasing), unhelpful error text, missing `format()`, parity drift, annotation mismatches behavior |
 | **nit** | Polish: phrasing, inconsistent tone, minor doc gaps |
 
 Format:
@@ -242,7 +250,7 @@ End with:
 
 - [ ] Server built and started; real port parsed from log
 - [ ] Session initialized; `notifications/initialized` sent
-- [ ] Catalog surfaced and presented
+- [ ] Catalog surfaced and presented; descriptions audited for leaks (implementation details, meta-coaching, consumer-aware phrasing)
 - [ ] Universal battery run on every definition
 - [ ] Situational categories applied only when triggered
 - [ ] External-state / auth-gated tools handled explicitly (run, skip, or confirm)

@@ -13,17 +13,19 @@ const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TEMPLATES_DIR = join(PACKAGE_ROOT, 'templates');
 const SKILLS_DIR = join(PACKAGE_ROOT, 'skills');
 const SCRIPTS_DIR = join(PACKAGE_ROOT, 'scripts');
-// Keep in sync with package.json `files` — entries here must also appear there to ship in the npm package.
-const SCAFFOLD_SCRIPTS = [
-  'build-changelog.ts',
-  'build.ts',
-  'check-docs-sync.ts',
-  'check-skills-sync.ts',
-  'clean.ts',
-  'devcheck.ts',
-  'lint-mcp.ts',
-  'tree.ts',
-];
+const PACKAGE_JSON = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf-8')) as {
+  version: string;
+  files?: string[];
+};
+/**
+ * Scaffold scripts derived from `package.json` `files:` — the canonical
+ * declaration of what ships to consumers. Avoids a static list that
+ * silently drifts when new framework scripts are added (issues #69, #73).
+ */
+const SCAFFOLD_SCRIPTS = (PACKAGE_JSON.files ?? [])
+  .filter((entry) => entry.startsWith('scripts/') && entry.endsWith('.ts'))
+  .map((entry) => entry.slice('scripts/'.length))
+  .sort();
 const TEXT_EXTENSIONS = new Set([
   '.md',
   '.ts',
@@ -48,11 +50,8 @@ if (subcommand === 'init') {
 }
 
 function printUsage(): void {
-  const pkg = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf-8')) as {
-    version: string;
-  };
   console.log(`
-  @cyanheads/mcp-ts-core v${pkg.version}
+  @cyanheads/mcp-ts-core v${PACKAGE_JSON.version}
 
   Usage:
     mcp-ts-core init [name]   Scaffold a new MCP server project
@@ -80,17 +79,13 @@ function init(): void {
     mkdirSync(dest, { recursive: true });
   }
 
-  const pkg = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf-8')) as {
-    version: string;
-  };
-
   console.log(`\n  Scaffolding${name ? ` ${name}` : ''} in ${dest}\n`);
 
   const created: string[] = [];
   const skipped: string[] = [];
 
   // Step 1: Copy templates
-  copyTemplates(dest, packageName, pkg.version, created, skipped);
+  copyTemplates(dest, packageName, PACKAGE_JSON.version, created, skipped);
 
   // Step 2: Copy scripts
   copyScripts(dest, created, skipped);
