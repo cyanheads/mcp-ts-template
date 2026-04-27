@@ -8,6 +8,8 @@
 
 # Required. One-line headline describing the release. Max 250 chars. No markdown.
 # This line is what the CHANGELOG.md rollup shows — write it like a GitHub Release title.
+# Keep the double quotes around the value — unquoted YAML treats `:` (colon-space)
+# inside the string as a key separator, which fails GitHub's strict YAML parser.
 summary: ""
 
 # Set to `true` only if this release has breaking changes (API removals, signature

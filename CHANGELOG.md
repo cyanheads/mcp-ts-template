@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.7.6](changelog/0.7.x/0.7.6.md) — 2026-04-27
+
+maintenance skill Phase C enumerates package scripts/ instead of a hardcoded list (closes #69); skill git references made tool-agnostic; templates ship runner-friendly start script + bun engine
+
 ## [0.7.5](changelog/0.7.x/0.7.5.md) — 2026-04-25
 
 init scaffold derives script list from package.json files: (closes #73); field-test and design-mcp-server skills audit descriptions for implementation leaks, meta-coaching, and consumer-aware phrasing (closes #74)

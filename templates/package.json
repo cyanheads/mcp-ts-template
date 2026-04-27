@@ -31,6 +31,7 @@
     "test": "vitest run",
     "dev:stdio": "MCP_TRANSPORT_TYPE=stdio tsx --watch src/index.ts",
     "dev:http": "MCP_TRANSPORT_TYPE=http tsx --watch src/index.ts",
+    "start": "node dist/index.js",
     "start:stdio": "MCP_TRANSPORT_TYPE=stdio node dist/index.js",
     "start:http": "MCP_TRANSPORT_TYPE=http node dist/index.js"
   },
@@ -45,6 +46,7 @@
   },
   "license": "Apache-2.0",
   "engines": {
+    "bun": ">=1.2.0",
     "node": ">=22.0.0"
   },
   "publishConfig": {
