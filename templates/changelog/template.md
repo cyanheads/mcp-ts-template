@@ -27,6 +27,19 @@ breaking: false
 
   Optional narrative intro — 1-3 sentences framing the release theme. Delete if not needed.
 
+  TONE: terse and fact-dense. 1-2 sentence(s) per bullet where possible —
+  name the symbol, state what changed, stop. Drop "explains how it works" prose;
+  that belongs in JSDoc, AGENTS.md, or the relevant skill. Drop ceremonial
+  framings ("This release introduces…", "fully backwards compatible:" with a
+  paragraph of justification). Prefer code/symbol names over English
+  re-explanations. If a bullet runs more than ~2 lines, split it or cut it.
+
+  WHAT TO INCLUDE: every distinct fact a reader needs to adopt or audit the
+  release — new exports, signatures, lint rule IDs, env vars, breaking
+  changes, version bumps on shipped skills. WHAT TO CUT: mechanism walkthroughs,
+  duplicate prose between Added and Changed, file-by-file test enumerations,
+  internal implementation notes. Trust the reader to read the code or the docs.
+
   Linking issues/PRs: use full URLs so the link works everywhere (GitHub web UI,
   npm/node_modules reads, local editors). GitHub's bare `#NN` auto-link only
   resolves inside its own UI.
