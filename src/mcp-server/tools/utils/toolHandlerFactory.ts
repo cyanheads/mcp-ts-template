@@ -15,7 +15,7 @@ import type {
 import { ZodError, type ZodObject, type ZodRawShape } from 'zod';
 
 import type { Context, SamplingOpts } from '@/core/context.js';
-import { createContext } from '@/core/context.js';
+import { attachTypedFail, createContext } from '@/core/context.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
@@ -133,17 +133,22 @@ export function createToolHandler(
       // Validate input
       const validatedInput = def.input.parse(input);
 
-      // Construct Context with detected capabilities
-      const ctx = createContext({
-        appContext,
-        logger: services.logger,
-        storage: services.storage,
-        signal: sdkContext.signal,
-        elicit: wrapElicit(sdkCaps),
-        sample: wrapSample(sdkCaps),
-        notifyResourceListChanged: notifiers.notifyResourceListChanged,
-        notifyResourceUpdated: notifiers.notifyResourceUpdated,
-      });
+      // Construct Context with detected capabilities. When the definition
+      // declares an error contract, `attachTypedFail` adds `ctx.fail` so
+      // handlers can `throw ctx.fail('reason', ...)`; otherwise ctx is unchanged.
+      const ctx = attachTypedFail(
+        createContext({
+          appContext,
+          logger: services.logger,
+          storage: services.storage,
+          signal: sdkContext.signal,
+          elicit: wrapElicit(sdkCaps),
+          sample: wrapSample(sdkCaps),
+          notifyResourceListChanged: notifiers.notifyResourceListChanged,
+          notifyResourceUpdated: notifiers.notifyResourceUpdated,
+        }),
+        def.errors,
+      );
 
       // Execute handler with performance measurement.
       // Wrap with Promise.resolve — handler may return sync or async.

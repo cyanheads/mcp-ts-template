@@ -16,7 +16,8 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import type { Context } from '@/core/context.js';
+import type { HandlerContext, ReasonOf } from '@/core/context.js';
+import type { ErrorContract } from '@/types-global/errors.js';
 
 /**
  * Optional annotations providing clients additional context about a resource.
@@ -41,6 +42,7 @@ export type ListExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 export interface ResourceDefinition<
   TParams extends ZodObject<ZodRawShape> = ZodObject<ZodRawShape>,
   TOutput extends ZodObject<ZodRawShape> | undefined = undefined,
+  TErrors extends readonly ErrorContract[] | undefined = undefined,
 > {
   /**
    * Protocol-level metadata for the resource registration itself.
@@ -68,6 +70,13 @@ export interface ResourceDefinition<
   auth?: string[];
   /** LLM-facing description. */
   description: string;
+  /**
+   * Declarative contract describing the failure modes this resource can surface.
+   * See `ToolDefinition.errors` for full semantics. Surfaces in `resources/list`
+   * under `_meta['mcp-ts-core/errors']`. When declared, `ctx.fail(reason, …)` is
+   * typed against the reason union — see the example on `tool()`.
+   */
+  errors?: TErrors;
   /** Optional examples for discoverability. */
   examples?: { name: string; uri: string }[];
   /**
@@ -83,10 +92,10 @@ export interface ResourceDefinition<
    * The core handler function. Receives validated params and unified Context.
    * URI is available on `ctx.uri`. Throw on failure.
    */
-  handler: (
+  handler(
     params: z.infer<TParams>,
-    ctx: Context,
-  ) => TOutput extends ZodObject<ZodRawShape>
+    ctx: HandlerContext<ReasonOf<TErrors>>,
+  ): TOutput extends ZodObject<ZodRawShape>
     ? z.infer<TOutput> | Promise<z.infer<TOutput>>
     : unknown | Promise<unknown>;
   /**
@@ -120,7 +129,8 @@ export interface ResourceDefinition<
 /** Type-erased union for mixed arrays. */
 export type AnyResourceDefinition = ResourceDefinition<
   ZodObject<ZodRawShape>,
-  ZodObject<ZodRawShape> | undefined
+  ZodObject<ZodRawShape> | undefined,
+  readonly ErrorContract[] | undefined
 >;
 
 // ---------------------------------------------------------------------------
@@ -146,9 +156,10 @@ export type AnyResourceDefinition = ResourceDefinition<
 export function resource<
   TParams extends ZodObject<ZodRawShape>,
   TOutput extends ZodObject<ZodRawShape> | undefined = undefined,
+  const TErrors extends readonly ErrorContract[] | undefined = undefined,
 >(
   uriTemplate: string,
-  options: Omit<ResourceDefinition<TParams, TOutput>, 'uriTemplate'>,
-): ResourceDefinition<TParams, TOutput> {
+  options: Omit<ResourceDefinition<TParams, TOutput, TErrors>, 'uriTemplate'>,
+): ResourceDefinition<TParams, TOutput, TErrors> {
   return { uriTemplate, ...options };
 }

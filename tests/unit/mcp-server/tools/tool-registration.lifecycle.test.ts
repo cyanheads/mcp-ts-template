@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 const {
+  mockAttachTypedFail,
   mockAuthContext,
   mockConfig,
   mockCreateContext,
@@ -16,6 +17,7 @@ const {
   mockRequestContextService,
   mockWithRequiredScopes,
 } = vi.hoisted(() => ({
+  mockAttachTypedFail: vi.fn(),
   mockAuthContext: {
     getStore: vi.fn(),
   },
@@ -66,6 +68,7 @@ vi.mock('@/config/index.js', () => ({
 }));
 
 vi.mock('@/core/context.js', () => ({
+  attachTypedFail: mockAttachTypedFail,
   createContext: mockCreateContext,
 }));
 
@@ -150,6 +153,9 @@ describe('ToolRegistry lifecycle coverage', () => {
       signal: deps.signal,
       state: {},
     }));
+    // Default: pass ctx through unchanged. Tests that exercise the fail-attached
+    // path override this with `.mockImplementationOnce(...)`.
+    mockAttachTypedFail.mockImplementation((ctx: unknown) => ctx);
     mockAuthContext.getStore.mockReturnValue(undefined);
   });
 
@@ -665,5 +671,142 @@ describe('ToolRegistry lifecycle coverage', () => {
       content: [{ type: 'text', text: 'Error: Task timed out after 50ms' }],
       isError: true,
     });
+  });
+
+  // ── Regression: auto-task tools with errors[] must receive ctx.fail ──────
+  // Bug: runAutoTaskHandler was calling tool.handler(input, ctx) with a plain
+  // Context, even when the definition declared errors[]. Calling ctx.fail()
+  // would crash with `TypeError: ctx.fail is not a function`. The fix routes
+  // through `attachTypedFail` — same as createToolHandler does for sync tools.
+  it('attaches ctx.fail on auto-task tools that declare errors[]', async () => {
+    const sentinelFail = vi.fn();
+    mockAttachTypedFail.mockImplementationOnce((ctx: Record<string, unknown>) =>
+      Object.assign(ctx, { fail: sentinelFail }),
+    );
+
+    const observedCtxs: unknown[] = [];
+    const errors = [
+      {
+        reason: 'no_match',
+        code: -32001, // JsonRpcErrorCode.NotFound
+        when: 'No items matched',
+      },
+    ] as const;
+
+    const autoTaskWithContract = tool('auto_task_with_errors', {
+      description: 'Auto task that uses ctx.fail',
+      errors,
+      input: z.object({ query: z.string().describe('Query') }),
+      output: z.object({ result: z.string().describe('Result') }),
+      task: true,
+      handler: async (_input, ctx) => {
+        observedCtxs.push(ctx);
+        return { result: 'ok' };
+      },
+    });
+
+    const taskStore = {
+      getTask: vi.fn(async () => ({ status: 'running' })),
+      storeTaskResult: vi.fn(async () => {}),
+    };
+
+    const registry = new ToolRegistry([], services);
+    await (
+      registry as unknown as { runAutoTaskHandler: (...args: unknown[]) => Promise<void> }
+    ).runAutoTaskHandler(
+      autoTaskWithContract,
+      { query: 'hello' },
+      services,
+      {},
+      () => [{ type: 'text', text: 'ok' }],
+      {
+        taskId: 'task-with-errors',
+        taskStore,
+        ttlMs: 500,
+      },
+    );
+
+    expect(mockAttachTypedFail).toHaveBeenCalledTimes(1);
+    expect(mockAttachTypedFail).toHaveBeenCalledWith(expect.any(Object), errors);
+    expect(observedCtxs).toHaveLength(1);
+    const ctx = observedCtxs[0] as { fail: unknown };
+    expect(ctx.fail).toBe(sentinelFail);
+  });
+
+  it('does NOT attach ctx.fail on auto-task tools without errors[]', async () => {
+    const observedCtxs: unknown[] = [];
+
+    const autoTaskNoContract = tool('auto_task_no_errors', {
+      description: 'Auto task with no contract',
+      input: z.object({ query: z.string().describe('Query') }),
+      output: z.object({ result: z.string().describe('Result') }),
+      task: true,
+      handler: async (_input, ctx) => {
+        observedCtxs.push(ctx);
+        return { result: 'ok' };
+      },
+    });
+
+    const taskStore = {
+      getTask: vi.fn(async () => ({ status: 'running' })),
+      storeTaskResult: vi.fn(async () => {}),
+    };
+
+    const registry = new ToolRegistry([], services);
+    await (
+      registry as unknown as { runAutoTaskHandler: (...args: unknown[]) => Promise<void> }
+    ).runAutoTaskHandler(
+      autoTaskNoContract,
+      { query: 'hello' },
+      services,
+      {},
+      () => [{ type: 'text', text: 'ok' }],
+      {
+        taskId: 'task-no-errors',
+        taskStore,
+        ttlMs: 500,
+      },
+    );
+
+    expect(mockAttachTypedFail).toHaveBeenCalledWith(expect.any(Object), undefined);
+    expect(observedCtxs).toHaveLength(1);
+    const ctx = observedCtxs[0] as Record<string, unknown>;
+    expect(ctx.fail).toBeUndefined();
+  });
+
+  it('does NOT attach ctx.fail when errors[] is declared but empty', async () => {
+    const autoTaskEmptyContract = tool('auto_task_empty_errors', {
+      description: 'Auto task with empty contract',
+      errors: [] as const,
+      input: z.object({ query: z.string().describe('Query') }),
+      output: z.object({ result: z.string().describe('Result') }),
+      task: true,
+      handler: async () => ({ result: 'ok' }),
+    });
+
+    const taskStore = {
+      getTask: vi.fn(async () => ({ status: 'running' })),
+      storeTaskResult: vi.fn(async () => {}),
+    };
+
+    const registry = new ToolRegistry([], services);
+    await (
+      registry as unknown as { runAutoTaskHandler: (...args: unknown[]) => Promise<void> }
+    ).runAutoTaskHandler(
+      autoTaskEmptyContract,
+      { query: 'hello' },
+      services,
+      {},
+      () => [{ type: 'text', text: 'ok' }],
+      {
+        taskId: 'task-empty-errors',
+        taskStore,
+        ttlMs: 500,
+      },
+    );
+
+    // attachTypedFail is called unconditionally; it short-circuits for empty
+    // contracts and returns ctx unchanged, so no `fail` is added.
+    expect(mockAttachTypedFail).toHaveBeenCalledWith(expect.any(Object), []);
   });
 });

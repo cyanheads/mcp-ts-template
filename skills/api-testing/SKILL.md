@@ -24,6 +24,7 @@ import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 
 createMockContext()                                           // minimal — ctx.state operations throw without tenantId
 createMockContext({ tenantId: 'test-tenant' })               // enables ctx.state (tenant-scoped in-memory storage)
+createMockContext({ errors: myTool.errors })                 // attaches typed ctx.fail keyed by the contract reasons
 createMockContext({ sample: vi.fn().mockResolvedValue(...) }) // with MCP sampling
 createMockContext({ elicit: vi.fn().mockResolvedValue(...) }) // with elicitation
 createMockContext({ progress: true })                        // with task progress (ctx.progress populated)
@@ -41,6 +42,7 @@ createMockContext({ uri: new URL('myscheme://item/123') })   // for resource han
 interface MockContextOptions {
   auth?: AuthContext;
   elicit?: (message: string, schema: z.ZodObject<z.ZodRawShape>) => Promise<ElicitResult>;
+  errors?: readonly ErrorContract[];
   notifyResourceListChanged?: () => void;
   notifyResourceUpdated?: (uri: string) => void;
   progress?: boolean;
@@ -57,6 +59,7 @@ interface MockContextOptions {
 | _(none)_ | Minimal context — `ctx.state` operations throw without `tenantId`; `ctx.elicit`/`ctx.sample`/`ctx.progress` are `undefined` |
 | `auth` | Sets `ctx.auth` for scope-checking tests |
 | `elicit` | Assigns a function to `ctx.elicit` for testing elicitation calls |
+| `errors` | Attaches a typed `ctx.fail` against the contract — same wiring the production handler factory uses. Pass `myTool.errors` directly. |
 | `notifyResourceListChanged` | Assigns `ctx.notifyResourceListChanged` for resource notification tests |
 | `notifyResourceUpdated` | Assigns `ctx.notifyResourceUpdated` for resource update notification tests |
 | `progress` | Populates `ctx.progress` with real state-tracking implementation (see below) |
@@ -90,13 +93,13 @@ expect(progress._messages).toContain('step message');
 
 ### Mock logger
 
-`ctx.log` captures all log calls for inspection:
+`ctx.log` captures all log calls for inspection. The mock returns the typed `MockContextLogger` from `@cyanheads/mcp-ts-core/testing` — import that instead of hand-casting:
 
 ```ts
+import { createMockContext, type MockContextLogger } from '@cyanheads/mcp-ts-core/testing';
+
 const ctx = createMockContext();
-const log = ctx.log as ContextLogger & {
-  calls: Array<{ level: string; msg: string; data?: unknown }>;
-};
+const log = ctx.log as MockContextLogger;
 
 await myTool.handler(input, ctx);
 expect(log.calls.some(c => c.level === 'info' && c.msg.includes('Processing'))).toBe(true);
@@ -311,3 +314,75 @@ it('throws NotFound for missing resource', async () => {
 ```
 
 Use `.rejects.toThrow(McpError)` to assert type only. Use `.rejects.toMatchObject({ code: ... })` when the specific error code matters.
+
+---
+
+## Testing handlers with `errors[]` (typed contract)
+
+Tools and resources that declare an `errors[]` contract receive a typed `ctx.fail` helper at runtime. Pass the definition's own `errors` to `createMockContext` and the mock wires `fail` the same way the production handler factory does:
+
+```ts
+import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
+import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+import { fetchItems } from '@/mcp-server/tools/definitions/fetch-items.tool.js';
+
+it('throws ctx.fail("no_match") when no items resolve', async () => {
+  const ctx = createMockContext({ errors: fetchItems.errors });
+
+  const input = fetchItems.input.parse({ ids: ['missing'] });
+  await expect(fetchItems.handler(input, ctx)).rejects.toMatchObject({
+    code: JsonRpcErrorCode.NotFound,
+    data: { reason: 'no_match' },
+  });
+});
+```
+
+For lower-level tests that need the raw `fail` helper without a full mock context (e.g. asserting the reason → code mapping), use `createFail` directly — see [Testing the handler-side `fail` plumbing](#testing-the-handler-side-fail-plumbing) below.
+
+### Why test `data.reason` and not just `code`?
+
+The contract reason is the stable machine-readable identifier — clients switch on it the same way they would on an HTTP status. A code alone (`NotFound`) doesn't disambiguate between contract entries that share a code (`'no_match'` vs `'withdrawn'` both mapping to `NotFound`). Asserting on `data.reason` locks the test to the specific contract entry.
+
+### `data.reason` is overridable-proof
+
+The framework spreads caller-supplied data first and writes `reason` last, so a handler that passes `data: { reason: 'something_else' }` cannot override the contract reason. Tests can rely on `data.reason` always equaling the contract entry's reason — write assertions that depend on it without paranoia.
+
+### Testing the handler-side `fail` plumbing
+
+To verify the definition wires `ctx.fail` correctly without exercising the full handler factory, use the `errors` array directly:
+
+```ts
+import { createFail } from '@cyanheads/mcp-ts-core';
+
+it('builds an error with the contract code and reason', () => {
+  const fail = createFail(myTool.errors!);
+  const err = fail('no_match', 'not found', { itemId: '123' });
+  expect(err.code).toBe(JsonRpcErrorCode.NotFound);
+  expect(err.data).toEqual({ reason: 'no_match', itemId: '123' });
+});
+```
+
+---
+
+## Fuzz testing
+
+For schema-heavy or input-validation-critical handlers, the framework ships fuzz helpers under `@cyanheads/mcp-ts-core/testing/fuzz`. They generate valid + adversarial inputs from your Zod schemas via `fast-check` and assert handler invariants (no crashes, no prototype pollution, no stack-trace leaks).
+
+```ts
+import { fuzzTool, fuzzResource, fuzzPrompt } from '@cyanheads/mcp-ts-core/testing/fuzz';
+
+it('survives fuzz testing', async () => {
+  const report = await fuzzTool(myTool, { numRuns: 100, numAdversarial: 30 });
+  expect(report.crashes).toHaveLength(0);
+  expect(report.leaks).toHaveLength(0);
+  expect(report.prototypePollution).toBe(false);
+});
+```
+
+| Helper | Purpose |
+|:-------|:--------|
+| `fuzzTool(def, opts)` / `fuzzResource(def, opts)` / `fuzzPrompt(def, opts)` | Drive valid + adversarial inputs through the handler. Returns a `FuzzReport`. |
+| `zodToArbitrary(schema)` | Convert a Zod schema to a `fast-check` `Arbitrary` for custom property-based tests. |
+| `adversarialArbitrary()` / `ADVERSARIAL_STRINGS` | Targeted injection sets (prototype pollution probes, control characters, oversized payloads). |
+
+`FuzzOptions`: `numRuns` (default 50), `numAdversarial` (default 30), `seed` (reproducibility), `timeout` (per-call ms, default 5000), `ctx` (`MockContextOptions` for stateful handlers).

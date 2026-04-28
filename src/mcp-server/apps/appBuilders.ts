@@ -14,6 +14,7 @@ import type { ResourceDefinition } from '@/mcp-server/resources/utils/resourceDe
 import { resource } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import type { ToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
 import { tool } from '@/mcp-server/tools/utils/toolDefinition.js';
+import type { ErrorContract } from '@/types-global/errors.js';
 
 /**
  * MIME type for MCP Apps HTML resources.
@@ -111,7 +112,8 @@ function createAppResourceFormat(
 type AppToolOptions<
   TInput extends ZodObject<ZodRawShape>,
   TOutput extends ZodObject<ZodRawShape>,
-> = Omit<ToolDefinition<TInput, TOutput>, '_meta' | 'name'> & {
+  TErrors extends readonly ErrorContract[] | undefined = undefined,
+> = Omit<ToolDefinition<TInput, TOutput, TErrors>, '_meta' | 'name'> & {
   /**
    * Additional `_meta` fields. `ui` sub-fields (e.g. `csp`, `visibility`, `permissions`)
    * are merged with the auto-populated `resourceUri`. The `resourceUri` value from the
@@ -126,6 +128,10 @@ type AppToolOptions<
  * Creates an MCP Apps tool definition. Wraps `tool()` with:
  * - `_meta.ui.resourceUri` set automatically
  * - `_meta['ui/resourceUri']` compat key set automatically
+ *
+ * Accepts the same `errors: [...]` contract as the standard `tool()` builder —
+ * the `const TErrors` modifier preserves literal reasons so the handler's
+ * `ctx.fail` is typed against the declared reason union.
  *
  * @example
  * ```ts
@@ -143,7 +149,11 @@ type AppToolOptions<
 export function appTool<
   TInput extends ZodObject<ZodRawShape>,
   TOutput extends ZodObject<ZodRawShape>,
->(name: string, options: AppToolOptions<TInput, TOutput>): ToolDefinition<TInput, TOutput> {
+  const TErrors extends readonly ErrorContract[] | undefined = undefined,
+>(
+  name: string,
+  options: AppToolOptions<TInput, TOutput, TErrors>,
+): ToolDefinition<TInput, TOutput, TErrors> {
   const { resourceUri, extraMeta, ...rest } = options;
   const { ui: extraUi, ...extraMetaRest } = extraMeta ?? {};
 
@@ -170,7 +180,8 @@ export function appTool<
 type AppResourceOptions<
   TParams extends ZodObject<ZodRawShape>,
   TOutput extends ZodObject<ZodRawShape> | undefined = undefined,
-> = Omit<ResourceDefinition<TParams, TOutput>, 'mimeType' | 'uriTemplate'> & {
+  TErrors extends readonly ErrorContract[] | undefined = undefined,
+> = Omit<ResourceDefinition<TParams, TOutput, TErrors>, 'mimeType' | 'uriTemplate'> & {
   /** Override the default `text/html;profile=mcp-app` MIME type. Rarely needed. */
   mimeType?: string;
 };
@@ -206,10 +217,11 @@ type AppResourceOptions<
 export function appResource<
   TParams extends ZodObject<ZodRawShape>,
   TOutput extends ZodObject<ZodRawShape> | undefined = undefined,
+  const TErrors extends readonly ErrorContract[] | undefined = undefined,
 >(
   uriTemplate: string,
-  options: AppResourceOptions<TParams, TOutput>,
-): ResourceDefinition<TParams, TOutput> {
+  options: AppResourceOptions<TParams, TOutput, TErrors>,
+): ResourceDefinition<TParams, TOutput, TErrors> {
   const { mimeType, annotations, _meta, format, ...rest } = options;
   const defaultUiMeta = isPlainObject(_meta?.ui) ? _meta.ui : undefined;
   const appResourceFormat = createAppResourceFormat(format, defaultUiMeta);

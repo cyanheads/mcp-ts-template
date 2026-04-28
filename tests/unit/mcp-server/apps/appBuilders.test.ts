@@ -5,11 +5,12 @@
  * @module tests/unit/mcp-server/apps/appBuilders.test
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 
 import { APP_RESOURCE_MIME_TYPE, appResource, appTool } from '@/mcp-server/apps/appBuilders.js';
 import { createMockContext } from '@/testing/index.js';
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -250,6 +251,28 @@ describe('appTool()', () => {
 
     expect((def as unknown as Record<string, unknown>).resourceUri).toBeUndefined();
     expect((def as unknown as Record<string, unknown>).extraMeta).toBeUndefined();
+  });
+
+  // ── Regression: TErrors generic on appTool ────────────────────────────────
+  // Without the third generic, `errors?: TErrors` fixes to `errors?: undefined`
+  // so passing an array is a TS error and the handler's ctx.fail isn't typed.
+  it('accepts an errors[] contract and types ctx.fail against the reason union', () => {
+    const def = appTool('contract_app_tool', {
+      resourceUri: 'ui://my-app/app.html',
+      description: 'App tool with contract',
+      errors: [
+        { reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No items matched' },
+        { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited, when: 'Queue full' },
+      ],
+      input: minimalInput,
+      output: minimalOutput,
+      async handler(_input, ctx) {
+        expectTypeOf(ctx.fail).parameter(0).toEqualTypeOf<'no_match' | 'queue_full'>();
+        return { result: 'ok' };
+      },
+    });
+
+    expect(def.errors).toHaveLength(2);
   });
 });
 
@@ -517,6 +540,21 @@ describe('appResource()', () => {
     expect(def.mimeType).toBe('text/html');
     const keys = Object.keys(def).filter((k) => k === 'mimeType');
     expect(keys).toHaveLength(1);
+  });
+
+  // ── Regression: TErrors generic on appResource ────────────────────────────
+  it('accepts an errors[] contract and types ctx.fail against the reason union', () => {
+    const def = appResource('ui://my-app/{itemId}.html', {
+      description: 'App UI per item',
+      params: z.object({ itemId: z.string().describe('Item ID') }),
+      errors: [{ reason: 'not_found', code: JsonRpcErrorCode.NotFound, when: 'Item not found' }],
+      async handler(_params, ctx) {
+        expectTypeOf(ctx.fail).parameter(0).toEqualTypeOf<'not_found'>();
+        return '<html></html>';
+      },
+    });
+
+    expect(def.errors).toHaveLength(1);
   });
 });
 

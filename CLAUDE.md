@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.7.6
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.8.0
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -23,7 +23,7 @@
 
 | Subpath | Key Exports | Purpose |
 |:--------|:------------|:--------|
-| `@cyanheads/mcp-ts-core` | `createApp`, `tool`, `resource`, `prompt`, `appTool`, `appResource`, `APP_RESOURCE_MIME_TYPE`, `Context`, `z` | Main entry point |
+| `@cyanheads/mcp-ts-core` | `createApp`, `tool`, `resource`, `prompt`, `appTool`, `appResource`, `APP_RESOURCE_MIME_TYPE`, `Context`, `createFail`, `TypedFail`, `ReasonOf`, `HandlerContext`, `z` | Main entry point |
 | `/worker` | `createWorkerHandler`, `CloudflareBindings` | Cloudflare Workers entry |
 | `/tools` | `ToolDefinition`, `AnyToolDefinition`, `ToolAnnotations` | Tool definition types |
 | `/resources` | `ResourceDefinition`, `AnyResourceDefinition` | Resource definition types |
@@ -345,11 +345,22 @@ See `api-context` skill for full details.
 
 ## Error Handling
 
-**Default: just throw.** The framework catches all errors from handlers, classifies them by type/message, and returns `isError: true` with an appropriate JSON-RPC error code. Plain `Error`, `ZodError`, and any other thrown value are handled automatically.
+**Recommended path: declare a typed error contract.** Add `errors: [{ reason, code, when, retryable? }]` to `tool()` / `resource()`. The handler then receives `ctx.fail(reason, msg?, data?)` typed against the reason union — `ctx.fail('typo')` is a TypeScript error. The runtime auto-populates `data.reason` for observability and the contract is published in `tools/list` under `_meta['mcp-ts-core/errors']` so clients can preview failure modes.
 
-**Auto-classification:** Resolution order: `McpError` code (preserved as-is) → JS constructor name (`TypeError` → `ValidationError`) → provider patterns (HTTP status codes, AWS errors, DB errors) → common message patterns → `AbortError` name → `InternalError` fallback.
+```ts
+errors: [
+  { reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No PMID returned data' },
+  { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited, when: 'Queue at capacity', retryable: true },
+],
+async handler(input, ctx) {
+  if (queue.full()) throw ctx.fail('queue_full');
+  // ...
+}
+```
 
-**When you need a specific code**, use error factories (preferred) or `McpError`:
+The contract describes the **public failure surface** — declare domain-specific failures only. **Baseline codes** (`InternalError`, `ServiceUnavailable`, `Timeout`, `ValidationError`, `SerializationError`) bubble from anywhere and are auto-allowed by the conformance lint, so you don't need to enumerate them per-tool. The conformance lint scans handler source text only — failures thrown from called services aren't visible to it (still reach the client correctly via the auto-classifier, just without lint enforcement).
+
+**Fallback for ad-hoc throws** (no contract entry fits, prototype tools, service-layer code): use error factories.
 
 ```ts
 import { notFound, validationError } from '@cyanheads/mcp-ts-core/errors';
@@ -357,9 +368,13 @@ throw notFound('Item not found', { itemId: '123' });
 throw validationError('Missing required field: name', { field: 'name' });
 ```
 
-Available factories: `invalidParams`, `invalidRequest`, `notFound`, `forbidden`, `unauthorized`, `validationError`, `conflict`, `rateLimited`, `timeout`, `serviceUnavailable`, `configurationError`. All accept `(message, data?, options?)` where `options` is `{ cause?: unknown }`.
+Available factories: `invalidParams`, `invalidRequest`, `notFound`, `forbidden`, `unauthorized`, `validationError`, `conflict`, `rateLimited`, `timeout`, `serviceUnavailable`, `configurationError`, `internalError`, `serializationError`, `databaseError`. All accept `(message, data?, options?)` where `options` is `{ cause?: unknown }`.
 
-For codes not covered by factories, use `new McpError(JsonRpcErrorCode.DatabaseError, message, data)`.
+For HTTP responses from upstream APIs, use `httpErrorFromResponse(response, { service, data })` from `/utils` — maps the full status table (401/403/408/422/429/5xx) and captures body + `Retry-After`.
+
+**Auto-classification.** Plain `Error`, `ZodError`, and any other thrown value are caught and classified automatically. Resolution order: `McpError` code (preserved as-is) → JS constructor name (`TypeError` → `ValidationError`) → provider patterns (HTTP status codes, AWS errors, DB errors) → common message patterns → `AbortError` name → `InternalError` fallback.
+
+The startup linter checks handler bodies for `prefer-mcp-error-in-handler`, `prefer-error-factory`, `preserve-cause-on-rethrow`, `no-stringify-upstream-error`, plus contract conformance (`error-contract-conformance` for undeclared non-baseline codes, `error-contract-prefer-fail` for declared codes thrown directly instead of via `ctx.fail`) — all warnings, surfaced in `bun run devcheck`.
 
 See `api-errors` skill for the full pattern-matching table, error code reference, and detailed examples.
 

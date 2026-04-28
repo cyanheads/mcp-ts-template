@@ -14,7 +14,7 @@ import type {
 import type { ZodObject, ZodRawShape } from 'zod';
 
 import type { Context, SamplingOpts } from '@/core/context.js';
-import { createContext } from '@/core/context.js';
+import { attachTypedFail, createContext } from '@/core/context.js';
 import type { AnyResourceDefinition } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
@@ -155,18 +155,22 @@ export function createResourceHandler(
       // Validate params via schema if defined
       const validatedParams = def.params ? def.params.parse(variables) : variables;
 
-      // Construct Context with uri set
-      const ctx = createContext({
-        appContext,
-        logger: services.logger,
-        storage: services.storage,
-        signal: sdkContext.signal,
-        elicit: wrapElicit(sdkCaps),
-        sample: wrapSample(sdkCaps),
-        notifyResourceListChanged: notifiers.notifyResourceListChanged,
-        notifyResourceUpdated: notifiers.notifyResourceUpdated,
-        uri,
-      });
+      // Construct Context with uri set. `attachTypedFail` adds `ctx.fail`
+      // when the definition declares an error contract; otherwise no-op.
+      const ctx = attachTypedFail(
+        createContext({
+          appContext,
+          logger: services.logger,
+          storage: services.storage,
+          signal: sdkContext.signal,
+          elicit: wrapElicit(sdkCaps),
+          sample: wrapSample(sdkCaps),
+          notifyResourceListChanged: notifiers.notifyResourceListChanged,
+          notifyResourceUpdated: notifiers.notifyResourceUpdated,
+          uri,
+        }),
+        def.errors,
+      );
 
       // Execute handler with performance measurement
       const resourceName = def.name ?? def.uriTemplate;

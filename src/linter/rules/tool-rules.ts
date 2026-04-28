@@ -5,7 +5,9 @@
  */
 
 import type { LintDiagnostic } from '../types.js';
+import { lintErrorContract, lintErrorContractConformance } from './error-contract-rules.js';
 import { lintFormatParity } from './format-parity-rules.js';
+import { lintHandlerBody } from './handler-body-rules.js';
 import { checkNameRequired, checkToolNameFormat } from './name-rules.js';
 import {
   checkFieldDescriptions,
@@ -91,6 +93,21 @@ export function lintToolDefinition(def: unknown): LintDiagnostic[] {
   // _meta.ui validation (MCP Apps)
   if (d?._meta && typeof d._meta === 'object') {
     diagnostics.push(...lintToolMeta(d._meta as Record<string, unknown>, displayName));
+  }
+
+  // Handler body heuristic checks (error-handling anti-patterns)
+  diagnostics.push(...lintHandlerBody(d as { handler?: unknown; name?: string }, 'tool'));
+
+  // Declarative error contract validation
+  if (d?.errors !== undefined) {
+    diagnostics.push(...lintErrorContract(d.errors, 'tool', displayName));
+    diagnostics.push(
+      ...lintErrorContractConformance(
+        d as { handler?: unknown; errors?: unknown },
+        'tool',
+        displayName,
+      ),
+    );
   }
 
   return diagnostics;

@@ -4,7 +4,7 @@ description: >
   Investigate, adopt, and verify dependency updates — with special handling for `@cyanheads/mcp-ts-core`. Captures what changed, understands why, cross-references against the codebase, adopts framework improvements, syncs project skills, and runs final checks. Supports two entry modes: run the full flow end-to-end, or review updates you already applied.
 metadata:
   author: cyanheads
-  version: "1.7"
+  version: "1.8"
   audience: external
   type: workflow
 ---
@@ -65,7 +65,7 @@ Scan specifically for:
 
 | Area | Adoption Check |
 |:-----|:---------------|
-| New error factories in `/errors` | Replace ad-hoc `new McpError(...)` with factories where applicable |
+| New `/errors` surface — factories, typed contracts (`errors[]` + `ctx.fail`), `httpErrorFromResponse` | Replace ad-hoc `new McpError(...)` with factories; declare `errors: [...]` on tools that surface domain-specific failure modes; route declared throws through `ctx.fail(reason, …)` so the conformance lint is happy |
 | New utilities in `/utils` | Identify any that supersede local helper code |
 | New context capabilities | Added `ctx.*` methods worth adopting |
 | Provider/service APIs | Updates to `OpenRouterProvider`, `SpeechService`, `GraphService`, etc. |

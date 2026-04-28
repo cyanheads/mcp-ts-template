@@ -41,6 +41,10 @@ interface Context {
   readonly elicit?: (message: string, schema: z.ZodObject<z.ZodRawShape>) => Promise<ElicitResult>;
   readonly sample?: (messages: SamplingMessage[], opts?: SamplingOpts) => Promise<CreateMessageResult>;
 
+  // Resource notifications — present when transport supports them
+  readonly notifyResourceListChanged?: () => void;
+  readonly notifyResourceUpdated?: (uri: string) => void;
+
   // Cancellation
   readonly signal: AbortSignal;
 
@@ -51,6 +55,8 @@ interface Context {
   readonly uri?: URL;
 }
 ```
+
+> **`ctx.fail` is on `HandlerContext<R>`, not `Context`.** When a definition declares `errors: [...]`, the handler receives `HandlerContext<R> = Context & { fail: TypedFail<R> }` — the typed `fail` lives on the intersection, not on bare `Context`. See [`ctx.fail`](#ctxfail) below.
 
 ### Identity fields
 
@@ -223,7 +229,7 @@ if (ctx.sample) {
 interface SamplingOpts {
   includeContext?: 'none' | 'thisServer' | 'allServers';
   maxTokens?: number;
-  modelPreferences?: Record<string, unknown>;
+  modelPreferences?: ModelPreferences;
   stopSequences?: string[];
   temperature?: number;
 }
@@ -320,6 +326,71 @@ Prefer `params` (the extracted URI template variables) over parsing `ctx.uri` ma
 
 ---
 
+## `ctx.fail`
+
+Present only when the definition declares an `errors[]` contract. Builds an `McpError` keyed by the contract's `reason` union, so the resulting code is consistent with what the tool advertises in `tools/list`.
+
+```ts
+export const fetchItems = tool('fetch_items', {
+  description: 'Fetch items by ID.',
+  errors: [
+    { reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No items matched' },
+    { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited, when: 'Local queue at capacity', retryable: true },
+  ],
+  input: z.object({ ids: z.array(z.string()).describe('Item IDs') }),
+  output: z.object({ items: z.array(ItemSchema).describe('Resolved items') }),
+  async handler(input, ctx) {
+    if (queue.full()) throw ctx.fail('queue_full');
+    const items = await fetch(input.ids);
+    if (items.length === 0) throw ctx.fail('no_match', `No items match ${input.ids.length} IDs`, { ids: input.ids });
+    // ctx.fail('typo')   ← TypeScript error: 'typo' isn't in the contract
+    return { items };
+  },
+});
+```
+
+### Signature
+
+```ts
+// TypedFail<R> — R is the union of declared `reason` strings, derived from the
+// definition's `errors: [...]` const tuple via the framework's `ReasonOf<E>`.
+ctx.fail(
+  reason: R,                         // union of declared reason strings
+  message?: string,                  // defaults to the contract entry's `when` text
+  data?: Record<string, unknown>,    // merged into err.data; cannot override `reason`
+  options?: { cause?: unknown },     // ES2022 cause chain
+): McpError
+```
+
+### Behavior
+
+| Aspect | Detail |
+|:-------|:-------|
+| Code resolution | `code` comes from the matching contract entry — never from the caller. The thrown `McpError.code` always equals what's advertised in `tools/list`. |
+| Default message | When `message` is omitted, the contract entry's `when` text is used. |
+| `data.reason` | Auto-populated from the contract entry. Caller-supplied `data.reason` **cannot** override it — the framework spreads caller data first and writes `reason` last so observers see a stable identifier. |
+| Cause chains | Pass `{ cause: e }` to preserve the original error — `pino-pretty` and observability platforms render the chain automatically. |
+| Unknown reason | If the type-system guard is bypassed (JS caller, stale contract), `ctx.fail` returns an `McpError(InternalError)` with `data.reason` and `data.declaredReasons` set so the bug is loud rather than silent. |
+
+### Without a contract
+
+When the definition has no `errors[]` field, `ctx` is plain `Context` and `ctx.fail` is absent. Throw `McpError` directly (or via factory):
+
+```ts
+import { notFound, rateLimited } from '@cyanheads/mcp-ts-core/errors';
+
+async handler(input, ctx) {
+  if (queue.full()) throw rateLimited('Queue at capacity');
+  const items = await fetch(input.ids);
+  if (items.length === 0) throw notFound(`No items match ${input.ids.length} IDs`);
+  return { items };
+}
+```
+
+The contract is opt-in. See `skills/api-errors/SKILL.md` for the full type-driven pattern, lint rules, and baseline-codes guidance.
+
+---
+
 ## Quick reference
 
 | Property | Type | Present when |
@@ -335,5 +406,8 @@ Prefer `params` (the extracted URI template variables) over parsing `ctx.uri` ma
 | `ctx.signal` | `AbortSignal` | Always |
 | `ctx.elicit` | `function \| undefined` | Client supports elicitation |
 | `ctx.sample` | `function \| undefined` | Client supports sampling |
+| `ctx.notifyResourceListChanged` | `function \| undefined` | Transport supports resource notifications |
+| `ctx.notifyResourceUpdated` | `function \| undefined` | Transport supports resource notifications |
 | `ctx.progress` | `ContextProgress \| undefined` | Tool defined with `task: true` |
 | `ctx.uri` | `URL \| undefined` | Resource handlers only |
+| `ctx.fail` | `(reason, msg?, data?, opts?) => McpError` | Definition declares `errors[]` contract |

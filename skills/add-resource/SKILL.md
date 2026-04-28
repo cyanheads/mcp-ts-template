@@ -107,6 +107,46 @@ await createApp({
 
 If the repo already uses `src/mcp-server/resources/definitions/index.ts`, update that barrel instead of changing the registration style.
 
+### Optional: declarative `errors[]` contract
+
+Resources can opt into the same typed error contract as tools — surfaced in `resources/list` under `_meta['mcp-ts-core/errors']` and bound to a typed `ctx.fail(reason, …)` keyed by the declared reason union:
+
+```typescript
+import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+
+export const articleResource = resource('article://{pmid}', {
+  description: 'Read an article by PMID.',
+  errors: [
+    { reason: 'no_pmid_match', code: JsonRpcErrorCode.NotFound,
+      when: 'PMID not found in the index.' },
+    { reason: 'withdrawn', code: JsonRpcErrorCode.NotFound,
+      when: 'Article was withdrawn upstream.' },
+    { reason: 'upstream_throttled', code: JsonRpcErrorCode.RateLimited,
+      when: 'Upstream PubMed quota hit.', retryable: true },
+  ],
+  params: z.object({ pmid: z.string().describe('PubMed ID') }),
+  async handler(params, ctx) {
+    const article = await fetchOne(params.pmid);
+    if (!article) throw ctx.fail('no_pmid_match', `PMID ${params.pmid} not indexed`);
+    if (article.withdrawn) throw ctx.fail('withdrawn');
+    return article;
+  },
+});
+```
+
+Without `errors[]`, the handler receives plain `Context` (no `fail` method) and throws via error factories (`notFound`, `serviceUnavailable`, …) directly. The contract is opt-in. See `skills/api-errors/SKILL.md` for the full pattern, baseline codes, and conformance rules.
+
+### Other `resource()` options
+
+Beyond `description`, `params`, `handler`, and `list`, the builder also supports:
+
+| Field | Purpose |
+|:------|:--------|
+| `output` | Optional Zod schema for runtime validation of the handler return value (parity with `tool()`'s `output`). |
+| `format` | Optional formatter mapping the handler's return to the `ReadResourceResult.contents[]` shape. Default: string passthrough; objects serialized to JSON. Override when you need to attach permissions, custom encodings, or split into multiple content items. |
+| `annotations` | Resource annotations (e.g., `audience`, `priority`) — see `ResourceAnnotations`. |
+| `title` | Human-readable display title (defaults to `name`). |
+
 ## Checklist
 
 - [ ] File created at `src/mcp-server/resources/definitions/{{resource-name}}.resource.ts`

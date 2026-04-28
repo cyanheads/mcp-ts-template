@@ -35,8 +35,12 @@ export type {
   ContextLogger,
   ContextProgress,
   ContextState,
+  HandlerContext,
+  ReasonOf,
   SamplingOpts,
+  TypedFail,
 } from '@/core/context.js';
+export { createFail } from '@/core/context.js';
 
 // ---------------------------------------------------------------------------
 // Definition builders & types

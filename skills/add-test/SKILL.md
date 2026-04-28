@@ -38,6 +38,7 @@ Read the handler and identify:
 | **`ctx.state` usage** | Use `createMockContext({ tenantId: 'test' })` to enable storage |
 | **`ctx.elicit` / `ctx.sample`** | Mock with `vi.fn()`, also test the absent case (undefined) |
 | **`ctx.progress`** | Use `createMockContext({ progress: true })` for task tools |
+| **`ctx.fail` (typed contract)** | Definitions with `errors[]` need `fail` attached to the mock ctx — `createMockContext({ errors: myTool.errors })` does it for you. Assert on `data.reason` (stable per-contract entry), not just `code`. |
 | **`format` function** | Test separately if defined — it's pure, no ctx needed. Verify it renders the IDs and fields the model needs, not just a count or title. For projection-style tools, test non-default field selections. |
 | **Sparse upstream payloads** | For third-party API integrations, build a fixture with omitted fields. Assert normalized output still validates and `format()` preserves unknown values instead of inventing facts. |
 | **Auth scopes** | Not tested at handler level (framework enforces) — skip |
@@ -74,6 +75,17 @@ describe('{{TOOL_EXPORT}}', () => {
       // input that triggers an error path
     });
     await expect({{TOOL_EXPORT}}.handler(input, ctx)).rejects.toThrow();
+  });
+
+  // Only when the tool declares `errors: [...]`. Drop this block otherwise.
+  it('throws ctx.fail("{{REASON}}") for the declared failure mode', async () => {
+    const ctx = createMockContext({ errors: {{TOOL_EXPORT}}.errors });
+    const input = {{TOOL_EXPORT}}.input.parse({
+      // input that triggers the declared failure mode
+    });
+    await expect({{TOOL_EXPORT}}.handler(input, ctx)).rejects.toMatchObject({
+      data: { reason: '{{REASON}}' },
+    });
   });
 
   it('formats output completely', () => {
@@ -115,6 +127,13 @@ describe('{{RESOURCE_EXPORT}}', () => {
     await expect({{RESOURCE_EXPORT}}.handler(params, ctx)).rejects.toThrow();
   });
 
+  // For resources that declare an `errors: [...]` contract, pass the contract via
+  // `createMockContext` so the typed `ctx.fail` is wired automatically:
+  //   const ctx = createMockContext({ errors: {{RESOURCE_EXPORT}}.errors });
+  //   const err = await {{RESOURCE_EXPORT}}.handler(params, ctx).catch((e) => e);
+  //   expect(err.code).toBe(JsonRpcErrorCode.NotFound);
+  //   expect(err.data.reason).toBe('no_match');
+
   it('lists available resources', async () => {
     const listing = await {{RESOURCE_EXPORT}}.list!();
     expect(listing.resources).toBeInstanceOf(Array);
@@ -139,9 +158,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { get{{ServiceClass}}, init{{ServiceClass}} } from '@/services/{{domain}}/{{domain}}-service.js';
 
+import { createInMemoryStorage } from '@cyanheads/mcp-ts-core/testing';
+
 describe('{{ServiceClass}}', () => {
   beforeEach(() => {
     // Re-initialize with fresh config/storage for each test
+    const mockStorage = createInMemoryStorage();
     init{{ServiceClass}}(mockConfig, mockStorage);
   });
 
@@ -188,6 +210,23 @@ it('respects cancellation', async () => {
   expect(result.finalCount).toBeGreaterThan(0);
 });
 ```
+
+## Fuzz Testing
+
+For schema-heavy or input-validation-critical handlers, the framework ships fuzz helpers that generate valid + adversarial inputs from your Zod schemas via `fast-check` and assert handler invariants (no crashes, no prototype pollution, no stack-trace leaks):
+
+```typescript
+import { fuzzTool } from '@cyanheads/mcp-ts-core/testing/fuzz';
+
+it('survives fuzz testing', async () => {
+  const report = await fuzzTool({{TOOL_EXPORT}}, { numRuns: 100 });
+  expect(report.crashes).toHaveLength(0);
+  expect(report.leaks).toHaveLength(0);
+  expect(report.prototypePollution).toBe(false);
+});
+```
+
+Available helpers from `@cyanheads/mcp-ts-core/testing/fuzz`: `fuzzTool`, `fuzzResource`, `fuzzPrompt`, `zodToArbitrary` (custom property-based tests), `adversarialArbitrary` and `ADVERSARIAL_STRINGS` (targeted injection sets). Returns a `FuzzReport` you can assert against. Options: `numRuns`, `numAdversarial`, `seed` (reproducibility), `timeout`, `ctx` (`MockContextOptions` for stateful handlers).
 
 ## Generating Tests from Schemas
 

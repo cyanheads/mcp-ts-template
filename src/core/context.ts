@@ -16,7 +16,12 @@ import type {
 import type { ZodType, z } from 'zod';
 
 import type { StorageService } from '@/storage/core/StorageService.js';
-import { invalidRequest } from '@/types-global/errors.js';
+import {
+  type ErrorContract,
+  invalidRequest,
+  JsonRpcErrorCode,
+  McpError,
+} from '@/types-global/errors.js';
 import type { Logger } from '@/utils/internal/logger.js';
 import type { AuthContext, RequestContext } from '@/utils/internal/requestContext.js';
 
@@ -148,6 +153,114 @@ export interface Context {
   // --- Raw URI (present for resource handlers) ---
   /** The parsed resource URI. Only set in resource handler context. */
   readonly uri?: URL | undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Typed fail — drives the type-driven error contract
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds an `McpError` keyed by a contract reason. The reason → code mapping
+ * comes from the definition's `errors[]` contract, so the resulting error
+ * always carries a code consistent with what was declared.
+ *
+ * `R` is the union of valid reason strings extracted from the contract.
+ * Tools/resources without a contract receive a context that does not include
+ * `fail` at all — direct `throw new McpError(...)` is still available.
+ *
+ * The thrown error's `data.reason` is auto-populated, so observability and the
+ * auto-classifier can branch on a stable identifier without parsing message text.
+ */
+export type TypedFail<R extends string> = (
+  reason: R,
+  message?: string,
+  data?: Record<string, unknown>,
+  options?: { cause?: unknown },
+) => McpError;
+
+/**
+ * Extracts the union of `reason` literal strings from a const tuple of
+ * `ErrorContract` entries. Returns `never` when the input is undefined, isn't
+ * shaped like a contract, or is the wide `ErrorContract[]` type without literal
+ * narrowing (the latter case represents the type-erased `AnyToolDefinition` —
+ * collapsing it to `never` keeps factory call sites assignable).
+ *
+ * Used by `tool()` / `resource()` builders to derive the typed-fail signature
+ * from the user's `errors: [...]` declaration. The `const` modifier on the
+ * builder's type parameter preserves literal types without requiring `as const`
+ * at the call site.
+ */
+export type ReasonOf<E> = E extends readonly { reason: infer R extends string }[]
+  ? string extends R
+    ? never
+    : R
+  : never;
+
+/**
+ * Handler context. When a definition declares `errors[]`, the handler receives
+ * `Context & { fail: TypedFail<R> }` where `R` is the declared reason union.
+ * When no contract is declared, the handler receives plain `Context` and must
+ * throw `McpError` directly.
+ *
+ * The conditional `[R] extends [never]` distinguishes "no contract declared"
+ * (R = never) from "contract declared with reasons" (R = literal union).
+ */
+export type HandlerContext<R extends string = never> = [R] extends [never]
+  ? Context
+  : Context & { fail: TypedFail<R> };
+
+/**
+ * @internal
+ *
+ * Builds a runtime `fail` function for a given contract. Looks up the entry
+ * by `reason` and constructs an `McpError` with the declared code, the
+ * caller's message (or the contract's `when` text as a fallback), and
+ * `data.reason` auto-populated from the contract — *not* from caller-supplied
+ * data, which is spread first and then overwritten so the contract reason
+ * wins. This keeps `data.reason` a stable observability identifier.
+ *
+ * If the reason isn't in the contract — a JS caller or stale contract slipping
+ * past the `TypedFail` type-system guard — `createFail` returns an
+ * `McpError(InternalError)` with diagnostic data (`{ reason, declaredReasons }`)
+ * rather than throwing, so the call site can `throw` it like any other error.
+ */
+export function createFail(errors: readonly ErrorContract[]): TypedFail<string> {
+  const byReason = new Map<string, ErrorContract>();
+  for (const entry of errors) byReason.set(entry.reason, entry);
+
+  return (reason, message, data, options) => {
+    const entry = byReason.get(reason);
+    if (!entry) {
+      // Reason isn't in the contract. The TypedFail type prevents this at
+      // compile time, but a JS caller (or a stale contract) can still hit it.
+      // Surface the bug clearly rather than silently picking a code.
+      return new McpError(
+        JsonRpcErrorCode.InternalError,
+        `ctx.fail() called with unknown reason '${reason}' — not declared in errors[].`,
+        { reason, declaredReasons: [...byReason.keys()] },
+        options,
+      );
+    }
+    // `reason` is spread last so caller-supplied `data.reason` (accidental or
+    // adversarial) cannot override the contract reason — preserves the
+    // observability invariant that `data.reason` always matches the contract.
+    return new McpError(entry.code, message ?? entry.when, { ...data, reason }, options);
+  };
+}
+
+/**
+ * Attaches a typed `fail` helper to `ctx` when the definition declares an
+ * error contract; otherwise returns `ctx` unchanged. Used by the tool and
+ * resource handler factories so all call sites stay identical.
+ *
+ * @internal
+ */
+export function attachTypedFail(
+  ctx: Context,
+  errors: readonly ErrorContract[] | undefined,
+): Context {
+  if (!errors || errors.length === 0) return ctx;
+  return Object.assign(ctx, { fail: createFail(errors) });
 }
 
 // ---------------------------------------------------------------------------

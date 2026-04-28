@@ -171,6 +171,27 @@ export const configurationError = (
   options?: ErrorFactoryOptions,
 ) => new McpError(JsonRpcErrorCode.ConfigurationError, message, data, options);
 
+/** Create an InternalError (-32603) error. */
+export const internalError = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.InternalError, message, data, options);
+
+/** Create a SerializationError (-32070) error — JSON/XML/parser failures. */
+export const serializationError = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.SerializationError, message, data, options);
+
+/** Create a DatabaseError (-32010) error. */
+export const databaseError = (
+  message: string,
+  data?: Record<string, unknown>,
+  options?: ErrorFactoryOptions,
+) => new McpError(JsonRpcErrorCode.DatabaseError, message, data, options);
+
 /**
  * Zod schema for validating error objects. This schema can be used for:
  * - Validating error structures when parsing error responses from external services.
@@ -216,3 +237,92 @@ export const ErrorSchema = z
  * for error responses or when passing error information within the application.
  */
 export type ErrorResponse = z.infer<typeof ErrorSchema>;
+
+// ---------------------------------------------------------------------------
+// Error contract — declarative documentation of a tool/resource's failure surface
+// ---------------------------------------------------------------------------
+
+/**
+ * Declarative entry in a tool or resource's `errors[]` contract.
+ *
+ * Lets a definition advertise what it can fail with — the JSON-RPC code, a
+ * stable machine-readable `reason`, and a human-readable `when` description.
+ *
+ * **Where it shows up:**
+ * - Surfaced in `tools/list` / `resources/list` under
+ *   `_meta['mcp-ts-core/errors']`, so MCP clients and agents can preview failure
+ *   modes alongside the input/output schema.
+ * - Validated by the startup linter — invalid codes, duplicate `reason` strings
+ *   within a single definition, and (with the conformance check enabled)
+ *   handler bodies that throw codes not in the contract are flagged.
+ *
+ * **Authoring guidance:**
+ * - Keep `reason` short, snake_case, stable. Treat it like a CSS class name
+ *   the client can switch on. Don't change them across versions without notice.
+ * - Use `when` for the natural-language explanation, not the message that ends
+ *   up on the error itself. The error's runtime `message` is per-occurrence;
+ *   `when` is the type-level description.
+ * - Set `retryable` for ergonomics — clients can adjust their backoff strategy
+ *   without re-deriving from the code. When omitted, callers can infer from
+ *   the code (see `getErrorCategory`).
+ *
+ * @example
+ * ```ts
+ * tool('pubmed_fetch_articles', {
+ *   // ...
+ *   errors: [
+ *     { code: JsonRpcErrorCode.NotFound, reason: 'no_pmid_match',
+ *       when: 'None of the requested PMIDs returned data.' },
+ *     { code: JsonRpcErrorCode.RateLimited, reason: 'queue_full',
+ *       when: 'Local request queue is at capacity.', retryable: true },
+ *     { code: JsonRpcErrorCode.ServiceUnavailable, reason: 'ncbi_down',
+ *       when: 'NCBI E-utilities is unreachable after 6 retries.', retryable: true },
+ *   ],
+ *   // ...
+ * });
+ * ```
+ */
+export interface ErrorContract {
+  /** JSON-RPC error code this entry surfaces as. */
+  code: JsonRpcErrorCode;
+  /**
+   * Stable machine-readable identifier for this failure mode.
+   * Should be `snake_case`, unique within a single definition's `errors[]`,
+   * and treated as part of the public API — clients may switch on it.
+   */
+  reason: string;
+  /**
+   * Whether the failure is transient (eligible for retry). Optional hint for
+   * clients; when omitted, callers fall back to inferring from the code.
+   */
+  retryable?: boolean;
+  /**
+   * Human-readable description of when this error occurs. Surfaced to LLMs and
+   * UI clients via `tools/list`. Type-level, not per-occurrence — different
+   * from the actual `error.message` thrown at runtime.
+   */
+  when: string;
+}
+
+/**
+ * The MCP `_meta` namespace key under which `errors[]` is published in
+ * `tools/list` and `resources/list`. Namespaced to avoid collisions with
+ * other framework or vendor extensions.
+ */
+export const ERROR_CONTRACT_META_KEY = 'mcp-ts-core/errors';
+
+/**
+ * Merges a tool/resource's `errors[]` contract into its `_meta` object under
+ * {@link ERROR_CONTRACT_META_KEY}. Returns `undefined` when both sides are
+ * absent so callers can spread conditionally without producing an empty
+ * `_meta` field. Used by the tool and resource registries.
+ *
+ * @internal
+ */
+export function buildMetaWithErrorContract(
+  baseMeta: Record<string, unknown> | undefined,
+  errors: readonly unknown[] | undefined,
+): Record<string, unknown> | undefined {
+  if (!errors || errors.length === 0) return baseMeta;
+  return { ...(baseMeta ?? {}), [ERROR_CONTRACT_META_KEY]: errors };
+}

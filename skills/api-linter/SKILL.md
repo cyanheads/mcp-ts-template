@@ -48,7 +48,11 @@ Grouped by family. Jump to any rule ID via its anchor.
 | Names | `name-required`, `name-format`, `name-unique` | [Name rules](#name-rules) |
 | Tools | `description-required`, `handler-required`, `auth-type`, `auth-scope-format`, `annotation-type`, `annotation-coherence`, `meta-ui-type`, `meta-ui-resource-uri-required`, `meta-ui-resource-uri-scheme`, `app-tool-resource-pairing` | [Tool rules](#tool-rules) |
 | Resources | `uri-template-required`, `uri-template-valid`, `resource-name-not-uri`, `template-params-align` | [Resource rules](#resource-rules) |
+| Landing | `landing-*` (23 rules — shape, tagline, logo, links, repo, envExample, connectSnippets, theme) | [Landing config rules](#landing-config-rules) |
 | Prompts | `generate-required` | [Prompt rules](#prompt-rules) |
+| Handler body | `prefer-mcp-error-in-handler`, `prefer-error-factory`, `preserve-cause-on-rethrow`, `no-stringify-upstream-error` | [Handler body rules](#handler-body-rules) |
+| Error contract (structural) | `error-contract-type`, `error-contract-empty`, `error-contract-entry-type`, `error-contract-code-type`, `error-contract-code-unknown`, `error-contract-code-unknown-error`, `error-contract-reason-required`, `error-contract-reason-format`, `error-contract-reason-unique`, `error-contract-when-required`, `error-contract-retryable-type` | [Error contract rules](#error-contract-rules) |
+| Error contract (conformance) | `error-contract-conformance`, `error-contract-prefer-fail` | [Error contract rules](#error-contract-rules) |
 | server.json | ~40 rules prefixed `server-json-*` | [server.json rules](#server-json-rules) |
 
 ---
@@ -196,7 +200,9 @@ Every tool, resource, and prompt definition needs a non-empty `name` string. For
 
 **Severity:** error
 
-Names must match `^[a-zA-Z0-9._-]+$` (alphanumerics, dots, hyphens, underscores). Tools conventionally use `snake_case`, resources and prompts use `kebab-case` or `snake_case`.
+**Scope:** tools only — resources and prompts are checked by `name-required` only.
+
+Tool names must match `^[A-Za-z0-9._-]{1,128}$` (alphanumerics, dots, hyphens, underscores; 1–128 chars). Tools conventionally use `snake_case`.
 
 **Fix:** rename to a valid identifier. If the legacy name is user-facing, keep `title` as the display string and use a valid `name` internally.
 
@@ -259,7 +265,7 @@ Every element in `auth` must be a non-empty string. Empty strings in the array a
 
 **Severity:** warning
 
-Contradictory annotation combinations. The canonical case: `readOnlyHint: true` with `destructiveHint: true` — a read-only tool cannot be destructive. `idempotentHint: true` alongside `readOnlyHint: true` is fine (explicit redundancy is allowed).
+Catches `readOnlyHint: true` with **any** explicit `destructiveHint` value (even `false`) — the destructive hint is meaningless on a read-only tool, so its presence signals authoring confusion. Drop `destructiveHint` entirely when the tool is read-only.
 
 ### meta-ui-type
 
@@ -322,7 +328,7 @@ resource('myscheme://{id}/data', {
 
 **Severity:** error
 
-Every variable in the URI template must appear as a key in the `params` schema, and vice versa. `test://{itemId}/data` with `params: z.object({ item_id: ... })` is rejected — casing mismatches count.
+Every variable in the URI template must appear as a key in the `params` schema. `test://{itemId}/data` with `params: z.object({ item_id: ... })` is rejected — casing mismatches count. The check is template → schema only; extra schema keys not referenced by the template are not flagged.
 
 **Fix:** rename one side so they match exactly. The error message names which variables are on which side.
 
@@ -388,6 +394,220 @@ Validates the `server.json` manifest at project root against the [MCP server man
 | `server-json-env-var-description` | warning | Environment variables should have a `description` |
 
 Most of these are mechanical — fix the manifest field named in the diagnostic's `message`. The registry spec is the source of truth; this linter just surfaces violations before you submit.
+
+---
+
+## Landing config rules
+
+Validate the `landing` config passed to `createApp()` (the config object that drives the framework's landing page). Run only when `input.landing` is provided to `validateDefinitions`. All errors — landing config that's structurally broken would render incorrectly on the public page.
+
+| Rule | Severity | Catches |
+|:-----|:---------|:--------|
+| `landing-shape` | error | `landing` is not a plain object |
+| `landing-tagline-type` | error | `tagline` is present but not a string |
+| `landing-tagline-length` | error | `tagline` exceeds the max length |
+| `landing-logo-type` | error | `logo` is present but not a string |
+| `landing-logo-size` | error | `logo` is too long for inline rendering |
+| `landing-links-type` | error | `links` is present but not an array |
+| `landing-links-count` | error | `links` exceeds the max count |
+| `landing-link-shape` | error | A `links[]` entry is not a plain object |
+| `landing-link-href` | error | A link entry's `href` is missing or not a non-empty string |
+| `landing-link-label` | error | A link entry's `label` is missing or not a non-empty string |
+| `landing-repo-root-type` | error | `repoRoot` is present but not a string |
+| `landing-repo-root-shape` | error | `repoRoot` is not a recognized GitHub URL shape |
+| `landing-env-example-type` | error | `envExample` is present but not a plain object |
+| `landing-env-example-count` | error | `envExample` has too many entries |
+| `landing-env-example-key` | error | An `envExample` key is empty or invalid |
+| `landing-env-example-value` | error | An `envExample` value is not a string |
+| `landing-connect-snippets-type` | error | `connectSnippets` is present but not a plain object |
+| `landing-connect-snippets-key` | error | A `connectSnippets` key is empty |
+| `landing-connect-snippets-value` | error | A `connectSnippets` value is not a string |
+| `landing-connect-snippets-empty` | error | A `connectSnippets` value is an empty string |
+| `landing-theme-type` | error | `theme` is present but not a plain object |
+| `landing-theme-accent` | error | `theme.accent` is present but not a string |
+| `landing-theme-accent-format` | error | `theme.accent` doesn't match the expected color format |
+
+Diagnostic anchors for these rules are the rule ID — e.g. `skills/api-linter/SKILL.md#landing-shape`. Pass `landing` to `validateDefinitions({ landing, tools, resources, prompts })` to opt in.
+
+---
+
+## Handler body rules
+
+Heuristic source-text checks that scan `handler.toString()` for common error-handling anti-patterns. All warnings — false positives are possible because the rules can't see code reached through wrappers, factories assigned to variables, or service-layer throws. Each rule fires at most once per handler to keep reports quiet.
+
+### prefer-mcp-error-in-handler
+
+**Severity:** warning
+
+Fires when a handler contains `throw new Error(...)`. Plain `Error` doesn't carry a JSON-RPC code — the framework's auto-classifier degrades to `InternalError`, hiding the actual failure mode.
+
+**Fix:** use `McpError` or a factory:
+
+```ts
+// instead of:
+throw new Error('Item not found');
+// use:
+throw notFound('Item not found', { itemId });
+```
+
+### prefer-error-factory
+
+**Severity:** warning
+
+Fires when a handler builds an error via `new McpError(JsonRpcErrorCode.X, ...)` and a matching factory exists (`notFound`, `rateLimited`, `serviceUnavailable`, …). The factory form is shorter, self-documenting, and consistent with the rest of the codebase.
+
+**Fix:** swap the constructor for the factory the diagnostic names:
+
+```ts
+// instead of:
+throw new McpError(JsonRpcErrorCode.NotFound, 'Item missing');
+// use:
+throw notFound('Item missing');
+```
+
+### preserve-cause-on-rethrow
+
+**Severity:** warning
+
+Fires when a `catch (e)` block throws a structured `McpError` (or factory) without passing `{ cause: e }`. Dropping the cause loses the original stack trace — observability platforms and `pino-pretty` rely on it to render error chains.
+
+**Fix:** thread the cause through the 4th `McpError` argument or factory options:
+
+```ts
+try {
+  await fetchUpstream();
+} catch (e) {
+  throw serviceUnavailable('Upstream failed', { service: 'pubmed' }, { cause: e });
+}
+```
+
+### no-stringify-upstream-error
+
+**Severity:** warning
+
+Fires when a handler throws an error message containing `JSON.stringify(...)`. Stringifying caught or upstream errors into the message risks leaking internal stack traces, AWS internal ARNs, or third-party trace IDs to clients.
+
+**Fix:** sanitize first, or attach the raw blob to the error's `data` payload — never the message.
+
+```ts
+// instead of:
+throw new Error(`Upstream failed: ${JSON.stringify(e)}`);
+// use:
+throw serviceUnavailable('Upstream failed', { upstreamError: e }, { cause: e });
+```
+
+---
+
+## Error contract rules
+
+Validate the optional `errors[]` declarative contract on tool/resource definitions. Structural rules check the shape of contract entries; conformance rules cross-check the handler body against the declared codes.
+
+When a contract is declared, surfaced under `_meta['mcp-ts-core/errors']` in `tools/list` / `resources/list`, and the handler receives a typed `ctx.fail(reason, …)` keyed by the declared reason union. See `skills/api-errors/SKILL.md` for runtime semantics.
+
+### error-contract-type
+
+**Severity:** error
+
+Fires when `errors` is present but not an array. The contract must be a tuple of `ErrorContract` entries.
+
+### error-contract-empty
+
+**Severity:** warning
+
+Fires when `errors: []` is declared. An empty contract is a no-op — nothing to surface in `tools/list`, no reason union for `ctx.fail`, no conformance to check.
+
+**Fix:** drop the field, or declare actual failure modes.
+
+### error-contract-entry-type
+
+**Severity:** error
+
+Fires when an entry in `errors[]` isn't an object. Each entry must be `{ code, reason, when }` (and optionally `retryable`).
+
+### error-contract-code-type
+
+**Severity:** error
+
+Fires when an entry's `code` is missing or not a number. Use the `JsonRpcErrorCode` enum:
+
+```ts
+errors: [{ code: JsonRpcErrorCode.NotFound, reason: 'no_match', when: 'No items matched' }]
+```
+
+### error-contract-code-unknown
+
+**Severity:** error
+
+Fires when an entry's `code` is a number but not a known `JsonRpcErrorCode` value. Likely a typo or stale magic number — import the enum and use a member.
+
+### error-contract-code-unknown-error
+
+**Severity:** warning
+
+Fires when an entry uses `JsonRpcErrorCode.UnknownError` (-32099). That code is the auto-classifier's giveup-fallback; declaring it in a contract conveys nothing useful to clients.
+
+**Fix:** pick a more specific code (`InternalError`, `ServiceUnavailable`, etc.) or drop the entry.
+
+### error-contract-reason-required
+
+**Severity:** error
+
+Fires when an entry's `reason` is missing or empty. `reason` is the stable machine-readable identifier clients switch on; it must always be present.
+
+### error-contract-reason-format
+
+**Severity:** warning
+
+Fires when `reason` isn't snake_case (matched against `^[a-z][a-z0-9_]*$`). Reasons are part of the public API — treat them like API constants. `'NotFound'`, `'no-match'`, `'1bad'` all warn.
+
+**Fix:** rename to snake_case (`'no_match'`, `'rate_limited'`, …).
+
+### error-contract-reason-unique
+
+**Severity:** error
+
+Fires when two entries in the same contract share a `reason`. Reasons must be unique within a contract — they're how `ctx.fail(reason, …)` selects the entry.
+
+### error-contract-when-required
+
+**Severity:** error
+
+Fires when an entry's `when` field is missing or empty. `when` is the human-readable explanation surfaced to LLMs and UI clients; without it, the contract is opaque.
+
+### error-contract-retryable-type
+
+**Severity:** warning
+
+Fires when an entry's optional `retryable` field is present but isn't a boolean. Only `true` or `false` is meaningful — drop the field if you can't commit to either.
+
+### error-contract-conformance
+
+**Severity:** warning
+
+Cross-check rule. Fires when a handler throws a non-baseline code (via `JsonRpcErrorCode.X` or a factory like `notFound()`) that isn't declared in `errors[]`.
+
+Baseline codes (`InternalError`, `ServiceUnavailable`, `Timeout`, `ValidationError`, `SerializationError`) are auto-allowed because they bubble from anywhere — services, framework utilities, the auto-classifier — and are implicitly always-possible on any tool. Only domain-specific codes need declaring.
+
+**Fix:** add the missing code to `errors[]` with a stable reason, or route through `ctx.fail(reason, …)` if it maps to an existing entry.
+
+**Heuristic limitations:** the scan reads `handler.toString()` and only catches direct `throw new McpError(JsonRpcErrorCode.X, …)` and `throw factory(…)` patterns. Indirect throws (`const e = notFound(); throw e;`), throws from called services, and throws via runtime helpers like `httpErrorFromResponse(...)` are invisible.
+
+### error-contract-prefer-fail
+
+**Severity:** warning
+
+Fires when a handler throws a code that **is** declared in the contract directly (via factory or `new McpError`) instead of routing through `ctx.fail(reason, …)`. Direct throws bypass the typed helper, leaving observers without a stable `data.reason` and disconnecting the throw site from the contract entry.
+
+**Fix:** swap the direct throw for `ctx.fail` using the reason the diagnostic suggests:
+
+```ts
+// instead of:
+throw notFound('No items match');
+// use:
+throw ctx.fail('no_match', 'No items match');
+```
+
+The diagnostic message includes the declared reason(s) for the code so you can copy-paste.
 
 ---
 

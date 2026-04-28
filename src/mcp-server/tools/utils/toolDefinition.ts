@@ -8,7 +8,8 @@
 import type { ContentBlock } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodObject, ZodRawShape, z } from 'zod';
 
-import type { Context } from '@/core/context.js';
+import type { HandlerContext, ReasonOf } from '@/core/context.js';
+import type { ErrorContract } from '@/types-global/errors.js';
 
 /**
  * Defines the annotations that provide hints about a tool's behavior.
@@ -48,10 +49,16 @@ export interface ToolAnnotations {
 
 /**
  * Represents the complete, self-contained definition of an MCP tool.
+ *
+ * `TErrors` is the const tuple of `ErrorContract` entries declared on the
+ * definition (or `undefined` when none are declared). The reason union extracted
+ * from `TErrors` flows into the handler's `ctx.fail` for compile-time-checked
+ * error throws.
  */
 export interface ToolDefinition<
   TInput extends ZodObject<ZodRawShape> = ZodObject<ZodRawShape>,
   TOutput extends ZodObject<ZodRawShape> = ZodObject<ZodRawShape>,
+  TErrors extends readonly ErrorContract[] | undefined = undefined,
 > {
   /** Protocol-level metadata (e.g., MCP Apps extension). */
   _meta?: Record<string, unknown>;
@@ -61,6 +68,26 @@ export interface ToolDefinition<
   auth?: string[];
   /** LLM-facing description. */
   description: string;
+  /**
+   * Declarative contract describing the failure modes this tool can surface.
+   *
+   * Each entry pairs a `JsonRpcErrorCode` with a stable `reason` string and a
+   * `when` description. Surfaces in `tools/list` under `_meta['mcp-ts-core/errors']`,
+   * so clients and agents can preview failure modes alongside the schema.
+   *
+   * **Type-driven.** When declared, the handler receives `ctx.fail(reason, …)`
+   * typed against the union of `reason` strings — TypeScript enforces that you
+   * can only `fail()` with a declared reason, and the runtime auto-populates
+   * `data.reason` on the thrown `McpError`.
+   *
+   * Optional. Without it, handlers still throw `McpError` directly and the
+   * framework's auto-classifier produces correct codes at runtime — the
+   * contract just adds compile-time enforcement and surfacing in tools/list.
+   *
+   * The startup linter validates each entry's `code` is a real `JsonRpcErrorCode`
+   * and that `reason` strings are unique within the contract.
+   */
+  errors?: TErrors;
   /**
    * Optional formatter mapping output to MCP `content[]`. Different MCP clients
    * forward different surfaces to the model: some (e.g., Claude Code) read
@@ -78,8 +105,19 @@ export interface ToolDefinition<
   /**
    * The core handler function. Receives validated input and unified Context.
    * Throw on failure — no try/catch needed.
+   *
+   * When `errors[]` is declared, `ctx` carries a typed `fail(reason, message?, data?)`
+   * helper keyed by the declared reason union — `ctx.fail('typo')` is a TS error.
+   * Without `errors[]`, `ctx` is plain `Context` and you throw `McpError` directly.
+   *
+   * Declared as a method (not an arrow property) so TypeScript checks the
+   * signature bivariantly — concrete tools with narrow `ctx.fail` types remain
+   * assignable to the type-erased `AnyToolDefinition` array.
    */
-  handler: (input: z.infer<TInput>, ctx: Context) => Promise<z.infer<TOutput>> | z.infer<TOutput>;
+  handler(
+    input: z.infer<TInput>,
+    ctx: HandlerContext<ReasonOf<TErrors>>,
+  ): Promise<z.infer<TOutput>> | z.infer<TOutput>;
   /** Zod schema for input validation. All fields need `.describe()`. */
   input: TInput;
   /** Programmatic unique name (snake_case). */
@@ -101,7 +139,11 @@ export interface ToolDefinition<
 }
 
 /** Type-erased union for mixed arrays passed to createApp(). */
-export type AnyToolDefinition = ToolDefinition<ZodObject<ZodRawShape>, ZodObject<ZodRawShape>>;
+export type AnyToolDefinition = ToolDefinition<
+  ZodObject<ZodRawShape>,
+  ZodObject<ZodRawShape>,
+  readonly ErrorContract[] | undefined
+>;
 
 // ---------------------------------------------------------------------------
 // Builder
@@ -110,7 +152,11 @@ export type AnyToolDefinition = ToolDefinition<ZodObject<ZodRawShape>, ZodObject
 /**
  * Creates a tool definition with full type inference from Zod schemas.
  *
- * @example
+ * The `const` modifier on `TErrors` preserves literal types in the `errors[]`
+ * array without requiring `as const` at the call site, so the reason union
+ * flows into `ctx.fail` automatically.
+ *
+ * @example Without an error contract — throw `McpError` directly:
  * ```ts
  * const myTool = tool('my_tool', {
  *   description: 'Does something useful.',
@@ -119,27 +165,41 @@ export type AnyToolDefinition = ToolDefinition<ZodObject<ZodRawShape>, ZodObject
  *     items: z.array(z.object({
  *       id: z.string().describe('Item ID'),
  *       name: z.string().describe('Item name'),
- *       status: z.string().describe('Current status'),
  *     })).describe('Matching items'),
  *   }),
- *   auth: ['tool:my_tool:read'],
- *   annotations: { readOnlyHint: true },
  *   async handler(input, ctx) {
- *     ctx.log.info('Processing', { query: input.query });
+ *     if (!input.query) throw notFound('Empty query');
  *     return { items: await search(input.query) };
  *   },
- *   // format() populates content[] — the markdown twin of structuredContent.
- *   // Different clients read different surfaces; both must be content-complete.
- *   format: (result) => [{
- *     type: 'text',
- *     text: result.items.map(i => `**${i.id}**: ${i.name} (${i.status})`).join('\n'),
- *   }],
+ * });
+ * ```
+ *
+ * @example With a typed error contract — `ctx.fail(reason, …)`:
+ * ```ts
+ * const myTool = tool('my_tool', {
+ *   errors: [
+ *     { reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No items match the query' },
+ *     { reason: 'rate_limited', code: JsonRpcErrorCode.RateLimited,
+ *       when: 'Upstream rate limit hit', retryable: true },
+ *   ],
+ *   input: z.object({ query: z.string().describe('Search query') }),
+ *   output: z.object({ items: z.array(z.string()).describe('Matched items') }),
+ *   async handler(input, ctx) {
+ *     const items = await search(input.query);
+ *     if (items.length === 0) throw ctx.fail('no_match', `No matches for "${input.query}"`);
+ *     // ctx.fail('typo')  ← TypeScript error: 'typo' isn't in the contract
+ *     return { items };
+ *   },
  * });
  * ```
  */
-export function tool<TInput extends ZodObject<ZodRawShape>, TOutput extends ZodObject<ZodRawShape>>(
+export function tool<
+  TInput extends ZodObject<ZodRawShape>,
+  TOutput extends ZodObject<ZodRawShape>,
+  const TErrors extends readonly ErrorContract[] | undefined = undefined,
+>(
   name: string,
-  options: Omit<ToolDefinition<TInput, TOutput>, 'name'>,
-): ToolDefinition<TInput, TOutput> {
+  options: Omit<ToolDefinition<TInput, TOutput, TErrors>, 'name'>,
+): ToolDefinition<TInput, TOutput, TErrors> {
   return { name, ...options };
 }

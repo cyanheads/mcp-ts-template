@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.8.0](changelog/0.8.x/0.8.0.md) — 2026-04-28
+
+Typed error contracts — declarative `errors[]` on tools/resources, typed `ctx.fail(reason)`, advertised in `tools/list`. New `httpErrorFromResponse` and `partialResult` utilities, three more error factories, handler-body + conformance lints
+
 ## [0.7.6](changelog/0.7.x/0.7.6.md) — 2026-04-27
 
 maintenance skill Phase C enumerates package scripts/ instead of a hardcoded list (closes #69); skill git references made tool-agnostic; templates ship runner-friendly start script + bun engine

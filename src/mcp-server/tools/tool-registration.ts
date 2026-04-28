@@ -10,7 +10,7 @@ import type { CallToolResult, ContentBlock } from '@modelcontextprotocol/sdk/typ
 import type { ZodObject, ZodRawShape } from 'zod';
 
 import { config } from '@/config/index.js';
-import { createContext } from '@/core/context.js';
+import { attachTypedFail, createContext } from '@/core/context.js';
 import {
   isTaskToolDefinition,
   type TaskToolDefinition,
@@ -24,7 +24,7 @@ import {
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
-import { JsonRpcErrorCode } from '@/types-global/errors.js';
+import { buildMetaWithErrorContract, JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { getErrorMessage } from '@/utils/internal/error-handler/helpers.js';
 import { logger } from '@/utils/internal/logger.js';
@@ -162,6 +162,7 @@ export class ToolRegistry {
         const title = tool.title ?? tool.annotations?.title ?? this.deriveTitleFromName(tool.name);
 
         // Type assertion required: SDK's conditional types don't resolve with erased generics
+        const mergedMeta = buildMetaWithErrorContract(tool._meta, tool.errors);
         server.registerTool(
           tool.name,
           {
@@ -170,7 +171,7 @@ export class ToolRegistry {
             inputSchema: tool.input,
             outputSchema: tool.output,
             ...(tool.annotations && { annotations: tool.annotations }),
-            ...(tool._meta && { _meta: tool._meta }),
+            ...(mergedMeta && { _meta: mergedMeta }),
           },
           handler as ToolCallback<typeof tool.input>,
         );
@@ -221,6 +222,7 @@ export class ToolRegistry {
             ? tool.format(result as Record<string, unknown>)
             : [{ type: 'text', text: JSON.stringify(result, null, 2) }];
 
+        const mergedAutoTaskMeta = buildMetaWithErrorContract(tool._meta, tool.errors);
         server.experimental.tasks.registerToolTask(
           tool.name,
           {
@@ -229,7 +231,7 @@ export class ToolRegistry {
             inputSchema: tool.input,
             outputSchema: tool.output,
             ...(tool.annotations && { annotations: tool.annotations }),
-            ...(tool._meta && { _meta: tool._meta }),
+            ...(mergedAutoTaskMeta && { _meta: mergedAutoTaskMeta }),
             execution: { taskSupport: 'optional' },
           },
           {
@@ -331,15 +333,21 @@ export class ToolRegistry {
             additionalContext: { toolName: tool.name, taskId },
           });
 
-      const ctx = createContext({
-        appContext,
-        logger: services.logger,
-        storage: services.storage,
-        signal: abortController.signal,
-        taskCtx: { store: taskStore, taskId },
-        notifyResourceListChanged: notifiers.notifyResourceListChanged,
-        notifyResourceUpdated: notifiers.notifyResourceUpdated,
-      });
+      // Mirror createToolHandler's ctx construction so auto-task handlers that
+      // call `ctx.fail(...)` work — without `attachTypedFail` they would crash
+      // with `ctx.fail is not a function` when the contract is declared.
+      const ctx = attachTypedFail(
+        createContext({
+          appContext,
+          logger: services.logger,
+          storage: services.storage,
+          signal: abortController.signal,
+          taskCtx: { store: taskStore, taskId },
+          notifyResourceListChanged: notifiers.notifyResourceListChanged,
+          notifyResourceUpdated: notifiers.notifyResourceUpdated,
+        }),
+        tool.errors,
+      );
 
       const result = await Promise.resolve(tool.handler(input as Record<string, unknown>, ctx));
       const validatedResult = tool.output.parse(result);
@@ -404,7 +412,8 @@ export class ToolRegistry {
       () => {
         const title = tool.title ?? tool.annotations?.title ?? this.deriveTitleFromName(tool.name);
 
-        // Use the experimental Tasks API to register task-based tools
+        // TaskToolDefinition is the escape hatch for fully-custom task lifecycle
+        // and does not declare an `errors[]` contract — `_meta` flows through unchanged.
         server.experimental.tasks.registerToolTask(
           tool.name,
           {

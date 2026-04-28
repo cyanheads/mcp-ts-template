@@ -3,7 +3,6 @@
  * may fail transiently. Designed so the retry boundary covers the full pipeline
  * (HTTP fetch + response parsing/validation), not just the network call.
  * @module src/utils/network/retry
- * @see docs/service-resilience.md
  */
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { logger } from '@/utils/internal/logger.js';

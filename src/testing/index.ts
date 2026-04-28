@@ -20,11 +20,13 @@ import type {
   ContextState,
   SamplingOpts,
 } from '@/core/context.js';
+import { attachTypedFail } from '@/core/context.js';
 import { StorageService } from '@/storage/core/StorageService.js';
 import {
   InMemoryProvider,
   type InMemoryProviderOptions,
 } from '@/storage/providers/inMemory/inMemoryProvider.js';
+import type { ErrorContract } from '@/types-global/errors.js';
 
 // ---------------------------------------------------------------------------
 // Options
@@ -35,6 +37,13 @@ export interface MockContextOptions {
   auth?: AuthContext;
   /** Mock elicitation handler. */
   elicit?: (message: string, schema: z.ZodObject<z.ZodRawShape>) => Promise<ElicitResult>;
+  /**
+   * Error contract to attach a typed `ctx.fail` against. Pass the definition's
+   * own `errors` array (`createMockContext({ errors: myTool.errors })`) so the
+   * mock's `fail` matches what the production handler factory wires up. Tests
+   * can then assert on `data.reason` without manually composing `createFail`.
+   */
+  errors?: readonly ErrorContract[];
   /** Mock resource list changed notifier. */
   notifyResourceListChanged?: () => void;
   /** Mock resource updated notifier. */
@@ -226,7 +235,7 @@ export function createMockContext(options: MockContextOptions = {}): Context {
   const state = createMockState(options.tenantId);
   const progress = options.progress ? createMockProgress() : undefined;
 
-  return {
+  const ctx: Context = {
     requestId: options.requestId ?? 'test-request-id',
     timestamp: new Date().toISOString(),
     log,
@@ -241,6 +250,10 @@ export function createMockContext(options: MockContextOptions = {}): Context {
     progress,
     uri: options.uri,
   };
+
+  // Mirror the production handler factory: when a contract is declared, attach
+  // a typed `fail` keyed by the contract's reasons. Empty contracts no-op.
+  return attachTypedFail(ctx, options.errors);
 }
 
 // ---------------------------------------------------------------------------

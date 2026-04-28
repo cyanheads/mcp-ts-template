@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-04-24 22:00:18
+Generated on: 2026-04-28 19:13:21
 
 ```text
 mcp-ts-core/
@@ -28,6 +28,7 @@ mcp-ts-core/
 │   ├── 0.5.x/
 │   ├── 0.6.x/
 │   ├── 0.7.x/
+│   ├── 0.8.x/
 │   └── template.md
 ├── docs/
 │   ├── mcp-specification/
@@ -105,6 +106,7 @@ mcp-ts-core/
 │   ├── build-changelog.ts
 │   ├── build.ts
 │   ├── check-docs-sync.ts
+│   ├── check-framework-antipatterns.ts
 │   ├── check-skills-sync.ts
 │   ├── clean.ts
 │   ├── devcheck.ts
@@ -197,7 +199,9 @@ mcp-ts-core/
 │   │   └── worker.ts
 │   ├── linter/
 │   │   ├── rules/
+│   │   │   ├── error-contract-rules.ts
 │   │   │   ├── format-parity-rules.ts
+│   │   │   ├── handler-body-rules.ts
 │   │   │   ├── index.ts
 │   │   │   ├── landing-rules.ts
 │   │   │   ├── name-rules.ts
@@ -205,6 +209,7 @@ mcp-ts-core/
 │   │   │   ├── resource-rules.ts
 │   │   │   ├── schema-rules.ts
 │   │   │   ├── server-json-rules.ts
+│   │   │   ├── source-text.ts
 │   │   │   └── tool-rules.ts
 │   │   ├── index.ts
 │   │   ├── types.ts
@@ -334,6 +339,7 @@ mcp-ts-core/
 │   │   │   ├── html.ts
 │   │   │   ├── index.ts
 │   │   │   ├── markdownBuilder.ts
+│   │   │   ├── partialResult.ts
 │   │   │   ├── tableFormatter.ts
 │   │   │   └── treeFormatter.ts
 │   │   ├── internal/
@@ -354,6 +360,7 @@ mcp-ts-core/
 │   │   │   └── tokenCounter.ts
 │   │   ├── network/
 │   │   │   ├── fetchWithTimeout.ts
+│   │   │   ├── httpError.ts
 │   │   │   └── retry.ts
 │   │   ├── pagination/
 │   │   │   └── pagination.ts
@@ -481,11 +488,14 @@ mcp-ts-core/
 │   │   │   └── parseEnvConfig.test.ts
 │   │   ├── core/
 │   │   │   ├── app.test.ts
-│   │   │   └── serverManifest.test.ts
+│   │   │   ├── serverManifest.test.ts
+│   │   │   └── typed-fail.test.ts
 │   │   ├── helpers/
 │   │   │   └── matchers.test.ts
 │   │   ├── linter/
+│   │   │   ├── error-contract-rules.test.ts
 │   │   │   ├── format-parity-rules.test.ts
+│   │   │   ├── handler-body-rules.test.ts
 │   │   │   ├── landing-rules.test.ts
 │   │   │   ├── tool-rules.test.ts
 │   │   │   └── validate.test.ts
@@ -516,7 +526,8 @@ mcp-ts-core/
 │   │   │   │   │   ├── toolDefinition.test.ts
 │   │   │   │   │   └── toolHandlerFactory.test.ts
 │   │   │   │   ├── tool-registration.lifecycle.test.ts
-│   │   │   │   └── tool-registration.test.ts
+│   │   │   │   ├── tool-registration.test.ts
+│   │   │   │   └── typed-error-contract.test.ts
 │   │   │   ├── transports/
 │   │   │   │   ├── auth/
 │   │   │   │   │   ├── lib/
@@ -607,6 +618,7 @@ mcp-ts-core/
 │   │   │   │   ├── diffFormatter.test.ts
 │   │   │   │   ├── html.test.ts
 │   │   │   │   ├── markdownBuilder.test.ts
+│   │   │   │   ├── partialResult.test.ts
 │   │   │   │   ├── tableFormatter.test.ts
 │   │   │   │   └── treeFormatter.test.ts
 │   │   │   ├── internal/
@@ -631,6 +643,7 @@ mcp-ts-core/
 │   │   │   ├── network/
 │   │   │   │   ├── fetchWithTimeout.metrics.test.ts
 │   │   │   │   ├── fetchWithTimeout.test.ts
+│   │   │   │   ├── httpError.test.ts
 │   │   │   │   └── retry.test.ts
 │   │   │   ├── pagination/
 │   │   │   │   └── index.test.ts

@@ -7,6 +7,8 @@
 import type { ZodObject, ZodRawShape } from 'zod';
 
 import type { LintDiagnostic } from '../types.js';
+import { lintErrorContract, lintErrorContractConformance } from './error-contract-rules.js';
+import { lintHandlerBody } from './handler-body-rules.js';
 import { checkNameRequired } from './name-rules.js';
 import {
   checkFieldDescriptions,
@@ -113,6 +115,21 @@ export function lintResourceDefinition(def: unknown): LintDiagnostic[] {
       const outputSerial = checkSchemaSerializable(d.output, 'output', 'resource', displayName);
       if (outputSerial) diagnostics.push(outputSerial);
     }
+  }
+
+  // Handler body heuristic checks (error-handling anti-patterns)
+  diagnostics.push(...lintHandlerBody(d as { handler?: unknown; name?: string }, 'resource'));
+
+  // Declarative error contract validation
+  if (d?.errors !== undefined) {
+    diagnostics.push(...lintErrorContract(d.errors, 'resource', displayName));
+    diagnostics.push(
+      ...lintErrorContractConformance(
+        d as { handler?: unknown; errors?: unknown },
+        'resource',
+        displayName,
+      ),
+    );
   }
 
   return diagnostics;

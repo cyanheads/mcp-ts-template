@@ -10,7 +10,7 @@ import {
   type ResourceHandlerFactoryServices,
   type ResourceHandlerNotifiers,
 } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
-import { JsonRpcErrorCode } from '@/types-global/errors.js';
+import { buildMetaWithErrorContract, JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
@@ -93,6 +93,7 @@ export class ResourceRegistry {
         const handler = createResourceHandler(def, this.services, notifiers);
         const title = def.title ?? resourceName;
         const mimeType = def.mimeType ?? 'application/json';
+        const mergedMeta = buildMetaWithErrorContract(def._meta, def.errors);
         const metadata = {
           title,
           description: def.description,
@@ -100,7 +101,7 @@ export class ResourceRegistry {
           ...(def.size != null && { size: def.size }),
           ...(def.examples && { examples: def.examples }),
           ...(def.annotations && { annotations: def.annotations }),
-          ...(def._meta && { _meta: def._meta }),
+          ...(mergedMeta && { _meta: mergedMeta }),
         };
 
         if (hasUriTemplateVariables(def.uriTemplate)) {

@@ -5,7 +5,7 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.7.6-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.8.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.2-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
@@ -101,7 +101,7 @@ It also works on Cloudflare Workers with `createWorkerHandler()` — same defini
 - **Inline auth** — `auth: ['scope']` on definitions. Framework checks scopes before dispatch — no wrapper code.
 - **Task tools** — `task: true` for long-running ops; framework manages create/poll/progress/complete/cancel.
 - **Definition linter** — validates names, schemas, auth scopes, annotation coherence, and format-parity at startup. Standalone CLI (`lint:mcp`) and devcheck step.
-- **Structured errors** — handlers throw; framework catches, classifies, and formats. Error factories (`notFound()`, `validationError()`, …) when the code matters.
+- **Typed error contracts** — declare `errors: [{ reason, code, when, retryable? }]` on a tool/resource and the handler receives a typed `ctx.fail(reason, …)` keyed against the declared reasons. The contract publishes in `tools/list` so clients preview failure modes; the linter cross-checks the handler body. Error factories (`notFound()`, `httpErrorFromResponse()`, …) for ad-hoc throws; plain `Error` works too — framework auto-classifies.
 - **Multi-backend storage** — `in-memory`, filesystem, Supabase, Cloudflare D1/KV/R2. Swap providers via env var; handlers don't change.
 - **Pluggable auth** — `none`, `jwt`, or `oauth`. Local secret or JWKS verification.
 - **Observability** — Pino logging, optional OpenTelemetry traces and metrics. Request correlation and tool metrics are automatic.

@@ -11,10 +11,13 @@ export {
   type DiffFormatterOptions,
   diffFormatter,
   escapeHtml,
+  failureEntrySchema,
   type HtmlInterpolation,
   html,
   MarkdownBuilder,
   markdown,
+  partialResult,
+  partialResultSchema,
   SafeHtml,
   TableFormatter,
   type TableFormatterOptions,
@@ -57,6 +60,11 @@ export {
 } from './metrics/tokenCounter.js';
 // Network
 export { type FetchWithTimeoutOptions, fetchWithTimeout } from './network/fetchWithTimeout.js';
+export {
+  type HttpErrorFromResponseOptions,
+  httpErrorFromResponse,
+  httpStatusToErrorCode,
+} from './network/httpError.js';
 export { type RetryOptions, withRetry } from './network/retry.js';
 // Pagination
 export {

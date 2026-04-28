@@ -9,6 +9,18 @@ metadata:
   type: reference
 ---
 
+## When to Use
+
+App tools are **rarely the right choice**. Reach for one only when all of the following hold:
+
+1. A *human* will actively interact with the result in real time — not just an LLM consuming text.
+2. The target deployment runs in a client that supports MCP Apps. Many clients (Claude Code, Cursor, most chat UIs) are tool-only and will only ever see the `format()` text fallback you have to maintain anyway.
+3. The interaction the UI enables — scrubbing a dense table, approving a multi-step plan, filling a structured form — is core to the workflow, not nice-to-have rendering.
+
+App tools cost more than standard tools: an iframe + CSP setup, `app.ontoolresult` / `callServerTool` plumbing, host-context wiring (theme, fonts, styles), and a `format()` text path that has to be content-complete because most clients see only that. Two surfaces to keep in sync, two failure modes per change.
+
+Default to `add-tool`. This skill is the how-to once that bar is cleared — the "whether to" decision belongs in `design-mcp-server`.
+
 ## Context
 
 MCP Apps extend the standard tool pattern with an interactive HTML UI rendered in a sandboxed iframe by the host. Each MCP App consists of two definitions:
