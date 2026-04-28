@@ -4,7 +4,7 @@ description: >
   Scaffold a new service integration. Use when the user asks to add a service, integrate an external API, or create a reusable domain module with its own initialization and state.
 metadata:
   author: cyanheads
-  version: "1.3"
+  version: "1.4"
   audience: external
   type: reference
 ---
@@ -234,6 +234,12 @@ Services don't declare `errors: [...]` contracts and don't have `ctx.fail` — t
   ```
 
 - **Tool/resource handlers bubble service errors unchanged** — the contract advertises the *advertised* failure surface, and any code thrown from a service still reaches the client correctly via the auto-classifier. The conformance lint scans handler source text only, so service-thrown codes aren't flagged.
+- **Carry contract `reason` via `data: { reason }`** when the calling tool declares an `errors[]` contract entry for this failure mode. Services can't call `ctx.fail`, but passing the reason in `data` flows through the auto-classifier untouched, so clients see the same `error.data.reason` they'd see from `ctx.fail` — no handler-side catch-and-rethrow needed:
+
+  ```ts
+  // tool declares: errors: [{ reason: 'empty_expression', code: JsonRpcErrorCode.ValidationError, when: '…' }]
+  throw validationError('Expression cannot be empty.', { reason: 'empty_expression' });
+  ```
 
 ## API Efficiency
 

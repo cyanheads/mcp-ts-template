@@ -2,7 +2,7 @@
 # FORMAT REFERENCE — this file is never edited, never moved, never renamed.
 #
 # At release time, author a new per-version file at:
-#   changelog/<major.minor>.x/<version>.md   (e.g. changelog/0.1.x/0.1.0.md)
+#   changelog/<major.minor>.x/<version>.md   (e.g. changelog/0.6.x/0.6.6.md)
 # using this file's frontmatter and section layout as the starting point.
 # Set that new file's H1 to `# <version> — YYYY-MM-DD` with a concrete date.
 
@@ -44,12 +44,12 @@ breaking: false
   npm/node_modules reads, local editors). GitHub's bare `#NN` auto-link only
   resolves inside its own UI.
 
-    [#12](https://github.com/<owner>/<repo>/issues/12)   ← issue
-    [#17](https://github.com/<owner>/<repo>/pull/17)     ← PR
+    [#38](https://github.com/cyanheads/mcp-ts-core/issues/38)   ← issue
+    [#42](https://github.com/cyanheads/mcp-ts-core/pull/42)     ← PR
 
   Only link numbers you've verified exist (via `gh issue view NN` or
-  `gh pr view NN`). Never speculate on a future number — `#17` for "my
-  upcoming PR" will quietly resolve to whatever real item already owns 17,
+  `gh pr view NN`). Never speculate on a future number — `#42` for "my
+  upcoming PR" will quietly resolve to whatever real item already owns 42,
   and GitHub timeline previews will pull in that unrelated item's title.
 -->
 

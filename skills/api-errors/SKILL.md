@@ -4,7 +4,7 @@ description: >
   McpError constructor, JsonRpcErrorCode reference, and error handling patterns for `@cyanheads/mcp-ts-core`. Use when looking up error codes, understanding where errors should be thrown vs. caught, or using ErrorHandler.tryCatch in services.
 metadata:
   author: cyanheads
-  version: "1.0"
+  version: "1.1"
   audience: external
   type: reference
 ---
@@ -68,6 +68,26 @@ export const fetchTool = tool('fetch_articles', {
 **Skip the contract** for one-off internal tools or quick prototypes — `ctx` is plain `Context` (no `fail`) and you throw via [factories](#error-factories-fallback) directly. Behavior is identical at the wire; the contract just adds compile-time safety + advertising.
 
 > **Limits of the conformance lint.** The conformance and prefer-fail rules scan the handler's source text for `throw` statements. Errors thrown from called services (e.g. `await myService.fetch()` raising `RateLimited` internally) are invisible — the lint only sees what's lexically in the handler. Treat the contract as the *advertised* failure surface; bubbled-up codes still reach the client correctly via the auto-classifier, just without lint enforcement.
+
+### Carrying contract `reason` from services
+
+Services don't have `ctx`, so they can't call `ctx.fail`. To make a service-thrown failure carry the contract's `reason` on the wire, **pass `data: { reason: 'X' }` to the factory**. The framework's auto-classifier preserves `data` unchanged, so clients see the same `error.data.reason` they'd see from `ctx.fail`:
+
+```ts
+// my-service.ts
+throw validationError('Expression cannot be empty.',  { reason: 'empty_expression' });
+throw serviceUnavailable('Upstream timeout',          { reason: 'evaluation_timeout' });
+```
+
+```ts
+// my-tool.tool.ts
+errors: [
+  { reason: 'empty_expression',   code: JsonRpcErrorCode.ValidationError,    when: 'Input is empty.' },
+  { reason: 'evaluation_timeout', code: JsonRpcErrorCode.ServiceUnavailable, when: 'Upstream exceeded the configured timeout.' },
+]
+```
+
+The handler doesn't catch and re-throw — letting service errors bubble unchanged keeps "logic throws, framework catches" intact. The contract still publishes in `tools/list`, the wire payload still carries `code` + `data.reason`, and clients can switch on reason without parsing message text. What's lost is lint-time enforcement that every reason is reachable; compensate with one wire-shape test per reason.
 
 ---
 

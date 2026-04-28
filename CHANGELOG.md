@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.8.1](changelog/0.8.x/0.8.1.md) — 2026-04-28
+
+Skills sync — service-thrown contract reasons (pass `data: { reason }` from factories), field-test helper hardening, maintenance skill-version paradox check, factory-choice semantic audit
+
 ## [0.8.0](changelog/0.8.x/0.8.0.md) — 2026-04-28
 
 Typed error contracts — declarative `errors[]` on tools/resources, typed `ctx.fail(reason)`, advertised in `tools/list`. New `httpErrorFromResponse` and `partialResult` utilities, three more error factories, handler-body + conformance lints

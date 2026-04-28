@@ -4,7 +4,7 @@ description: >
   Scaffold a new MCP tool definition. Use when the user asks to add a tool, create a new tool, or implement a new capability for the server.
 metadata:
   author: cyanheads
-  version: "1.8"
+  version: "1.9"
   audience: external
   type: reference
 ---
@@ -268,6 +268,8 @@ export const fetchArticles = tool('fetch_articles', {
 **Baseline codes** (`InternalError`, `ServiceUnavailable`, `Timeout`, `ValidationError`, `SerializationError`) bubble freely and don't need declaring. Omit the contract only for throwaway prototypes — declare it everywhere else. Wire-level behavior is identical when omitted, but you lose the type-checked `ctx.fail`, the `tools/list` advertisement, and conformance lint coverage.
 
 `ctx.fail` accepts an optional 4th `options` argument for ES2022 cause chaining: `throw ctx.fail('upstream_error', 'Upstream returned 500', { url }, { cause: e })`.
+
+**Service-thrown contract reasons.** When the throw happens in a called service rather than the handler itself, `ctx.fail` isn't reachable — services don't have `ctx`. Pass `data: { reason: 'X' }` to the factory in the service; the framework's auto-classifier preserves `data` on the wire, so the contract reason rides through unchanged. The handler bubbles the error without catching. See `add-service` for the pattern.
 
 **Fallback: error factories.** Use when no contract entry fits — ad-hoc throws, prototype tools, or service-layer code. The framework also auto-classifies plain `throw new Error()` from message patterns as a last resort.
 
