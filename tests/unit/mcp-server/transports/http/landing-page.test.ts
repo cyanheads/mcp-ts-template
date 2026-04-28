@@ -230,6 +230,34 @@ describe('renderLandingPage — polish derivations', () => {
     expect(html).toContain('https://github.com/acme/x/releases/tag/v2.5.0');
   });
 
+  test('status strip surfaces a github repo link near the top', () => {
+    const manifest = buildServerManifest({
+      config: stubConfig({ mcpServerHomepage: 'https://github.com/acme/x' }),
+      tools: [],
+      resources: [],
+      prompts: [],
+    });
+    const html = renderLandingPage(manifest, 'https://example.com');
+    // status-strip-scoped match: a link to the repo with the owner/repo
+    // value alongside the dim 'github' label.
+    const strip = html.match(/<div class="status-strip"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? '';
+    expect(strip).toContain('href="https://github.com/acme/x"');
+    expect(strip).toContain('>github<');
+    expect(strip).toContain('>acme/x<');
+  });
+
+  test('status strip omits the github link when repoRoot is unknown', () => {
+    const manifest = buildServerManifest({
+      config: stubConfig({ mcpServerHomepage: undefined }),
+      tools: [],
+      resources: [],
+      prompts: [],
+    });
+    const html = renderLandingPage(manifest, 'https://example.com');
+    const strip = html.match(/<div class="status-strip"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? '';
+    expect(strip).not.toContain('github');
+  });
+
   test('version badge links to release tag when repo is known', () => {
     const manifest = buildServerManifest({
       config: stubConfig({
@@ -322,32 +350,71 @@ describe('renderLandingPage — polish derivations', () => {
     expect(html).toMatch(/<span class="section-count"[^>]*>3</);
   });
 
-  test('groups tools by shared prefix when 3+ tools have a common prefix', () => {
+  test('groups tools by mutability when multiple buckets are populated', () => {
     const tools = [
-      makeTool('user_list'),
-      makeTool('user_create'),
-      makeTool('user_delete'),
-      makeTool('singleton_tool'),
+      makeTool('list_items', { annotations: { readOnlyHint: true } }),
+      makeTool('search_items', { annotations: { readOnlyHint: true } }),
+      makeTool('create_item'),
+      makeTool('delete_item', { annotations: { destructiveHint: true } }),
     ];
     const manifest: ServerManifest = {
       ...defaultServerManifest,
       definitions: { ...defaultServerManifest.definitions, tools },
     };
     const html = renderLandingPage(manifest, 'https://example.com');
-    expect(html).toContain('group-heading');
-    expect(html).toContain('User');
-    expect(html).toContain('Other');
+    expect(html).toContain('data-group="read"');
+    expect(html).toContain('data-group="write"');
+    expect(html).toContain('data-group="destructive"');
+    // Cards carry their bucket as a data attribute for client-side filtering.
+    expect(html).toContain('data-mutability="read"');
+    expect(html).toContain('data-mutability="write"');
+    expect(html).toContain('data-mutability="destructive"');
   });
 
-  test('does not group when fewer than 3 tools exist', () => {
-    const tools = [makeTool('user_list'), makeTool('user_create')];
+  test('omits group headings when only one mutability bucket is populated', () => {
+    const tools = [makeTool('a'), makeTool('b'), makeTool('c')];
     const manifest: ServerManifest = {
       ...defaultServerManifest,
       definitions: { ...defaultServerManifest.definitions, tools },
     };
     const html = renderLandingPage(manifest, 'https://example.com');
-    // Stylesheet has `.group-heading` rule; assert no heading element actually renders.
-    expect(html).not.toMatch(/<h4 class="group-heading">/);
+    expect(html).not.toMatch(/<h4 class="group-heading"/);
+    // Cards still carry data-mutability so filtering works in the rare case
+    // a server has 13 write-bucket tools — but the heading is suppressed.
+    expect(html).toContain('data-mutability="write"');
+  });
+
+  test('renders the tool filter bar with a chip per populated bucket', () => {
+    const tools = [
+      makeTool('safe_one', { annotations: { readOnlyHint: true } }),
+      makeTool('mut_one'),
+      makeTool('boom', { annotations: { destructiveHint: true } }),
+    ];
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      definitions: { ...defaultServerManifest.definitions, tools },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    expect(html).toContain('class="tool-filter-bar"');
+    expect(html).toContain('data-filter-mutability="all"');
+    expect(html).toContain('data-filter-mutability="read"');
+    expect(html).toContain('data-filter-mutability="write"');
+    expect(html).toContain('data-filter-mutability="destructive"');
+    expect(html).toContain('data-tool-search');
+    expect(html).toContain('aria-pressed="true"');
+  });
+
+  test('search target indexes name and description for client-side filtering', () => {
+    const tool = makeTool('FetchUser', { description: 'Look up a user by Email' });
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      definitions: { ...defaultServerManifest.definitions, tools: [tool] },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    // Lower-cased, whitespace-collapsed search index — the filter script
+    // does an indexOf against this attribute, so casing must be normalized
+    // here at render time.
+    expect(html).toMatch(/data-search="fetchuser look up a user by email"/);
   });
 
   test('renders extensions section when extensions present', () => {
@@ -400,11 +467,14 @@ describe('renderLandingPage — polish derivations', () => {
     expect(html).not.toContain('view source');
   });
 
-  test('renders annotation pills for readOnly / destructive / openWorld / task / app', () => {
+  test('renders mutability badge + auxiliary pills (openWorld / task / app)', () => {
     const tools = [
       makeTool('read_tool', { annotations: { readOnlyHint: true } }),
+      makeTool('write_tool'),
       makeTool('destroy_tool', { annotations: { destructiveHint: true } }),
-      makeTool('search_tool', { annotations: { openWorldHint: true } }),
+      makeTool('search_tool', {
+        annotations: { readOnlyHint: true, openWorldHint: true },
+      }),
       makeTool('long_task', { isTask: true }),
       makeTool('ui_tool', { isApp: true }),
     ];
@@ -413,11 +483,44 @@ describe('renderLandingPage — polish derivations', () => {
       definitions: { ...defaultServerManifest.definitions, tools },
     };
     const html = renderLandingPage(manifest, 'https://example.com');
-    expect(html).toContain('pill-readonly');
+    expect(html).toContain('pill-read');
+    expect(html).toContain('pill-write');
     expect(html).toContain('pill-destructive');
     expect(html).toContain('pill-openworld');
     expect(html).toContain('pill-task');
     expect(html).toContain('pill-app');
+  });
+
+  test('annotation-less tools bucket as write rather than destructive', () => {
+    // The MCP spec defaults `destructiveHint` to `true` when `readOnlyHint`
+    // is false, but treating annotation-less tools as destructive surprises
+    // users. The renderer treats `destructiveHint === true` as the trigger,
+    // matching how the existing `pill-destructive` chip rendered.
+    const tools = [makeTool('ambiguous_tool')];
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      definitions: { ...defaultServerManifest.definitions, tools },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    // Inspect rendered card markup only — the inline stylesheet contains
+    // the same attribute selectors for the spine colors, which would
+    // false-positive a whole-document substring match.
+    const body = html.replace(/<style>[\s\S]*?<\/style>/g, '');
+    expect(body).toContain('data-mutability="write"');
+    expect(body).not.toContain('data-mutability="destructive"');
+  });
+
+  test('scope chips render the access level only (not the full scope string)', () => {
+    const tool = makeTool('x', { auth: ['tool:x:read', 'tool:x:write'] });
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      definitions: { ...defaultServerManifest.definitions, tools: [tool] },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    expect(html).toContain('class="scope-chip">read</code>');
+    expect(html).toContain('class="scope-chip">write</code>');
+    // The full scope string still surfaces via the title attribute (hover).
+    expect(html).toContain('title="tool:x:read, tool:x:write"');
   });
 });
 
@@ -663,7 +766,7 @@ describe('renderLandingPage — safety', () => {
 });
 
 describe('renderLandingPage — tool schema preview and args', () => {
-  test('renders input schema in collapsible details', () => {
+  test('renders input schema in a collapsible details element', () => {
     const tool = makeTool('t', {
       inputSchema: { type: 'object', properties: { q: { type: 'string' } }, required: ['q'] },
     });
@@ -672,8 +775,8 @@ describe('renderLandingPage — tool schema preview and args', () => {
       definitions: { ...defaultServerManifest.definitions, tools: [tool] },
     };
     const html = renderLandingPage(manifest, 'https://example.com');
-    expect(html).toContain('<details>');
-    expect(html).toContain('Input schema');
+    expect(html).toContain('<details class="card-detail">');
+    expect(html).toContain('<summary>schema</summary>');
   });
 
   test('preserves built schema data through Zod → JSON Schema path', () => {

@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.8.2](changelog/0.8.x/0.8.2.md) — 2026-04-28
+
+Landing page tools section grouped by mutability with chip + search filter; status strip gains repo link; add-app-tool host-theming guidance; maintenance v2.0 hard-rule on framework adoption
+
 ## [0.8.1](changelog/0.8.x/0.8.1.md) — 2026-04-28
 
 Skills sync — service-thrown contract reasons (pass `data: { reason }` from factories), field-test helper hardening, maintenance skill-version paradox check, factory-choice semantic audit

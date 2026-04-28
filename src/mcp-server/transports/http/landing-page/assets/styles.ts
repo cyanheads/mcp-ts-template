@@ -199,6 +199,23 @@ pre code { background: transparent; padding: 0; border: 0; font-size: inherit; }
   gap: var(--space-6);
 }
 
+/* Page-load choreography — staggered rise on the hero stack. The
+   "backwards" animation-fill-mode applies the from-state during the
+   delay so the page never flashes the final layout before animating.
+   Reduced-motion override at the bottom of this stylesheet collapses
+   the animation. */
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.hero > * { animation: hero-rise 600ms var(--ease-out) backwards; }
+.hero > .hero-eyebrow   { animation-delay:  60ms; }
+.hero > .hero-title-row { animation-delay: 140ms; }
+.hero > .hero-tagline   { animation-delay: 220ms; }
+.hero > .status-strip   { animation-delay: 300ms; }
+.hero > .connect        { animation-delay: 380ms; }
+.hero > .hero-badges    { animation-delay: 460ms; }
+
 .hero-eyebrow {
   display: inline-flex;
   align-items: center;
@@ -273,6 +290,7 @@ pre code { background: transparent; padding: 0; border: 0; font-size: inherit; }
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
   color: var(--accent);
   background: var(--accent-softer);
   border: 1px solid var(--accent-edge);
@@ -347,6 +365,7 @@ pre code { background: transparent; padding: 0; border: 0; font-size: inherit; }
 .status-value {
   color: var(--fg);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 .status-value-accent {
   color: var(--accent);
@@ -447,7 +466,14 @@ pre code { background: transparent; padding: 0; border: 0; font-size: inherit; }
   border-radius: 50%;
   background: color-mix(in oklab, var(--fg-subtle), transparent 60%);
   display: inline-block;
+  transition: background var(--duration-base) var(--ease-out);
 }
+/* Hovering the dot cluster colors them like real OS window controls.
+   Pure delight — fits the terminal-chrome metaphor without adding
+   anything to the meaningful surface. */
+.connect-chrome-dots:hover .connect-chrome-dot:nth-child(1) { background: #ff5f57; }
+.connect-chrome-dots:hover .connect-chrome-dot:nth-child(2) { background: #febc2e; }
+.connect-chrome-dots:hover .connect-chrome-dot:nth-child(3) { background: #28c840; }
 .connect-chrome-endpoint {
   margin-left: auto;
   font-family: var(--font-mono);
@@ -625,10 +651,164 @@ section { padding: var(--space-12) 0 0; }
   font-family: var(--font-mono);
   font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  position: relative;
+  padding-left: var(--space-3);
+}
+.group-heading::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 0.85em;
+  background: var(--accent);
+  border-radius: 1px;
 }
 .group-heading:first-child { margin-top: 0; }
+.group-heading[data-group="read"]::before { background: #16a34a; }
+.group-heading[data-group="destructive"]::before { background: #dc2626; }
+.group-count {
+  color: var(--fg-subtle);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------- Tool filter bar -------------------- */
+
+.tool-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.tool-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tool-chip {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+.tool-chip:hover { color: var(--fg); border-color: var(--border-strong); }
+.tool-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tool-chip[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-softer);
+  border-color: var(--accent-edge);
+}
+.tool-chip--read[aria-pressed="true"] {
+  color: #16a34a;
+  background: color-mix(in oklab, #16a34a, transparent 92%);
+  border-color: color-mix(in oklab, #16a34a, transparent 72%);
+}
+.tool-chip--destructive[aria-pressed="true"] {
+  color: #dc2626;
+  background: color-mix(in oklab, #dc2626, transparent 92%);
+  border-color: color-mix(in oklab, #dc2626, transparent 72%);
+}
+@media (prefers-color-scheme: dark) {
+  .tool-chip--read[aria-pressed="true"] { color: #4ade80; }
+  .tool-chip--destructive[aria-pressed="true"] { color: #f87171; }
+}
+
+.tool-search {
+  flex: 1 1 200px;
+  min-width: 0;
+  max-width: 360px;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.tool-search input {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  padding: 6px 12px 6px 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--fg);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+.tool-search input::placeholder { color: var(--fg-subtle); }
+.tool-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-softer);
+}
+.tool-search::before {
+  /* Search glyph — no icon font, just a styled box. */
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--fg-subtle);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.tool-search::after {
+  content: "";
+  position: absolute;
+  left: 19px;
+  top: calc(50% + 4px);
+  width: 5px;
+  height: 1.5px;
+  background: var(--fg-subtle);
+  transform: rotate(45deg);
+  pointer-events: none;
+  border-radius: 1px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tools-empty {
+  margin: var(--space-6) 0;
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+  color: var(--fg-muted);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+}
 
 /* -------------------- Cards -------------------- */
 
@@ -636,7 +816,7 @@ section { padding: var(--space-12) 0 0; }
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: var(--space-3);
-  align-items: start;
+  align-items: stretch;
 }
 .card {
   border: 1px solid var(--border-subtle);
@@ -650,6 +830,30 @@ section { padding: var(--space-12) 0 0; }
               transform var(--duration-fast) var(--ease-out),
               box-shadow var(--duration-fast) var(--ease-out);
   position: relative;
+  height: 100%;
+}
+
+/* Mutability spine — 3px tonal strip down the left edge of each tool
+   card. Bird's-eye scannability: a row of cards reads as a row of
+   colored bars before the eye lands on any title. */
+.tool-card { padding-left: calc(var(--space-5) + 3px); }
+.tool-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--space-2);
+  bottom: var(--space-2);
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--card-spine, var(--border-strong));
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.tool-card[data-mutability="read"] { --card-spine: #16a34a; }
+.tool-card[data-mutability="write"] { --card-spine: var(--border-strong); }
+.tool-card[data-mutability="destructive"] { --card-spine: #dc2626; }
+@media (prefers-color-scheme: dark) {
+  .tool-card[data-mutability="read"] { --card-spine: #4ade80; }
+  .tool-card[data-mutability="destructive"] { --card-spine: #f87171; }
 }
 .card:hover {
   border-color: var(--accent-edge);
@@ -677,6 +881,15 @@ section { padding: var(--space-12) 0 0; }
   color: var(--fg-muted);
   font-size: var(--text-sm);
   line-height: 1.5;
+  /* 3-line preview clamp keeps cards uniform; full text stays in DOM
+     for screen readers and view-source. Non-WebKit engines fall back
+     to the natural height — overflow:hidden truncates to 3 lines via
+     max-height as a graceful degradation. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: calc(1.5em * 3);
 }
 .card-meta {
   display: flex;
@@ -687,13 +900,108 @@ section { padding: var(--space-12) 0 0; }
   font-family: var(--font-mono);
   align-items: center;
 }
-.card-meta-label { color: var(--fg-subtle); }
+.card-meta-label {
+  color: var(--fg-subtle);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  font-size: 0.65rem;
+}
 .card-meta code {
   font-size: 1em;
   color: var(--fg);
   background: transparent;
   border: 0;
   padding: 0;
+}
+
+/* Card footer — pinned to the bottom so cards align across a row even
+   when descriptions vary in length. Carries the scope chip on the left
+   and the invocation/schema action triggers on the right. */
+.card-foot {
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+.card-scope {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.scope-chip {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-subtle);
+  color: var(--fg);
+  border: 1px solid var(--border-subtle);
+  letter-spacing: 0.02em;
+}
+.card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+.card-detail { margin: 0; }
+.card-detail > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: color var(--duration-fast);
+}
+.card-detail > summary::before {
+  content: "▸";
+  display: inline-block;
+  font-size: 0.6rem;
+  transition: transform var(--duration-fast);
+  color: var(--fg-subtle);
+}
+.card-detail[open] > summary::before {
+  transform: rotate(90deg);
+  color: var(--accent);
+}
+.card-detail > summary:hover { color: var(--accent); }
+.card-detail[open] > summary { color: var(--accent); }
+/* When a detail opens, push its content full-width below the footer. The
+   negative side margins recover the card's horizontal padding so the
+   panel spans edge-to-edge. */
+.card-detail[open] {
+  width: 100%;
+  margin: var(--space-3) calc(var(--space-5) * -1) calc(var(--space-4) * -1);
+  padding: 0 var(--space-5) var(--space-4);
+  background: var(--bg-subtle);
+  border-top: 1px solid var(--border-subtle);
+}
+.card-detail[open] > summary { padding-top: var(--space-3); }
+/* When any detail is open the actions row needs to wrap so the open
+   panel can claim full width. The :has() selector handles this in
+   modern engines; older browsers tolerate the actions row stacking
+   inline-flex without the layout flip. */
+.card-foot:has(.card-detail[open]) {
+  flex-direction: column;
+  align-items: stretch;
+}
+.card-foot:has(.card-detail[open]) .card-actions {
+  width: 100%;
+  margin-left: 0;
 }
 
 /* Annotation pills — dot-chip style */
@@ -720,8 +1028,10 @@ section { padding: var(--space-12) 0 0; }
   background: currentColor;
   flex-shrink: 0;
 }
-.pill-readonly { color: #16a34a; background: color-mix(in oklab, #16a34a, transparent 92%); border-color: color-mix(in oklab, #16a34a, transparent 72%); }
-.pill-destructive { color: #dc2626; background: color-mix(in oklab, #dc2626, transparent 92%); border-color: color-mix(in oklab, #dc2626, transparent 72%); }
+/* Mutability badges — primary safety signal, sized to pass a squint test. */
+.pill-read { color: #16a34a; background: color-mix(in oklab, #16a34a, transparent 88%); border-color: color-mix(in oklab, #16a34a, transparent 65%); }
+.pill-write { color: var(--fg-muted); background: var(--bg-subtle); border-color: var(--border); }
+.pill-destructive { color: #dc2626; background: color-mix(in oklab, #dc2626, transparent 88%); border-color: color-mix(in oklab, #dc2626, transparent 65%); font-weight: 600; }
 .pill-openworld { color: #2563eb; background: color-mix(in oklab, #2563eb, transparent 92%); border-color: color-mix(in oklab, #2563eb, transparent 72%); }
 .pill-task { color: var(--accent); background: var(--accent-softer); border-color: var(--accent-edge); }
 .pill-app { color: #9333ea; background: color-mix(in oklab, #9333ea, transparent 92%); border-color: color-mix(in oklab, #9333ea, transparent 72%); }
@@ -729,7 +1039,7 @@ section { padding: var(--space-12) 0 0; }
 .pill-auth::before { display: none; }
 
 @media (prefers-color-scheme: dark) {
-  .pill-readonly { color: #4ade80; }
+  .pill-read { color: #4ade80; }
   .pill-destructive { color: #f87171; }
   .pill-openworld { color: #60a5fa; }
   .pill-app { color: #c084fc; }

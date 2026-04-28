@@ -17,7 +17,7 @@ import type { ManifestAuth, ServerManifest } from '@/core/serverManifest.js';
 import { html, type SafeHtml } from '@/utils/formatting/html.js';
 
 export function renderStatusStrip(manifest: ServerManifest, degraded: boolean): SafeHtml {
-  const { auth, definitionCounts, protocol } = manifest;
+  const { auth, definitionCounts, protocol, landing } = manifest;
 
   const authMeta = describeAuth(auth);
 
@@ -34,6 +34,25 @@ export function renderStatusStrip(manifest: ServerManifest, degraded: boolean): 
     auth.mode === 'oauth' && auth.oauthIssuer
       ? html` <a class="status-signin" href="${auth.oauthIssuer}" rel="noopener">sign in ↗</a>`
       : html``;
+
+  // Repo link — same dim treatment as the count + protocol items so the
+  // strip stays information-dense without a flashy CTA. The "Source"
+  // footer entry stays for users who scroll to the bottom.
+  const repo = landing.repoRoot;
+  const repoLink = repo
+    ? html`
+        <a
+          class="status-item status-link"
+          href="${repo.url}"
+          rel="noopener"
+          title="View ${repo.owner}/${repo.repo} on GitHub"
+        >
+          <span>github</span>
+          <span class="status-value">${repo.owner}/${repo.repo}</span>
+          <span aria-hidden="true">↗</span>
+        </a>
+      `
+    : html``;
 
   return html`
     <div class="status-strip" aria-label="${authMeta.ariaLabel}">
@@ -53,6 +72,7 @@ export function renderStatusStrip(manifest: ServerManifest, degraded: boolean): 
         <span>protocol</span>
         <span class="status-value status-value-accent">${protocol.latestVersion}</span>
       </span>
+      ${repoLink}
     </div>
   `;
 }

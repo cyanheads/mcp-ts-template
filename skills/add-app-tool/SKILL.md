@@ -108,8 +108,10 @@ const APP_HTML = `<!DOCTYPE html>
   <!-- your UI markup -->
 
   <script type="module">
-    // Prefer a bundled or inlined SDK for the final shipped HTML. Leaving a live
-    // CDN import in the served ui:// resource is not the recommended default.
+    // PROTOTYPING ONLY — replace before shipping. Bundle via Vite +
+    // vite-plugin-singlefile or inline the SDK. Live CDN imports require
+    // CSP whitelisting, add supply-chain risk, and break offline use.
+    // See UI Notes below.
     import {
       App,
       applyDocumentTheme,
@@ -186,13 +188,27 @@ export const {{RESOURCE_EXPORT}} = appResource('ui://{{tool-name}}/app.html', {
 });
 ```
 
-## UI Design Notes
+## UI Notes
 
-- **Bundling:** Prefer Vite + `vite-plugin-singlefile` for any UI that uses `@modelcontextprotocol/ext-apps`. The served `ui://` HTML should ideally be self-contained. The inline template literal pattern is fine for zero-dependency UIs or when you inline the SDK yourself.
-- **Client-side SDK:** Author against `@modelcontextprotocol/ext-apps`, but ship a bundled or inlined artifact when possible. Avoid relying on a live CDN import as the default final pattern for portable host compatibility.
-- **CSP:** MCP Apps iframes run under deny-by-default CSP. With `appResource()`, put `_meta.ui.csp.resourceDomains` on the definition and the builder will mirror it into returned `resources/read` content items. With plain `resource()`, you still need to attach `_meta.ui` yourself in `format()`.
-- **App resource `format()`:** `appResource()` already preserves raw HTML for the default app MIME type and mirrors definition `_meta.ui` into content items. Add a custom `format()` only when you need extra per-read metadata or non-default content shaping.
-- **format() for app tools:** The first `text` content block is typically JSON that the UI parses via `ontoolresult`. Additional blocks provide a human-readable fallback that non-app hosts and LLMs consume. Do not rely on the JSON block alone for model-visible detail; the fallback blocks still need to render the fields the LLM must reason about.
+- **Ship self-contained HTML.** Author with Vite + `vite-plugin-singlefile` or inline the SDK. Live CDN imports in a `ui://` resource are a CSP footgun (every domain has to be whitelisted on `_meta.ui.csp.resourceDomains`), a supply-chain footgun (third-party JS executes inside the host's iframe), and a runtime footgun (every render needs network). The `unpkg` line in the template is for prototyping only.
+- **CSP.** MCP Apps iframes run under deny-by-default CSP. With `appResource()`, put `_meta.ui.csp.resourceDomains` on the definition; the builder mirrors it into returned `resources/read` content items. With plain `resource()`, attach `_meta.ui` yourself in `format()`.
+- **Adopt the host's visual identity, don't impose your own.** App UIs render inside the host's iframe alongside its native UI. Three host hooks layer on top of your CSS:
+  - `applyDocumentTheme(hostContext.theme)` — sets `color-scheme` and a `data-theme` attribute on `<html>`
+  - `applyHostStyleVariables(hostContext.styles.variables)` — installs host CSS custom properties on `:root` (host decides the names, e.g. `--mcp-color-bg-primary`)
+  - `applyHostFonts(hostContext.styles.css.fonts)` — installs `@font-face` rules for the host's font stack
+
+  Author CSS to *consume* these via `var(--mcp-color-bg-primary, /* fallback */ #fff)`. Don't hardcode brand colors that fight the host.
+- **Pre-connect baseline.** `app.connect()` is async — host context arrives a frame or two after first paint. Without a baseline, the UI flashes unstyled or wrong-themed on light hosts. Ship a `prefers-color-scheme`-aware default so the first frame is sensible:
+
+  ```css
+  :root { color-scheme: light dark; --bg: #fff; --fg: #111; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0c0d12; --fg: #ededef; } }
+  body { background: var(--bg); color: var(--fg); }
+  ```
+
+  Host vars override these once `onhostcontextchanged` fires.
+- **`format()` for app tools.** The first `text` content block is typically JSON that the UI parses via `ontoolresult`. Additional blocks are the human-readable fallback that non-app hosts and LLMs consume — they must render every field the LLM needs to reason about. JSON-only payloads leave model-visible context blind.
+- **App resource `format()`.** `appResource()` already preserves raw HTML for the default app MIME type and mirrors definition `_meta.ui` into content items. Add a custom `format()` only when you need extra per-read metadata or non-default content shaping.
 
 ## Registration
 
