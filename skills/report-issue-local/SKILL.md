@@ -173,7 +173,7 @@ gh label create breaking-change --color d93f0b --description "Change will break 
 ### Attaching logs or large output
 
 ```bash
-bun run dev:stdio 2>&1 | head -200 > /tmp/server-error.log
+bun run rebuild && bun run start:stdio 2>&1 | head -200 > /tmp/server-error.log
 
 # As part of a new issue
 gh issue create \

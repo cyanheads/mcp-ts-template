@@ -288,8 +288,6 @@ When you complete a skill's checklist, check the boxes and add a completion time
 | `npm run tree` | Generate directory structure doc |
 | `npm run format` | Auto-fix formatting |
 | `npm test` | Run tests |
-| `npm run dev:stdio` | Dev mode (stdio) |
-| `npm run dev:http` | Dev mode (HTTP) |
 | `npm run start:stdio` | Production mode (stdio) |
 | `npm run start:http` | Production mode (HTTP) |
 | `npm run changelog:build` | Regenerate `CHANGELOG.md` from `changelog/*.md` |

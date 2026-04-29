@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.8.5
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.8.6
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -193,7 +193,7 @@ export const myTool = tool('my_tool', {
 });
 ```
 
-**Steps:** Create `src/mcp-server/tools/definitions/[name].tool.ts` (kebab-case) → use `tool('snake_case', {...})` with Zod `.describe()` on all fields → implement `handler(input, ctx)` (pure, throws on failure) → add `auth`/`format` if needed → register in `definitions/index.ts` → `bun run devcheck` → smoke-test with `dev:stdio`/`dev:http`.
+**Steps:** Create `src/mcp-server/tools/definitions/[name].tool.ts` (kebab-case) → use `tool('snake_case', {...})` with Zod `.describe()` on all fields → implement `handler(input, ctx)` (pure, throws on failure) → add `auth`/`format` if needed → register in `definitions/index.ts` → `bun run devcheck` → smoke-test with `bun run rebuild && bun run start:stdio` (or `start:http`).
 
 **Schema constraint:** Input/output schemas must use JSON-Schema-serializable Zod types only. The MCP SDK converts schemas to JSON Schema for `tools/list` — non-serializable types (`z.custom()`, `z.date()`, `z.transform()`, `z.bigint()`, `z.symbol()`, `z.void()`, `z.map()`, `z.set()`, `z.function()`, `z.nan()`) cause a hard runtime failure. Use structural equivalents instead (e.g., `z.string()` with `.describe('ISO 8601 date')` instead of `z.date()`). The linter validates this at startup.
 
@@ -532,7 +532,7 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 - **Registration:** definitions exported in `definitions/index.ts` barrel
 - **Tests:** `createMockContext()`, `.handler()` tested directly
 - **Gate:** `bun run devcheck` passes (includes MCP definition linting)
-- **Smoke-test:** with `dev:stdio`/`dev:http`
+- **Smoke-test:** `bun run rebuild && bun run start:stdio` (or `start:http`)
 
 ---
 
@@ -554,8 +554,6 @@ Detailed method signatures, options, and examples live in skill files. Read the 
 | `bun run lint:mcp` | Validate MCP definitions against spec |
 | `bun run format` | Auto-fix Biome lint/format issues |
 | `bun run test` | Unit/integration tests |
-| `bun run dev:stdio` | Development mode (stdio) |
-| `bun run dev:http` | Development mode (HTTP) |
 | `bun run start:stdio` | Production mode (stdio, after build) |
 | `bun run start:http` | Production mode (HTTP, after build) |
 | `bun run changelog:build` | Regenerate `CHANGELOG.md` from `changelog/*.md` |

@@ -40,7 +40,7 @@ For the full API, Context interface, and error codes, read `node_modules/@cyanhe
 4. **Create the app resource** at `src/mcp-server/resources/definitions/{{tool-name}}-ui.app-resource.ts`
 5. **Register both** in the project's existing `createApp()` arrays (directly in `src/index.ts` for fresh scaffolds, or via barrels if the repo already has them)
 6. **Run `bun run devcheck`** — the linter validates `_meta.ui` and cross-checks tool/resource pairing
-7. **Smoke-test** with `bun run dev:stdio` or `dev:http`
+7. **Smoke-test** with `bun run rebuild && bun run start:stdio` (or `start:http`)
 
 ## App Tool Template
 
@@ -239,4 +239,4 @@ If the repo already uses `definitions/index.ts` barrels, update those instead of
 - [ ] UI applies host context updates via `app.onhostcontextchanged`
 - [ ] Both registered in the project's existing `createApp()` arrays (directly or via barrels)
 - [ ] `bun run devcheck` passes (linter validates `_meta.ui` and tool/resource pairing)
-- [ ] Smoke-tested with `bun run dev:stdio` or `dev:http`
+- [ ] Smoke-tested with `bun run rebuild && bun run start:stdio` (or `start:http`)

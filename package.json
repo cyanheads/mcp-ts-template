@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/mcp-ts-core",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "Agent-native TypeScript framework for building MCP servers. Declarative definitions with auth, multi-backend storage, OpenTelemetry, and first-class support for Bun/Node/Cloudflare Workers.",
   "main": "dist/core/index.js",
@@ -122,8 +122,6 @@
     "start:stdio": "MCP_TRANSPORT_TYPE=stdio bun ./dist/index.js",
     "start:http": "MCP_TRANSPORT_TYPE=http bun ./dist/index.js",
     "dev": "bun --watch src/index.ts",
-    "dev:stdio": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=stdio bun --watch src/index.ts",
-    "dev:http": "MCP_LOG_LEVEL=debug MCP_TRANSPORT_TYPE=http bun --watch src/index.ts",
     "devdocs": "bun run scripts/devdocs.ts",
     "devcheck": "bun run scripts/devcheck.ts",
     "rebuild": "bun run scripts/clean.ts && bun run build",

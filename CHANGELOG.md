@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.8.6](changelog/0.8.x/0.8.6.md) — 2026-04-29
+
+Remove `dev:stdio`/`dev:http` watch scripts from framework and template `package.json`; smoke-test path standardized to `bun run rebuild && bun run start:stdio` across docs and skills.
+
 ## [0.8.5](changelog/0.8.x/0.8.5.md) — 2026-04-29
 
 HTTP+MCP_AUTH_MODE=none defaults tenantId to 'default' so ctx.state works without minting JWTs. New ctx.recoveryFor opt-in contract resolver carries the contract recovery onto the wire — single source of truth for handler and service throws.

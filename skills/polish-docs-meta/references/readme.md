@@ -363,14 +363,7 @@ Separate from Getting Started. Show dev, build + run, and Workers/Docker deploym
 
 ### Local development
 
-- **Hot-reload dev mode:**
-
-  \`\`\`sh
-  bun run dev:stdio
-  bun run dev:http
-  \`\`\`
-
-- **Build and run the production version:**
+- **Build and run:**
 
   \`\`\`sh
   # One-time build

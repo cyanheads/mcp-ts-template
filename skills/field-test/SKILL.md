@@ -17,12 +17,9 @@ Unit tests (`add-test` skill) verify handler logic with mocked context. Field te
 
 ### Transport coverage
 
-This skill drives an HTTP server because curl + JSON-RPC is the most reliable harness for shell-based agents. Most servers ship both transports (`bun run dev:http` and `dev:stdio`), so HTTP coverage is sufficient: the same handler runs on both, only the framing differs. If the server is **stdio-only** (no HTTP transport in `package.json` / no `MCP_TRANSPORT_TYPE=http` path), drive it through one of:
+This skill drives an HTTP server because curl + JSON-RPC is the most reliable harness for shell-based agents. The same handlers run on both transports — only the framing differs — so HTTP exercises the full functional surface.
 
-- **MCP Inspector** (`npx @modelcontextprotocol/inspector bun run dev:stdio`) — interactive UI for catalog browsing and tool calls; best for hands-on exploration
-- **mcp-cli** (`uvx mcp-cli --stdio bun run dev:stdio`) — scriptable JSON-RPC client; best for batch/agentic testing
-
-Adapt the test plan below the same way — universal battery on every definition, situational categories only when triggered, same error-contract verification — but call the tools through the inspector / mcp-cli rather than `mcp_call`. Pino startup + handler logs land on stderr in stdio mode (stdout is reserved for JSON-RPC), so tail with `2>/tmp/mcp-server.log` if you start the server yourself.
+**Stdio coverage is a boot check only.** Run `bun run rebuild && bun run start:stdio`, confirm the startup logs look clean (banner, expected tool/resource counts, no errors/warnings, no missing-config gripes), then kill it. Pino logs go to stderr in stdio mode (stdout is reserved for JSON-RPC), so they print straight to the terminal when you run interactively. No need to call tools over stdio — the HTTP pass already covered handler behavior.
 
 ---
 

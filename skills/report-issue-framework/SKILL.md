@@ -180,7 +180,7 @@ Combine labels: `--label "bug" --label "regression"`.
 For long output, write to a file and attach:
 
 ```bash
-bun run dev:stdio 2>&1 | head -100 > /tmp/mcp-error.log
+bun run rebuild && bun run start:stdio 2>&1 | head -100 > /tmp/mcp-error.log
 
 # As part of a new issue
 gh issue create -R cyanheads/mcp-ts-core \

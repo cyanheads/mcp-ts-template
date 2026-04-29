@@ -24,7 +24,7 @@ For the full `resource()` API, pagination utilities, and `Context` interface, re
 3. **Create the file** at `src/mcp-server/resources/definitions/{{resource-name}}.resource.ts`
 4. **Register** the resource in the project's existing `createApp()` resource list (directly in `src/index.ts` for fresh scaffolds, or via a barrel if the repo already has one)
 5. **Run `bun run devcheck`** to verify
-6. **Smoke-test** with `bun run dev:stdio` or `dev:http`
+6. **Smoke-test** with `bun run rebuild && bun run start:stdio` (or `start:http`)
 
 ## Template
 
@@ -159,4 +159,4 @@ Beyond `description`, `params`, `handler`, and `list`, the builder also supports
 - [ ] Pagination used for large result sets (`extractCursor`/`paginateArray`)
 - [ ] Registered in the project's existing `createApp()` resource list (directly or via barrel)
 - [ ] `bun run devcheck` passes
-- [ ] Smoke-tested with `bun run dev:stdio` or `dev:http`
+- [ ] Smoke-tested with `bun run rebuild && bun run start:stdio` (or `start:http`)

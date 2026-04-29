@@ -23,7 +23,7 @@ For the full `tool()` API, `Context` interface, and error codes, read `node_modu
 3. **Create the file** at `src/mcp-server/tools/definitions/{{tool-name}}.tool.ts`
 4. **Register** the tool in the project's existing `createApp()` tool list (directly in `src/index.ts` for fresh scaffolds, or via a barrel if the repo already has one)
 5. **Run `bun run devcheck`** to verify
-6. **Smoke-test** with `bun run dev:stdio` or `dev:http`
+6. **Smoke-test** with `bun run rebuild && bun run start:stdio` (or `start:http`)
 
 ## Naming
 
@@ -481,4 +481,4 @@ Large payloads burn the agent's context window. Default to curated summaries; of
 - [ ] `task: true` added if the tool is long-running
 - [ ] Registered in the project's existing `createApp()` tool list (directly or via barrel)
 - [ ] `bun run devcheck` passes
-- [ ] Smoke-tested with `bun run dev:stdio` or `dev:http`
+- [ ] Smoke-tested with `bun run rebuild && bun run start:stdio` (or `start:http`)
