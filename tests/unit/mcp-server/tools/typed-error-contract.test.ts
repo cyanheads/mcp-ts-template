@@ -19,8 +19,18 @@ describe('tool() with typed error contract', () => {
       input: z.object({ q: z.string().describe('q') }),
       output: z.object({ r: z.string().describe('r') }),
       errors: [
-        { reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No match' },
-        { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited, when: 'Full' },
+        {
+          reason: 'no_match',
+          code: JsonRpcErrorCode.NotFound,
+          when: 'No match',
+          recovery: 'Broaden the query and try again with looser filters.',
+        },
+        {
+          reason: 'queue_full',
+          code: JsonRpcErrorCode.RateLimited,
+          when: 'Full',
+          recovery: 'Wait a few seconds before retrying.',
+        },
       ],
       async handler(_input, ctx) {
         // ctx.fail typed against 'no_match' | 'queue_full'
@@ -54,7 +64,14 @@ describe('tool() with typed error contract', () => {
       description: 'demo',
       input: z.object({ q: z.string().describe('q') }),
       output: z.object({ r: z.string().describe('r') }),
-      errors: [{ reason: 'always_fail', code: JsonRpcErrorCode.NotFound, when: 'Always fails' }],
+      errors: [
+        {
+          reason: 'always_fail',
+          code: JsonRpcErrorCode.NotFound,
+          when: 'Always fails',
+          recovery: 'This test always fails by design.',
+        },
+      ],
       async handler(_input, ctx) {
         throw ctx.fail('always_fail', 'demo failure', { extra: 'context' });
       },

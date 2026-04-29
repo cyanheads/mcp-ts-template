@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.8.3
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.8.4
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -345,12 +345,16 @@ See `api-context` skill for full details.
 
 ## Error Handling
 
-**Recommended path: declare a typed error contract.** Add `errors: [{ reason, code, when, retryable? }]` to `tool()` / `resource()`. The handler then receives `ctx.fail(reason, msg?, data?)` typed against the reason union — `ctx.fail('typo')` is a TypeScript error. The runtime auto-populates `data.reason` for observability and the linter enforces conformance against the handler body.
+**Recommended path: declare a typed error contract.** Add `errors: [{ reason, code, when, recovery, retryable? }]` to `tool()` / `resource()`. The handler then receives `ctx.fail(reason, msg?, data?)` typed against the reason union — `ctx.fail('typo')` is a TypeScript error. The runtime auto-populates `data.reason` for observability and the linter enforces conformance against the handler body. The `recovery` field is required, descriptive metadata for the agent's next move; for the wire payload's `data.recovery.hint` (which the framework mirrors into `content[]` text), pass it explicitly at the throw site when dynamic context matters: `ctx.fail('reason', msg, { recovery: { hint: '...' } })`.
 
 ```ts
 errors: [
-  { reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No PMID returned data' },
-  { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited, when: 'Queue at capacity', retryable: true },
+  { reason: 'no_match', code: JsonRpcErrorCode.NotFound,
+    when: 'No PMID returned data',
+    recovery: 'Try pubmed_search_articles to discover valid PMIDs first.' },
+  { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited,
+    when: 'Queue at capacity', retryable: true,
+    recovery: 'Wait 30 seconds before retrying or reduce batch size.' },
 ],
 async handler(input, ctx) {
   if (queue.full()) throw ctx.fail('queue_full');

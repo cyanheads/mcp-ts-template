@@ -16,12 +16,14 @@ describe('createFail (runtime)', () => {
       reason: 'no_match',
       code: JsonRpcErrorCode.NotFound,
       when: 'No items matched',
+      recovery: 'Try a different identifier and retry the call.',
     },
     {
       reason: 'rate_limited',
       code: JsonRpcErrorCode.RateLimited,
       when: 'Upstream throttled',
       retryable: true,
+      recovery: 'Wait a few seconds before retrying.',
     },
   ] as const satisfies readonly ErrorContract[];
 
@@ -99,8 +101,18 @@ describe('createFail (runtime)', () => {
 describe('ReasonOf<E> (type-only)', () => {
   it('extracts the literal reason union from a const tuple', () => {
     const errors = [
-      { reason: 'a', code: JsonRpcErrorCode.NotFound, when: 'x' },
-      { reason: 'b', code: JsonRpcErrorCode.RateLimited, when: 'y' },
+      {
+        reason: 'a',
+        code: JsonRpcErrorCode.NotFound,
+        when: 'x',
+        recovery: 'Try a different identifier and retry the call.',
+      },
+      {
+        reason: 'b',
+        code: JsonRpcErrorCode.RateLimited,
+        when: 'y',
+        recovery: 'Wait a few seconds before retrying.',
+      },
     ] as const;
     type R = ReasonOf<typeof errors>;
     expectTypeOf<R>().toEqualTypeOf<'a' | 'b'>();

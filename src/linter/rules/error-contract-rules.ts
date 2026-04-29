@@ -21,13 +21,17 @@ const VALID_CODES: ReadonlySet<number> = new Set(
 
 const REASON_RE = /^[a-z][a-z0-9_]*$/;
 
+const RECOVERY_MIN_WORDS = 5;
+
 /**
  * Validates the `errors[]` contract on a tool/resource definition.
  * Checks:
  *   - `errors` is an array
- *   - each entry is an object with required `code`, `reason`, `when`
+ *   - each entry is an object with required `code`, `reason`, `when`, `recovery`
  *   - `code` is a real `JsonRpcErrorCode` value
  *   - `reason` is snake_case and unique within the contract
+ *   - `recovery` is non-empty and ≥ 5 words (forcing function for thoughtful
+ *     agent guidance — placeholders like "Try again." get flagged)
  *   - `retryable` (when present) is a boolean
  */
 export function lintErrorContract(
@@ -74,7 +78,7 @@ export function lintErrorContract(
       diagnostics.push({
         rule: 'error-contract-entry-type',
         severity: 'error',
-        message: `${definitionType} '${definitionName}' ${path} must be an object with { code, reason, when }.`,
+        message: `${definitionType} '${definitionName}' ${path} must be an object with { code, reason, when, recovery }.`,
         definitionType,
         definitionName,
       });
@@ -161,6 +165,43 @@ export function lintErrorContract(
         definitionType,
         definitionName,
       });
+    }
+
+    // recovery
+    if (typeof e.recovery !== 'string') {
+      diagnostics.push({
+        rule: 'error-contract-recovery-required',
+        severity: 'error',
+        message:
+          `${definitionType} '${definitionName}' ${path}.recovery must be a non-empty string ` +
+          'describing what the agent should do when this failure occurs.',
+        definitionType,
+        definitionName,
+      });
+    } else if (e.recovery.trim().length === 0) {
+      diagnostics.push({
+        rule: 'error-contract-recovery-empty',
+        severity: 'error',
+        message:
+          `${definitionType} '${definitionName}' ${path}.recovery is empty. ` +
+          'Provide actionable guidance for the agent.',
+        definitionType,
+        definitionName,
+      });
+    } else {
+      const wordCount = e.recovery.trim().split(/\s+/).filter(Boolean).length;
+      if (wordCount < RECOVERY_MIN_WORDS) {
+        diagnostics.push({
+          rule: 'error-contract-recovery-min-words',
+          severity: 'warning',
+          message:
+            `${definitionType} '${definitionName}' ${path}.recovery has ${wordCount} word(s); ` +
+            `minimum is ${RECOVERY_MIN_WORDS}. Specific guidance ("Try X with Y") beats ` +
+            'placeholders ("Try again.", "Check input.").',
+          definitionType,
+          definitionName,
+        });
+      }
     }
 
     // retryable (optional)

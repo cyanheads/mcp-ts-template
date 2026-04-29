@@ -265,7 +265,14 @@ describe('ResourceRegistry', () => {
     it('should not publish errors[] contract under _meta', async () => {
       const errorContractResource = resource('contract://{id}', {
         description: 'Resource with errors contract',
-        errors: [{ reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No match found.' }],
+        errors: [
+          {
+            reason: 'no_match',
+            code: JsonRpcErrorCode.NotFound,
+            when: 'No match found.',
+            recovery: 'Try a different identifier and retry the call.',
+          },
+        ],
         handler: () => ({}),
       });
 
@@ -279,7 +286,14 @@ describe('ResourceRegistry', () => {
     it('should not merge errors[] contract into custom _meta', async () => {
       const mixedResource = resource('mixed://{id}', {
         description: 'Resource with both errors and _meta',
-        errors: [{ reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No match found.' }],
+        errors: [
+          {
+            reason: 'no_match',
+            code: JsonRpcErrorCode.NotFound,
+            when: 'No match found.',
+            recovery: 'Try a different identifier and retry the call.',
+          },
+        ],
         _meta: { ui: { resourceUri: 'ui://mixed/app.html' } },
         handler: () => ({}),
       });

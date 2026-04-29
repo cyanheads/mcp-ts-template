@@ -28,6 +28,7 @@ export const echoTool = tool('template_echo_message', {
       reason: 'empty_message',
       code: JsonRpcErrorCode.InvalidParams,
       when: 'Message contained only whitespace.',
+      recovery: 'Provide a message with at least one non-whitespace character.',
     },
   ],
 

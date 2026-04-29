@@ -261,8 +261,18 @@ describe('appTool()', () => {
       resourceUri: 'ui://my-app/app.html',
       description: 'App tool with contract',
       errors: [
-        { reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No items matched' },
-        { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited, when: 'Queue full' },
+        {
+          reason: 'no_match',
+          code: JsonRpcErrorCode.NotFound,
+          when: 'No items matched',
+          recovery: 'Broaden the query and try again with looser filters.',
+        },
+        {
+          reason: 'queue_full',
+          code: JsonRpcErrorCode.RateLimited,
+          when: 'Queue full',
+          recovery: 'Wait a few seconds before retrying.',
+        },
       ],
       input: minimalInput,
       output: minimalOutput,
@@ -547,7 +557,14 @@ describe('appResource()', () => {
     const def = appResource('ui://my-app/{itemId}.html', {
       description: 'App UI per item',
       params: z.object({ itemId: z.string().describe('Item ID') }),
-      errors: [{ reason: 'not_found', code: JsonRpcErrorCode.NotFound, when: 'Item not found' }],
+      errors: [
+        {
+          reason: 'not_found',
+          code: JsonRpcErrorCode.NotFound,
+          when: 'Item not found',
+          recovery: 'Try a different item identifier and retry.',
+        },
+      ],
       async handler(_params, ctx) {
         expectTypeOf(ctx.fail).parameter(0).toEqualTypeOf<'not_found'>();
         return '<html></html>';

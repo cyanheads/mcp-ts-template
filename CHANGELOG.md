@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.8.4](changelog/0.8.x/0.8.4.md) — 2026-04-29 · ⚠️ Breaking
+
+ErrorContract.recovery is now required (≥ 5 words, lint-validated). Decoupled from runtime data.recovery.hint — no auto-population, just a forcing function for thoughtful authoring.
+
 ## [0.8.3](changelog/0.8.x/0.8.3.md) — 2026-04-29 · ⚠️ Breaking
 
 Tool error responses gain structuredContent.error parity with content[]; recovery hint mirrors into text; _meta.error and _meta['mcp-ts-core/errors'] wire publication dropped

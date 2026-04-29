@@ -4,7 +4,7 @@ description: >
   McpError constructor, JsonRpcErrorCode reference, and error handling patterns for `@cyanheads/mcp-ts-core`. Use when looking up error codes, understanding where errors should be thrown vs. caught, or using ErrorHandler.tryCatch in services.
 metadata:
   author: cyanheads
-  version: "1.1"
+  version: "1.2"
   audience: external
   type: reference
 ---
@@ -37,11 +37,14 @@ export const fetchTool = tool('fetch_articles', {
 
   errors: [
     { reason: 'no_match', code: JsonRpcErrorCode.NotFound,
-      when: 'No requested PMID returned data' },
+      when: 'No requested PMID returned data',
+      recovery: 'Try pubmed_search_articles to discover valid PMIDs first.' },
     { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited,
-      when: 'Local request queue is at capacity', retryable: true },
+      when: 'Local request queue is at capacity', retryable: true,
+      recovery: 'Wait 30 seconds and retry, or reduce batch size.' },
     { reason: 'ncbi_down', code: JsonRpcErrorCode.ServiceUnavailable,
-      when: 'NCBI E-utilities unreachable after retries', retryable: true },
+      when: 'NCBI E-utilities unreachable after retries', retryable: true,
+      recovery: 'NCBI is degraded; retry in a few minutes.' },
   ],
 
   async handler(input, ctx) {
@@ -61,8 +64,10 @@ export const fetchTool = tool('fetch_articles', {
 |:--------|:---------|
 | Compile time | `ctx.fail('typo')` is a TS error. Auto-completes declared reasons. |
 | Runtime | `ctx.fail(reason, msg?, data?, options?)` builds an `McpError(contract.code, msg, { ...data, reason }, options)` — `data.reason` is auto-populated from the contract and cannot be overridden by caller-supplied data (spread first, then `reason` written last), so observers see a stable identifier. `options` accepts `{ cause }` for ES2022 error chaining. |
-| Lint (startup) | Each `code` validated against `JsonRpcErrorCode`. Reasons validated as snake_case + unique within contract. |
+| Lint (startup) | Each `code` validated against `JsonRpcErrorCode`. Reasons validated as snake_case + unique within contract. `recovery` validated as non-empty and ≥ 5 words. |
 | Lint (conformance) | If the handler `throw new McpError(JsonRpcErrorCode.X)` outside `ctx.fail`, conformance check warns when X isn't declared. |
+
+> **`recovery` is descriptive, not auto-injected.** The contract `recovery` is required metadata documenting the agent's next move when this failure mode fires (a forcing function for thoughtful guidance — placeholders like "Try again." get flagged by the linter). It is **not** auto-populated into runtime `data.recovery.hint`. The wire payload's recovery hint — which the framework mirrors into `content[]` text per the [error-path parity](#error-path-parity) invariant — is populated separately at the throw site, where dynamic context (input values, attempted IDs, queue state) is available: `ctx.fail('reason', msg, { recovery: { hint: '...' } })`. The two fields can carry the same string when no dynamic context is needed; they're decoupled by design — what the author writes at the throw site is what flows to the wire, with no hidden transformation.
 
 **Skip the contract** for one-off internal tools or quick prototypes — `ctx` is plain `Context` (no `fail`) and you throw via [factories](#error-factories-fallback) directly. Behavior is identical at the wire; the contract just adds compile-time safety.
 
@@ -81,8 +86,12 @@ throw serviceUnavailable('Upstream timeout',          { reason: 'evaluation_time
 ```ts
 // my-tool.tool.ts
 errors: [
-  { reason: 'empty_expression',   code: JsonRpcErrorCode.ValidationError,    when: 'Input is empty.' },
-  { reason: 'evaluation_timeout', code: JsonRpcErrorCode.ServiceUnavailable, when: 'Upstream exceeded the configured timeout.' },
+  { reason: 'empty_expression',   code: JsonRpcErrorCode.ValidationError,
+    when: 'Input is empty.',
+    recovery: 'Provide a non-empty expression to evaluate.' },
+  { reason: 'evaluation_timeout', code: JsonRpcErrorCode.ServiceUnavailable,
+    when: 'Upstream exceeded the configured timeout.',
+    recovery: 'Simplify the expression or retry the request after a brief delay.' },
 ]
 ```
 
@@ -416,6 +425,9 @@ The linter validates the structure of `errors[]` and (when present) cross-checks
 | `error-contract-reason-format` | warning | `reason` not snake_case |
 | `error-contract-reason-unique` | error | Duplicate `reason` within one contract |
 | `error-contract-when-required` | error | `when` missing or empty |
+| `error-contract-recovery-required` | error | `recovery` missing or not a string |
+| `error-contract-recovery-empty` | error | `recovery` is empty/whitespace-only |
+| `error-contract-recovery-min-words` | warning | `recovery` has fewer than 5 words — placeholders like "Try again." or "Check input." get flagged in favor of specific guidance |
 | `error-contract-retryable-type` | warning | `retryable` is present but not a boolean |
 
 ### Conformance rules

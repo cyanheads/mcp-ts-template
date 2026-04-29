@@ -26,12 +26,18 @@ describe('lintErrorContract', () => {
   it('accepts a well-formed contract', () => {
     const d = lintErrorContract(
       [
-        { code: JsonRpcErrorCode.NotFound, reason: 'no_match', when: 'PMID not found' },
+        {
+          code: JsonRpcErrorCode.NotFound,
+          reason: 'no_match',
+          when: 'PMID not found',
+          recovery: 'Try a broader query and retry the request.',
+        },
         {
           code: JsonRpcErrorCode.RateLimited,
           reason: 'queue_full',
           when: 'Queue at capacity',
           retryable: true,
+          recovery: 'Wait a few seconds before retrying the call.',
         },
       ],
       'tool',
@@ -114,6 +120,83 @@ describe('lintErrorContract', () => {
       'x',
     );
     expect(d.map((x) => x.rule)).toContain('error-contract-retryable-type');
+  });
+
+  describe('recovery rules', () => {
+    it('errors when recovery is missing', () => {
+      const d = lintErrorContract(
+        [{ code: JsonRpcErrorCode.NotFound, reason: 'r', when: 'w' }],
+        'tool',
+        'x',
+      );
+      expect(d.map((x) => x.rule)).toContain('error-contract-recovery-required');
+    });
+
+    it('errors when recovery is not a string', () => {
+      const d = lintErrorContract(
+        [{ code: JsonRpcErrorCode.NotFound, reason: 'r', when: 'w', recovery: 42 }],
+        'tool',
+        'x',
+      );
+      expect(d.map((x) => x.rule)).toContain('error-contract-recovery-required');
+    });
+
+    it('errors when recovery is empty', () => {
+      const d = lintErrorContract(
+        [{ code: JsonRpcErrorCode.NotFound, reason: 'r', when: 'w', recovery: '' }],
+        'tool',
+        'x',
+      );
+      expect(d.map((x) => x.rule)).toContain('error-contract-recovery-empty');
+    });
+
+    it('errors when recovery is whitespace-only', () => {
+      const d = lintErrorContract(
+        [{ code: JsonRpcErrorCode.NotFound, reason: 'r', when: 'w', recovery: '   \t\n  ' }],
+        'tool',
+        'x',
+      );
+      expect(d.map((x) => x.rule)).toContain('error-contract-recovery-empty');
+    });
+
+    it('warns when recovery has fewer than 5 words', () => {
+      const d = lintErrorContract(
+        [{ code: JsonRpcErrorCode.NotFound, reason: 'r', when: 'w', recovery: 'Try again later.' }],
+        'tool',
+        'x',
+      );
+      const finding = d.find((x) => x.rule === 'error-contract-recovery-min-words');
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe('warning');
+      expect(finding?.message).toContain('3 word');
+    });
+
+    it('accepts recovery with exactly 5 words', () => {
+      const d = lintErrorContract(
+        [
+          {
+            code: JsonRpcErrorCode.NotFound,
+            reason: 'r',
+            when: 'w',
+            recovery: 'Try a different search term',
+          },
+        ],
+        'tool',
+        'x',
+      );
+      expect(d.map((x) => x.rule)).not.toContain('error-contract-recovery-min-words');
+    });
+
+    it('does not double-flag a missing recovery as min-words too', () => {
+      const d = lintErrorContract(
+        [{ code: JsonRpcErrorCode.NotFound, reason: 'r', when: 'w' }],
+        'tool',
+        'x',
+      );
+      // missing recovery → recovery-required only; min-words check is gated on
+      // recovery being a non-empty string, so it should not also fire.
+      expect(d.map((x) => x.rule)).not.toContain('error-contract-recovery-min-words');
+    });
   });
 });
 

@@ -4,7 +4,7 @@ description: >
   Design the tool surface, resources, and service layer for a new MCP server. Use when starting a new server, planning a major feature expansion, or when the user describes a domain/API they want to expose via MCP. Produces a design doc at docs/design.md that drives implementation.
 metadata:
   author: cyanheads
-  version: "2.7"
+  version: "2.8"
   audience: external
   type: workflow
 ---
@@ -346,10 +346,17 @@ throw new Error('Not found');
 // Good — names both resolution options
 "No session working directory set. Please specify a 'path' or use 'git_set_working_dir' first."
 
-// Good — structured hint in error data
+// Good — structured hint in error data using the canonical `data.recovery.hint` shape.
+// The framework auto-mirrors `data.recovery.hint` into the content[] text as
+// `Recovery: <hint>` so format()-only clients (Claude Desktop) see the same
+// guidance structuredContent clients (Claude Code) read from `error.data.recovery.hint`.
 throw forbidden(
   "Cannot perform 'reset --hard' on protected branch 'main' without explicit confirmation.",
-  { branch: 'main', operation: 'reset --hard', hint: 'Set the confirmed parameter to true to proceed.' },
+  {
+    branch: 'main',
+    operation: 'reset --hard',
+    recovery: { hint: 'Set the confirmed parameter to true to proceed.' },
+  },
 );
 
 // Good — upstream error with actionable context

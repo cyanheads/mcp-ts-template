@@ -419,7 +419,14 @@ describe('ToolRegistry', () => {
         description: 'Tool with errors contract',
         input: z.object({}),
         output: z.object({}),
-        errors: [{ reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No match found.' }],
+        errors: [
+          {
+            reason: 'no_match',
+            code: JsonRpcErrorCode.NotFound,
+            when: 'No match found.',
+            recovery: 'Broaden the query and try again with looser filters.',
+          },
+        ],
         handler: () => ({}),
       });
 
@@ -435,7 +442,14 @@ describe('ToolRegistry', () => {
         description: 'Tool with both errors and _meta',
         input: z.object({}),
         output: z.object({}),
-        errors: [{ reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No match found.' }],
+        errors: [
+          {
+            reason: 'no_match',
+            code: JsonRpcErrorCode.NotFound,
+            when: 'No match found.',
+            recovery: 'Broaden the query and try again with looser filters.',
+          },
+        ],
         _meta: { ui: { resourceUri: 'ui://mixed/app.html' } },
         handler: () => ({}),
       });
@@ -454,7 +468,14 @@ describe('ToolRegistry', () => {
         input: z.object({}),
         output: z.object({}),
         task: true,
-        errors: [{ reason: 'queue_full', code: JsonRpcErrorCode.RateLimited, when: 'Queue full.' }],
+        errors: [
+          {
+            reason: 'queue_full',
+            code: JsonRpcErrorCode.RateLimited,
+            when: 'Queue full.',
+            recovery: 'Wait a few seconds before retrying.',
+          },
+        ],
         handler: async () => ({}),
       });
 

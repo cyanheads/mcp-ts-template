@@ -268,11 +268,14 @@ export type ErrorResponse = z.infer<typeof ErrorSchema>;
  *   // ...
  *   errors: [
  *     { code: JsonRpcErrorCode.NotFound, reason: 'no_pmid_match',
- *       when: 'None of the requested PMIDs returned data.' },
+ *       when: 'None of the requested PMIDs returned data.',
+ *       recovery: 'Try pubmed_search_articles to discover valid PMIDs first.' },
  *     { code: JsonRpcErrorCode.RateLimited, reason: 'queue_full',
- *       when: 'Local request queue is at capacity.', retryable: true },
+ *       when: 'Local request queue is at capacity.', retryable: true,
+ *       recovery: 'Wait 30 seconds and retry, or reduce batch size.' },
  *     { code: JsonRpcErrorCode.ServiceUnavailable, reason: 'ncbi_down',
- *       when: 'NCBI E-utilities is unreachable after 6 retries.', retryable: true },
+ *       when: 'NCBI E-utilities is unreachable after 6 retries.', retryable: true,
+ *       recovery: 'NCBI is degraded; retry in a few minutes.' },
  *   ],
  *   // ...
  * });
@@ -287,6 +290,24 @@ export interface ErrorContract {
    * and treated as part of the public API — clients may switch on it.
    */
   reason: string;
+  /**
+   * Human-readable description of what the agent should do when this failure
+   * occurs. Forcing function for the author: declaring a failure mode without
+   * articulating recovery leaves the agent without a next move.
+   *
+   * **Type-level only — not auto-injected at runtime.** The contract `recovery`
+   * is descriptive metadata read by the linter, scaffolding skills, and dev
+   * tools. The wire payload's `data.recovery.hint` (which the framework mirrors
+   * into `content[]` text per the error-path parity invariant) is populated
+   * separately at the throw site, where dynamic context (input values, attempted
+   * IDs, queue state) is available. Authors who want recovery on the wire pass
+   * it explicitly: `ctx.fail('reason', msg, { recovery: { hint: '...' } })`.
+   *
+   * **Validation.** Required, non-empty, minimum 5 words (lint warning under
+   * that floor). Specific, actionable guidance beats placeholders like
+   * "Try again." or "Check input."
+   */
+  recovery: string;
   /**
    * Whether the failure is transient (eligible for retry). Optional hint for
    * clients; when omitted, callers fall back to inferring from the code.

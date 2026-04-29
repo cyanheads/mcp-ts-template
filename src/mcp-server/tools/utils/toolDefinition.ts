@@ -177,9 +177,12 @@ export type AnyToolDefinition = ToolDefinition<
  * ```ts
  * const myTool = tool('my_tool', {
  *   errors: [
- *     { reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No items match the query' },
+ *     { reason: 'no_match', code: JsonRpcErrorCode.NotFound,
+ *       when: 'No items match the query',
+ *       recovery: 'Broaden the query or check the spelling and try again.' },
  *     { reason: 'rate_limited', code: JsonRpcErrorCode.RateLimited,
- *       when: 'Upstream rate limit hit', retryable: true },
+ *       when: 'Upstream rate limit hit', retryable: true,
+ *       recovery: 'Wait a few seconds before retrying or reduce request frequency.' },
  *   ],
  *   input: z.object({ query: z.string().describe('Search query') }),
  *   output: z.object({ items: z.array(z.string()).describe('Matched items') }),

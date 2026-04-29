@@ -4,7 +4,7 @@ description: >
   Scaffold a new MCP tool definition. Use when the user asks to add a tool, create a new tool, or implement a new capability for the server.
 metadata:
   author: cyanheads
-  version: "2.0"
+  version: "2.2"
   audience: external
   type: reference
 ---
@@ -65,9 +65,20 @@ export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
   // (InternalError, ServiceUnavailable, Timeout, ValidationError,
   // SerializationError) bubble freely — only declare domain-specific reasons.
   // Delete this block if no domain failures apply.
+  //
+  // `recovery` is required (≥ 5 words) — it's the agent's next move when this
+  // failure fires. Forcing function for thoughtful guidance: placeholders like
+  // "Try again." get flagged by the linter. Contract-level `recovery` is
+  // descriptive metadata; for the wire payload's `data.recovery.hint` (which
+  // the framework mirrors into content[] text), pass it explicitly at the
+  // throw site when dynamic context matters.
   errors: [
-    { reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No items matched the query.' },
-    { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited, when: 'Local queue at capacity.', retryable: true },
+    { reason: 'no_match', code: JsonRpcErrorCode.NotFound,
+      when: 'No items matched the query.',
+      recovery: 'Broaden the query or check the spelling and try again.' },
+    { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited,
+      when: 'Local queue at capacity.', retryable: true,
+      recovery: 'Wait a few seconds before retrying or reduce batch size.' },
   ],
 
   async handler(input, ctx) {
@@ -277,9 +288,11 @@ export const fetchArticles = tool('fetch_articles', {
   description: 'Fetch articles by PMID.',
   errors: [
     { reason: 'no_pmid_match', code: JsonRpcErrorCode.NotFound,
-      when: 'None of the requested PMIDs returned data.' },
+      when: 'None of the requested PMIDs returned data.',
+      recovery: 'Try pubmed_search_articles to discover valid PMIDs first.' },
     { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited,
-      when: 'Local request queue at capacity.', retryable: true },
+      when: 'Local request queue at capacity.', retryable: true,
+      recovery: 'Wait 30 seconds and retry, or reduce batch size.' },
   ],
   input: z.object({ pmids: z.array(z.string()).describe('PMIDs to fetch') }),
   output: z.object({ articles: z.array(ArticleSchema).describe('Resolved articles') }),
@@ -326,7 +339,8 @@ export class NcbiService {
 export const fetchArticles = tool('fetch_articles', {
   errors: [
     { reason: 'ncbi_unreachable', code: JsonRpcErrorCode.ServiceUnavailable,
-      when: 'NCBI E-utilities is unreachable.', retryable: true },
+      when: 'NCBI E-utilities is unreachable.', retryable: true,
+      recovery: 'NCBI is degraded; retry in a few minutes.' },
   ],
   async handler(input, ctx) {
     return { articles: await ncbi.fetch(input.pmids) };  // throws bubble unchanged
@@ -354,15 +368,23 @@ throw notFound(
 import { serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
 throw serviceUnavailable(`arXiv API returned HTTP ${status}. Retry in a few seconds.`);
 
-// Structured hint for programmatic recovery
+// Recovery hint via the canonical `data.recovery.hint` shape — the framework
+// auto-mirrors it into the content[] text as `Recovery: <hint>`, so format()-only
+// clients (Claude Desktop) see the same guidance that structuredContent clients
+// (Claude Code) read from `error.data.recovery.hint`. Other `data` keys reach
+// structuredContent only.
 import { invalidParams } from '@cyanheads/mcp-ts-core/errors';
 throw invalidParams(
-  `Date range exceeds 90-day API limit. Narrow the range or split into multiple queries.`,
-  { maxDays: 90, requestedDays: daysBetween },
+  `Date range exceeds 90-day API limit.`,
+  {
+    maxDays: 90,
+    requestedDays: daysBetween,
+    recovery: { hint: 'Narrow the range or split into multiple queries.' },
+  },
 );
 ```
 
-**Error messages are recovery instructions.** Name what went wrong, why, and what action to take. The message is the agent's only signal — a bare "Not found" is a dead end. See `skills/api-errors/SKILL.md` for the full contract pattern, factories list, and auto-classification table.
+**Error messages are recovery instructions.** Name what went wrong, why, and what action to take. The message is the agent's only signal — a bare "Not found" is a dead end. See `skills/api-errors/SKILL.md` for the full contract pattern, factories list, auto-classification table, and error-path parity (how `data.recovery.hint` reaches both client surfaces).
 
 ### Include operational metadata
 

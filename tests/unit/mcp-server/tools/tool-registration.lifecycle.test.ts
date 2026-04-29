@@ -704,6 +704,7 @@ describe('ToolRegistry lifecycle coverage', () => {
         reason: 'no_match',
         code: -32001, // JsonRpcErrorCode.NotFound
         when: 'No items matched',
+        recovery: 'Try a different identifier and retry the call.',
       },
     ] as const;
 
