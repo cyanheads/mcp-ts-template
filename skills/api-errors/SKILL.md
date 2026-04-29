@@ -61,11 +61,10 @@ export const fetchTool = tool('fetch_articles', {
 |:--------|:---------|
 | Compile time | `ctx.fail('typo')` is a TS error. Auto-completes declared reasons. |
 | Runtime | `ctx.fail(reason, msg?, data?, options?)` builds an `McpError(contract.code, msg, { ...data, reason }, options)` — `data.reason` is auto-populated from the contract and cannot be overridden by caller-supplied data (spread first, then `reason` written last), so observers see a stable identifier. `options` accepts `{ cause }` for ES2022 error chaining. |
-| `tools/list` | Contract surfaced under `_meta['mcp-ts-core/errors']` so clients/agents can preview failure modes. |
 | Lint (startup) | Each `code` validated against `JsonRpcErrorCode`. Reasons validated as snake_case + unique within contract. |
 | Lint (conformance) | If the handler `throw new McpError(JsonRpcErrorCode.X)` outside `ctx.fail`, conformance check warns when X isn't declared. |
 
-**Skip the contract** for one-off internal tools or quick prototypes — `ctx` is plain `Context` (no `fail`) and you throw via [factories](#error-factories-fallback) directly. Behavior is identical at the wire; the contract just adds compile-time safety + advertising.
+**Skip the contract** for one-off internal tools or quick prototypes — `ctx` is plain `Context` (no `fail`) and you throw via [factories](#error-factories-fallback) directly. Behavior is identical at the wire; the contract just adds compile-time safety.
 
 > **Limits of the conformance lint.** The conformance and prefer-fail rules scan the handler's source text for `throw` statements. Errors thrown from called services (e.g. `await myService.fetch()` raising `RateLimited` internally) are invisible — the lint only sees what's lexically in the handler. Treat the contract as the *advertised* failure surface; bubbled-up codes still reach the client correctly via the auto-classifier, just without lint enforcement.
 
@@ -87,7 +86,7 @@ errors: [
 ]
 ```
 
-The handler doesn't catch and re-throw — letting service errors bubble unchanged keeps "logic throws, framework catches" intact. The contract still publishes in `tools/list`, the wire payload still carries `code` + `data.reason`, and clients can switch on reason without parsing message text. What's lost is lint-time enforcement that every reason is reachable; compensate with one wire-shape test per reason.
+The handler doesn't catch and re-throw — letting service errors bubble unchanged keeps "logic throws, framework catches" intact. The wire payload still carries `code` + `data.reason`, and clients can switch on reason without parsing message text. What's lost is lint-time enforcement that every reason is reachable; compensate with one wire-shape test per reason.
 
 ---
 
@@ -266,8 +265,23 @@ Checked before common patterns. Cover: AWS exception names, HTTP status codes, D
 | Layer | Pattern |
 |:------|:--------|
 | Tool/resource handlers | Throw `McpError` — no try/catch |
-| Handler factory | Catches all errors, normalizes to `McpError`, sets `isError: true` |
+| Handler factory (tools) | Catches all errors, normalizes to `McpError`, sets `isError: true`, mirrors error across both client surfaces (see [Error-path parity](#error-path-parity)) |
+| Handler factory (resources) | Catches and re-throws to the SDK, which routes through the JSON-RPC error envelope |
 | Services/setup code | `ErrorHandler.tryCatch` for graceful recovery |
+
+### Error-path parity
+
+MCP clients differ in which `CallToolResult` surface they forward to the agent. Tool errors mirror the success-path `format-parity` invariant — both surfaces carry the same payload:
+
+| Surface | Content | Read by |
+|:--------|:--------|:--------|
+| `content[]` | Text rendering: `Error: <message>` (plus `Recovery: <hint>` when `data.recovery.hint` is present) | Claude Desktop and other format()-only clients |
+| `structuredContent.error` | JSON `{ code, message, data? }` carrying the error code, message, and any structured data from the thrown `McpError` or `ZodError` | Claude Code and other structuredContent-only clients |
+
+Important properties:
+- **`_meta.error` is NOT emitted.** Error code/data live on `structuredContent.error` instead. Don't read `_meta.error` in clients or tests — it doesn't exist.
+- **`data` propagation is restricted** to explicitly-thrown `McpError.data` and `ZodError.issues`. Auto-classified plain errors (`TypeError`, network errors, etc.) emit `code` + `message` only — no `data` — so internal classification context never leaks to clients.
+- **Recovery hint mirroring is automatic.** When the thrown `McpError` carries `data.recovery.hint`, the handler factory appends it to the `content[]` text so the markdown surface matches the JSON surface. Authors don't need to format the hint manually.
 
 **Handler — throw freely, no try/catch:**
 
@@ -349,7 +363,7 @@ if (!response.ok) {
 
 Captures the response body (truncated, configurable limit) and `Retry-After` header (stored as `data.retryAfter`) into `error.data`. The codes it produces line up with `withRetry`'s transient-code set, so retryable responses are retried automatically.
 
-> **Body reaches the client.** `error.data` is forwarded to the MCP client as `_meta.error.data` (tool errors) or JSON-RPC `error.data` (resource errors). Upstream 401/403/422 responses sometimes echo token claims, internal user IDs, or schema validation hints — that text becomes client-visible. For sensitive endpoints, pass `captureBody: false` (or `bodyLimit: 0`) so the body stays out of `data`. Defaults remain `captureBody: true` because most upstreams return useful diagnostic text and silent dropping helps no one debug.
+> **Body reaches the client.** `error.data` is forwarded to the MCP client as `structuredContent.error.data` (tool errors) or JSON-RPC `error.data` (resource errors). Upstream 401/403/422 responses sometimes echo token claims, internal user IDs, or schema validation hints — that text becomes client-visible. For sensitive endpoints, pass `captureBody: false` (or `bodyLimit: 0`) so the body stays out of `data`. Defaults remain `captureBody: true` because most upstreams return useful diagnostic text and silent dropping helps no one debug.
 
 Full status table:
 
@@ -408,7 +422,7 @@ The linter validates the structure of `errors[]` and (when present) cross-checks
 
 | Rule | Severity | Catches |
 |:-----|:---------|:--------|
-| `error-contract-conformance` | warning | Handler throws a non-baseline code that isn't in the contract. Suggests adding it to `errors[]` so `tools/list` advertises the failure mode. |
+| `error-contract-conformance` | warning | Handler throws a non-baseline code that isn't in the contract. Suggests adding it to `errors[]` so the contract is the canonical source of truth for declared failure modes. |
 | `error-contract-prefer-fail` | warning | Handler throws a code that **is** in the contract directly (via factory or `new McpError`) instead of through `ctx.fail(reason, …)`. Encourages routing through the typed helper so observers see consistent `data.reason` values. |
 
 ### Baseline codes (auto-allowed)
@@ -421,7 +435,7 @@ These codes bubble up from anywhere — services, framework utilities, the auto-
 - `ValidationError` — schema violations, malformed input
 - `SerializationError` — JSON/XML parse failures
 
-If you *want* to advertise one of these as a domain-specific failure (e.g., a tool that intentionally times out under defined conditions), declare it in `errors[]` anyway — the contract still surfaces in `tools/list`. The lint just doesn't *require* you to.
+If you *want* to declare one of these as a domain-specific failure (e.g., a tool that intentionally times out under defined conditions), put it in `errors[]` anyway — the contract still binds `ctx.fail(reason)` and the conformance lint will catch undeclared throws. The lint just doesn't *require* you to enumerate baselines.
 
 ### When to declare vs. let it bubble
 

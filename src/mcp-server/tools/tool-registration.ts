@@ -17,6 +17,8 @@ import {
 } from '@/mcp-server/tasks/utils/taskToolDefinition.js';
 import type { AnyToolDefinition } from '@/mcp-server/tools/utils/toolDefinition.js';
 import {
+  buildToolErrorResult,
+  classifyAndBuildToolErrorResult,
   createToolHandler,
   type HandlerFactoryServices,
   type HandlerNotifiers,
@@ -24,9 +26,8 @@ import {
 import { authContext } from '@/mcp-server/transports/auth/lib/authContext.js';
 import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
-import { buildMetaWithErrorContract, JsonRpcErrorCode } from '@/types-global/errors.js';
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
-import { getErrorMessage } from '@/utils/internal/error-handler/helpers.js';
 import { logger } from '@/utils/internal/logger.js';
 import { requestContextService } from '@/utils/internal/requestContext.js';
 
@@ -162,7 +163,6 @@ export class ToolRegistry {
         const title = tool.title ?? tool.annotations?.title ?? this.deriveTitleFromName(tool.name);
 
         // Type assertion required: SDK's conditional types don't resolve with erased generics
-        const mergedMeta = buildMetaWithErrorContract(tool._meta, tool.errors);
         server.registerTool(
           tool.name,
           {
@@ -171,7 +171,7 @@ export class ToolRegistry {
             inputSchema: tool.input,
             outputSchema: tool.output,
             ...(tool.annotations && { annotations: tool.annotations }),
-            ...(mergedMeta && { _meta: mergedMeta }),
+            ...(tool._meta && { _meta: tool._meta }),
           },
           handler as ToolCallback<typeof tool.input>,
         );
@@ -222,7 +222,6 @@ export class ToolRegistry {
             ? tool.format(result as Record<string, unknown>)
             : [{ type: 'text', text: JSON.stringify(result, null, 2) }];
 
-        const mergedAutoTaskMeta = buildMetaWithErrorContract(tool._meta, tool.errors);
         server.experimental.tasks.registerToolTask(
           tool.name,
           {
@@ -231,7 +230,7 @@ export class ToolRegistry {
             inputSchema: tool.input,
             outputSchema: tool.output,
             ...(tool.annotations && { annotations: tool.annotations }),
-            ...(mergedAutoTaskMeta && { _meta: mergedAutoTaskMeta }),
+            ...(tool._meta && { _meta: tool._meta }),
             execution: { taskSupport: 'optional' },
           },
           {
@@ -371,11 +370,14 @@ export class ToolRegistry {
 
       try {
         const isTimeout = abortController.signal.reason === TIMEOUT_SENTINEL;
-        const errorMessage = isTimeout ? `Task timed out after ${ttlMs}ms` : getErrorMessage(error);
-        await taskStore.storeTaskResult(taskId, 'failed', {
-          content: [{ type: 'text', text: `Error: ${errorMessage}` }],
-          isError: true,
-        });
+        const result = isTimeout
+          ? buildToolErrorResult(
+              JsonRpcErrorCode.Timeout,
+              `Task timed out after ${ttlMs}ms`,
+              undefined,
+            )
+          : classifyAndBuildToolErrorResult(error);
+        await taskStore.storeTaskResult(taskId, 'failed', result);
       } catch {
         // Task may already be in terminal state
       }

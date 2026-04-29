@@ -193,7 +193,13 @@ describe('createToolHandler', () => {
       const result = await handler({ name: 123 } as any, createMockSdkContext());
 
       expect(result.isError).toBe(true);
-      expect(result.structuredContent).toBeUndefined();
+      // Input validation errors flow through the same error-shaping path:
+      // structuredContent.error carries the code, message, and ZodError issues.
+      const sc = result.structuredContent as {
+        error: { code: number; data?: { issues?: unknown[] } };
+      };
+      expect(sc.error.code).toBe(JsonRpcErrorCode.ValidationError);
+      expect(sc.error.data?.issues).toBeDefined();
     });
 
     it('should not call handler when input validation fails', async () => {
@@ -217,7 +223,7 @@ describe('createToolHandler', () => {
   // -----------------------------------------------------------------------
 
   describe('Error handling', () => {
-    it('should catch plain Error and return isError with _meta code', async () => {
+    it('should catch plain Error and emit structuredContent.error with code + message', async () => {
       const def = tool('failing_tool', {
         description: 'Throws.',
         input: z.object({}),
@@ -232,13 +238,15 @@ describe('createToolHandler', () => {
 
       expect(result.isError).toBe(true);
       expect((result.content![0] as { text: string }).text).toContain('something broke');
+      // _meta.error is no longer emitted — error data lives on structuredContent.error
+      expect(result._meta).toBeUndefined();
       // Plain errors get classified as InternalError, no data
-      expect(result._meta).toEqual({
-        error: { code: JsonRpcErrorCode.InternalError },
+      expect(result.structuredContent).toEqual({
+        error: { code: JsonRpcErrorCode.InternalError, message: 'something broke' },
       });
     });
 
-    it('should catch McpError and surface code + data via _meta', async () => {
+    it('should catch McpError and surface code + message + data via structuredContent.error', async () => {
       const def = tool('mcp_error_tool', {
         description: 'Throws McpError.',
         input: z.object({}),
@@ -253,9 +261,11 @@ describe('createToolHandler', () => {
 
       expect(result.isError).toBe(true);
       expect((result.content![0] as { text: string }).text).toContain('Item not found');
-      expect(result._meta).toEqual({
+      expect(result._meta).toBeUndefined();
+      expect(result.structuredContent).toEqual({
         error: {
           code: JsonRpcErrorCode.NotFound,
+          message: 'Item not found',
           data: { id: '123' },
         },
       });
@@ -277,9 +287,12 @@ describe('createToolHandler', () => {
       const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
+      // ZodError data.issues should appear in structuredContent.error
+      const sc = result.structuredContent as { error: { data?: { issues?: unknown[] } } };
+      expect(sc.error.data?.issues).toBeDefined();
     });
 
-    it('should propagate McpError code and data via _meta', async () => {
+    it('should propagate McpError code, message, and data via structuredContent.error', async () => {
       const errorData = { field: 'email', constraint: 'format' };
 
       const def = tool('meta_error_tool', {
@@ -295,16 +308,14 @@ describe('createToolHandler', () => {
       const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
-      // structuredContent is still not set on error responses
-      expect(result.structuredContent).toBeUndefined();
-      // Error code and data are surfaced via _meta for programmatic clients
-      expect(result._meta).toEqual({
+      expect(result._meta).toBeUndefined();
+      expect(result.structuredContent).toEqual({
         error: {
           code: JsonRpcErrorCode.ValidationError,
+          message: 'Validation failed',
           data: errorData,
         },
       });
-      // Text content contains the message for LLM self-correction
       const text = (result.content![0] as { text: string }).text;
       expect(text).toContain('Validation failed');
     });
@@ -323,6 +334,74 @@ describe('createToolHandler', () => {
       const result = await handler({}, createMockSdkContext());
 
       expect(result.isError).toBe(true);
+      expect(result._meta).toBeUndefined();
+      const sc = result.structuredContent as { error: { code: number; message: string } };
+      expect(sc.error.code).toBeDefined();
+    });
+
+    it('should mirror data.recovery.hint into content[] text when present', async () => {
+      const def = tool('recovery_tool', {
+        description: 'Throws with recovery hint.',
+        input: z.object({}),
+        output: z.object({}),
+        handler: () => {
+          throw new McpError(JsonRpcErrorCode.NotFound, 'No items returned', {
+            reason: 'no_match',
+            recovery: { hint: 'Try the search tool with broader terms.' },
+          });
+        },
+      });
+
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
+      const result = await handler({}, createMockSdkContext());
+
+      expect(result.isError).toBe(true);
+      const text = (result.content![0] as { text: string }).text;
+      // content[] text carries the recovery hint for format()-only clients (Claude Desktop)
+      expect(text).toContain('No items returned');
+      expect(text).toContain('Recovery: Try the search tool with broader terms.');
+      // structuredContent.error.data.recovery.hint carries the hint for structuredContent-only clients (Claude Code)
+      const sc = result.structuredContent as {
+        error: { data?: { recovery?: { hint?: string } } };
+      };
+      expect(sc.error.data?.recovery?.hint).toBe('Try the search tool with broader terms.');
+    });
+
+    it('should not append recovery section when data.recovery.hint is missing', async () => {
+      const def = tool('no_recovery_tool', {
+        description: 'Throws without recovery hint.',
+        input: z.object({}),
+        output: z.object({}),
+        handler: () => {
+          throw new McpError(JsonRpcErrorCode.InternalError, 'Boom', { reason: 'boom' });
+        },
+      });
+
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
+      const result = await handler({}, createMockSdkContext());
+
+      const text = (result.content![0] as { text: string }).text;
+      expect(text).toBe('Error: Boom');
+      expect(text).not.toContain('Recovery:');
+    });
+
+    it('should ignore non-string recovery.hint', async () => {
+      const def = tool('bad_recovery_tool', {
+        description: 'Throws with malformed recovery.',
+        input: z.object({}),
+        output: z.object({}),
+        handler: () => {
+          throw new McpError(JsonRpcErrorCode.InternalError, 'Boom', {
+            recovery: { hint: 42 },
+          });
+        },
+      });
+
+      const handler = createToolHandler(def as AnyToolDefinition, services, notifiers);
+      const result = await handler({}, createMockSdkContext());
+
+      const text = (result.content![0] as { text: string }).text;
+      expect(text).toBe('Error: Boom');
     });
   });
 

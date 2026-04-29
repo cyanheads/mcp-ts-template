@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
 import { resource } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import type { ResourceHandlerFactoryServices } from '@/mcp-server/resources/utils/resourceHandlerFactory.js';
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -259,6 +260,36 @@ describe('ResourceRegistry', () => {
 
       const call = mockServer.resource.mock.calls[0];
       expect(call[2]._meta).toBeUndefined();
+    });
+
+    it('should not publish errors[] contract under _meta', async () => {
+      const errorContractResource = resource('contract://{id}', {
+        description: 'Resource with errors contract',
+        errors: [{ reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No match found.' }],
+        handler: () => ({}),
+      });
+
+      const registry = new ResourceRegistry([errorContractResource], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.resource.mock.calls[0];
+      expect(call[2]._meta).toBeUndefined();
+    });
+
+    it('should not merge errors[] contract into custom _meta', async () => {
+      const mixedResource = resource('mixed://{id}', {
+        description: 'Resource with both errors and _meta',
+        errors: [{ reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No match found.' }],
+        _meta: { ui: { resourceUri: 'ui://mixed/app.html' } },
+        handler: () => ({}),
+      });
+
+      const registry = new ResourceRegistry([mixedResource], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.resource.mock.calls[0];
+      expect(call[2]._meta).toEqual({ ui: { resourceUri: 'ui://mixed/app.html' } });
+      expect(call[2]._meta).not.toHaveProperty('mcp-ts-core/errors');
     });
 
     it('should pass examples to server.resource', async () => {

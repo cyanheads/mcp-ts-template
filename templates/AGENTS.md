@@ -90,6 +90,7 @@ export const searchItems = tool('search_items', {
 
 ```ts
 import { resource, z } from '@cyanheads/mcp-ts-core';
+import { notFound } from '@cyanheads/mcp-ts-core/errors';
 
 export const itemData = resource('inventory://{itemId}', {
   description: 'Fetch an inventory item by ID.',
@@ -97,7 +98,7 @@ export const itemData = resource('inventory://{itemId}', {
   auth: ['inventory:read'],
   async handler(params, ctx) {
     const item = await ctx.state.get(`item:${params.itemId}`);
-    if (!item) throw new Error(`Item ${params.itemId} not found`);
+    if (!item) throw notFound(`Item ${params.itemId} not found`, { itemId: params.itemId });
     return item;
   },
 });
@@ -167,7 +168,7 @@ Handlers receive a unified `ctx` object. Key properties:
 
 Handlers throw — the framework catches, classifies, and formats.
 
-**Recommended: typed error contract.** Declare `errors: [{ reason, code, when, retryable? }]` on `tool()` / `resource()` to advertise the failure surface in `tools/list` (under `_meta['mcp-ts-core/errors']`) and receive a typed `ctx.fail(reason, …)` keyed by the declared reason union. TypeScript catches `ctx.fail('typo')` at compile time, `data.reason` is auto-populated for observability, and the linter enforces conformance against the handler body. Baseline codes (`InternalError`, `ServiceUnavailable`, `Timeout`, `ValidationError`, `SerializationError`) bubble freely and don't need declaring.
+**Recommended: typed error contract.** Declare `errors: [{ reason, code, when, retryable? }]` on `tool()` / `resource()` to receive a typed `ctx.fail(reason, …)` keyed by the declared reason union. TypeScript catches `ctx.fail('typo')` at compile time, `data.reason` is auto-populated for observability, and the linter enforces conformance against the handler body. Baseline codes (`InternalError`, `ServiceUnavailable`, `Timeout`, `ValidationError`, `SerializationError`) bubble freely and don't need declaring.
 
 ```ts
 errors: [

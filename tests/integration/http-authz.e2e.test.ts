@@ -127,7 +127,12 @@ describe.skipIf(!DIST_EXISTS || !existsSync(resolve(process.cwd(), FIXTURE_ENTRY
         });
 
         expect(protectedResult.isError).toBe(true);
-        expect(protectedResult.structuredContent).toBeUndefined();
+        expect(protectedResult.structuredContent).toEqual({
+          error: {
+            code: expect.any(Number),
+            message: expect.stringContaining('Insufficient permissions.'),
+          },
+        });
         expect(protectedResult.content).toContainEqual({
           type: 'text',
           text: expect.stringContaining('Insufficient permissions.'),

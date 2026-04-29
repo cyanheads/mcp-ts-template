@@ -4,6 +4,7 @@
  */
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
+import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
 // Tool names are snake_case, prefixed with your server name to avoid collisions across servers.
 // e.g. for a "tasks" server: tasks_fetch_list, tasks_create_item.
@@ -17,7 +18,23 @@ export const echoTool = tool('template_echo_message', {
     message: z.string().describe('The echoed message.'),
   }),
 
-  handler(input) {
+  // Declare each domain failure mode the agent should plan around. The framework
+  // types `ctx.fail(reason, …)` against the declared union. Baseline codes
+  // (InternalError, ServiceUnavailable, Timeout, ValidationError,
+  // SerializationError) bubble freely — only declare domain-specific reasons.
+  // Delete this block if no domain-specific failures apply to your tool.
+  errors: [
+    {
+      reason: 'empty_message',
+      code: JsonRpcErrorCode.InvalidParams,
+      when: 'Message contained only whitespace.',
+    },
+  ],
+
+  handler(input, ctx) {
+    if (input.message.trim().length === 0) {
+      throw ctx.fail('empty_message', 'Message must contain at least one non-whitespace character.');
+    }
     return { message: input.message };
   },
 

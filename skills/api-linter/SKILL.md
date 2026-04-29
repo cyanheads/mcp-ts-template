@@ -502,7 +502,7 @@ throw serviceUnavailable('Upstream failed', { upstreamError: e }, { cause: e });
 
 Validate the optional `errors[]` declarative contract on tool/resource definitions. Structural rules check the shape of contract entries; conformance rules cross-check the handler body against the declared codes.
 
-When a contract is declared, surfaced under `_meta['mcp-ts-core/errors']` in `tools/list` / `resources/list`, and the handler receives a typed `ctx.fail(reason, …)` keyed by the declared reason union. See `skills/api-errors/SKILL.md` for runtime semantics.
+When a contract is declared, the handler receives a typed `ctx.fail(reason, …)` keyed by the declared reason union. See `skills/api-errors/SKILL.md` for runtime semantics.
 
 ### error-contract-type
 

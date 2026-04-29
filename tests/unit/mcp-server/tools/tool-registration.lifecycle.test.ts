@@ -31,6 +31,10 @@ const {
   mockErrorHandler: {
     handleError: vi.fn(),
     tryCatch: vi.fn(async (fn: () => unknown) => await fn()),
+    classifyOnly: vi.fn((error: unknown) => ({
+      code: -32603,
+      message: error instanceof Error ? error.message : String(error),
+    })),
   },
   mockLogger: {
     debug: vi.fn(),
@@ -72,9 +76,15 @@ vi.mock('@/core/context.js', () => ({
   createContext: mockCreateContext,
 }));
 
-vi.mock('@/mcp-server/tools/utils/toolHandlerFactory.js', () => ({
-  createToolHandler: mockCreateToolHandler,
-}));
+vi.mock('@/mcp-server/tools/utils/toolHandlerFactory.js', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/mcp-server/tools/utils/toolHandlerFactory.js')
+  >('@/mcp-server/tools/utils/toolHandlerFactory.js');
+  return {
+    ...actual,
+    createToolHandler: mockCreateToolHandler,
+  };
+});
 
 vi.mock('@/mcp-server/transports/auth/lib/authContext.js', () => ({
   authContext: mockAuthContext,
@@ -497,8 +507,9 @@ describe('ToolRegistry lifecycle coverage', () => {
       }),
     );
     expect(taskStore.storeTaskResult).toHaveBeenCalledWith('task-500', 'failed', {
-      content: [{ type: 'text', text: 'Error: boom' }],
       isError: true,
+      content: [{ type: 'text', text: 'Error: boom' }],
+      structuredContent: { error: { code: -32603, message: 'boom' } },
     });
   });
 
@@ -668,8 +679,11 @@ describe('ToolRegistry lifecycle coverage', () => {
 
     expect(mockErrorHandler.handleError).toHaveBeenCalledTimes(1);
     expect(taskStore.storeTaskResult).toHaveBeenCalledWith('task-timeout', 'failed', {
-      content: [{ type: 'text', text: 'Error: Task timed out after 50ms' }],
       isError: true,
+      content: [{ type: 'text', text: 'Error: Task timed out after 50ms' }],
+      structuredContent: {
+        error: { code: -32004, message: 'Task timed out after 50ms' },
+      },
     });
   });
 

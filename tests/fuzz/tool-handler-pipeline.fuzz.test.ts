@@ -221,8 +221,15 @@ describe('Tool Handler Pipeline Fuzz Tests', () => {
               expect(result.content!.length).toBeGreaterThan(0);
               const text = (result.content![0] as { text: string }).text;
               expect(typeof text).toBe('string');
-              // Must not have structuredContent on errors
-              expect(result.structuredContent).toBeUndefined();
+              // structuredContent.error carries code/message/data on errors —
+              // parity with the success path (so structuredContent-only clients
+              // see the error). _meta.error must NOT be emitted.
+              expect(result._meta).toBeUndefined();
+              const sc = result.structuredContent as
+                | { error: { code: number; message: string } }
+                | undefined;
+              expect(sc?.error.code).toBeTypeOf('number');
+              expect(typeof sc?.error.message).toBe('string');
             }
           }),
           { numRuns: 30 },

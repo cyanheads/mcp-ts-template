@@ -4,7 +4,7 @@ description: >
   Exercise tools, resources, and prompts against a live HTTP server via MCP JSON-RPC over curl. Starts the server, surfaces the catalog, runs real and adversarial inputs, and produces a tight report with concrete findings and numbered follow-up options. Use after adding or modifying definitions, or when the user asks to test, try out, or verify their MCP surface.
 metadata:
   author: cyanheads
-  version: "2.1"
+  version: "2.2"
   audience: external
   type: debug
 ---
@@ -14,6 +14,15 @@ metadata:
 Unit tests (`add-test` skill) verify handler logic with mocked context. Field testing exercises the real HTTP transport with real JSON-RPC: starts the server, calls `initialize`, surfaces the catalog, runs inputs, and checks what a client actually sees. It catches what unit tests miss — awkward input shapes, unhelpful errors, missing format output, drift between `structuredContent` and `content[]`, edge-case surprises.
 
 **Actively call the tools. Don't read code and guess.**
+
+### Transport coverage
+
+This skill drives an HTTP server because curl + JSON-RPC is the most reliable harness for shell-based agents. Most servers ship both transports (`bun run dev:http` and `dev:stdio`), so HTTP coverage is sufficient: the same handler runs on both, only the framing differs. If the server is **stdio-only** (no HTTP transport in `package.json` / no `MCP_TRANSPORT_TYPE=http` path), drive it through one of:
+
+- **MCP Inspector** (`npx @modelcontextprotocol/inspector bun run dev:stdio`) — interactive UI for catalog browsing and tool calls; best for hands-on exploration
+- **mcp-cli** (`uvx mcp-cli --stdio bun run dev:stdio`) — scriptable JSON-RPC client; best for batch/agentic testing
+
+Adapt the test plan below the same way — universal battery on every definition, situational categories only when triggered, same error-contract verification — but call the tools through the inspector / mcp-cli rather than `mcp_call`. Pino startup + handler logs land on stderr in stdio mode (stdout is reserved for JSON-RPC), so tail with `2>/tmp/mcp-server.log` if you start the server yourself.
 
 ---
 
@@ -190,8 +199,8 @@ Runs `initialize`, captures the session id, sends `notifications/initialized`.
 
 ```bash
 . /tmp/mcp-field-test.sh
-mcp_call tools/list     | jq '.result.tools[]     | {name, description, inputSchema, outputSchema, errors: ._meta["mcp-ts-core/errors"]}'
-mcp_call resources/list | jq '.result.resources[] | {uri, name, mimeType, errors: ._meta["mcp-ts-core/errors"]}'
+mcp_call tools/list     | jq '.result.tools[]     | {name, description, inputSchema, outputSchema}'
+mcp_call resources/list | jq '.result.resources[] | {uri, name, mimeType}'
 mcp_call prompts/list   | jq '.result.prompts[]   | {name, description, arguments}'
 ```
 
@@ -229,7 +238,7 @@ Treat any hit as a `ux` finding in the report. The authoring rule lives under *T
 | Hits external API / live upstream | One call that exercises upstream; note rate-limit / timeout / transient-failure behavior |
 | Chained with other tools (search → detail → act) | Run one representative chain end-to-end; does each step return the IDs/cursors the next needs? |
 | `cursor` / `offset` / `limit` params | Pagination: second page, end-of-list |
-| Tool declared an `errors: [...]` contract | Error contract (tool): trigger ≥1 declared failure mode. Verify `result._meta.error.code` matches the contract entry, `result._meta.error.data.reason` is the declared reason (only present when the handler threw an `McpError` — `ctx.fail` always does, plain `throw new Error(...)` does not), and `content[0].text` is actionable. Reasons declared but unreachable from any input are dead contract entries. |
+| Tool declared an `errors: [...]` contract | Error contract (tool): trigger ≥1 declared failure mode. Verify `result.structuredContent.error.code` matches the contract entry, `result.structuredContent.error.data.reason` is the declared reason (only present when the handler threw an `McpError` — `ctx.fail` always does, plain `throw new Error(...)` does not), and `content[0].text` is actionable. Reasons declared but unreachable from any input are dead contract entries. |
 | Resource declared an `errors: [...]` contract | Error contract (resource): trigger ≥1 declared failure mode by reading a URI that exercises it. Resources re-throw errors at the JSON-RPC level — verify `error.code` matches the contract entry and `error.data.reason` is the declared reason. (Resources don't use the `result.isError` envelope — they fail the request itself.) |
 
 **Resources.** Happy path, not-found URI, `list` if defined, pagination if used.
@@ -253,7 +262,7 @@ When a call surprises you — slow, hangs, returns terse output, surfaces an unh
 **Interpreting responses**
 
 - Tool domain errors return `{result: {content: [...], isError: true}}` — they live in `result`, not `error`. Check `isError`, not the JSON-RPC error field.
-- **Tool error code/reason** rides on `result._meta.error.{code, data.reason}` — inspect that, not just the text. `data` is only spread when the handler threw an `McpError` (or `ZodError`); plain `throw new Error(...)` won't populate `data.reason`. Use `ctx.fail`-thrown errors when the contract reason matters.
+- **Tool error code/reason** rides on `result.structuredContent.error.{code, message, data?.reason}` — inspect that, not just the text. `data` is only spread when the handler threw an `McpError` (or `ZodError`); plain `throw new Error(...)` won't populate `data.reason`. Use `ctx.fail`-thrown errors when the contract reason matters. The text in `result.content[0].text` mirrors the message and includes `Recovery: <hint>` when `data.recovery.hint` is present.
 - **Resource errors** are JSON-RPC-level — they appear in the top-level `error.{code, data.reason}` field, not inside `result`. Resource handlers re-throw rather than producing an `isError` envelope.
 - JSON-RPC `error` only appears for protocol issues (bad session, malformed envelope, unknown method).
 - `mcp_call` already strips SSE framing. Pipe to `jq` for readability.
@@ -317,7 +326,7 @@ End with:
 - [ ] Catalog surfaced and presented; descriptions audited for leaks (implementation details, meta-coaching, consumer-aware phrasing)
 - [ ] Universal battery run on every definition
 - [ ] Situational categories applied only when triggered
-- [ ] **If a tool declared an `errors: [...]` contract:** ≥1 declared failure mode triggered; `result._meta.error.code` and `data.reason` verified against the contract entry
+- [ ] **If a tool declared an `errors: [...]` contract:** ≥1 declared failure mode triggered; `result.structuredContent.error.code` and `data.reason` verified against the contract entry
 - [ ] **If a resource declared an `errors: [...]` contract:** ≥1 declared failure mode triggered; top-level JSON-RPC `error.code` and `error.data.reason` verified against the contract entry
 - [ ] External-state / auth-gated tools handled explicitly (run, skip, or confirm)
 - [ ] Server stopped; state file removed

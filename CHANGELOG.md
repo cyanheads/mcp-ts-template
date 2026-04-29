@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.8.3](changelog/0.8.x/0.8.3.md) — 2026-04-29 · ⚠️ Breaking
+
+Tool error responses gain structuredContent.error parity with content[]; recovery hint mirrors into text; _meta.error and _meta['mcp-ts-core/errors'] wire publication dropped
+
 ## [0.8.2](changelog/0.8.x/0.8.2.md) — 2026-04-28
 
 Landing page tools section grouped by mutability with chip + search filter; status strip gains repo link; add-app-tool host-theming guidance; maintenance v2.0 hard-rule on framework adoption

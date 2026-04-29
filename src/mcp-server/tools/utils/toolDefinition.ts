@@ -72,8 +72,7 @@ export interface ToolDefinition<
    * Declarative contract describing the failure modes this tool can surface.
    *
    * Each entry pairs a `JsonRpcErrorCode` with a stable `reason` string and a
-   * `when` description. Surfaces in `tools/list` under `_meta['mcp-ts-core/errors']`,
-   * so clients and agents can preview failure modes alongside the schema.
+   * `when` description.
    *
    * **Type-driven.** When declared, the handler receives `ctx.fail(reason, …)`
    * typed against the union of `reason` strings — TypeScript enforces that you
@@ -82,7 +81,7 @@ export interface ToolDefinition<
    *
    * Optional. Without it, handlers still throw `McpError` directly and the
    * framework's auto-classifier produces correct codes at runtime — the
-   * contract just adds compile-time enforcement and surfacing in tools/list.
+   * contract just adds compile-time enforcement.
    *
    * The startup linter validates each entry's `code` is a real `JsonRpcErrorCode`
    * and that `reason` strings are unique within the contract.

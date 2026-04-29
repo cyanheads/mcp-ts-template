@@ -72,9 +72,9 @@ export interface ResourceDefinition<
   description: string;
   /**
    * Declarative contract describing the failure modes this resource can surface.
-   * See `ToolDefinition.errors` for full semantics. Surfaces in `resources/list`
-   * under `_meta['mcp-ts-core/errors']`. When declared, `ctx.fail(reason, …)` is
-   * typed against the reason union — see the example on `tool()`.
+   * See `ToolDefinition.errors` for full semantics. When declared,
+   * `ctx.fail(reason, …)` is typed against the reason union — see the example
+   * on `tool()`.
    */
   errors?: TErrors;
   /** Optional examples for discoverability. */

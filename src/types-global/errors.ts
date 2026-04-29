@@ -248,13 +248,9 @@ export type ErrorResponse = z.infer<typeof ErrorSchema>;
  * Lets a definition advertise what it can fail with — the JSON-RPC code, a
  * stable machine-readable `reason`, and a human-readable `when` description.
  *
- * **Where it shows up:**
- * - Surfaced in `tools/list` / `resources/list` under
- *   `_meta['mcp-ts-core/errors']`, so MCP clients and agents can preview failure
- *   modes alongside the input/output schema.
- * - Validated by the startup linter — invalid codes, duplicate `reason` strings
- *   within a single definition, and (with the conformance check enabled)
- *   handler bodies that throw codes not in the contract are flagged.
+ * **Validation.** Checked by the startup linter — invalid codes, duplicate
+ * `reason` strings within a single definition, and (with the conformance check
+ * enabled) handler bodies that throw codes not in the contract are flagged.
  *
  * **Authoring guidance:**
  * - Keep `reason` short, snake_case, stable. Treat it like a CSS class name
@@ -302,27 +298,4 @@ export interface ErrorContract {
    * from the actual `error.message` thrown at runtime.
    */
   when: string;
-}
-
-/**
- * The MCP `_meta` namespace key under which `errors[]` is published in
- * `tools/list` and `resources/list`. Namespaced to avoid collisions with
- * other framework or vendor extensions.
- */
-export const ERROR_CONTRACT_META_KEY = 'mcp-ts-core/errors';
-
-/**
- * Merges a tool/resource's `errors[]` contract into its `_meta` object under
- * {@link ERROR_CONTRACT_META_KEY}. Returns `undefined` when both sides are
- * absent so callers can spread conditionally without producing an empty
- * `_meta` field. Used by the tool and resource registries.
- *
- * @internal
- */
-export function buildMetaWithErrorContract(
-  baseMeta: Record<string, unknown> | undefined,
-  errors: readonly unknown[] | undefined,
-): Record<string, unknown> | undefined {
-  if (!errors || errors.length === 0) return baseMeta;
-  return { ...(baseMeta ?? {}), [ERROR_CONTRACT_META_KEY]: errors };
 }

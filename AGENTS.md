@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.8.2
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.8.3
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -345,7 +345,7 @@ See `api-context` skill for full details.
 
 ## Error Handling
 
-**Recommended path: declare a typed error contract.** Add `errors: [{ reason, code, when, retryable? }]` to `tool()` / `resource()`. The handler then receives `ctx.fail(reason, msg?, data?)` typed against the reason union — `ctx.fail('typo')` is a TypeScript error. The runtime auto-populates `data.reason` for observability and the contract is published in `tools/list` under `_meta['mcp-ts-core/errors']` so clients can preview failure modes.
+**Recommended path: declare a typed error contract.** Add `errors: [{ reason, code, when, retryable? }]` to `tool()` / `resource()`. The handler then receives `ctx.fail(reason, msg?, data?)` typed against the reason union — `ctx.fail('typo')` is a TypeScript error. The runtime auto-populates `data.reason` for observability and the linter enforces conformance against the handler body.
 
 ```ts
 errors: [
@@ -373,6 +373,12 @@ Available factories: `invalidParams`, `invalidRequest`, `notFound`, `forbidden`,
 For HTTP responses from upstream APIs, use `httpErrorFromResponse(response, { service, data })` from `/utils` — maps the full status table (401/403/408/422/429/5xx) and captures body + `Retry-After`.
 
 **Auto-classification.** Plain `Error`, `ZodError`, and any other thrown value are caught and classified automatically. Resolution order: `McpError` code (preserved as-is) → JS constructor name (`TypeError` → `ValidationError`) → provider patterns (HTTP status codes, AWS errors, DB errors) → common message patterns → `AbortError` name → `InternalError` fallback.
+
+**Error-path parity.** Tool errors mirror the success-path `format-parity` invariant — both surfaces clients forward to the agent carry the same payload:
+- `content[]` (read by clients like Claude Desktop) — markdown rendering of the error, with `data.recovery.hint` mirrored into the text when present
+- `structuredContent.error` (read by clients like Claude Code) — JSON `{ code, message, data? }` carrying the error code, message, and any structured data from the thrown `McpError` or `ZodError`
+
+`_meta.error` is **not** emitted on tool errors — error data lives on `structuredContent.error`. Resources re-throw to the SDK, which routes them through the JSON-RPC error envelope (no parity wiring needed there).
 
 The startup linter checks handler bodies for `prefer-mcp-error-in-handler`, `prefer-error-factory`, `preserve-cause-on-rethrow`, `no-stringify-upstream-error`, plus contract conformance (`error-contract-conformance` for undeclared non-baseline codes, `error-contract-prefer-fail` for declared codes thrown directly instead of via `ctx.fail`) — all warnings, surfaced in `bun run devcheck`.
 

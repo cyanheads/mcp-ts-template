@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import { tool } from '@/mcp-server/tools/utils/toolDefinition.js';
 import type { HandlerFactoryServices } from '@/mcp-server/tools/utils/toolHandlerFactory.js';
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -411,6 +412,57 @@ describe('ToolRegistry', () => {
         ui: { resourceUri: 'ui://task-app/app.html' },
         'ui/resourceUri': 'ui://task-app/app.html',
       });
+    });
+
+    it('should not publish errors[] contract under _meta on standard tools', async () => {
+      const errorContractTool = tool('contract_tool', {
+        description: 'Tool with errors contract',
+        input: z.object({}),
+        output: z.object({}),
+        errors: [{ reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No match found.' }],
+        handler: () => ({}),
+      });
+
+      const registry = new ToolRegistry([errorContractTool], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.registerTool.mock.calls[0];
+      expect(call[1]._meta).toBeUndefined();
+    });
+
+    it('should not merge errors[] contract into custom _meta on standard tools', async () => {
+      const mixedTool = tool('mixed_tool', {
+        description: 'Tool with both errors and _meta',
+        input: z.object({}),
+        output: z.object({}),
+        errors: [{ reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No match found.' }],
+        _meta: { ui: { resourceUri: 'ui://mixed/app.html' } },
+        handler: () => ({}),
+      });
+
+      const registry = new ToolRegistry([mixedTool], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.registerTool.mock.calls[0];
+      expect(call[1]._meta).toEqual({ ui: { resourceUri: 'ui://mixed/app.html' } });
+      expect(call[1]._meta).not.toHaveProperty('mcp-ts-core/errors');
+    });
+
+    it('should not publish errors[] contract under _meta on auto-task tools', async () => {
+      const taskContractTool = tool('task_contract_tool', {
+        description: 'Auto-task tool with errors contract',
+        input: z.object({}),
+        output: z.object({}),
+        task: true,
+        errors: [{ reason: 'queue_full', code: JsonRpcErrorCode.RateLimited, when: 'Queue full.' }],
+        handler: async () => ({}),
+      });
+
+      const registry = new ToolRegistry([taskContractTool], services);
+      await registry.registerAll(mockServer);
+
+      const call = mockServer.experimental.tasks.registerToolTask.mock.calls[0];
+      expect(call[1]._meta).toBeUndefined();
     });
   });
 

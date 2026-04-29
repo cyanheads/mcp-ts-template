@@ -109,7 +109,7 @@ If the repo already uses `src/mcp-server/resources/definitions/index.ts`, update
 
 ### Optional: declarative `errors[]` contract
 
-Resources can opt into the same typed error contract as tools — surfaced in `resources/list` under `_meta['mcp-ts-core/errors']` and bound to a typed `ctx.fail(reason, …)` keyed by the declared reason union:
+Resources can opt into the same typed error contract as tools — bound to a typed `ctx.fail(reason, …)` keyed by the declared reason union:
 
 ```typescript
 import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';

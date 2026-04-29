@@ -4,7 +4,7 @@ description: >
   Scaffold a new MCP tool definition. Use when the user asks to add a tool, create a new tool, or implement a new capability for the server.
 metadata:
   author: cyanheads
-  version: "1.9"
+  version: "2.0"
   audience: external
   type: reference
 ---
@@ -44,6 +44,7 @@ For shape selection (Workflow or Instruction variants — standard single-action
  */
 
 import { tool, z } from '@cyanheads/mcp-ts-core';
+import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
 
 export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
   title: '{{TOOL_TITLE}}',
@@ -58,17 +59,25 @@ export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
     // All fields need .describe(). Only JSON-Schema-serializable Zod types allowed.
   }),
   // auth: ['tool:{{tool_name}}:read'],
-  // errors: [
-  //   { reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No items matched the query.' },
-  //   { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited, when: 'Local queue at capacity.', retryable: true },
-  // ],
+
+  // Each entry declares a domain-specific failure mode and types
+  // `ctx.fail(reason, …)` against the declared union. Baseline codes
+  // (InternalError, ServiceUnavailable, Timeout, ValidationError,
+  // SerializationError) bubble freely — only declare domain-specific reasons.
+  // Delete this block if no domain failures apply.
+  errors: [
+    { reason: 'no_match', code: JsonRpcErrorCode.NotFound, when: 'No items matched the query.' },
+    { reason: 'queue_full', code: JsonRpcErrorCode.RateLimited, when: 'Local queue at capacity.', retryable: true },
+  ],
 
   async handler(input, ctx) {
     ctx.log.info('Processing', { /* relevant input fields */ });
     // Pure logic — throw on failure, no try/catch.
     // With an `errors[]` contract: `throw ctx.fail('reason_id', message?, data?)`.
     // Without: throw via factories (`notFound`, `validationError`, …) or plain `Error`.
-    return { /* output */ };
+    const items = await search(input);
+    if (items.length === 0) throw ctx.fail('no_match', `No items matched "${input.query}"`);
+    return { items };
   },
 
   // format() populates MCP content[] — the markdown twin of structuredContent.
@@ -186,18 +195,38 @@ Single-item tools don't need this — they either succeed or throw. The partial 
 
 ### Empty results need context
 
-An empty array with no explanation is a dead end. Echo back the criteria that produced zero results and, where possible, suggest how to broaden the search.
+An empty array with no explanation is a dead end. Echo back the criteria that produced zero results and, where possible, suggest how to broaden the search. The recovery hint needs three pieces working together — schema entry, handler return, and `format()` rendering — or the `format-parity` lint will flag the missing field.
 
 ```typescript
-// In handler — after getting zero results:
-if (results.length === 0) {
-  return {
-    items: [],
-    totalCount: 0,
-    message: `No items matched status="${input.status}" in project "${input.project}". `
-      + `Try a broader status filter or verify the project name.`,
-  };
-}
+// 1. Output schema — declare the recovery field so the linter sees it
+output: z.object({
+  items: z.array(ItemSchema).describe('Matching items.'),
+  totalCount: z.number().describe('Total matches before pagination.'),
+  message: z.string().optional()
+    .describe('Recovery hint when results are empty — echoes filters and suggests how to broaden. Absent on successful result pages.'),
+}),
+
+// 2. Handler — populate `message` when the result is empty
+async handler(input, ctx) {
+  const results = await search(input);
+  if (results.length === 0) {
+    return {
+      items: [],
+      totalCount: 0,
+      message: `No items matched status="${input.status}" in project "${input.project}". `
+        + `Try a broader status filter or verify the project name.`,
+    };
+  }
+  return { items: results, totalCount: results.length };
+},
+
+// 3. format() — render the recovery hint so content[]-only clients see it too
+format: (result) => {
+  const lines = [`**Total:** ${result.totalCount}`];
+  if (result.message) lines.push(`\n> ${result.message}`);
+  for (const item of result.items) lines.push(`- ${item.name}`);
+  return [{ type: 'text', text: lines.join('\n') }];
+},
 ```
 
 ### Sparse upstream data must stay honest
@@ -265,13 +294,51 @@ export const fetchArticles = tool('fetch_articles', {
 });
 ```
 
-**Baseline codes** (`InternalError`, `ServiceUnavailable`, `Timeout`, `ValidationError`, `SerializationError`) bubble freely and don't need declaring. Omit the contract only for throwaway prototypes — declare it everywhere else. Wire-level behavior is identical when omitted, but you lose the type-checked `ctx.fail`, the `tools/list` advertisement, and conformance lint coverage.
+**Baseline codes** (`InternalError`, `ServiceUnavailable`, `Timeout`, `ValidationError`, `SerializationError`) bubble freely and don't need declaring. Wire-level behavior is identical when the contract is omitted, but you lose the type-checked `ctx.fail`, the `tools/list` advertisement, and conformance lint coverage — declare a contract whenever the tool has a domain-specific failure mode.
 
 `ctx.fail` accepts an optional 4th `options` argument for ES2022 cause chaining: `throw ctx.fail('upstream_error', 'Upstream returned 500', { url }, { cause: e })`.
 
-**Service-thrown contract reasons.** When the throw happens in a called service rather than the handler itself, `ctx.fail` isn't reachable — services don't have `ctx`. Pass `data: { reason: 'X' }` to the factory in the service; the framework's auto-classifier preserves `data` on the wire, so the contract reason rides through unchanged. The handler bubbles the error without catching. See `add-service` for the pattern.
+#### Service-layer throws
 
-**Fallback: error factories.** Use when no contract entry fits — ad-hoc throws, prototype tools, or service-layer code. The framework also auto-classifies plain `throw new Error()` from message patterns as a last resort.
+API-wrapping tools usually delegate to a service: `const data = await ncbi.fetch(input)`. The throw lives in the service, not the handler — and services don't receive `ctx`, so `ctx.fail` is unreachable from there. The fix is to pass `data: { reason: 'X' }` to the factory in the service. The framework's auto-classifier preserves `data` on the wire, so clients see the same `error.data.reason` they would have seen from `ctx.fail`. The handler doesn't catch — it just bubbles.
+
+The contract entry on the tool and the `data: { reason }` on the service throw need to use the **same reason string** so the two sides line up.
+
+```typescript
+// service — passes data.reason to match the consuming tool's contract
+import { serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
+
+export class NcbiService {
+  async fetch(pmids: string[]) {
+    const response = await fetchWithRetry(...);
+    if (!response.ok) {
+      throw serviceUnavailable(
+        `NCBI returned HTTP ${response.status}`,
+        { reason: 'ncbi_unreachable', status: response.status },  // ← matches contract entry
+        { cause: undefined },
+      );
+    }
+    return response.json();
+  }
+}
+
+// tool — declares the matching contract entry, calls the service, doesn't catch
+export const fetchArticles = tool('fetch_articles', {
+  errors: [
+    { reason: 'ncbi_unreachable', code: JsonRpcErrorCode.ServiceUnavailable,
+      when: 'NCBI E-utilities is unreachable.', retryable: true },
+  ],
+  async handler(input, ctx) {
+    return { articles: await ncbi.fetch(input.pmids) };  // throws bubble unchanged
+  },
+});
+```
+
+See `add-service` for the full pattern.
+
+#### Ad-hoc factory throws (fallback)
+
+When no contract entry fits — prototype code, one-off throws, or service-layer fallbacks — use error factories or plain `throw new Error()`. The framework auto-classifies plain `Error` from message patterns as a last resort.
 
 ```typescript
 // Client input error — agent can fix and retry
@@ -365,7 +432,7 @@ Large payloads burn the agent's context window. Default to curated summaries; of
 - [ ] `format()` renders every field in the output schema — enforced at lint time via sentinel injection, startup fails with `format-parity` errors otherwise. Different clients forward different surfaces (Claude Code → `structuredContent`, Claude Desktop → `content[]`); both must carry the same data. Primary fix: render the missing field in `format()` (use `z.discriminatedUnion` for list/detail variants). Escape hatch: if the output schema was over-typed for a genuinely dynamic upstream API, relax it (`z.object({}).passthrough()`) rather than maintaining aspirational typing
 - [ ] If wrapping external API: output schema and `format()` preserve uncertainty from sparse upstream payloads instead of inventing concrete values
 - [ ] `auth` scopes declared if the tool needs authorization
-- [ ] `errors: [...]` contract declared for known domain failure modes (recommended; omit only for throwaway prototypes)
+- [ ] `errors: [...]` contract declared for the tool's domain-specific failure modes — or block deleted if no domain failures apply (baseline codes bubble freely)
 - [ ] `task: true` added if the tool is long-running
 - [ ] Registered in the project's existing `createApp()` tool list (directly or via barrel)
 - [ ] `bun run devcheck` passes

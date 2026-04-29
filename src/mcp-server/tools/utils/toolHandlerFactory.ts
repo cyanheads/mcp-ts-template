@@ -18,7 +18,7 @@ import type { Context, SamplingOpts } from '@/core/context.js';
 import { attachTypedFail, createContext } from '@/core/context.js';
 import { withRequiredScopes } from '@/mcp-server/transports/auth/lib/authUtils.js';
 import type { StorageService } from '@/storage/core/StorageService.js';
-import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
+import { type JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 import { ErrorHandler } from '@/utils/internal/error-handler/errorHandler.js';
 import type { Logger } from '@/utils/internal/logger.js';
 import { measureToolExecution } from '@/utils/internal/performance.js';
@@ -61,6 +61,75 @@ export interface HandlerNotifiers {
 const defaultResponseFormatter = (result: unknown): ContentBlock[] => [
   { type: 'text', text: JSON.stringify(result, null, 2) },
 ];
+
+// ---------------------------------------------------------------------------
+// Error response shaping
+// ---------------------------------------------------------------------------
+
+/**
+ * Pulls `data.recovery.hint` from an error data payload when present and
+ * non-empty. Returns `undefined` otherwise. Used to mirror the hint into
+ * `content[]` text so format()-only clients see the same recovery guidance
+ * structuredContent-only clients receive via `error.data.recovery.hint`.
+ */
+function extractRecoveryHint(data: Record<string, unknown> | undefined): string | undefined {
+  const hint = (data?.recovery as { hint?: unknown } | undefined)?.hint;
+  return typeof hint === 'string' && hint.length > 0 ? hint : undefined;
+}
+
+/**
+ * Shapes a `CallToolResult` for a tool error response with parity across both
+ * surfaces clients forward to the agent:
+ * - `content[]` — read by clients like Claude Desktop (markdown)
+ * - `structuredContent.error` — read by clients like Claude Code (JSON)
+ *
+ * Both surfaces carry the same payload. When `data.recovery.hint` is present,
+ * it is also mirrored into the `content[]` text so format()-only clients see
+ * the recovery guidance.
+ *
+ * Note: `_meta.error` is intentionally NOT emitted — the error code, message,
+ * and data live on `structuredContent.error` instead, mirroring the success
+ * path's `structuredContent` surface.
+ */
+export function buildToolErrorResult(
+  code: JsonRpcErrorCode,
+  message: string,
+  data: Record<string, unknown> | undefined,
+): CallToolResult {
+  const hint = extractRecoveryHint(data);
+  const text = hint ? `Error: ${message}\n\nRecovery: ${hint}` : `Error: ${message}`;
+  return {
+    isError: true,
+    content: [{ type: 'text', text }],
+    structuredContent: {
+      error: {
+        code,
+        message,
+        ...(data !== undefined && { data }),
+      },
+    },
+  };
+}
+
+/**
+ * Builds an error `CallToolResult` from a raw thrown value. Classifies via
+ * {@link ErrorHandler.classifyOnly} when the value isn't already an
+ * `McpError`. Only propagates data from `McpError` (its declared `data`) or
+ * `ZodError` (its `issues`) — other thrown values get a `structuredContent.error`
+ * with `code` and `message` only, so internal classification context never
+ * leaks to clients.
+ *
+ * Use after invoking {@link ErrorHandler.handleError} for OTel/logging side
+ * effects — this helper does not log.
+ */
+export function classifyAndBuildToolErrorResult(error: unknown): CallToolResult {
+  if (error instanceof McpError) {
+    return buildToolErrorResult(error.code, error.message, error.data);
+  }
+  const { code, message } = ErrorHandler.classifyOnly(error);
+  const data = error instanceof ZodError ? { issues: error.issues } : undefined;
+  return buildToolErrorResult(code, message, data);
+}
 
 // ---------------------------------------------------------------------------
 // Capability detection helpers
@@ -175,34 +244,11 @@ export function createToolHandler(
         content,
       };
     } catch (error: unknown) {
-      const handled = ErrorHandler.handleError(error, {
+      ErrorHandler.handleError(error, {
         operation: `tool:${def.name}`,
         context: appContext,
       });
-      const mcpError =
-        handled instanceof McpError
-          ? handled
-          : new McpError(JsonRpcErrorCode.InternalError, handled.message, {
-              originalError: handled.name,
-            });
-
-      // Surface error classification via _meta so programmatic clients can distinguish error types (auth, validation, not-found, etc.) without parsing the text message. Only propagate data from explicitly thrown McpError instances and ZodError (structured validation issues) — ErrorHandler enrichment contains internal context (stack traces, operation details) that shouldn't be client-visible.
-      const originalData =
-        error instanceof McpError
-          ? error.data
-          : error instanceof ZodError
-            ? { issues: error.issues }
-            : undefined;
-      return {
-        isError: true,
-        content: [{ type: 'text', text: `Error: ${mcpError.message}` }],
-        _meta: {
-          error: {
-            code: mcpError.code,
-            ...(originalData !== undefined && { data: originalData }),
-          },
-        },
-      };
+      return classifyAndBuildToolErrorResult(error);
     }
   };
 }
