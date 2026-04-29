@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.8.5](changelog/0.8.x/0.8.5.md) — 2026-04-29
+
+HTTP+MCP_AUTH_MODE=none defaults tenantId to 'default' so ctx.state works without minting JWTs. New ctx.recoveryFor opt-in contract resolver carries the contract recovery onto the wire — single source of truth for handler and service throws.
+
 ## [0.8.4](changelog/0.8.x/0.8.4.md) — 2026-04-29 · ⚠️ Breaking
 
 ErrorContract.recovery is now required (≥ 5 words, lint-validated). Decoupled from runtime data.recovery.hint — no auto-population, just a forcing function for thoughtful authoring.

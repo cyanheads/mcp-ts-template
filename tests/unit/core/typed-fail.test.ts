@@ -7,7 +7,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import type { HandlerContext, ReasonOf } from '@/core/context.js';
-import { createFail } from '@/core/context.js';
+import { createFail, createRecoveryFor } from '@/core/context.js';
 import { type ErrorContract, JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 
 describe('createFail (runtime)', () => {
@@ -146,5 +146,76 @@ describe('HandlerContext<R> (type-only)', () => {
     // The fail signature should accept 'a' | 'b' but not other strings
     type FailFn = Ctx extends { fail: infer F } ? F : never;
     expectTypeOf<FailFn>().parameter(0).toEqualTypeOf<'a' | 'b'>();
+  });
+
+  it('includes a typed recoveryFor when R is a literal union', () => {
+    type Ctx = HandlerContext<'a' | 'b'>;
+    expectTypeOf<Ctx>().toHaveProperty('recoveryFor');
+    type RecoveryFn = Ctx extends { recoveryFor: infer F } ? F : never;
+    expectTypeOf<RecoveryFn>().parameter(0).toEqualTypeOf<'a' | 'b'>();
+  });
+});
+
+describe('createRecoveryFor (runtime)', () => {
+  const contract = [
+    {
+      reason: 'no_match',
+      code: JsonRpcErrorCode.NotFound,
+      when: 'No items matched',
+      recovery: 'Try a different identifier and retry the call.',
+    },
+    {
+      reason: 'rate_limited',
+      code: JsonRpcErrorCode.RateLimited,
+      when: 'Upstream throttled',
+      retryable: true,
+      recovery: 'Wait a few seconds before retrying.',
+    },
+  ] as const satisfies readonly ErrorContract[];
+
+  it('returns the wire shape for a declared reason', () => {
+    const recoveryFor = createRecoveryFor(contract);
+    expect(recoveryFor('no_match')).toEqual({
+      recovery: { hint: 'Try a different identifier and retry the call.' },
+    });
+    expect(recoveryFor('rate_limited')).toEqual({
+      recovery: { hint: 'Wait a few seconds before retrying.' },
+    });
+  });
+
+  it('returns {} for an unknown reason (JS callers / stale contracts)', () => {
+    const recoveryFor = createRecoveryFor(contract);
+    expect(recoveryFor('typo_reason')).toEqual({});
+  });
+
+  it('spreads safely into ctx.fail data without overriding caller fields', () => {
+    const fail = createFail(contract);
+    const recoveryFor = createRecoveryFor(contract);
+
+    const err = fail('no_match', 'No widgets', {
+      itemId: '123',
+      ...recoveryFor('no_match'),
+    });
+
+    expect(err.data).toEqual({
+      reason: 'no_match',
+      itemId: '123',
+      recovery: { hint: 'Try a different identifier and retry the call.' },
+    });
+  });
+
+  it('lets the caller override recovery with explicit dynamic context', () => {
+    const recoveryFor = createRecoveryFor(contract);
+    // Spread the contract default first, then override with dynamic hint.
+    const data = {
+      ...recoveryFor('no_match'),
+      recovery: { hint: 'No widget #123; try IDs 1-100 instead.' },
+    };
+    expect(data.recovery.hint).toBe('No widget #123; try IDs 1-100 instead.');
+  });
+
+  it('returns {} for an empty contract (no-op resolver)', () => {
+    const recoveryFor = createRecoveryFor([]);
+    expect(recoveryFor('anything')).toEqual({});
   });
 });

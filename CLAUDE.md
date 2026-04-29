@@ -1,6 +1,6 @@
 # Agent Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.8.4
+**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.8.5
 **npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
 > **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
@@ -23,7 +23,7 @@
 
 | Subpath | Key Exports | Purpose |
 |:--------|:------------|:--------|
-| `@cyanheads/mcp-ts-core` | `createApp`, `tool`, `resource`, `prompt`, `appTool`, `appResource`, `APP_RESOURCE_MIME_TYPE`, `Context`, `createFail`, `TypedFail`, `ReasonOf`, `HandlerContext`, `z` | Main entry point |
+| `@cyanheads/mcp-ts-core` | `createApp`, `tool`, `resource`, `prompt`, `appTool`, `appResource`, `APP_RESOURCE_MIME_TYPE`, `Context`, `createFail`, `createRecoveryFor`, `TypedFail`, `TypedRecoveryFor`, `ReasonOf`, `HandlerContext`, `z` | Main entry point |
 | `/worker` | `createWorkerHandler`, `CloudflareBindings` | Cloudflare Workers entry |
 | `/tools` | `ToolDefinition`, `AnyToolDefinition`, `ToolAnnotations` | Tool definition types |
 | `/resources` | `ResourceDefinition`, `AnyResourceDefinition` | Resource definition types |
@@ -299,6 +299,7 @@ interface Context {
   readonly signal: AbortSignal;               // cancellation
   readonly progress?: ContextProgress;        // present when task: true
   readonly uri?: URL;                         // present for resource handlers
+  recoveryFor(reason: string): { recovery: { hint: string } } | {};  // opt-in contract resolver
 }
 ```
 
@@ -320,7 +321,13 @@ const values = await ctx.state.getMany<Item>(['item:1', 'item:2']); // Map<strin
 const page = await ctx.state.list('item:', { cursor, limit: 20 });  // { items, cursor? }
 ```
 
-Throws `McpError(InvalidRequest)` if `tenantId` missing. Tenant ID from JWT `'tid'` claim (HTTP) or `'default'` (stdio).
+Throws `McpError(InvalidRequest)` if `tenantId` missing. Tenant ID resolution:
+
+| Mode | `tenantId` source |
+|:-----|:------------------|
+| stdio (any auth) | `'default'` |
+| HTTP + `MCP_AUTH_MODE=none` | `'default'` (single-tenant by design) |
+| HTTP + `MCP_AUTH_MODE=jwt`/`oauth` | JWT `'tid'` claim — fail-closed if absent |
 
 ### `ctx.elicit` / `ctx.sample`
 
@@ -345,7 +352,7 @@ See `api-context` skill for full details.
 
 ## Error Handling
 
-**Recommended path: declare a typed error contract.** Add `errors: [{ reason, code, when, recovery, retryable? }]` to `tool()` / `resource()`. The handler then receives `ctx.fail(reason, msg?, data?)` typed against the reason union — `ctx.fail('typo')` is a TypeScript error. The runtime auto-populates `data.reason` for observability and the linter enforces conformance against the handler body. The `recovery` field is required, descriptive metadata for the agent's next move; for the wire payload's `data.recovery.hint` (which the framework mirrors into `content[]` text), pass it explicitly at the throw site when dynamic context matters: `ctx.fail('reason', msg, { recovery: { hint: '...' } })`.
+**Recommended path: declare a typed error contract.** Add `errors: [{ reason, code, when, recovery, retryable? }]` to `tool()` / `resource()`. The handler then receives `ctx.fail(reason, msg?, data?)` typed against the reason union — `ctx.fail('typo')` is a TypeScript error. The runtime auto-populates `data.reason` for observability and the linter enforces conformance against the handler body. The `recovery` field is required (≥5 words, lint-validated) — it's the single source of truth for the recovery hint that flows to the wire. Spread `ctx.recoveryFor('reason')` into `data` to opt the contract recovery onto the wire (the framework mirrors `data.recovery.hint` into `content[]` text). Override with explicit `{ recovery: { hint: '...' } }` when runtime context matters.
 
 ```ts
 errors: [
@@ -357,10 +364,17 @@ errors: [
     recovery: 'Wait 30 seconds before retrying or reduce batch size.' },
 ],
 async handler(input, ctx) {
-  if (queue.full()) throw ctx.fail('queue_full');
-  // ...
+  // Static recovery — pulled from the contract via ctx.recoveryFor.
+  if (queue.full()) throw ctx.fail('queue_full', undefined, { ...ctx.recoveryFor('queue_full') });
+  // Dynamic recovery — interpolate runtime context, override the contract default.
+  if (!matched) throw ctx.fail('no_match', `No data for ${input.pmids.length} PMIDs`, {
+    pmids: input.pmids,
+    recovery: { hint: `Use pubmed_search_articles to discover valid PMIDs.` },
+  });
 }
 ```
+
+**`ctx.recoveryFor(reason)`** is the first member of a planned family of opt-in resolution helpers (future: `troubleshootingFor`, `userMessageFor`, …). Always present on `Context` (returns `{}` when no contract is attached or the reason is unknown — spread-safe), strictly typed on `HandlerContext<R>` against the declared reason union. The same resolver works in services that accept `ctx`: `throw validationError(msg, { reason: 'X', ...ctx.recoveryFor('X') })`. No auto-population — author opts in by typing the helper.
 
 The contract describes the **public failure surface** — declare domain-specific failures only. **Baseline codes** (`InternalError`, `ServiceUnavailable`, `Timeout`, `ValidationError`, `SerializationError`) bubble from anywhere and are auto-allowed by the conformance lint, so you don't need to enumerate them per-tool. The conformance lint scans handler source text only — failures thrown from called services aren't visible to it (still reach the client correctly via the auto-classifier, just without lint enforcement).
 

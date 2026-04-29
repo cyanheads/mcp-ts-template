@@ -249,10 +249,14 @@ export function createMockContext(options: MockContextOptions = {}): Context {
     notifyResourceUpdated: options.notifyResourceUpdated,
     progress,
     uri: options.uri,
+    // No-op resolver for definitions without a contract. `attachTypedFail` below
+    // overwrites it with a contract-aware resolver when `options.errors` is set.
+    recoveryFor: () => ({}),
   };
 
   // Mirror the production handler factory: when a contract is declared, attach
-  // a typed `fail` keyed by the contract's reasons. Empty contracts no-op.
+  // a typed `fail` and `recoveryFor` keyed by the contract's reasons. Empty
+  // contracts leave the no-op resolver in place.
   return attachTypedFail(ctx, options.errors);
 }
 

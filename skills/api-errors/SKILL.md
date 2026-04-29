@@ -4,7 +4,7 @@ description: >
   McpError constructor, JsonRpcErrorCode reference, and error handling patterns for `@cyanheads/mcp-ts-core`. Use when looking up error codes, understanding where errors should be thrown vs. caught, or using ErrorHandler.tryCatch in services.
 metadata:
   author: cyanheads
-  version: "1.2"
+  version: "1.4"
   audience: external
   type: reference
 ---
@@ -67,7 +67,56 @@ export const fetchTool = tool('fetch_articles', {
 | Lint (startup) | Each `code` validated against `JsonRpcErrorCode`. Reasons validated as snake_case + unique within contract. `recovery` validated as non-empty and ≥ 5 words. |
 | Lint (conformance) | If the handler `throw new McpError(JsonRpcErrorCode.X)` outside `ctx.fail`, conformance check warns when X isn't declared. |
 
-> **`recovery` is descriptive, not auto-injected.** The contract `recovery` is required metadata documenting the agent's next move when this failure mode fires (a forcing function for thoughtful guidance — placeholders like "Try again." get flagged by the linter). It is **not** auto-populated into runtime `data.recovery.hint`. The wire payload's recovery hint — which the framework mirrors into `content[]` text per the [error-path parity](#error-path-parity) invariant — is populated separately at the throw site, where dynamic context (input values, attempted IDs, queue state) is available: `ctx.fail('reason', msg, { recovery: { hint: '...' } })`. The two fields can carry the same string when no dynamic context is needed; they're decoupled by design — what the author writes at the throw site is what flows to the wire, with no hidden transformation.
+> **`recovery` is opt-in resolution, not auto-population.** The contract `recovery` is required metadata documenting the agent's next move when this failure mode fires (a forcing function for thoughtful guidance — placeholders like "Try again." get flagged by the linter). It does **not** automatically appear in runtime `data.recovery.hint` — the framework never injects it without an explicit signal at the throw site. Authors opt in by spreading `ctx.recoveryFor('reason')` into the `data` argument, the same way `ctx.fail('reason')` opts into resolving the contract `code`. What the author types at the throw site is what flows to the wire, with no hidden transformation; the resolver is just a typed lookup keyed by the same `reason` the author already typed.
+
+#### `ctx.recoveryFor` — opt-in contract resolution
+
+`ctx.recoveryFor(reason)` returns `{ recovery: { hint: <contract.recovery> } }` for a declared reason, ready to spread into `data`. Always available on `Context` (returns `{}` when no contract is attached or the reason is unknown — spread-safe with no optional chaining). On `HandlerContext<R>` it tightens to a typed signature constrained to the declared reason union.
+
+```ts
+export const calculateTool = tool('calculate', {
+  // ...
+  errors: [
+    { reason: 'empty_expression', code: JsonRpcErrorCode.ValidationError,
+      when: 'Expression is empty or whitespace-only.',
+      recovery: 'Provide a non-empty mathematical expression to evaluate.' },
+  ],
+  handler(input, ctx) {
+    if (!input.expression.trim()) {
+      // Static recovery — resolve from the contract.
+      throw ctx.fail('empty_expression', undefined, { ...ctx.recoveryFor('empty_expression') });
+    }
+    // ...
+  },
+});
+```
+
+Same pattern works inside services that accept `ctx`:
+
+```ts
+export class MathService {
+  parse(expr: string, ctx: Context) {
+    try {
+      return mathjs.parse(expr);
+    } catch (err) {
+      throw validationError(`Parse failed: ${err.message}`, {
+        reason: 'parse_failed',
+        ...ctx.recoveryFor('parse_failed'),  // {} if calling tool has no matching reason
+      });
+    }
+  }
+}
+```
+
+The contract is the single source of truth — write the recovery once, lint validates ≥5 words, the resolver carries it to every throw site that opts in. For runtime-context recovery (interpolating input values, attempted IDs, queue state), override at the throw site:
+
+```ts
+throw ctx.fail('no_match', `No item ${id}`, {
+  recovery: { hint: `No item ${id}; try IDs 1-100 instead.` },
+});
+```
+
+`ctx.recoveryFor` is the first member of a planned **family of opt-in resolution helpers**. Future contract-bound fields (`troubleshootingFor`, `userMessageFor`, …) follow the same shape: single-purpose, spreadable wire-shape, `{}` fallback when not applicable.
 
 **Skip the contract** for one-off internal tools or quick prototypes — `ctx` is plain `Context` (no `fail`) and you throw via [factories](#error-factories-fallback) directly. Behavior is identical at the wire; the contract just adds compile-time safety.
 
@@ -96,6 +145,17 @@ errors: [
 ```
 
 The handler doesn't catch and re-throw — letting service errors bubble unchanged keeps "logic throws, framework catches" intact. The wire payload still carries `code` + `data.reason`, and clients can switch on reason without parsing message text. What's lost is lint-time enforcement that every reason is reachable; compensate with one wire-shape test per reason.
+
+To carry the contract `recovery` from a service throw, accept `ctx` and spread the resolver:
+
+```ts
+throw validationError(message, {
+  reason: 'parse_failed',
+  ...ctx.recoveryFor('parse_failed'),  // {} when calling tool has no matching reason
+});
+```
+
+`ctx.recoveryFor` is always present on `Context` (no-op when no contract), so services don't need to know which tool called them — the spread is safe either way.
 
 ---
 

@@ -121,10 +121,11 @@ Set via `MCP_AUTH_MODE` environment variable.
 
 ### tenantId sources
 
-| Transport | Source | Value |
-|:----------|:-------|:------|
-| HTTP with auth | JWT `tid` claim | Auto-propagated from token |
-| Stdio | Hardcoded default | `'default'` |
+| Mode | Source | Value |
+|:-----|:-------|:------|
+| Stdio (any auth mode) | Hardcoded default | `'default'` |
+| HTTP + `MCP_AUTH_MODE=none` | Hardcoded default | `'default'` (single-tenant by design) |
+| HTTP + `MCP_AUTH_MODE=jwt`/`oauth` | JWT `tid` claim | Auto-propagated from token; `undefined` if absent (fail-closed) |
 
 ### Tenant ID validation rules
 
@@ -148,7 +149,7 @@ handler: async (input, ctx) => {
 },
 ```
 
-`ctx.state` throws `McpError(InvalidRequest)` if `tenantId` is missing. In stdio mode, `tenantId` defaults to `'default'` so `ctx.state` works without auth.
+`ctx.state` throws `McpError(InvalidRequest)` if `tenantId` is missing. Stdio (any auth mode) and HTTP+`MCP_AUTH_MODE=none` default `tenantId` to `'default'` so `ctx.state` works without forcing operators to mint tokens. HTTP+`jwt`/`oauth` deliberately fails closed when the token lacks a `tid` claim — distinct authenticated callers must not silently share state.
 
 ---
 

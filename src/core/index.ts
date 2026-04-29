@@ -39,8 +39,9 @@ export type {
   ReasonOf,
   SamplingOpts,
   TypedFail,
+  TypedRecoveryFor,
 } from '@/core/context.js';
-export { createFail } from '@/core/context.js';
+export { createFail, createRecoveryFor } from '@/core/context.js';
 
 // ---------------------------------------------------------------------------
 // Definition builders & types

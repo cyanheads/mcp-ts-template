@@ -126,6 +126,29 @@ export interface Context {
   // --- Task progress (present when task: true) ---
   /** Progress reporting for background tasks. Undefined for non-task tools. */
   readonly progress?: ContextProgress | undefined;
+
+  // --- Contract-bound resolvers (always present; no-op when no contract) ---
+  /**
+   * Resolves a contract-bound recovery hint by reason and returns it in the
+   * canonical wire shape `{ recovery: { hint } }` — safe to spread directly into
+   * factory `data` or `ctx.fail`'s data argument:
+   *
+   * ```ts
+   * throw ctx.fail('parse_failed', `Parse error: ${err.message}`, ctx.recoveryFor('parse_failed'));
+   * throw validationError('Parse failed', { reason: 'parse_failed', ...ctx.recoveryFor('parse_failed') });
+   * ```
+   *
+   * Returns `{}` when the calling definition has no `errors[]` contract, or the
+   * reason isn't declared in it. Always safe to spread — no optional chaining
+   * needed at call sites. The strict, typed variant (which guarantees the
+   * non-empty return) lives on `HandlerContext<R>` when a contract is declared.
+   *
+   * Single source of truth pattern: write the recovery once in the contract entry
+   * (lint-validated for ≥5 words), reference it everywhere via this resolver.
+   * Authors who want runtime-context recovery (interpolating input values, IDs,
+   * queue state) override at the throw site as today.
+   */
+  recoveryFor(reason: string): { recovery: { hint: string } } | Record<string, never>;
   // --- Identity & tracing ---
   /** Unique request ID for log correlation. */
   readonly requestId: string;
@@ -143,7 +166,13 @@ export interface Context {
   // --- Tenant-scoped storage ---
   /** Key-value state scoped to the current tenant. Throws if tenantId is missing. */
   readonly state: ContextState;
-  /** Tenant ID — from JWT 'tid' claim (HTTP) or 'default' (stdio). */
+  /**
+   * Tenant ID. Sources, in order:
+   *   - JWT `tid` claim — HTTP with `MCP_AUTH_MODE=jwt`/`oauth`
+   *   - `'default'` — stdio (any auth mode) or HTTP with `MCP_AUTH_MODE=none`
+   *   - `undefined` — HTTP with `jwt`/`oauth` when the token lacks `tid`
+   *     (fail-closed: `ctx.state` will throw rather than silently share state)
+   */
   readonly tenantId?: string | undefined;
   /** ISO 8601 creation time. */
   readonly timestamp: string;
@@ -197,17 +226,38 @@ export type ReasonOf<E> = E extends readonly { reason: infer R extends string }[
   : never;
 
 /**
+ * Strict, typed contract-resolver signature attached to `HandlerContext<R>`
+ * when a definition declares `errors[]`. Tightens the loose `Context.recoveryFor`
+ * to:
+ *   - `reason` is constrained to the declared union (TS catches typos)
+ *   - return is the non-empty wire shape (no fallback `{}` branch)
+ *
+ * Family of opt-in resolution helpers — future contract-bound fields
+ * (`troubleshootingFor`, `userMessageFor`, …) follow the same shape.
+ */
+export type TypedRecoveryFor<R extends string> = (reason: R) => { recovery: { hint: string } };
+
+/**
  * Handler context. When a definition declares `errors[]`, the handler receives
- * `Context & { fail: TypedFail<R> }` where `R` is the declared reason union.
- * When no contract is declared, the handler receives plain `Context` and must
- * throw `McpError` directly.
+ * `Context & { fail: TypedFail<R>; recoveryFor: TypedRecoveryFor<R> }` where
+ * `R` is the declared reason union. When no contract is declared, the handler
+ * receives plain `Context` (its loose `recoveryFor` is still callable but
+ * always returns `{}`) and must throw `McpError` directly.
  *
  * The conditional `[R] extends [never]` distinguishes "no contract declared"
  * (R = never) from "contract declared with reasons" (R = literal union).
+ *
+ * The contract branch uses `Omit<Context, 'recoveryFor'>` because intersecting
+ * the loose `Context.recoveryFor(string)` with the strict `TypedRecoveryFor<R>`
+ * would create an overload that widens `parameter(0)` back to `string` — losing
+ * the typo-catching benefit. Omit-and-replace narrows cleanly.
  */
 export type HandlerContext<R extends string = never> = [R] extends [never]
   ? Context
-  : Context & { fail: TypedFail<R> };
+  : Omit<Context, 'recoveryFor'> & {
+      fail: TypedFail<R>;
+      recoveryFor: TypedRecoveryFor<R>;
+    };
 
 /**
  * @internal
@@ -249,9 +299,35 @@ export function createFail(errors: readonly ErrorContract[]): TypedFail<string> 
 }
 
 /**
- * Attaches a typed `fail` helper to `ctx` when the definition declares an
- * error contract; otherwise returns `ctx` unchanged. Used by the tool and
- * resource handler factories so all call sites stay identical.
+ * Builds a runtime `recoveryFor` resolver for a given contract. Looks up the
+ * entry by `reason` and returns the canonical wire shape `{ recovery: { hint } }`,
+ * safe to spread into factory `data` or `ctx.fail`'s data argument.
+ *
+ * Returns `{}` when the reason isn't declared — at runtime this protects JS
+ * callers and stale contracts; at compile time `TypedRecoveryFor<R>` constrains
+ * the reason to declared values. The `{}` fallback also keeps the bare-Context
+ * resolver (no contract attached) safe to spread without optional chaining.
+ *
+ * @internal
+ */
+export function createRecoveryFor(
+  errors: readonly ErrorContract[],
+): (reason: string) => { recovery: { hint: string } } | Record<string, never> {
+  const byReason = new Map<string, ErrorContract>();
+  for (const entry of errors) byReason.set(entry.reason, entry);
+
+  return (reason) => {
+    const entry = byReason.get(reason);
+    if (!entry) return {};
+    return { recovery: { hint: entry.recovery } };
+  };
+}
+
+/**
+ * Attaches a typed `fail` and `recoveryFor` helper to `ctx` when the definition
+ * declares an error contract. The bare `Context.recoveryFor` (always present
+ * via `createContext`) is overwritten with a contract-aware resolver. Used by
+ * the tool and resource handler factories so all call sites stay identical.
  *
  * @internal
  */
@@ -260,7 +336,10 @@ export function attachTypedFail(
   errors: readonly ErrorContract[] | undefined,
 ): Context {
   if (!errors || errors.length === 0) return ctx;
-  return Object.assign(ctx, { fail: createFail(errors) });
+  return Object.assign(ctx, {
+    fail: createFail(errors),
+    recoveryFor: createRecoveryFor(errors),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -289,13 +368,17 @@ export interface ContextDeps {
 export function createContext(deps: ContextDeps): Context {
   const { appContext, logger: pinoLogger, storage, signal } = deps;
 
-  // Default tenantId to 'default' only for stdio (single-client, no auth).
-  // HTTP without auth leaves tenantId unset — ctx.state will fail-closed
-  // via requireContext() to prevent unauthenticated callers sharing state.
+  // Default tenantId to 'default' when no auth pipeline is expected to populate it:
+  //   - stdio: single-client by nature, no auth middleware runs
+  //   - HTTP + MCP_AUTH_MODE=none: single-tenant by design (auth=none means
+  //     "no identity check, sharing is intentional")
+  // Preserves fail-closed for HTTP + jwt/oauth: a token missing the `tid` claim
+  // must NOT silently share state across distinct authenticated callers.
   const isStdio = process.env.MCP_TRANSPORT_TYPE?.toLowerCase() !== 'http';
+  const isAuthDisabled = (process.env.MCP_AUTH_MODE ?? 'none').toLowerCase() === 'none';
   const effectiveContext = appContext.tenantId
     ? appContext
-    : isStdio
+    : isStdio || isAuthDisabled
       ? { ...appContext, tenantId: 'default' }
       : appContext;
 
@@ -321,6 +404,12 @@ export function createContext(deps: ContextDeps): Context {
     notifyResourceUpdated: deps.notifyResourceUpdated,
     progress,
     uri: deps.uri,
+    // No-op resolver for definitions without a contract. `attachTypedFail`
+    // overwrites with a contract-aware resolver when `errors[]` is declared.
+    // Always-present so service code can spread `...ctx.recoveryFor('x')`
+    // without optional chaining, regardless of whether the calling tool
+    // declared a contract.
+    recoveryFor: () => ({}),
   };
 }
 
@@ -370,7 +459,7 @@ function createContextState(
   const requireContext = (): RequestContext => {
     if (!appContext.tenantId) {
       throw invalidRequest(
-        'tenantId required for state operations. HTTP requests must include a JWT with a "tid" claim. Stdio mode should default tenantId to "default" via createApp().',
+        'tenantId required for state operations. With MCP_AUTH_MODE=jwt|oauth, the token must include a "tid" claim. Stdio and HTTP+MCP_AUTH_MODE=none default tenantId to "default" automatically.',
       );
     }
     return appContext;

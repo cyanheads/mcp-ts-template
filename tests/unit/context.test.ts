@@ -46,7 +46,8 @@ vi.mock('@/utils/internal/logger.js', () => ({
 import { z } from 'zod';
 
 import type { ContextDeps } from '@/core/context.js';
-import { createContext } from '@/core/context.js';
+import { attachTypedFail, createContext } from '@/core/context.js';
+import { JsonRpcErrorCode } from '@/types-global/errors.js';
 import type { Logger } from '@/utils/internal/logger.js';
 import { createFakeStorage, makeRequestContext } from '../helpers/index.js';
 
@@ -137,6 +138,51 @@ describe('createContext', () => {
       const ctx = createContext(makeDeps({ appContext }));
 
       expect(ctx.tenantId).toBe('default');
+    });
+
+    it('should default tenantId to "default" when HTTP + MCP_AUTH_MODE=none (issue #87)', () => {
+      vi.stubEnv('MCP_TRANSPORT_TYPE', 'http');
+      vi.stubEnv('MCP_AUTH_MODE', 'none');
+      try {
+        const appContext = makeRequestContext();
+        delete (appContext as any).tenantId;
+        const ctx = createContext(makeDeps({ appContext }));
+
+        expect(ctx.tenantId).toBe('default');
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it('should leave tenantId undefined when HTTP + MCP_AUTH_MODE=jwt and tid is missing (fail-closed)', async () => {
+      vi.stubEnv('MCP_TRANSPORT_TYPE', 'http');
+      vi.stubEnv('MCP_AUTH_MODE', 'jwt');
+      try {
+        const appContext = makeRequestContext();
+        delete (appContext as any).tenantId;
+        const ctx = createContext(makeDeps({ appContext }));
+
+        expect(ctx.tenantId).toBeUndefined();
+        // ctx.state must throw rather than silently share state across authenticated callers.
+        await expect(ctx.state.set('k', 'v')).rejects.toThrow(/tenantId required/);
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it('should leave tenantId undefined when HTTP + MCP_AUTH_MODE=oauth and tid is missing (fail-closed)', async () => {
+      vi.stubEnv('MCP_TRANSPORT_TYPE', 'http');
+      vi.stubEnv('MCP_AUTH_MODE', 'oauth');
+      try {
+        const appContext = makeRequestContext();
+        delete (appContext as any).tenantId;
+        const ctx = createContext(makeDeps({ appContext }));
+
+        expect(ctx.tenantId).toBeUndefined();
+        await expect(ctx.state.set('k', 'v')).rejects.toThrow(/tenantId required/);
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
   });
 
@@ -626,6 +672,72 @@ describe('createContext', () => {
       // percentage is undefined when total is 0
       expect(calls[0]).toEqual(['task-003', 'working', undefined]);
       expect(calls[1]).toEqual(['task-003', 'working', undefined]);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // ctx.recoveryFor — opt-in contract resolution helper (#88 / #89)
+  // -----------------------------------------------------------------------
+
+  describe('ctx.recoveryFor', () => {
+    it('exists as a no-op resolver on bare Context (no contract attached)', () => {
+      const ctx = createContext(makeDeps());
+
+      expect(typeof ctx.recoveryFor).toBe('function');
+      // Spread-safe: returns {} for any reason when no contract is attached.
+      expect(ctx.recoveryFor('anything')).toEqual({});
+    });
+
+    it('resolves declared reasons after attachTypedFail wires a contract', () => {
+      const ctx = attachTypedFail(createContext(makeDeps()), [
+        {
+          reason: 'no_match',
+          code: JsonRpcErrorCode.NotFound,
+          when: 'No items matched',
+          recovery: 'Try a different identifier and retry the call.',
+        },
+      ]);
+
+      expect(ctx.recoveryFor('no_match')).toEqual({
+        recovery: { hint: 'Try a different identifier and retry the call.' },
+      });
+    });
+
+    it('returns {} for an unknown reason on a contract-attached context', () => {
+      const ctx = attachTypedFail(createContext(makeDeps()), [
+        {
+          reason: 'no_match',
+          code: JsonRpcErrorCode.NotFound,
+          when: 'No items matched',
+          recovery: 'Try a different identifier and retry the call.',
+        },
+      ]);
+
+      // Unknown reason — TS prevents this for typed callers; runtime is loose.
+      expect(ctx.recoveryFor('typo_reason')).toEqual({});
+    });
+
+    it('integrates with ctx.fail via spread without overriding caller fields', () => {
+      const ctx = attachTypedFail(createContext(makeDeps()), [
+        {
+          reason: 'rate_limited',
+          code: JsonRpcErrorCode.RateLimited,
+          when: 'Upstream throttled',
+          retryable: true,
+          recovery: 'Wait a few seconds before retrying.',
+        },
+      ]);
+
+      const err = (ctx as any).fail('rate_limited', 'Upstream slowed down', {
+        attempt: 3,
+        ...ctx.recoveryFor('rate_limited'),
+      });
+
+      expect(err.data).toEqual({
+        reason: 'rate_limited',
+        attempt: 3,
+        recovery: { hint: 'Wait a few seconds before retrying.' },
+      });
     });
   });
 });

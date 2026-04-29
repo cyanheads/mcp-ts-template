@@ -4,7 +4,7 @@ description: >
   Scaffold a new MCP tool definition. Use when the user asks to add a tool, create a new tool, or implement a new capability for the server.
 metadata:
   author: cyanheads
-  version: "2.2"
+  version: "2.4"
   audience: external
   type: reference
 ---
@@ -68,10 +68,9 @@ export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
   //
   // `recovery` is required (≥ 5 words) — it's the agent's next move when this
   // failure fires. Forcing function for thoughtful guidance: placeholders like
-  // "Try again." get flagged by the linter. Contract-level `recovery` is
-  // descriptive metadata; for the wire payload's `data.recovery.hint` (which
-  // the framework mirrors into content[] text), pass it explicitly at the
-  // throw site when dynamic context matters.
+  // "Try again." get flagged by the linter. The contract `recovery` is the
+  // single source of truth for what flows to the wire — opt in at the throw
+  // site by spreading `ctx.recoveryFor('reason')` into the `data` arg.
   errors: [
     { reason: 'no_match', code: JsonRpcErrorCode.NotFound,
       when: 'No items matched the query.',
@@ -87,7 +86,18 @@ export const {{TOOL_EXPORT}} = tool('{{tool_name}}', {
     // With an `errors[]` contract: `throw ctx.fail('reason_id', message?, data?)`.
     // Without: throw via factories (`notFound`, `validationError`, …) or plain `Error`.
     const items = await search(input);
-    if (items.length === 0) throw ctx.fail('no_match', `No items matched "${input.query}"`);
+    if (items.length === 0) {
+      // Dynamic recovery — interpolate runtime context, override the contract default.
+      throw ctx.fail('no_match', `No items matched "${input.query}"`, {
+        recovery: { hint: `Try a broader query than "${input.query}", or check the spelling.` },
+      });
+    }
+    if (queue.full()) {
+      // Static recovery — resolve from the contract via ctx.recoveryFor('reason').
+      // Single source of truth: the string lives in errors[] above; this spread
+      // pulls it onto the wire so format()-only clients see the recovery hint.
+      throw ctx.fail('queue_full', undefined, { ...ctx.recoveryFor('queue_full') });
+    }
     return { items };
   },
 
@@ -297,15 +307,25 @@ export const fetchArticles = tool('fetch_articles', {
   input: z.object({ pmids: z.array(z.string()).describe('PMIDs to fetch') }),
   output: z.object({ articles: z.array(ArticleSchema).describe('Resolved articles') }),
   async handler(input, ctx) {
-    if (queue.full()) throw ctx.fail('queue_full');
+    // Static recovery — ctx.recoveryFor pulls the contract recovery onto the wire.
+    // The contract is the single source of truth; this spread surfaces it on the
+    // wire so format()-only clients see the hint mirrored into content[] text.
+    if (queue.full()) throw ctx.fail('queue_full', undefined, { ...ctx.recoveryFor('queue_full') });
+
     const articles = await fetch(input.pmids);
     if (articles.length === 0) {
-      throw ctx.fail('no_pmid_match', `No data for ${input.pmids.length} PMIDs`, { pmids: input.pmids });
+      // Dynamic recovery — interpolate runtime context, override the contract default.
+      throw ctx.fail('no_pmid_match', `No data for ${input.pmids.length} PMIDs`, {
+        pmids: input.pmids,
+        recovery: { hint: `Use pubmed_search_articles to discover valid PMIDs.` },
+      });
     }
     return { articles };
   },
 });
 ```
+
+**`ctx.recoveryFor(reason)`** resolves the contract's `recovery` string into the wire shape `{ recovery: { hint } }` — safe to spread into `data` so format()-only clients see the same recovery hint that structuredContent clients read. Always available on `Context` (no-op `{}` when no contract), strictly typed on `HandlerContext<R>` against the declared reasons. Use it for static recovery; pass `{ recovery: { hint: \`…${dynamic}…\` } }` directly when you need runtime context. The contract is the single source of truth — write the recovery once, lint validates it ≥5 words, the resolver carries it to every throw site.
 
 **Baseline codes** (`InternalError`, `ServiceUnavailable`, `Timeout`, `ValidationError`, `SerializationError`) bubble freely and don't need declaring. Wire-level behavior is identical when the contract is omitted, but you lose the type-checked `ctx.fail`, the `tools/list` advertisement, and conformance lint coverage — declare a contract whenever the tool has a domain-specific failure mode.
 
@@ -313,23 +333,24 @@ export const fetchArticles = tool('fetch_articles', {
 
 #### Service-layer throws
 
-API-wrapping tools usually delegate to a service: `const data = await ncbi.fetch(input)`. The throw lives in the service, not the handler — and services don't receive `ctx`, so `ctx.fail` is unreachable from there. The fix is to pass `data: { reason: 'X' }` to the factory in the service. The framework's auto-classifier preserves `data` on the wire, so clients see the same `error.data.reason` they would have seen from `ctx.fail`. The handler doesn't catch — it just bubbles.
+API-wrapping tools usually delegate to a service: `await ncbi.fetch(input, ctx)`. The throw lives in the service, not the handler. Services accept `ctx` (the unified Context) so they can call `ctx.log`, `ctx.recoveryFor`, etc. The handler doesn't catch — it just bubbles, and the framework's auto-classifier preserves `data` on the wire.
 
-The contract entry on the tool and the `data: { reason }` on the service throw need to use the **same reason string** so the two sides line up.
+The contract entry on the tool and the `data: { reason }` on the service throw need to use the **same reason string** so the two sides line up. `ctx.recoveryFor('reason')` resolves the contract recovery from the calling tool's `errors[]` — same single-source-of-truth pattern that works in handlers.
 
 ```typescript
-// service — passes data.reason to match the consuming tool's contract
+// service — receives ctx; passes data.reason and spreads ctx.recoveryFor
+import type { Context } from '@cyanheads/mcp-ts-core';
 import { serviceUnavailable } from '@cyanheads/mcp-ts-core/errors';
 
 export class NcbiService {
-  async fetch(pmids: string[]) {
+  async fetch(pmids: string[], ctx: Context) {
     const response = await fetchWithRetry(...);
     if (!response.ok) {
-      throw serviceUnavailable(
-        `NCBI returned HTTP ${response.status}`,
-        { reason: 'ncbi_unreachable', status: response.status },  // ← matches contract entry
-        { cause: undefined },
-      );
+      throw serviceUnavailable(`NCBI returned HTTP ${response.status}`, {
+        reason: 'ncbi_unreachable',
+        status: response.status,
+        ...ctx.recoveryFor('ncbi_unreachable'),  // resolves from caller's contract
+      });
     }
     return response.json();
   }
@@ -343,10 +364,12 @@ export const fetchArticles = tool('fetch_articles', {
       recovery: 'NCBI is degraded; retry in a few minutes.' },
   ],
   async handler(input, ctx) {
-    return { articles: await ncbi.fetch(input.pmids) };  // throws bubble unchanged
+    return { articles: await ncbi.fetch(input.pmids, ctx) };  // throws bubble unchanged
   },
 });
 ```
+
+`ctx.recoveryFor` returns `{}` when the calling tool has no contract or the reason isn't declared, so the spread is always safe — services don't have to know which tool called them.
 
 See `add-service` for the full pattern.
 
