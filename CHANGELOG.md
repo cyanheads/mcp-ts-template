@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.8.7](changelog/0.8.x/0.8.7.md) — 2026-04-29
+
+Remove `dev` watch script (finishes 0.8.6 dev-vs-prod cleanup); fix field-test helper state collision when concurrent sessions run from different project directories.
+
 ## [0.8.6](changelog/0.8.x/0.8.6.md) — 2026-04-29
 
 Remove `dev:stdio`/`dev:http` watch scripts from framework and template `package.json`; smoke-test path standardized to `bun run rebuild && bun run start:stdio` across docs and skills.
