@@ -78,6 +78,14 @@ describe('requestContextService', () => {
         () => {
           const context = requestContextService.createRequestContext();
           expect(context.tenantId).toBe('auth-tenant');
+          // Bridge auth from ALS, including the bearer token so handlers can
+          // forward it upstream without reaching into AsyncLocalStorage.
+          expect(context.auth).toBeDefined();
+          expect(context.auth?.sub).toBe('user-1');
+          expect(context.auth?.clientId).toBe('test-client');
+          expect(context.auth?.scopes).toEqual(['scope:a']);
+          expect(context.auth?.tenantId).toBe('auth-tenant');
+          expect(context.auth?.token).toBe('test-token');
           resolve();
         },
       );
@@ -183,6 +191,26 @@ describe('requestContextService', () => {
       expect(context.auth?.scopes).toEqual(['read', 'write']);
       expect(context.auth?.clientId).toBe('client-abc');
       expect(context.auth?.tenantId).toBe('tenant-1');
+      expect(context.auth?.token).toBe('jwt-token-xyz');
+    });
+
+    it('forwards the bearer token so handlers can relay it upstream', () => {
+      const context = requestContextService.withAuthInfo({
+        scopes: ['read'],
+        clientId: 'c',
+        token: 'bearer-abc',
+      });
+
+      expect(context.auth?.token).toBe('bearer-abc');
+    });
+
+    it('omits token from auth when AuthInfo carries no token', () => {
+      const context = requestContextService.withAuthInfo({
+        scopes: ['read'],
+        clientId: 'c',
+      } as never);
+
+      expect(context.auth?.token).toBeUndefined();
     });
 
     it('uses clientId as sub fallback when subject is undefined', () => {

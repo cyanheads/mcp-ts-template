@@ -33,6 +33,7 @@ function toAuthContext(info: AuthInfo): AuthContext {
     scopes: info.scopes,
     clientId: info.clientId,
     ...(info.tenantId && { tenantId: info.tenantId }),
+    ...(info.token && { token: info.token }),
   };
 }
 
@@ -60,6 +61,13 @@ export interface AuthContext {
   sub: string;
   /** Tenant identifier from the `tid` JWT claim. Present only for multi-tenant tokens. */
   tenantId?: string;
+  /**
+   * Raw bearer token from the validated request. Forwarded so handlers can
+   * relay it to upstream APIs in on-behalf-of / PAT pass-through flows.
+   * Redacted by the framework logger's pino-redact paths (`*.token`,
+   * `*.*.token`); avoid passing it to telemetry sinks that bypass that layer.
+   */
+  token?: string;
   /** Additional token payload properties not mapped to named fields. */
   [key: string]: unknown;
 }

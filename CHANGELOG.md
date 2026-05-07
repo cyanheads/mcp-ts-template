@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.8.18](changelog/0.8.x/0.8.18.md) — 2026-05-06
+
+Fix `ctx.auth.token` strip in `toAuthContext` ([#121](https://github.com/cyanheads/mcp-ts-core/issues/121)) — typed `token?: string` on `AuthContext`, forwarded by `withAuthInfo` and the ALS bridge so handlers can relay the bearer upstream.
+
 ## [0.8.17](changelog/0.8.x/0.8.17.md) — 2026-05-05
 
 Surface `ctx.sessionId` on `Context` for HTTP handlers ([#116](https://github.com/cyanheads/mcp-ts-core/issues/116)) — fail-closed under stateless mode with `createApp({ context: { exposeStatelessSessionId } })` opt-in.
