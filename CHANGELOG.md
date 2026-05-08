@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.8.19](changelog/0.8.x/0.8.19.md) — 2026-05-08
+
+Telemetry visualization docs ([#125](https://github.com/cyanheads/mcp-ts-core/issues/125)) — example Grafana dashboard JSON, vendor-agnostic query recipes, new `api-telemetry` skill. Engines bumped to Bun ≥1.3.0 / Node ≥24.0.0.
+
 ## [0.8.18](changelog/0.8.x/0.8.18.md) — 2026-05-06
 
 Fix `ctx.auth.token` strip in `toAuthContext` ([#121](https://github.com/cyanheads/mcp-ts-core/issues/121)) — typed `token?: string` on `AuthContext`, forwarded by `withAuthInfo` and the ALS bridge so handlers can relay the bearer upstream.

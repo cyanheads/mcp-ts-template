@@ -16,6 +16,7 @@ const SCRIPTS_DIR = join(PACKAGE_ROOT, 'scripts');
 const PACKAGE_JSON = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf-8')) as {
   version: string;
   files?: string[];
+  dependencies?: Record<string, string>;
 };
 /**
  * Scaffold scripts derived from `package.json` `files:` — the canonical
@@ -81,11 +82,18 @@ function init(): void {
 
   console.log(`\n  Scaffolding${name ? ` ${name}` : ''} in ${dest}\n`);
 
+  const substitutions: Record<string, string> = {
+    PACKAGE_NAME: packageName,
+    FRAMEWORK_VERSION: PACKAGE_JSON.version,
+    MCP_SDK_VERSION: PACKAGE_JSON.dependencies?.['@modelcontextprotocol/sdk'] ?? '',
+    ZOD_VERSION: PACKAGE_JSON.dependencies?.zod ?? '',
+  };
+
   const created: string[] = [];
   const skipped: string[] = [];
 
   // Step 1: Copy templates
-  copyTemplates(dest, packageName, PACKAGE_JSON.version, created, skipped);
+  copyTemplates(dest, substitutions, created, skipped);
 
   // Step 2: Copy scripts
   copyScripts(dest, created, skipped);
@@ -101,8 +109,7 @@ function init(): void {
 
 function copyTemplates(
   dest: string,
-  name: string,
-  frameworkVersion: string,
+  substitutions: Record<string, string>,
   created: string[],
   skipped: string[],
 ): void {
@@ -125,9 +132,10 @@ function copyTemplates(
         continue;
       }
       mkdirSync(dirname(destPath), { recursive: true });
-      const content = readFileSync(srcPath, 'utf-8')
-        .replace(/\{\{PACKAGE_NAME\}\}/g, name)
-        .replace(/\{\{FRAMEWORK_VERSION\}\}/g, frameworkVersion);
+      let content = readFileSync(srcPath, 'utf-8');
+      for (const [key, value] of Object.entries(substitutions)) {
+        content = content.replaceAll(`{{${key}}}`, value);
+      }
       writeFileSync(destPath, content);
       created.push(relPath);
     } else {

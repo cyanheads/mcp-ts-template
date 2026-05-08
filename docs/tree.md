@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-05-05 22:43:18
+Generated on: 2026-05-08 09:39:41
 
 ```text
 mcp-ts-core/
@@ -14,7 +14,6 @@ mcp-ts-core/
 │   └── FUNDING.yml
 ├── .husky/
 │   └── pre-commit
-├── .storage/
 ├── .vscode/
 │   ├── extensions.json
 │   └── settings.json
@@ -31,55 +30,59 @@ mcp-ts-core/
 │   ├── 0.8.x/
 │   └── template.md
 ├── docs/
-│   └── mcp-specification/
-│       ├── 2025-06-18/
-│       │   ├── best-practices/
-│       │   │   └── security.md
-│       │   ├── core/
-│       │   │   ├── authorization.md
-│       │   │   ├── lifecycle.md
-│       │   │   ├── overview.md
-│       │   │   └── transports.md
-│       │   └── utils/
-│       │       ├── cancellation.md
-│       │       ├── completion.md
-│       │       ├── logging.md
-│       │       ├── pagination.md
-│       │       ├── ping.md
-│       │       └── progress.md
-│       └── 2025-11-25/
-│           ├── client/
-│           │   ├── elicitation.md
-│           │   ├── roots.md
-│           │   └── sampling.md
-│           ├── core/
-│           │   ├── authorization.md
-│           │   ├── lifecycle.md
-│           │   ├── overview.md
-│           │   └── transports.md
-│           ├── extensions/
-│           │   ├── apps-build.md
-│           │   ├── apps-overview.md
-│           │   ├── auth-enterprise-managed.md
-│           │   ├── auth-oauth-client-credentials.md
-│           │   ├── auth-overview.md
-│           │   ├── client-matrix.md
-│           │   └── overview.md
-│           ├── server/
-│           │   ├── overview.md
-│           │   ├── prompts.md
-│           │   ├── resources.md
-│           │   ├── tools.md
-│           │   └── utilities.md
-│           ├── utils/
-│           │   ├── cancellation.md
-│           │   ├── ping.md
-│           │   ├── progress.md
-│           │   └── tasks.md
-│           ├── architecture.md
-│           ├── key-changes.md
-│           ├── schema-reference.md
-│           └── specification.md
+│   ├── mcp-specification/
+│   │   ├── 2025-06-18/
+│   │   │   ├── best-practices/
+│   │   │   │   └── security.md
+│   │   │   ├── core/
+│   │   │   │   ├── authorization.md
+│   │   │   │   ├── lifecycle.md
+│   │   │   │   ├── overview.md
+│   │   │   │   └── transports.md
+│   │   │   └── utils/
+│   │   │       ├── cancellation.md
+│   │   │       ├── completion.md
+│   │   │       ├── logging.md
+│   │   │       ├── pagination.md
+│   │   │       ├── ping.md
+│   │   │       └── progress.md
+│   │   └── 2025-11-25/
+│   │       ├── client/
+│   │       │   ├── elicitation.md
+│   │       │   ├── roots.md
+│   │       │   └── sampling.md
+│   │       ├── core/
+│   │       │   ├── authorization.md
+│   │       │   ├── lifecycle.md
+│   │       │   ├── overview.md
+│   │       │   └── transports.md
+│   │       ├── extensions/
+│   │       │   ├── apps-build.md
+│   │       │   ├── apps-overview.md
+│   │       │   ├── auth-enterprise-managed.md
+│   │       │   ├── auth-oauth-client-credentials.md
+│   │       │   ├── auth-overview.md
+│   │       │   ├── client-matrix.md
+│   │       │   └── overview.md
+│   │       ├── server/
+│   │       │   ├── overview.md
+│   │       │   ├── prompts.md
+│   │       │   ├── resources.md
+│   │       │   ├── tools.md
+│   │       │   └── utilities.md
+│   │       ├── utils/
+│   │       │   ├── cancellation.md
+│   │       │   ├── ping.md
+│   │       │   ├── progress.md
+│   │       │   └── tasks.md
+│   │       ├── architecture.md
+│   │       ├── key-changes.md
+│   │       ├── schema-reference.md
+│   │       └── specification.md
+│   └── telemetry/
+│       ├── dashboards.md
+│       ├── mcp-ts-core-dashboard.json
+│       └── observability.md
 ├── examples/
 │   ├── mcp-server/
 │   │   ├── prompts/
@@ -148,6 +151,8 @@ mcp-ts-core/
 │   │   │   ├── graph.md
 │   │   │   ├── llm.md
 │   │   │   └── speech.md
+│   │   └── SKILL.md
+│   ├── api-telemetry/
 │   │   └── SKILL.md
 │   ├── api-testing/
 │   │   └── SKILL.md

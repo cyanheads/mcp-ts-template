@@ -1,6 +1,6 @@
 {
   "name": "@cyanheads/mcp-ts-core",
-  "version": "0.8.18",
+  "version": "0.8.19",
   "mcpName": "io.github.cyanheads/mcp-ts-core",
   "description": "Agent-native TypeScript framework for building MCP servers. Declarative definitions with auth, multi-backend storage, OpenTelemetry, and first-class support for Bun/Node/Cloudflare Workers.",
   "main": "dist/core/index.js",
@@ -165,10 +165,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.14",
-    "@cloudflare/vitest-pool-workers": "^0.16.0",
-    "@cloudflare/workers-types": "^4.20260506.1",
+    "@cloudflare/vitest-pool-workers": "^0.16.3",
+    "@cloudflare/workers-types": "^4.20260508.1",
     "@duckdb/node-api": "^1.5.2-r.1",
-    "@hono/otel": "^1.1.1",
+    "@hono/otel": "^1.1.2",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.217.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.217.0",
     "@opentelemetry/instrumentation-http": "^0.217.0",
@@ -181,7 +181,7 @@
     "@supabase/supabase-js": "^2.105.3",
     "@types/bun": "^1.3.13",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.6.2",
     "@types/papaparse": "^5.5.2",
     "@types/sanitize-html": "^2.16.1",
     "@types/validator": "^13.15.10",
@@ -195,11 +195,12 @@
     "diff": "^9.0.0",
     "execa": "^9.6.1",
     "fast-check": "^4.7.0",
+    "fast-xml-parser": "^5.7.3",
     "ignore": "^7.0.5",
     "js-yaml": "^4.1.1",
     "linkedom": "^0.18.12",
     "node-cron": "^4.2.1",
-    "openai": "^6.36.0",
+    "openai": "^6.37.0",
     "papaparse": "^5.5.3",
     "partial-json": "^0.1.7",
     "pdf-lib": "^1.17.1",
@@ -211,7 +212,7 @@
     "typescript": "^6.0.3",
     "unpdf": "^1.6.2",
     "validator": "^13.15.35",
-    "vite": "8.0.10",
+    "vite": "8.0.11",
     "vitest": "^4.1.5"
   },
   "keywords": [
@@ -219,13 +220,14 @@
     "agent-native",
     "ai",
     "ai-agent",
+    "bun",
     "cloudflare-workers",
     "declarative",
-    "edge",
     "framework",
     "llm",
     "mcp",
     "mcp-server",
+    "mcp-framework",
     "model-context-protocol",
     "observability",
     "opentelemetry",
@@ -246,8 +248,8 @@
   ],
   "packageManager": "bun@1.3.2",
   "engines": {
-    "bun": ">=1.2.0",
-    "node": ">=22.0.0"
+    "bun": ">=1.3.0",
+    "node": ">=24.0.0"
   },
   "depcheck": {
     "ignores": [
@@ -264,7 +266,7 @@
   },
   "dependencies": {
     "@hono/mcp": "^0.2.5",
-    "@hono/node-server": "^2.0.1",
+    "@hono/node-server": "^2.0.2",
     "@modelcontextprotocol/ext-apps": "^1.7.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@opentelemetry/api": "^1.9.1",

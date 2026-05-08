@@ -1,9 +1,28 @@
-# Agent Protocol
+# Developer Protocol
 
-**Package:** `@cyanheads/mcp-ts-core` · **Version:** 0.8.18
-**npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core) · **Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
+**Package:** `@cyanheads/mcp-ts-core`
+**Version:** 0.8.19
+**Engines:** Bun ≥1.3.0, Node ≥24.0.0
+**MCP SDK:** `@modelcontextprotocol/sdk` ^1.29.0
+**Zod:** ^4.4.3
+**GitHub:** [cyanheads/mcp-ts-core](https://github.com/cyanheads/mcp-ts-core)
+**npm:** [@cyanheads/mcp-ts-core](https://www.npmjs.com/package/@cyanheads/mcp-ts-core)
+**Docker:** [ghcr.io/cyanheads/mcp-ts-core](https://ghcr.io/cyanheads/mcp-ts-core)
 
-> **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never edit a file before reading it.
+> **Developer note:** Never assume. Read related files and docs before making changes. Read full file content for context. Never try to edit a file before reading it.
+
+---
+
+## Consumers
+
+This package serves two consumer paths. When making changes, know which audience your change affects:
+
+| Path | On-ramp | Affected by changes to |
+|:--|:--|:--|
+| **Direct package import** — existing project pulls in the package | `bun add @cyanheads/mcp-ts-core` → `import { createApp, tool, z } from '@cyanheads/mcp-ts-core'` | Public API surface (`src/`) — existing consumers feel changes immediately on upgrade |
+| **Init-scaffolded server** — fresh project bootstrapped from this repo's templates | `bunx @cyanheads/mcp-ts-core init [name]` copies `templates/` into the new directory | `templates/` — only affects newly scaffolded servers, not existing ones |
+
+Both paths end up consuming the same public API. The init script bootstraps the project structure: starter `package.json`, `tsconfig`, `biome.json`, `vitest.config.ts`, `.env.example`, `Dockerfile`, `CLAUDE.md`/`AGENTS.md`, and example tool/resource/prompt definitions. Files in `templates/` prefixed with `_` (e.g. `_.gitignore`, `_tsconfig.json`) have the prefix stripped on copy. After init, agents should consult the `setup` skill.
 
 ---
 
@@ -13,7 +32,7 @@
 - **Full-stack observability.** The framework automatically instruments every tool/resource call — OTel span, duration/payload/memory metrics, structured completion log. Use `ctx.log` for additional domain-specific logging within handlers (external API calls, multi-step operations, business events). `requestId`, `traceId`, `tenantId` auto-correlated. No `console` calls.
 - **Unified Context.** Handlers receive `ctx` with logging (`ctx.log`), tenant-scoped storage (`ctx.state`), optional protocol capabilities (`ctx.elicit`, `ctx.sample`), and cancellation (`ctx.signal`).
 - **Decoupled storage.** `ctx.state` for tenant-scoped KV. Never access persistence backends directly.
-- **Canvas tokens are capabilities, not tenant-scoped state.** A `canvasId` is a 10-char URL-safe token; possession grants full read/write/drop on that canvas. Tokens are designed to be shareable — between agents in one session, and across users in single-tenant deployments (stdio, HTTP + `MCP_AUTH_MODE=none`, where every request resolves to `tenantId='default'`). Tools should accept the token in `input` (or omit to create fresh) and return it in `output`; collaboration is opt-in via explicit token exchange. **Do NOT cache canvasIds in `ctx.state` as a "default canvas"** — under shared `tenantId='default'` every concurrent user reads the same cached id and silently collides on one workspace. The same rule applies to any UUID-keyed primitive (datasets, derived row stores): the ID is the access grant, scoping happens by token possession, not by tenant. Public/free deployments of this framework run stateless and auth-mode-`none` — design accordingly.
+- **Canvas tokens are capabilities, not tenant-scoped state.** A `canvasId` is a 10-char URL-safe token; possession grants full read/write/drop on that canvas. Tokens are designed to be shareable — between agents in one session, and across users in single-tenant deployments (see tenant resolution table under `ctx.state`). Tools should accept the token in `input` (or omit to create fresh) and return it in `output`; collaboration is opt-in via explicit token exchange.
 - **Runtime parity.** All features work with `stdio`/`http` and Worker bundle. Guard non-portable deps via `runtimeCaps` from `@cyanheads/mcp-ts-core/utils` — a frozen capability object (`isNode`, `isBun`, `isWorkerLike`, `hasBuffer`, `hasProcess`, etc.) computed once at module load. Prefer runtime-agnostic abstractions (Hono + `@hono/mcp`, Fetch APIs).
 - **Startup validation.** `createApp()` runs the definition linter before proceeding — errors (spec violations) throw `ConfigurationError` and block startup; warnings are logged. Also available standalone via `bun run lint:mcp` and as a devcheck step. Every diagnostic links to the rule reference in `api-linter` skill; see that skill for the full rule catalog.
 - **Elicitation for missing input.** Use `ctx.elicit` when the client supports it.
@@ -151,10 +170,6 @@ src/
 
 **File suffixes:** `.tool.ts` (standard or task), `.resource.ts`, `.prompt.ts`, `.app-tool.ts` (UI-enabled), `.app-resource.ts` (UI resource linked to app tool).
 
-**Scaffold a new server:** `npx @cyanheads/mcp-ts-core init [name]` copies `templates/` into a new project. After running, consult the `setup` skill.
-
-**`templates/` directory:** Scaffolding source for the init CLI. Contents are copied into new consumer servers — includes starter `package.json`, `tsconfig`, `biome.json`, `vitest.config.ts`, `.env.example`, `Dockerfile`, `CLAUDE.md`/`AGENTS.md`, and example tool/resource/prompt definitions. Files prefixed with `_` (e.g. `_.gitignore`, `_tsconfig.json`) are renamed on copy (strip `_` prefix). Changes here affect every newly scaffolded server.
-
 ---
 
 ## Adding a Tool
@@ -199,9 +214,14 @@ export const myTool = tool('my_tool', {
 
 **Schema constraint:** Input/output schemas must use JSON-Schema-serializable Zod types only. The MCP SDK converts schemas to JSON Schema for `tools/list` — non-serializable types (`z.custom()`, `z.date()`, `z.transform()`, `z.bigint()`, `z.symbol()`, `z.void()`, `z.map()`, `z.set()`, `z.function()`, `z.nan()`) cause a hard runtime failure. Use structural equivalents instead (e.g., `z.string()` with `.describe('ISO 8601 date')` instead of `z.date()`). The linter validates this at startup.
 
-**Form-client safety:** Form-based MCP clients (MCP Inspector, web UIs) send optional object fields with empty-string inner values instead of `undefined`. Don't reject with `.min(1)` on optional fields — guard for meaningful values in the handler (`if (input.dateRange?.minDate && input.dateRange?.maxDate)`). Test with both omitted and empty-value payloads. Alternative when schema-level constraints (regex/length) matter enough to surface in the JSON Schema: wrap in a union with a `z.literal('')` sentinel — `z.union([z.literal(''), z.string().regex(...).describe(...)])`. The linter exempts literal variants from `describe-on-fields`; the LLM sees the regex/length via the non-literal branch.
+**Form-client safety:** Form-based clients (MCP Inspector, web UIs) send optional fields as empty strings, not `undefined`. Don't reject with `.min(1)` on optional fields — guard for meaningful values in the handler (`if (input.dateRange?.minDate && input.dateRange?.maxDate)`). Test with both omitted and empty-value payloads. When schema-level constraints (regex/length) need to surface in the JSON Schema, wrap in a union with a `z.literal('')` sentinel: `z.union([z.literal(''), z.string().regex(...).describe(...)])` — the linter exempts the literal variant from `describe-on-fields`.
 
-**`format`**: Maps output to MCP `content[]`. Different MCP clients forward different surfaces to the model — some (e.g., Claude Code) read `structuredContent` from `output`, others (e.g., Claude Desktop) read `content[]` from `format()`. **Both must be content-complete** so every client sees the same data — `format()` is the markdown-rendered twin of `structuredContent`, not a separate payload. A thin `format()` (count or title only) leaves `content[]`-only clients blind to data that `structuredContent` clients can see. Enforced at lint time: every terminal field in `output` must appear in `format()`'s rendered text (via sentinel injection), or startup fails with a `format-parity` error. Primary fix: render the missing field in `format()` (use `z.discriminatedUnion` for list/detail variants — each branch is validated separately). Escape hatch: if the output schema was over-typed for a genuinely dynamic upstream API, relax it (`z.object({}).passthrough()`) rather than maintaining aspirational typing — passthrough still flows data to `structuredContent`. Omit `format` entirely for JSON stringify fallback. Additional formatters: `markdown()` (builder), `diffFormatter` (async), `tableFormatter`, `treeFormatter` from `/utils`.
+**`format`**: Maps output to MCP `content[]`. Different clients forward different surfaces to the agent — some (Claude Code) read `structuredContent` from `output`, others (Claude Desktop) read `content[]` from `format()`. `format()` is the markdown twin of `structuredContent`, not a reduced summary.
+
+- **Parity is enforced.** Every terminal field in `output` must appear in `format()`'s rendered text (via sentinel injection), or startup fails with a `format-parity` lint error.
+- **Primary fix:** render the missing field in `format()`. Use `z.discriminatedUnion` for list/detail variants — each branch is validated separately.
+- **Escape hatch:** if the schema was over-typed for a genuinely dynamic upstream API, relax it (`z.object({}).passthrough()`) — passthrough still flows data to `structuredContent`.
+- **Fallback:** omit `format` for JSON stringify. Additional formatters in `/utils`: `markdown()` (builder), `diffFormatter` (async), `tableFormatter`, `treeFormatter`.
 
 **Task tools:** Add `task: true` for long-running async operations. Framework manages lifecycle: creates task → returns ID immediately → runs handler in background with `ctx.progress` → stores result/error → `ctx.signal` for cancellation. See `add-tool` skill for full example.
 
@@ -396,11 +416,7 @@ For HTTP responses from upstream APIs, use `httpErrorFromResponse(response, { se
 
 **Auto-classification.** Plain `Error`, `ZodError`, and any other thrown value are caught and classified automatically. Resolution order: `McpError` code (preserved as-is) → JS constructor name (`TypeError` → `ValidationError`) → provider patterns (HTTP status codes, AWS errors, DB errors) → common message patterns → `AbortError` name → `InternalError` fallback.
 
-**Error-path parity.** Tool errors mirror the success-path `format-parity` invariant — both surfaces clients forward to the agent carry the same payload:
-- `content[]` (read by clients like Claude Desktop) — markdown rendering of the error, with `data.recovery.hint` mirrored into the text when present
-- `structuredContent.error` (read by clients like Claude Code) — JSON `{ code, message, data? }` carrying the error code, message, and any structured data from the thrown `McpError` or `ZodError`
-
-`_meta.error` is **not** emitted on tool errors — error data lives on `structuredContent.error`. Resources re-throw to the SDK, which routes them through the JSON-RPC error envelope (no parity wiring needed there).
+**Error-path parity.** Tool errors apply the same client-surface parity as success: `content[]` carries a markdown rendering with `data.recovery.hint` mirrored in, `structuredContent.error` carries `{ code, message, data? }`. `_meta.error` is not emitted. Resources re-throw to the SDK and route through the JSON-RPC error envelope (no parity wiring there).
 
 The startup linter checks handler bodies for `prefer-mcp-error-in-handler`, `prefer-error-factory`, `preserve-cause-on-rethrow`, `no-stringify-upstream-error`, plus contract conformance (`error-contract-conformance` for undeclared non-baseline codes, `error-contract-prefer-fail` for declared codes thrown directly instead of via `ctx.fail`) — all warnings, surfaced in `bun run devcheck`.
 
@@ -494,7 +510,8 @@ Each `skills/<name>/SKILL.md` carries a `metadata.version` string in its frontma
 
 | Skill | Path | Covers |
 |:------|:-----|:-------|
-| `api-utils` | `skills/api-utils/SKILL.md` | formatting, parsing, security, network, pagination, runtime, scheduling, types, logger, requestContext, errorHandler, telemetry |
+| `api-utils` | `skills/api-utils/SKILL.md` | formatting, parsing, security, network, pagination, runtime, scheduling, types, logger, requestContext, errorHandler, telemetry helpers (`withSpan`, `createCounter`, …) |
+| `api-telemetry` | `skills/api-telemetry/SKILL.md` | OTel catalog: span names, metric names + attributes, completion log fields, env config, runtime support, cardinality rules |
 | `api-services` | `skills/api-services/SKILL.md` | LLM (OpenRouter), Speech (ElevenLabs TTS, Whisper STT), Graph (CRUD, traversal, pathfinding) |
 | `api-context` | `skills/api-context/SKILL.md` | Context interface, createContext, ContextLogger/State/Progress |
 | `api-errors` | `skills/api-errors/SKILL.md` | McpError, JsonRpcErrorCode, error handling patterns |
@@ -535,7 +552,7 @@ Each `skills/<name>/SKILL.md` carries a `metadata.version` string in its frontma
 - **JSDoc:** `@fileoverview` + `@module` required on every file
 - **No fabricated signal:** Don't invent synthetic scores or arbitrary "confidence percentages." Surface real signal.
 - **Builders:** `tool()`/`resource()`/`prompt()` with correct fields (`handler`, `input`, `output`, `format`, `auth`, `args`)
-- **`format()` completeness:** different clients forward different surfaces (Claude Code reads `structuredContent`, Claude Desktop reads `content[]`) — both must carry the same data; `format()` is the markdown twin of `structuredContent`, not a reduced summary
+- **`format()` completeness:** must carry the same data as `output` (parity is lint-enforced — see Adding a Tool)
 - **Auth:** via `auth: ['scope']` on definitions (not HOF wrapper)
 - **Presence checks:** `ctx.elicit`/`ctx.sample` checked before use
 - **Task tools:** use `task: true` flag
@@ -544,14 +561,6 @@ Each `skills/<name>/SKILL.md` carries a `metadata.version` string in its frontma
 - **Tests:** `createMockContext()`, `.handler()` tested directly
 - **Gate:** `bun run devcheck` passes (includes MCP definition linting)
 - **Smoke-test:** `bun run rebuild && bun run start:stdio` (or `start:http`)
-
----
-
-## Git
-
-**Safety:** NEVER `git stash`. NEVER destructive commands (`reset --hard`, `checkout -- .`, `restore .`, `clean -f`) unless user explicitly requests. Read-only is always safe.
-
-**Commits:** Plain `-m` strings, no heredoc/command substitution. [Conventional Commits](https://www.conventionalcommits.org/): `feat|fix|refactor|chore|docs|test|build(scope): message`. Group related changes atomically.
 
 ---
 
@@ -576,7 +585,9 @@ After `bun update --latest`, run the `maintenance` skill to investigate changelo
 
 ## Changelog
 
-Directory-based, grouped by minor series using the `.x` semver-wildcard convention. Source of truth is `changelog/<major.minor>.x/<version>.md` — one standalone file per released version (e.g. `changelog/0.5.x/0.5.4.md`), shipped in the npm package so agents can read a specific version from `node_modules/@cyanheads/mcp-ts-core/changelog/<major.minor>.x/<version>.md` without parsing a monolithic file. At release time, author the per-version file with a concrete version and date, then run `bun run changelog:build` to regenerate the rollup. `changelog/template.md` is a **pristine format reference** — never edited, never renamed, never moved. Read it to remember the frontmatter + section layout when scaffolding a new per-version file.
+Directory-based, grouped by minor series via the `.x` semver-wildcard convention. Source of truth is `changelog/<major.minor>.x/<version>.md` — one standalone file per release (e.g. `changelog/0.5.x/0.5.4.md`). Per-version files ship in the npm package so agents can read a specific version directly from `node_modules` without parsing a monolithic file.
+
+At release time, author the per-version file with a concrete version and date, then run `bun run changelog:build` to regenerate the rollup. `changelog/template.md` is a format reference — never edited; consult it for frontmatter and section layout when scaffolding a new file. Be concise and accurate.
 
 `CHANGELOG.md` is a **navigation index**, not a copy of bodies — each entry is a clickable header + one-line summary pulled from the per-version file's frontmatter. Regenerated by `bun run changelog:build`. Devcheck runs `changelog:check` and hard-fails on drift. Never hand-edit `CHANGELOG.md` — edit the per-version file and rerun the build.
 
@@ -584,13 +595,12 @@ Directory-based, grouped by minor series using the `.x` semver-wildcard conventi
 
 ```markdown
 ---
-summary: One-line headline, ≤250 chars, no markdown  # required
-breaking: false                                       # optional, default false
+summary: "One-line headline, ≤250 chars, no markdown"  # required
+breaking: false                                         # optional, default false
+security: false                                         # optional, default false
 ---
 
 # 0.5.4 — 2026-04-20
-
-Optional narrative intro (1-3 sentences).
 
 ## Added
 
@@ -601,10 +611,13 @@ Optional narrative intro (1-3 sentences).
 
 | Field | Required | Purpose |
 |:------|:---------|:--------|
-| `summary` | yes | Rollup index line. Max 250 chars, no markdown, single line. Write like a GitHub Release title. |
+| `summary` | yes | Rollup index line. ≤250 chars, no markdown, single line. Write like a GitHub Release title. |
 | `breaking` | no (default `false`) | Flags releases with breaking changes. Renders as `· ⚠️ Breaking` badge in the rollup. Agents running the `maintenance` skill read this to prioritize review. |
+| `security` | no (default `false`) | Flags releases with security fixes. Renders as `· 🛡️ Security` badge in the rollup so users can triage upgrade urgency. Pairs with the `## Security` body section. |
 
-Summary > 250 chars or malformed `breaking` fails `changelog:check`. Missing `summary` emits a warning and renders the rollup entry as header-only.
+When both flags are set, badges render in fixed order: `· ⚠️ Breaking · 🛡️ Security`. Summary > 250 chars or a malformed boolean fails `changelog:check`. Missing `summary` emits a warning and renders the rollup entry as header-only.
+
+**Section order** (Keep a Changelog): Added, Changed, Deprecated, Removed, Fixed, Security. Include only sections with entries — don't ship empty headers.
 
 Pre-release versions (`0.6.0-beta.1`, `0.6.0-rc.1`, etc.) are consolidated as `##`/`###` sub-headers inside the final version's per-version file (`changelog/0.6.x/0.6.0.md`) when the final ships — they share the final version's frontmatter, no separate files per pre-release.
 
@@ -612,16 +625,4 @@ Pre-release versions (`0.6.0-beta.1`, `0.6.0-rc.1`, etc.) are consolidated as `#
 
 ## Publishing
 
-Run the `release-and-publish` skill — it runs the verification gate (`devcheck`, `rebuild`, `test:all`), pushes commits and tags, and publishes to every applicable destination. The full reference:
-
-```bash
-bun publish --access public
-
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/cyanheads/mcp-ts-core:<version> \
-  -t ghcr.io/cyanheads/mcp-ts-core:latest \
-  --push .
-
-mcp-publisher publish
-```
-
+If the user requests it, run the `release-and-publish` skill — it runs the verification gate (`devcheck`, `rebuild`, `test:all`), pushes commits and tags, and publishes to every applicable destination. The full reference:

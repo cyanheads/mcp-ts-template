@@ -15,7 +15,9 @@
 
 ## What is this?
 
-`@cyanheads/mcp-ts-core` is the infrastructure layer for TypeScript MCP servers. Install it as a dependency — don't fork it. You write tools, resources, and prompts; the framework handles transports, auth, storage, config, logging, telemetry, and lifecycle.
+`@cyanheads/mcp-ts-core` is the infrastructure layer for TypeScript MCP servers. Install it as a dependency — don't fork it. Your agent collaborates with you to design and build the tools, resources, and prompts for your server.
+
+The framework handles the plumbing: transports, auth, config, logging, telemetry, & more. Define your domain logic with the builders and let the framework take care of the rest.
 
 ```ts
 import { createApp, tool, z } from '@cyanheads/mcp-ts-core';
@@ -23,15 +25,21 @@ import { createApp, tool, z } from '@cyanheads/mcp-ts-core';
 const greet = tool('greet', {
   description: 'Greet someone by name and return a personalized message.',
   annotations: { readOnlyHint: true },
-  input: z.object({ name: z.string().describe('Name of the person to greet') }),
-  output: z.object({ message: z.string().describe('The greeting message') }),
-  handler: async (input) => ({ message: `Hello, ${input.name}!` }),
+  input: z.object({
+    name: z.string().describe('Name of the person to greet'),
+  }),
+  output: z.object({
+    message: z.string().describe('The greeting message'),
+  }),
+  handler: async (input) => ({
+    message: `Hello, ${input.name}!`,
+  }),
 });
 
 await createApp({ tools: [greet] });
 ```
 
-That's a complete MCP server. Every tool call is automatically logged with duration, payload sizes, memory usage, and request correlation — no instrumentation code needed. `createApp()` handles config parsing, logger init, transport startup, signal handlers, and graceful shutdown.
+That's a complete MCP server. Every tool call is automatically logged with duration, payload sizes, and request correlation — no instrumentation code needed. `createApp()` handles config parsing, logger init, transport startup, signal handlers, and graceful shutdown.
 
 ## Quick start
 
@@ -43,7 +51,7 @@ bun install
 
 You get a scaffolded project with `CLAUDE.md`, Agent Skills, and a `src/` tree ready for your tools. Infrastructure — transports, auth, storage, telemetry, lifecycle, linting — lives in `node_modules`. What's left is domain: which APIs to wrap, which workflows to expose.
 
-Start your coding agent (Claude Code, Codex, Cursor), describe the system you want to expose, and it drives the build. The included skills cover the full cycle: `setup`, `design-mcp-server`, scaffolding, testing, `security-pass`, `release-and-publish`.
+Start your coding agent (i.e. Claude Code, Codex) and describe what you want. The agent knows what to do from there. The included Agent Skills cover the full cycle: `setup`, `design-mcp-server`, scaffolding, testing, `security-pass`, `release-and-publish`, `maintenance`, & more.
 
 ### What you get
 
@@ -58,7 +66,9 @@ export const search = tool('search', {
     query: z.string().describe('Search query'),
     limit: z.number().default(10).describe('Max results'),
   }),
-  output: z.object({ items: z.array(z.string()).describe('Search results') }),
+  output: z.object({
+    items: z.array(z.string()).describe('Search results'),
+  }),
   async handler(input) {
     const results = await doSearch(input.query, input.limit);
     return { items: results };
@@ -73,7 +83,9 @@ import { resource, z } from '@cyanheads/mcp-ts-core';
 
 export const itemData = resource('items://{itemId}', {
   description: 'Retrieve item data by ID.',
-  params: z.object({ itemId: z.string().describe('Item ID') }),
+  params: z.object({
+    itemId: z.string().describe('Item ID'),
+  }),
   async handler(params, ctx) {
     return await getItem(params.itemId);
   },
@@ -96,32 +108,17 @@ It also works on Cloudflare Workers with `createWorkerHandler()` — same defini
 
 ## Features
 
-- **Declarative definitions** — `tool()`, `resource()`, `prompt()` builders with Zod schemas. `appTool()`/`appResource()` add interactive HTML UIs.
+- **Declarative definitions** — `tool()`, `resource()`, `prompt()` builders with Zod schemas; `appTool()`/`appResource()` add interactive HTML UIs.
 - **Unified Context** — one `ctx` for logging, tenant-scoped storage, elicitation, sampling, cancellation, and task progress.
-- **Inline auth** — `auth: ['scope']` on definitions. Framework checks scopes before dispatch — no wrapper code.
+- **Auth** — `auth: ['scope']` on definitions, checked before dispatch (no wrapper code). Modes: `none`, `jwt`, or `oauth` (local secret or JWKS).
 - **Task tools** — `task: true` for long-running ops; framework manages create/poll/progress/complete/cancel.
-- **Definition linter** — validates names, schemas, auth scopes, annotation coherence, and format-parity at startup. Standalone CLI (`lint:mcp`) and devcheck step.
-- **Typed error contracts** — declare `errors: [{ reason, code, when, retryable? }]` on a tool/resource and the handler receives a typed `ctx.fail(reason, …)` keyed against the declared reasons. The contract publishes in `tools/list` so clients preview failure modes; the linter cross-checks the handler body. Error factories (`notFound()`, `httpErrorFromResponse()`, …) for ad-hoc throws; plain `Error` works too — framework auto-classifies.
-- **Multi-backend storage** — `in-memory`, filesystem, Supabase, Cloudflare D1/KV/R2. Swap providers via env var; handlers don't change.
+- **Definition linter** — validates names, schemas, auth scopes, annotations, and format-parity at startup. Standalone via `lint:mcp` or devcheck.
+- **Typed error contracts** — declare `errors: [{ reason, code, when, retryable? }]` and handlers get a typed `ctx.fail(reason, …)`. Contracts publish in `tools/list` so clients preview failure modes; the linter cross-checks the handler. Factories (`notFound()`, `httpErrorFromResponse()`, …) cover ad-hoc throws; plain `Error` auto-classifies.
+- **Multi-backend storage** — `in-memory`, filesystem, Supabase, Cloudflare D1/KV/R2. Swap via env var; handlers don't change.
 - **DataCanvas (optional)** — Tier 3 SQL/analytical workspace backed by DuckDB. Register tabular data from upstream APIs, run SQL across registered tables, export CSV/Parquet/JSON. Token-sharing model (opaque `canvas_id`) for multi-agent collaboration; sliding TTL + per-tenant scoping. Opt-in via `CANVAS_PROVIDER_TYPE=duckdb`; fails closed on Workers.
-- **Pluggable auth** — `none`, `jwt`, or `oauth`. Local secret or JWKS verification.
-- **Observability** — Pino logging, optional OpenTelemetry traces and metrics. Request correlation and tool metrics are automatic.
-- **Local + edge** — same definitions run on stdio, HTTP (Hono), and Cloudflare Workers.
-- **Tiered dependencies** — parsers, OTEL SDK, Supabase, and OpenAI are optional peers. Install what you use.
-- **Agent-first DX** — ships `CLAUDE.md` with the full exports catalog so AI agents ramp up without prompting.
-
-### Storage Behavior Snapshot
-
-Provider behavior is intentionally normalized at the interface, but backend limits still matter:
-
-| Provider | Delete count accuracy | List TTL filtering | Notes |
-|:---------|:----------------------|:-------------------|:------|
-| `in-memory` | Exact | Exact | Volatile process memory |
-| `filesystem` | Exact | Exact | Node/Bun only |
-| `supabase` | Exact | Exact | Requires configured Supabase client |
-| `cloudflare-d1` | Exact | Exact | Workers D1 binding |
-| `cloudflare-kv` | Idempotent API success | Native/eventual | Delete cannot prove prior existence |
-| `cloudflare-r2` | Idempotent API success | Not applied during list | Expired envelopes are removed on read |
+- **Observability** — Pino logging + optional OpenTelemetry traces/metrics. Request correlation and tool metrics automatic.
+- **Tiered dependencies** — parsers, OTEL SDK, Supabase, OpenAI as optional peers. Install what you use.
+- **Agent-first DX** — ships `CLAUDE.md` / `AGENTS.md` with the codebase documented throughout Agent Skills.
 
 ## Server structure
 
@@ -181,7 +178,6 @@ See [CLAUDE.md](CLAUDE.md) for the full configuration reference.
 | `prompt(name, options)` | Define a prompt with `generate(args)` |
 | `appTool(name, options)` | Define an MCP Apps tool with auto-populated `_meta.ui` |
 | `appResource(uriTemplate, options)` | Define an MCP Apps HTML resource with the correct MIME type and `_meta.ui` mirroring for read content |
-| `disabledTool(def, meta)` | Mark a tool present-in-manifest but skipped at registration — clients can't invoke; landing page renders it muted with the operator-facing reason and optional hint. Compose with feature-flag conditionals at definition time. |
 
 ### Context
 
@@ -215,7 +211,7 @@ import { createMockContext } from '@cyanheads/mcp-ts-core/testing';
 import { fuzzTool, fuzzResource, fuzzPrompt } from '@cyanheads/mcp-ts-core/testing/fuzz';
 ```
 
-See [CLAUDE.md](CLAUDE.md) for the complete exports reference.
+See [CLAUDE.md/AGENTS.md](CLAUDE.md) for the complete exports reference.
 
 ## Examples
 
@@ -261,16 +257,18 @@ Also exports `fuzzResource`, `fuzzPrompt`, `zodToArbitrary`, and `ADVERSARIAL_ST
 
 ## Documentation
 
-- **[CLAUDE.md](CLAUDE.md)** — Framework reference: exports catalog, patterns, Context interface, error codes, auth, config, testing. Ships in the npm package.
-- **[CHANGELOG.md](CHANGELOG.md)** — Version history
+- **[CLAUDE.md/AGENTS.md](CLAUDE.md)** — Framework reference: exports catalog, patterns, Context interface, error codes, auth, config, testing. Ships in the npm package.
+- **[docs/telemetry/observability.md](docs/telemetry/observability.md)** — OpenTelemetry catalog: every span, metric, and attribute the framework emits, plus the env vars to wire export.
+- **[docs/telemetry/dashboards.md](docs/telemetry/dashboards.md)** — Example Grafana dashboard JSON and vendor-agnostic query recipes (Datadog, New Relic, Honeycomb).
+- **[CHANGELOG.md](CHANGELOG.md)** — Version history - Directory based for easier parsing by agents. Each entry includes a summary, migration notes, and links to commits/issues.
 
 ## Development
 
 ```bash
 bun run rebuild        # clean + build (scripts/clean.ts + scripts/build.ts)
-bun run devcheck       # lint, format, typecheck, MCP defs, audit, outdated
+bun run devcheck       # full gate: lint/format, typecheck, MCP defs, framework antipatterns, docs/skills/changelog sync, tests, audit, outdated, secrets/TODO scan
 bun run lint:mcp       # validate MCP definitions against spec
-bun run test:all       # vitest (unit + integration)
+bun run test:all       # vitest: unit + Workers pool + integration
 ```
 
 ## Contributing

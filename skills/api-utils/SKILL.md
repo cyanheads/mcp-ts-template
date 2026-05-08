@@ -4,7 +4,7 @@ description: >
   API reference for all utilities exported from `@cyanheads/mcp-ts-core/utils`. Use when looking up utility method signatures, options, peer dependencies, or usage patterns.
 metadata:
   author: cyanheads
-  version: "2.1"
+  version: "2.2"
   audience: external
   type: reference
 ---
@@ -135,6 +135,8 @@ Both functions throw `McpError(InternalError)` only on unexpected heuristic fail
 ---
 
 ## `@cyanheads/mcp-ts-core/utils` — Telemetry
+
+Helper API only. For the catalog of what the framework auto-emits (span names, metric names, attributes, completion log fields, env config, runtime support, cardinality rules), see the `api-telemetry` skill.
 
 ### `telemetry/instrumentation`
 
