@@ -14,6 +14,9 @@ import { type RequestContext, requestContextService } from '@/utils/internal/req
  * Checks if the current authentication context contains all the specified scopes.
  * When auth is disabled (`MCP_AUTH_MODE=none`), scope checks are skipped.
  * When auth is enabled and the auth context is missing, fails closed with Unauthorized.
+ * When `MCP_AUTH_DISABLE_SCOPE_CHECKS=true`, scope enforcement is bypassed after the
+ * auth-context presence check; signature, audience, issuer, and expiry validation
+ * remain intact.
  *
  * @param requiredScopes - An array of scope strings that are mandatory for the operation.
  * @param parentContext - Optional parent request context for trace correlation.
@@ -50,6 +53,14 @@ export function withRequiredScopes(requiredScopes: string[], parentContext?: Req
       'Authentication required but no auth context was established.',
       initialContext,
     );
+  }
+
+  if (config.mcpAuthDisableScopeChecks) {
+    logger.debug(
+      'Scope enforcement bypassed (MCP_AUTH_DISABLE_SCOPE_CHECKS=true).',
+      initialContext,
+    );
+    return;
   }
 
   logger.debug('Performing scope authorization check.', initialContext);

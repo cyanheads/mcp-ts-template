@@ -11,11 +11,30 @@ import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import { McpError, unauthorized } from '@/types-global/errors.js';
 
 /**
+ * Extracts a list of scope strings from a JWT claim value, accepting both
+ * array and space-delimited string forms. Non-string array entries cause
+ * the claim to be ignored entirely. Empty-string entries are dropped.
+ */
+function extractStringScopes(value: unknown): string[] {
+  if (Array.isArray(value) && value.every((s) => typeof s === 'string')) {
+    return (value as string[]).filter((s) => s.length > 0);
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value.split(' ').filter(Boolean);
+  }
+  return [];
+}
+
+/**
  * Builds an {@link AuthInfo} from a raw token string and decoded JWT payload.
  *
  * Claim resolution order:
  * - **clientId**: `cid` (Okta) → `client_id` (OAuth 2.1 standard)
- * - **scopes**: `scp` (Okta, array) → `scope` (standard, space-delimited string)
+ * - **scopes**: union of `scp` (Okta, array), `scope` (standard, space-delimited string),
+ *   and `mcp_tool_scopes` (custom claim for OIDC providers that cannot inject scopes
+ *   into `scope` during the `authorization_code` flow — Authentik, Keycloak < 26.5,
+ *   Zitadel). Operators add a property mapping returning
+ *   `{"mcp_tool_scopes": "tool:foo:read tool:bar:write"}` (string or array form accepted).
  * - **subject**: `sub` (standard)
  * - **tenantId**: `tid` (Azure AD / custom)
  * - **expiresAt**: `exp` (standard, seconds since epoch)
@@ -34,12 +53,11 @@ export function buildAuthInfoFromClaims(token: string, payload: JWTPayload): Aut
     throw unauthorized("Invalid token: missing 'cid' or 'client_id' claim.");
   }
 
-  let scopes: string[] = [];
-  if (Array.isArray(payload.scp) && payload.scp.every((s) => typeof s === 'string')) {
-    scopes = payload.scp;
-  } else if (typeof payload.scope === 'string' && payload.scope.trim()) {
-    scopes = payload.scope.split(' ').filter(Boolean);
-  }
+  const scopes = [
+    ...extractStringScopes(payload.scp),
+    ...extractStringScopes(payload.scope),
+    ...extractStringScopes(payload.mcp_tool_scopes),
+  ];
 
   if (scopes.length === 0) {
     throw unauthorized('Token must contain valid, non-empty scopes.');

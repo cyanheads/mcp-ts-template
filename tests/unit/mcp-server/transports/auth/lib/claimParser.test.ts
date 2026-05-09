@@ -60,13 +60,88 @@ describe('buildAuthInfoFromClaims', () => {
       expect(result.scopes).toEqual(['read', 'write']);
     });
 
-    it('prefers scp array over scope string when both are present', () => {
+    it('unions scp array and scope string when both are present', () => {
       const payload: JWTPayload = { cid: 'client', scp: ['scp-scope'], scope: 'scope-string' };
       const result = buildAuthInfoFromClaims(RAW_TOKEN, payload);
-      expect(result.scopes).toEqual(['scp-scope']);
+      expect(result.scopes).toEqual(['scp-scope', 'scope-string']);
     });
 
-    it('throws McpError (Unauthorized) when neither scp nor scope is present', () => {
+    it('extracts scopes from mcp_tool_scopes when expressed as a space-delimited string', () => {
+      const payload: JWTPayload = {
+        cid: 'client',
+        mcp_tool_scopes: 'tool:foo:read tool:bar:write',
+      };
+      const result = buildAuthInfoFromClaims(RAW_TOKEN, payload);
+      expect(result.scopes).toEqual(['tool:foo:read', 'tool:bar:write']);
+    });
+
+    it('extracts scopes from mcp_tool_scopes when expressed as an array', () => {
+      const payload: JWTPayload = {
+        cid: 'client',
+        mcp_tool_scopes: ['tool:foo:read', 'tool:bar:write'],
+      };
+      const result = buildAuthInfoFromClaims(RAW_TOKEN, payload);
+      expect(result.scopes).toEqual(['tool:foo:read', 'tool:bar:write']);
+    });
+
+    it('unions scope and mcp_tool_scopes (the documented OIDC workaround path)', () => {
+      const payload: JWTPayload = {
+        cid: 'client',
+        scope: 'openid email profile offline_access',
+        mcp_tool_scopes: 'tool:foo:read tool:bar:write',
+      };
+      const result = buildAuthInfoFromClaims(RAW_TOKEN, payload);
+      expect(result.scopes).toEqual([
+        'openid',
+        'email',
+        'profile',
+        'offline_access',
+        'tool:foo:read',
+        'tool:bar:write',
+      ]);
+    });
+
+    it('unions scp, scope, and mcp_tool_scopes when all three are present', () => {
+      const payload: JWTPayload = {
+        cid: 'client',
+        scp: ['scp-scope'],
+        scope: 'scope-string',
+        mcp_tool_scopes: ['tool:custom:read'],
+      };
+      const result = buildAuthInfoFromClaims(RAW_TOKEN, payload);
+      expect(result.scopes).toEqual(['scp-scope', 'scope-string', 'tool:custom:read']);
+    });
+
+    it('ignores mcp_tool_scopes when it is an array containing non-string entries', () => {
+      const payload: JWTPayload = {
+        cid: 'client',
+        scope: 'read',
+        mcp_tool_scopes: ['tool:foo:read', 42 as unknown as string],
+      };
+      const result = buildAuthInfoFromClaims(RAW_TOKEN, payload);
+      expect(result.scopes).toEqual(['read']);
+    });
+
+    it('drops empty-string entries from array-form scope claims', () => {
+      const payload: JWTPayload = {
+        cid: 'client',
+        mcp_tool_scopes: ['tool:foo:read', '', 'tool:bar:write'],
+      };
+      const result = buildAuthInfoFromClaims(RAW_TOKEN, payload);
+      expect(result.scopes).toEqual(['tool:foo:read', 'tool:bar:write']);
+    });
+
+    it('ignores mcp_tool_scopes when its value is neither array nor string', () => {
+      const payload: JWTPayload = {
+        cid: 'client',
+        scope: 'read',
+        mcp_tool_scopes: { not: 'usable' } as unknown as string,
+      };
+      const result = buildAuthInfoFromClaims(RAW_TOKEN, payload);
+      expect(result.scopes).toEqual(['read']);
+    });
+
+    it('throws McpError (Unauthorized) when neither scp, scope, nor mcp_tool_scopes is present', () => {
       const payload: JWTPayload = { cid: 'client' };
       expect(() => buildAuthInfoFromClaims(RAW_TOKEN, payload)).toThrow(McpError);
       try {
@@ -101,6 +176,17 @@ describe('buildAuthInfoFromClaims', () => {
 
     it('throws McpError (Unauthorized) when scope is a whitespace-only string', () => {
       const payload: JWTPayload = { cid: 'client', scope: '   ' };
+      expect(() => buildAuthInfoFromClaims(RAW_TOKEN, payload)).toThrow(McpError);
+      try {
+        buildAuthInfoFromClaims(RAW_TOKEN, payload);
+      } catch (error) {
+        const mcpError = error as McpError;
+        expect(mcpError.code).toBe(JsonRpcErrorCode.Unauthorized);
+      }
+    });
+
+    it('throws McpError (Unauthorized) when only an empty mcp_tool_scopes string is present', () => {
+      const payload: JWTPayload = { cid: 'client', mcp_tool_scopes: '' };
       expect(() => buildAuthInfoFromClaims(RAW_TOKEN, payload)).toThrow(McpError);
       try {
         buildAuthInfoFromClaims(RAW_TOKEN, payload);

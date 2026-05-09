@@ -9,7 +9,10 @@ import type { AuthInfo } from '@/mcp-server/transports/auth/lib/authTypes.js';
 import { JsonRpcErrorCode, McpError } from '@/types-global/errors.js';
 
 // Mutable config mock — tests override mcpAuthMode per scenario.
-const mockConfig = { mcpAuthMode: 'none' as string };
+const mockConfig = {
+  mcpAuthMode: 'none' as string,
+  mcpAuthDisableScopeChecks: false,
+};
 vi.mock('@/config/index.js', () => ({ config: mockConfig }));
 
 // Must import after vi.mock so the mock is in place.
@@ -26,6 +29,7 @@ describe('withRequiredScopes', () => {
   describe('when auth is disabled (MCP_AUTH_MODE=none)', () => {
     it('allows execution when no auth context is present', () => {
       mockConfig.mcpAuthMode = 'none';
+      mockConfig.mcpAuthDisableScopeChecks = false;
       expect(() => withRequiredScopes(['scope:read'])).not.toThrow();
     });
   });
@@ -33,6 +37,7 @@ describe('withRequiredScopes', () => {
   describe('when auth is enabled (MCP_AUTH_MODE=jwt)', () => {
     it('throws Unauthorized when no auth context is present', () => {
       mockConfig.mcpAuthMode = 'jwt';
+      mockConfig.mcpAuthDisableScopeChecks = false;
       try {
         withRequiredScopes(['scope:read']);
         throw new Error('Expected withRequiredScopes to throw');
@@ -46,6 +51,7 @@ describe('withRequiredScopes', () => {
 
     it('passes when the auth context satisfies all required scopes', () => {
       mockConfig.mcpAuthMode = 'jwt';
+      mockConfig.mcpAuthDisableScopeChecks = false;
       authContext.run({ authInfo: createAuthInfo(['scope:read', 'scope:write']) }, () => {
         expect(() => withRequiredScopes(['scope:read'])).not.toThrow();
         expect(() => withRequiredScopes(['scope:read', 'scope:write'])).not.toThrow();
@@ -54,6 +60,7 @@ describe('withRequiredScopes', () => {
 
     it('passes when a parent request context is provided', () => {
       mockConfig.mcpAuthMode = 'jwt';
+      mockConfig.mcpAuthDisableScopeChecks = false;
       const parentContext = {
         operation: 'parentScopeCheck',
         requestId: 'req-parent',
@@ -67,6 +74,7 @@ describe('withRequiredScopes', () => {
 
     it('throws Forbidden when a required scope is missing', () => {
       mockConfig.mcpAuthMode = 'jwt';
+      mockConfig.mcpAuthDisableScopeChecks = false;
       authContext.run({ authInfo: createAuthInfo(['scope:read']) }, () => {
         try {
           withRequiredScopes(['scope:read', 'scope:write']);
@@ -80,6 +88,49 @@ describe('withRequiredScopes', () => {
           expect(mcpError.data).toBeUndefined();
         }
       });
+    });
+  });
+
+  describe('when MCP_AUTH_DISABLE_SCOPE_CHECKS=true', () => {
+    it('still throws Unauthorized when no auth context is present (jwt mode)', () => {
+      mockConfig.mcpAuthMode = 'jwt';
+      mockConfig.mcpAuthDisableScopeChecks = true;
+      try {
+        withRequiredScopes(['tool:foo:read']);
+        throw new Error('Expected withRequiredScopes to throw');
+      } catch (error) {
+        expect(error).toBeInstanceOf(McpError);
+        const mcpError = error as McpError;
+        expect(mcpError.code).toBe(JsonRpcErrorCode.Unauthorized);
+        expect(mcpError.message).toContain('Authentication required');
+      }
+    });
+
+    it('bypasses missing-scope enforcement under jwt mode when auth context is present', () => {
+      mockConfig.mcpAuthMode = 'jwt';
+      mockConfig.mcpAuthDisableScopeChecks = true;
+      authContext.run({ authInfo: createAuthInfo(['openid', 'email']) }, () => {
+        expect(() => withRequiredScopes(['tool:foo:read'])).not.toThrow();
+      });
+    });
+
+    it('bypasses missing-scope enforcement under oauth mode when auth context is present', () => {
+      mockConfig.mcpAuthMode = 'oauth';
+      mockConfig.mcpAuthDisableScopeChecks = true;
+      authContext.run(
+        { authInfo: createAuthInfo(['openid', 'email', 'profile', 'offline_access']) },
+        () => {
+          expect(() =>
+            withRequiredScopes(['tool:obsidian_list_notes:read', 'team:abc:write']),
+          ).not.toThrow();
+        },
+      );
+    });
+
+    it('does not affect MCP_AUTH_MODE=none behavior', () => {
+      mockConfig.mcpAuthMode = 'none';
+      mockConfig.mcpAuthDisableScopeChecks = true;
+      expect(() => withRequiredScopes(['tool:foo:read'])).not.toThrow();
     });
   });
 });

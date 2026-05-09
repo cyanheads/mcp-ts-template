@@ -34,6 +34,27 @@ function createToken(scopes: string[]): string {
   );
 }
 
+/**
+ * Builds a token shaped like what a standard OIDC provider (Authentik,
+ * Keycloak < 26.5, Zitadel) emits when an MCP client (Claude.ai, ChatGPT)
+ * connects without the ability to customize requested scopes:
+ *   `scope = "openid email profile offline_access"` plus an optional
+ *   `mcp_tool_scopes` custom claim that the operator injects via a
+ *   property mapping. No `scp` claim — that's an Okta-ism.
+ */
+function createOidcToken(mcpToolScopes?: string | string[]): string {
+  const payload: Record<string, unknown> = {
+    cid: 'authz-client',
+    scope: 'openid email profile offline_access',
+    sub: 'authz-user',
+    tid: 'authz-tenant',
+  };
+  if (mcpToolScopes !== undefined) {
+    payload.mcp_tool_scopes = mcpToolScopes;
+  }
+  return generateTestJwt(payload, AUTH_SECRET);
+}
+
 async function withClient<T>(
   port: number,
   token: string,
@@ -136,6 +157,124 @@ describe.skipIf(!DIST_EXISTS || !existsSync(resolve(process.cwd(), FIXTURE_ENTRY
         expect(protectedResult.content).toContainEqual({
           type: 'text',
           text: expect.stringContaining('Insufficient permissions.'),
+        });
+      });
+    });
+
+    /**
+     * Issue #128 — standard OIDC providers (Authentik, Keycloak < 26.5, Zitadel)
+     * cannot inject per-tool scopes into the JWT `scope` claim during the
+     * authorization_code flow. Operators inject them via the `mcp_tool_scopes`
+     * custom claim instead. These cases exercise that wire-level scenario
+     * end-to-end through the JWT strategy and handler factory.
+     */
+    describe('OIDC fix — mcp_tool_scopes claim union (issue #128)', () => {
+      it('reproduces the original bug: standard OIDC scopes alone are insufficient', async () => {
+        const token = createOidcToken(); // no mcp_tool_scopes
+
+        await withClient(handle.port!, token, async (client) => {
+          const protectedResult = await client.callTool({
+            name: 'scoped_echo',
+            arguments: { message: 'blocked-by-default-oidc-scopes' },
+          });
+
+          expect(protectedResult.isError).toBe(true);
+          expect(protectedResult.structuredContent).toEqual({
+            error: {
+              code: expect.any(Number),
+              message: expect.stringContaining('Insufficient permissions.'),
+            },
+          });
+        });
+      });
+
+      it('grants the per-tool scope when injected via mcp_tool_scopes (string form)', async () => {
+        const token = createOidcToken('tool:scoped_echo:read tool:other:read');
+
+        await withClient(handle.port!, token, async (client) => {
+          const protectedResult = await client.callTool({
+            name: 'scoped_echo',
+            arguments: { message: 'allowed-via-custom-claim-string' },
+          });
+
+          expect(protectedResult.isError).toBeUndefined();
+          expect(protectedResult.structuredContent).toEqual({
+            echoed: 'allowed-via-custom-claim-string',
+            visibility: 'protected',
+          });
+        });
+      });
+
+      it('grants the per-tool scope when injected via mcp_tool_scopes (array form)', async () => {
+        const token = createOidcToken(['tool:scoped_echo:read', 'tool:other:read']);
+
+        await withClient(handle.port!, token, async (client) => {
+          const protectedResult = await client.callTool({
+            name: 'scoped_echo',
+            arguments: { message: 'allowed-via-custom-claim-array' },
+          });
+
+          expect(protectedResult.isError).toBeUndefined();
+          expect(protectedResult.structuredContent).toEqual({
+            echoed: 'allowed-via-custom-claim-array',
+            visibility: 'protected',
+          });
+        });
+      });
+
+      it('still permits the public tool with default OIDC scopes only', async () => {
+        const token = createOidcToken();
+
+        await withClient(handle.port!, token, async (client) => {
+          const publicResult = await client.callTool({
+            name: 'open_echo',
+            arguments: { message: 'public-with-default-oidc-scopes' },
+          });
+
+          expect(publicResult.isError).toBeUndefined();
+          expect(publicResult.structuredContent).toEqual({
+            echoed: 'public-with-default-oidc-scopes',
+            visibility: 'public',
+          });
+        });
+      });
+    });
+  },
+);
+
+describe.skipIf(!DIST_EXISTS || !existsSync(resolve(process.cwd(), FIXTURE_ENTRYPOINT)))(
+  'HTTP auth authorization e2e — MCP_AUTH_DISABLE_SCOPE_CHECKS bypass',
+  () => {
+    let handle: ServerHandle;
+
+    beforeAll(async () => {
+      assertServerBuilt();
+      assertServerEntrypoint(FIXTURE_ENTRYPOINT);
+      handle = await startServerFromEntrypoint(FIXTURE_ENTRYPOINT, 'http', {
+        MCP_AUTH_MODE: 'jwt',
+        MCP_AUTH_SECRET_KEY: AUTH_SECRET,
+        MCP_AUTH_DISABLE_SCOPE_CHECKS: 'true',
+        MCP_SESSION_MODE: 'stateful',
+      });
+    });
+
+    afterAll(async () => {
+      await handle?.kill();
+    });
+
+    it('allows the protected tool with only default OIDC scopes when the bypass is on', async () => {
+      const token = createOidcToken();
+
+      await withClient(handle.port!, token, async (client) => {
+        const protectedResult = await client.callTool({
+          name: 'scoped_echo',
+          arguments: { message: 'allowed-by-bypass' },
+        });
+
+        expect(protectedResult.isError).toBeUndefined();
+        expect(protectedResult.structuredContent).toEqual({
+          echoed: 'allowed-by-bypass',
+          visibility: 'protected',
         });
       });
     });

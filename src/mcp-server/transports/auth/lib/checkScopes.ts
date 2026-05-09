@@ -14,6 +14,10 @@ import { forbidden, unauthorized } from '@/types-global/errors.js';
  * directly from `ctx.auth`. Throws `McpError(Forbidden)` if scopes are
  * insufficient. No-ops when auth is disabled (`MCP_AUTH_MODE=none`).
  * Throws `Unauthorized` when auth is enabled but `ctx.auth` is absent.
+ * When `MCP_AUTH_DISABLE_SCOPE_CHECKS=true`, returns silently after the
+ * `ctx.auth` presence check — bypassing scope enforcement for runtime-computed
+ * patterns (e.g. tenant isolation) while keeping every other token validation
+ * intact.
  *
  * @example
  * ```ts
@@ -32,6 +36,10 @@ export function checkScopes(ctx: Context, requiredScopes: string[]): void {
 
   if (!ctx.auth) {
     throw unauthorized('Authentication required but no auth context was established.');
+  }
+
+  if (config.mcpAuthDisableScopeChecks) {
+    return;
   }
 
   const grantedScopeSet = new Set(ctx.auth.scopes);

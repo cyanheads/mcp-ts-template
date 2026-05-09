@@ -26,12 +26,22 @@ export function createAuthStrategy(): AuthStrategy | null {
   });
   logger.info('Creating authentication strategy...', context);
 
+  if (config.mcpAuthDisableScopeChecks && config.mcpAuthMode !== 'none') {
+    logger.warning(
+      'MCP_AUTH_DISABLE_SCOPE_CHECKS=true — per-tool and runtime scope enforcement is bypassed for every request. Token signature, audience, issuer, and expiry validation are still applied. Combine with server-side ACLs to avoid granting every authenticated user every tool.',
+      context,
+    );
+  }
+
   switch (config.mcpAuthMode) {
     case 'jwt':
       logger.debug('Creating JWT strategy.', context);
       return new JwtStrategy(config, logger);
     case 'oauth':
-      logger.debug('Creating OAuth strategy.', context);
+      logger.info(
+        'OAuth mode active. Granted scopes are read from `scp` (array), `scope` (space-delimited), and `mcp_tool_scopes` (custom claim, for OIDC providers that cannot inject scopes into `scope` during authorization_code flow — Authentik, Keycloak <26.5, Zitadel). To bypass per-tool enforcement entirely, set MCP_AUTH_DISABLE_SCOPE_CHECKS=true (combine with server-side ACLs).',
+        context,
+      );
       return new OauthStrategy(config, logger);
     case 'none':
       logger.info("Authentication is disabled ('none' mode).", context);

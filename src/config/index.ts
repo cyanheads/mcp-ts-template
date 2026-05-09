@@ -172,6 +172,16 @@ const ConfigSchema = z
       emptyStringAsUndefined,
       z.enum(['jwt', 'oauth', 'none']).default('none'),
     ),
+    /**
+     * Bypass per-request scope enforcement when `MCP_AUTH_MODE` is `jwt` or `oauth`.
+     * When `true`, both `withRequiredScopes` (declared `auth: [...]`) and `checkScopes`
+     * (runtime-computed scopes inside handlers, including tenant isolation patterns
+     * like `team:${input.teamId}:write`) early-return after the auth-context presence
+     * check. Signature, audience, issuer, and expiry validation remain intact. Combine
+     * with server-side ACLs — without an in-handler ACL, every authenticated user
+     * effectively has every scope.
+     */
+    mcpAuthDisableScopeChecks: envBoolean.default(false),
     oauthIssuerUrl: z.url().optional(),
     oauthJwksUri: z.url().optional(),
     oauthAudience: z.string().optional(),
@@ -444,6 +454,7 @@ const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
     mcpJwtExpectedIssuer: env.MCP_JWT_EXPECTED_ISSUER,
     mcpJwtExpectedAudience: env.MCP_JWT_EXPECTED_AUDIENCE,
     mcpAuthMode: env.MCP_AUTH_MODE,
+    mcpAuthDisableScopeChecks: env.MCP_AUTH_DISABLE_SCOPE_CHECKS,
     oauthIssuerUrl: env.OAUTH_ISSUER_URL,
     oauthJwksUri: env.OAUTH_JWKS_URI,
     oauthAudience: env.OAUTH_AUDIENCE,

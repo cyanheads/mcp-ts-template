@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.8.20](changelog/0.8.x/0.8.20.md) — 2026-05-09
+
+`mcp_tool_scopes` claim union + `MCP_AUTH_DISABLE_SCOPE_CHECKS` bypass ([#128](https://github.com/cyanheads/mcp-ts-core/issues/128)) — operator escape hatches for OIDC providers that can't inject scopes into `scope`.
+
 ## [0.8.19](changelog/0.8.x/0.8.19.md) — 2026-05-08
 
 Telemetry visualization docs ([#125](https://github.com/cyanheads/mcp-ts-core/issues/125)) — example Grafana dashboard JSON, vendor-agnostic query recipes, new `api-telemetry` skill. Engines bumped to Bun ≥1.3.0 / Node ≥24.0.0.

@@ -1,7 +1,7 @@
 # Developer Protocol
 
 **Package:** `@cyanheads/mcp-ts-core`
-**Version:** 0.8.19
+**Version:** 0.8.20
 **Engines:** Bun ≥1.3.0, Node ≥24.0.0
 **MCP SDK:** `@modelcontextprotocol/sdk` ^1.29.0
 **Zod:** ^4.4.3
@@ -439,6 +439,8 @@ Pick one convention per server and stay consistent. Verbs are typically `read`, 
 
 **Modes** (`MCP_AUTH_MODE`): `none` (default) | `jwt` (local secret via `MCP_AUTH_SECRET_KEY`) | `oauth` (JWKS via `OAUTH_ISSUER_URL`, `OAUTH_AUDIENCE`). See `api-auth` skill for claims, CORS, and detailed config.
 
+**Granted scopes** are unioned from `scp`, `scope`, and `mcp_tool_scopes` JWT claims. The `mcp_tool_scopes` custom claim is the supported escape hatch for OIDC providers (Authentik, Keycloak < 26.5, Zitadel) that ignore property mappings overriding `scope` in `authorization_code` flow. For deployments where no custom claim can be injected, `MCP_AUTH_DISABLE_SCOPE_CHECKS=true` bypasses both `withRequiredScopes` and `checkScopes` after the auth-context presence check (signature/audience/issuer/expiry validation intact). A `WARNING` is logged at startup whenever the bypass is active.
+
 ---
 
 ## Configuration
@@ -450,7 +452,7 @@ Managed by `@cyanheads/mcp-ts-core`. Validated via Zod. Precedence: `createApp()
 | Category | Key Variables |
 |:---------|:-------------|
 | Transport | `MCP_TRANSPORT_TYPE` (`stdio`\|`http`), `MCP_HTTP_PORT`, `MCP_HTTP_HOST`, `MCP_HTTP_ENDPOINT_PATH` |
-| Auth | `MCP_AUTH_MODE`, `MCP_AUTH_SECRET_KEY`, `OAUTH_*` |
+| Auth | `MCP_AUTH_MODE`, `MCP_AUTH_SECRET_KEY`, `MCP_AUTH_DISABLE_SCOPE_CHECKS`, `OAUTH_*` |
 | Storage | `STORAGE_PROVIDER_TYPE` (`in-memory`\|`filesystem`\|`supabase`\|`cloudflare-r2`\|`cloudflare-kv`\|`cloudflare-d1`) |
 | LLM | `OPENROUTER_API_KEY`, `OPENROUTER_APP_URL/NAME`, `LLM_DEFAULT_*` |
 | Telemetry | `OTEL_ENABLED`, `OTEL_SERVICE_NAME/VERSION`, `OTEL_EXPORTER_OTLP_*` |
