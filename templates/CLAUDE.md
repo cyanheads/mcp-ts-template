@@ -313,7 +313,7 @@ Each per-version file opens with YAML frontmatter:
 
 ```markdown
 ---
-summary: "One-line headline, ≤250 chars"  # required — powers the rollup index
+summary: "One-line headline, ≤350 chars"  # required — powers the rollup index
 breaking: false                            # optional — true flags breaking changes
 security: false                            # optional — true flags security fixes
 ---

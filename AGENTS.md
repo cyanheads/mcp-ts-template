@@ -605,7 +605,7 @@ At release time, author the per-version file with a concrete version and date, t
 
 ```markdown
 ---
-summary: "One-line headline, ≤250 chars, no markdown"  # required
+summary: "One-line headline, ≤350 chars, no markdown"  # required
 breaking: false                                         # optional, default false
 security: false                                         # optional, default false
 ---
@@ -621,11 +621,11 @@ security: false                                         # optional, default fals
 
 | Field | Required | Purpose |
 |:------|:---------|:--------|
-| `summary` | yes | Rollup index line. ≤250 chars, no markdown, single line. Write like a GitHub Release title. |
+| `summary` | yes | Rollup index line. ≤350 chars, no markdown, single line. Write like a GitHub Release title. |
 | `breaking` | no (default `false`) | Flags releases with breaking changes. Renders as `· ⚠️ Breaking` badge in the rollup. Agents running the `maintenance` skill read this to prioritize review. |
 | `security` | no (default `false`) | Flags releases with security fixes. Renders as `· 🛡️ Security` badge in the rollup so users can triage upgrade urgency. Pairs with the `## Security` body section. |
 
-When both flags are set, badges render in fixed order: `· ⚠️ Breaking · 🛡️ Security`. Summary > 250 chars or a malformed boolean fails `changelog:check`. Missing `summary` emits a warning and renders the rollup entry as header-only.
+When both flags are set, badges render in fixed order: `· ⚠️ Breaking · 🛡️ Security`. Summary > 350 chars or a malformed boolean fails `changelog:check`. Missing `summary` emits a warning and renders the rollup entry as header-only.
 
 **Section order** (Keep a Changelog): Added, Changed, Deprecated, Removed, Fixed, Security. Include only sections with entries — don't ship empty headers.
 
