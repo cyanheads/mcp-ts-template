@@ -51,22 +51,19 @@ export interface FetchWithTimeoutOptions extends Omit<RequestInit, 'signal'> {
    * Covered ranges include RFC 1918, loopback (127.x, ::1), link-local (169.254.x),
    * CGNAT (100.64–127.x), and known internal hostnames (e.g., `metadata.google.internal`).
    *
-   * On Node.js, DNS is also resolved and all A/AAAA records are validated against
-   * private ranges before the request is sent. On Workers, only string-based
-   * hostname/IP checks apply (no DNS API available).
+   * DNS is resolved (via `node:dns/promises`) and all A/AAAA records are
+   * validated against private ranges before the request is sent. Available in
+   * Node, Bun, and Cloudflare Workers under `nodejs_compat`.
    *
    * When enabled, redirects are followed manually (up to {@link MAX_SSRF_REDIRECTS}
    * hops) with SSRF validation applied to each redirect target.
    *
-   * **Best-effort, not a hard guarantee.** Two structural gaps remain:
-   *   - **DNS rebinding / TOCTOU.** Node's pre-validation lookup and the native
-   *     `fetch` call's own DNS resolution are independent. A malicious authoritative
-   *     DNS server (or a low-TTL record racing with cache eviction) can return a
-   *     public IP at validation time and a private IP at fetch time. This helper
-   *     does not pin the validated address to the connection.
-   *   - **Workers have no DNS API**, so only literal-hostname/IP checks apply.
-   *     A hostname that resolves (at the edge) to a private IP is not detected
-   *     here.
+   * **Best-effort, not a hard guarantee — DNS rebinding / TOCTOU still applies.**
+   * The pre-validation lookup and the native `fetch` call's own DNS resolution
+   * are independent. A malicious authoritative DNS server (or a low-TTL record
+   * racing with cache eviction) can return a public IP at validation time and a
+   * private IP at fetch time. This helper does not pin the validated address to
+   * the connection.
    *
    * For strong SSRF isolation, layer this with network egress controls
    * (Cloudflare egress rules, k8s NetworkPolicy, host firewall), a fetch proxy
@@ -160,7 +157,8 @@ function isPrivateIP(ip: string): boolean {
  * Performs three checks in order:
  * 1. Known private hostnames (`localhost`, `metadata.google.internal`, etc.)
  * 2. Literal IPv4/IPv6 addresses in the URL hostname
- * 3. DNS resolution (Node.js only) — resolves A and AAAA records and validates each
+ * 3. DNS resolution — resolves A and AAAA records and validates each
+ *    (Node, Bun, Workers under `nodejs_compat`; skipped in pure-browser envs)
  *
  * DNS resolution failures (ENOTFOUND, etc.) are swallowed and left for the native
  * `fetch` to handle; only confirmed private IPs cause rejection.
@@ -195,10 +193,9 @@ async function assertNotPrivateUrl(urlString: string): Promise<void> {
     throw validationError(`Request to private/reserved IP blocked: ${hostname}`);
   }
 
-  // DNS resolution check (real Node.js only — Workers under nodejs_compat
-  // expose process.versions.node but lack node:dns; their fetch performs its
-  // own resolution).
-  if (runtimeCaps.isNode && !runtimeCaps.isWorkerLike) {
+  // `node:dns/promises` is available in Node, Bun, and Workers under
+  // `nodejs_compat`. `isNode` covers all three.
+  if (runtimeCaps.isNode) {
     await assertDnsNotPrivate(hostname);
   }
 }
