@@ -27,17 +27,10 @@ import type { RequestContext } from '@/utils/internal/requestContext.js';
 import type { ListOptions, StorageOptions } from './IStorageProvider.js';
 
 /**
- * Per-process HMAC key for cursor integrity. Generated on first use (not at
- * module load) so bundlers and runtimes that gate `node:crypto` until request
- * time — Cloudflare Workers being the most common — can import this module
- * without forcing the dependency. Does not need to survive restarts: cursors
- * are ephemeral pagination tokens.
+ * Per-process HMAC key for cursor integrity. Does not need to survive
+ * restarts: cursors are ephemeral pagination tokens.
  */
-let _cursorHmacKey: Buffer | undefined;
-function getCursorHmacKey(): Buffer {
-  if (!_cursorHmacKey) _cursorHmacKey = randomBytes(32);
-  return _cursorHmacKey;
-}
+const CURSOR_HMAC_KEY = randomBytes(32);
 
 /**
  * Maximum length for tenant IDs and keys to prevent abuse.
@@ -354,7 +347,7 @@ const CURSOR_HMAC_BYTES = 16; // 128-bit truncated tag — sufficient for pagina
 
 /** Computes a truncated HMAC tag for the given payload string. */
 function signCursor(payload: string): string {
-  const mac = createHmac(CURSOR_HMAC_ALGO, getCursorHmacKey())
+  const mac = createHmac(CURSOR_HMAC_ALGO, CURSOR_HMAC_KEY)
     .update(payload)
     .digest()
     .subarray(0, CURSOR_HMAC_BYTES);
