@@ -311,7 +311,10 @@ export class RateLimiter {
         'mcp.rate_limit.wait_time_seconds': waitTime,
       });
 
-      getRateLimitMetrics().rejectionCounter.add(1, { 'mcp.rate_limit.key': limitKey });
+      // No `mcp.rate_limit.key` attribute — `limitKey` is caller-supplied and
+      // typically per-client, which would materialize an unbounded series in
+      // the OTel meter. Per-key attribution lives on the span (line 268).
+      getRateLimitMetrics().rejectionCounter.add(1);
 
       throw rateLimited(errorMessage, {
         waitTimeSeconds: waitTime,
