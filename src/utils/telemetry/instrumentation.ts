@@ -25,13 +25,17 @@ let initializationPromise: Promise<void> | null = null;
 
 /**
  * Determines if the NodeSDK can be used in the current runtime.
- * Returns false in Worker/Edge environments where Node modules are unavailable.
+ * Returns false in Worker/Edge environments — Cloudflare Workers with
+ * `nodejs_compat` populate `process.versions.node`, so we must explicitly
+ * check `isWorkerLike` to avoid the SDK loading `node:perf_hooks` and
+ * `node:worker_threads` that the polyfill does not provide.
  * Bun is allowed — auto-instrumentations that rely on Node http hooks silently
  * no-op, but manual spans, custom metrics, and OTLP export all work correctly.
  */
 function canUseNodeSDK(): boolean {
   return (
     runtimeCaps.isNode &&
+    !runtimeCaps.isWorkerLike &&
     typeof process?.versions?.node === 'string' &&
     typeof process.env === 'object'
   );

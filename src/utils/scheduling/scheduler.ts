@@ -29,7 +29,7 @@ import { runtimeCaps } from '@/utils/internal/runtime.js';
 let cronModulePromise: Promise<typeof import('node-cron')> | null = null;
 
 async function loadCron(): Promise<typeof import('node-cron')> {
-  if (!runtimeCaps.isNode) {
+  if (!runtimeCaps.isNode || runtimeCaps.isWorkerLike) {
     throw configurationError(
       'SchedulerService requires a Node.js runtime. Cron scheduling is not available in Workers or browser environments.',
     );

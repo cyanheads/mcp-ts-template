@@ -303,7 +303,6 @@ describe('OpenTelemetry instrumentation lifecycle', () => {
   it('warns when no OTLP endpoints are configured and skips optional exporters', async () => {
     mockConfig.openTelemetry.tracesEndpoint = '';
     mockConfig.openTelemetry.metricsEndpoint = '';
-    mockRuntimeCaps.isWorkerLike = true;
 
     const infoSpy = vi.spyOn(diag, 'info').mockImplementation(() => true);
     const warnSpy = vi.spyOn(diag, 'warn').mockImplementation(() => true);
@@ -320,12 +319,27 @@ describe('OpenTelemetry instrumentation lifecycle', () => {
     expect(otelState.traceExporterOptions).toHaveLength(0);
     expect(otelState.metricExporterOptions).toHaveLength(0);
     expect(otelState.metricReaderOptions).toHaveLength(0);
-    expect(otelState.resourceFromAttributesSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        'cloud.platform': 'cloudflare_workers',
-        'cloud.provider': 'cloudflare',
-      }),
+  });
+
+  it('falls back to lightweight mode under nodejs_compat in Workers', async () => {
+    // Cloudflare Workers populate `process.versions.node`, so the legacy
+    // `canUseNodeSDK()` returned `true` and tried to load `node:perf_hooks` /
+    // `node:worker_threads` (unsupported in the isolate). The fix gates on
+    // `!isWorkerLike`, so the NodeSDK path is skipped cleanly.
+    mockRuntimeCaps.isNode = true;
+    mockRuntimeCaps.isWorkerLike = true;
+
+    const infoSpy = vi.spyOn(diag, 'info').mockImplementation(() => true);
+    const instrumentation = await import('@/utils/telemetry/instrumentation.js');
+
+    await instrumentation.initializeOpenTelemetry();
+
+    expect(instrumentation.sdk).toBeNull();
+    expect(infoSpy).toHaveBeenCalledWith(
+      'NodeSDK unavailable in this runtime. Using lightweight telemetry mode.',
     );
+    expect(otelState.sdkStartSpy).not.toHaveBeenCalled();
+    expect(otelState.nodeSdkOptions).toHaveLength(0);
   });
 
   it('detects GCP Cloud Functions resource metadata', async () => {

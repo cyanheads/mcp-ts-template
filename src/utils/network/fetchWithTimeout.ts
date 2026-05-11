@@ -195,8 +195,10 @@ async function assertNotPrivateUrl(urlString: string): Promise<void> {
     throw validationError(`Request to private/reserved IP blocked: ${hostname}`);
   }
 
-  // DNS resolution check (Node.js only — Workers have no DNS API)
-  if (runtimeCaps.isNode) {
+  // DNS resolution check (real Node.js only — Workers under nodejs_compat
+  // expose process.versions.node but lack node:dns; their fetch performs its
+  // own resolution).
+  if (runtimeCaps.isNode && !runtimeCaps.isWorkerLike) {
     await assertDnsNotPrivate(hostname);
   }
 }
