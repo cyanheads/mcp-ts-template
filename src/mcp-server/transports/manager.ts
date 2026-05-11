@@ -9,7 +9,7 @@ import type { AppConfig as AppConfigType } from '@/config/index.js';
 import type { ServerManifest } from '@/core/serverManifest.js';
 import type { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
 import { HeartbeatMonitor } from '@/mcp-server/transports/heartbeat.js';
-import { startHttpTransport } from '@/mcp-server/transports/http/httpTransport.js';
+import { startHttpTransport } from '@/mcp-server/transports/http/httpServer.js';
 import type { TransportServer } from '@/mcp-server/transports/ITransport.js';
 import {
   startStdioTransport,
