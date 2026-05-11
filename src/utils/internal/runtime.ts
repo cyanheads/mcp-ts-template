@@ -8,6 +8,11 @@
  * Snapshot of runtime feature availability detected at module load time.
  * All fields are booleans computed once via safe feature-detection; they never
  * throw and never change after the module is first imported.
+ *
+ * Note: `isNode` and `isWorkerLike` can both be `true` simultaneously when a
+ * Worker runtime exposes a Node-compatible `process` global (e.g., Cloudflare
+ * Workers with the `nodejs_compat` flag). Gate Node-only filesystem and
+ * transport features on `isNode && !isWorkerLike`.
  */
 export interface RuntimeCapabilities {
   /** True when the Node.js `Buffer` global is available. */
@@ -26,9 +31,20 @@ export interface RuntimeCapabilities {
    * so `isNode` is also true in Bun environments.
    */
   isBun: boolean;
-  /** True when `process.versions.node` is a string (Node.js or Bun). */
+  /**
+   * True when `process.versions.node` is a string. This is true in Node.js
+   * and Bun, and also in Cloudflare Workers with the `nodejs_compat` flag.
+   * Use `isNode && !isWorkerLike` to gate code that requires a real Node
+   * runtime (e.g., `pino/file` transports, `node:worker_threads`).
+   */
   isNode: boolean;
-  /** True when running inside a Web Worker or Cloudflare Worker (`WorkerGlobalScope` is present). */
+  /**
+   * True when running inside a Cloudflare Worker or a Web Worker. Detected
+   * via `navigator.userAgent === 'Cloudflare-Workers'` (canonical for CF
+   * Workers with the `global_navigator` flag, auto-enabled on recent
+   * compatibility dates) with a `WorkerGlobalScope` fallback for other
+   * worker environments.
+   */
   isWorkerLike: boolean;
 }
 
@@ -81,7 +97,8 @@ const hasPerformanceNow = hasPerformanceNowFunction();
 
 /**
  * Safely checks if WorkerGlobalScope exists.
- * Cloudflare Workers and other worker environments expose this.
+ * Web Workers and some non-CF worker environments expose this; Cloudflare
+ * Workers under `nodejs_compat` do not.
  */
 const hasWorkerGlobalScope = (): boolean => {
   try {
@@ -91,8 +108,24 @@ const hasWorkerGlobalScope = (): boolean => {
   }
 };
 
-// Cloudflare Workers expose "Web Worker"-like environment (self, caches, fetch, etc.)
-const isWorkerLike = !isNode && hasWorkerGlobalScope();
+/**
+ * Safely checks if `navigator.userAgent === 'Cloudflare-Workers'`.
+ * Canonical CF detection (works regardless of `nodejs_compat`) when the
+ * `global_navigator` flag is enabled — auto-enabled on recent compat dates.
+ */
+const hasCloudflareWorkerNavigator = (): boolean => {
+  try {
+    return (
+      (globalThis as { navigator?: { userAgent?: unknown } }).navigator?.userAgent ===
+      'Cloudflare-Workers'
+    );
+  } catch {
+    return false;
+  }
+};
+
+// `isWorkerLike` is independent of `isNode`: under `nodejs_compat` both are true.
+const isWorkerLike = hasCloudflareWorkerNavigator() || hasWorkerGlobalScope();
 const isBrowserLike = !isNode && !isWorkerLike && safeHas('window');
 
 /**

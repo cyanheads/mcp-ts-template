@@ -2,7 +2,7 @@
  * @fileoverview Unit tests for runtime capability detection.
  * @module tests/utils/internal/runtime.test
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { runtimeCaps } from '../../../../src/utils/internal/runtime.js';
 
@@ -42,5 +42,31 @@ describe('Runtime Capabilities', () => {
     expect(runtimeCaps).toHaveProperty('hasBuffer');
     expect(runtimeCaps).toHaveProperty('hasTextEncoder');
     expect(runtimeCaps).toHaveProperty('hasPerformanceNow');
+  });
+});
+
+describe('isWorkerLike detection under nodejs_compat', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it('returns true when navigator.userAgent reports Cloudflare-Workers', async () => {
+    // Cloudflare Workers populate `process.versions.node` under `nodejs_compat`,
+    // so the legacy `!isNode` gate always evaluated false. Detection now uses
+    // the canonical `navigator.userAgent === 'Cloudflare-Workers'`.
+    vi.stubGlobal('navigator', { userAgent: 'Cloudflare-Workers' });
+    vi.resetModules();
+    const { runtimeCaps: stubbed } = await import('../../../../src/utils/internal/runtime.js');
+    expect(stubbed.isWorkerLike).toBe(true);
+    expect(stubbed.isNode).toBe(true); // Node-compat globals remain present
+  });
+
+  it('falls back to WorkerGlobalScope when navigator is absent', async () => {
+    vi.stubGlobal('navigator', undefined);
+    vi.stubGlobal('WorkerGlobalScope', class {});
+    vi.resetModules();
+    const { runtimeCaps: stubbed } = await import('../../../../src/utils/internal/runtime.js');
+    expect(stubbed.isWorkerLike).toBe(true);
   });
 });
