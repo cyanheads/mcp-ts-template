@@ -481,7 +481,6 @@ export class Logger {
   }
 
   private flushSuppressedMessages(): void {
-    if (this.suppressedMessages.size === 0) return;
     for (const [message, count] of this.suppressedMessages.entries()) {
       this.debug(
         `Log message suppressed ${count} times due to rate limiting.`,
@@ -492,7 +491,16 @@ export class Logger {
       );
     }
     this.suppressedMessages.clear();
-    this.messageCounts.clear();
+    // Evict entries whose rate-limit window has elapsed. Walking the map
+    // every tick (vs. clearing wholesale) preserves the per-window count
+    // for messages still inside their window, so the threshold is enforced
+    // correctly across ticks.
+    const now = Date.now();
+    for (const [message, entry] of this.messageCounts) {
+      if (now - entry.firstSeen > this.rateLimitWindow) {
+        this.messageCounts.delete(message);
+      }
+    }
   }
 
   private log(level: McpLogLevel, msg: string, context?: RequestContext, error?: Error): void {
