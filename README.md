@@ -5,9 +5,9 @@
 
 <div align="center">
 
-[![Version](https://img.shields.io/badge/Version-0.8.18-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.9.0-blue.svg?style=flat-square)](./CHANGELOG.md) [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-2025--11--25-8A2BE2.svg?style=flat-square)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-11-25/changelog.mdx) [![MCP SDK](https://img.shields.io/badge/MCP%20SDK-^1.29.0-green.svg?style=flat-square)](https://modelcontextprotocol.io/) [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg?style=flat-square)](./LICENSE)
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.2-blueviolet.svg?style=flat-square)](https://bun.sh/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-^6.0.3-3178C6.svg?style=flat-square)](https://www.typescriptlang.org/) [![Bun](https://img.shields.io/badge/Bun-v1.3.0%2B-blueviolet.svg?style=flat-square)](https://bun.sh/)
 
 </div>
 
@@ -31,9 +31,18 @@ const greet = tool('greet', {
   output: z.object({
     message: z.string().describe('The greeting message'),
   }),
-  handler: async (input) => ({
-    message: `Hello, ${input.name}!`,
-  }),
+  errors: [
+    {
+      reason: 'name_blocked',
+      code: JsonRpcErrorCode.Forbidden,
+      when: 'The provided name is on the configured block list.',
+      recovery: 'Use a different name.',
+    },
+  ],
+  handler: async (input, ctx) => {
+    if (isBlocked(input.name)) throw ctx.fail('name_blocked', `"${input.name}" is blocked`);
+    return { message: `Hello, ${input.name}!` };
+  },
 });
 
 await createApp({ tools: [greet] });
@@ -92,6 +101,32 @@ export const itemData = resource('items://{itemId}', {
 });
 ```
 
+And contracts for failure modes — typed at compile time, surfaced to clients with recovery hints the model can act on:
+
+```ts
+import { tool, z } from '@cyanheads/mcp-ts-core';
+import { JsonRpcErrorCode } from '@cyanheads/mcp-ts-core/errors';
+
+export const search = tool('search', {
+  // ...input, output as above
+  errors: [
+    {
+      reason: 'no_match',
+      code: JsonRpcErrorCode.NotFound,
+      when: 'The query returned zero items from the upstream index.',
+      recovery: 'Broaden the query — close matches by edit distance are in `data.suggestions`.',
+    },
+  ],
+  async handler(input, ctx) {
+    const { items, suggestions } = await doSearch(input.query, input.limit);
+    if (items.length === 0) throw ctx.fail('no_match', `No matches for "${input.query}"`, { suggestions });
+    return { items };
+  },
+});
+```
+
+The linter cross-checks `errors[]` against the handler body, contracts publish in `tools/list` so clients can preview failure modes, and `data.recovery.hint` mirrors into the markdown `content[]` so tool-only clients see it too.
+
 Everything registers through `createApp()` in your entry point:
 
 ```ts
@@ -112,8 +147,8 @@ It also works on Cloudflare Workers with `createWorkerHandler()` — same defini
 - **Unified Context** — one `ctx` for logging, tenant-scoped storage, elicitation, sampling, cancellation, and task progress.
 - **Auth** — `auth: ['scope']` on definitions, checked before dispatch (no wrapper code). Modes: `none`, `jwt`, or `oauth` (local secret or JWKS).
 - **Task tools** — `task: true` for long-running ops; framework manages create/poll/progress/complete/cancel.
-- **Definition linter** — validates names, schemas, auth scopes, annotations, and format-parity at startup. Standalone via `lint:mcp` or devcheck.
-- **Typed error contracts** — declare `errors: [{ reason, code, when, retryable? }]` and handlers get a typed `ctx.fail(reason, …)`. Contracts publish in `tools/list` so clients preview failure modes; the linter cross-checks the handler. Factories (`notFound()`, `httpErrorFromResponse()`, …) cover ad-hoc throws; plain `Error` auto-classifies.
+- **Definition linter** — validates names, schemas, auth scopes, annotations, format-parity, and cross-vendor JSON Schema portability at startup. Standalone via `lint:mcp` or devcheck.
+- **Typed error contracts** — declare `errors: [{ reason, code, when, recovery, retryable? }]` and handlers get a typed `ctx.fail(reason, …)`. Contracts publish in `tools/list` so clients preview failure modes; the linter cross-checks the handler. Factories (`notFound()`, `httpErrorFromResponse()`, …) cover ad-hoc throws; plain `Error` auto-classifies.
 - **Multi-backend storage** — `in-memory`, filesystem, Supabase, Cloudflare D1/KV/R2. Swap via env var; handlers don't change.
 - **DataCanvas (optional)** — Tier 3 SQL/analytical workspace backed by DuckDB. Register tabular data from upstream APIs, run SQL across registered tables, export CSV/Parquet/JSON. Token-sharing model (opaque `canvas_id`) for multi-agent collaboration; sliding TTL + per-tenant scoping. Opt-in via `CANVAS_PROVIDER_TYPE=duckdb`; fails closed on Workers.
 - **Observability** — Pino logging + optional OpenTelemetry traces/metrics. Request correlation and tool metrics automatic.
@@ -258,8 +293,7 @@ Also exports `fuzzResource`, `fuzzPrompt`, `zodToArbitrary`, and `ADVERSARIAL_ST
 ## Documentation
 
 - **[CLAUDE.md/AGENTS.md](CLAUDE.md)** — Framework reference: exports catalog, patterns, Context interface, error codes, auth, config, testing. Ships in the npm package.
-- **[docs/telemetry/observability.md](docs/telemetry/observability.md)** — OpenTelemetry catalog: every span, metric, and attribute the framework emits, plus the env vars to wire export.
-- **[docs/telemetry/dashboards.md](docs/telemetry/dashboards.md)** — Example Grafana dashboard JSON and vendor-agnostic query recipes (Datadog, New Relic, Honeycomb).
+- **[docs/telemetry/](docs/telemetry/)** — OpenTelemetry: full catalog of spans, metrics, and attributes the framework emits ([observability.md](docs/telemetry/observability.md)), plus an example Grafana dashboard and vendor-agnostic query recipes for Datadog, New Relic, Honeycomb ([dashboards.md](docs/telemetry/dashboards.md)).
 - **[CHANGELOG.md](CHANGELOG.md)** — Version history - Directory based for easier parsing by agents. Each entry includes a summary, migration notes, and links to commits/issues.
 
 ## Development
