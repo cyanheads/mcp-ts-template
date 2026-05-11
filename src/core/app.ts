@@ -15,7 +15,6 @@ import {
   type LandingConfig,
   type ServerManifest,
 } from '@/core/serverManifest.js';
-import { validateDefinitions } from '@/linter/validate.js';
 import { PromptRegistry } from '@/mcp-server/prompts/prompt-registration.js';
 import type { AnyPromptDefinition } from '@/mcp-server/prompts/utils/promptDefinition.js';
 import { ResourceRegistry } from '@/mcp-server/resources/resource-registration.js';
@@ -144,8 +143,6 @@ export interface ServerHandle {
 export interface ComposedApp {
   coreServices: CoreServices;
   createServer: () => Promise<McpServer>;
-  /** Lint warnings from definition validation (callers should log after logger init). */
-  lintWarnings: string[];
   /**
    * Server manifest — the single source of truth for the `/mcp` status JSON,
    * the SEP-1649 Server Card at `/.well-known/mcp.json`, and the HTML landing
@@ -172,22 +169,6 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
     setup,
     context: contextOptions,
   } = options;
-
-  // Validate definitions against MCP spec before proceeding
-  const lintReport = validateDefinitions({
-    tools,
-    resources,
-    prompts,
-    ...(landing && { landing }),
-  });
-  const lintWarnings = lintReport.warnings.map((w) => `[mcp-lint] ${w.rule}: ${w.message}`);
-  if (!lintReport.passed) {
-    const summary = lintReport.errors.map((e) => `  - [${e.rule}] ${e.message}`).join('\n');
-    throw configurationError(
-      `MCP definition validation failed with ${lintReport.errors.length} error(s):\n${summary}`,
-      { errors: lintReport.errors },
-    );
-  }
 
   // Persist name/version overrides to process.env so they survive resetConfig()
   // and are visible to OTEL, logger, and transport throughout the process lifetime.
@@ -329,7 +310,6 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
     coreServices,
     createServer,
     manifest,
-    lintWarnings,
     taskManager,
   };
 }
@@ -413,7 +393,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
     }
     throw err;
   }
-  const { coreServices, createServer, manifest, lintWarnings, taskManager } = composed;
+  const { coreServices, createServer, manifest, taskManager } = composed;
   const { definitionCounts } = manifest;
 
   // --- Initialize OTEL + high-res timer (independent, run in parallel) ---
@@ -505,10 +485,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<ServerH
 
   // --- Initialize logger ---
   await logger.initialize(config.logLevel as McpLogLevel, config.mcpTransportType);
-
-  for (const warning of lintWarnings) {
-    logger.warning(warning);
-  }
 
   logger.info(
     `Core services constructed — ${definitionCounts.tools} tool(s), ${definitionCounts.resources} resource(s), ${definitionCounts.prompts} prompt(s). Storage: ${config.storage.providerType}.`,

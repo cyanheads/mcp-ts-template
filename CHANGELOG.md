@@ -4,7 +4,7 @@ All notable changes to this project. Each entry links to its full per-version fi
 
 ## [0.9.0](changelog/0.9.x/0.9.0.md) — 2026-05-11 · ⚠️ Breaking · 🛡️ Security
 
-Workers boot under `nodejs_compat` (#124), adds `instructions` on entry points (#91), cross-vendor portability lint family (#132). Plus RFC 8414 §3 well-known mount, SSRF hardening, tenant-id boundary check.
+Workers boot under `nodejs_compat` (#124), adds `instructions` on entry points (#91), cross-vendor portability lint family (#132), definition linting moves to build-time only. Plus RFC 8414 §3 well-known mount, SSRF hardening, tenant-id boundary check.
 
 ## [0.8.20](changelog/0.8.x/0.8.20.md) — 2026-05-09
 
