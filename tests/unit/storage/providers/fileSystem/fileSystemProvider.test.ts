@@ -154,6 +154,19 @@ describe('FileSystemProvider', () => {
         provider.set('tenant/with/slashes', 'key1', { data: 'test' }, testContext),
       ).rejects.toThrow(McpError);
     });
+
+    it('should reject tenantId "." that would collapse into the storage root', async () => {
+      // Pre-fix: tenant '.' wrote into storage root, overlapping every other tenant's keyspace.
+      await expect(
+        provider.set('.', 'alice/secret', { hijacked: true }, testContext),
+      ).rejects.toThrow(McpError);
+    });
+
+    it('should reject tenantId variants the upstream gate blocks', async () => {
+      for (const bad of ['./alice', 'alice/.', '.alice', 'alice.', 'alice..bob', '']) {
+        await expect(provider.set(bad, 'k', { v: 1 }, testContext)).rejects.toThrow(McpError);
+      }
+    });
   });
 
   describe('TTL and Expiration', () => {
