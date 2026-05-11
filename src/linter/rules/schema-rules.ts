@@ -202,7 +202,7 @@ export function checkSchemaSerializable(
 }
 
 /** Runtime check for ZodObject via Zod 4's `_zod.def.type`. */
-function isZodObject(value: unknown): boolean {
+export function isZodObject(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
   const zod = (value as Record<string, unknown>)._zod as { def?: { type?: string } } | undefined;
   return zod?.def?.type === 'object';

@@ -6,6 +6,11 @@
 export { lintErrorContract, lintErrorContractConformance } from './error-contract-rules.js';
 export { lintHandlerBody } from './handler-body-rules.js';
 export { checkDuplicateNames, checkNameRequired, checkToolNameFormat } from './name-rules.js';
+export {
+  DEFAULT_FORMAT_ALLOWLIST,
+  lintSchemaPortability,
+  type PortabilityOptions,
+} from './portability-rules.js';
 export { lintPromptDefinition } from './prompt-rules.js';
 export { lintResourceDefinition } from './resource-rules.js';
 export {

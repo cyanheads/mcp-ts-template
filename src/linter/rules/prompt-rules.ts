@@ -6,6 +6,7 @@
 
 import type { LintDiagnostic } from '../types.js';
 import { checkNameRequired } from './name-rules.js';
+import { lintSchemaPortability, type PortabilityOptions } from './portability-rules.js';
 import {
   checkFieldDescriptions,
   checkIsZodObject,
@@ -15,7 +16,10 @@ import {
 /**
  * Runs all lint rules against a single prompt definition.
  */
-export function lintPromptDefinition(def: unknown): LintDiagnostic[] {
+export function lintPromptDefinition(
+  def: unknown,
+  portability?: PortabilityOptions,
+): LintDiagnostic[] {
   const diagnostics: LintDiagnostic[] = [];
   const d = def as Record<string, unknown>;
   const name = typeof d?.name === 'string' ? d.name : '';
@@ -55,7 +59,13 @@ export function lintPromptDefinition(def: unknown): LintDiagnostic[] {
     } else {
       diagnostics.push(...checkFieldDescriptions(d.args, 'args', 'prompt', displayName));
       const argsSerial = checkSchemaSerializable(d.args, 'args', 'prompt', displayName);
-      if (argsSerial) diagnostics.push(argsSerial);
+      if (argsSerial) {
+        diagnostics.push(argsSerial);
+      } else if (portability) {
+        diagnostics.push(
+          ...lintSchemaPortability(d.args, 'args', 'prompt', displayName, portability),
+        );
+      }
     }
   }
 

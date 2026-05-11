@@ -9,6 +9,7 @@ import { lintErrorContract, lintErrorContractConformance } from './error-contrac
 import { lintFormatParity } from './format-parity-rules.js';
 import { lintHandlerBody } from './handler-body-rules.js';
 import { checkNameRequired, checkToolNameFormat } from './name-rules.js';
+import { lintSchemaPortability, type PortabilityOptions } from './portability-rules.js';
 import {
   checkFieldDescriptions,
   checkIsZodObject,
@@ -19,7 +20,10 @@ import {
  * Runs all lint rules against a single tool definition.
  * Accepts `unknown` to catch structural issues before type narrowing.
  */
-export function lintToolDefinition(def: unknown): LintDiagnostic[] {
+export function lintToolDefinition(
+  def: unknown,
+  portability?: PortabilityOptions,
+): LintDiagnostic[] {
   const diagnostics: LintDiagnostic[] = [];
   const d = def as Record<string, unknown>;
   const name = typeof d?.name === 'string' ? d.name : '';
@@ -63,7 +67,13 @@ export function lintToolDefinition(def: unknown): LintDiagnostic[] {
   } else {
     diagnostics.push(...checkFieldDescriptions(d?.input, 'input', 'tool', displayName));
     const inputSerial = checkSchemaSerializable(d?.input, 'input', 'tool', displayName);
-    if (inputSerial) diagnostics.push(inputSerial);
+    if (inputSerial) {
+      diagnostics.push(inputSerial);
+    } else if (portability) {
+      diagnostics.push(
+        ...lintSchemaPortability(d?.input, 'input', 'tool', displayName, portability),
+      );
+    }
   }
 
   // Output schema: must be ZodObject, serializable to JSON Schema
@@ -73,7 +83,13 @@ export function lintToolDefinition(def: unknown): LintDiagnostic[] {
   } else {
     diagnostics.push(...checkFieldDescriptions(d?.output, 'output', 'tool', displayName));
     const outputSerial = checkSchemaSerializable(d?.output, 'output', 'tool', displayName);
-    if (outputSerial) diagnostics.push(outputSerial);
+    if (outputSerial) {
+      diagnostics.push(outputSerial);
+    } else if (portability) {
+      diagnostics.push(
+        ...lintSchemaPortability(d?.output, 'output', 'tool', displayName, portability),
+      );
+    }
     // Format parity: skip when output isn't serializable (synthetic sample may misbehave).
     if (!outputSerial && typeof d?.format === 'function') {
       diagnostics.push(...lintFormatParity(d, displayName));

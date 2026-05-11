@@ -47,10 +47,25 @@ export interface LintReport {
  * and landing configuration.
  */
 export interface LintInput {
+  /**
+   * Allowlist of JSON Schema `format` values used by the
+   * `schema-format-portability` rule. When omitted, the default is OpenAI's
+   * nine recognized values (`date-time`, `time`, `date`, `duration`, `email`,
+   * `hostname`, `ipv4`, `ipv6`, `uuid`) — the strictest commonly-used target.
+   * Pass a different set to widen or narrow the accepted formats.
+   */
+  formatAllowlist?: ReadonlyArray<string> | ReadonlySet<string>;
   /** Landing page configuration (from `CreateAppOptions.landing`). */
   landing?: unknown;
   /** Parsed package.json — used for cross-validation (version sync). */
   packageJson?: { version?: string };
+  /**
+   * Cross-vendor portability mode. When set to `'strict'`, opt-in rules
+   * (`schema-no-defs`, `schema-dialect-tag`) emit as warnings.
+   * Otherwise they don't fire. When omitted, the value defaults to
+   * `'strict'` if `MCP_LINT_PORTABILITY=strict` is set in the environment.
+   */
+  portability?: 'strict';
   prompts?: unknown[];
   resources?: unknown[];
   /** Parsed server.json content. When provided, validated against the MCP server manifest spec. */

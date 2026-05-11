@@ -10,6 +10,7 @@ import type { LintDiagnostic } from '../types.js';
 import { lintErrorContract, lintErrorContractConformance } from './error-contract-rules.js';
 import { lintHandlerBody } from './handler-body-rules.js';
 import { checkNameRequired } from './name-rules.js';
+import { lintSchemaPortability, type PortabilityOptions } from './portability-rules.js';
 import {
   checkFieldDescriptions,
   checkIsZodObject,
@@ -20,7 +21,10 @@ import { lintAuthScopes } from './tool-rules.js';
 /**
  * Runs all lint rules against a single resource definition.
  */
-export function lintResourceDefinition(def: unknown): LintDiagnostic[] {
+export function lintResourceDefinition(
+  def: unknown,
+  portability?: PortabilityOptions,
+): LintDiagnostic[] {
   const diagnostics: LintDiagnostic[] = [];
   const d = def as Record<string, unknown>;
   const uriTemplate = typeof d?.uriTemplate === 'string' ? d.uriTemplate : '';
@@ -91,7 +95,13 @@ export function lintResourceDefinition(def: unknown): LintDiagnostic[] {
     } else {
       diagnostics.push(...checkFieldDescriptions(d.params, 'params', 'resource', displayName));
       const paramsSerial = checkSchemaSerializable(d.params, 'params', 'resource', displayName);
-      if (paramsSerial) diagnostics.push(paramsSerial);
+      if (paramsSerial) {
+        diagnostics.push(paramsSerial);
+      } else if (portability) {
+        diagnostics.push(
+          ...lintSchemaPortability(d.params, 'params', 'resource', displayName, portability),
+        );
+      }
 
       // Cross-reference: template variables must match params schema keys
       if (uriTemplate) {
@@ -113,7 +123,13 @@ export function lintResourceDefinition(def: unknown): LintDiagnostic[] {
     } else {
       diagnostics.push(...checkFieldDescriptions(d.output, 'output', 'resource', displayName));
       const outputSerial = checkSchemaSerializable(d.output, 'output', 'resource', displayName);
-      if (outputSerial) diagnostics.push(outputSerial);
+      if (outputSerial) {
+        diagnostics.push(outputSerial);
+      } else if (portability) {
+        diagnostics.push(
+          ...lintSchemaPortability(d.output, 'output', 'resource', displayName, portability),
+        );
+      }
     }
   }
 
