@@ -12,9 +12,11 @@ import {
   deriveTitleFromName,
   detectGitHubRepo,
   GITHUB_REPO_ROOT_PATTERN,
+  LANDING_MAX_ENV_EXAMPLE,
   LANDING_MAX_LINKS,
   snakeToKebab,
 } from '@/core/serverManifest.js';
+import { appTool } from '@/mcp-server/apps/appBuilders.js';
 import { prompt } from '@/mcp-server/prompts/utils/promptDefinition.js';
 import { resource } from '@/mcp-server/resources/utils/resourceDefinition.js';
 import { disabledTool } from '@/mcp-server/tools/utils/disabled-tool.js';
@@ -234,6 +236,70 @@ describe('buildServerManifest — baseline', () => {
       hint: 'BRAPI_ENABLE_WRITES=true',
     });
   });
+
+  test('marks MCP App tools from UI metadata', () => {
+    const dashboard = appTool('dashboard_open', {
+      resourceUri: 'ui://dashboard/app.html',
+      description: 'Open the dashboard.',
+      input: z.object({}),
+      output: z.object({}),
+      handler: async () => ({}),
+    });
+    const manifest = buildServerManifest({
+      config: stubConfig(),
+      tools: [dashboard],
+      resources: [],
+      prompts: [],
+    });
+    expect(manifest.definitions.tools[0]?.isApp).toBe(true);
+  });
+
+  test('materializes resource and prompt metadata for landing/server-card surfaces', () => {
+    const inventoryResource = resource('inventory://items/{itemId}', {
+      name: 'inventory_item',
+      title: 'Inventory Item',
+      description: 'Retrieve one inventory item.',
+      mimeType: 'application/json',
+      annotations: { priority: 0.9 },
+      auth: ['inventory:read'],
+      params: z.object({ itemId: z.string().describe('Item ID') }),
+      handler: async () => ({}),
+    });
+    const reviewPrompt = prompt('code_review', {
+      description: 'Review a patch.',
+      args: z.object({
+        diff: z.string().describe('Patch diff'),
+        language: z.string().optional().describe('Programming language'),
+      }),
+      generate: () => [],
+    });
+
+    const manifest = buildServerManifest({
+      config: stubConfig(),
+      tools: [],
+      resources: [inventoryResource],
+      prompts: [reviewPrompt],
+    });
+
+    expect(manifest.definitions.resources[0]).toMatchObject({
+      name: 'inventory_item',
+      title: 'Inventory Item',
+      description: 'Retrieve one inventory item.',
+      uriTemplate: 'inventory://items/{itemId}',
+      mimeType: 'application/json',
+      annotations: { priority: 0.9 },
+      auth: ['inventory:read'],
+    });
+    expect(manifest.definitions.prompts[0]).toMatchObject({
+      name: 'code_review',
+      title: 'Code Review',
+      description: 'Review a patch.',
+      args: [
+        { name: 'diff', required: true, description: 'Patch diff' },
+        { name: 'language', required: false, description: 'Programming language' },
+      ],
+    });
+  });
 });
 
 describe('buildServerManifest — landing auto-derivation', () => {
@@ -356,6 +422,52 @@ describe('buildServerManifest — landing auto-derivation', () => {
     });
     expect(manifest.landing.preRelease.isPreRelease).toBe(true);
     expect(manifest.landing.preRelease.label).toBe('beta');
+  });
+
+  test('normalizes env examples by dropping non-strings and truncating at the cap', () => {
+    const envExample = {
+      BAD_NUMBER: 123,
+      ...Object.fromEntries(
+        Array.from({ length: LANDING_MAX_ENV_EXAMPLE + 2 }, (_, i) => [`GOOD_${i}`, `value-${i}`]),
+      ),
+    } as unknown as Record<string, string>;
+
+    const manifest = buildServerManifest({
+      config: stubConfig(),
+      tools: [],
+      resources: [],
+      prompts: [],
+      landing: { envExample },
+    });
+
+    expect(manifest.landing.envExample).toHaveLength(LANDING_MAX_ENV_EXAMPLE);
+    expect(manifest.landing.envExample).not.toContainEqual({
+      key: 'BAD_NUMBER',
+      value: 123,
+    });
+    expect(manifest.landing.envExample[0]).toEqual({
+      key: 'GOOD_0',
+      value: 'value-0',
+    });
+  });
+
+  test('keeps only non-empty known connect snippet overrides', () => {
+    const connectSnippets = {
+      stdio: 'custom stdio',
+      http: '',
+      claude: 123,
+      unknown: 'ignored',
+    } as unknown as { claude?: string; curl?: string; http?: string; stdio?: string };
+
+    const manifest = buildServerManifest({
+      config: stubConfig(),
+      tools: [],
+      resources: [],
+      prompts: [],
+      landing: { connectSnippets },
+    });
+
+    expect(manifest.landing.connectSnippets).toEqual({ stdio: 'custom stdio' });
   });
 });
 

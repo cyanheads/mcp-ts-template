@@ -78,6 +78,32 @@ describe('lintFormatParity — happy path', () => {
     expect(parityErrors(def)).toHaveLength(0);
   });
 
+  it('passes when format renders record values', () => {
+    const def = tool({
+      output: z.object({
+        scores: z.record(z.string(), z.number()).describe('Scores by item ID'),
+      }),
+      format: (r) => {
+        const result = r as { scores: Record<string, number> };
+        return [{ type: 'text', text: `Scores: ${Object.values(result.scores).join(', ')}` }];
+      },
+    });
+    expect(parityErrors(def)).toHaveLength(0);
+  });
+
+  it('passes when format renders tuple items', () => {
+    const def = tool({
+      output: z.object({
+        bounds: z.tuple([z.string(), z.number()]).describe('Label and count'),
+      }),
+      format: (r) => {
+        const result = r as { bounds: [string, number] };
+        return [{ type: 'text', text: `Bounds: ${result.bounds[0]} (${result.bounds[1]})` }];
+      },
+    });
+    expect(parityErrors(def)).toHaveLength(0);
+  });
+
   it('skips when format is absent (default JSON formatter covers everything)', () => {
     const def = tool({
       output: z.object({ x: z.string().describe('x') }),
@@ -321,6 +347,26 @@ describe('lintFormatParity — permissive matching', () => {
         const result = r as { status: string };
         return [{ type: 'text', text: `status is ${result.status}` }];
       },
+    });
+    expect(parityErrors(def)).toHaveLength(0);
+  });
+
+  it('accepts a literal rendered by key-name fallback', () => {
+    const def = tool({
+      output: z.object({
+        kind: z.literal('summary').describe('Result kind'),
+      }),
+      format: () => [{ type: 'text', text: 'Kind: rendered without the literal value' }],
+    });
+    expect(parityErrors(def)).toHaveLength(0);
+  });
+
+  it('accepts an unsupported permissive leaf when its key name is rendered', () => {
+    const def = tool({
+      output: z.object({
+        payload: z.any().describe('Dynamic payload'),
+      }),
+      format: () => [{ type: 'text', text: 'payload is present' }],
     });
     expect(parityErrors(def)).toHaveLength(0);
   });
