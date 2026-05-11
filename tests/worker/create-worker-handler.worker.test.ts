@@ -168,6 +168,9 @@ describe('createWorkerHandler in the Workers runtime', () => {
         result: {
           protocolVersion: expect.any(String),
           serverInfo: expect.objectContaining({ name: 'worker-runtime-fixture' }),
+          // Verifies #91: `instructions: (env) => string` resolver fires at
+          // request time and the resolved string is included on the response.
+          instructions: expect.stringContaining('worker-runtime-fixture orientation'),
         },
       });
 

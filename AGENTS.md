@@ -94,6 +94,9 @@ await createApp({
   tools: allToolDefinitions,
   resources: allResourceDefinitions,
   prompts: allPromptDefinitions,
+  instructions:                     // server-level orientation, sent on every initialize
+    'Pre-configured shortcuts:\n- `default` → production API\n' +
+    'Other endpoints reachable via `connect({ baseUrl })`.',
   extensions: {                     // SEP-2133 extensions advertised in capabilities
     'vendor/my-extension': { /* extension config */ },
   },
@@ -102,6 +105,8 @@ await createApp({
   },
 });
 ```
+
+**`instructions`** — Optional server-level orientation text. Surfaces on every `initialize` response so spec-compliant clients can forward it to the model as session-level system context. Use for deployment-specific guidance (configured connection aliases, regional notes, scope hints, shortcuts) instead of leaking that text into every tool description. Client adoption is uneven, but clients that ignore the field are no worse off than they are today — strict improvement when set.
 
 ### Cloudflare Workers — `createWorkerHandler(options)`
 
@@ -112,12 +117,15 @@ export default createWorkerHandler({
   tools: allToolDefinitions,
   resources: allResourceDefinitions,
   prompts: allPromptDefinitions,
+  instructions: (env) => `Region: ${env.ENVIRONMENT ?? 'production'}`,  // string | (env) => string
   setup(core) { initMyService(core.config, core.storage); },
   extraEnvBindings: [['MY_API_KEY', 'MY_API_KEY']],       // string values → process.env
   extraObjectBindings: [['MY_CUSTOM_KV', 'MY_CUSTOM_KV']], // KV/R2/D1 → globalThis
   onScheduled: async (controller, env, ctx) => { /* cron */ },
 });
 ```
+
+`instructions` on the Worker handler accepts either a plain string or a `(env) => string` resolver so deployment env (injected at request time) can shape the text.
 
 Per-request `McpServer` factory (security: SDK GHSA-345p-7cg4-v4c7). Requires `compatibility_flags = ["nodejs_compat"]` and `compatibility_date >= "2025-09-01"` in `wrangler.toml`. Only `in-memory`, `cloudflare-r2`, `cloudflare-kv`, `cloudflare-d1` storage in Workers. See `api-workers` skill for full details.
 

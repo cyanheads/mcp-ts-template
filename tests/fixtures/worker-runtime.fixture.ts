@@ -67,6 +67,10 @@ export default createWorkerHandler({
   tools: [echoTool],
   resources: [runtimeResource],
   prompts: [greetingPrompt],
+  // Exercises the (env) => string resolver for `instructions` (#91).
+  // Concatenated literal so the test can match deterministic substrings.
+  instructions: (env: WorkerRuntimeBindings) =>
+    `worker-runtime-fixture orientation. env=${env.ENVIRONMENT ?? 'unset'}`,
   extraEnvBindings: [['CUSTOM_API_KEY', 'CUSTOM_API_KEY']],
   extraObjectBindings: [['CUSTOM_KV', 'CUSTOM_KV_GLOBAL']],
   setup() {

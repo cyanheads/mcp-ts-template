@@ -80,6 +80,17 @@ export interface CreateAppOptions {
    */
   extensions?: Record<string, object>;
   /**
+   * Server-level orientation text included on every `initialize` response.
+   * Spec-compliant clients SHOULD forward this to the model as session-level
+   * system context. Use for deployment-specific guidance (configured connection
+   * aliases, regional notes, scope hints, available shortcuts) instead of
+   * leaking that text into every tool description.
+   *
+   * Client adoption is uneven — clients that ignore `instructions` are no
+   * worse off than they are today, so this is a strict improvement when set.
+   */
+  instructions?: string;
+  /**
    * Landing page configuration. Applies to the HTTP transport only.
    * See {@link LandingConfig} for the full shape — all fields optional,
    * sane defaults for everything.
@@ -156,6 +167,7 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
     resources = [],
     prompts = [],
     extensions,
+    instructions,
     landing,
     setup,
     context: contextOptions,
@@ -295,6 +307,7 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
     createMcpServerInstance({
       config,
       ...(extensions && { extensions }),
+      ...(instructions && { instructions }),
       promptRegistry,
       resourceRegistry,
       rootsRegistry,

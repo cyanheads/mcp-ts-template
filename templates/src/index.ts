@@ -15,4 +15,7 @@ await createApp({
   tools: [echoTool, echoAppTool],
   resources: [echoResource, echoAppUiResource],
   prompts: [echoPrompt],
+  // instructions: 'Server-level orientation forwarded to the model on every initialize.\n' +
+  //   '- Use shortcut `X` for the most common case\n' +
+  //   '- Tools require auth via the `inventory:read` scope',
 });

@@ -25,6 +25,14 @@ export interface McpServerDeps {
   config: AppConfig;
   /** SEP-2133 extensions to advertise in server capabilities. */
   extensions?: Record<string, object>;
+  /**
+   * Server-level orientation text. The MCP SDK includes this on every
+   * `initialize` response; spec-compliant clients SHOULD forward it to the
+   * model as session-level system context. Use for deployment-specific
+   * guidance (configured shortcuts, regional notes, scope hints) instead of
+   * leaking that text into every tool description.
+   */
+  instructions?: string;
   promptRegistry: PromptRegistry;
   resourceRegistry: ResourceRegistry;
   rootsRegistry: RootsRegistry;
@@ -70,6 +78,7 @@ export async function createMcpServerInstance(deps: McpServerDeps): Promise<McpS
         },
         ...(deps.extensions && { extensions: deps.extensions }),
       },
+      ...(deps.instructions && { instructions: deps.instructions }),
       ...(deps.taskStore && { taskStore: deps.taskStore }),
       ...(deps.taskMessageQueue && { taskMessageQueue: deps.taskMessageQueue }),
     },
