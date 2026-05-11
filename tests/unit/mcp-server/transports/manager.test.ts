@@ -13,7 +13,7 @@ import { logger } from '@/utils/internal/logger.js';
 import { defaultServerManifest as defaultMeta } from '../../../helpers/fixtures.js';
 
 // Mock the transport modules
-vi.mock('@/mcp-server/transports/http/httpTransport.js', () => ({
+vi.mock('@/mcp-server/transports/http/httpServer.js', () => ({
   startHttpTransport: vi.fn().mockResolvedValue({
     server: 'http-mock',
     stop: vi.fn().mockResolvedValue(undefined),
@@ -60,7 +60,7 @@ describe('TransportManager', () => {
 
       await manager.start();
 
-      const { startHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
+      const { startHttpTransport } = await import('@/mcp-server/transports/http/httpServer.js');
       expect(startHttpTransport).toHaveBeenCalledTimes(1);
       expect(startHttpTransport).toHaveBeenCalledWith(
         mockCreateMcpServer,
@@ -155,7 +155,7 @@ describe('TransportManager', () => {
       );
       await manager.start();
 
-      const { startHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
+      const { startHttpTransport } = await import('@/mcp-server/transports/http/httpServer.js');
       const handle = await (startHttpTransport as ReturnType<typeof vi.fn>).mock.results.at(-1)
         ?.value;
 

@@ -7,6 +7,34 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+/**
+ * File-level override of the global McpServer mock so the suite can read
+ * constructor arguments. Without this we'd only see the stub class from
+ * `tests/setup.ts`, which discards args. Static helpers expose the call log
+ * to assertions; `clearCapturedArgs()` runs per-test to avoid cross-test
+ * bleed.
+ */
+vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => {
+  const capturedArgs: unknown[][] = [];
+  class McpServerMock {
+    static getCapturedArgs(): unknown[][] {
+      return capturedArgs;
+    }
+    static clearCapturedArgs(): void {
+      capturedArgs.length = 0;
+    }
+    connect = vi.fn(async () => {});
+    constructor(...args: unknown[]) {
+      capturedArgs.push(args);
+    }
+  }
+  class ResourceTemplateMock {
+    match = vi.fn(() => null);
+    render = vi.fn(() => '');
+  }
+  return { McpServer: McpServerMock, ResourceTemplate: ResourceTemplateMock };
+});
+
 // Mock logger and requestContextService
 vi.mock('@/utils/internal/logger.js', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>;
@@ -132,5 +160,48 @@ describe('createMcpServerInstance', () => {
       expect.objectContaining({ message: 'string error' }),
       expect.any(Object),
     );
+  });
+
+  describe('instructions option (#91)', () => {
+    const McpServerMock = McpServer as unknown as {
+      clearCapturedArgs(): void;
+      getCapturedArgs(): unknown[][];
+    };
+
+    /**
+     * Reads the most recent McpServer constructor arguments captured by the
+     * file-level mock. Asserts against the options bag (second argument) since
+     * that's where `instructions` lives — see `tests/setup.ts` for the global
+     * stub and the file's own vi.mock for the args-capturing override.
+     */
+    function lastConstructorOptions(): Record<string, unknown> | undefined {
+      const calls = McpServerMock.getCapturedArgs();
+      const last = calls[calls.length - 1];
+      return last?.[1] as Record<string, unknown> | undefined;
+    }
+
+    beforeEach(() => {
+      McpServerMock.clearCapturedArgs();
+    });
+
+    it('threads instructions into the McpServer options when provided', async () => {
+      await createMcpServerInstance({
+        ...deps,
+        instructions: 'Use shortcut alpha for the most common case.',
+      });
+      expect(lastConstructorOptions()?.instructions).toBe(
+        'Use shortcut alpha for the most common case.',
+      );
+    });
+
+    it('omits instructions from McpServer options when option is unset', async () => {
+      await createMcpServerInstance(deps);
+      expect(lastConstructorOptions()).not.toHaveProperty('instructions');
+    });
+
+    it('does not pass through an empty string (falsy guard)', async () => {
+      await createMcpServerInstance({ ...deps, instructions: '' });
+      expect(lastConstructorOptions()).not.toHaveProperty('instructions');
+    });
   });
 });

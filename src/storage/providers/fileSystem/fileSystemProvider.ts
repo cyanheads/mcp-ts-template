@@ -19,7 +19,7 @@ import type {
   ListResult,
   StorageOptions,
 } from '@/storage/core/IStorageProvider.js';
-import { decodeCursor, encodeCursor } from '@/storage/core/storageValidation.js';
+import { decodeCursor, encodeCursor, validateTenantId } from '@/storage/core/storageValidation.js';
 import {
   configurationError,
   JsonRpcErrorCode,
@@ -53,7 +53,12 @@ export class FileSystemProvider implements IStorageProvider {
     }
   }
 
-  private getTenantPath(tenantId: string): string {
+  private getTenantPath(tenantId: string, context: RequestContext): string {
+    // Defense-in-depth: re-validate at the provider boundary. The upstream
+    // StorageService gate also runs this check; mirroring it here protects
+    // callers that construct the provider directly (custom providers,
+    // tests, the add-provider skill's reference path).
+    validateTenantId(tenantId, context);
     const sanitizedTenantId = sanitization.sanitizePath(tenantId, {
       toPosix: true,
     }).sanitizedPath;
@@ -67,8 +72,8 @@ export class FileSystemProvider implements IStorageProvider {
     return tenantPath;
   }
 
-  private getFilePath(tenantId: string, key: string): string {
-    const tenantPath = this.getTenantPath(tenantId);
+  private getFilePath(tenantId: string, key: string, context: RequestContext): string {
+    const tenantPath = this.getTenantPath(tenantId, context);
     const sanitizedKey = sanitization.sanitizePath(key, {
       rootDir: tenantPath,
       toPosix: true,
@@ -128,7 +133,7 @@ export class FileSystemProvider implements IStorageProvider {
   }
 
   async get<T>(tenantId: string, key: string, context: RequestContext): Promise<T | null> {
-    const filePath = this.getFilePath(tenantId, key);
+    const filePath = this.getFilePath(tenantId, key, context);
     return await ErrorHandler.tryCatch(
       async () => {
         try {
@@ -156,7 +161,7 @@ export class FileSystemProvider implements IStorageProvider {
     context: RequestContext,
     options?: StorageOptions,
   ): Promise<void> {
-    const filePath = this.getFilePath(tenantId, key);
+    const filePath = this.getFilePath(tenantId, key, context);
     return await ErrorHandler.tryCatch(
       async () => {
         const envelope = this.buildEnvelope(value, options);
@@ -173,7 +178,7 @@ export class FileSystemProvider implements IStorageProvider {
   }
 
   async delete(tenantId: string, key: string, context: RequestContext): Promise<boolean> {
-    const filePath = this.getFilePath(tenantId, key);
+    const filePath = this.getFilePath(tenantId, key, context);
     return await ErrorHandler.tryCatch(
       async () => {
         try {
@@ -218,7 +223,7 @@ export class FileSystemProvider implements IStorageProvider {
   ): Promise<ListResult> {
     return await ErrorHandler.tryCatch(
       async () => {
-        const tenantPath = this.getTenantPath(tenantId);
+        const tenantPath = this.getTenantPath(tenantId, context);
         const allKeys = await this.listFilesRecursively(tenantPath, tenantPath);
         const candidateKeys = allKeys.filter((k) => k.startsWith(prefix));
 
@@ -228,7 +233,7 @@ export class FileSystemProvider implements IStorageProvider {
         const validKeys: string[] = [];
         const validValues = new Map<string, unknown>();
         for (const k of candidateKeys) {
-          const filePath = this.getFilePath(tenantId, k);
+          const filePath = this.getFilePath(tenantId, k, context);
           try {
             const raw = await readFile(filePath, 'utf-8');
             const value = await this.parseAndValidate<unknown>(raw, tenantId, k, filePath, context);
@@ -367,7 +372,7 @@ export class FileSystemProvider implements IStorageProvider {
   async clear(tenantId: string, context: RequestContext): Promise<number> {
     return await ErrorHandler.tryCatch(
       async () => {
-        const tenantPath = this.getTenantPath(tenantId);
+        const tenantPath = this.getTenantPath(tenantId, context);
         const allKeys = await this.listFilesRecursively(tenantPath, tenantPath);
         let deletedCount = 0;
         for (const key of allKeys) {

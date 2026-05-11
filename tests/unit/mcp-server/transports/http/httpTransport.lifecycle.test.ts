@@ -144,7 +144,7 @@ describe('HTTP Transport lifecycle', () => {
     vi.useFakeTimers();
     probeOutcomes.push('inUse', 'free');
 
-    const { startHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
+    const { startHttpTransport } = await import('@/mcp-server/transports/http/httpServer.js');
 
     const handlePromise = startHttpTransport(
       () => Promise.resolve({} as McpServer),
@@ -178,7 +178,7 @@ describe('HTTP Transport lifecycle', () => {
     vi.useFakeTimers();
     probeOutcomes.push('inUse', 'inUse', 'inUse');
 
-    const { startHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
+    const { startHttpTransport } = await import('@/mcp-server/transports/http/httpServer.js');
 
     const handlePromise = startHttpTransport(
       () => Promise.resolve({} as McpServer),
@@ -202,7 +202,7 @@ describe('HTTP Transport lifecycle', () => {
 
     probeOutcomes.push('free');
 
-    const { startHttpTransport } = await import('@/mcp-server/transports/http/httpTransport.js');
+    const { startHttpTransport } = await import('@/mcp-server/transports/http/httpServer.js');
 
     const handle = await startHttpTransport(
       () => Promise.resolve({} as McpServer),

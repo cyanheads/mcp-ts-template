@@ -199,6 +199,44 @@ describe('Logger', () => {
       // All 20 messages should have been logged (plus init messages)
       expect(mockLogger.info.mock.calls.length).toBeGreaterThanOrEqual(20);
     });
+
+    it('should evict expired messageCounts entries on flush even when nothing was suppressed', async () => {
+      // Pre-fix: flushSuppressedMessages() returned early when suppressedMessages was empty,
+      // leaving messageCounts to grow unbounded with one-shot dynamic-content messages.
+      await logger.initialize('info');
+
+      // Emit 5 unique messages — none repeats enough to trigger suppression.
+      for (let i = 0; i < 5; i++) {
+        logger.info(`unique-message-${i}`);
+      }
+
+      const counts = (logger as any).messageCounts as Map<string, { firstSeen: number }>;
+      expect(counts.size).toBeGreaterThanOrEqual(5);
+
+      // Backdate each entry past the rate-limit window.
+      const window = (logger as any).rateLimitWindow as number;
+      const stale = Date.now() - window - 1000;
+      for (const entry of counts.values()) entry.firstSeen = stale;
+
+      // Trigger the flush — entries should be evicted despite no suppression.
+      (logger as any).flushSuppressedMessages();
+      expect(counts.size).toBe(0);
+    });
+
+    it('should retain in-window messageCounts entries across flushes', async () => {
+      await logger.initialize('info');
+
+      logger.info('fresh-message-A');
+      logger.info('fresh-message-B');
+
+      const counts = (logger as any).messageCounts as Map<string, unknown>;
+      const before = counts.size;
+      expect(before).toBeGreaterThanOrEqual(2);
+
+      // Flush without suppression — fresh entries (firstSeen = now) stay.
+      (logger as any).flushSuppressedMessages();
+      expect(counts.size).toBe(before);
+    });
   });
 
   describe('error-level methods', () => {

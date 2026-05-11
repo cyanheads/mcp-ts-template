@@ -10,7 +10,12 @@ import { Hono } from 'hono';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 import type { AppConfig } from '@/config/index.js';
-import type { ManifestTool, ServerManifest } from '@/core/serverManifest.js';
+import type {
+  ManifestPrompt,
+  ManifestResource,
+  ManifestTool,
+  ServerManifest,
+} from '@/core/serverManifest.js';
 import { buildServerManifest } from '@/core/serverManifest.js';
 import {
   createLandingPageHandler,
@@ -51,6 +56,26 @@ function makeTool(name: string, extra: Partial<ManifestTool> = {}): ManifestTool
     isTask: false,
     isApp: false,
     requiredFields: [],
+    ...extra,
+  };
+}
+
+function makeResource(name: string, extra: Partial<ManifestResource> = {}): ManifestResource {
+  return {
+    name,
+    title: name,
+    description: `Description of ${name}`,
+    uriTemplate: `example://${name}/{id}`,
+    ...extra,
+  };
+}
+
+function makePrompt(name: string, extra: Partial<ManifestPrompt> = {}): ManifestPrompt {
+  return {
+    name,
+    title: name,
+    description: `Description of ${name}`,
+    args: [],
     ...extra,
   };
 }
@@ -97,6 +122,35 @@ describe('renderLandingPage — structure', () => {
     expect(html).toContain('connect-tab-http');
     expect(html).toContain('mcp-remote');
     expect(html).toContain('curl');
+  });
+
+  test('uses remote landing logo as Open Graph image', () => {
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      landing: {
+        ...defaultServerManifest.landing,
+        logo: 'https://cdn.example.com/logo.png',
+      },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    expect(html).toContain(
+      '<meta property="og:image" content="https://cdn.example.com/logo.png" />',
+    );
+    expect(html).not.toContain('<link rel="icon" href="https://cdn.example.com/logo.png" />');
+  });
+
+  test('uses image data URI landing logo as favicon', () => {
+    const logo = 'data:image/png;base64,aGVsbG8=';
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      landing: {
+        ...defaultServerManifest.landing,
+        logo,
+      },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    expect(html).toContain(`<link rel="icon" href="${logo}" />`);
+    expect(html).not.toContain('<meta property="og:image"');
   });
 });
 
@@ -612,6 +666,140 @@ describe('renderLandingPage — polish derivations', () => {
     expect(html).toContain('class="scope-chip">write</code>');
     // The full scope string still surfaces via the title attribute (hover).
     expect(html).toContain('title="tool:x:read, tool:x:write"');
+  });
+});
+
+describe('renderLandingPage — resources and prompts', () => {
+  test('omits resources and prompts sections when no definitions are present', () => {
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      definitions: {
+        ...defaultServerManifest.definitions,
+        resources: [],
+        prompts: [],
+      },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    expect(html).not.toContain('<section aria-labelledby="section-resources">');
+    expect(html).not.toContain('<section aria-labelledby="section-prompts">');
+  });
+
+  test('renders resource cards with URI, mime type, source link, and stable anchor', () => {
+    const resources = [
+      makeResource('inventory_items', {
+        description: 'Inventory item lookup.',
+        mimeType: 'application/json',
+        sourceUrl: 'https://github.com/acme/demo/blob/main/inventory.resource.ts',
+        uriTemplate: 'inventory://items/{itemId}/details',
+      }),
+    ];
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      definitions: { ...defaultServerManifest.definitions, resources },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    expect(html).toContain('section-resources');
+    expect(html).toMatch(/<span class="section-count"[^>]*>1</);
+    expect(html).toContain('id="resource-inventory-items-itemid-details"');
+    expect(html).toContain('inventory_items');
+    expect(html).toContain('Inventory item lookup.');
+    expect(html).toContain('inventory://items/{itemId}/details');
+    expect(html).toContain('application/json');
+    expect(html).toContain('https://github.com/acme/demo/blob/main/inventory.resource.ts');
+  });
+
+  test('renders resource cards without optional mime/source fields', () => {
+    const resources = [
+      makeResource('plain_resource', {
+        uriTemplate: 'plain://{id}',
+      }),
+    ];
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      definitions: { ...defaultServerManifest.definitions, resources },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    const card = html.slice(
+      html.indexOf('id="resource-plain-id"'),
+      html.indexOf('</article>', html.indexOf('id="resource-plain-id"')),
+    );
+    expect(card).toContain('plain_resource');
+    expect(card).toContain('plain://{id}');
+    expect(card).not.toContain('card-meta-label">mime');
+    expect(card).not.toContain('view source');
+  });
+
+  test('renders prompt cards with required and optional args', () => {
+    const prompts = [
+      makePrompt('code_review', {
+        description: 'Review a patch.',
+        sourceUrl: 'https://github.com/acme/demo/blob/main/code-review.prompt.ts',
+        args: [
+          { name: 'diff', required: true, description: 'Patch diff to review.' },
+          { name: 'language', required: false },
+        ],
+      }),
+    ];
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      definitions: { ...defaultServerManifest.definitions, prompts },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    expect(html).toContain('section-prompts');
+    expect(html).toMatch(/<span class="section-count"[^>]*>1</);
+    expect(html).toContain('id="prompt-code_review"');
+    expect(html).toContain('code_review');
+    expect(html).toContain('Review a patch.');
+    expect(html).toContain('<code>diff</code><span class="args-required">required</span>');
+    expect(html).toContain('Patch diff to review.');
+    expect(html).toContain('<code>language</code>');
+    expect(html).toContain('https://github.com/acme/demo/blob/main/code-review.prompt.ts');
+  });
+
+  test('renders prompt cards without optional args/source markup', () => {
+    const prompts = [makePrompt('summarize')];
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      definitions: { ...defaultServerManifest.definitions, prompts },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    const card = html.slice(
+      html.indexOf('id="prompt-summarize"'),
+      html.indexOf('</article>', html.indexOf('id="prompt-summarize"')),
+    );
+    expect(card).toContain('summarize');
+    expect(card).not.toContain('args-list');
+    expect(card).not.toContain('view source');
+  });
+
+  test('escapes adversarial resource and prompt fields', () => {
+    const evil = '"><img src=x onerror=alert(1)>';
+    const manifest: ServerManifest = {
+      ...defaultServerManifest,
+      definitions: {
+        ...defaultServerManifest.definitions,
+        resources: [
+          makeResource(evil, {
+            description: evil,
+            uriTemplate: `evil://${evil}/{id}`,
+          }),
+        ],
+        prompts: [
+          makePrompt(evil || 'x', {
+            description: evil,
+            args: [{ name: evil, required: true, description: evil }],
+          }),
+        ],
+      },
+    };
+    const html = renderLandingPage(manifest, 'https://example.com');
+    const scrubbed = html
+      .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g, '')
+      .replace(/<script>[\s\S]*?<\/script>/g, '');
+
+    expect(scrubbed).not.toContain('<img');
+    expect(scrubbed).toContain('&lt;img');
+    expect(scrubbed).not.toContain('"><img src=x onerror=alert(1)>');
   });
 });
 

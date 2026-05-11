@@ -63,12 +63,27 @@ export interface CloudflareBindings {
   SUPABASE_URL?: string;
 }
 
-/** Options for {@link createWorkerHandler}. */
-export interface WorkerHandlerOptions extends CreateAppOptions {
+/**
+ * Options for {@link createWorkerHandler}.
+ *
+ * Worker-specific override on `instructions`: accepts a `(env)` resolver so
+ * deployment env injected at request time can shape the orientation text
+ * without eager top-level env reads. The resolver is invoked during
+ * single-flight init the first time `fetch` is called, after binding
+ * injection. A plain string is also accepted (same semantics as `createApp`).
+ */
+export interface WorkerHandlerOptions extends Omit<CreateAppOptions, 'instructions'> {
   /** Extra string CF bindings to inject into process.env (beyond the core set). */
   extraEnvBindings?: Array<[string, string]>;
   /** Extra object CF bindings (KV, R2, D1, etc.) to store on globalThis. */
   extraObjectBindings?: Array<[string, string]>;
+  /**
+   * Server-level orientation text — see {@link CreateAppOptions.instructions}.
+   * Accepts a resolver function so env-derived instructions can be built from
+   * `env` at the first request rather than at module load (env isn't
+   * available until then in Workers).
+   */
+  instructions?: string | ((env: CloudflareBindings) => string);
   /** Handler for scheduled/cron events. Called after app init and binding refresh. */
   onScheduled?: (
     controller: ScheduledController,
@@ -155,7 +170,13 @@ function storeBindings(env: CloudflareBindings, extraBindings?: Array<[string, s
  * server creation, and error responses.
  */
 export function createWorkerHandler(options: WorkerHandlerOptions = {}) {
-  const { extraEnvBindings, extraObjectBindings, onScheduled, ...appOptions } = options;
+  const {
+    extraEnvBindings,
+    extraObjectBindings,
+    instructions: instructionsOption,
+    onScheduled,
+    ...appOptions
+  } = options;
 
   let appPromise: Promise<Hono<WorkerEnv>> | null = null;
 
@@ -173,7 +194,13 @@ export function createWorkerHandler(options: WorkerHandlerOptions = {}) {
           Object.assign(globalThis, { IS_SERVERLESS: true });
         }
 
-        const { createServer, manifest } = await composeServices(appOptions);
+        const resolvedInstructions =
+          typeof instructionsOption === 'function' ? instructionsOption(env) : instructionsOption;
+
+        const { createServer, manifest } = await composeServices({
+          ...appOptions,
+          ...(resolvedInstructions && { instructions: resolvedInstructions }),
+        });
 
         await initHighResTimer();
 

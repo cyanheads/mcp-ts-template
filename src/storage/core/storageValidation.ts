@@ -27,8 +27,8 @@ import type { RequestContext } from '@/utils/internal/requestContext.js';
 import type { ListOptions, StorageOptions } from './IStorageProvider.js';
 
 /**
- * Per-process HMAC key for cursor integrity. Generated once at module load.
- * Does not need to survive restarts — cursors are ephemeral pagination tokens.
+ * Per-process HMAC key for cursor integrity. Does not need to survive
+ * restarts: cursors are ephemeral pagination tokens.
  */
 const CURSOR_HMAC_KEY = randomBytes(32);
 

@@ -95,21 +95,22 @@ describe('RateLimiter metrics', () => {
     expect(() => limiter.check('user:2')).toThrow();
 
     expect(mockCounterAdd).toHaveBeenCalledTimes(1);
-    expect(mockCounterAdd).toHaveBeenCalledWith(1, expect.objectContaining({}));
+    expect(mockCounterAdd).toHaveBeenCalledWith(1);
   });
 
-  it('records the correct key attribute on rejection', () => {
+  it('does not attach the per-key attribute to the rejection counter', () => {
+    // Unbounded cardinality fix — the rejection counter is intentionally
+    // unlabelled. Per-key attribution lives on the span (verified below).
     limiter.check('my-key');
     limiter.check('my-key');
-
     expect(() => limiter.check('my-key')).toThrow();
 
-    expect(mockCounterAdd).toHaveBeenCalledWith(1, {
-      'mcp.rate_limit.key': 'my-key',
-    });
+    // No 2nd argument means no attributes — verifies the label was dropped.
+    const firstCall = mockCounterAdd.mock.calls[0];
+    expect(firstCall).toEqual([1]);
   });
 
-  it('records the keyGenerator result as the attribute value when configured', () => {
+  it('still records the key on the active span for per-request attribution', () => {
     limiter.configure({
       maxRequests: 1,
       windowMs: 60_000,
@@ -117,11 +118,9 @@ describe('RateLimiter metrics', () => {
     });
 
     limiter.check('original');
-
     expect(() => limiter.check('original')).toThrow();
 
-    expect(mockCounterAdd).toHaveBeenCalledWith(1, {
-      'mcp.rate_limit.key': 'custom:original',
-    });
+    // The span (per-request, bounded) carries the key; the metric (global) does not.
+    expect(spanMock.setAttribute).toHaveBeenCalledWith('mcp.rate_limit.key', 'custom:original');
   });
 });

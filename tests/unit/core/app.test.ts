@@ -4,7 +4,6 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LintReport } from '@/linter/types.js';
 
 const {
   mockConfig,
@@ -31,7 +30,6 @@ const {
   mockTaskManager,
   mockToolRegistry,
   mockTransportManager,
-  mockValidateDefinitions,
   mockWithSpan,
   MockOpenRouterProvider,
   MockPromptRegistry,
@@ -93,11 +91,6 @@ const {
     warning: vi.fn(),
   };
 
-  const mockValidateDefinitions = vi.fn<() => LintReport>(() => ({
-    errors: [],
-    passed: true,
-    warnings: [],
-  }));
   const mockResetConfig = vi.fn();
   const mockCreateStorageProvider = vi.fn(() => ({ provider: 'storage-provider' }));
   const mockStorageService = {
@@ -225,7 +218,6 @@ const {
     mockTaskManager,
     mockToolRegistry,
     mockTransportManager,
-    mockValidateDefinitions,
     mockWithSpan,
     MockOpenRouterProvider,
     MockPromptRegistry,
@@ -245,10 +237,6 @@ vi.mock('@/config/index.js', () => ({
   resetConfig: mockResetConfig,
   FRAMEWORK_NAME: '@cyanheads/mcp-ts-core',
   FRAMEWORK_VERSION: '0.0.0-test',
-}));
-
-vi.mock('@/linter/validate.js', () => ({
-  validateDefinitions: mockValidateDefinitions,
 }));
 
 vi.mock('@/mcp-server/prompts/prompt-registration.js', () => ({
@@ -399,7 +387,6 @@ describe('core/app', () => {
     mockConfig.speech = undefined;
     mockConfig.storage.providerType = 'in-memory';
     mockConfig.supabase = undefined;
-    mockValidateDefinitions.mockReturnValue({ errors: [], passed: true, warnings: [] });
     mockInitializeOpenTelemetry.mockResolvedValue(undefined);
 
     processOnSpy = vi.spyOn(process, 'on');
@@ -410,27 +397,6 @@ describe('core/app', () => {
     processOnSpy.mockRestore();
     processRemoveListenerSpy.mockRestore();
     process.env = originalEnv;
-  });
-
-  it('fails fast when MCP definition validation reports errors', async () => {
-    mockValidateDefinitions.mockReturnValue({
-      errors: [
-        {
-          definitionName: 'bad_tool',
-          definitionType: 'tool',
-          message: 'Bad tool schema',
-          rule: 'tool-schema',
-          severity: 'error',
-        },
-      ],
-      passed: false,
-      warnings: [],
-    });
-
-    await expect(composeServices()).rejects.toThrow(
-      'MCP definition validation failed with 1 error(s)',
-    );
-    expect(mockCreateStorageProvider).not.toHaveBeenCalled();
   });
 
   it('converts ZodError thrown from setup() into a ConfigurationError', async () => {
@@ -606,7 +572,7 @@ describe('core/app', () => {
     expect(mockLogger.close).toHaveBeenCalledTimes(1);
   });
 
-  it('logs lint warnings and exposes executable process gauge callbacks', async () => {
+  it('exposes executable process gauge callbacks', async () => {
     const nowSpy = vi.spyOn(Date, 'now');
     nowSpy.mockReturnValueOnce(1_000).mockReturnValueOnce(1_000).mockReturnValueOnce(1_250);
 
@@ -619,23 +585,7 @@ describe('core/app', () => {
     });
     const uptimeSpy = vi.spyOn(process, 'uptime').mockReturnValue(123);
 
-    mockValidateDefinitions.mockReturnValue({
-      errors: [],
-      passed: true,
-      warnings: [
-        {
-          definitionName: 'tool_a',
-          definitionType: 'tool',
-          message: 'Warn once',
-          rule: 'warning-rule',
-          severity: 'warning',
-        },
-      ],
-    });
-
     const handle = await createApp();
-
-    expect(mockLogger.warning).toHaveBeenCalledWith('[mcp-lint] warning-rule: Warn once');
 
     const rssGauge = getGaugeCallback('process.memory.rss');
     const heapUsedGauge = getGaugeCallback('process.memory.heap_used');

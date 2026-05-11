@@ -1,6 +1,6 @@
 # mcp-ts-core - Directory Structure
 
-Generated on: 2026-05-08 09:39:41
+Generated on: 2026-05-11 16:38:40
 
 ```text
 mcp-ts-core/
@@ -28,6 +28,7 @@ mcp-ts-core/
 │   ├── 0.6.x/
 │   ├── 0.7.x/
 │   ├── 0.8.x/
+│   ├── 0.9.x/
 │   └── template.md
 ├── docs/
 │   ├── mcp-specification/
@@ -212,6 +213,7 @@ mcp-ts-core/
 │   │   │   ├── index.ts
 │   │   │   ├── landing-rules.ts
 │   │   │   ├── name-rules.ts
+│   │   │   ├── portability-rules.ts
 │   │   │   ├── prompt-rules.ts
 │   │   │   ├── resource-rules.ts
 │   │   │   ├── schema-rules.ts
@@ -283,6 +285,7 @@ mcp-ts-core/
 │   │   │   │   │   ├── primitives.ts
 │   │   │   │   │   └── render.ts
 │   │   │   │   ├── httpErrorHandler.ts
+│   │   │   │   ├── httpServer.ts
 │   │   │   │   ├── httpTransport.ts
 │   │   │   │   ├── httpTypes.ts
 │   │   │   │   ├── protectedResourceMetadata.ts
@@ -525,6 +528,7 @@ mcp-ts-core/
 │   │   │   ├── format-parity-rules.test.ts
 │   │   │   ├── handler-body-rules.test.ts
 │   │   │   ├── landing-rules.test.ts
+│   │   │   ├── portability-rules.test.ts
 │   │   │   ├── server-json-rules.test.ts
 │   │   │   ├── tool-rules.test.ts
 │   │   │   └── validate.test.ts
@@ -593,7 +597,10 @@ mcp-ts-core/
 │   │   │   │   └── manager.test.ts
 │   │   │   └── server.test.ts
 │   │   ├── packaging/
+│   │   │   ├── export-map.test.ts
 │   │   │   └── optional-peer-deps.test.ts
+│   │   ├── public-api/
+│   │   │   └── type-contract.test.ts
 │   │   ├── scripts/
 │   │   │   └── devdocs.test.ts
 │   │   ├── services/

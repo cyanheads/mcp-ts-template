@@ -4,7 +4,7 @@ description: >
   MCP definition linter rules reference. Use when `bun run lint:mcp`, `bun run devcheck`, or `createApp()` startup reports a lint error or warning (`format-parity`, `schema-is-object`, `name-format`, `server-json-*`, etc.) and you need to understand the rule, its severity, and how to fix it. Every rule ID the linter emits has an entry in this doc.
 metadata:
   author: cyanheads
-  version: "1.2"
+  version: "1.3"
   audience: external
   type: reference
 ---
@@ -45,6 +45,7 @@ Grouped by family. Jump to any rule ID via its anchor.
 |:-------|:------|:--------|
 | Format parity | `format-parity`, `format-parity-threw`, `format-parity-walk-failed` | [Format parity](#format-parity) |
 | Schema | `schema-is-object`, `describe-on-fields`, `schema-serializable` | [Schema rules](#schema-rules) |
+| Portability | `schema-format-portability`, `schema-anyof-needs-type`, `schema-no-discriminator-keyword`, `schema-no-defs`, `schema-dialect-tag` | [Portability rules](#portability-rules) |
 | Names | `name-required`, `name-format`, `name-unique` | [Name rules](#name-rules) |
 | Tools | `description-required`, `handler-required`, `auth-type`, `auth-scope-format`, `annotation-type`, `annotation-coherence`, `meta-ui-type`, `meta-ui-resource-uri-required`, `meta-ui-resource-uri-scheme`, `app-tool-resource-pairing` | [Tool rules](#tool-rules) |
 | Resources | `uri-template-required`, `uri-template-valid`, `resource-name-not-uri`, `template-params-align` | [Resource rules](#resource-rules) |
@@ -185,6 +186,79 @@ z.string().describe('ISO 8601 timestamp, e.g., 2026-04-20T12:00:00Z')
 ```
 
 Parse the string to a `Date` inside the handler if you need one.
+
+---
+
+## Portability rules
+
+MCP pins JSON Schema 2020-12 as the default dialect (SEP-1613), but LLM vendors accept different *subsets*. A schema that passes `schema-serializable` can still hard-fail at OpenAI's tool validator or silently lose fields at Gemini's API surface. These rules walk the emitted JSON Schema for patterns that break cross-vendor.
+
+Three default-on, two opt-in. Promote opt-ins via `MCP_LINT_PORTABILITY=strict` (env) or `validateDefinitions({ portability: 'strict' })` when targeting multi-vendor deployments.
+
+| Rule | Severity | Default-on? |
+|:-----|:---------|:------------|
+| `schema-format-portability` | error | yes |
+| `schema-anyof-needs-type` | warning | yes |
+| `schema-no-discriminator-keyword` | warning | yes |
+| `schema-no-defs` | warning | only when `portability: 'strict'` |
+| `schema-dialect-tag` | warning | only when `portability: 'strict'` |
+
+### schema-format-portability
+
+**Severity:** error
+
+Fires when the emitted schema contains a `format` value outside the allowlist. Default = OpenAI's nine: `date-time`, `time`, `date`, `duration`, `email`, `hostname`, `ipv4`, `ipv6`, `uuid` — the strictest commonly-used target. OpenAI's tool validator **hard-rejects** unknown formats: the tool never registers and the model never sees it. Field report: [cyanheads/git-mcp-server#47](https://github.com/cyanheads/git-mcp-server/issues/47) (`gpt-5-codex` rejecting `format: "uri"` from `z.url()`).
+
+Zod methods vs. the default allowlist:
+
+| Zod call | Emitted format | Allowed? |
+|:---------|:---------------|:---------|
+| `z.email()`, `z.uuid()`, `z.iso.datetime()`, `z.iso.date()` | `email` / `uuid` / `date-time` / `date` | yes |
+| `z.url()` | `uri` | **no — fires** |
+| `z.cuid()`, `z.cuid2()`, `z.ulid()`, `z.nanoid()`, `z.base64()`, `z.jwt()` | various | **no — fires** |
+
+**Fix:** drop the format method, move the constraint into `.describe()` text where the model reads it:
+
+```ts
+// Wrong                                  // Right
+homepage: z.url().describe('Homepage')    homepage: z.string().describe('Homepage (absolute URL)')
+```
+
+**Override:** widen the allowlist when targeting only vendors that accept the format:
+
+```ts
+validateDefinitions({ formatAllowlist: ['email', 'uuid', 'date-time', 'uri'], tools, resources, prompts });
+```
+
+### schema-anyof-needs-type
+
+**Severity:** warning
+
+Fires when an `anyOf`/`oneOf` branch lacks a top-level `type`. Gemini rejects with `400: reference to undefined schema`. Triggered by patterns like `z.union([z.object({...}).nullable(), z.object({...})])` — the inner nullable emits a typeless `anyOf`.
+
+**Fix:** prefer optionality via required-omission, or use `z.discriminatedUnion` for tagged unions — both emit branches with explicit `type: "object"`.
+
+### schema-no-discriminator-keyword
+
+**Severity:** warning
+
+Fires when a schema carries the OpenAPI `discriminator` keyword. OpenAI silently ignores it; Gemini doesn't recognize it. Zod 4's `z.discriminatedUnion` emits the portable shape (`oneOf` of typed branches with `const`-tagged literals), so this rule mainly catches hand-built schemas attached via `.meta({...})` or third-party-generated JSON Schema.
+
+**Fix:** drop the `discriminator` meta — the `const` literals on each branch are how clients tell variants apart.
+
+### schema-no-defs
+
+**Severity:** warning (only when `portability: 'strict'`)
+
+Fires when emitted output contains `$defs` or `$ref`. Gemini rejects these (`400: reference to undefined schema`). Typically caused by reused or recursive types built with `z.lazy(...)`. Opt-in because [SEP-1576](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1576) (token-bloat mitigation) is moving the community toward more `$defs`.
+
+**Fix:** inline the recursive type with bounded depth, or accept the Gemini limitation if you target only Anthropic clients.
+
+### schema-dialect-tag
+
+**Severity:** warning (only when `portability: 'strict'`)
+
+Fires when the top-level schema is missing `$schema`. SEP-1613 makes JSON Schema 2020-12 the default dialect, but explicit tagging (`"$schema": "https://json-schema.org/draft/2020-12/schema"`) is forward-compatible — older SDK clients default to draft-07. Zod 4's `toJSONSchema` always emits `$schema`, so this rule is a no-op for Zod-only servers; it exists as forward-compat for hand-built schemas (see SEP-834).
 
 ---
 

@@ -13,7 +13,11 @@ import {
 import { logger } from '@/utils/internal/logger.js';
 import type { RequestContext } from '@/utils/internal/requestContext.js';
 import { runtimeCaps } from '@/utils/internal/runtime.js';
+import { httpStatusToErrorCode } from '@/utils/network/httpError.js';
 import { createHistogram } from '@/utils/telemetry/metrics.js';
+
+/** Maximum captured bytes of an upstream error response body. Keeps tool errors from poisoning the agent's context. */
+const ERROR_BODY_LIMIT = 500;
 
 let clientDurationHistogram: ReturnType<typeof createHistogram> | undefined;
 
@@ -47,22 +51,19 @@ export interface FetchWithTimeoutOptions extends Omit<RequestInit, 'signal'> {
    * Covered ranges include RFC 1918, loopback (127.x, ::1), link-local (169.254.x),
    * CGNAT (100.64–127.x), and known internal hostnames (e.g., `metadata.google.internal`).
    *
-   * On Node.js, DNS is also resolved and all A/AAAA records are validated against
-   * private ranges before the request is sent. On Workers, only string-based
-   * hostname/IP checks apply (no DNS API available).
+   * DNS is resolved (via `node:dns/promises`) and all A/AAAA records are
+   * validated against private ranges before the request is sent. Available in
+   * Node, Bun, and Cloudflare Workers under `nodejs_compat`.
    *
    * When enabled, redirects are followed manually (up to {@link MAX_SSRF_REDIRECTS}
    * hops) with SSRF validation applied to each redirect target.
    *
-   * **Best-effort, not a hard guarantee.** Two structural gaps remain:
-   *   - **DNS rebinding / TOCTOU.** Node's pre-validation lookup and the native
-   *     `fetch` call's own DNS resolution are independent. A malicious authoritative
-   *     DNS server (or a low-TTL record racing with cache eviction) can return a
-   *     public IP at validation time and a private IP at fetch time. This helper
-   *     does not pin the validated address to the connection.
-   *   - **Workers have no DNS API**, so only literal-hostname/IP checks apply.
-   *     A hostname that resolves (at the edge) to a private IP is not detected
-   *     here.
+   * **Best-effort, not a hard guarantee — DNS rebinding / TOCTOU still applies.**
+   * The pre-validation lookup and the native `fetch` call's own DNS resolution
+   * are independent. A malicious authoritative DNS server (or a low-TTL record
+   * racing with cache eviction) can return a public IP at validation time and a
+   * private IP at fetch time. This helper does not pin the validated address to
+   * the connection.
    *
    * For strong SSRF isolation, layer this with network egress controls
    * (Cloudflare egress rules, k8s NetworkPolicy, host firewall), a fetch proxy
@@ -96,17 +97,14 @@ const PRIVATE_IP_PATTERNS = [
   /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // RFC 6598 (CGNAT)
 ];
 
-/** IPv6 prefixes for private/reserved ranges (checked against DNS-resolved addresses). */
-const PRIVATE_IPV6_PREFIXES = [
-  'fe80:', // Link-local
-  'fc', // Unique local (fc00::/7)
-  'fd', // Unique local (fc00::/7)
-  '::1', // Loopback
-  '::ffff:127.', // IPv4-mapped loopback
-  '::ffff:10.', // IPv4-mapped RFC 1918
-  '::ffff:192.168.', // IPv4-mapped RFC 1918
-  '::ffff:172.16.', // IPv4-mapped RFC 1918 (partial)
-  '::ffff:169.254.', // IPv4-mapped link-local
+/**
+ * IPv6 patterns for private/reserved ranges. Anchored to a 4-hex-digit first
+ * segment so canonical forms (e.g. `0fe8::1` → `fe8::1`) don't false-positive
+ * against link-local/ULA prefixes.
+ */
+const PRIVATE_IPV6_PATTERNS = [
+  /^fe[89ab][0-9a-f]:/i, // fe80::/10 link-local (third nibble 8/9/a/b)
+  /^f[cd][0-9a-f]{2}:/i, // fc00::/7 ULA
 ];
 
 const PRIVATE_HOSTNAMES = new Set(['localhost', 'metadata.google.internal', 'metadata.internal']);
@@ -115,9 +113,31 @@ const PRIVATE_HOSTNAMES = new Set(['localhost', 'metadata.google.internal', 'met
 const MAX_SSRF_REDIRECTS = 5;
 
 /**
- * Checks whether a resolved IP address (v4 or v6) falls within a private or
- * reserved range as defined by {@link PRIVATE_IP_PATTERNS} and
- * {@link PRIVATE_IPV6_PREFIXES}.
+ * Extracts the embedded IPv4 from an IPv4-mapped IPv6 address. Accepts both
+ * the dotted-decimal form (`::ffff:127.0.0.1`) and the all-hex form
+ * (`::ffff:7f00:1`) that URL parsers canonicalize the dotted form into.
+ *
+ * @returns Dotted-decimal IPv4 string, or `undefined` if not an IPv4-mapped form.
+ */
+function extractMappedIpv4(lower: string): string | undefined {
+  const dotted = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (dotted) return dotted[1];
+  const hex = lower.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (hex) {
+    const high = Number.parseInt(hex[1] ?? '0', 16);
+    const low = Number.parseInt(hex[2] ?? '0', 16);
+    return `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
+  }
+  return;
+}
+
+/**
+ * Checks whether an IP address (v4 or v6, including IPv4-mapped IPv6) falls
+ * within a private or reserved range.
+ *
+ * IPv4-mapped IPv6 addresses are unwrapped and run through the IPv4 patterns,
+ * so the full RFC 1918 / CGNAT / link-local space is covered automatically
+ * without duplicating the table.
  *
  * @param ip - The IP address string to check (bare, no brackets).
  * @returns `true` if the address is private or reserved, `false` otherwise.
@@ -125,8 +145,10 @@ const MAX_SSRF_REDIRECTS = 5;
 function isPrivateIP(ip: string): boolean {
   if (PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(ip))) return true;
   const lower = ip.toLowerCase();
-  if (PRIVATE_IPV6_PREFIXES.some((prefix) => lower.startsWith(prefix))) return true;
-  return false;
+  if (lower === '::1' || lower === '0:0:0:0:0:0:0:1') return true;
+  const mapped = extractMappedIpv4(lower);
+  if (mapped !== undefined) return PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(mapped));
+  return PRIVATE_IPV6_PATTERNS.some((pattern) => pattern.test(lower));
 }
 
 /**
@@ -135,7 +157,8 @@ function isPrivateIP(ip: string): boolean {
  * Performs three checks in order:
  * 1. Known private hostnames (`localhost`, `metadata.google.internal`, etc.)
  * 2. Literal IPv4/IPv6 addresses in the URL hostname
- * 3. DNS resolution (Node.js only) — resolves A and AAAA records and validates each
+ * 3. DNS resolution — resolves A and AAAA records and validates each
+ *    (Node, Bun, Workers under `nodejs_compat`; skipped in pure-browser envs)
  *
  * DNS resolution failures (ENOTFOUND, etc.) are swallowed and left for the native
  * `fetch` to handle; only confirmed private IPs cause rejection.
@@ -165,17 +188,13 @@ async function assertNotPrivateUrl(urlString: string): Promise<void> {
     throw validationError(`Request to private/internal hostname blocked: ${hostname}`);
   }
 
-  // Check IPv6 loopback
-  if (hostname === '::1' || hostname === '0:0:0:0:0:0:0:1') {
-    throw validationError(`Request to loopback address blocked: ${hostname}`);
-  }
-
-  // Check IPv4 private ranges (hostname as literal IP)
-  if (PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(hostname))) {
+  // Check literal IP (v4, v6, or IPv4-mapped IPv6)
+  if (isPrivateIP(hostname)) {
     throw validationError(`Request to private/reserved IP blocked: ${hostname}`);
   }
 
-  // DNS resolution check (Node.js only — Workers have no DNS API)
+  // `node:dns/promises` is available in Node, Bun, and Workers under
+  // `nodejs_compat`. `isNode` covers all three.
   if (runtimeCaps.isNode) {
     await assertDnsNotPrivate(hostname);
   }
@@ -233,8 +252,12 @@ async function assertDnsNotPrivate(hostname: string): Promise<void> {
  * request is sent, and all redirects are followed manually with per-hop SSRF checks
  * (up to 5 hops). This mode forces `redirect: 'manual'` on the underlying fetch.
  *
- * Non-2xx responses are treated as errors: the response body is read, logged, and
- * wrapped in a `McpError` with code `ServiceUnavailable`.
+ * Non-2xx responses are treated as errors. The response body is read (truncated
+ * to {@link ERROR_BODY_LIMIT} bytes to avoid context-window poisoning when an
+ * upstream returns an HTML error page), logged, and wrapped in a `McpError`
+ * whose code is mapped from the HTTP status via {@link httpStatusToErrorCode}
+ * (e.g. 400 → `InvalidParams`, 403 → `Forbidden`, 404 → `NotFound`, 429 →
+ * `RateLimited`, 5xx → `ServiceUnavailable`/`InternalError`/`Timeout`).
  *
  * @param url - The URL to fetch (string or `URL` instance).
  * @param timeoutMs - Maximum duration in milliseconds before the request is aborted.
@@ -251,8 +274,10 @@ async function assertDnsNotPrivate(hostname: string): Promise<void> {
  *   and `rejectPrivateIPs` is enabled.
  * @throws {McpError} `Timeout` if the request exceeds `timeoutMs`.
  * @throws {McpError} `InternalError` if the request is cancelled via the external signal.
- * @throws {McpError} `ServiceUnavailable` if the server returns a non-2xx status or a
- *   network-level error occurs.
+ * @throws {McpError} A status-mapped code (`InvalidParams`/`Unauthorized`/`Forbidden`/
+ *   `NotFound`/`RateLimited`/`ServiceUnavailable`/...) if the server returns a non-2xx
+ *   status. `error.data` carries `{ statusCode, statusText, responseBody, retryAfter? }`.
+ * @throws {McpError} `ServiceUnavailable` if a network-level error occurs.
  * @example
  * ```ts
  * // Basic GET with a 5-second timeout
@@ -366,22 +391,29 @@ export async function fetchWithTimeout(
       statusCode = response.status;
 
       if (!response.ok) {
-        const errorBody = await response.text().catch(() => 'Could not read response body');
+        const rawBody = await response.text().catch(() => 'Could not read response body');
+        const responseBody =
+          rawBody.length > ERROR_BODY_LIMIT ? `${rawBody.slice(0, ERROR_BODY_LIMIT)}…` : rawBody;
         logger.error(`Fetch failed for ${String(currentUrl)} with status ${response.status}.`, {
           ...context,
           statusCode: response.status,
           statusText: response.statusText,
-          responseBody: errorBody,
+          responseBody,
           errorSource: 'FetchHttpError',
         });
-        throw serviceUnavailable(
+        const code = httpStatusToErrorCode(response.status) ?? JsonRpcErrorCode.InternalError;
+        const retryAfter = response.headers.get('retry-after');
+        throw new McpError(
+          code,
           `Fetch failed for ${String(currentUrl)}. Status: ${response.status}`,
           {
             requestId: context.requestId,
             operation: context.operation as string | undefined,
             statusCode: response.status,
             statusText: response.statusText,
-            responseBody: errorBody,
+            responseBody,
+            ...(retryAfter !== null && { retryAfter }),
+            errorSource: 'FetchHttpError',
           },
         );
       }

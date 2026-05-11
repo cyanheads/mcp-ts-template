@@ -569,18 +569,19 @@ const parseConfig = (envOverrides?: Record<string, string | undefined>) => {
   const finalRawConfig = {
     ...rawConfig,
     pkg: parsedPkg,
-    logsPath: runtimeCaps.isNode
-      ? (() => {
-          // Bundled (dist/index.js) is one level deep; source (src/config/index.ts) is two.
-          // Detect bundle path to avoid overshooting the project root.
-          const depth = import.meta.url.includes('/dist/') ? '..' : '../..';
-          const thisFile = fileURLToPath(import.meta.url);
-          const root = join(dirname(thisFile), depth);
-          const logsDir = rawConfig.logsPath ?? 'logs';
-          if (isAbsolute(logsDir)) return logsDir;
-          return join(root, logsDir);
-        })()
-      : undefined,
+    logsPath:
+      runtimeCaps.isNode && !runtimeCaps.isWorkerLike
+        ? (() => {
+            // Bundled (dist/index.js) is one level deep; source (src/config/index.ts) is two.
+            // Detect bundle path to avoid overshooting the project root.
+            const depth = import.meta.url.includes('/dist/') ? '..' : '../..';
+            const thisFile = fileURLToPath(import.meta.url);
+            const root = join(dirname(thisFile), depth);
+            const logsDir = rawConfig.logsPath ?? 'logs';
+            if (isAbsolute(logsDir)) return logsDir;
+            return join(root, logsDir);
+          })()
+        : undefined,
     mcpServerName: env.MCP_SERVER_NAME ?? parsedPkg.name,
     mcpServerVersion: env.MCP_SERVER_VERSION ?? parsedPkg.version,
     mcpServerDescription: env.MCP_SERVER_DESCRIPTION ?? parsedPkg.description,
