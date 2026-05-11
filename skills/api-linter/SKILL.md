@@ -191,9 +191,9 @@ Parse the string to a `Date` inside the handler if you need one.
 
 ## Portability rules
 
-MCP pins JSON Schema 2020-12 as the default dialect (SEP-1613), but the LLM vendors that ultimately consume tool schemas each accept different *subsets* of 2020-12. A schema that passes `schema-serializable` can still hard-fail at OpenAI's tool validator or silently lose fields at the Gemini API surface. These rules walk the emitted JSON Schema and flag the patterns most likely to break cross-vendor.
+MCP pins JSON Schema 2020-12 as the default dialect (SEP-1613), but LLM vendors accept different *subsets*. A schema that passes `schema-serializable` can still hard-fail at OpenAI's tool validator or silently lose fields at Gemini's API surface. These rules walk the emitted JSON Schema for patterns that break cross-vendor.
 
-Two of the five rules fire by default; the other two are opt-in. Promote all of them via `MCP_LINT_PORTABILITY=strict` (env) or `validateDefinitions({ portability: 'strict' })` (programmatic) when targeting a multi-vendor deployment.
+Three default-on, two opt-in. Promote opt-ins via `MCP_LINT_PORTABILITY=strict` (env) or `validateDefinitions({ portability: 'strict' })` when targeting multi-vendor deployments.
 
 | Rule | Severity | Default-on? |
 |:-----|:---------|:------------|
@@ -207,34 +207,24 @@ Two of the five rules fire by default; the other two are opt-in. Promote all of 
 
 **Severity:** error
 
-Fires when an emitted JSON Schema contains a `format` value outside the configured allowlist. Default allowlist is OpenAI's nine recognized values — `date-time`, `time`, `date`, `duration`, `email`, `hostname`, `ipv4`, `ipv6`, `uuid` — the strictest commonly-used target.
+Fires when the emitted schema contains a `format` value outside the allowlist. Default = OpenAI's nine: `date-time`, `time`, `date`, `duration`, `email`, `hostname`, `ipv4`, `ipv6`, `uuid` — the strictest commonly-used target. OpenAI's tool validator **hard-rejects** unknown formats: the tool never registers and the model never sees it. Field report: [cyanheads/git-mcp-server#47](https://github.com/cyanheads/git-mcp-server/issues/47) (`gpt-5-codex` rejecting `format: "uri"` from `z.url()`).
 
-Why it's an error: OpenAI's tool registration **hard-rejects** unknown `format` values. The tool refuses to register and the model never sees it. Field report: [cyanheads/git-mcp-server#47](https://github.com/cyanheads/git-mcp-server/issues/47) — `gpt-5-codex` rejected `git_remote.url` because Zod's `.url()` emits `format: "uri"`, which isn't in OpenAI's list.
+Zod methods vs. the default allowlist:
 
-Common Zod methods that trigger this with the default allowlist:
-
-| Zod call | Emitted format | In default allowlist? |
-|:---------|:---------------|:----------------------|
-| `z.email()` | `email` | yes |
-| `z.uuid()` | `uuid` | yes |
-| `z.iso.datetime()` | `date-time` | yes |
-| `z.iso.date()` | `date` | yes |
+| Zod call | Emitted format | Allowed? |
+|:---------|:---------------|:---------|
+| `z.email()`, `z.uuid()`, `z.iso.datetime()`, `z.iso.date()` | `email` / `uuid` / `date-time` / `date` | yes |
 | `z.url()` | `uri` | **no — fires** |
-| `z.cuid()`, `z.cuid2()`, `z.ulid()`, `z.nanoid()` | various | **no — fires** |
-| `z.base64()`, `z.jwt()` | various | **no — fires** |
+| `z.cuid()`, `z.cuid2()`, `z.ulid()`, `z.nanoid()`, `z.base64()`, `z.jwt()` | various | **no — fires** |
 
-**Fix:** drop the format method and move the constraint into `.describe()` text where the model can read it:
+**Fix:** drop the format method, move the constraint into `.describe()` text where the model reads it:
 
 ```ts
-// Wrong
-homepage: z.url().describe('Project homepage')
-// Right
-homepage: z.string().describe('Project homepage (absolute URL)')
+// Wrong                                  // Right
+homepage: z.url().describe('Homepage')    homepage: z.string().describe('Homepage (absolute URL)')
 ```
 
-The Mastra blog's evidence on this pattern: error rate across 30 properties × 12 models dropped from 15% to 3% when constraints lived in property descriptions rather than format keywords.
-
-**Override:** when targeting only vendors that accept a given format, widen the allowlist:
+**Override:** widen the allowlist when targeting only vendors that accept the format:
 
 ```ts
 validateDefinitions({ formatAllowlist: ['email', 'uuid', 'date-time', 'uri'], tools, resources, prompts });
@@ -244,29 +234,15 @@ validateDefinitions({ formatAllowlist: ['email', 'uuid', 'date-time', 'uri'], to
 
 **Severity:** warning
 
-Fires when any branch of `anyOf`/`oneOf` in the emitted JSON Schema lacks a top-level `type` keyword. Gemini's API requires every branch to declare its type or the request fails with `400: reference to undefined schema`.
+Fires when an `anyOf`/`oneOf` branch lacks a top-level `type`. Gemini rejects with `400: reference to undefined schema`. Triggered by patterns like `z.union([z.object({...}).nullable(), z.object({...})])` — the inner nullable emits a typeless `anyOf`.
 
-Triggered by patterns like `z.union([z.object({...}).nullable(), z.object({...})])` — the outer `anyOf` has two branches; the first is itself an `anyOf` (from the inner nullable) without an outer `type`.
-
-**Fix:** prefer optionality via required-omission for nullable shapes, or use `z.discriminatedUnion` for tagged unions — both emit branches with explicit `type: "object"`.
-
-```ts
-// Wrong (Gemini-incompatible)
-n: z.union([z.object({...}).nullable(), z.object({...})])
-// Right (explicit discriminator)
-n: z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('a'), ... }),
-  z.object({ kind: z.literal('b'), ... }),
-])
-```
+**Fix:** prefer optionality via required-omission, or use `z.discriminatedUnion` for tagged unions — both emit branches with explicit `type: "object"`.
 
 ### schema-no-discriminator-keyword
 
 **Severity:** warning
 
-Fires when a schema contains the OpenAPI `discriminator` keyword. OpenAI silently ignores it; Gemini doesn't recognize it; neither vendor uses it for routing.
-
-Zod 4's `z.discriminatedUnion` already emits the portable shape (`oneOf` of `type: "object"` branches with `const`-tagged literals, no `discriminator` keyword), so this rule mainly catches hand-built schemas attached via `.meta({...})` or third-party-generated JSON Schema.
+Fires when a schema carries the OpenAPI `discriminator` keyword. OpenAI silently ignores it; Gemini doesn't recognize it. Zod 4's `z.discriminatedUnion` emits the portable shape (`oneOf` of typed branches with `const`-tagged literals), so this rule mainly catches hand-built schemas attached via `.meta({...})` or third-party-generated JSON Schema.
 
 **Fix:** drop the `discriminator` meta — the `const` literals on each branch are how clients tell variants apart.
 
@@ -274,32 +250,15 @@ Zod 4's `z.discriminatedUnion` already emits the portable shape (`oneOf` of `typ
 
 **Severity:** warning (only when `portability: 'strict'`)
 
-Fires when `toJSONSchema(schema)` output contains `$defs` or `$ref`. Gemini's API rejects these — the call returns `400: reference to undefined schema`. Typically caused by reused or recursive types built with `z.lazy(...)`.
+Fires when emitted output contains `$defs` or `$ref`. Gemini rejects these (`400: reference to undefined schema`). Typically caused by reused or recursive types built with `z.lazy(...)`. Opt-in because [SEP-1576](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1576) (token-bloat mitigation) is moving the community toward more `$defs`.
 
-Why opt-in: [SEP-1576](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1576) (token-bloat mitigation) is moving the MCP community toward more `$ref`/`$defs` for schema deduplication. Authors should make a deliberate choice rather than getting warned by default.
-
-**Fix:** inline the recursive type if possible (bounded depth), or accept the Gemini limitation if you target only Anthropic clients.
-
-```ts
-// Triggers $defs emission:
-const Tree: z.ZodTypeAny = z.lazy(() => z.object({ children: z.array(Tree).optional() }));
-// Alternative: cap depth, inline by hand
-const Tree3 = z.object({
-  children: z.array(z.object({
-    children: z.array(z.object({ children: z.array(z.unknown()) }).partial()).optional(),
-  }).partial()).optional(),
-});
-```
+**Fix:** inline the recursive type with bounded depth, or accept the Gemini limitation if you target only Anthropic clients.
 
 ### schema-dialect-tag
 
 **Severity:** warning (only when `portability: 'strict'`)
 
-Fires when the top-level emitted JSON Schema is missing `$schema`. SEP-1613 makes JSON Schema 2020-12 the default dialect, but explicit tagging (`"$schema": "https://json-schema.org/draft/2020-12/schema"`) is forward-compatible and helps clients on older SDKs that still default to draft-07.
-
-Zod 4's `toJSONSchema` already emits `$schema`, so this rule is a no-op for the Zod-only authoring path. It exists as forward-compat for hand-built JSON Schema input (see SEP-834 — non-object root types) and for Zod versions that may drop the tag.
-
-**No fix needed** for typical Zod-only servers. If you see this fire, you've passed a hand-built schema; add `"$schema": "https://json-schema.org/draft/2020-12/schema"` to the top level.
+Fires when the top-level schema is missing `$schema`. SEP-1613 makes JSON Schema 2020-12 the default dialect, but explicit tagging (`"$schema": "https://json-schema.org/draft/2020-12/schema"`) is forward-compatible — older SDK clients default to draft-07. Zod 4's `toJSONSchema` always emits `$schema`, so this rule is a no-op for Zod-only servers; it exists as forward-compat for hand-built schemas (see SEP-834).
 
 ---
 
