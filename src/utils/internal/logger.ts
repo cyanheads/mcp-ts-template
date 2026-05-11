@@ -49,7 +49,15 @@ const pinoToMcpLevelSeverity: Record<string, number> = {
   debug: 7,
 };
 
-const isServerless = typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
+/**
+ * Evaluated at call time (not module load) so worker.ts can set
+ * `process.env.IS_SERVERLESS = 'true'` before the first log call. The
+ * `storageFactory` and `canvasFactory` modules already use this pattern;
+ * mirroring it here closes the same gap for transport selection.
+ */
+function isServerless(): boolean {
+  return typeof process === 'undefined' || process.env.IS_SERVERLESS === 'true';
+}
 
 /** Pino redact paths for sensitive fields (top-level, one-deep, two-deep). */
 const SENSITIVE_PINO_FIELDS: string[] = [
@@ -190,7 +198,7 @@ export class Logger {
       base: {
         env: config.environment,
         version: config.mcpServerVersion,
-        pid: !isServerless ? process.pid : undefined,
+        pid: !isServerless() ? process.pid : undefined,
       },
       redact: {
         paths: SENSITIVE_PINO_FIELDS,
@@ -201,7 +209,7 @@ export class Logger {
       },
     };
 
-    if (isServerless) {
+    if (isServerless()) {
       return pino(pinoOptions);
     }
 
@@ -220,7 +228,7 @@ export class Logger {
     const noColorEnv = process.env.NO_COLOR === '1' || process.env.FORCE_COLOR === '0';
     const useColoredOutput = isDevelopment && transportType !== 'stdio' && !noColorEnv;
 
-    if (useColoredOutput && !isServerless) {
+    if (useColoredOutput && !isServerless()) {
       // Try to resolve 'pino-pretty' robustly even when bundled (e.g., Bun/ESM),
       // falling back to JSON stdout if resolution fails.
       try {
@@ -282,7 +290,7 @@ export class Logger {
   }
 
   private async createInteractionLogger(): Promise<PinoLogger | undefined> {
-    if (isServerless || !config.logsPath) return;
+    if (isServerless() || !config.logsPath) return;
 
     const { default: path } = await import('node:path');
     return pino({
@@ -339,7 +347,7 @@ export class Logger {
     this.interactionLogger = await this.createInteractionLogger();
 
     // Start the cleanup timer only after initialization and only in Node.js
-    if (!isServerless && !this.cleanupTimer) {
+    if (!isServerless() && !this.cleanupTimer) {
       this.cleanupTimer = setInterval(() => this.flushSuppressedMessages(), this.rateLimitWindow);
       this.cleanupTimer.unref?.();
     }
@@ -733,7 +741,7 @@ export class Logger {
    */
   public logInteraction(interactionName: string, data: Record<string, unknown>): void {
     if (!this.interactionLogger) {
-      if (!isServerless)
+      if (!isServerless())
         this.warning('Interaction logger not available.', (data.context || {}) as RequestContext);
       return;
     }
