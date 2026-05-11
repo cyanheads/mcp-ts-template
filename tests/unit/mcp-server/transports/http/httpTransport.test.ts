@@ -271,6 +271,30 @@ describe('HTTP Transport', () => {
       expect(data.authorization_servers).toBeUndefined();
     });
 
+    test('should also serve OAuth metadata at the RFC 8414 path-suffixed variant', async () => {
+      const { app } = await createHttpApp(
+        () => Promise.resolve(mockMcpServer as McpServer),
+        mockContext,
+        defaultMeta,
+      );
+
+      const bare = await app.fetch(
+        new Request('http://localhost:3000/.well-known/oauth-protected-resource', {
+          method: 'GET',
+        }),
+      );
+      const suffixed = await app.fetch(
+        new Request('http://localhost:3000/.well-known/oauth-protected-resource/mcp', {
+          method: 'GET',
+        }),
+      );
+
+      expect(suffixed.status).toBe(200);
+      const bareBody = (await bare.json()) as Record<string, unknown>;
+      const suffixedBody = (await suffixed.json()) as Record<string, unknown>;
+      expect(suffixedBody).toEqual(bareBody);
+    });
+
     test('should handle DELETE request in stateless mode', async () => {
       const { app } = await createHttpApp(
         () => Promise.resolve(mockMcpServer as McpServer),

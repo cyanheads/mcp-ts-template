@@ -316,7 +316,20 @@ export async function createHttpApp<TBindings extends object = HonoNodeBindings>
 
   // RFC 9728 Protected Resource Metadata — always mounted, unauthenticated
   // https://datatracker.ietf.org/doc/html/rfc9728
-  app.get('/.well-known/oauth-protected-resource', protectedResourceMetadataHandler);
+  const protectedResourcePath = '/.well-known/oauth-protected-resource';
+  app.get(protectedResourcePath, protectedResourceMetadataHandler);
+
+  // RFC 8414 §3 path-suffixed variant — clients also probe
+  // `/.well-known/oauth-protected-resource{mcpHttpEndpointPath}` when the MCP
+  // endpoint is not at the root. Mount the same handler at that path too.
+  if (config.mcpHttpEndpointPath !== '/') {
+    const suffixedProtectedResourcePath = `${protectedResourcePath}${config.mcpHttpEndpointPath}`;
+    app.get(suffixedProtectedResourcePath, protectedResourceMetadataHandler);
+    logger.debug(
+      `RFC 8414 path-suffixed metadata mounted at ${suffixedProtectedResourcePath}.`,
+      transportContext,
+    );
+  }
 
   // SEP-1649 MCP Server Card — machine-readable discovery document.
   // Collision guard: skip the mount if the MCP endpoint is configured to use
