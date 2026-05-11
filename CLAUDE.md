@@ -22,13 +22,13 @@ This package serves two consumer paths. When making changes, know which audience
 | **Direct package import** — existing project pulls in the package | `bun add @cyanheads/mcp-ts-core` → `import { createApp, tool, z } from '@cyanheads/mcp-ts-core'` | Public API surface (`src/`) — existing consumers feel changes immediately on upgrade |
 | **Init-scaffolded server** — fresh project bootstrapped from this repo's templates | `bunx @cyanheads/mcp-ts-core init [name]` copies `templates/` into the new directory | `templates/` — only affects newly scaffolded servers, not existing ones |
 
-Both paths end up consuming the same public API. The init script bootstraps the project structure: starter `package.json`, `tsconfig`, `biome.json`, `vitest.config.ts`, `.env.example`, `Dockerfile`, `CLAUDE.md`/`AGENTS.md`, and example tool/resource/prompt definitions. Files in `templates/` prefixed with `_` (e.g. `_.gitignore`, `_tsconfig.json`) have the prefix stripped on copy. After init, agents should consult the `setup` skill.
+Both paths share the same public API. Init copies starter `package.json`, configs (`tsconfig`, `biome.json`, `vitest.config.ts`), `.env.example`, `Dockerfile`, `CLAUDE.md`/`AGENTS.md`, and example definitions. `_`-prefixed files (e.g. `_.gitignore`) drop the prefix on copy. After init, consult the `setup` skill.
 
 ---
 
 ## Core Rules
 
-- **Logic throws, framework catches.** Pure, stateless `handler` functions. No `try...catch`. Throw on failure — plain `Error` is fine; the framework catches, classifies, and formats. Use `McpError(code, message, data, options?)` only when you need a specific JSON-RPC error code or structured data payload. The optional 4th arg accepts `{ cause }` for error chaining.
+- **Logic throws, framework catches.** Pure, stateless `handler` functions, no `try/catch`. Plain `Error` works — framework catches, classifies, formats. Use `McpError(code, message, data, options?)` only when you need a specific JSON-RPC code or structured data; 4th arg `{ cause }` chains.
 - **Full-stack observability.** The framework automatically instruments every tool/resource call — OTel span, duration/payload/memory metrics, structured completion log. Use `ctx.log` for additional domain-specific logging within handlers (external API calls, multi-step operations, business events). `requestId`, `traceId`, `tenantId` auto-correlated. No `console` calls.
 - **Unified Context.** Handlers receive `ctx` with logging (`ctx.log`), tenant-scoped storage (`ctx.state`), optional protocol capabilities (`ctx.elicit`, `ctx.sample`), and cancellation (`ctx.signal`).
 - **Decoupled storage.** `ctx.state` for tenant-scoped KV. Never access persistence backends directly.
@@ -382,7 +382,7 @@ See `api-context` skill for full details.
 
 ## Error Handling
 
-**Recommended path: declare a typed error contract.** Add `errors: [{ reason, code, when, recovery, retryable? }]` to `tool()` / `resource()`. The handler then receives `ctx.fail(reason, msg?, data?)` typed against the reason union — `ctx.fail('typo')` is a TypeScript error. The runtime auto-populates `data.reason` for observability and the linter enforces conformance against the handler body. The `recovery` field is required (≥5 words, lint-validated) — it's the single source of truth for the recovery hint that flows to the wire. Spread `ctx.recoveryFor('reason')` into `data` to opt the contract recovery onto the wire (the framework mirrors `data.recovery.hint` into `content[]` text). Override with explicit `{ recovery: { hint: '...' } }` when runtime context matters.
+**Recommended path: declare a typed error contract.** Add `errors: [{ reason, code, when, recovery, retryable? }]` to `tool()` / `resource()`. Handler gets `ctx.fail(reason, msg?, data?)` typed against the reason union — typos fail at compile time. Runtime auto-populates `data.reason` for observability; linter enforces conformance against the handler body. `recovery` is required (≥5 words, lint-validated) — the single source of truth for the wire hint. Spread `ctx.recoveryFor('reason')` into `data` to opt the contract recovery onto the wire (framework mirrors `data.recovery.hint` into `content[]` text); override with explicit `{ recovery: { hint: '...' } }` when runtime context matters.
 
 ```ts
 errors: [
@@ -404,9 +404,9 @@ async handler(input, ctx) {
 }
 ```
 
-**`ctx.recoveryFor(reason)`** is the first member of a planned family of opt-in resolution helpers (future: `troubleshootingFor`, `userMessageFor`, …). Always present on `Context` (returns `{}` when no contract is attached or the reason is unknown — spread-safe), strictly typed on `HandlerContext<R>` against the declared reason union. The same resolver works in services that accept `ctx`: `throw validationError(msg, { reason: 'X', ...ctx.recoveryFor('X') })`. No auto-population — author opts in by typing the helper.
+**`ctx.recoveryFor(reason)`** always present on `Context`, returns `{}` when no contract is attached or the reason is unknown (spread-safe). Strictly typed on `HandlerContext<R>` against the declared reason union. Works in services accepting `ctx`: `throw validationError(msg, { reason: 'X', ...ctx.recoveryFor('X') })`. No auto-population — author opts in by typing the helper.
 
-**Declare contracts inline on each tool, even when they look similar across tools.** The contract is part of the tool's documented public surface — reading one tool definition file should give the full picture (input, output, errors, handler, format). Don't extract a shared `errors[]` constant or contract module to deduplicate; per-tool repetition is the intended cost of locality, and dynamic `recovery` hints often need tool-specific context anyway.
+**Declare contracts inline on each tool.** The contract is part of the tool's public surface — one file should give the full picture (input, output, errors, handler, format). Don't extract a shared `errors[]` constant; per-tool repetition is the intended cost of locality, and dynamic `recovery` hints need tool-specific context.
 
 The contract describes the **public failure surface** — declare domain-specific failures only. **Baseline codes** (`InternalError`, `ServiceUnavailable`, `Timeout`, `ValidationError`, `SerializationError`) bubble from anywhere and are auto-allowed by the conformance lint, so you don't need to enumerate them per-tool. The conformance lint scans handler source text only — failures thrown from called services aren't visible to it (still reach the client correctly via the auto-classifier, just without lint enforcement).
 
@@ -424,7 +424,7 @@ For HTTP responses from upstream APIs, use `httpErrorFromResponse(response, { se
 
 **Auto-classification.** Plain `Error`, `ZodError`, and any other thrown value are caught and classified automatically. Resolution order: `McpError` code (preserved as-is) → JS constructor name (`TypeError` → `ValidationError`) → provider patterns (HTTP status codes, AWS errors, DB errors) → common message patterns → `AbortError` name → `InternalError` fallback.
 
-**Error-path parity.** Tool errors apply the same client-surface parity as success: `content[]` carries a markdown rendering with `data.recovery.hint` mirrored in, `structuredContent.error` carries `{ code, message, data? }`. `_meta.error` is not emitted. Resources re-throw to the SDK and route through the JSON-RPC error envelope (no parity wiring there).
+**Error-path parity.** Tool errors apply the same parity as success: `content[]` carries markdown with `data.recovery.hint` mirrored in; `structuredContent.error` carries `{ code, message, data? }`. No `_meta.error`. Resources re-throw to the SDK via JSON-RPC error envelope (no parity wiring).
 
 The startup linter checks handler bodies for `prefer-mcp-error-in-handler`, `prefer-error-factory`, `preserve-cause-on-rethrow`, `no-stringify-upstream-error`, plus contract conformance (`error-contract-conformance` for undeclared non-baseline codes, `error-contract-prefer-fail` for declared codes thrown directly instead of via `ctx.fail`) — all warnings, surfaced in `bun run devcheck`.
 
@@ -447,7 +447,7 @@ Pick one convention per server and stay consistent. Verbs are typically `read`, 
 
 **Modes** (`MCP_AUTH_MODE`): `none` (default) | `jwt` (local secret via `MCP_AUTH_SECRET_KEY`) | `oauth` (JWKS via `OAUTH_ISSUER_URL`, `OAUTH_AUDIENCE`). See `api-auth` skill for claims, CORS, and detailed config.
 
-**Granted scopes** are unioned from `scp`, `scope`, and `mcp_tool_scopes` JWT claims. The `mcp_tool_scopes` custom claim is the supported escape hatch for OIDC providers (Authentik, Keycloak < 26.5, Zitadel) that ignore property mappings overriding `scope` in `authorization_code` flow. For deployments where no custom claim can be injected, `MCP_AUTH_DISABLE_SCOPE_CHECKS=true` bypasses both `withRequiredScopes` and `checkScopes` after the auth-context presence check (signature/audience/issuer/expiry validation intact). A `WARNING` is logged at startup whenever the bypass is active.
+**Granted scopes** union `scp`, `scope`, and `mcp_tool_scopes` JWT claims. `mcp_tool_scopes` is the escape hatch for OIDC providers (Authentik, Keycloak < 26.5, Zitadel) that ignore property mappings overriding `scope` in `authorization_code` flow. When no custom claim can be injected, `MCP_AUTH_DISABLE_SCOPE_CHECKS=true` bypasses both `withRequiredScopes` and `checkScopes` after auth-context presence check (signature/audience/issuer/expiry intact). Startup logs `WARNING` when active.
 
 ---
 
@@ -467,7 +467,7 @@ Managed by `@cyanheads/mcp-ts-core`. Validated via Zod. Precedence: `createApp()
 
 ### Server config (separate schema)
 
-Own Zod schema for domain-specific env vars. **Never merge with core's schema.** Lazy-parse — do not eagerly parse `process.env` at top-level (Workers inject env at request time via `injectEnvVars()`). Prefer `parseEnvConfig(schema, envMap)` from `/config` over `schema.parse(...)` — it maps schema paths to env var names so errors say `MY_API_KEY is missing` instead of `apiKey: expected string`. Raw `ZodError` thrown from `setup()` is still caught and converted by the framework, but `parseEnvConfig` produces better messages. See `api-config` skill for example.
+Own Zod schema for domain-specific env vars. **Never merge with core's schema.** Lazy-parse — Workers inject env at request time via `injectEnvVars()`, so no top-level `process.env` reads. Prefer `parseEnvConfig(schema, envMap)` from `/config` over `schema.parse(...)` — it maps schema paths to env var names (`MY_API_KEY is missing` vs. `apiKey: expected string`). Raw `ZodError` from `setup()` is still caught and converted, but messages are worse. See `api-config` skill.
 
 ---
 
