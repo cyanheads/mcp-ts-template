@@ -44,10 +44,14 @@ export interface MockContextOptions {
    * can then assert on `data.reason` without manually composing `createFail`.
    */
   errors?: readonly ErrorContract[];
+  /** Mock prompt list changed notifier. */
+  notifyPromptListChanged?: () => void;
   /** Mock resource list changed notifier. */
   notifyResourceListChanged?: () => void;
   /** Mock resource updated notifier. */
   notifyResourceUpdated?: (uri: string) => void;
+  /** Mock tool list changed notifier. */
+  notifyToolListChanged?: () => void;
   /** Enable task progress (creates a mock ContextProgress). */
   progress?: boolean;
   /** Request ID override. Defaults to 'test-request-id'. */
@@ -252,8 +256,10 @@ export function createMockContext(options: MockContextOptions = {}): Context {
     auth: options.auth,
     elicit: options.elicit,
     sample: options.sample,
+    notifyPromptListChanged: options.notifyPromptListChanged,
     notifyResourceListChanged: options.notifyResourceListChanged,
     notifyResourceUpdated: options.notifyResourceUpdated,
+    notifyToolListChanged: options.notifyToolListChanged,
     progress,
     uri: options.uri,
     // No-op resolver for definitions without a contract. `attachTypedFail` below

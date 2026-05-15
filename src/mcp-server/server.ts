@@ -22,6 +22,13 @@ import { requestContextService } from '@/utils/internal/requestContext.js';
 
 /** Dependencies required to create an MCP server instance. */
 export interface McpServerDeps {
+  /**
+   * When true, advertise the experimental `tasks` capability (SEP-1686).
+   * The capability is gated on actual usage — at least one registered tool
+   * must be a task tool — because the spec targets DRAFT-2025-11-25 and some
+   * clients pinned to 2025-06-18 fail on the unknown key.
+   */
+  advertiseTasks?: boolean;
   config: AppConfig;
   /** SEP-2133 extensions to advertise in server capabilities. */
   extensions?: Record<string, object>;
@@ -68,14 +75,18 @@ export async function createMcpServerInstance(deps: McpServerDeps): Promise<McpS
         resources: { listChanged: true },
         tools: { listChanged: true },
         prompts: { listChanged: true },
-        // Experimental: Tasks API for long-running async operations
-        tasks: {
-          list: {},
-          cancel: {},
-          requests: {
-            tools: { call: {} },
+        // SEP-1686 (DRAFT-2025-11-25, experimental in SDK) — only advertised
+        // when the server registers at least one task tool. Clients pinned to
+        // 2025-06-18 that strict-parse capabilities fail on the unknown key.
+        ...(deps.advertiseTasks && {
+          tasks: {
+            list: {},
+            cancel: {},
+            requests: {
+              tools: { call: {} },
+            },
           },
-        },
+        }),
         ...(deps.extensions && { extensions: deps.extensions }),
       },
       ...(deps.instructions && { instructions: deps.instructions }),

@@ -498,6 +498,7 @@ describe('core/app', () => {
     await composed.createServer();
 
     expect(mockCreateMcpServerInstance).toHaveBeenCalledWith({
+      advertiseTasks: false,
       config: mockConfig,
       promptRegistry: mockPromptRegistry.instance,
       resourceRegistry: mockResourceRegistry.instance,

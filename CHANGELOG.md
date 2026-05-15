@@ -2,6 +2,10 @@
 
 All notable changes to this project. Each entry links to its full per-version file in [changelog/](changelog/).
 
+## [0.9.1](changelog/0.9.x/0.9.1.md) — 2026-05-15
+
+Gate experimental `tasks` capability on actual task-tool registration — clients pinned to MCP spec 2025-06-18 strict-parse and fail on the unknown key. Add `notifyPromptListChanged`/`notifyToolListChanged` to `Context`. OTel semconv `^1.40 → ^1.41` (stable `deployment.environment.name`). Pin `fast-xml-parser` to `5.7.3`.
+
 ## [0.9.0](changelog/0.9.x/0.9.0.md) — 2026-05-11 · ⚠️ Breaking · 🛡️ Security
 
 Workers boot under `nodejs_compat` (#124), adds `instructions` on entry points (#91), cross-vendor portability lint family (#132), definition linting moves to build-time only. Plus RFC 8414 §3 well-known mount, SSRF hardening, tenant-id boundary check.

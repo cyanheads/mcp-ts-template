@@ -9,19 +9,15 @@ import { expect } from 'vitest';
 import { z } from 'zod';
 
 export function expectDefaultServerCapabilities(client: Client): void {
-  expect(client.getServerCapabilities()).toMatchObject({
+  const capabilities = client.getServerCapabilities();
+  expect(capabilities).toMatchObject({
     logging: {},
     prompts: { listChanged: true },
     resources: { listChanged: true },
-    tasks: {
-      cancel: {},
-      list: {},
-      requests: {
-        tools: { call: {} },
-      },
-    },
     tools: { listChanged: true },
   });
+  // SEP-1686 tasks is gated on usage — default server has no task tools.
+  expect(capabilities?.tasks).toBeUndefined();
 }
 
 export async function expectDefaultServerDiscoverySurface(client: Client): Promise<void> {

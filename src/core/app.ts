@@ -22,6 +22,7 @@ import type { AnyResourceDefinition } from '@/mcp-server/resources/utils/resourc
 import { RootsRegistry } from '@/mcp-server/roots/roots-registration.js';
 import { createMcpServerInstance } from '@/mcp-server/server.js';
 import { TaskManager } from '@/mcp-server/tasks/core/taskManager.js';
+import { isTaskToolDefinition } from '@/mcp-server/tasks/utils/taskToolDefinition.js';
 import type { AnyToolDef } from '@/mcp-server/tools/tool-registration.js';
 import { ToolRegistry } from '@/mcp-server/tools/tool-registration.js';
 import { initHeartbeatMetrics } from '@/mcp-server/transports/heartbeat.js';
@@ -269,6 +270,7 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
   // --- MCP services ---
 
   const taskManager = new TaskManager(config, storageService);
+  const advertiseTasks = tools.some((def) => isTaskToolDefinition(def) || def.task === true);
 
   const exposeStatelessSessionId = contextOptions?.exposeStatelessSessionId === true;
   const toolRegistry = new ToolRegistry(tools, {
@@ -286,6 +288,7 @@ export async function composeServices(options: CreateAppOptions = {}): Promise<C
 
   const createServer = () =>
     createMcpServerInstance({
+      advertiseTasks,
       config,
       ...(extensions && { extensions }),
       ...(instructions && { instructions }),

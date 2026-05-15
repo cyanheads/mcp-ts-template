@@ -56,8 +56,10 @@ export interface ResourceHandlerFactoryServices {
  * registerAll() from overwriting an in-flight handler's notifier target.
  */
 export interface ResourceHandlerNotifiers {
+  notifyPromptListChanged?: () => void;
   notifyResourceListChanged?: () => void;
   notifyResourceUpdated?: (uri: string) => void;
+  notifyToolListChanged?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -189,8 +191,10 @@ export function createResourceHandler(
           sessionId: handlerSessionId,
           elicit: wrapElicit(sdkCaps),
           sample: wrapSample(sdkCaps),
+          notifyPromptListChanged: notifiers.notifyPromptListChanged,
           notifyResourceListChanged: notifiers.notifyResourceListChanged,
           notifyResourceUpdated: notifiers.notifyResourceUpdated,
+          notifyToolListChanged: notifiers.notifyToolListChanged,
           uri,
         }),
         def.errors,

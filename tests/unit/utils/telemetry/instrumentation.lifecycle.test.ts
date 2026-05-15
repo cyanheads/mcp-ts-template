@@ -126,6 +126,7 @@ vi.mock('@opentelemetry/sdk-trace-node', () => ({
 }));
 
 vi.mock('@opentelemetry/semantic-conventions', () => ({
+  ATTR_DEPLOYMENT_ENVIRONMENT_NAME: 'deployment.environment.name',
   ATTR_SERVICE_NAME: 'service.name',
   ATTR_SERVICE_VERSION: 'service.version',
 }));

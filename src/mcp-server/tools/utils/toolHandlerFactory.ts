@@ -58,8 +58,10 @@ export interface HandlerFactoryServices {
  * notifying the wrong server).
  */
 export interface HandlerNotifiers {
+  notifyPromptListChanged?: () => void;
   notifyResourceListChanged?: () => void;
   notifyResourceUpdated?: (uri: string) => void;
+  notifyToolListChanged?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -237,8 +239,10 @@ export function createToolHandler(
           sessionId: handlerSessionId,
           elicit: wrapElicit(sdkCaps),
           sample: wrapSample(sdkCaps),
+          notifyPromptListChanged: notifiers.notifyPromptListChanged,
           notifyResourceListChanged: notifiers.notifyResourceListChanged,
           notifyResourceUpdated: notifiers.notifyResourceUpdated,
+          notifyToolListChanged: notifiers.notifyToolListChanged,
         }),
         def.errors,
       );

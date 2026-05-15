@@ -48,13 +48,12 @@ function canUseNodeSDK(): boolean {
  * @returns Record of cloud-related resource attributes
  */
 function detectCloudResource(): Record<string, string> {
-  // Import constants inline — this function runs once at startup, not on the hot path.
-  // Cloud/deployment attrs use stable SEMRESATTRS_* names; deployment.environment.name
-  // is only in /incubating so we keep the string literal for that one attribute.
+  // cloud.* attrs remain in @opentelemetry/semantic-conventions/incubating, so
+  // string literals are kept here. Stable attrs (service.*, deployment.*) are
+  // applied at the resource construction site using their typed constants.
   const CLOUD_PROVIDER = 'cloud.provider';
   const CLOUD_PLATFORM = 'cloud.platform';
   const CLOUD_REGION = 'cloud.region';
-  const DEPLOYMENT_ENV_NAME = 'deployment.environment.name';
 
   const attrs: Record<string, string> = {};
 
@@ -81,8 +80,6 @@ function detectCloudResource(): Record<string, string> {
       attrs[CLOUD_REGION] = process.env.GCP_REGION;
     }
   }
-
-  attrs[DEPLOYMENT_ENV_NAME] = config.environment;
 
   return attrs;
 }
@@ -149,7 +146,7 @@ export async function initializeOpenTelemetry(): Promise<void> {
         { PeriodicExportingMetricReader },
         { NodeSDK },
         { BatchSpanProcessor, TraceIdRatioBasedSampler },
-        { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION },
+        { ATTR_DEPLOYMENT_ENVIRONMENT_NAME, ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION },
       ] = await Promise.all([
         import('@opentelemetry/instrumentation-http'),
         import('@opentelemetry/exporter-metrics-otlp-http'),
@@ -179,6 +176,7 @@ export async function initializeOpenTelemetry(): Promise<void> {
       const resource = resourceFromAttributes({
         [ATTR_SERVICE_NAME]: config.openTelemetry.serviceName,
         [ATTR_SERVICE_VERSION]: config.openTelemetry.serviceVersion,
+        [ATTR_DEPLOYMENT_ENVIRONMENT_NAME]: config.environment,
         ...detectCloudResource(),
       });
 

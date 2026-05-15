@@ -75,8 +75,10 @@ export class ToolRegistry {
     // passed through to each handler factory — never mutated on a shared
     // services object (which would race under concurrent HTTP requests).
     const notifiers: HandlerNotifiers = {
+      notifyPromptListChanged: () => server.sendPromptListChanged(),
       notifyResourceListChanged: () => server.sendResourceListChanged(),
       notifyResourceUpdated: (uri: string) => server.server.sendResourceUpdated({ uri }),
+      notifyToolListChanged: () => server.sendToolListChanged(),
     };
 
     const context = requestContextService.createRequestContext({
@@ -354,8 +356,10 @@ export class ToolRegistry {
           storage: services.storage,
           signal: abortController.signal,
           taskCtx: { store: taskStore, taskId },
+          notifyPromptListChanged: notifiers.notifyPromptListChanged,
           notifyResourceListChanged: notifiers.notifyResourceListChanged,
           notifyResourceUpdated: notifiers.notifyResourceUpdated,
+          notifyToolListChanged: notifiers.notifyToolListChanged,
         }),
         tool.errors,
       );

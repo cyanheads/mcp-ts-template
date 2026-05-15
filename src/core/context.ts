@@ -117,11 +117,15 @@ export interface Context {
   /** Logger scoped to this request. Auto-includes requestId, traceId, tenantId. */
   readonly log: ContextLogger;
 
-  // --- Resource notifications ---
+  // --- List-changed notifications (capability-gated; present iff advertised) ---
+  /** Notify clients that the prompt list has changed (prompts added/removed). */
+  readonly notifyPromptListChanged?: (() => void) | undefined;
   /** Notify clients that the resource list has changed (resources added/removed). */
   readonly notifyResourceListChanged?: (() => void) | undefined;
   /** Send a resource-updated notification to subscribed clients. */
   readonly notifyResourceUpdated?: ((uri: string) => void) | undefined;
+  /** Notify clients that the tool list has changed (tools added/removed). */
+  readonly notifyToolListChanged?: (() => void) | undefined;
 
   // --- Task progress (present when task: true) ---
   /** Progress reporting for background tasks. Undefined for non-task tools. */
@@ -367,8 +371,10 @@ export interface ContextDeps {
   appContext: RequestContext;
   elicit?: Context['elicit'];
   logger: Logger;
+  notifyPromptListChanged?: Context['notifyPromptListChanged'];
   notifyResourceListChanged?: Context['notifyResourceListChanged'];
   notifyResourceUpdated?: Context['notifyResourceUpdated'];
+  notifyToolListChanged?: Context['notifyToolListChanged'];
   sample?: Context['sample'];
   /**
    * HTTP session ID. Forwarded onto `Context.sessionId` as-is. Caller is
@@ -423,8 +429,10 @@ export function createContext(deps: ContextDeps): Context {
     auth: appContext.auth,
     elicit: deps.elicit,
     sample: deps.sample,
+    notifyPromptListChanged: deps.notifyPromptListChanged,
     notifyResourceListChanged: deps.notifyResourceListChanged,
     notifyResourceUpdated: deps.notifyResourceUpdated,
+    notifyToolListChanged: deps.notifyToolListChanged,
     progress,
     uri: deps.uri,
     // No-op resolver for definitions without a contract. `attachTypedFail`
